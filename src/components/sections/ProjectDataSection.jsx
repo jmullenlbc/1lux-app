@@ -1,0 +1,202 @@
+'use client';
+import { useState } from 'react';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
+import Card, { CardHeader, CardBody } from '@/components/ui/Card';
+import QuestionCard from './QuestionCard';
+
+const FIELDS = [
+  { group: 'Building Metrics',
+    fields: [
+      { key: 'grossSf',              label: 'Total Gross SF',                  type: 'number', placeholder: '150,000',  hint: 'Total gross square footage of the entire building' },
+      { key: 'lotSf',                label: 'Lot Size Gross SF',               type: 'number', placeholder: '40,000',   hint: 'Total lot square footage' },
+      { key: 'buildingFootprintSf',  label: 'Building Footprint Total Gross SF', type: 'number', placeholder: '20,000', hint: 'Footprint of building on lot. Lot minus footprint = exterior site area.' },
+      { key: 'numUnits',             label: '# of Units / Rooms',              type: 'number', placeholder: '120',      hint: 'Total residential unit count' },
+      { key: 'numBedrooms',          label: '# of Bedrooms',                   type: 'number', placeholder: '200',      hint: 'Total bedroom count across all units' },
+      { key: 'numBalconies',         label: '# of Balconies',                  type: 'number', placeholder: '100',      hint: 'Total balcony count' },
+      { key: 'numBathrooms',         label: '# of Bathrooms',                  type: 'number', placeholder: '200',      hint: 'Total bathroom count across all units' },
+      { key: 'numVanities',          label: '# of Vanities',                   type: 'number', placeholder: '200',      hint: 'Usually equal to # of bathrooms' },
+      { key: 'numEgressStairwells',  label: '# of Egress Stairwell Landings',  type: 'number', placeholder: '30',       hint: 'Each landing counts separately. Add 20% on top.' },
+      { key: 'numFans',              label: '# of Ceiling Fans',               type: 'number', placeholder: '14',       hint: 'Total fan count — overrides unit-mix calculation. Leave blank to auto-calculate.' },
+      { key: 'numAccentDownlights',  label: '# of Recessed Downlight Accents', type: 'number', placeholder: '40',       hint: 'Adjustable recessed accents in corridors. $160 ea (1-hr fire rated).' },
+    ],
+  },
+  { group: 'Parking & Exterior',
+    fields: [
+      { key: 'numSurfaceParking',   label: '# of Surface Parking Stalls', type: 'number', placeholder: '80',  hint: 'Not in a structured garage' },
+      { key: 'numCarports',         label: '# of Carports',               type: 'number', placeholder: '0',   hint: 'Individual covered bays' },
+      { key: 'numGarages',          label: '# of Attached/Detached Garages', type: 'number', placeholder: '0' },
+      { key: 'numExteriorDoors',        label: '# of Exterior Doors',            type: 'number', placeholder: '20',  hint: 'Building entry/exit doors (not unit doors)' },
+    ],
+  },
+  { group: 'Area Breakdowns (SF)',
+    fields: [
+      { key: 'unitsSf',           label: 'Units Gross SF',           type: 'number', placeholder: '95,000',  hint: 'Residential units only — used for base $0.38/SF calculation' },
+      { key: 'garageSf',          label: 'Enclosed Garage SF',       type: 'number', placeholder: '25,000',  hint: '0 if no enclosed garage' },
+      { key: 'bohSf',             label: 'BOH / Core + Shell SF',    type: 'number', placeholder: '8,000',   hint: 'Mechanical, storage, bike room, trash, etc.' },
+      { key: 'corridorSf',        label: 'Corridor SF',              type: 'number', placeholder: '18,000' },
+      { key: 'interiorAmenitySf', label: 'Interior Amenity SF',      type: 'number', placeholder: '5,000',   hint: 'Lobby, clubhouse, fitness, co-working, etc.' },
+      { key: 'exteriorAmenitySf', label: 'Exterior Amenity SF',      type: 'number', placeholder: '8,000',   hint: 'Pool deck, courtyards, terraces, and other outdoor gathering areas' },
+    ],
+  },
+  { group: 'Freight, Warehousing & Tax',
+    fields: [
+      { key: 'freightPct',     label: 'Freight %',     type: 'number', placeholder: '6',    hint: 'Default 6% of lighting product subtotal. Enter as a percentage (e.g. 6 for 6%)', suffix: '%' },
+      { key: 'warehousingPct', label: 'Warehousing %', type: 'number', placeholder: '3',    hint: 'Default 3% of lighting product subtotal. Enter as a percentage (e.g. 3 for 3%)', suffix: '%' },
+      { key: 'salesTaxPct',    label: 'Sales Tax %',   type: 'number', placeholder: '9.15', hint: 'Jurisdiction sales tax rate on materials. Leave blank for tax-exempt projects. Applied to product subtotals only.', suffix: '%' },
+    ],
+  },
+];
+
+const PCT_FIELDS = new Set(['freightPct', 'warehousingPct', 'salesTaxPct']);
+
+export default function ProjectDataSection({ projectId, projectData, responses = {}, onSaveData, onSaveResponses, onNext, isDesign = false }) {
+  const [form, setForm] = useState(() => {
+    const f = {};
+    FIELDS.forEach(g => g.fields.forEach(field => {
+      const raw = projectData?.[field.key];
+      // Convert stored decimal (0.06) → display percentage (6) for pct fields
+      if (PCT_FIELDS.has(field.key) && raw != null && raw !== '') {
+        f[field.key] = (parseFloat(raw) * 100).toFixed(1).replace(/\.0$/, '');
+      } else {
+        f[field.key] = raw ?? '';
+      }
+    }));
+    return f;
+  });
+  const [qAnswers, setQAnswers] = useState({
+    buyHold:          responses.buyHold          || '',
+    switchesDimmers:  responses.switchesDimmers  || '',
+    contingency:      responses.contingency      || '',
+    salesTax:         responses.salesTax         || '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [saved,  setSaved]  = useState(false);
+
+  function update(key) {
+    return e => {
+      setForm(f => ({ ...f, [key]: e.target.value }));
+      setSaved(false);
+    };
+  }
+
+  async function handleSave(andNext = false) {
+    setSaving(true);
+    // Convert display percentage (6) → stored decimal (0.06) for pct fields
+    const payload = { ...form };
+    for (const key of PCT_FIELDS) {
+      if (payload[key] !== '' && payload[key] != null) {
+        const pct = parseFloat(payload[key]);
+        payload[key] = isNaN(pct) ? '' : (pct / 100).toString();
+      }
+    }
+    await onSaveData(payload);
+    // Save design-only Q&A responses if in design mode
+    if (isDesign && onSaveResponses) {
+      await onSaveResponses(qAnswers);
+    }
+    setSaved(true);
+    setSaving(false);
+    if (andNext) onNext();
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-bold text-slate-900">Project Data</h2>
+        <p className="text-slate-500 text-sm mt-1">
+          Enter your project metrics. The budget updates live as you fill in data.
+          All fields are optional — enter what you have and refine later.
+        </p>
+      </div>
+
+      {FIELDS.map(group => (
+        <Card key={group.group}>
+          <CardHeader>
+            <h3 className="font-semibold text-slate-800">{group.group}</h3>
+          </CardHeader>
+          <CardBody>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {group.fields.map(field => (
+                <Input
+                  key={field.key}
+                  label={field.label}
+                  type={field.type}
+                  placeholder={field.placeholder}
+                  hint={field.hint}
+                  prefix={field.prefix}
+                  suffix={field.suffix}
+                  value={form[field.key]}
+                  onChange={update(field.key)}
+                  min={0}
+                />
+              ))}
+            </div>
+          </CardBody>
+        </Card>
+      ))}
+
+      {/* ── DESIGN-ONLY Q&A ───────────────────────────────────────────────── */}
+      {isDesign && (
+        <div className="space-y-4">
+          <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Project Intent &amp; Budget Strategy</div>
+
+          <QuestionCard
+            question="Is this a buy-and-hold or build-and-sell project?"
+            note="Buy-and-hold projects benefit from more durable fixtures with lower long-term maintenance cost. Build-and-sell projects can prioritize visual impact per dollar at sale."
+            options={[
+              { value: 'buyHold',   label: 'Buy and hold — long-term ownership',     sub: 'Prioritize durability and low maintenance', cost: 0 },
+              { value: 'buildSell', label: 'Build and sell — exit at or near CO',     sub: 'Prioritize visual impact per dollar', cost: 0 },
+            ]}
+            value={qAnswers.buyHold}
+            onChange={v => setQAnswers(a => ({ ...a, buyHold: v }))}
+          />
+
+          <QuestionCard
+            question="Should switches and dimmers be included in our budget or in the electrical contractor's scope?"
+            note="Switches and dimmers are sometimes self-performed by the EC. Clarifying this upfront prevents budget gaps or overlaps."
+            options={[
+              { value: 'ourScope', label: 'Include in ILC / lighting budget',           sub: 'We spec and supply switches/dimmers', cost: 0 },
+              { value: 'ecScope',  label: "Electrical contractor's scope",               sub: 'EC supplies and installs; exclude from our budget', cost: 0 },
+              { value: 'tbd',      label: 'TBD — to be determined',                     cost: 0 },
+            ]}
+            value={qAnswers.switchesDimmers}
+            onChange={v => setQAnswers(a => ({ ...a, switchesDimmers: v }))}
+          />
+
+          <QuestionCard
+            question="Should we hold a contingency line item in the budget?"
+            note="A contingency covers scope gaps discovered during design. Typical range: 5–10% of lighting subtotal. Recommended for early-stage design budgets."
+            options={[
+              { value: 'none', label: 'No contingency',                          sub: 'Use only for late-stage CD budgets with high confidence', cost: 0 },
+              { value: '5pct', label: '5% contingency',                          sub: 'Standard for DD-stage budgets', cost: 0 },
+              { value: '10pct',label: '10% contingency',                         sub: 'Recommended for SD-stage or early schematic budgets', cost: 0 },
+            ]}
+            value={qAnswers.contingency}
+            onChange={v => setQAnswers(a => ({ ...a, contingency: v }))}
+          />
+
+          {/* Sales tax is now entered as a numeric % in the Freight, Warehousing & Tax section above */}
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex items-center gap-3 pt-2">
+        <Button variant="amber" size="lg" loading={saving} onClick={() => handleSave(true)}>
+          Save & Continue to Units
+        </Button>
+        <Button variant="secondary" onClick={() => handleSave(false)} disabled={saving}>
+          Save Draft
+        </Button>
+        {saved && !saving && (
+          <span className="text-sm text-green-600 flex items-center gap-1">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+            Saved
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}

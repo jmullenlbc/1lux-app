@@ -1,0 +1,451 @@
+'use client';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Badge from '@/components/ui/Badge';
+
+const ROLE_OPTIONS = [
+  { value: 'SUPER_ADMIN',   label: 'Super Admin',   desc: 'Full access — ILC Studios team only'        },
+  { value: 'COMPANY_ADMIN', label: 'Company Admin',  desc: 'Can manage users and see all projects'      },
+  { value: 'USER',          label: 'User',           desc: 'Standard access — create and edit projects' },
+  { value: 'CLIENT_VIEWER', label: 'Client Viewer',  desc: 'Read-only view of assigned projects only'   },
+];
+
+const ROLE_BADGE = {
+  SUPER_ADMIN:   { label: 'Super Admin',   variant: 'ilc_admin' },
+  ILC_ADMIN:     { label: 'Super Admin',   variant: 'ilc_admin' },
+  COMPANY_ADMIN: { label: 'Company Admin', variant: 'admin'     },
+  ADMIN:         { label: 'Company Admin', variant: 'admin'     },
+  USER:          { label: 'User',          variant: 'user'      },
+  CLIENT_VIEWER: { label: 'Client Viewer', variant: 'pending'   },
+};
+
+function getRoleBadge(role) {
+  return ROLE_BADGE[role] || { label: role, variant: 'user' };
+}
+
+// ── Create User Form ──────────────────────────────────────────────────────────
+
+function CreateUserForm({ currentUserRole, onCreated }) {
+  const [form, setForm] = useState({
+    name:              '',
+    email:             '',
+    password:          '',
+    role:              'USER',
+    mustChangePassword: true,
+  });
+  const [saving, setSaving] = useState(false);
+  const [error,  setError]  = useState('');
+
+  const isSuperAdmin = currentUserRole === 'SUPER_ADMIN' || currentUserRole === 'ILC_ADMIN';
+  const availableRoles = isSuperAdmin ? ROLE_OPTIONS : ROLE_OPTIONS.filter(r => r.value === 'USER' || r.value === 'CLIENT_VIEWER');
+
+  function set(k, v) { setForm(f => ({ ...f, [k]: v })); }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError('');
+    if (!form.email || !form.password) { setError('Email and password are required.'); return; }
+    if (form.password.length < 8) { setError('Password must be at least 8 characters.'); return; }
+    setSaving(true);
+    try {
+      const res  = await fetch('/api/admin/users', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || 'Failed to create user'); return; }
+      onCreated(data);
+      setForm({ name: '', email: '', password: '', role: 'USER', mustChangePassword: true });
+    } catch {
+      setError('Network error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="max-w-lg">
+      <div className="bg-white rounded-xl border border-slate-200 p-6">
+        <h2 className="font-semibold text-slate-900 mb-5">Create New User</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Full Name</label>
+              <input type="text" value={form.name} onChange={e => set('name', e.target.value)}
+                placeholder="Jane Smith"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Email <span className="text-red-500">*</span></label>
+              <input type="email" value={form.email} onChange={e => set('email', e.target.value)}
+                placeholder="jane@company.com" required
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Temporary Password <span className="text-red-500">*</span></label>
+            <input type="text" value={form.password} onChange={e => set('password', e.target.value)}
+              placeholder="Min 8 characters" required
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-500" />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-2">Role <span className="text-red-500">*</span></label>
+            <div className="space-y-2">
+              {availableRoles.map(r => (
+                <label key={r.value} className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                  form.role === r.value ? 'border-amber-400 bg-amber-50' : 'border-slate-200 hover:border-slate-300'
+                }`}>
+                  <input type="radio" name="role" value={r.value} checked={form.role === r.value}
+                    onChange={() => set('role', r.value)} className="mt-0.5 accent-amber-500" />
+                  <div>
+                    <div className="text-sm font-semibold text-slate-800">{r.label}</div>
+                    <div className="text-xs text-slate-500">{r.desc}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <label className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+            <input type="checkbox" checked={form.mustChangePassword} onChange={e => set('mustChangePassword', e.target.checked)}
+              className="accent-amber-500" />
+            <div>
+              <div className="text-sm font-medium text-slate-800">Require password change on first login</div>
+              <div className="text-xs text-slate-500">User will be prompted to set their own password immediately after logging in</div>
+            </div>
+          </label>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 text-sm text-red-600">{error}</div>
+          )}
+
+          <button type="submit" disabled={saving}
+            className="w-full py-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-colors disabled:opacity-60">
+            {saving ? 'Creating…' : 'Create User'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Edit User Modal ───────────────────────────────────────────────────────────
+
+function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
+  const [form, setForm] = useState({
+    name:              user.name || '',
+    role:              user.role,
+    mustChangePassword: user.mustChangePassword,
+    isActive:          user.isActive !== false,
+    newPassword:       '',
+  });
+  const [saving, setSaving]   = useState(false);
+  const [error,  setError]    = useState('');
+  const [success, setSuccess] = useState('');
+
+  const isSuperAdmin = currentUserRole === 'SUPER_ADMIN' || currentUserRole === 'ILC_ADMIN';
+  const availableRoles = isSuperAdmin ? ROLE_OPTIONS : ROLE_OPTIONS.filter(r => r.value === 'USER' || r.value === 'CLIENT_VIEWER');
+
+  function set(k, v) { setForm(f => ({ ...f, [k]: v })); }
+
+  async function handleSave(e) {
+    e.preventDefault();
+    setError(''); setSuccess('');
+    if (form.newPassword && form.newPassword.length < 8) { setError('Password must be at least 8 characters.'); return; }
+    setSaving(true);
+    try {
+      const body = {
+        name:              form.name,
+        role:              form.role,
+        mustChangePassword: form.mustChangePassword,
+        isActive:          form.isActive,
+      };
+      if (form.newPassword) body.newPassword = form.newPassword;
+      const res  = await fetch(`/api/admin/users/${user.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || 'Failed to update user'); return; }
+      setSuccess('Saved.');
+      onSaved(data);
+    } catch {
+      setError('Network error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <div>
+            <h3 className="font-semibold text-slate-900">Edit User</h3>
+            <p className="text-xs text-slate-500 mt-0.5">{user.email}</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+
+        <form onSubmit={handleSave} className="p-6 space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Full Name</label>
+            <input type="text" value={form.name} onChange={e => set('name', e.target.value)}
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-2">Role</label>
+            <div className="space-y-2">
+              {availableRoles.map(r => (
+                <label key={r.value} className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                  form.role === r.value ? 'border-amber-400 bg-amber-50' : 'border-slate-200 hover:border-slate-300'
+                }`}>
+                  <input type="radio" name="edit-role" value={r.value} checked={form.role === r.value}
+                    onChange={() => set('role', r.value)} className="mt-0.5 accent-amber-500" />
+                  <div>
+                    <div className="text-sm font-semibold text-slate-800">{r.label}</div>
+                    <div className="text-xs text-slate-500">{r.desc}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Reset Password <span className="text-slate-400 font-normal">(leave blank to keep current)</span></label>
+            <input type="text" value={form.newPassword} onChange={e => set('newPassword', e.target.value)}
+              placeholder="New temporary password"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-500" />
+          </div>
+
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" checked={form.mustChangePassword} onChange={e => set('mustChangePassword', e.target.checked)}
+              className="accent-amber-500" />
+            <span className="text-sm text-slate-700">Require password change on next login</span>
+          </label>
+
+          <div className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+            form.isActive ? 'border-slate-200 hover:border-slate-300' : 'border-red-200 bg-red-50'
+          }`} onClick={() => set('isActive', !form.isActive)}>
+            <input type="checkbox" checked={form.isActive} onChange={e => set('isActive', e.target.checked)}
+              className="accent-amber-500 mt-0.5" onClick={e => e.stopPropagation()} />
+            <div>
+              <div className={`text-sm font-medium ${form.isActive ? 'text-slate-800' : 'text-red-700'}`}>
+                {form.isActive ? 'Account is active' : 'Account is inactive'}
+              </div>
+              <div className="text-xs text-slate-500">
+                {form.isActive
+                  ? 'User can sign in normally'
+                  : 'User cannot sign in — their data is preserved'}
+              </div>
+            </div>
+          </div>
+
+          {error   && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 text-sm text-red-600">{error}</div>}
+          {success && <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2.5 text-sm text-green-700">{success}</div>}
+
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose}
+              className="flex-1 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+              Close
+            </button>
+            <button type="submit" disabled={saving}
+              className="flex-1 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-colors disabled:opacity-60">
+              {saving ? 'Saving…' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Main AdminClient ──────────────────────────────────────────────────────────
+
+export default function AdminClient({ users: initialUsers, projects, currentUser }) {
+  const router     = useRouter();
+  const [tab,      setTab]      = useState('users');
+  const [users,    setUsers]    = useState(initialUsers);
+  const [editUser, setEditUser] = useState(null);
+  const [created,  setCreated]  = useState(null);
+
+  function handleUserCreated(newUser) {
+    setUsers(prev => [newUser, ...prev]);
+    setCreated(newUser);
+    setTab('users');
+  }
+
+  function handleUserSaved(updated) {
+    setUsers(prev => prev.map(u => u.id === updated.id ? { ...u, ...updated } : u));
+  }
+
+  const TABS = [
+    { id: 'users',  label: `Users (${users.length})`          },
+    { id: 'create', label: '+ Create User'                    },
+    { id: 'projects', label: `All Projects (${projects.length})` },
+  ];
+
+  return (
+    <div className="max-w-6xl mx-auto px-6 py-8">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-slate-900">Admin Panel</h1>
+        <p className="text-slate-500 text-sm mt-1">Manage users and view all projects.</p>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-slate-200 mb-6">
+        {TABS.map(t => (
+          <button key={t.id} onClick={() => { setTab(t.id); setCreated(null); }}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              tab === t.id
+                ? 'border-amber-500 text-amber-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Users tab */}
+      {tab === 'users' && (
+        <>
+          {created && (
+            <div className="mb-4 bg-green-50 border border-green-200 rounded-xl px-5 py-3 flex items-center gap-3">
+              <svg className="w-5 h-5 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-sm text-green-800">
+                <span className="font-semibold">{created.name || created.email}</span> was created.
+                {created.mustChangePassword && ' They will be prompted to set their own password on first login.'}
+              </p>
+            </div>
+          )}
+
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100">
+                  <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">User</th>
+                  <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Role</th>
+                  <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
+                  <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Projects</th>
+                  <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Joined</th>
+                  <th className="px-6 py-3 w-16"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {users.map(u => {
+                  const badge = getRoleBadge(u.role);
+                  const isMe  = u.id === currentUser.id;
+                  return (
+                    <tr key={u.id} className={`hover:bg-slate-50 ${u.isActive === false ? 'opacity-50' : ''}`}>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 text-sm font-semibold shrink-0">
+                            {(u.name || u.email)[0].toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="font-medium text-slate-900">
+                              {u.name || <span className="text-slate-400 italic">No name set</span>}
+                              {isMe && <span className="ml-2 text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-medium">You</span>}
+                            </div>
+                            <div className="text-xs text-slate-400">{u.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <Badge variant={badge.variant}>{badge.label}</Badge>
+                      </td>
+                      <td className="px-6 py-4">
+                        {u.isActive === false
+                          ? <Badge variant="draft">Inactive</Badge>
+                          : u.mustChangePassword
+                            ? <Badge variant="pending">Temp Password</Badge>
+                            : u.hasPassword
+                              ? <Badge variant="complete">Active</Badge>
+                              : <Badge variant="pending">No Password</Badge>
+                        }
+                      </td>
+                      <td className="px-6 py-4 text-slate-600">{u.projectCount ?? '—'}</td>
+                      <td className="px-6 py-4 text-slate-500 text-xs">
+                        {new Date(u.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </td>
+                      <td className="px-6 py-4">
+                        {!isMe && (
+                          <button onClick={() => setEditUser(u)}
+                            className="text-xs text-slate-400 hover:text-amber-600 font-medium transition-colors">
+                            Edit
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* Create user tab */}
+      {tab === 'create' && (
+        <CreateUserForm
+          currentUserRole={currentUser.role}
+          onCreated={handleUserCreated}
+        />
+      )}
+
+      {/* Projects tab */}
+      {tab === 'projects' && (
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-100">
+                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Project</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Owner</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Updated</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {projects.map(p => (
+                <tr key={p.id} className="hover:bg-slate-50">
+                  <td className="px-6 py-4">
+                    <div className="font-medium text-slate-900">{p.name}</div>
+                    {p.location && <div className="text-xs text-slate-400 mt-0.5">{p.location}</div>}
+                  </td>
+                  <td className="px-6 py-4 text-slate-600">
+                    {p.createdBy?.name || p.createdBy?.email}
+                  </td>
+                  <td className="px-6 py-4">
+                    <Badge variant={p.status.toLowerCase()}>
+                      {p.status.charAt(0) + p.status.slice(1).toLowerCase().replace('_', ' ')}
+                    </Badge>
+                  </td>
+                  <td className="px-6 py-4 text-slate-500 text-xs">
+                    {new Date(p.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Edit modal */}
+      {editUser && (
+        <EditUserModal
+          user={editUser}
+          currentUserRole={currentUser.role}
+          onSaved={handleUserSaved}
+          onClose={() => setEditUser(null)}
+        />
+      )}
+    </div>
+  );
+}

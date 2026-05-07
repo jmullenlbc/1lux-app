@@ -1,0 +1,750 @@
+'use client';
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+
+// ─── Tag definitions ──────────────────────────────────────────────────────────
+const CONTRACT_TAGS = [
+  { value: 'Supply - Executed', label: 'Supply Contract',   sub: 'Executed supply agreement',     color: 'bg-blue-100 text-blue-700 border-blue-200',   dot: 'bg-blue-500',   aiReview: true  },
+  { value: 'Supply',            label: 'Supply Draft',      sub: 'Draft / unsigned supply PO',    color: 'bg-sky-100 text-sky-700 border-sky-200',      dot: 'bg-sky-400',    aiReview: true  },
+  { value: 'Design - Executed', label: 'Design Contract',   sub: 'Executed design agreement',     color: 'bg-purple-100 text-purple-700 border-purple-200', dot: 'bg-purple-500', aiReview: false },
+  { value: 'Design',            label: 'Design Draft',      sub: 'Draft design agreement',        color: 'bg-violet-100 text-violet-700 border-violet-200', dot: 'bg-violet-400', aiReview: false },
+  { value: 'Amendment',         label: 'Amendment',         sub: 'Contract amendment or addendum', color: 'bg-amber-100 text-amber-700 border-amber-200', dot: 'bg-amber-500',  aiReview: false },
+  { value: 'COI',               label: 'Certificate of Insurance', sub: 'COI from vendor or GC', color: 'bg-green-100 text-green-700 border-green-200', dot: 'bg-green-500',  aiReview: false },
+  { value: 'SOV',               label: 'Schedule of Values', sub: 'SOV for billing',            color: 'bg-teal-100 text-teal-700 border-teal-200',    dot: 'bg-teal-500',   aiReview: false },
+  { value: 'Proposal',          label: 'Proposal',          sub: 'Bid or proposal document',      color: 'bg-rose-100 text-rose-700 border-rose-200',   dot: 'bg-rose-400',   aiReview: false },
+];
+
+function tagMeta(tagValue) {
+  return CONTRACT_TAGS.find(t => t.value === tagValue) || {
+    label: tagValue, color: 'bg-slate-100 text-slate-500 border-slate-200', dot: 'bg-slate-400', aiReview: false,
+  };
+}
+
+function isSupplyTag(tag) {
+  return tag === 'Supply - Executed' || tag === 'Supply';
+}
+
+// ─── Risk badge ───────────────────────────────────────────────────────────────
+const RISK_META = {
+  'Low':       { bg: 'bg-green-100',  text: 'text-green-700',  dot: 'bg-green-500'  },
+  'Medium':    { bg: 'bg-amber-100',  text: 'text-amber-700',  dot: 'bg-amber-500'  },
+  'High':      { bg: 'bg-orange-100', text: 'text-orange-700', dot: 'bg-orange-500' },
+  'Very High': { bg: 'bg-red-100',    text: 'text-red-700',    dot: 'bg-red-500'    },
+};
+const FLAG_META = {
+  RED:    { bg: 'bg-red-50',   border: 'border-red-200',   text: 'text-red-700',   badge: 'bg-red-100 text-red-700',   dot: 'bg-red-500'   },
+  YELLOW: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-800', badge: 'bg-amber-100 text-amber-700', dot: 'bg-amber-400' },
+  GREEN:  { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-800', badge: 'bg-green-100 text-green-700', dot: 'bg-green-500' },
+};
+const ACTION_COLORS = {
+  'Accept':           'bg-green-100 text-green-700',
+  'Negotiate':        'bg-amber-100 text-amber-700',
+  'Push Back Hard':   'bg-orange-100 text-orange-700',
+  'Seek Legal Review':'bg-red-100 text-red-700',
+};
+
+function RiskBadge({ score }) {
+  const m = RISK_META[score] || RISK_META['High'];
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${m.bg} ${m.text}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${m.dot}`} />
+      {score}
+    </span>
+  );
+}
+
+function formatBytes(b) {
+  if (b < 1024) return `${b} B`;
+  if (b < 1048576) return `${(b / 1024).toFixed(1)} KB`;
+  return `${(b / 1048576).toFixed(1)} MB`;
+}
+
+function parseTags(raw) {
+  if (!raw) return [];
+  try { return typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { return []; }
+}
+
+function parseAnalysis(raw) {
+  if (!raw) return null;
+  try { return typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { return null; }
+}
+
+// Extract COI expiry date from tags array (stored as "COI_EXPIRY:YYYY-MM-DD")
+function getCOIExpiry(tags) {
+  const entry = tags.find(t => t.startsWith('COI_EXPIRY:'));
+  return entry ? entry.replace('COI_EXPIRY:', '') : null;
+}
+
+// Returns { label, color } for a COI expiry date string
+function coiExpiryMeta(isoDate) {
+  if (!isoDate) return null;
+  const expiry = new Date(isoDate);
+  const today  = new Date();
+  const daysLeft = Math.floor((expiry - today) / 86400000);
+  if (daysLeft < 0)  return { label: `Expired ${Math.abs(daysLeft)}d ago`, color: 'text-red-600 bg-red-50 border-red-200' };
+  if (daysLeft < 30) return { label: `Expires in ${daysLeft}d`, color: 'text-red-600 bg-red-50 border-red-200' };
+  if (daysLeft < 60) return { label: `Expires in ${daysLeft}d`, color: 'text-amber-600 bg-amber-50 border-amber-200' };
+  const formatted = expiry.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return { label: `Expires ${formatted}`, color: 'text-green-700 bg-green-50 border-green-200' };
+}
+
+// ─── Tag selector modal ───────────────────────────────────────────────────────
+function TagModal({ fileName, onConfirm, onCancel }) {
+  const [selected, setSelected] = useState(null);
+
+  const meta = selected ? tagMeta(selected) : null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100">
+          <h3 className="font-bold text-slate-900 text-sm">What type of document is this?</h3>
+          <p className="text-xs text-slate-400 mt-0.5 truncate">{fileName}</p>
+        </div>
+        <div className="p-4 space-y-2 max-h-[60vh] overflow-y-auto">
+          {CONTRACT_TAGS.map(tag => (
+            <button
+              key={tag.value}
+              type="button"
+              onClick={() => setSelected(tag.value)}
+              className={[
+                'w-full flex items-start gap-3 px-3 py-2.5 rounded-xl border text-left transition-all',
+                selected === tag.value
+                  ? 'border-amber-400 bg-amber-50 ring-1 ring-amber-300'
+                  : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50',
+              ].join(' ')}
+            >
+              <span className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${tag.dot}`} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-slate-800">{tag.label}</span>
+                  {tag.aiReview && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">
+                      ⚡ AI Review
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">{tag.sub}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {meta?.aiReview && (
+          <div className="mx-4 mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-xs text-amber-700 font-medium">
+              ⚡ Claude will automatically review this supply contract against ILC Studios standard positions.
+            </p>
+          </div>
+        )}
+
+        <div className="flex gap-2 px-4 py-3 border-t border-slate-100">
+          <button type="button" onClick={onCancel}
+            className="flex-1 px-4 py-2 rounded-lg text-sm font-medium border border-slate-200 text-slate-600 hover:bg-slate-50">
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => selected && onConfirm({ tag: selected, aiReview: tagMeta(selected).aiReview })}
+            disabled={!selected}
+            className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 hover:bg-amber-400 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            {meta?.aiReview ? '⚡ Upload & Review' : 'Upload'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Contract analysis panel ──────────────────────────────────────────────────
+function AnalysisPanel({ analysis, fileName }) {
+  const [tab, setTab] = useState('flags');
+
+  const flags   = analysis?.flags || [];
+  const missing = analysis?.missing_clauses || [];
+  const summary = analysis?.contract_summary || {};
+  const ilcPos  = analysis?.ilc_position_summary || {};
+  const southstar = analysis?.southstar_compatibility || {};
+
+  const reds    = flags.filter(f => f.severity === 'RED');
+  const yellows = flags.filter(f => f.severity === 'YELLOW');
+  const greens  = flags.filter(f => f.severity === 'GREEN');
+  const sorted  = [...reds, ...yellows, ...greens];
+
+  const risk    = analysis?.overall_risk_score;
+  const riskM   = RISK_META[risk] || RISK_META['High'];
+
+  const TABS = [
+    { id: 'flags',    label: `Flags (${flags.length})` },
+    { id: 'missing',  label: `Missing (${missing.length})` },
+    { id: 'checklist',label: 'ILC Checklist' },
+    { id: 'southstar',label: 'Southstar' },
+  ];
+
+  function CheckRow({ label, value, invert = false }) {
+    const good = invert ? value === false : value === true;
+    return (
+      <div className="flex items-center gap-2 py-1.5 border-b border-slate-50 last:border-0">
+        <span className={`text-sm shrink-0 font-semibold ${good ? 'text-green-500' : 'text-red-400'}`}>
+          {good ? '✓' : '✗'}
+        </span>
+        <span className="text-xs text-slate-600">{label}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 border border-slate-200 rounded-xl overflow-hidden bg-white">
+      {/* Summary header */}
+      <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex flex-wrap items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-slate-700">{summary.counterparty_name || '—'}</span>
+            {summary.contract_tier && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-600">
+                {summary.contract_tier?.split(' - ')[0]}
+              </span>
+            )}
+            {risk && <RiskBadge score={risk} />}
+          </div>
+          <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{analysis?.overall_risk_rationale}</p>
+        </div>
+        <div className="flex gap-3 text-xs text-slate-500 shrink-0">
+          <span className="text-red-600 font-semibold">{reds.length} RED</span>
+          <span className="text-amber-600 font-semibold">{yellows.length} YELLOW</span>
+          <span className="text-green-600 font-semibold">{greens.length} GREEN</span>
+        </div>
+      </div>
+
+      {/* Tab bar */}
+      <div className="flex border-b border-slate-200 bg-white">
+        {TABS.map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={[
+              'px-4 py-2 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap',
+              tab === t.id
+                ? 'border-amber-500 text-amber-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700',
+            ].join(' ')}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab content */}
+      <div className="p-4 space-y-3 max-h-[500px] overflow-y-auto">
+        {tab === 'flags' && (
+          sorted.length === 0
+            ? <p className="text-xs text-slate-400 text-center py-4">No flags found.</p>
+            : sorted.map(f => {
+                const m = FLAG_META[f.severity] || FLAG_META.YELLOW;
+                return (
+                  <div key={f.id} className={`rounded-xl border p-3 ${m.bg} ${m.border}`}>
+                    <div className="flex items-start gap-2 mb-1.5">
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 mt-0.5 ${m.badge}`}>{f.severity}</span>
+                      <span className={`text-xs font-semibold flex-1 ${m.text}`}>{f.title}</span>
+                      {f.suggested_action && (
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${ACTION_COLORS[f.suggested_action] || 'bg-slate-100 text-slate-500'}`}>
+                          {f.suggested_action}
+                        </span>
+                      )}
+                    </div>
+                    <div className="space-y-1 text-xs">
+                      <p className="text-slate-600"><span className="font-medium text-slate-700">Contract says:</span> {f.what_it_says}</p>
+                      <p className="text-slate-600"><span className="font-medium text-slate-700">ILC wants:</span> {f.what_ilc_wants}</p>
+                      {f.risk && <p className="text-slate-500 italic">{f.risk}</p>}
+                    </div>
+                  </div>
+                );
+              })
+        )}
+
+        {tab === 'missing' && (
+          missing.length === 0
+            ? <p className="text-xs text-slate-400 text-center py-4">No missing clauses identified.</p>
+            : missing.map((c, i) => (
+                <div key={i} className="border border-slate-200 rounded-lg p-3 bg-white">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-semibold text-slate-800">{c.clause}</span>
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                      c.importance === 'Critical' ? 'bg-red-100 text-red-700' :
+                      c.importance === 'Important' ? 'bg-amber-100 text-amber-700' :
+                      'bg-slate-100 text-slate-500'
+                    }`}>{c.importance}</span>
+                  </div>
+                  <p className="text-xs text-slate-500">{c.why_it_matters}</p>
+                </div>
+              ))
+        )}
+
+        {tab === 'checklist' && (
+          <div className="divide-y divide-slate-50">
+            <CheckRow label="40% mobilization upfront"                     value={ilcPos.mobilization_required === true || ilcPos.mobilization_required === 'true'} />
+            <CheckRow label="Liability cap present"                         value={ilcPos.liability_cap_present === true || ilcPos.liability_cap_present === 'true'} />
+            <CheckRow label="Consequential damages waived"                  value={ilcPos.consequential_damages_waived === true || ilcPos.consequential_damages_waived === 'true'} />
+            <CheckRow label="Colorado law governs"                          value={ilcPos.colorado_law_governs === true || ilcPos.colorado_law_governs === 'true'} />
+            <CheckRow label="Mediation required before litigation"          value={ilcPos.mediation_required === true || ilcPos.mediation_required === 'true'} />
+            <CheckRow label="Tariff price protection"                       value={ilcPos.tariff_protection_present === true || ilcPos.tariff_protection_present === 'true'} />
+            <CheckRow label="No IP assignment to customer"                  value={ilcPos.ip_assignment_to_customer === false || ilcPos.ip_assignment_to_customer === 'false'} invert />
+            <CheckRow label="No unilateral modification right"              value={ilcPos.unilateral_modification_right === false || ilcPos.unilateral_modification_right === 'false'} invert />
+            <CheckRow label="Southstar acknowledged"                        value={ilcPos.southstar_acknowledged === true || ilcPos.southstar_acknowledged === 'true'} />
+            {ilcPos.payment_terms_days && (
+              <div className="flex items-center gap-2 py-1.5">
+                <span className="text-xs text-slate-500 w-4 shrink-0">📋</span>
+                <span className="text-xs text-slate-600">Payment terms: <strong>{ilcPos.payment_terms_days}</strong></span>
+              </div>
+            )}
+            {ilcPos.risk_of_loss_point && (
+              <div className="flex items-center gap-2 py-1.5">
+                <span className="text-xs text-slate-500 w-4 shrink-0">📋</span>
+                <span className="text-xs text-slate-600">Risk of loss: <strong>{ilcPos.risk_of_loss_point}</strong></span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === 'southstar' && (
+          <div>
+            <div className={`flex items-center gap-2 mb-3 p-2 rounded-lg ${
+              southstar.compatible ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+            }`}>
+              <span className={`text-sm font-bold ${southstar.compatible ? 'text-green-600' : 'text-red-600'}`}>
+                {southstar.compatible ? '✓ Compatible' : '✗ Incompatible'}
+              </span>
+              <span className="text-xs text-slate-500">with Southstar Financial arrangement</span>
+            </div>
+            {(southstar.issues || []).map((issue, i) => (
+              <div key={i} className="flex items-start gap-2 py-1.5 border-b border-slate-50 last:border-0">
+                <span className="text-red-400 text-xs shrink-0">⚠</span>
+                <span className="text-xs text-slate-600">{issue}</span>
+              </div>
+            ))}
+            {(!southstar.issues || southstar.issues.length === 0) && southstar.compatible && (
+              <p className="text-xs text-slate-400 text-center py-4">No Southstar compatibility issues found.</p>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── File row ─────────────────────────────────────────────────────────────────
+function ContractFileRow({ file, projectId, onDelete, analysisOverride }) {
+  const [expanded,   setExpanded]   = useState(false);
+  const [analyzing,  setAnalyzing]  = useState(false);
+  const [analysis,   setAnalysis]   = useState(analysisOverride || parseAnalysis(file.analysisData));
+  const [analyzeErr, setAnalyzeErr] = useState(null);
+
+  // When the parent injects an analysis after auto-upload+review, update state and auto-expand
+  useEffect(() => {
+    if (analysisOverride && !analysis) {
+      setAnalysis(analysisOverride);
+      setExpanded(true);
+    }
+  }, [analysisOverride]);
+
+  const tags       = parseTags(file.tags);
+  const hasSupply  = tags.some(isSupplyTag);
+  const isCOI      = tags.includes('COI');
+  const coiExpiry  = isCOI ? getCOIExpiry(tags) : null;
+  const coiMeta    = coiExpiry ? coiExpiryMeta(coiExpiry) : null;
+  const url        = `/api/uploads/${file.storedPath.replace(/\\/g, '/')}`;
+  const ext        = file.originalName.split('.').pop()?.toLowerCase();
+  const isPdf      = ext === 'pdf';
+
+  // Primary tag (first one)
+  const primaryTag = tags[0] ? tagMeta(tags[0]) : null;
+  const risk       = analysis?.overall_risk_score;
+
+  async function runAnalysis() {
+    setAnalyzing(true);
+    setAnalyzeErr(null);
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 180_000); // 3 min hard timeout
+      let res;
+      try {
+        res = await fetch(`/api/projects/${projectId}/analyze-contract`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ fileId: file.id }),
+          signal:  controller.signal,
+        });
+      } finally {
+        clearTimeout(timer);
+      }
+      const data = await res.json();
+      if (!res.ok) {
+        setAnalyzeErr(data.error || 'Analysis failed');
+      } else {
+        setAnalysis(data.analysis);
+        setExpanded(true);
+      }
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        setAnalyzeErr('Analysis timed out — the document may be too large. Try a smaller PDF or a specific exhibit.');
+      } else {
+        setAnalyzeErr('Network error: ' + e.message);
+      }
+    }
+    setAnalyzing(false);
+  }
+
+  return (
+    <div className="border-b border-slate-100 last:border-0">
+      <div className={`flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors ${expanded ? 'bg-slate-50' : ''}`}>
+        {/* File icon */}
+        <div className="shrink-0">
+          {isPdf ? (
+            <svg className="w-7 h-8 text-red-400" viewBox="0 0 24 28" fill="none">
+              <rect width="24" height="28" rx="2" fill="currentColor" fillOpacity="0.12"/>
+              <text x="12" y="18" textAnchor="middle" fill="currentColor" fontSize="6" fontWeight="bold">PDF</text>
+            </svg>
+          ) : (
+            <svg className="w-7 h-8 text-green-500" viewBox="0 0 24 28" fill="none">
+              <rect width="24" height="28" rx="2" fill="currentColor" fillOpacity="0.12"/>
+              <text x="12" y="18" textAnchor="middle" fill="currentColor" fontSize="6" fontWeight="bold">XLS</text>
+            </svg>
+          )}
+        </div>
+
+        {/* Name + metadata */}
+        <div className="flex-1 min-w-0">
+          <a href={url} target="_blank" rel="noopener noreferrer"
+            className="text-sm font-medium text-slate-800 hover:text-amber-600 transition-colors truncate block">
+            {file.originalName}
+          </a>
+          <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+            {/* Tag badges — skip internal COI_EXPIRY meta-tags */}
+            {tags.filter(t => !t.startsWith('COI_EXPIRY:')).map(tag => {
+              const m = tagMeta(tag);
+              return (
+                <span key={tag} className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${m.color}`}>
+                  {m.label}
+                </span>
+              );
+            })}
+            {/* COI expiry badge */}
+            {coiMeta && (
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${coiMeta.color}`}>
+                ⏱ {coiMeta.label}
+              </span>
+            )}
+            {/* Risk score if reviewed */}
+            {risk && <RiskBadge score={risk} />}
+            <span className="text-[10px] text-slate-400">{formatBytes(file.size)}</span>
+            <span className="text-[10px] text-slate-400">
+              {new Date(file.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
+            </span>
+            {file.textContent
+              ? <span className="text-[10px] text-green-500 font-medium">● readable</span>
+              : isPdf && <span className="text-[10px] text-slate-300 font-medium" title="Scanned PDF — AI can't read">● not readable</span>
+            }
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* AI Review button — only for supply contracts with text */}
+          {hasSupply && file.textContent && (
+            analysis ? (
+              <button
+                onClick={() => setExpanded(v => !v)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors border ${
+                  expanded
+                    ? 'bg-amber-500 text-white border-amber-500'
+                    : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                }`}
+              >
+                <span className="text-[10px]">⚡</span>
+                {expanded ? 'Hide Review' : 'View Review'}
+              </button>
+            ) : (
+              <button
+                onClick={runAnalysis}
+                disabled={analyzing}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-amber-50 text-slate-600 hover:text-amber-700 border border-slate-200 hover:border-amber-200 transition-colors disabled:opacity-60"
+              >
+                {analyzing ? (
+                  <>
+                    <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                    </svg>
+                    Analyzing…
+                  </>
+                ) : (
+                  <>⚡ Review</>
+                )}
+              </button>
+            )
+          )}
+          {hasSupply && !file.textContent && (
+            <span className="text-[10px] text-slate-400 italic">Scanned PDF</span>
+          )}
+
+          {/* Delete */}
+          <button
+            onClick={() => onDelete(file.id)}
+            className="p-1 rounded-lg text-slate-300 hover:text-red-400 hover:bg-red-50 transition-colors"
+            title="Delete file"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Analysis error */}
+      {analyzeErr && (
+        <div className="mx-4 mb-3 px-3 py-2 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-xs text-red-600 font-medium">Analysis failed: {analyzeErr}</p>
+        </div>
+      )}
+
+      {/* Expanded analysis */}
+      {expanded && analysis && (
+        <div className="px-4 pb-4">
+          <AnalysisPanel analysis={analysis} fileName={file.originalName} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Drop zone ────────────────────────────────────────────────────────────────
+function DropZone({ onFiles, dragging, setDragging, inputRef }) {
+  return (
+    <div
+      onDragEnter={e => { e.preventDefault(); setDragging(true); }}
+      onDragOver={e  => { e.preventDefault(); setDragging(true); }}
+      onDragLeave={e => { e.preventDefault(); setDragging(false); }}
+      onDrop={e => { e.preventDefault(); setDragging(false); onFiles(e.dataTransfer.files); }}
+      onClick={() => inputRef.current?.click()}
+      className={[
+        'border-2 border-dashed rounded-xl px-6 py-10 text-center cursor-pointer transition-all',
+        dragging ? 'border-amber-400 bg-amber-50 scale-[1.01]' : 'border-slate-200 hover:border-amber-300 hover:bg-slate-50',
+      ].join(' ')}
+    >
+      <input ref={inputRef} type="file" multiple accept=".pdf,.xlsx,.xls,.csv" className="hidden"
+        onChange={e => onFiles(e.target.files)} />
+
+      <div className={`w-10 h-10 mx-auto mb-3 rounded-xl flex items-center justify-center ${dragging ? 'bg-amber-100' : 'bg-slate-100'}`}>
+        <svg className={`w-5 h-5 ${dragging ? 'text-amber-500' : 'text-slate-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+        </svg>
+      </div>
+      <p className={`text-sm font-semibold ${dragging ? 'text-amber-600' : 'text-slate-600'}`}>
+        {dragging ? 'Drop to upload' : 'Drop any contract document here'}
+      </p>
+      <p className="text-xs text-slate-400 mt-1">
+        Supply contracts · COIs · Amendments · SOVs · Proposals
+      </p>
+      <p className="text-xs text-slate-300 mt-0.5">PDF, Excel, CSV</p>
+    </div>
+  );
+}
+
+// ─── Main ContractsPanel ──────────────────────────────────────────────────────
+export default function ContractsPanel({ projectId, initialFiles = [], onFileAdded, onFileDeleted }) {
+  const [files,       setFiles]       = useState(initialFiles);
+  const [dragging,    setDragging]    = useState(false);
+  const [pendingFile, setPendingFile] = useState(null); // { file: File }
+  const [uploading,   setUploading]   = useState([]);   // [{ id, name }]
+  const [newAnalyses, setNewAnalyses] = useState({});   // fileId → analysis
+  const [activeTag,   setActiveTag]   = useState(null);
+  const inputRef = useRef(null);
+
+  const handleFiles = useCallback((fileList) => {
+    const arr = Array.from(fileList);
+    if (!arr.length) return;
+    // Open modal for first file; queue rest
+    if (arr.length === 1) {
+      setPendingFile({ file: arr[0] });
+    } else {
+      // For multi-file drop, open modal for each sequentially
+      setPendingFile({ file: arr[0], queue: arr.slice(1) });
+    }
+  }, []);
+
+  async function doUpload(file, tag, aiReview) {
+    const uid = `${Date.now()}-${Math.random()}`;
+    const label = aiReview ? `${file.name} · uploading + AI review…` : file.name;
+    setUploading(prev => [...prev, { id: uid, name: file.name, reviewing: aiReview }]);
+
+    const form = new FormData();
+    form.append('file', file);
+    form.append('tab',  'contracts');
+    form.append('tags', JSON.stringify([tag]));
+
+    let uploadedFile = null;
+    try {
+      const res  = await fetch(`/api/projects/${projectId}/files`, { method: 'POST', body: form });
+      const data = await res.json();
+      if (res.ok) {
+        uploadedFile = data.file;
+        setFiles(prev => [data.file, ...prev]);
+        onFileAdded?.(data.file, data.contractUpdate ?? null);
+      }
+    } catch {}
+
+    // Auto-run AI review for supply contracts
+    if (aiReview && uploadedFile?.id) {
+      try {
+        const res = await fetch(`/api/projects/${projectId}/analyze-contract`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ fileId: uploadedFile.id }),
+        });
+        const data = await res.json();
+        if (res.ok && data.analysis) {
+          setNewAnalyses(prev => ({ ...prev, [uploadedFile.id]: data.analysis }));
+        }
+      } catch {}
+    }
+
+    setUploading(prev => prev.filter(u => u.id !== uid));
+  }
+
+  function onModalConfirm({ tag, aiReview }) {
+    const { file, queue } = pendingFile;
+    setPendingFile(null);
+    doUpload(file, tag, aiReview);
+    // If there are queued files, open modal for next one
+    if (queue?.length) {
+      setTimeout(() => setPendingFile({ file: queue[0], queue: queue.slice(1) }), 100);
+    }
+  }
+
+  async function deleteFile(fileId) {
+    if (!confirm('Delete this file? This cannot be undone.')) return;
+    await fetch(`/api/projects/${projectId}/files/${fileId}`, { method: 'DELETE' });
+    setFiles(prev => prev.filter(f => f.id !== fileId));
+    onFileDeleted?.(fileId);
+  }
+
+  // Tag filter chips
+  const presentTags = useMemo(() => {
+    const set = new Set();
+    files.forEach(f => parseTags(f.tags).forEach(t => {
+      if (!t.startsWith('COI_EXPIRY:')) set.add(t);
+    }));
+    const order = CONTRACT_TAGS.map(t => t.value);
+    return [...set].sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  }, [files]);
+
+  const visibleFiles = activeTag
+    ? files.filter(f => parseTags(f.tags).includes(activeTag))
+    : files;
+
+  // Stats
+  const reviewedCount = files.filter(f => f.analysisData || newAnalyses[f.id]).length;
+  const supplyCount   = files.filter(f => parseTags(f.tags).some(isSupplyTag)).length;
+
+  return (
+    <div className="space-y-4">
+      {/* Tag modal */}
+      {pendingFile && (
+        <TagModal
+          fileName={pendingFile.file.name}
+          onConfirm={onModalConfirm}
+          onCancel={() => setPendingFile(null)}
+        />
+      )}
+
+      {/* Drop zone */}
+      <DropZone
+        onFiles={handleFiles}
+        dragging={dragging}
+        setDragging={setDragging}
+        inputRef={inputRef}
+      />
+
+      {/* Upload progress */}
+      {uploading.length > 0 && (
+        <div className="space-y-1.5">
+          {uploading.map(u => (
+            <div key={u.id} className="flex items-center gap-2.5 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
+              <svg className="animate-spin w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+              </svg>
+              <span className="truncate font-medium">{u.name}</span>
+              <span className="ml-auto shrink-0 text-amber-500">
+                {u.reviewing ? '⚡ Uploading + AI review in progress…' : 'Uploading…'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* File list */}
+      {files.length > 0 && (
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+          {/* List header */}
+          <div className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-100 bg-slate-50">
+            <span className="text-xs text-slate-500 font-medium">{files.length} document{files.length !== 1 ? 's' : ''}</span>
+            {supplyCount > 0 && (
+              <span className="text-xs text-slate-400">
+                · {reviewedCount}/{supplyCount} supply contract{supplyCount !== 1 ? 's' : ''} reviewed
+              </span>
+            )}
+
+            {/* Tag filters */}
+            {presentTags.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1 ml-auto">
+                <button
+                  onClick={() => setActiveTag(null)}
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-colors ${
+                    !activeTag ? 'bg-slate-700 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
+                  }`}
+                >All</button>
+                {presentTags.map(tag => {
+                  const m = tagMeta(tag);
+                  const count = files.filter(f => parseTags(f.tags).includes(tag)).length;
+                  return (
+                    <button
+                      key={tag}
+                      onClick={() => setActiveTag(prev => prev === tag ? null : tag)}
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-colors ${
+                        activeTag === tag ? 'bg-amber-500 border-amber-500 text-white' : `bg-white ${m.color} hover:opacity-80`
+                      }`}
+                    >
+                      {m.label} {count}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* File rows */}
+          {visibleFiles.length > 0
+            ? visibleFiles.map(f => (
+                <ContractFileRow
+                  key={f.id}
+                  file={f}
+                  projectId={projectId}
+                  onDelete={deleteFile}
+                  analysisOverride={newAnalyses[f.id] || null}
+                />
+              ))
+            : <p className="text-center text-xs text-slate-400 py-8">No documents tagged "{activeTag}".</p>
+          }
+        </div>
+      )}
+
+      {files.length === 0 && uploading.length === 0 && (
+        <div className="text-center py-4">
+          <p className="text-xs text-slate-400">No documents uploaded yet. Drop a file above to get started.</p>
+          <p className="text-xs text-slate-300 mt-1">Supply contracts are automatically reviewed by Claude AI.</p>
+        </div>
+      )}
+    </div>
+  );
+}

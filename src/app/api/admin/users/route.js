@@ -1,0 +1,101 @@
+import { NextResponse } from 'next/server';
+import bcrypt from 'bcryptjs';
+import { prisma } from '@/lib/db';
+import { requireAdmin, isSuperAdmin } from '@/lib/auth';
+
+const ALLOWED_ROLES = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'USER', 'CLIENT_VIEWER'];
+
+export async function GET(request) {
+  const { user, error } = await requireAdmin(request);
+  if (error) return error;
+
+  const users = await prisma.user.findMany({
+    select: {
+      id:                true,
+      email:             true,
+      name:              true,
+      role:              true,
+      permissions:       true,
+      mustChangePassword: true,
+      isActive:          true,
+      createdAt:         true,
+      passwordHash:      true,
+      _count:            { select: { projects: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return NextResponse.json(users.map(u => ({
+    id:                u.id,
+    email:             u.email,
+    name:              u.name,
+    role:              u.role,
+    permissions:       u.permissions,
+    mustChangePassword: u.mustChangePassword,
+    isActive:          u.isActive,
+    createdAt:         u.createdAt,
+    hasPassword:       !!u.passwordHash,
+    projectCount:      u._count.projects,
+  })));
+}
+
+export async function POST(request) {
+  const { user: actor, error } = await requireAdmin(request);
+  if (error) return error;
+
+  const { name, email, password, role, permissions, mustChangePassword } = await request.json();
+
+  if (!email || !password || !role) {
+    return NextResponse.json({ error: 'email, password, and role are required' }, { status: 400 });
+  }
+  if (!ALLOWED_ROLES.includes(role)) {
+    return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
+  }
+  // Only SUPER_ADMIN can create SUPER_ADMIN or COMPANY_ADMIN accounts
+  if ((role === 'SUPER_ADMIN' || role === 'COMPANY_ADMIN') && !isSuperAdmin(actor.role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const existing = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+  if (existing) {
+    return NextResponse.json({ error: 'A user with that email already exists' }, { status: 409 });
+  }
+
+  if (password.length < 8) {
+    return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 });
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+
+  const defaultPermissions = buildDefaultPermissions(role);
+
+  const newUser = await prisma.user.create({
+    data: {
+      email:             email.toLowerCase(),
+      name:              name || null,
+      passwordHash,
+      role,
+      permissions:       permissions ? JSON.stringify(permissions) : JSON.stringify(defaultPermissions),
+      mustChangePassword: mustChangePassword ?? true,
+    },
+  });
+
+  return NextResponse.json({
+    id:                newUser.id,
+    email:             newUser.email,
+    name:              newUser.name,
+    role:              newUser.role,
+    mustChangePassword: newUser.mustChangePassword,
+  }, { status: 201 });
+}
+
+function buildDefaultPermissions(role) {
+  if (role === 'SUPER_ADMIN' || role === 'COMPANY_ADMIN') {
+    return { projects: 'edit', clients: 'edit', preCon: 'edit', manufacturers: 'edit', admin: 'edit' };
+  }
+  if (role === 'USER') {
+    return { projects: 'edit', clients: 'edit', preCon: 'edit', manufacturers: 'view', admin: 'none' };
+  }
+  // CLIENT_VIEWER
+  return { projects: 'view', clients: 'none', preCon: 'none', manufacturers: 'none', admin: 'none' };
+}

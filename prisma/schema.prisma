@@ -1,0 +1,472 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  name               String?
+  passwordHash       String?
+  role               String    @default("USER")
+  // Roles: SUPER_ADMIN | COMPANY_ADMIN | USER | CLIENT_VIEWER
+  // Legacy roles still supported: ILC_ADMIN (=SUPER_ADMIN), ADMIN (=COMPANY_ADMIN)
+  permissions        String    @default("{}")  // JSON: { projects, clients, preCon, manufacturers, admin }
+  mustChangePassword Boolean   @default(false)
+  isActive           Boolean   @default(true)
+  inviteToken        String?   @unique
+  inviteExpiry       DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  invitedById        String?
+  projects         Project[]
+  clients          Client[]
+  assignedProjects ProjectAssignee[]
+  uploadedFiles    ProjectFile[]
+  projectAccess    ProjectAccess[]
+}
+
+model Client {
+  id           String    @id @default(cuid())
+  clientNumber Int?      @unique
+  name         String
+  type         String    @default("developer")
+  // Types: developer | architect | interiorDesigner | generalContractor | electricalEngineer | electricalContractor | clientRep | selfPerformingGc | developerSelfPerformingGc
+  locationType String    @default("standalone")
+  // Location types: none | localBranch | national | standalone
+
+  // Contact info
+  email        String?
+  phone        String?
+  website      String?
+  address      String?
+  city         String?
+  state        String?
+
+  // Additional CRM fields
+  linkedIn     String?   // LinkedIn company page URL
+  primaryContact String? // Primary point of contact name
+  primaryContactTitle String?
+  primaryContactEmail String?
+  primaryContactPhone String?
+
+  notes        String?
+
+  // CRM fields
+  tier           String?  // '1' | '2' | '3'
+  markets        String   @default("[]") // JSON string[]
+  developerType  String?  // 'merchant' | 'longTermHold'
+  orgTypes       String   @default("[]") // JSON string[] — multi-select org types
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  createdById  String
+  createdBy    User      @relation(fields: [createdById], references: [id])
+  projects     Project[]
+  contacts     ClientContact[]
+  kbSections   ClientKBSection[]
+}
+
+model ClientContact {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name      String
+  title     String?
+  email     String?
+  phone     String?
+  createdAt DateTime @default(now())
+}
+
+model ClientKBSection {
+  id          String               @id @default(cuid())
+  clientId    String
+  client      Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  title       String               @default("Untitled Section")
+  content     String               @default("")
+  sortOrder   Int                  @default(0)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  attachments ClientKBAttachment[]
+}
+
+model ClientKBAttachment {
+  id           String          @id @default(cuid())
+  sectionId    String
+  section      ClientKBSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  originalName String
+  storedPath   String
+  mimeType     String?
+  size         Int
+  createdAt    DateTime        @default(now())
+}
+
+model Project {
+  id            String    @id @default(cuid())
+  projectNumber Int?      @unique
+  name          String
+  buildingType String?   // stores pricing key: 'highRise', 'midRise', etc.
+  location     String?
+  contactEmail String?
+  address      String?   // kept for legacy data, hidden from UI
+  date         String?   // kept for legacy data, hidden from UI
+  budgetType   String    @default("conceptual")
+  // BudgetType: conceptual | design | peer_review
+  budgetNumber String?   @unique  // Auto-assigned: C00001 | D00001 | B00001
+  budgetSentDate DateTime?        // When the budget was sent to the client
+  phase        String    @default("sd")
+  // Phases: sd | dd | cd | ifc | construction | closeout
+  city         String?
+  state        String?
+  status       String    @default("DRAFT")
+  // Status: DRAFT, IN_REVIEW, COMPLETE
+  serviceType     String?
+  // Service types: fullDesign | designAssist | peerReview | bidOnly | other
+  flagged         Boolean   @default(false)
+  flagNote        String?
+  contractValue        Float?  // supply contract value
+  contractSignedDate   String? // supply contract signed date YYYY-MM-DD
+  designContractValue      Float?  // design consulting contract value
+  designContractSignedDate String? // design contract signed date YYYY-MM-DD
+  constructionStartDate String? // ISO date string YYYY-MM-DD
+  mepRoughInDate  String? // ISO date string YYYY-MM-DD
+  constructionEndDate String? // ISO date string YYYY-MM-DD
+  currentStep     String    @default("project-data")
+  completedSteps  String    @default("[]")
+  pricingSnapshot String?   // JSON snapshot of pricing at project creation — frozen forever
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  createdById  String
+  createdBy    User      @relation(fields: [createdById], references: [id])
+  clientId     String?
+  client       Client?   @relation(fields: [clientId], references: [id])
+
+  projectData      ProjectData?
+  responses        QuestionnaireResponse[]
+  shares           ProjectShare[]
+  peerReviewItems  PeerReviewItem[]
+  assignees        ProjectAssignee[]
+  files            ProjectFile[]
+  projectAccess    ProjectAccess[]
+  meetingNotes     MeetingNote[]
+  submittalTracker SubmittalTracker?
+  activities       ProjectActivity[]
+  chatConversations ChatConversation[]
+}
+
+model ProjectFile {
+  id           String   @id @default(cuid())
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tab          String
+  // tabs: drawings | correspondence | submittals | ca | contracts
+  fileType     String?
+  // ca types: rfi | changeOrder | constructionSchedule
+  originalName String
+  storedPath   String
+  size         Int
+  mimeType     String?
+  tags         String?   // JSON array of tag strings
+  textContent   String?   // extracted text for search
+  takeoffData   String?   // JSON {fixtureType: totalQty} parsed from Excel/CSV
+  parsedAmount  Float?    // dollar amount parsed from file (change orders, invoices, etc.)
+  analysisData  String?   // JSON — contract review result from Claude (supply contracts only)
+  uploadedById String
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime @default(now())
+}
+
+model ProjectAssignee {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, userId])
+}
+
+model ProjectAccess {
+  id        String   @id @default(cuid())
+  userId    String
+  projectId String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, projectId])
+}
+
+model ProjectData {
+  id                  String  @id @default(cuid())
+  projectId           String  @unique
+  project             Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // Building metrics
+  grossSf             Float?
+  unitsSf             Float?  // Residential units SF only (used for base $0.38/SF calc)
+  numUnits            Int?
+  numBedrooms         Int?
+  numBalconies        Int?
+  numBathrooms        Int?
+  numVanities         Int?
+  numEgressStairwells    Int?
+  numFans                Int?   // explicit fan count — overrides unit-mix multiplier calculation
+  numAccentDownlights    Int?   // # of recessed adjustable downlight accents (corridors)
+
+  // Parking & exterior
+  numSurfaceParking   Int?
+  numCarports         Int?
+  numGarages          Int?
+  numExteriorDoors    Int?
+
+  // Area breakdowns (SF)
+  exteriorAmenitySf   Float?
+  lotSf               Float?
+  buildingFootprintSf Float?
+  corridorSf          Float?
+  interiorAmenitySf   Float?
+  garageSf            Float?
+  bohSf               Float?
+
+  // Budget
+  clientInitialBudget Float?
+  freightPct          Float?  // default 0.06 — overridable per project
+  warehousingPct      Float?  // default 0.03 — overridable per project
+  salesTaxPct         Float?  // jurisdiction sales tax rate (e.g. 0.0915 for 9.15%)
+  marginPct           Float?  // project margin override (e.g. 0.20 for 20%)
+}
+
+model ProjectShare {
+  id           String    @id @default(cuid())
+  projectId    String
+  project      Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  token        String    @unique @default(cuid())
+  sentTo       String    @default("[]") // JSON array of email addresses
+  message      String?
+  sentAt       DateTime  @default(now())
+  sentById     String
+  viewCount    Int       @default(0)
+  lastViewedAt DateTime?
+  viewLog      String    @default("[]") // JSON [{ip, userAgent, at}]
+}
+
+model SystemConfig {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String   // JSON string
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+}
+
+model PeerReviewItem {
+  id           String   @id @default(cuid())
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  section      String   @default("units")
+  // Sections: units | common | garage | exterior | other
+  typeCode         String?  // fixture type code, e.g. "SP1", "D1", "A"
+  description      String?  // fixture description
+  location         String   @default("")  // drawing ref / location notes
+  notes            String   @default("")  // review notes / recommendation (client-visible)
+  internalNotes    String   @default("")  // internal ILC notes (never shown to client)
+  qty              Float?
+  // ── Specified product (architect's spec) ──────────────────────────────────
+  specManufacturer String?
+  specModel        String?
+  specDetails      String?  // color/finish/mounting detail from spec
+  prevQty          Float?   // previous quantity for change tracking
+  qtyType          String?  // 'unit' | 'linearFt'
+  altChoices       String?  // 'eLuma' | 'originalSpec' | 'altSpec' | 'ilcStandard'
+  // ── ILC Proposed product ───────────────────────────────────────────────────
+  propManufacturer   String?
+  propManufacturerId String?  // FK to Manufacturer (optional structured link)
+  propModel          String?
+  propProductId      String?  // FK to ManufacturerProduct (optional structured link)
+  propUnitDN       Float?   // dealer net / ILC internal cost
+  propUnitPrice    Float?   // client net (CN) — what client pays
+  repName          String?  // sales rep name, e.g. "PCS→DENVER"
+  repEmail         String?  // sales rep email
+  rfqStatus        String?  // 'received' | 'budgetPrice' | 'pending' | 'needsReview'
+  // ── Totals (auto-calculated) ───────────────────────────────────────────────
+  unitSavings  Float?  // legacy / unused — kept for backward compat
+  totalSavings Float?  // qty × propUnitPrice (CN total)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model QuestionnaireResponse {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  section     String
+  questionKey String
+  answerValue String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([projectId, section, questionKey])
+}
+
+// ── Submittal Tracker ────────────────────────────────────────────────────────
+
+model SubmittalTracker {
+  id            String   @id @default(cuid())
+  projectId     String   @unique
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  specSection   String?
+  // JSON array of active reviewer role keys, e.g. ["ILC","Developer","Architect","LA","ID","EE"]
+  reviewerRoles String   @default("[\"ILC\",\"Developer\",\"Architect\",\"LA\",\"ID\",\"EE\"]")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  items         SubmittalItem[]
+  submissions   SubmittalSubmission[]
+}
+
+model SubmittalItem {
+  id            String   @id @default(cuid())
+  trackerId     String
+  tracker       SubmittalTracker @relation(fields: [trackerId], references: [id], onDelete: Cascade)
+  typeCode      String   // e.g. "D1", "SP1", "EL1-P"
+  description   String?
+  location      String?
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  versions      SubmittalItemVersion[]
+}
+
+model SubmittalSubmission {
+  id            String   @id @default(cuid())
+  trackerId     String
+  tracker       SubmittalTracker @relation(fields: [trackerId], references: [id], onDelete: Cascade)
+  name          String   // e.g. "Submission 1", "265100-001.0 — Aug 2025"
+  submittedDate String?  // YYYY-MM-DD
+  notes         String?
+  createdAt     DateTime @default(now())
+  versions      SubmittalItemVersion[]
+}
+
+model SubmittalItemVersion {
+  id            String   @id @default(cuid())
+  itemId        String
+  item          SubmittalItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  submissionId  String
+  submission    SubmittalSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  manufacturer  String?
+  modelNumber   String?  // full catalog string, may contain "+" joined components
+  createdAt     DateTime @default(now())
+  reviews       SubmittalReview[]
+}
+
+model SubmittalReview {
+  id            String   @id @default(cuid())
+  versionId     String
+  version       SubmittalItemVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  reviewerRole  String   // "ILC" | "Developer" | "Architect" | "LA" | "ID" | "EE" | "GC" | "EC"
+  reviewerName  String?
+  status        String   // "Approved" | "ApprovedAsNoted" | "Resubmit" | "NoAction"
+  dateNoted     String?  // YYYY-MM-DD
+  notes         String?
+  createdAt     DateTime @default(now())
+  createdById   String?
+}
+
+model ProjectActivity {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId      String
+  userName    String?  // denormalized — survives user deletion
+  userEmail   String?
+  type        String
+  // types: file_upload | file_delete | questionnaire | project_data | phase_change | project_meta | note_added
+  description String
+  metadata    String?  // JSON for extra context
+  createdAt   DateTime @default(now())
+}
+
+model ChatConversation {
+  id        String        @id @default(cuid())
+  projectId String
+  project   Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title     String?       // first question, truncated to ~80 chars
+  createdAt DateTime      @default(now())
+  messages  ChatMessage[]
+}
+
+model ChatMessage {
+  id             String           @id @default(cuid())
+  conversationId String
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String           // 'user' | 'assistant'
+  content        String
+  createdAt      DateTime         @default(now())
+}
+
+model MeetingNote {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String   @default("")
+  content     String   @default("") // stored as HTML — LLM-readable
+  meetingDate String?  // YYYY-MM-DD date of the meeting
+  meetingLink String?  // Zoom, Google Meet, Teams URL
+  attendees   String?  // JSON array of attendee name strings
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ── Manufacturer catalog ─────────────────────────────────────────────────────
+
+model Manufacturer {
+  id              String   @id @default(cuid())
+  numericId       Int      @unique
+  name            String
+  acctLastUpdated String?
+  setupToSell     Boolean  @default(false)
+  terms           String?
+  credit          Float?
+  notes           String?
+  accountingEmail String?
+  ffa             Float?
+  paymentInfo     String?
+  website         String?
+  mainPhone       String?
+  address         String?
+  address2        String?
+  city            String?
+  state           String?
+  zip             String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  products        ManufacturerProduct[]
+}
+
+model ManufacturerProduct {
+  id             String       @id @default(cuid())
+  numericId      Int          @unique
+  manufacturerId String
+  manufacturer   Manufacturer @relation(fields: [manufacturerId], references: [id], onDelete: Cascade)
+  partNumber     String
+  description    String?
+  finish         String?
+  cct            String?
+  wattage        Float?
+  dimming        String?
+  voltage        String?
+  mounting       String?
+  fixtureType    String?      // FIXTURE | CONTROL_DEVICE
+  cost           Float?
+  salePrice      Float?
+  notes          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([manufacturerId, partNumber])
+}
