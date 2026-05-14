@@ -86,6 +86,7 @@ function OverviewTab({ deal, clients, users, onUpdate, onDelete }) {
     title:             deal.title             || '',
     stage:             deal.stage             || '',
     dealStatus:        deal.dealStatus        || 'OPEN',
+    designStatus:      deal.designStatus      || 'OPEN',
     pipeline:          deal.pipeline          || 'PROCUREMENT',
     city:              deal.city              || '',
     state:             deal.state             || '',
@@ -117,6 +118,7 @@ function OverviewTab({ deal, clients, users, onUpdate, onDelete }) {
       title:             deal.title             || '',
       stage:             deal.stage             || '',
       dealStatus:        deal.dealStatus        || 'OPEN',
+    designStatus:      deal.designStatus      || 'OPEN',
       pipeline:          deal.pipeline          || 'PROCUREMENT',
       city:              deal.city              || '',
       state:             deal.state             || '',
@@ -142,6 +144,7 @@ function OverviewTab({ deal, clients, users, onUpdate, onDelete }) {
         title:             snapshot.title.trim(),
         stage:             snapshot.stage,
         dealStatus:        snapshot.dealStatus,
+        designStatus:      snapshot.designStatus,
         pipeline:          snapshot.pipeline,
         city:              snapshot.city          || null,
         state:             snapshot.state         || null,
@@ -205,25 +208,48 @@ function OverviewTab({ deal, clients, users, onUpdate, onDelete }) {
     onDelete(deal.id);
   }
 
-  const st = DEAL_STATUS_CONFIG[form.dealStatus] || DEAL_STATUS_CONFIG.OPEN;
+  const st   = DEAL_STATUS_CONFIG[form.dealStatus]   || DEAL_STATUS_CONFIG.OPEN;
+  const stDes = DEAL_STATUS_CONFIG[form.designStatus] || DEAL_STATUS_CONFIG.OPEN;
   const currentStages = PIPELINE_STAGES[form.pipeline] || [];
+  const hasDualStatus = ['FULL_SERVICE_DESIGN', 'DESIGN_ASSIST'].includes(form.serviceType);
 
   return (
     <div className="flex flex-col gap-4 pb-6">
 
-      {/* Status row — inline dropdown + linked badges + timestamp */}
+      {/* Status row */}
       <div className="flex items-center gap-2 flex-wrap">
 
-        {/* Status dropdown — styled to match the old badge, lives at the top */}
-        <select
-          value={form.dealStatus}
-          onChange={e => set('dealStatus', e.target.value, 0)}
-          className={`text-[11px] font-bold px-2.5 py-1 rounded-full border cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-400 transition-colors ${st.color}`}
-        >
-          {Object.entries(DEAL_STATUS_CONFIG).map(([v, c]) => (
-            <option key={v} value={v}>{c.label}</option>
-          ))}
-        </select>
+        {/* Procurement status */}
+        <div className="flex flex-col items-start gap-0.5">
+          {hasDualStatus && (
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider px-1">Procurement</span>
+          )}
+          <select
+            value={form.dealStatus}
+            onChange={e => set('dealStatus', e.target.value, 0)}
+            className={`text-[11px] font-bold px-2.5 py-1 rounded-full border cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-400 transition-colors ${st.color}`}
+          >
+            {Object.entries(DEAL_STATUS_CONFIG).map(([v, c]) => (
+              <option key={v} value={v}>{c.label}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Design status — only for Full Design / Design Assist */}
+        {hasDualStatus && (
+          <div className="flex flex-col items-start gap-0.5">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider px-1">Design</span>
+            <select
+              value={form.designStatus}
+              onChange={e => set('designStatus', e.target.value, 0)}
+              className={`text-[11px] font-bold px-2.5 py-1 rounded-full border cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-400 transition-colors ${stDes.color}`}
+            >
+              {Object.entries(DEAL_STATUS_CONFIG).map(([v, c]) => (
+                <option key={v} value={v}>{c.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {deal.linkedProject && (
           <a

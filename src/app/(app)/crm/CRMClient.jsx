@@ -66,7 +66,9 @@ function daysSince(str) {
 // ── Deal Card ─────────────────────────────────────────────────────────────────
 
 function DealCard({ deal, onOpen, onDragStart, onDragEnd, isDragging }) {
-  const st          = DEAL_STATUS_CONFIG[deal.dealStatus] || DEAL_STATUS_CONFIG.OPEN;
+  const st          = DEAL_STATUS_CONFIG[deal.dealStatus]   || DEAL_STATUS_CONFIG.OPEN;
+  const stDes       = DEAL_STATUS_CONFIG[deal.designStatus] || DEAL_STATUS_CONFIG.OPEN;
+  const hasDualStatus = ['FULL_SERVICE_DESIGN', 'DESIGN_ASSIST'].includes(deal.serviceType);
   const svcLabel    = SERVICE_TYPE_LABELS[deal.serviceType] || deal.serviceType;
   const lastAct     = deal.activities?.[0];
   const daysOld     = lastAct ? daysSince(lastAct.createdAt) : null;
@@ -98,10 +100,25 @@ function DealCard({ deal, onOpen, onDragStart, onDragEnd, isDragging }) {
             #{String(deal.dealNumber).padStart(3, '0')}
           </span>
           <div className="flex items-center gap-1 flex-wrap justify-end">
-            {deal.dealStatus !== 'OPEN' && (
-              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${st.color}`}>
-                {st.label}
-              </span>
+            {hasDualStatus ? (
+              <>
+                {deal.dealStatus !== 'OPEN' && (
+                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${st.color}`} title="Procurement">
+                    P: {st.label}
+                  </span>
+                )}
+                {deal.designStatus !== 'OPEN' && (
+                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${stDes.color}`} title="Design">
+                    D: {stDes.label}
+                  </span>
+                )}
+              </>
+            ) : (
+              deal.dealStatus !== 'OPEN' && (
+                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${st.color}`}>
+                  {st.label}
+                </span>
+              )
             )}
             {svcLabel && (
               <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200">
@@ -180,8 +197,7 @@ function DealCard({ deal, onOpen, onDragStart, onDragEnd, isDragging }) {
 
 function KanbanColumn({ stageCfg, deals, pipeline, onOpenDeal, onAddDeal, draggingId, onDragStart, onDragEnd, onDrop }) {
   const [dragOver, setDragOver] = useState(false);
-  const revenueField = pipeline === 'DESIGN' ? 'designFeeTotal' : 'totalRevenue';
-  const totalValue = deals.reduce((s, d) => s + (d[revenueField] || 0), 0);
+  const totalValue = deals.reduce((s, d) => s + (d.totalRevenue || 0) + (d.designFeeTotal || 0), 0);
   const isActiveDrop = dragOver && draggingId;
 
   return (
@@ -257,8 +273,7 @@ function PipelineSummary({ deals, pipeline }) {
   const onHold  = deals.filter(d => d.pipeline === pipeline && d.dealStatus === 'ON_HOLD');
   const highProb = open.filter(d => d.probability >= 80);
 
-  const revenueField = pipeline === 'DESIGN' ? 'designFeeTotal' : 'totalRevenue';
-  const sum = arr => arr.reduce((s, d) => s + (d[revenueField] || 0), 0);
+  const sum = arr => arr.reduce((s, d) => s + (d.totalRevenue || 0) + (d.designFeeTotal || 0), 0);
 
   const stats = [
     { label: 'Open Pipeline',   value: fmtMoney(sum(open))     || '—', color: 'text-slate-900' },
@@ -295,7 +310,7 @@ function ListView({ deals, onOpen, onUpdate, pipeline }) {
 
   const stages = PIPELINE_STAGES[pipeline] || [];
   const stageLabel = s => stages.find(x => x.stage === s)?.label || s;
-  const revenueField = pipeline === 'DESIGN' ? 'designFeeTotal' : 'totalRevenue';
+  const totalCombined = d => (d.totalRevenue || 0) + (d.designFeeTotal || 0);
 
   function toggleSort(key) {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -303,7 +318,8 @@ function ListView({ deals, onOpen, onUpdate, pipeline }) {
   }
 
   const sorted = [...deals].sort((a, b) => {
-    let av = a[sortKey], bv = b[sortKey];
+    let av = sortKey === 'totalCombined' ? totalCombined(a) : a[sortKey];
+    let bv = sortKey === 'totalCombined' ? totalCombined(b) : b[sortKey];
     if (sortKey === 'client') { av = a.client?.name || ''; bv = b.client?.name || ''; }
     if (typeof av === 'string' || typeof bv === 'string') {
       const as = String(av ?? ''), bs = String(bv ?? '');
@@ -473,7 +489,7 @@ function ListView({ deals, onOpen, onUpdate, pipeline }) {
               <Th col="title"             label="Deal" />
               <Th col="client"            label="Client" />
               <Th col="stage"             label="Stage" />
-              <Th col={revenueField}      label="Value" />
+              <Th col="totalCombined"     label="Total Value" />
               <Th col="probability"       label="Prob" />
               <Th col="expectedOrderDate" label="Expected" />
               <Th col="dealStatus"        label="Status" />
@@ -514,7 +530,7 @@ function ListView({ deals, onOpen, onUpdate, pipeline }) {
                     {stageLabel(deal.stage)}
                   </td>
                   <td className="px-3 py-2.5 font-semibold text-slate-800 whitespace-nowrap">
-                    {fmtMoney(deal[revenueField]) || <span className="text-slate-300">—</span>}
+                    {fmtMoney(totalCombined(deal)) || <span className="text-slate-300">—</span>}
                   </td>
                   <td className="px-3 py-2.5 whitespace-nowrap">
                     <div className="flex items-center gap-1.5">

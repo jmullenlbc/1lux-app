@@ -48,7 +48,7 @@ export async function PATCH(request, { params }) {
 
   const body = await request.json();
   const {
-    title, pipeline, stage, dealStatus, projectStatus,
+    title, pipeline, stage, dealStatus, designStatus, projectStatus,
     projectType, serviceType, totalRevenue, designFeeTotal, probability,
     expectedOrderDate, notes, nextActionText, nextActionDue,
     clientId, ownerId, linkedDealId, linkedProjectId,
@@ -136,6 +136,19 @@ export async function PATCH(request, { params }) {
   }
   // Allow updating lostReason independently (e.g. editing after the fact)
   if (lostReason !== undefined && dealStatus === undefined) data.lostReason = lostReason || null;
+
+  // ── Design status change → log activity ──────────────────────────────────
+  if (designStatus !== undefined && designStatus !== deal.designStatus) {
+    data.designStatus = designStatus;
+    stageActivities.push({
+      dealId:   deal.id,
+      userId:   user.id,
+      userName: user.name || user.email,
+      type:     'STATUS_CHANGE',
+      body:     `Design status changed: ${deal.designStatus} → ${designStatus}`,
+      metadata: JSON.stringify({ from: deal.designStatus, to: designStatus, field: 'designStatus' }),
+    });
+  }
   if (projectStatus !== undefined && projectStatus !== deal.projectStatus) {
     data.projectStatus = projectStatus;
     stageActivities.push({

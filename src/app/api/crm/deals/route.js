@@ -69,7 +69,7 @@ export async function POST(request) {
 
   const body = await request.json();
   const {
-    title, pipeline, stage, dealStatus = 'OPEN', projectStatus = 'ACTIVE',
+    title, pipeline, stage, dealStatus = 'OPEN', designStatus = 'OPEN', projectStatus = 'ACTIVE',
     projectType, serviceType, totalRevenue, designFeeTotal, probability = 50,
     expectedOrderDate, notes, nextActionText, nextActionDue,
     clientId, ownerId, linkedDealId,
@@ -104,6 +104,7 @@ export async function POST(request) {
       pipeline,
       stage,
       dealStatus,
+      designStatus,
       projectStatus,
       projectType:      projectType   || null,
       serviceType:      serviceType   || null,
