@@ -134,12 +134,14 @@ function CreateUserForm({ currentUserRole, onCreated }) {
 // ── Edit User Modal ───────────────────────────────────────────────────────────
 
 function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
+  const parsedPerms = (() => { try { return JSON.parse(user.permissions || '{}'); } catch { return {}; } })();
   const [form, setForm] = useState({
     name:              user.name || '',
     role:              user.role,
     mustChangePassword: user.mustChangePassword,
     isActive:          user.isActive !== false,
     newPassword:       '',
+    permKnowledgeBase: parsedPerms.knowledgeBase === true,
   });
   const [saving, setSaving]   = useState(false);
   const [error,  setError]    = useState('');
@@ -161,6 +163,7 @@ function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
         role:              form.role,
         mustChangePassword: form.mustChangePassword,
         isActive:          form.isActive,
+        permissions:       { knowledgeBase: form.permKnowledgeBase },
       };
       if (form.newPassword) body.newPassword = form.newPassword;
       const res  = await fetch(`/api/admin/users/${user.id}`, {
@@ -228,6 +231,20 @@ function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
               className="accent-amber-500" />
             <span className="text-sm text-slate-700">Require password change on next login</span>
           </label>
+
+          {/* Permissions */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-2">Extra Permissions</label>
+            <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors">
+              <input type="checkbox" checked={form.permKnowledgeBase}
+                onChange={e => set('permKnowledgeBase', e.target.checked)}
+                className="accent-amber-500 mt-0.5" />
+              <div>
+                <div className="text-sm font-medium text-slate-800">Knowledge Base Editor</div>
+                <div className="text-xs text-slate-500">Can add, edit, and delete design standards in the Knowledge Base</div>
+              </div>
+            </label>
+          </div>
 
           <div className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
             form.isActive ? 'border-slate-200 hover:border-slate-300' : 'border-red-200 bg-red-50'

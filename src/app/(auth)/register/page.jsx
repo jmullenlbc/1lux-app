@@ -33,7 +33,7 @@ function RegisterForm() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Registration failed'); return; }
-      router.push('/dashboard');
+      router.push('/home');
       router.refresh();
     } catch {
       setError('Network error. Please try again.');

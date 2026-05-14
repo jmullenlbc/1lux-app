@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import Button from '@/components/ui/Button';
 import QuestionCard from '@/components/sections/QuestionCard';
+import StandardsHint from '@/components/wizard/StandardsHint';
 
 const DISK_RATES     = { 6: 0.40, 7: 0.35, 8: 0.30, 9: 0.28, 10: 0.25, 11: 0.23, 12: 0.23 };
 const RECESSED_RATES = { 6: 3.00, 7: 2.625, 8: 2.25, 9: 2.10, 10: 1.875, 11: 1.725, 12: 1.725 };
@@ -91,6 +92,8 @@ export default function DesignCorridorsSection({
           Interior corridors, egress stairwells, elevator lobbies, and unit-entry sconces.
         </p>
       </div>
+
+      <StandardsHint category="CORRIDOR" />
 
       {/* Scope */}
       <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">

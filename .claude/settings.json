@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc --noEmit)",
+      "Bash(npx tsc --noEmit *)",
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(netstat -ano *)",
+      "Bash(curl -s -o /dev/null *)",
+      "mcp__ccd_session__mark_chapter",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "mcp__computer-use__screenshot",
+      "mcp__computer-use__wait",
+      "mcp__Claude_in_Chrome__list_connected_browsers"
+    ]
+  }
+}

@@ -1,7 +1,7 @@
 'use client';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 // ── Icons ────────────────────────────────────────────────────────────────────
 
@@ -29,6 +29,9 @@ function IconFinance() {
 function IconDesign() {
   return <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42" /></svg>;
 }
+function IconBook() {
+  return <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>;
+}
 function IconCog() {
   return <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
 }
@@ -43,6 +46,15 @@ function IconBuilding() {
 }
 function IconChangelog() {
   return <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>;
+}
+function IconRoadmap() {
+  return <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z" /></svg>;
+}
+function IconPipeline() {
+  return <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" /></svg>;
+}
+function IconDashboardWidget() {
+  return <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg>;
 }
 function IconFactory() {
   return <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205l3 1m1.5.5l-1.5-.5M6.75 7.364V3h-3v18m3-13.636l10.5-3.819" /></svg>;
@@ -144,6 +156,22 @@ export default function Sidebar({ user }) {
   const at         = (path) => pathname === path;
   const startsWith = (path) => pathname.startsWith(path);
 
+  // ── Home section (collapsible parent) ──────────────────────────────────────
+  const homeRelated = at('/home') || at('/dashboard') || startsWith('/dashboard') ||
+                      startsWith('/clients') || startsWith('/manufacturers') ||
+                      startsWith('/sales-reps') || startsWith('/products');
+  const [homeOpen, setHomeOpen] = useState(true); // default open
+
+  // ── CRM section (collapsible parent) ────────────────────────────────────────
+  const crmRelated = startsWith('/crm');
+  const [crmOpen, setCrmOpen] = useState(true); // default open
+
+  // Auto-open when navigating to a related path
+  useEffect(() => {
+    if (homeRelated) setHomeOpen(true);
+    if (crmRelated)  setCrmOpen(true);
+  }, [pathname]);
+
   async function handleLogout() {
     setSigningOut(true);
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -195,15 +223,87 @@ export default function Sidebar({ user }) {
 
       {/* ── Main nav ── */}
       <nav className="flex-1 px-2 pb-4 space-y-0.5 overflow-y-auto overflow-x-hidden">
-        <NavItem href="/dashboard" icon={<IconGrid />} label="Projects" expanded={expanded}
-          active={at('/dashboard') || (startsWith('/project') && !startsWith('/project/new'))} />
-        <NavItem href="/clients" icon={<IconUsers />} label="Clients" expanded={expanded}
-          active={startsWith('/clients')} />
-        <NavItem href="#" icon={<IconSales />} label="Sales" disabled expanded={expanded} />
+
+        {/* ── Home (collapsible parent) ── */}
+        <div>
+          <div
+            onClick={() => expanded ? setHomeOpen(o => !o) : router.push('/home')}
+            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors select-none cursor-pointer ${
+              homeRelated ? 'text-white' : 'hover:text-white'
+            }`}
+            style={homeRelated
+              ? { backgroundColor: '#1e3a5f', color: 'white' }
+              : { color: '#94b4d1' }
+            }
+          >
+            <span className="shrink-0"><IconGrid /></span>
+            {expanded && (
+              <>
+                <span className="flex-1 whitespace-nowrap">Home</span>
+                <svg
+                  className="w-3 h-3 shrink-0 transition-transform duration-150"
+                  style={{ transform: homeOpen ? 'rotate(180deg)' : 'rotate(0deg)', color: '#4a6fa5' }}
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                </svg>
+              </>
+            )}
+          </div>
+
+          {/* Sub-items — only when sidebar is expanded */}
+          {expanded && homeOpen && (
+            <div className="mt-0.5 space-y-0.5 ml-1">
+              <SubNavItem href="/home"         icon={<IconGrid />}    label="Overview"      expanded={expanded} active={at('/home')} />
+              <SubNavItem href="/dashboard"    icon={<IconFolder />}  label="Projects"      expanded={expanded} active={at('/dashboard') || (startsWith('/project') && !startsWith('/project/new'))} />
+              <SubNavItem href="/clients"      icon={<IconUsers />}   label="Clients"       expanded={expanded} active={startsWith('/clients')} />
+              <SubNavItem href="/manufacturers"icon={<IconFactory />} label="Manufacturers" expanded={expanded} active={at('/manufacturers')} />
+              <SubNavItem href="/sales-reps"   icon={<IconTag />}     label="Sales Reps"    expanded={expanded} active={startsWith('/sales-reps')} />
+              <SubNavItem href="/products"     icon={<IconPackage />} label="Products"      expanded={expanded} active={startsWith('/products')} />
+            </div>
+          )}
+        </div>
+
+        {/* ── CRM (collapsible parent) ── */}
+        <div>
+          <div
+            onClick={() => expanded ? setCrmOpen(o => !o) : router.push('/crm')}
+            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors select-none cursor-pointer ${
+              crmRelated ? 'text-white' : 'hover:text-white'
+            }`}
+            style={crmRelated
+              ? { backgroundColor: '#1e3a5f', color: 'white' }
+              : { color: '#94b4d1' }
+            }
+          >
+            <span className="shrink-0"><IconSales /></span>
+            {expanded && (
+              <>
+                <span className="flex-1 whitespace-nowrap">CRM</span>
+                <svg
+                  className="w-3 h-3 shrink-0 transition-transform duration-150"
+                  style={{ transform: crmOpen ? 'rotate(180deg)' : 'rotate(0deg)', color: '#4a6fa5' }}
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                </svg>
+              </>
+            )}
+          </div>
+
+          {expanded && crmOpen && (
+            <div className="mt-0.5 space-y-0.5 ml-1">
+              <SubNavItem href="/crm"            icon={<IconPipeline />}        label="Pipeline"   expanded={expanded} active={at('/crm') || (crmRelated && !startsWith('/crm/dashboards'))} />
+              <SubNavItem href="/crm/dashboards" icon={<IconDashboardWidget />} label="Dashboards" expanded={expanded} active={startsWith('/crm/dashboards')} />
+            </div>
+          )}
+        </div>
         <NavItem href="/pre-con" icon={<IconPrecon />} label="Pre-con" expanded={expanded}
-          active={startsWith('/pre-con') || startsWith('/manufacturers') || startsWith('/products')} />
+          active={startsWith('/pre-con')} />
         <NavItem href="#" icon={<IconConstruction />} label="Construction" disabled expanded={expanded} />
         <NavItem href="#" icon={<IconDesign />} label="Design" disabled expanded={expanded} />
+        <NavItem href="/knowledge-base" icon={<IconBook />} label="Knowledge Base" expanded={expanded}
+          active={startsWith('/knowledge-base')} />
         <NavItem href="#" icon={<IconFinance />} label="Finance" disabled expanded={expanded} />
 
         <div className="my-3" style={{ borderTop: '1px solid #1e293b' }} />
@@ -214,12 +314,11 @@ export default function Sidebar({ user }) {
           </div>
         )}
 
-        {isIlcAdmin && <SubNavItem href="/admin/pricing" icon={<IconTag />} label="Pricing" expanded={expanded} active={startsWith('/admin/pricing')} />}
-        {isAdmin && <SubNavItem href="/admin" icon={<IconUserCircle />} label="Users" expanded={expanded} active={at('/admin')} />}
-        {isAdmin && <SubNavItem href="/admin/import" icon={<IconFolder />} label="Import Excel" expanded={expanded} active={startsWith('/admin/import')} />}
-        {isAdmin && <SubNavItem href="/admin/changelog" icon={<IconChangelog />} label="Changelog" expanded={expanded} active={startsWith('/admin/changelog')} />}
-        <SubNavItem href="/manufacturers" icon={<IconFactory />} label="Manufacturers" expanded={expanded} active={at('/manufacturers')} />
-        <SubNavItem href="/products" icon={<IconPackage />} label="Products" expanded={expanded} active={startsWith('/products')} />
+        {isIlcAdmin && <SubNavItem href="/admin/pricing"  icon={<IconTag />}       label="Pricing"      expanded={expanded} active={startsWith('/admin/pricing')} />}
+        {isAdmin    && <SubNavItem href="/admin"          icon={<IconUserCircle />} label="Users"        expanded={expanded} active={at('/admin')} />}
+        {isAdmin    && <SubNavItem href="/admin/import"   icon={<IconFolder />}    label="Import Excel" expanded={expanded} active={startsWith('/admin/import')} />}
+        {isAdmin    && <SubNavItem href="/admin/changelog"icon={<IconChangelog />} label="Changelog"    expanded={expanded} active={startsWith('/admin/changelog')} />}
+        {isAdmin    && <SubNavItem href="/admin/roadmap"  icon={<IconRoadmap />}   label="Roadmap"      expanded={expanded} active={startsWith('/admin/roadmap')} />}
         <SubNavItem href="#" icon={<IconBuilding />} label="Company" disabled expanded={expanded} />
       </nav>
 

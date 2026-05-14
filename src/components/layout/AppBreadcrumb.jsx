@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 // Static label map for known path segments
 const SEGMENT_MAP = {
   dashboard:     { label: 'Dashboard',        href: '/dashboard' },
+  'knowledge-base': { label: 'Knowledge Base', href: '/knowledge-base' },
   clients:       { label: 'Clients',           href: '/clients'   },
   manufacturers: { label: 'Manufacturers',     href: '/manufacturers' },
   products:      { label: 'Products',          href: '/products'  },

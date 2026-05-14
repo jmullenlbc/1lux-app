@@ -4,6 +4,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import QuestionCard from './QuestionCard';
 import { formatCurrency } from '@/lib/calculations';
+import StandardsHint from '@/components/wizard/StandardsHint';
 
 export default function ExteriorSection({ responses, projectData, onSaveResponses, onSaveData, onNext, onPrev, isDesign = false }) {
   const [answers, setAnswers] = useState({
@@ -68,6 +69,8 @@ export default function ExteriorSection({ responses, projectData, onSaveResponse
           surface parking lots, carports, and attached/detached garages.
         </p>
       </div>
+
+      <StandardsHint category="EXTERIOR" />
 
       {/* Auto scope summary */}
       <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">

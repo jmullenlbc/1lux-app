@@ -8,30 +8,39 @@ import Anthropic from '@anthropic-ai/sdk';
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 async function extractTOCWithAI(text) {
-  const prompt = `You are reading a lighting fixture submittal package. Extract every fixture type from the table of contents or fixture schedule index.
+  const prompt = `You are reading a lighting fixture submittal package. The Table of Contents (TOC) lists every fixture type that was submitted.
 
 Return ONLY a valid JSON array — no markdown, no explanation:
-[{"typeCode":"A","description":"Recessed Downlight"}, ...]
+[{"typeCode":"SP1","description":"HOLOPHANE"}, ...]
 
-What to look for:
-- Type codes are identifiers like: A, B, C, LP, WP, A1, B2, LP-1, EL-1, SP1, D1, etc.
-- Descriptions are fixture category names like "Recessed Downlight", "Wall Sconce", "Linear Strip", "Pendant", "Exit/Emergency"
-- In a TOC, each line typically has: [type code]  [description]  [page number]
-- Fixture schedule indexes often list: [type code] followed by manufacturer/model info
+SUBMITTAL TOC FORMATS — the text may appear in any of these formats:
 
-Rules:
-- Include ALL fixture types you find — don't truncate the list
-- Do NOT include specification section numbers (16500, 265100, etc.) as type codes
-- Do NOT include page numbers, dates, or revision numbers as type codes
-- If a type code appears multiple times, include it only once
-- Return [] if genuinely no fixture types are present
+Format A (tab/column-aligned rows):
+  SP1   HOLOPHANE   WFCL3 P40 30K MVOLT...   2
+  D1    NORA LIGHTING   NIO-4RNDC30X...   63
 
-Text (first 8000 chars):
-${text.slice(0, 8000)}`;
+Format B (flat/space-joined — all tokens on one or a few lines):
+  ... SP1 HOLOPHANE WFCL3 P40 30K MVOLT FC5 BK SK PR7 AO PCLL L30 2 SP1 HOLOPHANE NYA 14 F5J 17S C03 BK DBB 10 A3 PRUDENTIAL BPRO2-LIN...
+
+In Format B, find the repeating pattern: [TypeCode] [MANUFACTURER NAME] [model-number] [page-number]
+
+RULES:
+- Type codes: short alphanumeric identifiers like SP1, D1, EL1-P, V2-L, W10, A3, PS1, EB1, EW4, etc.
+  They are 1–6 chars: letters + optional digits + optional dash-suffix (e.g. -P, -L, -P2)
+- Use the MANUFACTURER NAME as the description (e.g. "HOLOPHANE", "NORA LIGHTING", "ELUMA")
+  If no manufacturer is clear, use the fixture category (e.g. "Pendant", "Sconce")
+- Do NOT use: spec section numbers (16500, 265100), page numbers, or dates as type codes
+- Do NOT use: "Type", "Manufacturer", "Model", "Page", "RESUBMIT", "APPROVED" as type codes
+- If a type code appears more than once (e.g. in RESUBMIT and APPROVED sections), include it only ONCE
+- Include ALL fixture types — do NOT truncate
+- Return [] only if no fixture types exist at all
+
+Text (first 10000 chars):
+${text.slice(0, 10000)}`;
 
   const msg = await anthropic.messages.create({
     model:      'claude-haiku-4-5-20251001',
-    max_tokens: 800,
+    max_tokens: 1500,
     messages:   [{ role: 'user', content: prompt }],
   });
 
@@ -76,33 +85,24 @@ export async function POST(request, { params }) {
     return NextResponse.json({ error: 'File not found' }, { status: 404 });
   }
 
-  // Parse TOC — prefer already-extracted textContent, else re-extract from disk.
-  // Regex parser first; AI fallback when it returns nothing.
-  let items = [];
-  let rawText = file.textContent || null;
+  // Always re-extract from disk using Y-position-aware method (reconstructs proper table rows).
+  // The stored file.textContent uses naive join(' ') which collapses multi-column table rows
+  // onto one line and breaks the regex parser.
+  let items   = [];
+  let rawText = file.textContent || null; // kept for AI fallback only
 
   try {
-    const { parseTOCFromText, parseTOCFromBuffer } = await import('@/lib/parseTOC.js');
+    const { parseTOCFromBuffer, extractTOCText, parseTOCFromText } = await import('@/lib/parseTOC.js');
+    const filePath = path.join(process.cwd(), 'uploads', file.storedPath);
+    const buffer   = await readFile(filePath);
 
-    if (rawText) {
-      items = parseTOCFromText(rawText);
-    } else {
-      const filePath = path.join(process.cwd(), 'uploads', file.storedPath);
-      const buffer   = await readFile(filePath);
-      items  = await parseTOCFromBuffer(buffer);
-      // Also extract raw text so AI fallback can use it
-      try {
-        const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
-        const doc = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise;
-        let t = '';
-        const maxPages = Math.min(doc.numPages, 8);
-        for (let i = 1; i <= maxPages; i++) {
-          const page = await doc.getPage(i);
-          const content = await page.getTextContent();
-          t += content.items.map(it => it.str).join(' ') + '\n';
-        }
-        rawText = t.trim();
-      } catch {}
+    // Smart extraction: groups text items by Y position → proper tab-separated rows
+    const smartText = await extractTOCText(buffer);
+    items = parseTOCFromText(smartText);
+
+    // If smart extraction still found nothing, keep rawText for AI fallback
+    if (items.length === 0 && !rawText) {
+      rawText = smartText; // use smart text as AI input if no stored textContent
     }
   } catch (err) {
     return NextResponse.json({ error: 'Failed to parse PDF: ' + err.message }, { status: 500 });
@@ -182,29 +182,15 @@ export async function GET(request, { params }) {
     return NextResponse.json({ error: 'File not found' }, { status: 404 });
   }
 
-  let items = [];
+  let items   = [];
   let rawText = file.textContent || null;
   try {
-    const { parseTOCFromText, parseTOCFromBuffer } = await import('@/lib/parseTOC.js');
-    if (rawText) {
-      items = parseTOCFromText(rawText);
-    } else {
-      const filePath = path.join(process.cwd(), 'uploads', file.storedPath);
-      const buffer   = await (await import('fs/promises')).readFile(filePath);
-      items = await parseTOCFromBuffer(buffer);
-      try {
-        const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
-        const doc = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise;
-        let t = '';
-        const maxPages = Math.min(doc.numPages, 8);
-        for (let i = 1; i <= maxPages; i++) {
-          const page = await doc.getPage(i);
-          const content = await page.getTextContent();
-          t += content.items.map(it => it.str).join(' ') + '\n';
-        }
-        rawText = t.trim();
-      } catch {}
-    }
+    const { extractTOCText, parseTOCFromText } = await import('@/lib/parseTOC.js');
+    const filePath = path.join(process.cwd(), 'uploads', file.storedPath);
+    const buffer   = await (await import('fs/promises')).readFile(filePath);
+    const smartText = await extractTOCText(buffer);
+    items = parseTOCFromText(smartText);
+    if (items.length === 0 && !rawText) rawText = smartText;
   } catch {}
 
   // AI fallback when regex finds nothing

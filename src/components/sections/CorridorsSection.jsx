@@ -3,6 +3,7 @@ import { useState } from 'react';
 import Button from '@/components/ui/Button';
 import QuestionCard from './QuestionCard';
 import { formatCurrency } from '@/lib/calculations';
+import StandardsHint from '@/components/wizard/StandardsHint';
 
 const DISK_RATES     = { 6: 0.40, 7: 0.35, 8: 0.30, 9: 0.28, 10: 0.25, 11: 0.23, 12: 0.23 };
 const RECESSED_RATES = { 6: 3.00, 7: 2.625, 8: 2.25, 9: 2.10, 10: 1.875, 11: 1.725, 12: 1.725 };
@@ -93,6 +94,8 @@ export default function CorridorsSection({ responses, projectData, onSaveRespons
             : 'Corridor and stairwell lighting scope. Base design assumes 7" surface-mount disks at 10ft spacing in corridors, and 4ft LED strips with occupancy sensors + battery backup in stairwells.'}
         </p>
       </div>
+
+      <StandardsHint category="CORRIDOR" />
 
       {/* Scope summary */}
       <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">

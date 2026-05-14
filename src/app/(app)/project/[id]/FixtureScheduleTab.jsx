@@ -1,5 +1,8 @@
 'use client';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import PdfViewerModal from '@/components/ui/PdfViewerModal';
+
+const PHASE_OPTIONS = ['SD', 'DD', 'CD', 'IFC', 'ASI'];
 
 const SECTION_OPTIONS = [
   { id: 'units',    label: 'Units'         },
@@ -13,25 +16,211 @@ const SECTION_OPTIONS = [
   { id: 'other',    label: 'Other'         },
 ];
 
+function formatBytes(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024)        return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatDate(str) {
+  return new Date(str).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// ── Tag modal (shown on drop / browse, before upload) ────────────────────────
+const TAG_GROUPS = [
+  { label: 'Design Phase', tags: PHASE_OPTIONS },
+];
+
+function TagsModal({ fileName, onConfirm, onCancel }) {
+  const [selected, setSelected] = useState([]);
+
+  function toggle(tag) {
+    setSelected(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100">
+          <h3 className="font-bold text-slate-900 text-sm">Tag this file</h3>
+          <p className="text-xs text-slate-400 mt-0.5 truncate">{fileName}</p>
+        </div>
+        <div className="p-5 space-y-4">
+          {TAG_GROUPS.map(group => (
+            <div key={group.label}>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                {group.label}
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {group.tags.map(tag => (
+                  <button key={tag} type="button" onClick={() => toggle(tag)}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                      selected.includes(tag)
+                        ? 'bg-amber-500 border-amber-500 text-white'
+                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                    }`}>
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-2 px-5 py-4 border-t border-slate-100">
+          <button type="button" onClick={onCancel}
+            className="flex-1 px-4 py-2 rounded-lg text-sm font-medium border border-slate-200 text-slate-600 hover:bg-slate-50">
+            Cancel
+          </button>
+          <button type="button" onClick={() => onConfirm(selected)}
+            className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 hover:bg-amber-400 text-white transition-colors">
+            Upload
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Saved file card ───────────────────────────────────────────────────────────
+function FileCard({ file, projectId, onDelete, onView }) {
+  const [deleting, setDeleting] = useState(false);
+  const tags  = (() => { try { return JSON.parse(file.tags || '[]'); } catch { return []; } })();
+  const phase = PHASE_OPTIONS.find(p => tags.includes(p));
+
+  async function handleDelete(e) {
+    e.stopPropagation();
+    if (!confirm(`Delete "${file.originalName}"?`)) return;
+    setDeleting(true);
+    try {
+      await fetch(`/api/projects/${projectId}/files/${file.id}`, { method: 'DELETE' });
+      onDelete(file.id);
+    } catch {
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <div
+      onClick={onView}
+      className="flex items-center gap-3 px-4 py-3 bg-white rounded-xl border border-slate-200 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer group"
+    >
+      {/* PDF icon */}
+      <div className="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center shrink-0">
+        <svg className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+        </svg>
+      </div>
+
+      {/* Name + meta */}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-blue-700 transition-colors">{file.originalName}</p>
+        <div className="flex items-center gap-2 mt-0.5">
+          <span className="text-xs text-slate-400">{formatDate(file.createdAt)}</span>
+          {file.size && (
+            <>
+              <span className="text-slate-200">·</span>
+              <span className="text-xs text-slate-400">{formatBytes(file.size)}</span>
+            </>
+          )}
+          {file.uploadedBy && (
+            <>
+              <span className="text-slate-200">·</span>
+              <span className="text-xs text-slate-400">{file.uploadedBy.name || file.uploadedBy.email}</span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Badges */}
+      <div className="flex items-center gap-1.5 shrink-0">
+        {phase && (
+          <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-violet-50 text-violet-700 border border-violet-200 uppercase tracking-wide">
+            {phase}
+          </span>
+        )}
+        <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wide">
+          Fixture Schedule
+        </span>
+      </div>
+
+      {/* Open PDF button */}
+      <button
+        onClick={e => { e.stopPropagation(); onView(); }}
+        className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold transition-colors opacity-0 group-hover:opacity-100"
+        title="Open PDF"
+      >
+        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+        </svg>
+        Open PDF
+      </button>
+
+      {/* Delete */}
+      <button
+        onClick={handleDelete}
+        disabled={deleting}
+        className="w-7 h-7 flex items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all disabled:opacity-50"
+        title="Delete"
+      >
+        {deleting
+          ? <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+          : <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+        }
+      </button>
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 export default function FixtureScheduleTab({ projectId }) {
-  const [step,     setStep]     = useState('upload'); // 'upload'|'parsing'|'preview'|'importing'|'done'
-  const [warning,  setWarning]  = useState(null);
-  const [fixtures, setFixtures] = useState([]);
-  const [fileName, setFileName] = useState('');
-  const [dragging, setDragging] = useState(false);
-  const [error,    setError]    = useState(null);
-  const [imported, setImported] = useState(0);
+  const [step,        setStep]        = useState('upload'); // 'upload'|'parsing'|'preview'|'importing'|'done'
+  const [warning,     setWarning]     = useState(null);
+  const [fixtures,    setFixtures]    = useState([]);
+  const [fileName,    setFileName]    = useState('');
+  const [dragging,    setDragging]    = useState(false);
+  const [error,       setError]       = useState(null);
+  const [imported,    setImported]    = useState(0);
+  const [savedFiles,  setSavedFiles]  = useState([]);
+  const [loadingFiles,setLoadingFiles]= useState(true);
+  const [pendingFile, setPendingFile] = useState(null); // file waiting for tags
+  const [viewingFile, setViewingFile] = useState(null);
   const fileRef = useRef(null);
 
-  async function parseFile(file) {
+  // Load saved fixture schedule files on mount
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/files?tab=fixture-schedule`)
+      .then(r => r.json())
+      .then(d => setSavedFiles(d.files || []))
+      .catch(() => {})
+      .finally(() => setLoadingFiles(false));
+  }, [projectId]);
+
+  async function parseFile(file, extraTags = []) {
     if (!file || file.type !== 'application/pdf') { setError('Please upload a PDF file.'); return; }
     setFileName(file.name);
     setError(null);
     setStep('parsing');
-    const fd = new FormData();
-    fd.append('file', file);
+
+    // 1. Save the file to the project files store
     try {
-      const res  = await fetch(`/api/projects/${projectId}/peer-review/parse-pdf`, { method: 'POST', body: fd });
+      const tags = ['Fixture Schedule', ...extraTags];
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('tab',  'fixture-schedule');
+      fd.append('tags', JSON.stringify(tags));
+      const saveRes  = await fetch(`/api/projects/${projectId}/files`, { method: 'POST', body: fd });
+      const saveData = await saveRes.json();
+      if (saveRes.ok && saveData.file) {
+        setSavedFiles(prev => [saveData.file, ...prev]);
+      }
+    } catch {}
+
+    // 2. AI parse for Bid Matrix import
+    try {
+      const fd2 = new FormData();
+      fd2.append('file', file);
+      const res  = await fetch(`/api/projects/${projectId}/peer-review/parse-pdf`, { method: 'POST', body: fd2 });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Parse failed');
       setFixtures((data.fixtures || []).map((f, i) => ({ ...f, _id: i, section: f.suggestedSection || 'other' })));
@@ -47,7 +236,7 @@ export default function FixtureScheduleTab({ projectId }) {
     e.preventDefault();
     setDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file) parseFile(file);
+    if (file) setPendingFile(file);
   }
 
   function updateSection(idx, section) {
@@ -83,30 +272,57 @@ export default function FixtureScheduleTab({ projectId }) {
 
   if (step === 'done') {
     return (
-      <div className="flex flex-col items-center gap-6 py-20">
-        <div className="w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center">
-          <svg className="w-7 h-7 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+      <div className="space-y-5">
+        {viewingFile && <PdfViewerModal file={viewingFile} projectId={projectId} onClose={() => setViewingFile(null)} />}
+        {pendingFile && (
+          <TagsModal
+            fileName={pendingFile.name}
+            onConfirm={tags => { setPendingFile(null); parseFile(pendingFile, tags); }}
+            onCancel={() => setPendingFile(null)}
+          />
+        )}
+        <div className="flex flex-col items-center gap-6 py-16">
+          <div className="w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center">
+            <svg className="w-7 h-7 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div className="text-center">
+            <p className="text-lg font-bold text-slate-800">{imported} fixture{imported !== 1 ? 's' : ''} pushed to Bid Matrix</p>
+            <p className="text-sm text-slate-400 mt-1">Open the Bid Matrix from the Budgets tab to review, price, and finalize.</p>
+          </div>
+          <button onClick={reset}
+            className="px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+            Parse Another PDF
+          </button>
         </div>
-        <div className="text-center">
-          <p className="text-lg font-bold text-slate-800">{imported} fixture{imported !== 1 ? 's' : ''} pushed to Bid Matrix</p>
-          <p className="text-sm text-slate-400 mt-1">Open the Bid Matrix from the Budgets tab to review, price, and finalize.</p>
-        </div>
-        <button onClick={reset}
-          className="px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
-          Parse Another PDF
-        </button>
+
+        {/* Still show saved files */}
+        {savedFiles.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest px-1">Uploaded Schedules</p>
+            {savedFiles.map(f => <FileCard key={f.id} file={f} />)}
+          </div>
+        )}
       </div>
     );
   }
 
   return (
     <div className="space-y-5">
+      {viewingFile && <PdfViewerModal file={viewingFile} projectId={projectId} onClose={() => setViewingFile(null)} />}
+      {pendingFile && (
+        <TagsModal
+          fileName={pendingFile.name}
+          onConfirm={tags => { setPendingFile(null); parseFile(pendingFile, tags); }}
+          onCancel={() => setPendingFile(null)}
+        />
+      )}
 
       {/* Upload zone */}
       <div className="bg-white rounded-xl border border-slate-200 p-6">
         <h3 className="text-sm font-bold text-slate-700 mb-4">Parse Fixture Schedule from PDF</h3>
+
         <div
           onDragOver={e => { e.preventDefault(); setDragging(true); }}
           onDragLeave={() => setDragging(false)}
@@ -141,7 +357,7 @@ export default function FixtureScheduleTab({ projectId }) {
             </>
           )}
           <input ref={fileRef} type="file" accept=".pdf,application/pdf" className="hidden"
-            onChange={e => e.target.files[0] && parseFile(e.target.files[0])} />
+            onChange={e => { if (e.target.files[0]) { setPendingFile(e.target.files[0]); e.target.value = ''; } }} />
         </div>
         {error && <div className="mt-3 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-700">{error}</div>}
         <div className="mt-3 text-xs text-slate-400 space-y-0.5">
@@ -151,7 +367,25 @@ export default function FixtureScheduleTab({ projectId }) {
         </div>
       </div>
 
-      {/* Preview */}
+      {/* Saved files */}
+      {(savedFiles.length > 0 || loadingFiles) && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest px-1">Uploaded Schedules</p>
+          {loadingFiles ? (
+            <div className="flex items-center gap-2 px-1 py-2 text-xs text-slate-400">
+              <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+              </svg>
+              Loading…
+            </div>
+          ) : (
+            savedFiles.map(f => <FileCard key={f.id} file={f} projectId={projectId} onDelete={id => setSavedFiles(prev => prev.filter(x => x.id !== id))} onView={() => setViewingFile(f)} />)
+          )}
+        </div>
+      )}
+
+      {/* Preview table */}
       {(step === 'preview' || step === 'importing') && (
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">

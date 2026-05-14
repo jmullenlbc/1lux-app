@@ -6,6 +6,7 @@ import QuestionCard from './QuestionCard';
 import { formatCurrency } from '@/lib/calculations';
 import { PRICING } from '@/lib/pricing';
 import { buildingTypeLabel } from '@/lib/utils';
+import StandardsHint from '@/components/wizard/StandardsHint';
 
 export default function ControlsSection({ responses, projectData, budget, onSaveResponses, onNext, onPrev, isLast, isDesign = false }) {
   const [answers, setAnswers] = useState({
@@ -57,6 +58,8 @@ export default function ControlsSection({ responses, projectData, budget, onSave
           and applied to total gross SF. Each building type has a hard cap.
         </p>
       </div>
+
+      <StandardsHint category="CONTROLS" />
 
       {/* Building type — read-only, set at project creation */}
       <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">

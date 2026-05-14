@@ -24,7 +24,7 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Login failed'); return; }
-      router.push('/dashboard');
+      router.push('/home');
       router.refresh();
     } catch {
       setError('Network error. Please try again.');

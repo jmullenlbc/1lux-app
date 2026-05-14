@@ -4,6 +4,7 @@ import Button from '@/components/ui/Button';
 import QuestionCard from '@/components/sections/QuestionCard';
 import { formatCurrency } from '@/lib/calculations';
 import { PRICING } from '@/lib/pricing';
+import StandardsHint from '@/components/wizard/StandardsHint';
 
 const FAN_ROOMS = {
   none: 0, masterOnly: 1, livingRoomOnly: 1, masterAndLiving: 2,
@@ -65,6 +66,8 @@ export default function DesignUnitsSection({ responses, projectData, onSaveRespo
         <h2 className="text-xl font-bold text-slate-900">Residential Units</h2>
         <p className="text-slate-500 text-sm mt-1">Select lighting choices for each element. Budget updates live on the right.</p>
       </div>
+
+      <StandardsHint category="UNIT" />
 
       {/* Scope */}
       <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">

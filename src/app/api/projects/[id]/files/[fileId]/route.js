@@ -1,9 +1,39 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { unlink } from 'fs/promises';
+import { unlink, readFile } from 'fs/promises';
 import path from 'path';
 import { logActivity, TAB_LABELS } from '@/lib/activity';
+
+// GET — serve the file inline (for PDF viewer)
+export async function GET(request, { params }) {
+  const { user, error } = await requireAuth();
+  if (error) return error;
+
+  const record = await prisma.projectFile.findUnique({
+    where: { id: params.fileId },
+    include: { project: true },
+  });
+
+  if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (user.role !== 'ILC_ADMIN' && record.project.createdById !== user.id) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
+  try {
+    const buffer      = await readFile(path.join(process.cwd(), 'uploads', record.storedPath));
+    const contentType = record.mimeType || 'application/octet-stream';
+    return new Response(buffer, {
+      headers: {
+        'Content-Type':        contentType,
+        'Content-Disposition': `inline; filename="${encodeURIComponent(record.originalName)}"`,
+        'Content-Length':      String(buffer.length),
+      },
+    });
+  } catch {
+    return NextResponse.json({ error: 'File not found on disk' }, { status: 404 });
+  }
+}
 
 export async function PATCH(request, { params }) {
   const { user, error } = await requireAuth();

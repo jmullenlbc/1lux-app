@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import Button from '@/components/ui/Button';
 import QuestionCard from '@/components/sections/QuestionCard';
+import StandardsHint from '@/components/wizard/StandardsHint';
 
 export default function DesignGarageSection({
   responses,
@@ -43,6 +44,8 @@ export default function DesignGarageSection({
           covered in the Exterior section.
         </p>
       </div>
+
+      <StandardsHint category="GARAGE" />
 
       {/* Scope */}
       <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">

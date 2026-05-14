@@ -4,6 +4,7 @@ import Button from '@/components/ui/Button';
 import QuestionCard from './QuestionCard';
 import { formatCurrency } from '@/lib/calculations';
 import { PRICING } from '@/lib/pricing';
+import StandardsHint from '@/components/wizard/StandardsHint';
 
 const FAN_ROOMS = {
   none: 0, masterOnly: 1, livingRoomOnly: 1, masterAndLiving: 2,
@@ -86,6 +87,8 @@ export default function UnitsSection({ responses, projectData, onSaveResponses, 
           Select the lighting approach for each element. Budget updates live on the right.
         </p>
       </div>
+
+      <StandardsHint category="UNIT" />
 
       {/* Scope summary */}
       <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">

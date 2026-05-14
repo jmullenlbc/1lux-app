@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { formatCurrency } from '@/lib/calculations';
-import { buildingTypeLabel, phaseLabel, serviceTypeLabel, clientTypeLabel, locationTypeLabel, PROJECT_PHASES, SERVICE_TYPES } from '@/lib/utils';
+import { buildingTypeLabel, phaseLabel, serviceTypeLabel, clientTypeLabel, locationTypeLabel, PROJECT_PHASES, SERVICE_TYPES, BUILDING_TYPES } from '@/lib/utils';
 import FileDropZone from '@/components/files/FileDropZone';
 import ProjectChat from '@/components/ProjectChat';
 import TakeoffDashboard from '@/components/TakeoffDashboard';
@@ -18,6 +18,7 @@ import ProjectActivityFeed from '@/components/ProjectActivityFeed';
 import BudgetLineItemWidget from '@/components/BudgetLineItemWidget';
 import DesignScheduleCard from '@/components/DesignScheduleCard';
 import FixtureScheduleTab from './FixtureScheduleTab';
+import PdfViewerModal from '@/components/ui/PdfViewerModal';
 
 const BUDGET_TYPE_META = {
   conceptual:  { label: 'Conceptual Budget',    color: 'bg-slate-100 text-slate-600' },
@@ -64,11 +65,12 @@ const TAB_LABELS = {
 };
 
 function ProjectSearch({ projectId }) {
-  const [open,    setOpen]    = useState(false);
-  const [query,   setQuery]   = useState('');
-  const [results, setResults] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
+  const [open,        setOpen]        = useState(false);
+  const [query,       setQuery]       = useState('');
+  const [results,     setResults]     = useState([]);
+  const [loading,     setLoading]     = useState(false);
+  const [searched,    setSearched]    = useState(false);
+  const [viewingFile, setViewingFile] = useState(null);
   const inputRef = useState(null);
 
   async function search(q) {
@@ -89,6 +91,14 @@ function ProjectSearch({ projectId }) {
   }
 
   return (
+    <>
+    {viewingFile && (
+      <PdfViewerModal
+        file={viewingFile}
+        projectId={projectId}
+        onClose={() => setViewingFile(null)}
+      />
+    )}
     <div className="border-b border-slate-100 bg-white">
       <div className="max-w-6xl mx-auto px-6">
         {!open ? (
@@ -127,10 +137,11 @@ function ProjectSearch({ projectId }) {
                 {results.map(r => (
                   <div key={r.fileId} className="bg-slate-50 rounded-xl p-3">
                     <div className="flex items-center gap-2 mb-1.5">
-                      <a href={`/api/uploads/${r.storedPath.replace(/\\/g, '/')}`} target="_blank" rel="noopener noreferrer"
-                        className="text-xs font-semibold text-amber-700 hover:text-amber-600 truncate">
+                      <button
+                        onClick={() => setViewingFile({ id: r.fileId, originalName: r.originalName })}
+                        className="text-xs font-semibold text-amber-700 hover:text-amber-600 truncate text-left">
                         {r.originalName}
-                      </a>
+                      </button>
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-500 shrink-0">
                         {TAB_LABELS[r.tab] || r.tab}
                       </span>
@@ -149,6 +160,7 @@ function ProjectSearch({ projectId }) {
         )}
       </div>
     </div>
+    </>
   );
 }
 
@@ -176,13 +188,37 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
   const [savingClient,   setSavingClient]   = useState(false);
   const [assignedClient, setAssignedClient] = useState(project.client || null);
 
+  // Project info editing (city, state, buildingType)
+  const [editingInfo,   setEditingInfo]   = useState(false);
+  const [infoDraft,     setInfoDraft]     = useState({ city: project.city || '', state: project.state || '', buildingType: project.buildingType || '' });
+  const [savedInfo,     setSavedInfo]     = useState({ city: project.city || '', state: project.state || '', buildingType: project.buildingType || '' });
+  const [savingInfo,    setSavingInfo]    = useState(false);
+
+  async function saveProjectInfo() {
+    setSavingInfo(true);
+    const res = await fetch(`/api/projects/${project.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        city:         infoDraft.city.trim()         || null,
+        state:        infoDraft.state.trim()        || null,
+        buildingType: infoDraft.buildingType        || null,
+      }),
+    });
+    if (res.ok) {
+      setSavedInfo({ ...infoDraft });
+      setEditingInfo(false);
+    }
+    setSavingInfo(false);
+  }
+
   const budgetMeta = BUDGET_TYPE_META[project.budgetType] || BUDGET_TYPE_META.conceptual;
   const budgetTotal = project.budgetType === 'peer_review'
     ? peerReviewTotal
     : (budget?.totalWithControls || 0);
 
-  const locationStr = project.city && project.state
-    ? `${project.city}, ${project.state}`
+  const locationStr = savedInfo.city && savedInfo.state
+    ? `${savedInfo.city}, ${savedInfo.state}`
     : (project.location || null);
 
   async function updatePhase(newPhase) {
@@ -269,6 +305,7 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
   const [budgetType,         setBudgetType]         = useState(project.budgetType || 'conceptual');
   const [convertingTo,       setConvertingTo]       = useState(null);   // 'conceptual' | 'design' | null
   const [convertLoading,     setConvertLoading]     = useState(false);
+  const [viewingPdf,         setViewingPdf]         = useState(null);
 
   async function convertBudgetType(newType) {
     setConvertLoading(true);
@@ -330,6 +367,13 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
 
   return (
     <>
+    {viewingPdf && (
+      <PdfViewerModal
+        file={viewingPdf}
+        projectId={project.id}
+        onClose={() => setViewingPdf(null)}
+      />
+    )}
     <div className="min-h-screen bg-slate-50">
       {/* Top bar */}
       <div className="bg-white border-b border-slate-200">
@@ -416,13 +460,68 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
 
                 {(savingPhase || savingSvc) && <span className="text-xs text-slate-400">Saving...</span>}
 
-                {project.buildingType && (
-                  <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                    {buildingTypeLabel(project.buildingType)}
-                  </span>
-                )}
-                {locationStr && (
-                  <span className="text-xs text-slate-400">{locationStr}</span>
+                {/* Building type + location — click pencil to edit */}
+                {!editingInfo ? (
+                  <>
+                    {savedInfo.buildingType && (
+                      <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                        {buildingTypeLabel(savedInfo.buildingType)}
+                      </span>
+                    )}
+                    {(savedInfo.city || savedInfo.state) && (
+                      <span className="text-xs text-slate-400">
+                        {[savedInfo.city, savedInfo.state].filter(Boolean).join(', ')}
+                      </span>
+                    )}
+                    <button
+                      onClick={() => { setInfoDraft({ ...savedInfo }); setEditingInfo(true); }}
+                      title="Edit city, state, building type"
+                      className="flex items-center gap-1 text-xs text-slate-300 hover:text-amber-500 transition-colors"
+                    >
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+                      </svg>
+                      {!savedInfo.city && !savedInfo.buildingType && <span>Add location &amp; type</span>}
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <input
+                      value={infoDraft.city}
+                      onChange={e => setInfoDraft(d => ({ ...d, city: e.target.value }))}
+                      placeholder="City"
+                      className="text-xs border border-slate-200 rounded-lg px-2 py-1 w-32 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+                    />
+                    <input
+                      value={infoDraft.state}
+                      onChange={e => setInfoDraft(d => ({ ...d, state: e.target.value }))}
+                      placeholder="ST"
+                      className="text-xs border border-slate-200 rounded-lg px-2 py-1 w-14 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+                    />
+                    <select
+                      value={infoDraft.buildingType}
+                      onChange={e => setInfoDraft(d => ({ ...d, buildingType: e.target.value }))}
+                      className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    >
+                      <option value="">Building type…</option>
+                      {BUILDING_TYPES.map(t => (
+                        <option key={t.value} value={t.value}>{t.label}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={saveProjectInfo}
+                      disabled={savingInfo}
+                      className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold disabled:opacity-60 transition-colors"
+                    >
+                      {savingInfo ? 'Saving…' : 'Save'}
+                    </button>
+                    <button
+                      onClick={() => setEditingInfo(false)}
+                      className="px-2.5 py-1 rounded-lg border border-slate-200 text-slate-500 text-xs hover:bg-slate-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -837,7 +936,7 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
         {activeTab === 'Drawings' && (() => {
           const drawingFiles  = filesByTab('drawings').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
           const latestDrawing = drawingFiles[0] ?? null;
-          const drawingUrl    = latestDrawing ? `/api/uploads/${latestDrawing.storedPath.replace(/\\/g, '/')}` : null;
+          // drawingUrl kept for reference but we now use PdfViewerModal
           function drawingTag(f) {
             try { const t = JSON.parse(f.tags || '[]'); return t.length ? t.join(' · ') : null; } catch { return null; }
           }
@@ -878,13 +977,14 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
                         )}
                       </div>
                     </div>
-                    <a href={drawingUrl} target="_blank" rel="noopener noreferrer"
+                    <button
+                      onClick={() => setViewingPdf(latestDrawing)}
                       className="shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold transition-colors">
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                       </svg>
                       Open PDF
-                    </a>
+                    </button>
                   </div>
                 ) : (
                   <div className="flex items-center gap-3 py-1">
