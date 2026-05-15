@@ -241,6 +241,7 @@ function NoteDetail({ note, clients, deals, onUpdate, onDelete, currentUser }) {
       body: JSON.stringify({ addClientIds: [clientId] }),
     });
     if (res.ok) onUpdate(await res.json());
+    else alert('Failed to link client: ' + await res.text());
   }
   async function removeClient(clientId) {
     const res = await fetch(`/api/crm/notes/${note.id}`, {
@@ -249,6 +250,7 @@ function NoteDetail({ note, clients, deals, onUpdate, onDelete, currentUser }) {
       body: JSON.stringify({ removeClientIds: [clientId] }),
     });
     if (res.ok) onUpdate(await res.json());
+    else alert('Failed to unlink client: ' + await res.text());
   }
   async function addDeal(dealId) {
     const res = await fetch(`/api/crm/notes/${note.id}`, {
@@ -257,6 +259,7 @@ function NoteDetail({ note, clients, deals, onUpdate, onDelete, currentUser }) {
       body: JSON.stringify({ addDealIds: [dealId] }),
     });
     if (res.ok) onUpdate(await res.json());
+    else alert('Failed to link deal: ' + await res.text());
   }
   async function removeDeal(dealId) {
     const res = await fetch(`/api/crm/notes/${note.id}`, {
@@ -265,6 +268,7 @@ function NoteDetail({ note, clients, deals, onUpdate, onDelete, currentUser }) {
       body: JSON.stringify({ removeDealIds: [dealId] }),
     });
     if (res.ok) onUpdate(await res.json());
+    else alert('Failed to unlink deal: ' + await res.text());
   }
 
   async function handleDelete() {
@@ -278,8 +282,8 @@ function NoteDetail({ note, clients, deals, onUpdate, onDelete, currentUser }) {
   }));
   const availableDeals = deals.filter(d => !linkedDealIds.has(d.id)).map(d => ({
     id: d.id,
-    label: `${d.title}`,
-    sub: `#${d.dealNumber} · ${d.pipeline === 'PROCUREMENT' ? 'Proc' : 'Design'}`,
+    label: d.title || '(Untitled)',
+    sub: `#${d.dealNumber} · ${d.pipeline === 'PROCUREMENT' ? 'Proc' : 'Design'}${d.client?.name ? ' · ' + d.client.name : ''}`,
   }));
 
   const saveColor = saveStatus === 'saving' ? 'text-slate-400' : saveStatus === 'saved' ? 'text-emerald-400' : saveStatus === 'error' ? 'text-red-400' : 'text-slate-600';

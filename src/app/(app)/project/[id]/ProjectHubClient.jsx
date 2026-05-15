@@ -18,12 +18,14 @@ import ProjectActivityFeed from '@/components/ProjectActivityFeed';
 import BudgetLineItemWidget from '@/components/BudgetLineItemWidget';
 import DesignScheduleCard from '@/components/DesignScheduleCard';
 import FixtureScheduleTab from './FixtureScheduleTab';
+import FixtureScheduleEditor from './FixtureScheduleEditor';
+import DesignBidMatrixEditor from './DesignBidMatrixEditor';
 import PdfViewerModal from '@/components/ui/PdfViewerModal';
 
 const BUDGET_TYPE_META = {
   conceptual:  { label: 'Conceptual Budget',    color: 'bg-slate-100 text-slate-600' },
   design:      { label: 'Full Design',           color: 'bg-amber-100 text-amber-700' },
-  peer_review: { label: 'Bid Matrix',            color: 'bg-blue-100 text-blue-700' },
+  peer_review: { label: 'Peer Review Matrix',     color: 'bg-blue-100 text-blue-700' },
 };
 
 function PhaseTag({ phase }) {
@@ -57,7 +59,17 @@ function PlaceholderTab({ icon, title, description, phase }) {
   );
 }
 
-const TABS = ['Dashboard', 'Budgets', 'Fixture Schedule', 'Takeoffs', 'Drawings', 'Design Info', 'Meetings', 'Correspondence', 'Submittals', 'CA', 'Contracts'];
+const DESIGN_SERVICE_TYPES = new Set(['fullDesign', 'designAssist']);
+
+function buildTabs(serviceType) {
+  const isDesign = DESIGN_SERVICE_TYPES.has(serviceType);
+  return [
+    'Dashboard', 'Budgets',
+    'Fixture Schedule',
+    ...(isDesign ? ['Design Bid Matrix'] : []),
+    'Takeoffs', 'Drawings', 'Design Info', 'Meetings', 'Correspondence', 'Submittals', 'CA', 'Contracts',
+  ];
+}
 
 const TAB_LABELS = {
   drawings: 'Drawings', correspondence: 'Correspondence', submittals: 'Submittals',
@@ -172,6 +184,7 @@ function initials(user) {
 
 export default function ProjectHubClient({ project, budget, peerReviewTotal, clients = [], allUsers = [], initialFiles = [], initialDesignInfo = {} }) {
   const router = useRouter();
+  const TABS = buildTabs(project.serviceType);
   const [activeTab,      setActiveTab]      = useState('Dashboard');
   const [phase,          setPhase]          = useState(project.phase || 'sd');
   const [savingPhase,    setSavingPhase]    = useState(false);
@@ -698,13 +711,13 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
                   </svg>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-amber-900">
-                      {convertingTo === 'design' ? 'Switch to Full Design?' : convertingTo === 'peer_review' ? 'Switch to Bid Matrix?' : 'Switch to Conceptual Budget?'}
+                      {convertingTo === 'design' ? 'Switch to Full Design?' : convertingTo === 'peer_review' ? 'Switch to Peer Review Matrix?' : 'Switch to Conceptual Budget?'}
                     </p>
                     <p className="text-xs text-amber-700 mt-1">
                       {convertingTo === 'design'
                         ? 'All existing project data and questionnaire answers carry over. The design wizard will open with extra questions to fill in — nothing is lost.'
                         : convertingTo === 'peer_review'
-                        ? 'Opens the Bid Matrix — a fixture-by-fixture review matrix. Enter specified vs. proposed products and the savings auto-calculate. Existing project data is preserved.'
+                        ? 'Opens the Peer Review Matrix — a fixture-by-fixture review matrix. Enter specified vs. proposed products and the savings auto-calculate. Existing project data is preserved.'
                         : 'Your project data carries over. Design-only answers will be hidden but not deleted — you can convert back at any time.'}
                     </p>
                   </div>
@@ -810,7 +823,7 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-600 text-white">Active</span>
                     </div>
                     <div>
-                      <div className="text-sm font-semibold text-blue-800">Open Bid Matrix</div>
+                      <div className="text-sm font-semibold text-blue-800">Open Peer Review Matrix</div>
                       <div className="text-xs text-slate-400 mt-0.5">Fixture-by-fixture review &amp; pricing matrix</div>
                     </div>
                   </Link>
@@ -827,7 +840,7 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
                       </div>
                     </div>
                     <div>
-                      <div className="text-sm font-semibold text-slate-700">Switch to Bid Matrix</div>
+                      <div className="text-sm font-semibold text-slate-700">Switch to Peer Review Matrix</div>
                       <div className="text-xs text-slate-400 mt-0.5">Line-by-line fixture matrix</div>
                     </div>
                   </button>
@@ -1201,13 +1214,42 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
         )}
 
         {/* ── FIXTURE SCHEDULE ─────────────────────────────────────────── */}
-        <div className={activeTab === 'Fixture Schedule' ? '' : 'hidden'}>
-          <div className="mb-5">
-            <h2 className="text-lg font-semibold text-slate-800">Fixture Schedule</h2>
-            <p className="text-sm text-slate-400 mt-0.5">Parse an electrical drawing PDF to extract the fixture schedule, then push directly to the Bid Matrix.</p>
+        {activeTab === 'Fixture Schedule' && (
+          DESIGN_SERVICE_TYPES.has(project.serviceType) ? (
+            /* New Design Fixture Schedule editor */
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-800">Fixture Schedule</h2>
+                  <p className="text-sm text-slate-400 mt-0.5">Specify products for each fixture type · Push to Design Bid Matrix to create a versioned pricing run</p>
+                </div>
+              </div>
+              <FixtureScheduleEditor projectId={project.id} />
+            </div>
+          ) : (
+            /* Existing PDF parser for non-design projects */
+            <div>
+              <div className="mb-5">
+                <h2 className="text-lg font-semibold text-slate-800">Fixture Schedule</h2>
+                <p className="text-sm text-slate-400 mt-0.5">Parse an electrical drawing PDF to extract the fixture schedule, then push directly to the Peer Review Matrix.</p>
+              </div>
+              <FixtureScheduleTab projectId={project.id} />
+            </div>
+          )
+        )}
+
+        {/* ── DESIGN BID MATRIX ─────────────────────────────────────────── */}
+        {activeTab === 'Design Bid Matrix' && DESIGN_SERVICE_TYPES.has(project.serviceType) && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-800">Design Bid Matrix</h2>
+                <p className="text-sm text-slate-400 mt-0.5">Pricing and procurement matrix derived from the fixture schedule — versioned on every Push to Bid</p>
+              </div>
+            </div>
+            <DesignBidMatrixEditor projectId={project.id} />
           </div>
-          <FixtureScheduleTab projectId={project.id} />
-        </div>
+        )}
 
         {/* ── TAKEOFFS ─────────────────────────────────────────────────── */}
         {activeTab === 'Takeoffs' && (

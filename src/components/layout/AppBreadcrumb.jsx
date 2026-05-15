@@ -18,7 +18,7 @@ const SEGMENT_MAP = {
   summary:       { label: 'Summary',           href: null         },
   tracker:       { label: 'Submittal Tracker', href: null         },
   wizard:        { label: 'Design Wizard',     href: null         },
-  'peer-review': { label: 'Bid Matrix',        href: null         },
+  'peer-review': { label: 'Peer Review Matrix', href: null         },
   new:           { label: 'New',               href: null         },
   project:       null, // skip — the project name is fetched directly
   users:         { label: 'Users',             href: null         },

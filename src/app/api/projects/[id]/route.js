@@ -35,7 +35,7 @@ export async function PATCH(request, { params }) {
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const body = await request.json();
-  const { name, buildingType, location, address, date, status, currentStep, completedSteps, contactEmail, clientId, phase, city, state, serviceType, flagged, flagNote, contractValue, contractSignedDate, designContractValue, designContractSignedDate, constructionStartDate, mepRoughInDate, constructionEndDate, budgetType, budgetSentDate } = body;
+  const { name, buildingType, location, address, date, status, currentStep, completedSteps, contactEmail, clientId, phase, city, state, serviceType, flagged, flagNote, contractValue, contractSignedDate, designContractValue, designContractSignedDate, constructionStartDate, mepRoughInDate, constructionEndDate, budgetType, budgetSentDate, peerReviewMatrixType } = body;
 
   const validPhases      = ['sd', 'dd', 'cd', 'ifc', 'construction', 'closeout'];
   const validBudgetTypes = ['conceptual', 'design', 'peer_review'];
@@ -69,6 +69,7 @@ export async function PATCH(request, { params }) {
       ...(constructionEndDate   !== undefined && { constructionEndDate:   constructionEndDate   || null }),
       ...(budgetType     !== undefined && validBudgetTypes.includes(budgetType) && { budgetType }),
       ...(budgetSentDate !== undefined && { budgetSentDate: budgetSentDate ? new Date(budgetSentDate) : null }),
+      ...(peerReviewMatrixType !== undefined && ['PEER_REVIEW', 'DESIGN_BID'].includes(peerReviewMatrixType) && { peerReviewMatrixType }),
     },
     include: { projectData: true },
   });
@@ -95,6 +96,9 @@ export async function PATCH(request, { params }) {
     if (budgetType !== undefined && budgetType !== project.budgetType) {
       const BUDGET_LABELS = { conceptual: 'Conceptual Budget', design: 'Design Budget', peer_review: 'Peer Review' };
       events.push(`Converted to **${BUDGET_LABELS[budgetType] || budgetType}**`);
+    }
+    if (peerReviewMatrixType !== undefined && peerReviewMatrixType !== project.peerReviewMatrixType) {
+      events.push(`Switched matrix view to **${peerReviewMatrixType === 'DESIGN_BID' ? 'Design Bid' : 'Peer Review'}**`);
     }
     if (contractValue !== undefined) events.push('Updated supply contract value');
     if (contractSignedDate !== undefined) events.push('Updated supply contract signed date');

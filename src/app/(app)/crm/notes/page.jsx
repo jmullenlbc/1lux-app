@@ -23,7 +23,6 @@ export default async function NotesPage() {
       select: { id: true, clientNumber: true, name: true, type: true },
     }),
     prisma.deal.findMany({
-      where: { dealStatus: 'OPEN' },
       orderBy: [{ pipeline: 'asc' }, { updatedAt: 'desc' }],
       select: { id: true, dealNumber: true, title: true, pipeline: true, stage: true, dealStatus: true,
                 client: { select: { id: true, name: true } } },

@@ -847,7 +847,7 @@ function EmailBidPopup({ project, onClose }) {
             <textarea value={body} onChange={e => setBody(e.target.value)} rows={10}
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
           </div>
-          <p className="text-[10px] text-slate-400">Tip: Print the Bid Matrix to PDF first, then attach it before sending.</p>
+          <p className="text-[10px] text-slate-400">Tip: Print the Peer Review Matrix to PDF first, then attach it before sending.</p>
         </div>
 
         {/* Footer */}
@@ -877,7 +877,34 @@ function EmailBidPopup({ project, onClose }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+// Which service types are auto-assigned DESIGN_BID
+const DESIGN_BID_SERVICE_TYPES = new Set(['fullDesign', 'designAssist']);
+
 export default function PeerReviewClient({ project, initialItems }) {
+  const [matrixType, setMatrixType] = useState(project?.peerReviewMatrixType || 'PEER_REVIEW');
+  const [showToggleConfirm, setShowToggleConfirm] = useState(false);
+  const isDesignBid = matrixType === 'DESIGN_BID';
+
+  async function switchMatrixType(newType) {
+    setMatrixType(newType);
+    setShowToggleConfirm(false);
+    await fetch(`/api/projects/${project.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ peerReviewMatrixType: newType }),
+    });
+  }
+
+  function handleToggleRequest() {
+    const targetType = isDesignBid ? 'PEER_REVIEW' : 'DESIGN_BID';
+    // Confirm if switching away from an auto-assigned DESIGN_BID project
+    if (isDesignBid && DESIGN_BID_SERVICE_TYPES.has(project.serviceType)) {
+      setShowToggleConfirm(true);
+    } else {
+      switchMatrixType(targetType);
+    }
+  }
+
   const [items,         setItems]         = useState(initialItems || []);
   const [saving,        setSaving]        = useState(false);
   const [activeSection, setActiveSection] = useState('all');
@@ -1102,8 +1129,10 @@ export default function PeerReviewClient({ project, initialItems }) {
 
     const headers = [
       'Type', 'Description', 'Location Tag', 'Qty', 'Qty Type',
-      'Spec Manufacturer', 'Spec Model', 'Spec Details',
-      'Prop. Manufacturer', 'Prop. Spec', 'Sales Rep', 'RFQ Status',
+      ...(isDesignBid ? [] : ['Spec Manufacturer', 'Spec Model', 'Spec Details']),
+      isDesignBid ? 'Manufacturer' : 'Prop. Manufacturer',
+      isDesignBid ? 'Part #'       : 'Prop. Spec',
+      'Sales Rep', 'RFQ Status',
       'DN $/unit', 'CN $/unit', 'CN Total', 'Notes', 'Internal Notes',
     ];
 
@@ -1119,11 +1148,13 @@ export default function PeerReviewClient({ project, initialItems }) {
       'Location Tag':       LOCATION_TAGS.find(s => s.id === item.section)?.label || item.section,
       'Qty':                item.qty ?? '',
       'Qty Type':           item.qtyType === 'linearFt' ? 'Linear Ft' : item.qtyType ? 'Unit' : '',
-      'Spec Manufacturer':  item.specManufacturer || '',
-      'Spec Model':         item.specModel || '',
-      'Spec Details':       item.specDetails || '',
-      'Prop. Manufacturer': item.propManufacturer || '',
-      'Prop. Spec':         item.propModel || '',
+      ...(isDesignBid ? {} : {
+        'Spec Manufacturer': item.specManufacturer || '',
+        'Spec Model':        item.specModel || '',
+        'Spec Details':      item.specDetails || '',
+      }),
+      [isDesignBid ? 'Manufacturer' : 'Prop. Manufacturer']: item.propManufacturer || '',
+      [isDesignBid ? 'Part #'       : 'Prop. Spec']:          item.propModel || '',
       'Sales Rep':          item.repName || '',
       'RFQ Status':         item.rfqStatus || '',
       'DN $/unit':          item.propUnitDN ?? '',
@@ -1154,9 +1185,9 @@ export default function PeerReviewClient({ project, initialItems }) {
       { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 30 }, { wch: 30 },
     ];
 
-    XLSX.utils.book_append_sheet(wb, ws, 'Bid Matrix');
+    XLSX.utils.book_append_sheet(wb, ws, 'Peer Review Matrix');
     const safeName = project.name.replace(/[\\/:*?"<>|]/g, '_').slice(0, 40);
-    XLSX.writeFile(wb, `Bid Matrix – ${safeName}.xlsx`);
+    XLSX.writeFile(wb, `Peer Review Matrix – ${safeName}.xlsx`);
   }
 
   // ── Sort ────────────────────────────────────────────────────────────────────
@@ -1291,6 +1322,34 @@ export default function PeerReviewClient({ project, initialItems }) {
         />
       )}
 
+      {/* ── Matrix type switch confirmation ── */}
+      {showToggleConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 print:hidden">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4">
+            <h3 className="text-base font-semibold text-slate-900 mb-2">Switch to Peer Review view?</h3>
+            <p className="text-sm text-slate-600 mb-4">
+              This project was set up as a <strong>Design Bid</strong> matrix based on its service type.
+              Switching to Peer Review view will show the Spec columns and hide the Design Bid layout.
+              No data will be deleted — you can switch back at any time.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowToggleConfirm(false)}
+                className="px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => switchMatrixType('PEER_REVIEW')}
+                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors"
+              >
+                Switch to Peer Review
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Top bar ── */}
       <div className="print:hidden bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between sticky top-0 z-20">
         <div className="flex items-center gap-3">
@@ -1301,7 +1360,9 @@ export default function PeerReviewClient({ project, initialItems }) {
           </Link>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Bid Matrix</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: isDesignBid ? '#7c3aed' : '#2563eb' }}>
+                {isDesignBid ? 'Design Bid Matrix' : 'Peer Review Matrix'}
+              </span>
               <span className="text-slate-300">·</span>
               <span className="text-sm font-semibold text-slate-900">{project.name}</span>
             </div>
@@ -1325,6 +1386,21 @@ export default function PeerReviewClient({ project, initialItems }) {
             </svg>
             Manufacturers
           </Link>
+          {/* Matrix type toggle */}
+          <button
+            onClick={handleToggleRequest}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors print:hidden"
+            style={isDesignBid
+              ? { borderColor: '#7c3aed', backgroundColor: '#f5f3ff', color: '#6d28d9' }
+              : { borderColor: '#2563eb', backgroundColor: '#eff6ff', color: '#1d4ed8' }
+            }
+            title="Switch between Peer Review Matrix and Design Bid view"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+            </svg>
+            {isDesignBid ? 'Design Bid view' : 'Peer Review view'}
+          </button>
           <button onClick={exportToExcel} disabled={items.length === 0}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors print:hidden disabled:opacity-40 disabled:cursor-not-allowed">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1496,11 +1572,13 @@ export default function PeerReviewClient({ project, initialItems }) {
                     { key: 'typeCode',      label: 'Type',           cls: 'w-20 text-left'                        },
                     { key: 'description',   label: 'Description',    cls: 'w-[42rem] text-left'                   },
                     ...(activeSection === 'all' ? [{ key: 'section', label: 'Location Tag', cls: 'w-[4.2rem] text-left' }] : []),
-                    { key: null,            label: 'Spec Mfr',       cls: 'w-32 text-left'                        },
-                    { key: null,            label: 'Spec #',         cls: 'w-36 text-left'                        },
-                    { key: null,            label: 'Spec Details',   cls: 'w-28 text-left border-r border-slate-200' },
-                    { key: 'propManufacturer', label: 'Prop. Mfr',  cls: 'w-32 text-left text-blue-600'          },
-                    { key: 'propModel',     label: 'Prop. Spec',     cls: 'w-[10.8rem] text-left text-blue-600'   },
+                    ...(!isDesignBid ? [
+                      { key: null, label: 'Spec Mfr',     cls: 'w-32 text-left'                        },
+                      { key: null, label: 'Spec #',       cls: 'w-36 text-left'                        },
+                      { key: null, label: 'Spec Details', cls: 'w-28 text-left border-r border-slate-200' },
+                    ] : []),
+                    { key: 'propManufacturer', label: isDesignBid ? 'Manufacturer' : 'Prop. Mfr',  cls: 'w-32 text-left text-blue-600' },
+                    { key: 'propModel',        label: isDesignBid ? 'Part #'       : 'Prop. Spec', cls: 'w-[10.8rem] text-left text-blue-600' },
                     { key: null,            label: 'Sales Rep',      cls: 'w-32 text-left text-blue-600'          },
                     { key: null,            label: 'RFQ Status',     cls: 'w-28 text-left border-r border-slate-200' },
                     { key: 'qty',           label: 'Qty',            cls: 'w-10 text-right'                       },
@@ -1661,21 +1739,27 @@ export default function PeerReviewClient({ project, initialItems }) {
                                     onSave={v => patch(item.id, { section: v })} />
                                 </td>
                               )}
-                              <td className="px-3 py-2 align-middle">
-                                <Cell value={item.specManufacturer} cellId={`${item.id}||specManufacturer`}
-                                  placeholder="Manufacturer" onSave={v => patch(item.id, { specManufacturer: v })}
-                                  className="text-slate-500 w-full" />
-                              </td>
-                              <td className="px-3 py-2 align-middle">
-                                <Cell value={item.specModel} cellId={`${item.id}||specModel`}
-                                  placeholder="Series / catalog #" onSave={v => patch(item.id, { specModel: v })}
-                                  mono className="text-slate-500 w-full" />
-                              </td>
-                              <td className="px-3 py-2 align-middle border-r border-slate-100">
-                                <Cell value={item.specDetails} cellId={`${item.id}||specDetails`}
-                                  placeholder="Color/finish" onSave={v => patch(item.id, { specDetails: v })}
-                                  className="text-slate-400 w-full" />
-                              </td>
+                              {!isDesignBid && (
+                                <td className="px-3 py-2 align-middle">
+                                  <Cell value={item.specManufacturer} cellId={`${item.id}||specManufacturer`}
+                                    placeholder="Manufacturer" onSave={v => patch(item.id, { specManufacturer: v })}
+                                    className="text-slate-500 w-full" />
+                                </td>
+                              )}
+                              {!isDesignBid && (
+                                <td className="px-3 py-2 align-middle">
+                                  <Cell value={item.specModel} cellId={`${item.id}||specModel`}
+                                    placeholder="Series / catalog #" onSave={v => patch(item.id, { specModel: v })}
+                                    mono className="text-slate-500 w-full" />
+                                </td>
+                              )}
+                              {!isDesignBid && (
+                                <td className="px-3 py-2 align-middle border-r border-slate-100">
+                                  <Cell value={item.specDetails} cellId={`${item.id}||specDetails`}
+                                    placeholder="Color/finish" onSave={v => patch(item.id, { specDetails: v })}
+                                    className="text-slate-400 w-full" />
+                                </td>
+                              )}
                               <td className="px-3 py-2 align-middle">
                                 <MfrSelect item={item} manufacturers={manufacturers}
                                   onSelectMfr={mfr => handleSelectMfr(item, mfr)}
@@ -1862,7 +1946,7 @@ export default function PeerReviewClient({ project, initialItems }) {
         const GREY     = '#555555';
         const LTGREY   = '#f5f5f5';
         const BDRCLR   = '#d0d0d0';
-        const NCOLS    = 11;
+        const NCOLS    = isDesignBid ? 9 : 11;
 
         const phaseLabels = { sd: 'Schematic Design', dd: 'Design Development', cd: 'Construction Documents', ifc: 'IFC', construction: 'Construction', closeout: 'Closeout' };
         const printDate   = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
@@ -1894,8 +1978,8 @@ export default function PeerReviewClient({ project, initialItems }) {
               <tr key={item.id || `${tag.id}-row-${idx}`} className={parity++ % 2 === 0 ? 'pm-odd' : 'pm-even'}>
                 <td style={{ fontWeight: 800, color: BLACK }}>{item.typeCode || ''}</td>
                 <td style={{ color: BLACK }}>{item.description || ''}</td>
-                <td style={{ color: GREY }}>{item.specManufacturer || ''}</td>
-                <td style={{ fontFamily: 'Courier New, monospace', fontSize: '6.5pt', color: GREY }}>{item.specModel || ''}</td>
+                {!isDesignBid && <td style={{ color: GREY }}>{item.specManufacturer || ''}</td>}
+                {!isDesignBid && <td style={{ fontFamily: 'Courier New, monospace', fontSize: '6.5pt', color: GREY }}>{item.specModel || ''}</td>}
                 <td style={{ color: ORANGE, fontWeight: 600 }}>{item.propManufacturer || ''}</td>
                 <td style={{ fontFamily: 'Courier New, monospace', fontSize: '6.5pt', color: ORANGE }}>{item.propModel || ''}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700 }}>{item.qty != null ? item.qty : ''}</td>
@@ -1996,10 +2080,10 @@ export default function PeerReviewClient({ project, initialItems }) {
                 <tr>
                   <th style={{ width: '4%'  }}>Type</th>
                   <th style={{ width: '20%' }}>Description</th>
-                  <th style={{ width: '9%'  }}>Spec Mfr</th>
-                  <th style={{ width: '10%' }}>Spec Catalog #</th>
-                  <th style={{ width: '9%', color: ORANGE  }}>ILC Proposed Mfr</th>
-                  <th style={{ width: '10%', color: ORANGE }}>ILC Catalog #</th>
+                  {!isDesignBid && <th style={{ width: '9%'  }}>Spec Mfr</th>}
+                  {!isDesignBid && <th style={{ width: '10%' }}>Spec Catalog #</th>}
+                  <th style={{ width: isDesignBid ? '13%' : '9%', color: ORANGE }}>{isDesignBid ? 'Manufacturer' : 'ILC Proposed Mfr'}</th>
+                  <th style={{ width: isDesignBid ? '14%' : '10%', color: ORANGE }}>{isDesignBid ? 'Part #' : 'ILC Catalog #'}</th>
                   <th style={{ width: '4%', textAlign: 'right' }}>Qty</th>
                   <th style={{ width: '4%'  }}>Unit</th>
                   <th style={{ width: '7%', textAlign: 'right' }}>Unit $</th>
