@@ -8,5 +8,7 @@ if ($connections) {
     }
     Start-Sleep -Milliseconds 800
 }
+# Generate deploy history so /admin/changelog works locally too
+node scripts/generate-deploy-log.js
 Write-Host "Starting dev server on http://localhost:3000"
 npm run dev

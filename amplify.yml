@@ -4,6 +4,8 @@ frontend:
     preBuild:
       commands:
         - npm ci
+        # ── Generate deploy history log (git log → deploy-log.json) ─────────
+        - node scripts/generate-deploy-log.js
         # ── Schema provider patch ────────────────────────────────────────────
         # schema.prisma uses sqlite locally (no Docker required for dev).
         # Production DATABASE_URL is PostgreSQL, so we patch the provider here
