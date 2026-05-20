@@ -1,10 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    // Embed server-side env vars into the build so they are available in SSR Lambdas
+    // ── Public env vars (safe to expose to browser) ─────────────────────────
+    // Do NOT put DATABASE_URL, JWT_SECRET, or ANTHROPIC_API_KEY here.
+    // Those are server-only and must never appear in the client bundle.
+    // Amplify Lambda injects all env vars from the Amplify console into
+    // process.env at runtime — server code reads them directly from there.
     env: {
-          DATABASE_URL: process.env.DATABASE_URL,
-          JWT_SECRET: process.env.JWT_SECRET,
-          ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
           NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     },
     experimental: {

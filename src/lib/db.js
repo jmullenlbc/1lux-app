@@ -2,10 +2,10 @@ import { PrismaClient } from '@prisma/client';
 
 const globalForPrisma = globalThis;
 
-// Pass the DATABASE_URL explicitly so that the value baked in at build time
-// (via next.config.mjs env config + webpack DefinePlugin) is used instead of
-// relying on process.env inside the externalized @prisma/client package,
-// which does not have access to env vars in the Amplify SSR Lambda.
+// Amplify Lambda injects environment variables from the Amplify console into
+// process.env at runtime, so DATABASE_URL is always available here.
+// The `datasources.db.url` override is kept to be explicit and ensure the
+// correct URL is used even when @prisma/client is loaded as an external module.
 export const prisma = globalForPrisma.prisma ?? new PrismaClient({
     datasources: {
           db: {

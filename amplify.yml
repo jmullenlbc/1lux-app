@@ -4,6 +4,14 @@ frontend:
     preBuild:
       commands:
         - npm ci
+        # ── Schema provider patch ────────────────────────────────────────────
+        # schema.prisma uses sqlite locally (no Docker required for dev).
+        # Production DATABASE_URL is PostgreSQL, so we patch the provider here
+        # before generating the client. This is ephemeral — only affects the
+        # Amplify build container, never touches the source in the repo.
+        - sed -i 's/provider = "sqlite"/provider = "postgresql"/' prisma/schema.prisma
+        - echo "Schema provider after patch:" && grep 'provider' prisma/schema.prisma
+        # ── Generate client + push schema ────────────────────────────────────
         - npx prisma generate
         - npx prisma db push --accept-data-loss
     build:
