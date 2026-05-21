@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { CATEGORIES, COLOR_MAP } from './categories';
 import KnowledgeBaseChat from '@/components/KnowledgeBaseChat';
+import RichTextEditor, { RichContent } from '@/components/RichTextEditor';
 
 export const SEVERITY_CONFIG = {
   REQUIRED:    { label: 'Required',    color: 'text-red-700 bg-red-50 border-red-200',    dot: 'bg-red-500' },
@@ -36,8 +37,8 @@ export function StandardModal({ standard, onClose, onSave }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-start justify-center z-50 p-4 pt-16 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-auto">
+    <div className="fixed inset-0 bg-black/40 flex items-start justify-center z-50 p-4 pt-10 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-auto">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <h2 className="text-sm font-bold text-slate-900">{standard ? 'Edit Standard' : 'Add Standard'}</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
@@ -75,9 +76,12 @@ export function StandardModal({ standard, onClose, onSave }) {
 
           <div>
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Rule / Content *</label>
-            <textarea value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
-              rows={4} placeholder="Describe the standard or rule..."
-              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
+            <RichTextEditor
+              value={form.content}
+              onChange={html => setForm(f => ({ ...f, content: html }))}
+              placeholder="Describe the standard or rule… paste from Google Docs or Sheets to preserve tables and formatting."
+              minHeight={140}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -256,7 +260,13 @@ export function StandardCard({ standard, isEditor, onEdit, onDelete }) {
   const catCfg = CATEGORIES.find(c => c.key === standard.category);
   const colors = catCfg ? COLOR_MAP[catCfg.color] : COLOR_MAP.slate;
 
-  const isLong = standard.content.length > 180;
+  // Determine if content is HTML or plain text
+  const isHtml = /<[a-z][\s\S]*>/i.test(standard.content || '');
+  // Estimate "length" for show more/less — strip tags for HTML
+  const textLen = isHtml
+    ? (standard.content || '').replace(/<[^>]+>/g, '').length
+    : (standard.content || '').length;
+  const isLong = textLen > 200;
 
   async function handleDelete() {
     setDeleting(true);
@@ -301,8 +311,8 @@ export function StandardCard({ standard, isEditor, onEdit, onDelete }) {
               </div>
             </div>
 
-            <div className={`text-sm text-slate-600 mt-1.5 leading-relaxed whitespace-pre-wrap ${!expanded && isLong ? 'line-clamp-3' : ''}`}>
-              {standard.content}
+            <div className={`mt-1.5 ${!expanded && isLong ? 'line-clamp-4 overflow-hidden' : ''}`}>
+              <RichContent html={standard.content} />
             </div>
             {isLong && (
               <button onClick={() => setExpanded(e => !e)} className="text-xs text-blue-600 hover:text-blue-700 mt-1 font-medium">
