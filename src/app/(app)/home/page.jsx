@@ -114,11 +114,12 @@ export default async function HomePage() {
       select: { totalRevenue: true, probability: true, pipeline: true, stage: true },
     }),
 
-    // Unique sales reps
+    // Unique sales reps — orderBy required for DISTINCT ON in PostgreSQL
     prisma.peerReviewItem.findMany({
       where:   { repName: { not: null } },
       select:  { repName: true, repEmail: true },
       distinct: ['repName'],
+      orderBy: { repName: 'asc' },
     }),
   ]);
 
