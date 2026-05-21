@@ -12,36 +12,39 @@ export default async function CRMPage() {
   if (error) redirect('/login');
 
   // Fetch all deals with full context
-  const deals = await prisma.deal.findMany({
-    orderBy: [{ dealStatus: 'asc' }, { updatedAt: 'desc' }],
-    include: {
-      client:        { select: { id: true, clientNumber: true, name: true, type: true } },
-      owner:         { select: { id: true, name: true, email: true } },
-      createdBy:     { select: { id: true, name: true } },
-      linkedProject: { select: { id: true, projectNumber: true, name: true, phase: true } },
-      linkedDeal:    { select: { id: true, dealNumber: true, title: true, pipeline: true } },
-      contacts: {
+  let deals = [], clients = [], users = [];
+  try {
+    [deals, clients, users] = await Promise.all([
+      prisma.deal.findMany({
+        orderBy: [{ dealStatus: 'asc' }, { updatedAt: 'desc' }],
         include: {
-          contact: { select: { id: true, contactNumber: true, name: true, title: true, email: true } },
+          client:        { select: { id: true, clientNumber: true, name: true, type: true } },
+          owner:         { select: { id: true, name: true, email: true } },
+          createdBy:     { select: { id: true, name: true } },
+          linkedProject: { select: { id: true, projectNumber: true, name: true, phase: true } },
+          linkedDeal:    { select: { id: true, dealNumber: true, title: true, pipeline: true } },
+          contacts: {
+            include: {
+              contact: { select: { id: true, contactNumber: true, name: true, title: true, email: true } },
+            },
+          },
+          activities: { orderBy: { createdAt: 'desc' }, take: 1 },
+          _count: { select: { activities: true, contacts: true } },
         },
-      },
-      activities: { orderBy: { createdAt: 'desc' }, take: 1 },
-      _count: { select: { activities: true, contacts: true } },
-    },
-  });
-
-  // Fetch all clients (for deal create/edit form selects — by ID)
-  const clients = await prisma.client.findMany({
-    orderBy: { name: 'asc' },
-    select: { id: true, clientNumber: true, name: true, type: true },
-  });
-
-  // Fetch all ILC team members (for owner select — by ID)
-  const users = await prisma.user.findMany({
-    where:   { isActive: true },
-    orderBy: { name: 'asc' },
-    select:  { id: true, name: true, email: true, role: true },
-  });
+      }),
+      prisma.client.findMany({
+        orderBy: { name: 'asc' },
+        select: { id: true, clientNumber: true, name: true, type: true },
+      }),
+      prisma.user.findMany({
+        where:   { isActive: true },
+        orderBy: { name: 'asc' },
+        select:  { id: true, name: true, email: true, role: true },
+      }),
+    ]);
+  } catch (err) {
+    console.error('[/crm] DB query failed:', err?.message ?? err);
+  }
 
   return (
     <CRMClient
