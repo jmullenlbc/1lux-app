@@ -19,7 +19,6 @@ import BudgetLineItemWidget from '@/components/BudgetLineItemWidget';
 import DesignScheduleCard from '@/components/DesignScheduleCard';
 import FixtureScheduleTab from './FixtureScheduleTab';
 import FixtureScheduleEditor from './FixtureScheduleEditor';
-import DesignBidMatrixEditor from './DesignBidMatrixEditor';
 import PdfViewerModal from '@/components/ui/PdfViewerModal';
 
 const BUDGET_TYPE_META = {
@@ -66,7 +65,6 @@ function buildTabs(serviceType) {
   return [
     'Dashboard', 'Budgets',
     'Fixture Schedule',
-    ...(isDesign ? ['Design Bid Matrix'] : []),
     'Takeoffs', 'Drawings', 'Design Info', 'Meetings', 'Correspondence', 'Submittals', 'CA', 'Contracts',
   ];
 }
@@ -1221,7 +1219,7 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-800">Fixture Schedule</h2>
-                  <p className="text-sm text-slate-400 mt-0.5">Specify products for each fixture type · Push to Design Bid Matrix to create a versioned pricing run</p>
+                  <p className="text-sm text-slate-400 mt-0.5">Specify products for each fixture type · Push to Bid to create a versioned pricing run</p>
                 </div>
               </div>
               <FixtureScheduleEditor projectId={project.id} />
@@ -1236,19 +1234,6 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
               <FixtureScheduleTab projectId={project.id} />
             </div>
           )
-        )}
-
-        {/* ── DESIGN BID MATRIX ─────────────────────────────────────────── */}
-        {activeTab === 'Design Bid Matrix' && DESIGN_SERVICE_TYPES.has(project.serviceType) && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-800">Design Bid Matrix</h2>
-                <p className="text-sm text-slate-400 mt-0.5">Pricing and procurement matrix derived from the fixture schedule — versioned on every Push to Bid</p>
-              </div>
-            </div>
-            <DesignBidMatrixEditor projectId={project.id} />
-          </div>
         )}
 
         {/* ── TAKEOFFS ─────────────────────────────────────────────────── */}

@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { buildingTypeLabel } from '@/lib/utils';
+import RichTextEditor, { RichContent } from '@/components/RichTextEditor';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -365,16 +366,8 @@ function KBSection({ section, clientId, isFirst, isLast, onUpdate, onDelete, onM
   const [title,     setTitle]     = useState(section.title);
   const [content,   setContent]   = useState(section.content);
   const [uploading, setUploading] = useState(false);
-  const fileRef = useRef(null);
-  const textRef = useRef(null);
-
-  useEffect(() => { autoResize(); }, [content]);
-  function autoResize() {
-    if (textRef.current) {
-      textRef.current.style.height = 'auto';
-      textRef.current.style.height = textRef.current.scrollHeight + 'px';
-    }
-  }
+  const fileRef     = useRef(null);
+  const saveTimer   = useRef(null);
 
   async function saveTitle() {
     if (title === section.title) return;
@@ -385,13 +378,20 @@ function KBSection({ section, clientId, isFirst, isLast, onUpdate, onDelete, onM
     onUpdate({ ...section, title });
   }
 
-  async function saveContent() {
-    if (content === section.content) return;
+  async function saveContent(html) {
+    if (html === section.content) return;
     await fetch(`/api/clients/${clientId}/kb/${section.id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content: html }),
     });
-    onUpdate({ ...section, content });
+    onUpdate({ ...section, content: html });
+  }
+
+  function handleContentChange(html) {
+    setContent(html);
+    // Debounce save — 1.5s after last keystroke
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => saveContent(html), 1500);
   }
 
   async function uploadFile(file) {
@@ -445,9 +445,12 @@ function KBSection({ section, clientId, isFirst, isLast, onUpdate, onDelete, onM
 
       {/* Body */}
       <div className="p-4">
-        <textarea ref={textRef} value={content} onChange={e => setContent(e.target.value)} onBlur={saveContent}
-          placeholder="Write notes, standards, context, or anything about this client…"
-          className="w-full text-sm text-slate-700 resize-none border-none focus:outline-none focus:ring-0 min-h-[80px] leading-relaxed placeholder:text-slate-300" />
+        <RichTextEditor
+          value={content}
+          onChange={handleContentChange}
+          placeholder="Write notes, standards, context, or anything about this client… paste from Google Docs or Microsoft Word to preserve formatting."
+          minHeight={100}
+        />
 
         {/* Attachments */}
         {(section.attachments?.length > 0 || uploading) && (
