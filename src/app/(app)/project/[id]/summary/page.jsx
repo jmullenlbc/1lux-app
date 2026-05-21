@@ -16,10 +16,15 @@ export default async function SummaryPage({ params }) {
   const session = await getSession();
   if (!session) redirect('/login');
 
-  const project = await prisma.project.findUnique({
-    where: { id: params.id },
-    include: { projectData: true, responses: true, createdBy: { select: { name: true, email: true } } },
-  });
+  let project = null;
+  try {
+    project = await prisma.project.findUnique({
+      where: { id: params.id },
+      include: { projectData: true, responses: true, createdBy: { select: { name: true, email: true } } },
+    });
+  } catch (err) {
+    console.error('[/project/id/summary] DB query failed:', err?.message ?? err);
+  }
 
   if (!project) notFound();
   if (session.role !== 'ILC_ADMIN' && project.createdById !== session.id) notFound();

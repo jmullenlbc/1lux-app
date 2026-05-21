@@ -12,16 +12,21 @@ export default async function NewProjectPage({ searchParams }) {
   const typeParam = searchParams?.type;
   const budgetType = typeParam === 'design' ? 'design' : typeParam === 'peer_review' ? 'peer_review' : 'conceptual';
 
-  const [existing, clients] = await Promise.all([
-    prisma.project.findMany({
-      orderBy: { updatedAt: 'desc' },
-      select: { id: true, name: true, buildingType: true, location: true, city: true, state: true, clientId: true },
-    }),
-    prisma.client.findMany({
-      orderBy: { name: 'asc' },
-      select: { id: true, name: true, type: true, locationType: true },
-    }),
-  ]);
+  let existing = [], clients = [];
+  try {
+    [existing, clients] = await Promise.all([
+      prisma.project.findMany({
+        orderBy: { updatedAt: 'desc' },
+        select: { id: true, name: true, buildingType: true, location: true, city: true, state: true, clientId: true },
+      }),
+      prisma.client.findMany({
+        orderBy: { name: 'asc' },
+        select: { id: true, name: true, type: true, locationType: true },
+      }),
+    ]);
+  } catch (err) {
+    console.error('[/project/new] DB query failed:', err?.message ?? err);
+  }
 
   return <NewProjectForm existingProjects={existing} clients={clients} budgetType={budgetType} />;
 }

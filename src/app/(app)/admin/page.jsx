@@ -10,28 +10,32 @@ export default async function AdminPage() {
   if (!session) redirect('/login');
   if (!isAnyAdmin(session.role)) redirect('/dashboard');
 
-  const users = await prisma.user.findMany({
-    select: {
-      id:                true,
-      email:             true,
-      name:              true,
-      role:              true,
-      permissions:       true,
-      mustChangePassword: true,
-      isActive:          true,
-      createdAt:         true,
-      passwordHash:      true,
-      _count:            { select: { projects: true } },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
-
-  const projects = await prisma.project.findMany({
-    include: {
-      createdBy: { select: { name: true, email: true } },
-    },
-    orderBy: { updatedAt: 'desc' },
-  });
+  let users = [], projects = [];
+  try {
+    [users, projects] = await Promise.all([
+      prisma.user.findMany({
+        select: {
+          id:                true,
+          email:             true,
+          name:              true,
+          role:              true,
+          permissions:       true,
+          mustChangePassword: true,
+          isActive:          true,
+          createdAt:         true,
+          passwordHash:      true,
+          _count:            { select: { projects: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.project.findMany({
+        include: { createdBy: { select: { name: true, email: true } } },
+        orderBy: { updatedAt: 'desc' },
+      }),
+    ]);
+  } catch (err) {
+    console.error('[/admin] DB query failed:', err?.message ?? err);
+  }
 
   const formattedUsers = users.map(u => ({
     id:                u.id,

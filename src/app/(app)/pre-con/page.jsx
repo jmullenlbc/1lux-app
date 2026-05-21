@@ -10,19 +10,24 @@ export default async function PreConPage() {
   const { error, user } = await requireAuth();
   if (error) redirect('/login');
 
-  const [mfrCount, productCount, projects] = await Promise.all([
-    prisma.manufacturer.count(),
-    prisma.manufacturerProduct.count(),
-    prisma.project.findMany({
-      where: user.role === 'ILC_ADMIN' ? {} : { createdById: user.id },
-      include: {
-        projectData: { select: { clientInitialBudget: true, freightPct: true, warehousingPct: true, salesTaxPct: true } },
-        peerReviewItems: { select: { totalSavings: true } },
-        shares: { orderBy: { sentAt: 'desc' }, take: 1, select: { sentAt: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    }),
-  ]);
+  let mfrCount = 0, productCount = 0, projects = [];
+  try {
+    [mfrCount, productCount, projects] = await Promise.all([
+      prisma.manufacturer.count(),
+      prisma.manufacturerProduct.count(),
+      prisma.project.findMany({
+        where: user.role === 'ILC_ADMIN' ? {} : { createdById: user.id },
+        include: {
+          projectData: { select: { clientInitialBudget: true, freightPct: true, warehousingPct: true, salesTaxPct: true } },
+          peerReviewItems: { select: { totalSavings: true } },
+          shares: { orderBy: { sentAt: 'desc' }, take: 1, select: { sentAt: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+  } catch (err) {
+    console.error('[/pre-con] DB query failed:', err?.message ?? err);
+  }
 
   // Compute grand total for each project from peer review items
   const projectsWithTotals = projects.map(p => {

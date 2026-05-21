@@ -9,10 +9,15 @@ export default async function ManufacturerDetailPage({ params }) {
   const { error } = await requireAuth();
   if (error) redirect('/login');
 
-  const manufacturer = await prisma.manufacturer.findUnique({
-    where: { id: params.id },
-    include: { products: { orderBy: { partNumber: 'asc' } } },
-  });
+  let manufacturer = null;
+  try {
+    manufacturer = await prisma.manufacturer.findUnique({
+      where: { id: params.id },
+      include: { products: { orderBy: { partNumber: 'asc' } } },
+    });
+  } catch (err) {
+    console.error('[/manufacturers/id] DB query failed:', err?.message ?? err);
+  }
   if (!manufacturer) notFound();
 
   return <ManufacturerDetailClient manufacturer={manufacturer} />;

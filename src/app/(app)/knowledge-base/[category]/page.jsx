@@ -19,14 +19,19 @@ export default async function CategoryPage({ params }) {
   const catConfig   = CATEGORIES.find(c => c.key === categoryKey);
   if (!catConfig) notFound();
 
-  const standards = await prisma.designStandard.findMany({
-    where:   { category: categoryKey, isActive: true },
-    orderBy: [{ severity: 'asc' }, { createdAt: 'asc' }],
-    include: {
-      createdBy: { select: { id: true, name: true } },
-      updatedBy: { select: { id: true, name: true } },
-    },
-  });
+  let standards = [];
+  try {
+    standards = await prisma.designStandard.findMany({
+      where:   { category: categoryKey, isActive: true },
+      orderBy: [{ severity: 'asc' }, { createdAt: 'asc' }],
+      include: {
+        createdBy: { select: { id: true, name: true } },
+        updatedBy: { select: { id: true, name: true } },
+      },
+    });
+  } catch (err) {
+    console.error('[/knowledge-base/category] DB query failed:', err?.message ?? err);
+  }
 
   return (
     <CategoryClient

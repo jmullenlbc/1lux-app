@@ -11,7 +11,9 @@ export default async function NotesPage() {
   const { user, error } = await requireAuth();
   if (error) redirect('/login');
 
-  const [notes, clients, deals] = await Promise.all([
+  let notes = [], clients = [], deals = [];
+  try {
+  [notes, clients, deals] = await Promise.all([
     prisma.salesNote.findMany({
       orderBy: [{ meetingDate: 'desc' }, { updatedAt: 'desc' }],
       include: {
@@ -30,6 +32,9 @@ export default async function NotesPage() {
                 client: { select: { id: true, name: true } } },
     }),
   ]);
+  } catch (err) {
+    console.error('[/crm/notes] DB query failed:', err?.message ?? err);
+  }
 
   return (
     <NotesClient
