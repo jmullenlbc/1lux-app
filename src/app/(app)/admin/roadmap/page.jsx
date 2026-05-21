@@ -58,12 +58,6 @@ function renderMarkdown(text) {
   return nodes;
 }
 
-function inlineHtml(text) {
-  return text
-    .replace(/\*\*(.+?)\*\*/g, '<strong class="text-slate-800">$1</strong>')
-    .replace(/`(.+?)`/g, '<code class="text-xs bg-slate-100 px-1 py-0.5 rounded font-mono">$1</code>');
-}
-
 export default async function RoadmapPage() {
   const session = await getSession();
   if (!session) redirect('/login');
@@ -78,85 +72,5 @@ export default async function RoadmapPage() {
 
   const nodes = renderMarkdown(content);
 
-  return (
-    <div className="max-w-4xl mx-auto px-6 py-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Roadmap</h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Planned features, future ideas, and items in progress.
-          </p>
-        </div>
-        <RoadmapClient />
-      </div>
-
-      {/* Rendered roadmap */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-0">
-        {nodes.map((node, idx) => {
-          if (node.type === 'h1') {
-            return (
-              <h1 key={idx} className="text-2xl font-bold text-slate-900 mt-6 mb-3 first:mt-0">
-                {node.text}
-              </h1>
-            );
-          }
-
-          if (node.type === 'h2') {
-            return (
-              <h2 key={idx} className="flex items-center gap-2.5 text-lg font-bold text-slate-900 mt-10 mb-3 pt-8 border-t border-slate-100 first:border-t-0 first:pt-0 first:mt-0">
-                <span className="w-2 h-2 rounded-full bg-orange-400 shrink-0 inline-block" />
-                {node.text}
-              </h2>
-            );
-          }
-
-          if (node.type === 'h3') {
-            const meta = node.status ? STATUS_META[node.status] : null;
-            return (
-              <h3 key={idx} className="flex items-center gap-2 mt-5 mb-2">
-                <span className="text-sm font-bold text-slate-800">{node.text}</span>
-                {meta && (
-                  <span
-                    className="text-[10px] font-bold px-2 py-0.5 rounded-full border"
-                    style={{ color: meta.color, backgroundColor: meta.bg, borderColor: meta.border }}
-                  >
-                    {meta.label}
-                  </span>
-                )}
-              </h3>
-            );
-          }
-
-          if (node.type === 'li') {
-            return (
-              <div key={idx} className={`flex items-start gap-2 py-0.5 ${node.nested ? 'pl-4' : ''}`}>
-                <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
-                <span
-                  className="text-sm text-slate-600 leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: inlineHtml(node.text) }}
-                />
-              </div>
-            );
-          }
-
-          if (node.type === 'hr') {
-            return <div key={idx} className="border-t border-slate-100 my-4" />;
-          }
-
-          if (node.type === 'p') {
-            return (
-              <p
-                key={idx}
-                className="text-sm text-slate-500 leading-relaxed mt-1"
-                dangerouslySetInnerHTML={{ __html: inlineHtml(node.text) }}
-              />
-            );
-          }
-
-          return null;
-        })}
-      </div>
-    </div>
-  );
+  return <RoadmapClient nodes={nodes} statusMeta={STATUS_META} />;
 }

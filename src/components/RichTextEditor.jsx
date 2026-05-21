@@ -132,7 +132,7 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
       <div className="bg-white relative">
         {!editor.getText().trim() && (
           <p className="absolute top-3 left-3.5 text-sm text-slate-400 pointer-events-none select-none z-10">
-            {placeholder || 'Write content here, or paste from Google Docs / Sheets…'}
+            {placeholder || 'Write content here, or paste from Google Docs or Microsoft Word to preserve formatting…'}
           </p>
         )}
         <EditorContent editor={editor} />

@@ -79,7 +79,7 @@ export function StandardModal({ standard, onClose, onSave }) {
             <RichTextEditor
               value={form.content}
               onChange={html => setForm(f => ({ ...f, content: html }))}
-              placeholder="Describe the standard or rule… paste from Google Docs or Sheets to preserve tables and formatting."
+              placeholder="Describe the standard or rule… paste from Google Docs or Microsoft Word to preserve formatting."
               minHeight={140}
             />
           </div>

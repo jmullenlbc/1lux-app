@@ -71,7 +71,6 @@ function MarkdownChangelog({ nodes }) {
   let current = { header: null, nodes: [] };
   for (const node of nodes) {
     if (node.type === 'h1') {
-      // top-level title — always show
       sections.push({ header: null, nodes: [node], isTitle: true });
     } else if (node.type === 'h2') {
       if (current.header !== null || current.nodes.length > 0) sections.push(current);
@@ -81,6 +80,9 @@ function MarkdownChangelog({ nodes }) {
     }
   }
   if (current.header !== null || current.nodes.length > 0) sections.push(current);
+
+  const versionSections = sections.filter(s => !s.isTitle);
+  const latestVersion   = versionSections[0]?.header?.text || null;
 
   const q = search.trim().toLowerCase();
   const filtered = q
@@ -94,32 +96,29 @@ function MarkdownChangelog({ nodes }) {
   const displayNodes = filtered.flatMap(s => s.header ? [s.header, ...s.nodes] : s.nodes);
 
   return (
-    <div>
-      {/* Search bar */}
-      <div className="flex items-center gap-3 mb-4">
-        <div className="relative flex-1 max-w-xs">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-          </svg>
-          <input
-            type="text"
-            placeholder="Search changelog notes…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-200"
-          />
+    <div className="space-y-5">
+      {/* Stats + search — identical layout to Deploy History */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-4 text-sm text-slate-500">
+          <span><strong className="text-slate-700">{versionSections.length}</strong> versions</span>
+          {latestVersion && (
+            <span>Latest: <strong className="text-slate-700">{latestVersion}</strong></span>
+          )}
         </div>
-        {q && (
-          <span className="text-xs text-slate-400">
-            {filtered.filter(s => !s.isTitle).length} version{filtered.filter(s => !s.isTitle).length !== 1 ? 's' : ''} found
-          </span>
-        )}
+        <input
+          type="text"
+          placeholder="Search changelog notes…"
+          className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-200 w-56"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
       </div>
 
+      {q && filtered.filter(s => !s.isTitle).length === 0 && (
+        <div className="text-center text-slate-400 text-sm py-10">No versions match your search</div>
+      )}
+
       <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-0">
-        {displayNodes.length === 0 && (
-          <p className="text-center text-slate-400 text-sm py-8">No results for &ldquo;{search}&rdquo;</p>
-        )}
         {displayNodes.map((node, idx) => {
           if (node.type === 'h1') return (
             <h1 key={idx} className="text-2xl font-bold text-slate-900 mt-6 mb-3 first:mt-0">{node.text}</h1>
