@@ -29,8 +29,9 @@ export async function PATCH(request, { params }) {
       where: { id },
       data,
       include: {
-        assignee: { select: { id: true, name: true, email: true } },
-        createdBy: { select: { id: true, name: true, email: true } },
+        assignee:    { select: { id: true, name: true, email: true } },
+        createdBy:   { select: { id: true, name: true, email: true } },
+        attachments: { orderBy: { createdAt: 'asc' } },
       },
     });
 

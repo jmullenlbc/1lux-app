@@ -14,8 +14,9 @@ export async function GET(request) {
         { createdAt: 'desc' },
       ],
       include: {
-        assignee: { select: { id: true, name: true, email: true } },
-        createdBy: { select: { id: true, name: true, email: true } },
+        assignee:    { select: { id: true, name: true, email: true } },
+        createdBy:   { select: { id: true, name: true, email: true } },
+        attachments: { orderBy: { createdAt: 'asc' } },
       },
     });
     return NextResponse.json(tasks);
@@ -50,8 +51,9 @@ export async function POST(request) {
         tags: JSON.stringify(tags || []),
       },
       include: {
-        assignee: { select: { id: true, name: true, email: true } },
-        createdBy: { select: { id: true, name: true, email: true } },
+        assignee:    { select: { id: true, name: true, email: true } },
+        createdBy:   { select: { id: true, name: true, email: true } },
+        attachments: { orderBy: { createdAt: 'asc' } },
       },
     });
 
