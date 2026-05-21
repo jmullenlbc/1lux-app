@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth';
 import fs from 'fs';
 import path from 'path';
+import RoadmapClient from './RoadmapClient';
 
 const STATUS_META = {
   'planned':  { label: 'Planned',     color: '#3b82f6', bg: '#eff6ff', border: '#bfdbfe' },
@@ -80,11 +81,14 @@ export default async function RoadmapPage() {
   return (
     <div className="max-w-4xl mx-auto px-6 py-8">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">Roadmap</h1>
-        <p className="text-slate-500 text-sm mt-1">
-          Planned features, future ideas, and items in progress.
-        </p>
+      <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Roadmap</h1>
+          <p className="text-slate-500 text-sm mt-1">
+            Planned features, future ideas, and items in progress.
+          </p>
+        </div>
+        <RoadmapClient />
       </div>
 
       {/* Rendered roadmap */}

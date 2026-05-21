@@ -64,35 +64,90 @@ function inlineHtml(text) {
 }
 
 function MarkdownChangelog({ nodes }) {
+  const [search, setSearch] = useState('');
+
+  // Group nodes into h2 sections so we can filter whole sections
+  const sections = [];
+  let current = { header: null, nodes: [] };
+  for (const node of nodes) {
+    if (node.type === 'h1') {
+      // top-level title — always show
+      sections.push({ header: null, nodes: [node], isTitle: true });
+    } else if (node.type === 'h2') {
+      if (current.header !== null || current.nodes.length > 0) sections.push(current);
+      current = { header: node, nodes: [] };
+    } else {
+      current.nodes.push(node);
+    }
+  }
+  if (current.header !== null || current.nodes.length > 0) sections.push(current);
+
+  const q = search.trim().toLowerCase();
+  const filtered = q
+    ? sections.filter(s =>
+        s.isTitle ||
+        s.header?.text.toLowerCase().includes(q) ||
+        s.nodes.some(n => n.text?.toLowerCase().includes(q))
+      )
+    : sections;
+
+  const displayNodes = filtered.flatMap(s => s.header ? [s.header, ...s.nodes] : s.nodes);
+
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-0">
-      {nodes.map((node, idx) => {
-        if (node.type === 'h1') return (
-          <h1 key={idx} className="text-2xl font-bold text-slate-900 mt-6 mb-3 first:mt-0">{node.text}</h1>
-        );
-        if (node.type === 'h2') return (
-          <h2 key={idx} className="text-lg font-bold text-slate-900 mt-8 mb-2 pt-6 border-t border-slate-100 first:border-t-0 first:pt-0 first:mt-0">
-            <span className="inline-flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0 inline-block" />
-              {node.text}
-            </span>
-          </h2>
-        );
-        if (node.type === 'h3') return (
-          <h3 key={idx} className="text-xs font-semibold text-slate-400 uppercase tracking-widest mt-4 mb-1.5">{node.text}</h3>
-        );
-        if (node.type === 'li') return (
-          <div key={idx} className={`flex items-start gap-2 py-0.5 ${node.nested ? 'pl-4' : ''}`}>
-            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
-            <span className="text-sm text-slate-600 leading-relaxed" dangerouslySetInnerHTML={{ __html: inlineHtml(node.text) }} />
-          </div>
-        );
-        if (node.type === 'hr') return <div key={idx} className="border-t border-slate-100 my-4" />;
-        if (node.type === 'p') return (
-          <p key={idx} className="text-sm text-slate-500 leading-relaxed mt-1" dangerouslySetInnerHTML={{ __html: inlineHtml(node.text) }} />
-        );
-        return null;
-      })}
+    <div>
+      {/* Search bar */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="relative flex-1 max-w-xs">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search changelog notes…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-200"
+          />
+        </div>
+        {q && (
+          <span className="text-xs text-slate-400">
+            {filtered.filter(s => !s.isTitle).length} version{filtered.filter(s => !s.isTitle).length !== 1 ? 's' : ''} found
+          </span>
+        )}
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-0">
+        {displayNodes.length === 0 && (
+          <p className="text-center text-slate-400 text-sm py-8">No results for &ldquo;{search}&rdquo;</p>
+        )}
+        {displayNodes.map((node, idx) => {
+          if (node.type === 'h1') return (
+            <h1 key={idx} className="text-2xl font-bold text-slate-900 mt-6 mb-3 first:mt-0">{node.text}</h1>
+          );
+          if (node.type === 'h2') return (
+            <h2 key={idx} className="text-lg font-bold text-slate-900 mt-8 mb-2 pt-6 border-t border-slate-100 first:border-t-0 first:pt-0 first:mt-0">
+              <span className="inline-flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0 inline-block" />
+                {node.text}
+              </span>
+            </h2>
+          );
+          if (node.type === 'h3') return (
+            <h3 key={idx} className="text-xs font-semibold text-slate-400 uppercase tracking-widest mt-4 mb-1.5">{node.text}</h3>
+          );
+          if (node.type === 'li') return (
+            <div key={idx} className={`flex items-start gap-2 py-0.5 ${node.nested ? 'pl-4' : ''}`}>
+              <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
+              <span className="text-sm text-slate-600 leading-relaxed" dangerouslySetInnerHTML={{ __html: inlineHtml(node.text) }} />
+            </div>
+          );
+          if (node.type === 'hr') return <div key={idx} className="border-t border-slate-100 my-4" />;
+          if (node.type === 'p') return (
+            <p key={idx} className="text-sm text-slate-500 leading-relaxed mt-1" dangerouslySetInnerHTML={{ __html: inlineHtml(node.text) }} />
+          );
+          return null;
+        })}
+      </div>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 // ── Icons ────────────────────────────────────────────────────────────────────
 
@@ -30,7 +30,7 @@ function IconDesign() {
   return <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42" /></svg>;
 }
 function IconBook() {
-  return <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>;
+  return <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>;
 }
 function IconCog() {
   return <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
@@ -72,6 +72,15 @@ function IconPin({ locked }) {
   return locked
     ? <svg className="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M16 9V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5l-2 2v2h5v7l1 1 1-1v-7h5v-2l-2-2z"/></svg>
     : <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M16 9V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5l-2 2v2h5v7l1 1 1-1v-7h5v-2l-2-2z"/></svg>;
+}
+function IconSoftware() {
+  return <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 7.409A2.25 2.25 0 012.25 5.493V5.25" /></svg>;
+}
+function IconTask() {
+  return <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+}
+function IconClientUsers() {
+  return <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>;
 }
 
 // ── NavItem ───────────────────────────────────────────────────────────────────
@@ -128,6 +137,37 @@ function SubNavItem({ href, icon, label, active, disabled, expanded }) {
   );
 }
 
+// ── Collapsible section header ────────────────────────────────────────────────
+
+function SectionHeader({ icon, label, isActive, isOpen, expanded, onClick }) {
+  return (
+    <div
+      onClick={onClick}
+      className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors select-none cursor-pointer ${
+        isActive ? 'text-white' : 'hover:text-white'
+      }`}
+      style={isActive
+        ? { backgroundColor: '#1e3a5f', color: 'white' }
+        : { color: '#94b4d1' }
+      }
+    >
+      <span className="shrink-0">{icon}</span>
+      {expanded && (
+        <>
+          <span className="flex-1 whitespace-nowrap">{label}</span>
+          <svg
+            className="w-3 h-3 shrink-0 transition-transform duration-150"
+            style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', color: '#4a6fa5' }}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+          </svg>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 
 export default function Sidebar({ user }) {
@@ -159,20 +199,28 @@ export default function Sidebar({ user }) {
   const at         = (path) => pathname === path;
   const startsWith = (path) => pathname.startsWith(path);
 
-  // ── Home section (collapsible parent) ──────────────────────────────────────
-  const homeRelated = at('/home') || at('/dashboard') || startsWith('/dashboard') ||
-                      startsWith('/clients') || startsWith('/manufacturers') ||
-                      startsWith('/sales-reps') || startsWith('/products');
-  const [homeOpen, setHomeOpen] = useState(true); // default open
+  // ── Route groupings ──────────────────────────────────────────────────────────
+  const homeRelated     = at('/home') || startsWith('/dashboard') ||
+                          (startsWith('/project') && !startsWith('/project/new')) ||
+                          startsWith('/knowledge-base');
+  const crmRelated      = startsWith('/crm') || startsWith('/clients');
+  const preconRelated   = startsWith('/pre-con') || startsWith('/manufacturers') ||
+                          startsWith('/sales-reps') || startsWith('/products');
+  const softwareRelated = startsWith('/admin/changelog') || startsWith('/admin/roadmap') ||
+                          startsWith('/admin/tasks');
 
-  // ── CRM section (collapsible parent) ────────────────────────────────────────
-  const crmRelated = startsWith('/crm');
-  const [crmOpen, setCrmOpen] = useState(true); // default open
+  // ── Collapsible open states ───────────────────────────────────────────────────
+  const [homeOpen,     setHomeOpen]     = useState(true);
+  const [crmOpen,      setCrmOpen]      = useState(true);
+  const [preconOpen,   setPreconOpen]   = useState(false);
+  const [softwareOpen, setSoftwareOpen] = useState(false);
 
   // Auto-open when navigating to a related path
   useEffect(() => {
-    if (homeRelated) setHomeOpen(true);
-    if (crmRelated)  setCrmOpen(true);
+    if (homeRelated)     setHomeOpen(true);
+    if (crmRelated)      setCrmOpen(true);
+    if (preconRelated)   setPreconOpen(true);
+    if (softwareRelated) setSoftwareOpen(true);
   }, [pathname]);
 
   async function handleLogout() {
@@ -227,89 +275,90 @@ export default function Sidebar({ user }) {
       {/* ── Main nav ── */}
       <nav className="flex-1 px-2 pb-4 space-y-0.5 overflow-y-auto overflow-x-hidden">
 
-        {/* ── Home (collapsible parent) ── */}
+        {/* ── Home (collapsible) ── */}
         <div>
-          <div
+          <SectionHeader
+            icon={<IconGrid />}
+            label="Home"
+            isActive={homeRelated}
+            isOpen={homeOpen}
+            expanded={expanded}
             onClick={() => expanded ? setHomeOpen(o => !o) : router.push('/home')}
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors select-none cursor-pointer ${
-              homeRelated ? 'text-white' : 'hover:text-white'
-            }`}
-            style={homeRelated
-              ? { backgroundColor: '#1e3a5f', color: 'white' }
-              : { color: '#94b4d1' }
-            }
-          >
-            <span className="shrink-0"><IconGrid /></span>
-            {expanded && (
-              <>
-                <span className="flex-1 whitespace-nowrap">Home</span>
-                <svg
-                  className="w-3 h-3 shrink-0 transition-transform duration-150"
-                  style={{ transform: homeOpen ? 'rotate(180deg)' : 'rotate(0deg)', color: '#4a6fa5' }}
-                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                </svg>
-              </>
-            )}
-          </div>
-
-          {/* Sub-items — only when sidebar is expanded */}
+          />
           {expanded && homeOpen && (
             <div className="mt-0.5 space-y-0.5 ml-1">
-              <SubNavItem href="/home"         icon={<IconGrid />}    label="Overview"      expanded={expanded} active={at('/home')} />
-              <SubNavItem href="/dashboard"    icon={<IconFolder />}  label="Projects"      expanded={expanded} active={at('/dashboard') || (startsWith('/project') && !startsWith('/project/new'))} />
-              <SubNavItem href="/clients"      icon={<IconUsers />}   label="Clients"       expanded={expanded} active={startsWith('/clients')} />
-              <SubNavItem href="/manufacturers"icon={<IconFactory />} label="Manufacturers" expanded={expanded} active={at('/manufacturers')} />
-              <SubNavItem href="/sales-reps"   icon={<IconTag />}     label="Sales Reps"    expanded={expanded} active={startsWith('/sales-reps')} />
-              <SubNavItem href="/products"     icon={<IconPackage />} label="Products"      expanded={expanded} active={startsWith('/products')} />
+              <SubNavItem href="/home"      icon={<IconGrid />}   label="Overview"  expanded={expanded} active={at('/home')} />
+              <SubNavItem href="/dashboard" icon={<IconFolder />} label="Projects"  expanded={expanded} active={at('/dashboard') || (startsWith('/project') && !startsWith('/project/new'))} />
+              <SubNavItem href="/knowledge-base" icon={<IconBook />} label="Knowledge Base" expanded={expanded} active={startsWith('/knowledge-base')} />
             </div>
           )}
         </div>
 
-        {/* ── CRM (collapsible parent) ── */}
+        {/* ── CRM (collapsible) ── */}
         <div>
-          <div
+          <SectionHeader
+            icon={<IconSales />}
+            label="CRM"
+            isActive={crmRelated}
+            isOpen={crmOpen}
+            expanded={expanded}
             onClick={() => expanded ? setCrmOpen(o => !o) : router.push('/crm')}
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors select-none cursor-pointer ${
-              crmRelated ? 'text-white' : 'hover:text-white'
-            }`}
-            style={crmRelated
-              ? { backgroundColor: '#1e3a5f', color: 'white' }
-              : { color: '#94b4d1' }
-            }
-          >
-            <span className="shrink-0"><IconSales /></span>
-            {expanded && (
-              <>
-                <span className="flex-1 whitespace-nowrap">CRM</span>
-                <svg
-                  className="w-3 h-3 shrink-0 transition-transform duration-150"
-                  style={{ transform: crmOpen ? 'rotate(180deg)' : 'rotate(0deg)', color: '#4a6fa5' }}
-                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                </svg>
-              </>
-            )}
-          </div>
-
+          />
           {expanded && crmOpen && (
             <div className="mt-0.5 space-y-0.5 ml-1">
-              <SubNavItem href="/crm"            icon={<IconPipeline />}        label="Pipeline"   expanded={expanded} active={at('/crm') || (crmRelated && !startsWith('/crm/dashboards') && !startsWith('/crm/notes'))} />
-              <SubNavItem href="/crm/dashboards" icon={<IconDashboardWidget />} label="Dashboards" expanded={expanded} active={startsWith('/crm/dashboards')} />
+              <SubNavItem href="/crm"            icon={<IconPipeline />}        label="Pipeline"    expanded={expanded} active={at('/crm') || (crmRelated && !startsWith('/crm/dashboards') && !startsWith('/crm/notes') && !startsWith('/clients'))} />
+              <SubNavItem href="/crm/dashboards" icon={<IconDashboardWidget />} label="Dashboards"  expanded={expanded} active={startsWith('/crm/dashboards')} />
               <SubNavItem href="/crm/notes"      icon={<IconNotes />}           label="Sales Notes" expanded={expanded} active={startsWith('/crm/notes')} />
+              <SubNavItem href="/clients"        icon={<IconClientUsers />}     label="Clients"     expanded={expanded} active={startsWith('/clients')} />
             </div>
           )}
         </div>
-        <NavItem href="/pre-con" icon={<IconPrecon />} label="Pre-con" expanded={expanded}
-          active={startsWith('/pre-con')} />
-        <NavItem href="#" icon={<IconConstruction />} label="Construction" disabled expanded={expanded} />
-        <NavItem href="#" icon={<IconDesign />} label="Design" disabled expanded={expanded} />
-        <NavItem href="/knowledge-base" icon={<IconBook />} label="Knowledge Base" expanded={expanded}
-          active={startsWith('/knowledge-base')} />
-        <NavItem href="#" icon={<IconFinance />} label="Finance" disabled expanded={expanded} />
 
+        {/* ── Pre-con (collapsible) ── */}
+        <div>
+          <SectionHeader
+            icon={<IconPrecon />}
+            label="Pre-con"
+            isActive={preconRelated}
+            isOpen={preconOpen}
+            expanded={expanded}
+            onClick={() => expanded ? setPreconOpen(o => !o) : router.push('/pre-con')}
+          />
+          {expanded && preconOpen && (
+            <div className="mt-0.5 space-y-0.5 ml-1">
+              <SubNavItem href="/manufacturers" icon={<IconFactory />} label="Manufacturers" expanded={expanded} active={startsWith('/manufacturers')} />
+              <SubNavItem href="/sales-reps"    icon={<IconTag />}     label="Sales Reps"    expanded={expanded} active={startsWith('/sales-reps')} />
+              <SubNavItem href="/products"      icon={<IconPackage />} label="Products"      expanded={expanded} active={startsWith('/products')} />
+            </div>
+          )}
+        </div>
+
+        <NavItem href="#" icon={<IconConstruction />} label="Construction" disabled expanded={expanded} />
+        <NavItem href="#" icon={<IconDesign />}       label="Design"       disabled expanded={expanded} />
+        <NavItem href="#" icon={<IconFinance />}      label="Finance"      disabled expanded={expanded} />
+
+        {/* ── Software (Super Admin only) ── */}
+        {isIlcAdmin && (
+          <div>
+            <SectionHeader
+              icon={<IconSoftware />}
+              label="Software"
+              isActive={softwareRelated}
+              isOpen={softwareOpen}
+              expanded={expanded}
+              onClick={() => expanded ? setSoftwareOpen(o => !o) : router.push('/admin/changelog')}
+            />
+            {expanded && softwareOpen && (
+              <div className="mt-0.5 space-y-0.5 ml-1">
+                <SubNavItem href="/admin/changelog" icon={<IconChangelog />} label="Changelog" expanded={expanded} active={startsWith('/admin/changelog')} />
+                <SubNavItem href="/admin/roadmap"   icon={<IconRoadmap />}   label="Roadmap"   expanded={expanded} active={startsWith('/admin/roadmap')} />
+                <SubNavItem href="/admin/tasks"     icon={<IconTask />}      label="Tasks"     expanded={expanded} active={startsWith('/admin/tasks')} />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Settings ── */}
         <div className="my-3" style={{ borderTop: '1px solid #1e293b' }} />
 
         {expanded && (
@@ -318,11 +367,9 @@ export default function Sidebar({ user }) {
           </div>
         )}
 
-        {isIlcAdmin && <SubNavItem href="/admin/pricing"  icon={<IconTag />}       label="Pricing"      expanded={expanded} active={startsWith('/admin/pricing')} />}
-        {isAdmin    && <SubNavItem href="/admin"          icon={<IconUserCircle />} label="Users"        expanded={expanded} active={at('/admin')} />}
-        {isAdmin    && <SubNavItem href="/admin/import"   icon={<IconFolder />}    label="Import Excel" expanded={expanded} active={startsWith('/admin/import')} />}
-        {isAdmin    && <SubNavItem href="/admin/changelog"icon={<IconChangelog />} label="Changelog"    expanded={expanded} active={startsWith('/admin/changelog')} />}
-        {isAdmin    && <SubNavItem href="/admin/roadmap"  icon={<IconRoadmap />}   label="Roadmap"      expanded={expanded} active={startsWith('/admin/roadmap')} />}
+        <SubNavItem href="/admin/profile"  icon={<IconUserCircle />} label="Profile"        expanded={expanded} active={startsWith('/admin/profile')} />
+        {isIlcAdmin && <SubNavItem href="/admin/pricing" icon={<IconTag />}       label="Master Pricing" expanded={expanded} active={startsWith('/admin/pricing')} />}
+        {isAdmin    && <SubNavItem href="/admin"         icon={<IconUsers />}     label="Users"          expanded={expanded} active={at('/admin')} />}
         <SubNavItem href="#" icon={<IconBuilding />} label="Company" disabled expanded={expanded} />
       </nav>
 
