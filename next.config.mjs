@@ -1,11 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    // ── Public env vars (safe to expose to browser) ─────────────────────────
-    // Do NOT put DATABASE_URL, JWT_SECRET, or ANTHROPIC_API_KEY here.
-    // Those are server-only and must never appear in the client bundle.
-    // Amplify Lambda injects all env vars from the Amplify console into
-    // process.env at runtime — server code reads them directly from there.
+    // ── Environment variables ────────────────────────────────────────────────
+    // DATABASE_URL is baked in at build time via webpack DefinePlugin.
+    // This is required for Amplify SSR Lambda: @prisma/client is marked as an
+    // external package (not bundled by webpack), so Prisma's engine reads the
+    // URL from the datasources option in db.js. db.js IS bundled, so the baked-
+    // in value of process.env.DATABASE_URL is what gets passed through.
+    // Without this, the Lambda has no DB connection and every API route fails.
+    //
+    // ANTHROPIC_API_KEY and JWT_SECRET are intentionally NOT here — those stay
+    // server-only and are read from process.env at runtime by the Lambda.
     env: {
+          DATABASE_URL:       process.env.DATABASE_URL,
           NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     },
     experimental: {
