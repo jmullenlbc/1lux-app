@@ -16,6 +16,8 @@ frontend:
         # ── Generate client + push schema ────────────────────────────────────
         - npx prisma generate
         - npx prisma db push --accept-data-loss
+        # ── Seed admin accounts (upsert — safe to run every deploy) ─────────
+        - node prisma/seed.js
     build:
       commands:
         - npm run build
