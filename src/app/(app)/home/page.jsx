@@ -7,23 +7,33 @@ import HomeClient      from './HomeClient';
 
 export const metadata = { title: 'Home — ILC Studios' };
 
+// Safe runner: returns value on success, fallback on any error (logs to CloudWatch)
+async function safe(label, fn, fallback) {
+  try {
+    return await fn();
+  } catch (err) {
+    console.error(`[/home] ${label} failed:`, err?.message ?? err);
+    return fallback;
+  }
+}
+
 export default async function HomePage() {
   const { user, error } = await requireAuth();
   if (error) redirect('/login');
 
-  const isAdmin    = ['SUPER_ADMIN', 'ILC_ADMIN', 'COMPANY_ADMIN', 'ADMIN'].includes(user.role);
+  const isAdmin      = ['SUPER_ADMIN', 'ILC_ADMIN', 'COMPANY_ADMIN', 'ADMIN'].includes(user.role);
   const projectWhere = isAdmin ? {} : { createdById: user.id };
-  const now        = new Date();
-  const yearStart  = new Date(now.getFullYear(), 0, 1);
-  const in7days    = new Date(now.getTime() + 7 * 86_400_000);
+  const now          = new Date();
+  const yearStart    = new Date(now.getFullYear(), 0, 1);
+  const in7days      = new Date(now.getTime() + 7 * 86_400_000);
 
   // Load the user's saved dashboard config
-  const userRow = await prisma.user.findUnique({
-    where:  { id: user.id },
-    select: { dashboardConfig: true },
-  });
+  const userRow = await safe('userRow', () =>
+    prisma.user.findUnique({ where: { id: user.id }, select: { dashboardConfig: true } }),
+    null,
+  );
 
-  // Fetch all widget data in parallel
+  // Fetch all widget data in parallel — each query is independently safe-wrapped
   const [
     projectCount,
     recentProjects,
@@ -39,88 +49,101 @@ export default async function HomePage() {
     salesReps,
   ] = await Promise.all([
 
-    prisma.project.count({ where: projectWhere }),
+    safe('projectCount', () =>
+      prisma.project.count({ where: projectWhere }), 0),
 
-    prisma.project.findMany({
-      where: projectWhere, take: 6, orderBy: { updatedAt: 'desc' },
-      select: {
-        id: true, projectNumber: true, name: true,
-        phase: true, serviceType: true, status: true,
-        city: true, state: true, updatedAt: true,
-        client: { select: { id: true, name: true } },
-      },
-    }),
+    safe('recentProjects', () =>
+      prisma.project.findMany({
+        where: projectWhere, take: 6, orderBy: { updatedAt: 'desc' },
+        select: {
+          id: true, projectNumber: true, name: true,
+          phase: true, serviceType: true, status: true,
+          city: true, state: true, updatedAt: true,
+          client: { select: { id: true, name: true } },
+        },
+      }), []),
 
-    prisma.client.count(),
+    safe('clientCount', () => prisma.client.count(), 0),
 
-    prisma.client.findMany({
-      take: 6, orderBy: { updatedAt: 'desc' },
-      select: {
-        id: true, clientNumber: true, name: true, type: true,
-        city: true, state: true, updatedAt: true,
-        _count: { select: { projects: true } },
-      },
-    }),
+    safe('recentClients', () =>
+      prisma.client.findMany({
+        take: 6, orderBy: { updatedAt: 'desc' },
+        select: {
+          id: true, clientNumber: true, name: true, type: true,
+          city: true, state: true, updatedAt: true,
+          _count: { select: { projects: true } },
+        },
+      }), []),
 
-    prisma.manufacturer.count(),
+    safe('manufacturerCount', () => prisma.manufacturer.count(), 0),
 
-    prisma.manufacturerProduct.count(),
+    safe('productCount', () => prisma.manufacturerProduct.count(), 0),
 
     // Total open deal count
-    prisma.deal.count({ where: { dealStatus: 'OPEN' } }),
+    safe('openDeals', () =>
+      prisma.deal.count({ where: { dealStatus: 'OPEN' } }), 0),
 
     // Recent open deals for pipeline widget
-    prisma.deal.findMany({
-      where: { dealStatus: 'OPEN' }, take: 5, orderBy: { updatedAt: 'desc' },
-      select: {
-        id: true, dealNumber: true, title: true,
-        pipeline: true, stage: true, totalRevenue: true, probability: true,
-        client: { select: { id: true, name: true } },
-        updatedAt: true,
-      },
-    }),
+    safe('recentOpenDeals', () =>
+      prisma.deal.findMany({
+        where: { dealStatus: 'OPEN' }, take: 5, orderBy: { updatedAt: 'desc' },
+        select: {
+          id: true, dealNumber: true, title: true,
+          pipeline: true, stage: true, totalRevenue: true, probability: true,
+          client: { select: { id: true, name: true } },
+          updatedAt: true,
+        },
+      }), []),
 
     // Won deals this calendar year
-    prisma.deal.findMany({
-      where: { dealStatus: 'WON', wonAt: { gte: yearStart } },
-      select: {
-        id: true, dealNumber: true, title: true,
-        pipeline: true, totalRevenue: true, wonAt: true,
-        client: { select: { id: true, name: true } },
-      },
-      orderBy: { wonAt: 'desc' },
-    }),
+    safe('wonThisYear', () =>
+      prisma.deal.findMany({
+        where: { dealStatus: 'WON', wonAt: { gte: yearStart } },
+        select: {
+          id: true, dealNumber: true, title: true,
+          pipeline: true, totalRevenue: true, wonAt: true,
+          client: { select: { id: true, name: true } },
+        },
+        orderBy: { wonAt: 'desc' },
+      }), []),
 
     // Deals with action due in the next 7 days OR overdue
-    prisma.deal.findMany({
-      where: {
-        dealStatus:    'OPEN',
-        nextActionDue: { not: null, lte: in7days },
-      },
-      orderBy: { nextActionDue: 'asc' },
-      take: 10,
-      select: {
-        id: true, dealNumber: true, title: true,
-        nextActionText: true, nextActionDue: true,
-        pipeline: true,
-        client: { select: { id: true, name: true } },
-        owner:  { select: { id: true, name: true } },
-      },
-    }),
+    // Use AND array — combining `not: null` with `lte` in a single object is unreliable on PostgreSQL
+    safe('upcomingActions', () =>
+      prisma.deal.findMany({
+        where: {
+          dealStatus: 'OPEN',
+          AND: [
+            { nextActionDue: { not: null } },
+            { nextActionDue: { lte: in7days } },
+          ],
+        },
+        orderBy: { nextActionDue: 'asc' },
+        take: 10,
+        select: {
+          id: true, dealNumber: true, title: true,
+          nextActionText: true, nextActionDue: true,
+          pipeline: true,
+          client: { select: { id: true, name: true } },
+          owner:  { select: { id: true, name: true } },
+        },
+      }), []),
 
     // All open deals for pipeline calculations
-    prisma.deal.findMany({
-      where: { dealStatus: 'OPEN' },
-      select: { totalRevenue: true, probability: true, pipeline: true, stage: true },
-    }),
+    safe('pipelineDeals', () =>
+      prisma.deal.findMany({
+        where: { dealStatus: 'OPEN' },
+        select: { totalRevenue: true, probability: true, pipeline: true, stage: true },
+      }), []),
 
     // Unique sales reps — orderBy required for DISTINCT ON in PostgreSQL
-    prisma.peerReviewItem.findMany({
-      where:   { repName: { not: null } },
-      select:  { repName: true, repEmail: true },
-      distinct: ['repName'],
-      orderBy: { repName: 'asc' },
-    }),
+    safe('salesReps', () =>
+      prisma.peerReviewItem.findMany({
+        where:    { repName: { not: null } },
+        select:   { repName: true, repEmail: true },
+        distinct: ['repName'],
+        orderBy:  { repName: 'asc' },
+      }), []),
   ]);
 
   // Derived aggregates
