@@ -4,6 +4,8 @@ frontend:
     preBuild:
       commands:
         - npm ci
+        # ── Safety: block deploy if any (app) page is missing force-dynamic ─
+        - node scripts/check-dynamic-pages.js
         # ── Generate deploy history log (git log → deploy-log.json) ─────────
         - node scripts/generate-deploy-log.js
         # ── Schema provider patch ────────────────────────────────────────────

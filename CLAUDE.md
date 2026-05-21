@@ -73,6 +73,14 @@ Session = httpOnly cookie `ilc_session`, 7-day JWT, signed with `JWT_SECRET`.
 
 Roles: `ILC_ADMIN` / `SUPER_ADMIN` (same), `ADMIN` / `COMPANY_ADMIN` (same), `USER`, `CLIENT_VIEWER`.
 
+### Rule: Every new `(app)` page MUST have `force-dynamic`
+
+```js
+export const dynamic = 'force-dynamic'; // ← REQUIRED on every page under (app)/
+```
+
+Without it, Next.js 14 attempts static rendering at build time. `cookies()` (called inside `requireAuth`/`getSession`) throws "called outside a request scope", crashing the page in production with Application Error. The build script `scripts/check-dynamic-pages.js` runs in Amplify preBuild and **fails the entire build** if any page is missing this — so you'll catch it before it ever deploys.
+
 ### Page Pattern (App Router)
 
 Server pages fetch data and pass it to `*Client.jsx` components:
