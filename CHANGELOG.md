@@ -5,6 +5,82 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Session 17 — CRM Dashboards, Tasks Enhancements, Sidebar Restructure, Rich Text Editor] · May 21, 2026
+
+### Added
+- **CRM Dashboards** — full Pipedrive-style analytics system replacing the "coming soon" placeholder
+  - One concept: dashboards contain widgets; each widget is a configured chart (no separate "reports" layer)
+  - Auto-seeds a default "Main Dashboard" with 10 pre-built charts on first visit
+  - 10 starter widgets: Procurement Revenue Forecast, Design Fee Forecast, Combined Revenue Forecast, Pipeline Value by Stage, Open Deals by Organization, Win Rate by Owner, Win Rate by Project Type, Open Pipeline by Probability, Lost Deal Analysis, Sales Cycle Duration
+  - 5 chart categories: REVENUE, DEAL_COUNT, CONVERSION, FORECAST, DURATION
+  - View by dimension (X-axis): month, quarter, client/org, owner, stage, projectType, serviceType, probabilityTier, lostReason, state
+  - Segment by dimension (color/stack): pipeline, serviceType, dealStatus, projectType, owner
+  - Full filter builder: enum multi-select, numeric operators (≥/≤/=), relative date periods (this_month, next_12_months, last_quarter, etc.)
+  - Full/half width widget layout with smart grid pairing
+  - Multiple dashboards with tab navigation; "+ New Dashboard" creation
+  - Add/edit/delete widgets via modal with live category → metric → viewBy → segmentBy → filters → width flow
+  - Stat cards per widget (total open $, won $, deal count, win rate %)
+  - Filter summary tags shown on each widget card
+  - Recharts bar charts with custom tooltips, dollar formatting ($1.2M), stacked/grouped modes
+  - Conversion category uses horizontal bar chart showing win rate % per dimension
+  - Revenue/Forecast auto-formats Y-axis ($K/$M)
+- **Tasks: Tags, Assignee, Attachments** — three new fields on the Software > Tasks kanban
+  - **Tags** — predefined tags grouped by nav section (Home, CRM, Pre-con, Software, Settings, General) with color-coded pill selector
+  - **Assignee** — dropdown of all active system users pulled from the DB
+  - **Attachments** — file upload supporting PDF, Excel (.xls/.xlsx), JPG, PNG, GIF, WebP up to 25 MB
+  - Task cards show: priority badge, tags (max 3 + overflow count), assignee avatar, attachment count, due date
+  - New task flow: create first → modal re-opens in edit mode for immediate attachment upload
+  - `TaskAttachment` Prisma model with `onDelete: Cascade` from task
+  - `POST /api/tasks/[id]/attachments` — stores files in `uploads/tasks/[taskId]/`
+  - `DELETE /api/tasks/attachments/[attachmentId]` — deletes file from disk + DB
+- **Rich Text Editor** — reusable Tiptap editor component (`src/components/RichTextEditor.jsx`)
+  - Toolbar: Bold, Italic, Underline, Strikethrough, H2, H3, Bullet list, Ordered list, Blockquote, Code block, Insert table, Insert/edit link, Clear formatting
+  - Table support (paste from Google Sheets preserves structure)
+  - Placeholder: "Write content here, or paste from Google Docs or Microsoft Word to preserve formatting…"
+  - `RichContent` export: auto-detects HTML vs plain text; old plain-text KB entries render with `whitespace-pre-wrap`
+  - Used in: Client KB sections (auto-save with 1.5s debounce), Knowledge Base standard modals
+- **Sidebar restructure** — full nav reorganization
+  - CRM: Clients moved to first position (above Pipeline)
+  - Pre-con: now collapsible section header containing Manufacturers, Sales Reps, Products
+  - Software section (ILC Admin only): Changelog, Roadmap, Tasks submenus
+  - Settings: Profile submenu added (all users); "Pricing" renamed to "Master Pricing"; Import Excel removed
+  - Knowledge Base moved from main nav to submenu under Home
+- **Profile page** — `/admin/profile` accessible to all users for name editing + password change
+- **Roadmap** — search bar added; sections filterable by keyword; "Request Feature" button (UI placeholder)
+- **Changelog** — Notes tab redesigned to match Deploy History layout (stats left, search right)
+
+### Fixed
+- **RichTextEditor Tiptap v3** — all extension imports changed from default (`import Table from '...'`) to named exports (`import { Table } from '...'`); Tiptap v3 dropped default exports causing `TypeError: Cannot read properties of undefined (reading 'configure')`
+- **CRM Dashboards db import** — all dashboard routes used `import db from '@/lib/db'` (default, resolves to `undefined`); corrected to `import { prisma as db } from '@/lib/db'` across all 7 files
+
+### Files Created
+- `src/components/RichTextEditor.jsx` — Tiptap rich text editor + `RichContent` read-only renderer
+- `src/app/(app)/admin/profile/page.jsx` + `ProfileClient.jsx`
+- `src/app/(app)/admin/tasks/TasksClient.jsx` — full rewrite with tags/assignee/attachments
+- `src/app/(app)/crm/dashboards/DashboardsClient.jsx` — full dashboard UI with Recharts widgets
+- `src/lib/dashboardEngine.js` — filter → Prisma where clause engine + widget query runner
+- `src/lib/defaultDashboard.js` — 10 pre-built widget seed configs
+- `src/app/api/crm/dashboards/route.js` — GET list + POST create + auto-seed
+- `src/app/api/crm/dashboards/[id]/route.js` — PATCH + DELETE
+- `src/app/api/crm/dashboards/[id]/run/route.js` — POST run all widgets
+- `src/app/api/crm/dashboards/[id]/widgets/route.js` — POST add widget
+- `src/app/api/crm/dashboards/[id]/widgets/[widgetId]/route.js` — PATCH + DELETE + POST run single
+- `src/app/api/tasks/[id]/attachments/route.js` — file upload endpoint
+- `src/app/api/tasks/attachments/[attachmentId]/route.js` — delete attachment
+
+### Files Modified
+- `prisma/schema.prisma` — added `Dashboard`, `DashboardWidget`, `TaskAttachment` models; `dashboards` relation on `User`
+- `src/components/layout/Sidebar.jsx` — full restructure with Pre-con + Software collapsible sections
+- `src/app/(app)/admin/tasks/page.jsx` — loads users list for assignee dropdown
+- `src/app/(app)/admin/changelog/ChangelogClient.jsx` — stats+search layout matching Deploy History
+- `src/app/(app)/admin/roadmap/RoadmapClient.jsx` + `page.jsx` — search bar, Request Feature button
+- `src/app/(app)/clients/[id]/ClientDetailClient.jsx` — KB sections use RichTextEditor
+- `src/app/(app)/knowledge-base/KnowledgeBaseClient.jsx` — standard modals use RichTextEditor
+- `src/app/(app)/project/[id]/ProjectHubClient.jsx` — Design Bid Matrix tab removed
+- `src/app/api/tasks/route.js` + `[id]/route.js` — include attachments + assignee in all queries
+
+---
+
 ## [Session 16 — Bid Matrix Print Fixes + Product Catalog + Delete Feature] · May 2026
 
 ### Added
