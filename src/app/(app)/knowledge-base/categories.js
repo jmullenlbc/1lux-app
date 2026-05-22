@@ -11,7 +11,7 @@ export const CATEGORIES = [
   { key: 'QC',           label: 'QC Process',     desc: 'Quality control checklists & review procedures',          color: 'rose',   icon: '✅' },
   { key: 'DIMMING',      label: 'Dimming',        desc: 'Dimming standards, percentages & driver requirements',    color: 'cyan',   icon: '🎚️' },
   { key: 'PHOTOMETRICS', label: 'Photometrics',   desc: 'Calculation standards, software settings & deliverables', color: 'teal',   icon: '📐' },
-  { key: 'WORKFLOW',     label: 'Workflows',      desc: 'Step-by-step processes, software setup & project procedures', color: 'sky',  icon: '⚙️' },
+  { key: 'REVIT',        label: 'Revit',           desc: 'Revit model setup, BIM 360 workflows & project procedures',  color: 'sky',  icon: '🏗️' },
 ];
 
 export const COLOR_MAP = {

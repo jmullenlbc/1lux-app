@@ -15,7 +15,7 @@ const ADMINS = [
 const KB_ENTRIES = [
   {
     id: 'kb-seed-revit-model-setup',
-    category: 'WORKFLOW',
+    category: 'REVIT',
     title: 'Setting Up a Revit Model',
     severity: 'REQUIRED',
     tags: JSON.stringify(['Revit', 'BIM 360', 'Model Setup', 'Worksets']),
