@@ -1,40 +1,90 @@
 /**
- * Dashboard query engine.
- * Translates a DashboardWidget config into Prisma queries and returns
- * chart-ready data series.
+ * Dashboard query engine — zero external dependencies, native JS dates only.
+ * Translates a DashboardWidget config into Prisma queries and returns chart-ready data.
  */
 
-import {
-  startOfDay, endOfDay, startOfWeek, endOfWeek,
-  startOfMonth, endOfMonth, startOfQuarter, endOfQuarter,
-  startOfYear, endOfYear,
-  subDays, subWeeks, subMonths, subQuarters, subYears,
-  addMonths, addQuarters, addYears,
-  format, eachMonthOfInterval, eachQuarterOfInterval,
-} from 'date-fns';
+// ── Native date helpers ────────────────────────────────────────────────────
+
+function sob(d) { const r = new Date(d); r.setHours(0,0,0,0);   return r; }  // start of day
+function eod(d) { const r = new Date(d); r.setHours(23,59,59,999); return r; } // end of day
+
+function som(d) { return new Date(d.getFullYear(), d.getMonth(), 1, 0,0,0,0); }
+function eom(d) { return new Date(d.getFullYear(), d.getMonth()+1, 0, 23,59,59,999); }
+
+function soq(d) {
+  const q = Math.floor(d.getMonth() / 3);
+  return new Date(d.getFullYear(), q * 3, 1, 0,0,0,0);
+}
+function eoq(d) {
+  const q = Math.floor(d.getMonth() / 3);
+  return new Date(d.getFullYear(), q * 3 + 3, 0, 23,59,59,999);
+}
+
+function soy(d) { return new Date(d.getFullYear(), 0, 1, 0,0,0,0); }
+function eoy(d) { return new Date(d.getFullYear(), 11, 31, 23,59,59,999); }
+
+function addMonths(d, n) {
+  const r = new Date(d);
+  r.setMonth(r.getMonth() + n);
+  return r;
+}
+function addQuarters(d, n) { return addMonths(d, n * 3); }
+function addYears(d, n)    { const r = new Date(d); r.setFullYear(r.getFullYear() + n); return r; }
+
+function fmtMonthYear(d) {
+  return d.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+}
+function quarter(d) {
+  return `Q${Math.ceil((d.getMonth()+1)/3)} ${d.getFullYear()}`;
+}
+
+function eachMonth(start, end) {
+  const months = [];
+  const cur = som(start);
+  while (cur <= end) {
+    months.push(new Date(cur));
+    cur.setMonth(cur.getMonth() + 1);
+  }
+  return months;
+}
+
+function eachQuarter(start, end) {
+  const quarters = [];
+  const cur = soq(start);
+  while (cur <= end) {
+    quarters.push(new Date(cur));
+    cur.setMonth(cur.getMonth() + 3);
+  }
+  return quarters;
+}
 
 // ── Relative date resolver ─────────────────────────────────────────────────
 
 export function resolveRelativeDate(key) {
   const now = new Date();
   switch (key) {
-    case 'today':           return { gte: startOfDay(now),                      lte: endOfDay(now) };
-    case 'yesterday':       return { gte: startOfDay(subDays(now, 1)),           lte: endOfDay(subDays(now, 1)) };
-    case 'this_week':       return { gte: startOfWeek(now, { weekStartsOn: 1 }), lte: endOfWeek(now, { weekStartsOn: 1 }) };
-    case 'last_week':       return { gte: startOfWeek(subWeeks(now,1), { weekStartsOn: 1 }), lte: endOfWeek(subWeeks(now,1), { weekStartsOn: 1 }) };
-    case 'this_month':      return { gte: startOfMonth(now),                    lte: endOfMonth(now) };
-    case 'last_month':      return { gte: startOfMonth(subMonths(now,1)),        lte: endOfMonth(subMonths(now,1)) };
-    case 'next_month':      return { gte: startOfMonth(addMonths(now,1)),        lte: endOfMonth(addMonths(now,1)) };
-    case 'this_quarter':    return { gte: startOfQuarter(now),                  lte: endOfQuarter(now) };
-    case 'last_quarter':    return { gte: startOfQuarter(subQuarters(now,1)),    lte: endOfQuarter(subQuarters(now,1)) };
-    case 'next_quarter':    return { gte: startOfQuarter(addQuarters(now,1)),    lte: endOfQuarter(addQuarters(now,1)) };
-    case 'this_year':       return { gte: startOfYear(now),                     lte: endOfYear(now) };
-    case 'last_year':       return { gte: startOfYear(subYears(now,1)),          lte: endOfYear(subYears(now,1)) };
-    case 'next_year':       return { gte: startOfYear(addYears(now,1)),          lte: endOfYear(addYears(now,1)) };
-    case 'last_6_months':   return { gte: startOfMonth(subMonths(now,6)),        lte: endOfMonth(now) };
-    case 'last_12_months':  return { gte: startOfMonth(subMonths(now,12)),       lte: endOfMonth(now) };
-    case 'next_6_months':   return { gte: startOfMonth(now),                    lte: endOfMonth(addMonths(now,6)) };
-    case 'next_12_months':  return { gte: startOfDay(now),                      lte: endOfDay(addMonths(now,12)) };
+    case 'today':          return { gte: sob(now),              lte: eod(now) };
+    case 'yesterday':      { const y = new Date(now); y.setDate(y.getDate()-1);
+                             return { gte: sob(y), lte: eod(y) }; }
+    case 'this_week':      { const s = new Date(now); s.setDate(s.getDate() - ((s.getDay()+6)%7));
+                             const e = new Date(s); e.setDate(s.getDate()+6);
+                             return { gte: sob(s), lte: eod(e) }; }
+    case 'last_week':      { const s = new Date(now); s.setDate(s.getDate() - ((s.getDay()+6)%7) - 7);
+                             const e = new Date(s); e.setDate(s.getDate()+6);
+                             return { gte: sob(s), lte: eod(e) }; }
+    case 'this_month':     return { gte: som(now),              lte: eom(now) };
+    case 'last_month':     { const m = addMonths(now,-1); return { gte: som(m), lte: eom(m) }; }
+    case 'next_month':     { const m = addMonths(now, 1); return { gte: som(m), lte: eom(m) }; }
+    case 'this_quarter':   return { gte: soq(now),              lte: eoq(now) };
+    case 'last_quarter':   { const q = addQuarters(now,-1); return { gte: soq(q), lte: eoq(q) }; }
+    case 'next_quarter':   { const q = addQuarters(now, 1); return { gte: soq(q), lte: eoq(q) }; }
+    case 'this_year':      return { gte: soy(now),              lte: eoy(now) };
+    case 'last_year':      { const y = addYears(now,-1); return { gte: soy(y), lte: eoy(y) }; }
+    case 'next_year':      { const y = addYears(now, 1); return { gte: soy(y), lte: eoy(y) }; }
+    case 'last_6_months':  return { gte: som(addMonths(now,-6)), lte: eom(now) };
+    case 'last_12_months': return { gte: som(addMonths(now,-12)),lte: eom(now) };
+    case 'next_6_months':  return { gte: sob(now),               lte: eom(addMonths(now,6)) };
+    case 'next_12_months': return { gte: sob(now),               lte: eod(addMonths(now,12)) };
     default: return null;
   }
 }
@@ -61,42 +111,38 @@ export const RELATIVE_DATE_OPTIONS = [
 
 // ── Filter → Prisma where clause ──────────────────────────────────────────
 
-const DATE_FIELDS = new Set(['expectedOrderDate', 'createdAt', 'wonAt', 'lostAt', 'nextActionDue']);
-const NUMERIC_FIELDS = new Set(['probability', 'totalRevenue', 'designFeeTotal', 'numberOfUnits']);
+const DATE_FIELDS    = new Set(['expectedOrderDate','createdAt','wonAt','lostAt','nextActionDue']);
+const NUMERIC_FIELDS = new Set(['probability','totalRevenue','designFeeTotal','numberOfUnits']);
 
 function filterToWhere(rule) {
   const { field, operator, value } = rule;
 
   if (DATE_FIELDS.has(field)) {
-    let range = typeof value === 'string' && !value.includes('-')
-      ? resolveRelativeDate(value)
-      : null;
-    if (!range && value) {
-      if (typeof value === 'object' && value.gte) range = { gte: new Date(value.gte), lte: new Date(value.lte) };
-      else if (typeof value === 'string') range = resolveRelativeDate(value);
+    let range = typeof value === 'string' ? resolveRelativeDate(value) : null;
+    if (!range && value && typeof value === 'object' && value.gte) {
+      range = { gte: new Date(value.gte), lte: new Date(value.lte) };
     }
     if (!range) return {};
     switch (operator) {
-      case 'is':      return { [field]: range };
-      case 'before':  return { [field]: { lte: range.gte } };
-      case 'after':   return { [field]: { gte: range.lte } };
-      default:        return { [field]: range };
+      case 'is':     return { [field]: range };
+      case 'before': return { [field]: { lte: range.gte } };
+      case 'after':  return { [field]: { gte: range.lte } };
+      default:       return { [field]: range };
     }
   }
 
   if (NUMERIC_FIELDS.has(field)) {
     const num = Number(value);
     switch (operator) {
-      case 'eq':  return { [field]: num };
-      case 'neq': return { NOT: { [field]: num } };
-      case 'gte': return { [field]: { gte: num } };
-      case 'lte': return { [field]: { lte: num } };
+      case 'eq':      return { [field]: num };
+      case 'neq':     return { NOT: { [field]: num } };
+      case 'gte':     return { [field]: { gte: num } };
+      case 'lte':     return { [field]: { lte: num } };
       case 'between': return { [field]: { gte: Number(value[0]), lte: Number(value[1]) } };
-      default:    return {};
+      default:        return {};
     }
   }
 
-  // Enum / string fields
   switch (operator) {
     case 'is':        return { [field]: value };
     case 'is_not':    return { NOT: { [field]: value } };
@@ -107,9 +153,9 @@ function filterToWhere(rule) {
 }
 
 export function filtersToWhere(filters) {
-  if (!filters || !filters.length) return {};
+  if (!filters?.length) return {};
   const clauses = filters.map(filterToWhere).filter(c => Object.keys(c).length > 0);
-  if (clauses.length === 0) return {};
+  if (!clauses.length)  return {};
   if (clauses.length === 1) return clauses[0];
   return { AND: clauses };
 }
@@ -127,18 +173,18 @@ const PROB_TIER_ORDER = ['80–100%', '50–79%', '25–49%', '0–24%'];
 
 function getDealKey(deal, viewBy) {
   switch (viewBy) {
-    case 'month':          return deal.expectedOrderDate ? format(new Date(deal.expectedOrderDate), 'MMM yyyy') : 'No Date';
-    case 'quarter':        return deal.expectedOrderDate ? `Q${Math.ceil((new Date(deal.expectedOrderDate).getMonth()+1)/3)} ${new Date(deal.expectedOrderDate).getFullYear()}` : 'No Date';
-    case 'client':         return deal.client?.name || 'Unassigned';
-    case 'owner':          return deal.owner?.name || 'Unassigned';
-    case 'stage':          return deal.stage || 'Unknown';
-    case 'projectType':    return deal.projectType || 'Unknown';
-    case 'serviceType':    return deal.serviceType || 'Unknown';
+    case 'month':           return deal.expectedOrderDate ? fmtMonthYear(new Date(deal.expectedOrderDate)) : 'No Date';
+    case 'quarter':         return deal.expectedOrderDate ? quarter(new Date(deal.expectedOrderDate)) : 'No Date';
+    case 'client':          return deal.client?.name || 'Unassigned';
+    case 'owner':           return deal.owner?.name  || 'Unassigned';
+    case 'stage':           return deal.stage        || 'Unknown';
+    case 'projectType':     return deal.projectType  || 'Unknown';
+    case 'serviceType':     return deal.serviceType  || 'Unknown';
     case 'probabilityTier': return probabilityTier(deal.probability);
-    case 'lostReason':     return deal.lostReason || 'Unknown';
-    case 'state':          return deal.state || 'Unknown';
-    case 'pipeline':       return deal.pipeline || 'Unknown';
-    default:               return 'Unknown';
+    case 'lostReason':      return deal.lostReason   || 'Unknown';
+    case 'state':           return deal.state        || 'Unknown';
+    case 'pipeline':        return deal.pipeline     || 'Unknown';
+    default:                return 'Unknown';
   }
 }
 
@@ -147,25 +193,13 @@ function getSegmentKey(deal, segmentBy) {
   return getDealKey(deal, segmentBy);
 }
 
-// ── Time-series label generation (fills gaps for month/quarter views) ──────
-
 function generateTimeLabels(deals, viewBy) {
-  const dates = deals
-    .filter(d => d.expectedOrderDate)
-    .map(d => new Date(d.expectedOrderDate));
-  if (dates.length === 0) return [];
-
+  const dates = deals.filter(d => d.expectedOrderDate).map(d => new Date(d.expectedOrderDate));
+  if (!dates.length) return [];
   const min = new Date(Math.min(...dates));
   const max = new Date(Math.max(...dates));
-
-  if (viewBy === 'month') {
-    return eachMonthOfInterval({ start: startOfMonth(min), end: endOfMonth(max) })
-      .map(d => format(d, 'MMM yyyy'));
-  }
-  if (viewBy === 'quarter') {
-    return eachQuarterOfInterval({ start: startOfQuarter(min), end: endOfQuarter(max) })
-      .map(d => `Q${Math.ceil((d.getMonth()+1)/3)} ${d.getFullYear()}`);
-  }
+  if (viewBy === 'month')   return eachMonth(min, max).map(fmtMonthYear);
+  if (viewBy === 'quarter') return eachQuarter(min, max).map(quarter);
   return null;
 }
 
@@ -188,7 +222,7 @@ export async function runWidget(widget, db) {
 
   const { category, metric, viewBy, segmentBy } = widget;
 
-  // ── REVENUE ─────────────────────────────────────────────────────────────
+  // REVENUE / FORECAST
   if (category === 'REVENUE' || category === 'FORECAST') {
     const revenueField = metric === 'designFee' ? 'designFeeTotal' : 'totalRevenue';
     const map = {};
@@ -199,19 +233,15 @@ export async function runWidget(widget, db) {
       const val = metric === 'weighted_value'
         ? (deal[revenueField] || 0) * (deal.probability / 100)
         : (deal[revenueField] || 0);
-
       if (!map[key]) map[key] = {};
       map[key][seg] = (map[key][seg] || 0) + val;
     }
 
     const timeLabels = (viewBy === 'month' || viewBy === 'quarter')
-      ? generateTimeLabels(deals, viewBy)
-      : null;
-
-    const labelSet = timeLabels || Object.keys(map);
-    const segments = [...new Set(deals.map(d => getSegmentKey(d, segmentBy)))].sort();
-
-    const series = labelSet.map(label => {
+      ? generateTimeLabels(deals, viewBy) : null;
+    const labelSet  = timeLabels || Object.keys(map);
+    const segments  = [...new Set(deals.map(d => getSegmentKey(d, segmentBy)))].sort();
+    const series    = labelSet.map(label => {
       const row = { label };
       for (const seg of segments) row[seg] = map[label]?.[seg] || 0;
       return row;
@@ -219,116 +249,93 @@ export async function runWidget(widget, db) {
 
     const totalOpen = deals.filter(d => d.dealStatus === 'OPEN').reduce((s,d) => s + (d[revenueField]||0), 0);
     const totalWon  = deals.filter(d => d.dealStatus === 'WON').reduce((s,d)  => s + (d[revenueField]||0), 0);
-
     return { category, metric, viewBy, segmentBy, segments, series,
       meta: { totalOpen, totalWon, dealCount: deals.length } };
   }
 
-  // ── DEAL_COUNT ───────────────────────────────────────────────────────────
+  // DEAL_COUNT
   if (category === 'DEAL_COUNT') {
     const map = {};
-
     for (const deal of deals) {
       const key = getDealKey(deal, viewBy);
       const seg = getSegmentKey(deal, segmentBy);
       if (!map[key]) map[key] = {};
       map[key][seg] = (map[key][seg] || 0) + 1;
     }
-
     const labelOrder = viewBy === 'probabilityTier' ? PROB_TIER_ORDER : null;
     let labels = labelOrder || Object.keys(map);
-
-    // Sort non-time views by total descending
-    if (viewBy !== 'month' && viewBy !== 'quarter' && !labelOrder) {
-      labels = labels.sort((a, b) => {
-        const ta = Object.values(map[a] || {}).reduce((s,v) => s+v, 0);
-        const tb = Object.values(map[b] || {}).reduce((s,v) => s+v, 0);
+    if (!labelOrder && viewBy !== 'month' && viewBy !== 'quarter') {
+      labels = labels.sort((a,b) => {
+        const ta = Object.values(map[a]||{}).reduce((s,v)=>s+v,0);
+        const tb = Object.values(map[b]||{}).reduce((s,v)=>s+v,0);
         return tb - ta;
       });
     }
-
     const segments = [...new Set(deals.map(d => getSegmentKey(d, segmentBy)))].sort();
-    const series = labels
-      .filter(l => map[l])
-      .map(label => {
-        const row = { label };
-        for (const seg of segments) row[seg] = map[label]?.[seg] || 0;
-        return row;
-      });
-
+    const series   = labels.filter(l => map[l]).map(label => {
+      const row = { label };
+      for (const seg of segments) row[seg] = map[label]?.[seg] || 0;
+      return row;
+    });
     return { category, metric, viewBy, segmentBy, segments, series,
       meta: { dealCount: deals.length } };
   }
 
-  // ── CONVERSION (win rate) ────────────────────────────────────────────────
+  // CONVERSION
   if (category === 'CONVERSION') {
     const map = {};
-
     for (const deal of deals) {
       const key = getDealKey(deal, viewBy);
-      if (!map[key]) map[key] = { won: 0, lost: 0, total: 0 };
+      if (!map[key]) map[key] = { won:0, lost:0, total:0 };
       map[key].total++;
-      if (deal.dealStatus === 'WON') map[key].won++;
+      if (deal.dealStatus === 'WON')  map[key].won++;
       if (deal.dealStatus === 'LOST') map[key].lost++;
     }
-
-    const labels = Object.keys(map).sort((a, b) => {
-      const ra = map[a].total > 0 ? map[a].won / map[a].total : 0;
-      const rb = map[b].total > 0 ? map[b].won / map[b].total : 0;
+    const labels = Object.keys(map).sort((a,b) => {
+      const ra = map[a].total > 0 ? map[a].won/map[a].total : 0;
+      const rb = map[b].total > 0 ? map[b].won/map[b].total : 0;
       return rb - ra;
     });
-
     const series = labels.map(label => ({
       label,
-      won:      map[label].won,
-      lost:     map[label].lost,
-      total:    map[label].total,
-      winRate:  map[label].total > 0 ? Math.round((map[label].won / map[label].total) * 100) : 0,
+      won:     map[label].won,
+      lost:    map[label].lost,
+      total:   map[label].total,
+      winRate: map[label].total > 0 ? Math.round((map[label].won/map[label].total)*100) : 0,
     }));
-
     const totalWon  = deals.filter(d => d.dealStatus === 'WON').length;
     const totalLost = deals.filter(d => d.dealStatus === 'LOST').length;
-    const overallRate = (totalWon + totalLost) > 0
-      ? Math.round((totalWon / (totalWon + totalLost)) * 100)
-      : 0;
-
+    const overallRate = (totalWon+totalLost) > 0 ? Math.round((totalWon/(totalWon+totalLost))*100) : 0;
     return { category, metric, viewBy, segmentBy: null, segments: ['won','lost'],
       series, meta: { totalWon, totalLost, overallRate, dealCount: deals.length } };
   }
 
-  // ── DURATION (sales cycle) ───────────────────────────────────────────────
+  // DURATION
   if (category === 'DURATION') {
     const map = {};
-
     for (const deal of deals) {
       if (!deal.wonAt && !deal.lostAt) continue;
       const closed = deal.wonAt || deal.lostAt;
-      const days = Math.round((new Date(closed) - new Date(deal.createdAt)) / (1000 * 60 * 60 * 24));
-      const key = getDealKey(deal, viewBy);
-      const seg = getSegmentKey(deal, segmentBy);
-      if (!map[key]) map[key] = {};
-      if (!map[key][seg]) map[key][seg] = [];
+      const days   = Math.round((new Date(closed) - new Date(deal.createdAt)) / 86400000);
+      const key    = getDealKey(deal, viewBy);
+      const seg    = getSegmentKey(deal, segmentBy);
+      if (!map[key])       map[key] = {};
+      if (!map[key][seg])  map[key][seg] = [];
       map[key][seg].push(days);
     }
-
-    const labels = Object.keys(map).sort();
-    const segments = [...new Set(
-      Object.values(map).flatMap(segs => Object.keys(segs))
-    )].sort();
-
-    const series = labels.map(label => {
+    const labels   = Object.keys(map).sort();
+    const segments = [...new Set(Object.values(map).flatMap(s => Object.keys(s)))].sort();
+    const series   = labels.map(label => {
       const row = { label };
       for (const seg of segments) {
         const vals = map[label]?.[seg] || [];
-        row[seg] = vals.length > 0 ? Math.round(vals.reduce((s,v) => s+v, 0) / vals.length) : 0;
+        row[seg] = vals.length ? Math.round(vals.reduce((s,v)=>s+v,0)/vals.length) : 0;
       }
       return row;
     });
-
     return { category, metric, viewBy, segmentBy, segments, series,
       meta: { dealCount: deals.length } };
   }
 
-  return { category, metric, viewBy, segmentBy, segments: [], series: [],
-    meta: { dealCount: 0 } };
+  return { category, metric, viewBy, segmentBy, segments:[], series:[], meta:{ dealCount:0 } };
 }
