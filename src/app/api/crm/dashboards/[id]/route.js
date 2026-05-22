@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
-import db from '@/lib/db';
+import { prisma as db } from '@/lib/db';
 
 // PATCH /api/crm/dashboards/[id]
 export async function PATCH(request, { params }) {

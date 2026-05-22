@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
-import db from '@/lib/db';
+import { prisma as db } from '@/lib/db';
 import { DEFAULT_WIDGETS } from '@/lib/defaultDashboard';
 
 // GET /api/crm/dashboards

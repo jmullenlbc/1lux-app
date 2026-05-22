@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth';
-import db from '@/lib/db';
+import { prisma as db } from '@/lib/db';
 import ProfileClient from './ProfileClient';
 
 export default async function ProfilePage() {

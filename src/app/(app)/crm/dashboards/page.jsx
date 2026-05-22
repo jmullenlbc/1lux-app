@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { requireAuth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
-import db from '@/lib/db';
+import { prisma as db } from '@/lib/db';
 import { DEFAULT_WIDGETS } from '@/lib/defaultDashboard';
 import DashboardsClient from './DashboardsClient';
 
