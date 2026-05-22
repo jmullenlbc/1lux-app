@@ -4,7 +4,6 @@ import { requireAuth } from '@/lib/auth';
 import { redirect, notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import CategoryClient from './CategoryClient';
-import { CATEGORIES } from '../categories';
 
 function canEdit(user) {
   if (['SUPER_ADMIN', 'ILC_ADMIN', 'COMPANY_ADMIN'].includes(user.role)) return true;
@@ -16,27 +15,28 @@ export default async function CategoryPage({ params }) {
   if (error) redirect('/login');
 
   const categoryKey = params.category.toUpperCase();
-  const catConfig   = CATEGORIES.find(c => c.key === categoryKey);
-  if (!catConfig) notFound();
 
-  let standards = [];
-  try {
-    standards = await prisma.designStandard.findMany({
+  const [catConfig, standards, allCategories] = await Promise.all([
+    prisma.kbCategory.findUnique({ where: { key: categoryKey } }),
+    prisma.designStandard.findMany({
       where:   { category: categoryKey, isActive: true },
       orderBy: [{ severity: 'asc' }, { createdAt: 'asc' }],
       include: {
         createdBy: { select: { id: true, name: true } },
         updatedBy: { select: { id: true, name: true } },
       },
-    });
-  } catch (err) {
-    console.error('[/knowledge-base/category] DB query failed:', err?.message ?? err);
-  }
+    }).catch(err => { console.error('[/knowledge-base/category] DB query failed:', err?.message); return []; }),
+    prisma.kbCategory.findMany({ orderBy: [{ position: 'asc' }, { label: 'asc' }] })
+      .catch(() => []),
+  ]);
+
+  if (!catConfig) notFound();
 
   return (
     <CategoryClient
       standards={standards}
       catConfig={catConfig}
+      categories={allCategories}
       isEditor={canEdit(user)}
     />
   );

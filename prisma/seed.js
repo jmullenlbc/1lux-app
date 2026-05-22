@@ -8,6 +8,25 @@ const ADMINS = [
   { email: 'mike@ilcstudios.com',  name: 'Mike Kershner', password: 'ILCstudios2024!' },
 ];
 
+// ── Knowledge Base categories ─────────────────────────────────────────────────
+// Seeded once; users can add/edit/delete via the UI after this.
+// isBuiltIn entries (UNCATEGORIZED) can never be deleted through the UI.
+
+const KB_CATEGORIES = [
+  { key: 'UNIT',         label: 'Unit',          desc: 'Fixture layout & spacing within residential units',        color: 'blue',   icon: '🏠', position: 0 },
+  { key: 'CORRIDOR',     label: 'Corridor',       desc: 'Hallway fixture placement, alignment & spacing',           color: 'violet', icon: '🚶', position: 1 },
+  { key: 'BOH',          label: 'Back of House',  desc: 'Utility, storage, mechanical & service area standards',    color: 'slate',  icon: '🏭', position: 2 },
+  { key: 'GARAGE',       label: 'Garage',         desc: 'Parking structure spacing, mounting & fixture selection',  color: 'orange', icon: '🚗', position: 3 },
+  { key: 'EXTERIOR',     label: 'Exterior',       desc: 'Site lighting, walkways, area & landscape standards',      color: 'green',  icon: '🌿', position: 4 },
+  { key: 'CONTROLS',     label: 'Controls',       desc: 'Control intent narratives, sensor rules & dimming',        color: 'indigo', icon: '💡', position: 5 },
+  { key: 'FIXTURE_SPEC', label: 'Fixture Specs',  desc: 'ILC standard product selections by space type',           color: 'amber',  icon: '🔦', position: 6 },
+  { key: 'QC',           label: 'QC Process',     desc: 'Quality control checklists & review procedures',          color: 'rose',   icon: '✅', position: 7 },
+  { key: 'DIMMING',      label: 'Dimming',        desc: 'Dimming standards, percentages & driver requirements',    color: 'cyan',   icon: '🎚️', position: 8 },
+  { key: 'PHOTOMETRICS', label: 'Photometrics',   desc: 'Calculation standards, software settings & deliverables', color: 'teal',   icon: '📐', position: 9 },
+  { key: 'REVIT',        label: 'Revit',          desc: 'Revit model setup, BIM 360 workflows & project procedures', color: 'sky',  icon: '🏗️', position: 10 },
+  { key: 'UNCATEGORIZED', label: 'Uncategorized', desc: 'Standards not yet assigned to a category',               color: 'slate',  icon: '📁', position: 999, isBuiltIn: true },
+];
+
 // ── Knowledge Base seed entries ───────────────────────────────────────────────
 // Stable IDs make every upsert idempotent — safe to run on every deploy.
 // To hide an entry without deleting it, set isActive: false in the update block.
@@ -137,6 +156,16 @@ async function main() {
     });
     console.log('✓ Admin user ready:', user.email);
   }
+
+  // ── Knowledge Base categories ────────────────────────────────────────────────
+  for (const cat of KB_CATEGORIES) {
+    await prisma.kbCategory.upsert({
+      where:  { key: cat.key },
+      update: {}, // never overwrite user customisations after first seed
+      create: { key: cat.key, label: cat.label, desc: cat.desc, color: cat.color, icon: cat.icon, position: cat.position, isBuiltIn: cat.isBuiltIn ?? false },
+    });
+  }
+  console.log(`✓ KB categories ready (${KB_CATEGORIES.length})`);
 
   // ── Knowledge Base entries ───────────────────────────────────────────────────
   // Get any ILC_ADMIN to use as createdById

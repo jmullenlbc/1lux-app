@@ -1,19 +1,26 @@
 'use client';
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { CATEGORIES, COLOR_MAP } from '../categories';
+import { COLOR_MAP } from '../categories';
+
+const FULL_COLOR_MAP = {
+  ...COLOR_MAP,
+  purple: { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700', dot: 'bg-purple-500', badge: 'bg-purple-100 text-purple-700' },
+  pink:   { bg: 'bg-pink-50',   border: 'border-pink-200',   text: 'text-pink-700',   dot: 'bg-pink-500',   badge: 'bg-pink-100 text-pink-700'   },
+};
+function getColors(color) { return FULL_COLOR_MAP[color] || FULL_COLOR_MAP.slate; }
 import { SEVERITY_CONFIG, StandardModal, StandardCard } from '../KnowledgeBaseClient';
 import KnowledgeBaseChat from '@/components/KnowledgeBaseChat';
 
 const SEVERITY_ORDER = { REQUIRED: 0, RECOMMENDED: 1, NOTE: 2 };
 
-export default function CategoryClient({ standards: initial, catConfig, isEditor }) {
+export default function CategoryClient({ standards: initial, catConfig, categories, isEditor }) {
   const [standards, setStandards] = useState(initial);
   const [search,    setSearch]    = useState('');
   const [filter,    setFilter]    = useState('ALL'); // ALL | REQUIRED | RECOMMENDED | NOTE
   const [modal,     setModal]     = useState(null);
 
-  const colors = COLOR_MAP[catConfig.color];
+  const colors = getColors(catConfig.color);
 
   const filtered = useMemo(() => {
     let list = standards;
@@ -49,6 +56,7 @@ export default function CategoryClient({ standards: initial, catConfig, isEditor
       {modal && (
         <StandardModal
           standard={modal === 'add' ? null : modal}
+          categories={categories}
           onClose={() => setModal(null)}
           onSave={handleSave}
         />
@@ -130,6 +138,7 @@ export default function CategoryClient({ standards: initial, catConfig, isEditor
             <StandardCard
               key={s.id}
               standard={s}
+              categories={categories}
               isEditor={isEditor}
               onEdit={() => setModal(s)}
               onDelete={id => setStandards(prev => prev.filter(x => x.id !== id))}

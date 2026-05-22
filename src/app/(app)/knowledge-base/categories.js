@@ -1,18 +1,6 @@
 // Shared constants — no 'use client' so server components can import these too
-
-export const CATEGORIES = [
-  { key: 'UNIT',         label: 'Unit',          desc: 'Fixture layout & spacing within residential units',        color: 'blue',   icon: '🏠' },
-  { key: 'CORRIDOR',     label: 'Corridor',       desc: 'Hallway fixture placement, alignment & spacing',           color: 'violet', icon: '🚶' },
-  { key: 'BOH',          label: 'Back of House',  desc: 'Utility, storage, mechanical & service area standards',    color: 'slate',  icon: '🏭' },
-  { key: 'GARAGE',       label: 'Garage',         desc: 'Parking structure spacing, mounting & fixture selection',  color: 'orange', icon: '🚗' },
-  { key: 'EXTERIOR',     label: 'Exterior',       desc: 'Site lighting, walkways, area & landscape standards',      color: 'green',  icon: '🌿' },
-  { key: 'CONTROLS',     label: 'Controls',       desc: 'Control intent narratives, sensor rules & dimming',        color: 'indigo', icon: '💡' },
-  { key: 'FIXTURE_SPEC', label: 'Fixture Specs',  desc: 'ILC standard product selections by space type',           color: 'amber',  icon: '🔦' },
-  { key: 'QC',           label: 'QC Process',     desc: 'Quality control checklists & review procedures',          color: 'rose',   icon: '✅' },
-  { key: 'DIMMING',      label: 'Dimming',        desc: 'Dimming standards, percentages & driver requirements',    color: 'cyan',   icon: '🎚️' },
-  { key: 'PHOTOMETRICS', label: 'Photometrics',   desc: 'Calculation standards, software settings & deliverables', color: 'teal',   icon: '📐' },
-  { key: 'REVIT',        label: 'Revit',           desc: 'Revit model setup, BIM 360 workflows & project procedures',  color: 'sky',  icon: '🏗️' },
-];
+// Categories are now stored in the database (KbCategory model).
+// COLOR_MAP is kept here as a pure UI lookup — no DB needed.
 
 export const COLOR_MAP = {
   blue:   { bg: 'bg-blue-50',   border: 'border-blue-200',   text: 'text-blue-700',   dot: 'bg-blue-500',   badge: 'bg-blue-100 text-blue-700'   },
