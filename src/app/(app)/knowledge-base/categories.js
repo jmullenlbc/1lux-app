@@ -11,6 +11,7 @@ export const CATEGORIES = [
   { key: 'QC',           label: 'QC Process',     desc: 'Quality control checklists & review procedures',          color: 'rose',   icon: '✅' },
   { key: 'DIMMING',      label: 'Dimming',        desc: 'Dimming standards, percentages & driver requirements',    color: 'cyan',   icon: '🎚️' },
   { key: 'PHOTOMETRICS', label: 'Photometrics',   desc: 'Calculation standards, software settings & deliverables', color: 'teal',   icon: '📐' },
+  { key: 'WORKFLOW',     label: 'Workflows',      desc: 'Step-by-step processes, software setup & project procedures', color: 'sky',  icon: '⚙️' },
 ];
 
 export const COLOR_MAP = {
@@ -24,4 +25,5 @@ export const COLOR_MAP = {
   rose:   { bg: 'bg-rose-50',   border: 'border-rose-200',   text: 'text-rose-700',   dot: 'bg-rose-500',   badge: 'bg-rose-100 text-rose-700'   },
   cyan:   { bg: 'bg-cyan-50',   border: 'border-cyan-200',   text: 'text-cyan-700',   dot: 'bg-cyan-500',   badge: 'bg-cyan-100 text-cyan-700'   },
   teal:   { bg: 'bg-teal-50',   border: 'border-teal-200',   text: 'text-teal-700',   dot: 'bg-teal-500',   badge: 'bg-teal-100 text-teal-700'   },
+  sky:    { bg: 'bg-sky-50',    border: 'border-sky-200',    text: 'text-sky-700',    dot: 'bg-sky-500',    badge: 'bg-sky-100 text-sky-700'    },
 };
