@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { buildingTypeLabel } from '@/lib/utils';
 import RichTextEditor, { RichContent } from '@/components/RichTextEditor';
+import { STANDARDS_SECTIONS, SECTION_COLOR_MAP, TOTAL_SUBSECTIONS } from '@/lib/standardsSections';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -30,10 +31,11 @@ const LOCATION_TYPES = [
 ];
 
 const TABS = [
-  { id: 'overview',  label: 'Overview' },
-  { id: 'people',    label: 'People' },
-  { id: 'knowledge', label: 'Knowledge Base' },
-  { id: 'projects',  label: 'Projects' },
+  { id: 'overview',   label: 'Overview'       },
+  { id: 'people',     label: 'People'         },
+  { id: 'knowledge',  label: 'Knowledge Base' },
+  { id: 'projects',   label: 'Projects'       },
+  { id: 'standards',  label: 'Standards'      },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -955,8 +957,184 @@ function ProjectsTab({ client, available, onRefresh }) {
   );
 }
 
+// ── Client Standards Tab ──────────────────────────────────────────────────────
+function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
+  const [answers,        setAnswers]        = useState(() => {
+    const map = {};
+    for (const a of initialAnswers) map[a.question_key] = a;
+    return map;
+  });
+  const [activeSection,  setActiveSection]  = useState(STANDARDS_SECTIONS[0].key);
+  const [saving,         setSaving]         = useState({});
+  const [drafts,         setDrafts]         = useState({});
+
+  const section = STANDARDS_SECTIONS.find(s => s.key === activeSection);
+  const colors  = SECTION_COLOR_MAP[section?.color] || SECTION_COLOR_MAP.slate;
+
+  // Count answered subsections per section
+  function answeredCount(sectionKey) {
+    const sec = STANDARDS_SECTIONS.find(s => s.key === sectionKey);
+    if (!sec) return { answered: 0, total: sec?.subsections.length || 0 };
+    const answered = sec.subsections.filter(sub => {
+      const key = `${sectionKey}.${sub.key}`;
+      const a = answers[key];
+      return a && (a.answer_value?.trim() || a.answer_note?.trim());
+    }).length;
+    return { answered, total: sec.subsections.length };
+  }
+
+  const totalAnswered = Object.values(answers).filter(a => a.answer_value?.trim() || a.answer_note?.trim()).length;
+  const pct = TOTAL_SUBSECTIONS > 0 ? Math.round((totalAnswered / TOTAL_SUBSECTIONS) * 100) : 0;
+
+  async function saveNote(subsectionKey, note) {
+    const question_key = `${activeSection}.${subsectionKey}`;
+    setSaving(prev => ({ ...prev, [question_key]: true }));
+    try {
+      const res = await fetch(`/api/clients/${clientId}/standards`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question_key,
+          section:    activeSection,
+          subsection: subsectionKey,
+          input_type: 'TEXT',
+          answer_note: note,
+        }),
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setAnswers(prev => ({ ...prev, [question_key]: saved }));
+      }
+    } finally {
+      setSaving(prev => ({ ...prev, [question_key]: false }));
+      setDrafts(prev => { const n = { ...prev }; delete n[question_key]; return n; });
+    }
+  }
+
+  if (!canEdit) {
+    return (
+      <div className="py-16 text-center text-slate-400">
+        <div className="text-3xl mb-3">🔒</div>
+        <p className="text-sm font-medium text-slate-500">Standards access required</p>
+        <p className="text-xs mt-1 text-slate-400">Ask an ILC admin to grant you the Client Standards Editor permission.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex gap-6">
+      {/* ── Section sidebar ── */}
+      <div className="w-56 shrink-0">
+        {/* Overall progress */}
+        <div className="mb-4 p-3 rounded-xl bg-white border border-slate-200">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Overall</span>
+            <span className="text-xs font-bold text-slate-700">{pct}%</span>
+          </div>
+          <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
+            <div className="h-full rounded-full bg-amber-400 transition-all duration-300" style={{ width: `${pct}%` }} />
+          </div>
+          <p className="text-[10px] text-slate-400 mt-1.5">{totalAnswered} of {TOTAL_SUBSECTIONS} subsections have notes</p>
+        </div>
+
+        <nav className="space-y-0.5">
+          {STANDARDS_SECTIONS.map(sec => {
+            const c = SECTION_COLOR_MAP[sec.color] || SECTION_COLOR_MAP.slate;
+            const { answered, total } = answeredCount(sec.key);
+            const isActive = activeSection === sec.key;
+            return (
+              <button key={sec.key} onClick={() => setActiveSection(sec.key)}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left text-xs font-medium transition-colors ${
+                  isActive ? `${c.bg} ${c.text} border ${c.border}` : 'text-slate-600 hover:bg-slate-100'
+                }`}>
+                <span className="text-sm shrink-0">{sec.icon}</span>
+                <span className="flex-1 leading-snug">{sec.label}</span>
+                <span className={`shrink-0 text-[10px] font-bold tabular-nums ${answered === total ? 'text-green-600' : 'text-slate-400'}`}>
+                  {answered}/{total}
+                </span>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* ── Subsection cards ── */}
+      <div className="flex-1 min-w-0">
+        <div className={`flex items-center gap-3 mb-5 px-4 py-3 rounded-xl border ${colors.bg} ${colors.border}`}>
+          <span className="text-xl">{section?.icon}</span>
+          <div>
+            <h2 className={`text-sm font-bold ${colors.text}`}>{section?.label}</h2>
+            <p className="text-[11px] text-slate-500">{section?.subsections.length} subsections · click any note field to edit</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3">
+          {section?.subsections.map(sub => {
+            const question_key = `${activeSection}.${sub.key}`;
+            const existing     = answers[question_key];
+            const draftKey     = question_key;
+            const isDirty      = draftKey in drafts;
+            const isSav        = saving[question_key];
+            const hasNote      = existing?.answer_note?.trim();
+            const noteVal      = isDirty ? drafts[draftKey] : (existing?.answer_note || '');
+
+            return (
+              <div key={sub.key} className={`bg-white rounded-xl border transition-colors ${
+                hasNote ? 'border-slate-200' : 'border-dashed border-slate-200'
+              }`}>
+                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    {hasNote
+                      ? <span className="w-2 h-2 rounded-full bg-green-400 shrink-0" />
+                      : <span className="w-2 h-2 rounded-full bg-slate-200 shrink-0" />
+                    }
+                    <span className="text-sm font-semibold text-slate-800">{sub.label}</span>
+                  </div>
+                  {isSav && (
+                    <span className="text-[10px] text-slate-400 italic">Saving…</span>
+                  )}
+                  {!isSav && isDirty && (
+                    <button onClick={() => saveNote(sub.key, drafts[draftKey])}
+                      className="text-[11px] font-semibold text-blue-600 hover:text-blue-700">
+                      Save
+                    </button>
+                  )}
+                  {!isSav && !isDirty && hasNote && (
+                    <span className="text-[10px] text-green-600 font-medium">✓ Noted</span>
+                  )}
+                </div>
+
+                <div className="px-4 py-3">
+                  {canEdit ? (
+                    <textarea
+                      value={noteVal}
+                      onChange={e => setDrafts(prev => ({ ...prev, [draftKey]: e.target.value }))}
+                      onBlur={() => {
+                        if (isDirty) saveNote(sub.key, drafts[draftKey]);
+                      }}
+                      placeholder="Add notes for this client's standards…"
+                      rows={2}
+                      className="w-full text-xs text-slate-700 placeholder-slate-300 resize-none focus:outline-none focus:ring-0 bg-transparent leading-relaxed"
+                    />
+                  ) : (
+                    <p className="text-xs text-slate-500 italic">{hasNote || 'No notes yet.'}</p>
+                  )}
+                  {/* Specific questions placeholder */}
+                  <div className="mt-2 pt-2 border-t border-dashed border-slate-100">
+                    <span className="text-[10px] text-slate-300 italic">Specific questions coming soon</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
-export default function ClientDetailClient({ client: initial, availableProjects, user }) {
+export default function ClientDetailClient({ client: initial, availableProjects, user, canEditStandards = false, initialStandardsAnswers = [] }) {
   const [client,    setClient]    = useState(initial);
   const [available, setAvailable] = useState(availableProjects);
   const [editing,   setEditing]   = useState(false);
@@ -1017,9 +1195,10 @@ export default function ClientDetailClient({ client: initial, availableProjects,
                     : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
                 }`}>
                 {t.label}
-                {t.id === 'people'    && client.contacts?.length > 0  && <span className="ml-1.5 text-[10px] font-bold text-slate-400">{client.contacts.length}</span>}
-                {t.id === 'knowledge' && client.kbSections?.length > 0 && <span className="ml-1.5 text-[10px] font-bold text-slate-400">{client.kbSections.length}</span>}
-                {t.id === 'projects'  && client.projects?.length > 0   && <span className="ml-1.5 text-[10px] font-bold text-slate-400">{client.projects.length}</span>}
+                {t.id === 'people'    && client.contacts?.length > 0      && <span className="ml-1.5 text-[10px] font-bold text-slate-400">{client.contacts.length}</span>}
+                {t.id === 'knowledge' && client.kbSections?.length > 0   && <span className="ml-1.5 text-[10px] font-bold text-slate-400">{client.kbSections.length}</span>}
+                {t.id === 'projects'  && client.projects?.length > 0     && <span className="ml-1.5 text-[10px] font-bold text-slate-400">{client.projects.length}</span>}
+                {t.id === 'standards' && !canEditStandards                && <span className="ml-1.5 text-[10px] text-slate-300">🔒</span>}
               </button>
             ))}
           </div>
@@ -1033,6 +1212,13 @@ export default function ClientDetailClient({ client: initial, availableProjects,
         {activeTab === 'knowledge' && <KnowledgeBaseTab sections={client.kbSections || []} clientId={client.id} />}
         {activeTab === 'projects'  && (
           <ProjectsTab client={client} available={available} onRefresh={refreshClient} />
+        )}
+        {activeTab === 'standards' && (
+          <ClientStandardsTab
+            clientId={client.id}
+            initialAnswers={initialStandardsAnswers}
+            canEdit={canEditStandards}
+          />
         )}
       </div>
 

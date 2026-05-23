@@ -141,7 +141,8 @@ function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
     mustChangePassword: user.mustChangePassword,
     isActive:          user.isActive !== false,
     newPassword:       '',
-    permKnowledgeBase: parsedPerms.knowledgeBase === true,
+    permKnowledgeBase:    parsedPerms.knowledgeBase    === true,
+    permClientStandards:  parsedPerms.clientStandards  === true,
   });
   const [saving, setSaving]   = useState(false);
   const [error,  setError]    = useState('');
@@ -163,7 +164,7 @@ function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
         role:              form.role,
         mustChangePassword: form.mustChangePassword,
         isActive:          form.isActive,
-        permissions:       { knowledgeBase: form.permKnowledgeBase },
+        permissions:       { knowledgeBase: form.permKnowledgeBase, clientStandards: form.permClientStandards },
       };
       if (form.newPassword) body.newPassword = form.newPassword;
       const res  = await fetch(`/api/admin/users/${user.id}`, {
@@ -235,15 +236,26 @@ function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
           {/* Permissions */}
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-2">Extra Permissions</label>
-            <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors">
-              <input type="checkbox" checked={form.permKnowledgeBase}
-                onChange={e => set('permKnowledgeBase', e.target.checked)}
-                className="accent-amber-500 mt-0.5" />
-              <div>
-                <div className="text-sm font-medium text-slate-800">Knowledge Base Editor</div>
-                <div className="text-xs text-slate-500">Can add, edit, and delete design standards in the Knowledge Base</div>
-              </div>
-            </label>
+            <div className="space-y-2">
+              <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors">
+                <input type="checkbox" checked={form.permKnowledgeBase}
+                  onChange={e => set('permKnowledgeBase', e.target.checked)}
+                  className="accent-amber-500 mt-0.5" />
+                <div>
+                  <div className="text-sm font-medium text-slate-800">Knowledge Base Editor</div>
+                  <div className="text-xs text-slate-500">Can add, edit, and delete design standards in the Knowledge Base</div>
+                </div>
+              </label>
+              <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors">
+                <input type="checkbox" checked={form.permClientStandards}
+                  onChange={e => set('permClientStandards', e.target.checked)}
+                  className="accent-amber-500 mt-0.5" />
+                <div>
+                  <div className="text-sm font-medium text-slate-800">Client Standards Editor</div>
+                  <div className="text-xs text-slate-500">Can view and fill out national lighting standards for clients</div>
+                </div>
+              </label>
+            </div>
           </div>
 
           <div className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${

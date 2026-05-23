@@ -10,6 +10,8 @@ export default async function ClientDetailPage({ params }) {
   if (!session) redirect('/login');
 
   const isAdmin = session.role === 'ILC_ADMIN' || session.role === 'ADMIN';
+  const sessionPerms = (() => { try { return JSON.parse(session.permissions || '{}'); } catch { return {}; } })();
+  const canEditStandards = session.role === 'ILC_ADMIN' || session.role === 'SUPER_ADMIN' || sessionPerms.clientStandards === true;
 
   const client = await prisma.client.findUnique({
     where: { id: params.id },
@@ -34,6 +36,10 @@ export default async function ClientDetailPage({ params }) {
   if (!client) notFound();
   if (!isAdmin && client.createdById !== session.id) notFound();
 
+  const standardsAnswers = canEditStandards
+    ? await prisma.clientStandardsAnswer.findMany({ where: { clientId: params.id }, orderBy: { question_key: 'asc' } })
+    : [];
+
   const unlinkableProjects = await prisma.project.findMany({
     where: {
       clientId: null,
@@ -48,6 +54,8 @@ export default async function ClientDetailPage({ params }) {
       client={client}
       availableProjects={unlinkableProjects}
       user={session}
+      canEditStandards={canEditStandards}
+      initialStandardsAnswers={standardsAnswers}
     />
   );
 }
