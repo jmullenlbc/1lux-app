@@ -1,5 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
+const { seedMasterTypes } = require('./seeds/masterTypes');
+const { seedILCSpecs }    = require('./seeds/ilcSpecs');
 
 const prisma = new PrismaClient();
 
@@ -184,6 +186,12 @@ async function main() {
       console.log('✓ KB entry ready:', entry.title);
     }
   }
+
+  // ── Master Types ─────────────────────────────────────────────────────────────
+  await seedMasterTypes(prisma);
+
+  // ── ILC Specs ────────────────────────────────────────────────────────────────
+  await seedILCSpecs(prisma);
 }
 
 main()
