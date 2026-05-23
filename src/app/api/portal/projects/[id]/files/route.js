@@ -6,6 +6,7 @@ const TAB_PERMISSION_MAP = {
   submittals: 'canViewSubmittals',
   contracts:  'canViewContracts',
   ca:         'canViewChangeOrders',
+  budgets:    'canViewBudgets',
 };
 
 export async function GET(req, { params }) {

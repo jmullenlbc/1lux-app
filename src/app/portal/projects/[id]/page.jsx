@@ -160,6 +160,29 @@ function MeetingNotesView({ projectId }) {
 
 // ── Files view (submittals / contracts / change orders) ───────────────────────
 
+function fmtSize(b) {
+  if (!b) return '';
+  if (b > 1048576) return `${(b / 1048576).toFixed(1)} MB`;
+  return `${Math.round(b / 1024)} KB`;
+}
+
+function FileIcon({ mimeType }) {
+  const isPdf = mimeType?.includes('pdf');
+  return (
+    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isPdf ? 'bg-red-50' : 'bg-slate-100'}`}>
+      {isPdf ? (
+        <svg className="w-4 h-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      ) : (
+        <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      )}
+    </div>
+  );
+}
+
 function FilesView({ projectId, tab, label }) {
   const [files,   setFiles]   = useState([]);
   const [loading, setLoading] = useState(true);
@@ -176,21 +199,11 @@ function FilesView({ projectId, tab, label }) {
     return <div className="text-center py-12 text-sm text-slate-400">No {label.toLowerCase()} on file yet.</div>;
   }
 
-  function fmtSize(b) {
-    if (!b) return '';
-    if (b > 1048576) return `${(b / 1048576).toFixed(1)} MB`;
-    return `${Math.round(b / 1024)} KB`;
-  }
-
   return (
     <div className="space-y-2">
       {files.map(f => (
         <div key={f.id} className="bg-white border border-slate-200 rounded-xl px-4 py-3 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-            <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
+          <FileIcon mimeType={f.mimeType} />
           <div className="flex-1 min-w-0">
             <p className="text-sm text-slate-700 font-medium truncate">{f.originalName}</p>
             <p className="text-xs text-slate-400 mt-0.5">{fmtDate(f.createdAt)}{f.size ? ` · ${fmtSize(f.size)}` : ''}</p>
@@ -202,14 +215,183 @@ function FilesView({ projectId, tab, label }) {
   );
 }
 
+// ── Budget view ───────────────────────────────────────────────────────────────
+
+function BudgetView({ projectId }) {
+  const [files,   setFiles]   = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/portal/projects/${projectId}/files?tab=budgets`)
+      .then(r => r.json()).then(d => { setFiles(d.files || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [projectId]);
+
+  if (loading) return <div className="text-center py-10 text-sm text-slate-400">Loading…</div>;
+
+  if (files.length === 0) {
+    return (
+      <div className="text-center py-12 text-sm text-slate-400">
+        No budget documents have been shared yet.
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <p className="text-xs text-slate-400 mb-4">
+        Budget documents below reflect sell pricing. Click to open any PDF in your browser.
+      </p>
+      <div className="space-y-2">
+        {files.map(f => (
+          <a
+            key={f.id}
+            href={`/api/portal/projects/${projectId}/files/${f.id}`}
+            target="_blank"
+            rel="noreferrer"
+            className="bg-white border border-slate-200 rounded-xl px-4 py-3 flex items-center gap-3 hover:border-amber-300 hover:shadow-sm transition-all group"
+          >
+            <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-slate-700 font-medium truncate group-hover:text-amber-700 transition-colors">
+                {f.originalName}
+              </p>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {fmtDate(f.createdAt)}{f.size ? ` · ${fmtSize(f.size)}` : ''}
+              </p>
+            </div>
+            <div className="flex items-center gap-1 text-xs font-medium text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+              Open PDF
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Construction Schedule view ────────────────────────────────────────────────
+
+function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr + 'T12:00:00');
+  const now = new Date();
+  now.setHours(12, 0, 0, 0);
+  return Math.round((d - now) / 86400000);
+}
+
+function MilestonePill({ days }) {
+  if (days === null) return null;
+  if (days < 0)  return <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-slate-100 text-slate-500">{Math.abs(days)}d ago</span>;
+  if (days === 0) return <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-700">Today</span>;
+  if (days <= 14) return <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-red-50 text-red-600">In {days}d</span>;
+  if (days <= 30) return <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-amber-50 text-amber-700">In {days}d</span>;
+  return <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-green-50 text-green-700">In {days}d</span>;
+}
+
+function ConstructionScheduleView({ projectId }) {
+  const [data,    setData]    = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/portal/projects/${projectId}/construction`)
+      .then(r => r.json()).then(d => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [projectId]);
+
+  if (loading) return <div className="text-center py-10 text-sm text-slate-400">Loading…</div>;
+  if (!data)   return <div className="text-center py-12 text-sm text-slate-400">Unable to load schedule.</div>;
+
+  const { projectDates, aiMilestones } = data;
+
+  const keyDates = [
+    { label: 'Construction Start',    date: projectDates.constructionStartDate },
+    { label: 'MEP Rough-In',          date: projectDates.mepRoughInDate },
+    { label: 'Construction Complete', date: projectDates.constructionEndDate },
+  ].filter(m => m.date);
+
+  const hasAnyData = keyDates.length > 0 || aiMilestones.length > 0;
+
+  if (!hasAnyData) {
+    return <div className="text-center py-12 text-sm text-slate-400">Construction schedule dates have not been set yet.</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Key project milestones */}
+      {keyDates.length > 0 && (
+        <div>
+          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Key Milestones</h3>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {keyDates.map(m => {
+              const days = daysUntil(m.date);
+              return (
+                <div key={m.label} className="bg-white border border-slate-200 rounded-xl p-4">
+                  <p className="text-xs text-slate-400 font-medium mb-1">{m.label}</p>
+                  <p className="text-base font-bold text-slate-800">{fmtDate(m.date)}</p>
+                  <div className="mt-2">
+                    <MilestonePill days={days} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* AI-extracted detailed milestones */}
+      {aiMilestones.length > 0 && (
+        <div>
+          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Detailed Schedule</h3>
+          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+            {aiMilestones.map((m, i) => {
+              const days = daysUntil(m.date);
+              return (
+                <div
+                  key={m.id || i}
+                  className={`flex items-center justify-between px-4 py-3 ${i > 0 ? 'border-t border-slate-50' : ''}`}
+                >
+                  <div className="flex items-center gap-3">
+                    {/* Timeline dot */}
+                    <div className={`w-2 h-2 rounded-full shrink-0 ${
+                      days === null ? 'bg-slate-200' :
+                      days < 0     ? 'bg-slate-300' :
+                      days <= 14   ? 'bg-red-400'   :
+                      days <= 30   ? 'bg-amber-400'  : 'bg-green-400'
+                    }`} />
+                    <span className="text-sm text-slate-700">{m.label}</span>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    {m.date && <span className="text-xs text-slate-400">{fmtDate(m.date)}</span>}
+                    <MilestonePill days={days} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Section cards ─────────────────────────────────────────────────────────────
 
 const SECTIONS = [
-  { key: 'canViewShipSchedule',      id: 'ship',     label: 'Ship Schedule',    icon: '📦' },
-  { key: 'canViewSubmittals',        id: 'subs',     label: 'Submittals',       icon: '📋' },
-  { key: 'canViewMeetings',          id: 'meetings', label: 'Meeting Notes',    icon: '📝' },
-  { key: 'canViewContracts',         id: 'contracts',label: 'Contracts',        icon: '📄' },
-  { key: 'canViewChangeOrders',      id: 'ca',       label: 'Change Orders',    icon: '🔄' },
+  { key: 'canViewShipSchedule',      id: 'ship',         label: 'Ship Schedule',         icon: '📦' },
+  { key: 'canViewSubmittals',        id: 'subs',         label: 'Submittals',            icon: '📋' },
+  { key: 'canViewMeetings',          id: 'meetings',     label: 'Meeting Notes',         icon: '📝' },
+  { key: 'canViewContracts',         id: 'contracts',    label: 'Contracts',             icon: '📄' },
+  { key: 'canViewChangeOrders',      id: 'ca',           label: 'Change Orders',         icon: '🔄' },
+  { key: 'canViewConstructionSched', id: 'construction', label: 'Construction Schedule', icon: '🏗️' },
+  { key: 'canViewBudgets',           id: 'budget',       label: 'Budget',                icon: '💰' },
 ];
 
 // ── Main portal project page ──────────────────────────────────────────────────
@@ -300,11 +482,13 @@ export default function PortalProjectPage({ params }) {
           </button>
           <h2 className="text-lg font-bold text-slate-800 mb-4">{activeSection.label}</h2>
 
-          {activeSection.id === 'ship'     && <ShipScheduleView projectId={params.id} />}
-          {activeSection.id === 'meetings' && <MeetingNotesView projectId={params.id} />}
-          {activeSection.id === 'subs'     && <FilesView projectId={params.id} tab="submittals" label="Submittals" />}
-          {activeSection.id === 'contracts'&& <FilesView projectId={params.id} tab="contracts"  label="Contracts" />}
-          {activeSection.id === 'ca'       && <FilesView projectId={params.id} tab="ca"          label="Change Orders" />}
+          {activeSection.id === 'ship'         && <ShipScheduleView projectId={params.id} />}
+          {activeSection.id === 'meetings'     && <MeetingNotesView projectId={params.id} />}
+          {activeSection.id === 'subs'         && <FilesView projectId={params.id} tab="submittals" label="Submittals" />}
+          {activeSection.id === 'contracts'    && <FilesView projectId={params.id} tab="contracts"  label="Contracts" />}
+          {activeSection.id === 'ca'           && <FilesView projectId={params.id} tab="ca"         label="Change Orders" />}
+          {activeSection.id === 'construction' && <ConstructionScheduleView projectId={params.id} />}
+          {activeSection.id === 'budget'       && <BudgetView projectId={params.id} />}
         </div>
       )}
     </div>
