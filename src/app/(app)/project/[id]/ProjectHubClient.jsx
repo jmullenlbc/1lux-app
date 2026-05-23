@@ -21,6 +21,7 @@ import FixtureScheduleTab from './FixtureScheduleTab';
 import FixtureScheduleEditor from './FixtureScheduleEditor';
 import PdfViewerModal from '@/components/ui/PdfViewerModal';
 import DrawingMarkupModal from '@/components/drawing/DrawingMarkupModal';
+import ParametricEstimatePanel from './ParametricEstimatePanel';
 
 const BUDGET_TYPE_META = {
   conceptual:  { label: 'Conceptual Budget',    color: 'bg-slate-100 text-slate-600' },
@@ -66,7 +67,7 @@ function buildTabs(serviceType) {
   return [
     'Dashboard', 'Budgets',
     'Fixture Schedule',
-    'Takeoffs', 'Drawings', 'Design Info', 'Meetings', 'Correspondence', 'Submittals', 'CA', 'Contracts',
+    'Takeoffs', 'Estimate', 'Drawings', 'Design Info', 'Meetings', 'Correspondence', 'Submittals', 'CA', 'Contracts',
   ];
 }
 
@@ -1268,6 +1269,11 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
             <TakeoffDashboard files={filesByTab('takeoffs')} />
             <FileDropZone projectId={project.id} tab="takeoffs" initialFiles={filesByTab('takeoffs')} onFileAdded={onFileAdded} onFileDeleted={onFileDeleted} />
           </div>
+        )}
+
+        {/* ── ESTIMATE ─────────────────────────────────────────────────── */}
+        {activeTab === 'Estimate' && (
+          <ParametricEstimatePanel projectId={project.id} />
         )}
 
       </div>
