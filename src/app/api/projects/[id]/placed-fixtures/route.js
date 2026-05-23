@@ -37,6 +37,11 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: 'drawing_id, x, y, master_type_id required' }, { status: 400 });
   }
 
+  const masterType = await prisma.masterType.findUnique({ where: { id: master_type_id }, select: { id: true } });
+  if (!masterType) {
+    return NextResponse.json({ error: 'Invalid master_type_id' }, { status: 400 });
+  }
+
   const fixture = await prisma.placedFixture.create({
     data: {
       drawing_id,

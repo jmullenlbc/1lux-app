@@ -67,11 +67,11 @@ export default function ParametricEstimatePanel({ projectId }) {
   const [applying,   setApplying]   = useState(false);
   const [applied,    setApplied]    = useState(false);
 
-  const fetchEstimate = useCallback(async (prefs = tierPrefs) => {
+  const fetchEstimate = useCallback(async (prefs) => {
     setLoading(true);
     setError(null);
     try {
-      const qs  = Object.keys(prefs).length ? `?tierPrefs=${encodeURIComponent(JSON.stringify(prefs))}` : '';
+      const qs  = prefs && Object.keys(prefs).length ? `?tierPrefs=${encodeURIComponent(JSON.stringify(prefs))}` : '';
       const res = await fetch(`/api/projects/${projectId}/estimate${qs}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setData(await res.json());
@@ -80,9 +80,9 @@ export default function ParametricEstimatePanel({ projectId }) {
     } finally {
       setLoading(false);
     }
-  }, [projectId, tierPrefs]);
+  }, [projectId]);
 
-  useEffect(() => { fetchEstimate({}); }, [projectId]);
+  useEffect(() => { fetchEstimate({}); }, [projectId, fetchEstimate]);
 
   function handleTierChange(code, tier) {
     const next = { ...tierPrefs, [code]: tier };

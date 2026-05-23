@@ -7,3 +7,4 @@ dev.log
 sk-ant-api03*.txt
 *.db
 deploy-log.json
+public/pdf.worker.min.mjs

@@ -20,20 +20,25 @@ export async function POST(request, { params }) {
 
   // Bulk import: { items: [{typeCode, description, location, manufacturer, modelNumber}] }
   if (Array.isArray(body.items)) {
-    const created = await prisma.$transaction(
-      body.items.map((item, i) =>
-        prisma.submittalItem.create({
-          data: {
-            trackerId:   tracker.id,
-            typeCode:    item.typeCode,
-            description: item.description || null,
-            location:    item.location    || null,
-            sortOrder:   i,
-          },
-        })
-      )
-    );
-    return NextResponse.json({ items: created }, { status: 201 });
+    try {
+      const created = await prisma.$transaction(
+        body.items.map((item, i) =>
+          prisma.submittalItem.create({
+            data: {
+              trackerId:   tracker.id,
+              typeCode:    item.typeCode,
+              description: item.description || null,
+              location:    item.location    || null,
+              sortOrder:   i,
+            },
+          })
+        )
+      );
+      return NextResponse.json({ items: created }, { status: 201 });
+    } catch (err) {
+      console.error('tracker items bulk import failed:', err);
+      return NextResponse.json({ error: 'Failed to import items' }, { status: 500 });
+    }
   }
 
   // Single item

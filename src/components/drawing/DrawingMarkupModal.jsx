@@ -285,10 +285,7 @@ export default function DrawingMarkupModal({ file, projectId, masterTypes = [], 
     async function loadPdf() {
       try {
         const pdfjs = await import('pdfjs-dist');
-        pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-          'pdfjs-dist/build/pdf.worker.mjs',
-          import.meta.url,
-        ).href;
+        pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
         const url = `/api/projects/${projectId}/files/${file.id}`;
         const doc = await pdfjs.getDocument(url).promise;
         if (cancelled) return;
@@ -307,18 +304,25 @@ export default function DrawingMarkupModal({ file, projectId, masterTypes = [], 
   useEffect(() => {
     if (!pdfReady || !pdfDocRef.current || !canvasRef.current) return;
     let cancelled = false;
+    let renderTask = null;
     async function render() {
       const page     = await pdfDocRef.current.getPage(currentPage);
       const viewport = page.getViewport({ scale: 1.5 });
       const canvas   = canvasRef.current;
-      if (cancelled) return;
+      if (cancelled) { page.cleanup(); return; }
       canvas.width  = viewport.width;
       canvas.height = viewport.height;
       setCanvasSize({ w: viewport.width, h: viewport.height });
-      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+      renderTask = page.render({ canvasContext: canvas.getContext('2d'), viewport });
+      await renderTask.promise;
+      if (cancelled) { page.cleanup(); return; }
+      renderTask = null;
     }
     render().catch(() => {});
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (renderTask) { try { renderTask.cancel(); } catch {} }
+    };
   }, [pdfReady, currentPage]);
 
   // Load fixtures
