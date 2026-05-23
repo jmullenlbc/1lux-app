@@ -70,7 +70,7 @@ function buildTabs(serviceType) {
   return [
     'Dashboard', 'Budgets',
     'Fixture Schedule',
-    'Takeoffs', 'Drawings', 'Estimate', 'Design Info', 'Meetings', 'Correspondence', 'Submittals', 'CA', 'Ship Schedule', 'Contracts', 'Notifications',
+    'Takeoffs', 'Drawings', 'Estimate', 'Design Info', 'Meetings', 'Correspondence', 'Submittals', 'CA', 'Ship Schedule', 'Contracts', 'External Notifications',
   ];
 }
 
@@ -1286,7 +1286,7 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
         )}
 
         {/* ── NOTIFICATIONS ────────────────────────────────────────────── */}
-        {activeTab === 'Notifications' && (
+        {activeTab === 'External Notifications' && (
           <NotificationSettingsTab projectId={project.id} />
         )}
 
