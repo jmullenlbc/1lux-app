@@ -1,0 +1,24 @@
+name: Daily Threshold Check
+
+on:
+  schedule:
+    # Every day at 8:00 AM Eastern (13:00 UTC)
+    - cron: '0 13 * * *'
+  workflow_dispatch: # Allow manual trigger from GitHub Actions UI
+
+jobs:
+  run-threshold:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger threshold cron
+        run: |
+          response=$(curl -s -o /tmp/body.txt -w "%{http_code}" \
+            -X GET "${{ secrets.APP_URL }}/api/cron/threshold" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}")
+          body=$(cat /tmp/body.txt)
+          echo "Status: $response"
+          echo "Response: $body"
+          if [ "$response" != "200" ]; then
+            echo "Cron failed with status $response"
+            exit 1
+          fi

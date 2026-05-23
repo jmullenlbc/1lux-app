@@ -1,0 +1,24 @@
+name: Weekly Digest
+
+on:
+  schedule:
+    # Every Wednesday at 9:00 AM Eastern (14:00 UTC)
+    - cron: '0 14 * * 3'
+  workflow_dispatch: # Allow manual trigger from GitHub Actions UI
+
+jobs:
+  run-digest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger digest cron
+        run: |
+          response=$(curl -s -o /tmp/body.txt -w "%{http_code}" \
+            -X GET "${{ secrets.APP_URL }}/api/cron/digest" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}")
+          body=$(cat /tmp/body.txt)
+          echo "Status: $response"
+          echo "Response: $body"
+          if [ "$response" != "200" ]; then
+            echo "Cron failed with status $response"
+            exit 1
+          fi

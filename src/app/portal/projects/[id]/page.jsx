@@ -202,15 +202,26 @@ function FilesView({ projectId, tab, label }) {
   return (
     <div className="space-y-2">
       {files.map(f => (
-        <div key={f.id} className="bg-white border border-slate-200 rounded-xl px-4 py-3 flex items-center gap-3">
+        <a
+          key={f.id}
+          href={`/api/portal/projects/${projectId}/files/${f.id}`}
+          target="_blank"
+          rel="noreferrer"
+          className="bg-white border border-slate-200 rounded-xl px-4 py-3 flex items-center gap-3 hover:border-amber-300 hover:shadow-sm transition-all group"
+        >
           <FileIcon mimeType={f.mimeType} />
           <div className="flex-1 min-w-0">
-            <p className="text-sm text-slate-700 font-medium truncate">{f.originalName}</p>
+            <p className="text-sm text-slate-700 font-medium truncate group-hover:text-amber-700 transition-colors">{f.originalName}</p>
             <p className="text-xs text-slate-400 mt-0.5">{fmtDate(f.createdAt)}{f.size ? ` · ${fmtSize(f.size)}` : ''}</p>
           </div>
-        </div>
+          <div className="flex items-center gap-1 text-xs font-medium text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+            Open
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </div>
+        </a>
       ))}
-      <p className="text-xs text-slate-400 text-center pt-2">Contact your ILC project manager to download files.</p>
     </div>
   );
 }
