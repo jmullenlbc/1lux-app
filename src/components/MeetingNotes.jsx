@@ -67,9 +67,12 @@ function useUsers() {
 
 // ── Note detail / editor view ─────────────────────────────────────────────────
 function NoteDetail({ note, projectId, onBack, onUpdated, onDeleted }) {
-  const [title,        setTitle]        = useState(note.title || '');
-  const [meetingDate,  setMeetingDate]  = useState(note.meetingDate || '');
-  const [meetingLink,  setMeetingLink]  = useState(note.meetingLink || '');
+  const [title,             setTitle]             = useState(note.title || '');
+  const [meetingDate,       setMeetingDate]       = useState(note.meetingDate || '');
+  const [meetingLink,       setMeetingLink]       = useState(note.meetingLink || '');
+  const [isExternalVisible, setIsExternalVisible] = useState(
+    note.isExternalVisible === 1 || note.isExternalVisible === true
+  );
   const [attendees,    setAttendees]    = useState(() => {
     try { return note.attendees ? JSON.parse(note.attendees) : []; }
     catch { return []; }
@@ -102,6 +105,12 @@ function NoteDetail({ note, projectId, onBack, onUpdated, onDeleted }) {
       const { note: updated } = await res.json();
       onUpdated(updated);
     }
+  }
+
+  async function toggleExternal() {
+    const next = !isExternalVisible;
+    setIsExternalVisible(next);
+    await patch({ isExternalVisible: next });
   }
 
   async function saveContent() {
@@ -319,6 +328,27 @@ function NoteDetail({ note, projectId, onBack, onUpdated, onDeleted }) {
           />
         </div>
 
+        {/* External visibility toggle */}
+        <div className="flex items-center justify-between pt-1 border-t border-slate-100">
+          <div className="flex items-center gap-2">
+            <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            <span className="text-sm text-slate-600">Visible to external contacts</span>
+            {isExternalVisible && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-mono">EXT</span>
+            )}
+          </div>
+          <button
+            onClick={toggleExternal}
+            className={`relative w-9 h-5 rounded-full transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-1 ${isExternalVisible ? 'bg-amber-500' : 'bg-slate-200'}`}
+            aria-label={isExternalVisible ? 'Hide from external contacts' : 'Make visible to external contacts'}
+          >
+            <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${isExternalVisible ? 'translate-x-4' : ''}`} />
+          </button>
+        </div>
+
         <p className="text-[11px] text-slate-300">
           Created {createdStr}{edited && ' · edited'}
         </p>
@@ -462,6 +492,9 @@ function NoteRow({ note, onClick }) {
       </div>
 
       <div className="shrink-0 flex items-center gap-2">
+        {(note.isExternalVisible === 1 || note.isExternalVisible === true) && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-mono">EXT</span>
+        )}
         <span className="text-xs text-slate-400">{displayDate}</span>
         <svg className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />

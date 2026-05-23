@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { logActivity, TAB_LABELS } from '@/lib/activity';
+import { sendNotification } from '@/lib/notify';
 import Anthropic from '@anthropic-ai/sdk';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -315,6 +316,21 @@ export async function POST(request, { params }) {
     `Uploaded **${file.name}** to ${tabLabel}`,
     { fileId: record.id, fileName: file.name, tab, size: buffer.length },
   );
+
+  // ── Notification triggers based on tab and tags ──────────────────────────
+  try {
+    if (tab === 'drawings') {
+      sendNotification(params.id, 'DRAWINGS_UPLOADED', { fileName: file.name }).catch(() => {});
+    } else if (tab === 'submittals') {
+      sendNotification(params.id, 'SUBMITTAL_FILE_UPLOADED', { fileName: file.name }).catch(() => {});
+    } else if (tab === 'contracts') {
+      sendNotification(params.id, 'CONTRACT_UPLOADED', { fileName: file.name }).catch(() => {});
+    } else if (tab === 'designInfo' && tags.includes('Design Schedule')) {
+      sendNotification(params.id, 'DESIGN_SCHEDULE_UPLOADED', { fileName: file.name }).catch(() => {});
+    } else if (tab === 'ca' && tags.includes('Change Order')) {
+      sendNotification(params.id, 'CHANGE_ORDER_NEW', { fileName: file.name }).catch(() => {});
+    }
+  } catch {}
 
   return NextResponse.json({ file: record, contractUpdate, scheduleUpdate, designScheduleUpdate }, { status: 201 });
 }

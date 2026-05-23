@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { sendNotification } from '@/lib/notify';
 
 async function getTracker(projectId, user) {
   const p = await prisma.project.findUnique({ where: { id: projectId } });
@@ -50,6 +51,10 @@ export async function POST(request, { params }) {
       versions: { include: { item: true, reviews: true } },
     },
   });
+
+  // SUBMITTAL_WITH_COMMENTS if notes present, otherwise SUBMITTAL_UPLOADED
+  const notifType = notes ? 'SUBMITTAL_WITH_COMMENTS' : 'SUBMITTAL_UPLOADED';
+  sendNotification(params.id, notifType, { submissionName: submission.name }).catch(() => {});
 
   return NextResponse.json({ submission: full }, { status: 201 });
 }

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { deriveShipmentStatus } from '@/lib/shipmentStatus';
-import { queueDigestEvent } from '@/lib/notify';
+import { queueDigestEvent, sendNotification } from '@/lib/notify';
 
 async function getShipment(shipmentId, projectId) {
   return prisma.shipment.findFirst({
@@ -51,6 +51,19 @@ export async function PATCH(req, { params }) {
   }
   if (leadTimeWeeks !== undefined && leadTimeWeeks !== existing.leadTimeWeeks) {
     await queueDigestEvent(params.id, 'SHIP_LEAD_TIME_UPDATE', { manufacturer: newData.manufacturer, leadTimeWeeks: newData.leadTimeWeeks });
+  }
+
+  // Immediate notifications: fire when tracking or delivery first set
+  const wasTracked   = !!existing.trackingNumber;
+  const isNowTracked = !!newData.trackingNumber;
+  if (!wasTracked && isNowTracked) {
+    sendNotification(params.id, 'SHIP_SHIPPED', { manufacturer: newData.manufacturer, trackingNumber: newData.trackingNumber }).catch(() => {});
+  }
+
+  const wasDelivered   = !!existing.deliveredDate;
+  const isNowDelivered = !!newData.deliveredDate;
+  if (!wasDelivered && isNowDelivered) {
+    sendNotification(params.id, 'SHIP_DELIVERED', { manufacturer: newData.manufacturer, deliveredDate: newData.deliveredDate?.toISOString?.() ?? newData.deliveredDate }).catch(() => {});
   }
 
   const updated = await prisma.shipment.update({

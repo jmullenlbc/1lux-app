@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { logActivity, PHASE_LABELS } from '@/lib/activity';
+import { sendNotification } from '@/lib/notify';
 
 async function getProjectForUser(projectId, user) {
   const project = await prisma.project.findUnique({
@@ -108,6 +109,19 @@ export async function PATCH(request, { params }) {
     if (events.length > 0) {
       await logActivity(params.id, user, 'project_meta', events.join(' · '), { fields: Object.keys(body) });
     }
+  }
+
+  // ── Notification triggers ─────────────────────────────────────────────────
+  // CONTRACT_SIGNED: fire when contractSignedDate transitions null → value
+  const prevSignedDate = project.contractSignedDate;
+  if (contractSignedDate && !prevSignedDate) {
+    sendNotification(params.id, 'CONTRACT_SIGNED', { contractSignedDate }).catch(() => {});
+  }
+
+  // BUDGET_SENT: fire when budgetSentDate transitions null → value
+  const prevBudgetSentDate = project.budgetSentDate;
+  if (budgetSentDate && !prevBudgetSentDate) {
+    sendNotification(params.id, 'BUDGET_SENT', { budgetType: updated.budgetType, budgetSentDate }).catch(() => {});
   }
 
   return NextResponse.json({ project: updated });
