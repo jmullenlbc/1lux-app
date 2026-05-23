@@ -70,7 +70,7 @@ function buildTabs(serviceType) {
   return [
     'Dashboard', 'Budgets',
     'Fixture Schedule',
-    'Takeoffs', 'Estimate', 'Ship Schedule', 'Drawings', 'Design Info', 'Meetings', 'Correspondence', 'Submittals', 'CA', 'Contracts', 'Contacts', 'Notifications',
+    'Takeoffs', 'Drawings', 'Estimate', 'Design Info', 'Meetings', 'Correspondence', 'Submittals', 'CA', 'Ship Schedule', 'Contracts', 'Notifications',
   ];
 }
 
@@ -703,6 +703,7 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
               onProjectUpdate={() => router.refresh()}
               onProjectDataUpdate={() => router.refresh()}
             />
+            <ContactsTab projectId={project.id} />
             <ProjectActivityFeed projectId={project.id} />
           </div>
         )}
@@ -1282,11 +1283,6 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
         {/* ── SHIP SCHEDULE ────────────────────────────────────────────── */}
         {activeTab === 'Ship Schedule' && (
           <ShipScheduleTab projectId={project.id} />
-        )}
-
-        {/* ── CONTACTS ─────────────────────────────────────────────────── */}
-        {activeTab === 'Contacts' && (
-          <ContactsTab projectId={project.id} />
         )}
 
         {/* ── NOTIFICATIONS ────────────────────────────────────────────── */}
