@@ -257,6 +257,23 @@ function formatEventRow(e) {
   }
 }
 
+// ── Portal Invite ─────────────────────────────────────────────────────────────
+
+export function portalInvite({ projectName, inviteUrl, contactName }) {
+  return {
+    subject: `[ILC Studios] You've been invited to view ${projectName}`,
+    html: baseHtml({
+      title: 'Project Portal Invitation',
+      projectName,
+      body: `<p>Hi${contactName ? ` ${contactName}` : ''},</p>
+             <p>ILC Studios has invited you to view real-time updates for <strong>${projectName}</strong> through the ILC Studios Project Portal.</p>
+             <p>You'll have access to the information your ILC project manager has shared with you, including ship schedules, meeting notes, submittals, and more.</p>`,
+      ctaUrl:   inviteUrl,
+      ctaLabel: 'Accept Invitation & Create Account',
+    }),
+  };
+}
+
 export function weeklyDigest({ projectName, events, pixelUrl }) {
   const rows = events.map(e => `<li style="margin-bottom:6px;">${formatEventRow(e)}</li>`).join('');
   return {

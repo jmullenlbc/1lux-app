@@ -24,6 +24,7 @@ import DrawingMarkupModal from '@/components/drawing/DrawingMarkupModal';
 import ParametricEstimatePanel from './ParametricEstimatePanel';
 import ShipScheduleTab from '@/components/shipSchedule/ShipScheduleTab';
 import NotificationSettingsTab from '@/components/notifications/NotificationSettingsTab';
+import ContactsTab from '@/components/contacts/ContactsTab';
 
 const BUDGET_TYPE_META = {
   conceptual:  { label: 'Conceptual Budget',    color: 'bg-slate-100 text-slate-600' },
@@ -69,7 +70,7 @@ function buildTabs(serviceType) {
   return [
     'Dashboard', 'Budgets',
     'Fixture Schedule',
-    'Takeoffs', 'Estimate', 'Ship Schedule', 'Drawings', 'Design Info', 'Meetings', 'Correspondence', 'Submittals', 'CA', 'Contracts', 'Notifications',
+    'Takeoffs', 'Estimate', 'Ship Schedule', 'Drawings', 'Design Info', 'Meetings', 'Correspondence', 'Submittals', 'CA', 'Contracts', 'Contacts', 'Notifications',
   ];
 }
 
@@ -1281,6 +1282,11 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
         {/* ── SHIP SCHEDULE ────────────────────────────────────────────── */}
         {activeTab === 'Ship Schedule' && (
           <ShipScheduleTab projectId={project.id} />
+        )}
+
+        {/* ── CONTACTS ─────────────────────────────────────────────────── */}
+        {activeTab === 'Contacts' && (
+          <ContactsTab projectId={project.id} />
         )}
 
         {/* ── NOTIFICATIONS ────────────────────────────────────────────── */}
