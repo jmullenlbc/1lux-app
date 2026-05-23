@@ -25,10 +25,6 @@ export default async function ClientDetailPage({ params }) {
         },
       },
       contacts: { orderBy: { createdAt: 'asc' } },
-      kbSections: {
-        orderBy: { sortOrder: 'asc' },
-        include: { attachments: { orderBy: { createdAt: 'asc' } } },
-      },
       createdBy: { select: { name: true, email: true } },
     },
   });
