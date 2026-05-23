@@ -9,6 +9,11 @@ const PATTERN_BADGE = {
   THRESHOLD: { label: 'Threshold',   cls: 'bg-amber-50 text-amber-700 border-amber-200' },
 };
 
+// Only show external notification types here — internal ones live in the user profile
+const EXTERNAL_MODULES = NOTIFICATION_MODULES
+  .map(m => ({ ...m, keys: m.keys.filter(k => NOTIFICATION_TYPES[k]?.external === true) }))
+  .filter(m => m.keys.length > 0);
+
 const ROADMAP_TYPES = new Set([
   'EMAIL_FLAGGED', 'SHIP_LEAD_CONFLICT', 'SHIP_ESD_CONFLICT', 'RFI_ALL', 'REPLACEMENT_REQUEST',
 ]);
@@ -77,18 +82,9 @@ function NotificationRow({ notificationType, config, onChange }) {
           <p className={`text-sm ${enabled ? 'text-slate-700 font-medium' : 'text-slate-400'}`}>
             {meta?.label || notificationType}
           </p>
-          {meta?.external && enabled && (
-            <p className="text-xs text-slate-400 mt-0.5">External recipients below</p>
-          )}
         </div>
 
         <PatternBadge pattern={meta?.pattern || 'EVENT'} />
-
-        {/* INT / EXT indicators */}
-        <div className="flex gap-1 shrink-0">
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-50 text-green-700 border border-green-200 font-mono">INT</span>
-          {meta?.external && <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-mono">EXT</span>}
-        </div>
       </div>
 
       {/* Email field — only for external types that are enabled */}
@@ -180,10 +176,10 @@ export default function NotificationSettingsTab({ projectId }) {
       {/* Header + view toggle */}
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h2 className="text-lg font-semibold text-slate-800">Notifications</h2>
+          <h2 className="text-lg font-semibold text-slate-800">External Notifications</h2>
           <p className="text-sm text-slate-400 mt-0.5">
             {view === 'settings'
-              ? 'Configure who receives external email notifications for each event type.'
+              ? 'Configure which external contacts receive email notifications for each event on this project.'
               : 'Audit trail of all notifications triggered for this project.'}
           </p>
         </div>
@@ -219,10 +215,6 @@ export default function NotificationSettingsTab({ projectId }) {
         <div className="flex items-center gap-2 text-xs text-slate-500">
           <PatternBadge pattern="THRESHOLD" /> Checked by daily cron job
         </div>
-        <div className="flex items-center gap-2 text-xs text-slate-500">
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-50 text-green-700 border border-green-200 font-mono">INT</span> ILC internal
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-mono">EXT</span> External recipients
-        </div>
       </div>
 
       {/* Dry-run warning */}
@@ -241,7 +233,7 @@ export default function NotificationSettingsTab({ projectId }) {
         <div className="text-center py-10 text-sm text-slate-400">Loading…</div>
       ) : (
         <div>
-          {NOTIFICATION_MODULES.map(({ module, keys }) => (
+          {EXTERNAL_MODULES.map(({ module, keys }) => (
             <ModuleSection
               key={module}
               module={module}
