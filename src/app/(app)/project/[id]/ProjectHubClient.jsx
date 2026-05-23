@@ -22,6 +22,7 @@ import FixtureScheduleEditor from './FixtureScheduleEditor';
 import PdfViewerModal from '@/components/ui/PdfViewerModal';
 import DrawingMarkupModal from '@/components/drawing/DrawingMarkupModal';
 import ParametricEstimatePanel from './ParametricEstimatePanel';
+import ShipScheduleTab from '@/components/shipSchedule/ShipScheduleTab';
 
 const BUDGET_TYPE_META = {
   conceptual:  { label: 'Conceptual Budget',    color: 'bg-slate-100 text-slate-600' },
@@ -67,7 +68,7 @@ function buildTabs(serviceType) {
   return [
     'Dashboard', 'Budgets',
     'Fixture Schedule',
-    'Takeoffs', 'Estimate', 'Drawings', 'Design Info', 'Meetings', 'Correspondence', 'Submittals', 'CA', 'Contracts',
+    'Takeoffs', 'Estimate', 'Ship Schedule', 'Drawings', 'Design Info', 'Meetings', 'Correspondence', 'Submittals', 'CA', 'Contracts',
   ];
 }
 
@@ -1274,6 +1275,11 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
         {/* ── ESTIMATE ─────────────────────────────────────────────────── */}
         {activeTab === 'Estimate' && (
           <ParametricEstimatePanel projectId={project.id} />
+        )}
+
+        {/* ── SHIP SCHEDULE ────────────────────────────────────────────── */}
+        {activeTab === 'Ship Schedule' && (
+          <ShipScheduleTab projectId={project.id} />
         )}
 
       </div>
