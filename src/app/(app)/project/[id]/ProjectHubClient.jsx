@@ -20,6 +20,7 @@ import DesignScheduleCard from '@/components/DesignScheduleCard';
 import FixtureScheduleTab from './FixtureScheduleTab';
 import FixtureScheduleEditor from './FixtureScheduleEditor';
 import PdfViewerModal from '@/components/ui/PdfViewerModal';
+import DrawingMarkupModal from '@/components/drawing/DrawingMarkupModal';
 
 const BUDGET_TYPE_META = {
   conceptual:  { label: 'Conceptual Budget',    color: 'bg-slate-100 text-slate-600' },
@@ -180,7 +181,7 @@ function initials(user) {
   return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 }
 
-export default function ProjectHubClient({ project, budget, peerReviewTotal, clients = [], allUsers = [], initialFiles = [], initialDesignInfo = {} }) {
+export default function ProjectHubClient({ project, budget, peerReviewTotal, clients = [], allUsers = [], initialFiles = [], initialDesignInfo = {}, masterTypes = [] }) {
   const router = useRouter();
   const TABS = buildTabs(project.serviceType);
   const [activeTab,      setActiveTab]      = useState('Dashboard');
@@ -317,6 +318,7 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
   const [convertingTo,       setConvertingTo]       = useState(null);   // 'conceptual' | 'design' | null
   const [convertLoading,     setConvertLoading]     = useState(false);
   const [viewingPdf,         setViewingPdf]         = useState(null);
+  const [markupFile,         setMarkupFile]         = useState(null);
 
   async function convertBudgetType(newType) {
     setConvertLoading(true);
@@ -383,6 +385,14 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
         file={viewingPdf}
         projectId={project.id}
         onClose={() => setViewingPdf(null)}
+      />
+    )}
+    {markupFile && (
+      <DrawingMarkupModal
+        file={markupFile}
+        projectId={project.id}
+        masterTypes={masterTypes}
+        onClose={() => setMarkupFile(null)}
       />
     )}
     <div className="min-h-screen bg-slate-50">
@@ -988,14 +998,24 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
                         )}
                       </div>
                     </div>
-                    <button
-                      onClick={() => setViewingPdf(latestDrawing)}
-                      className="shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold transition-colors">
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                      </svg>
-                      Open PDF
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => setViewingPdf(latestDrawing)}
+                        className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold transition-colors">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                        </svg>
+                        Open PDF
+                      </button>
+                      <button
+                        onClick={() => setMarkupFile(latestDrawing)}
+                        className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-white text-xs font-semibold transition-colors">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42" />
+                        </svg>
+                        Mark Up
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="flex items-center gap-3 py-1">

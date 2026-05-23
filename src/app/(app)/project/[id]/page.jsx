@@ -54,6 +54,12 @@ export default async function ProjectHubPage({ params }) {
     orderBy: { name: 'asc' },
   });
 
+  const masterTypes = await prisma.masterType.findMany({
+    where: { is_active: true },
+    select: { code: true, fixture_family: true, symbol_svg: true, is_unit_type: true },
+    orderBy: { code: 'asc' },
+  });
+
   const diResp = (project.responses || []).filter(r => r.section === 'design-info');
   const dmRaw  = diResp.find(r => r.questionKey === 'designMilestones')?.answerValue;
   const initialDesignInfo = {
@@ -76,6 +82,7 @@ export default async function ProjectHubPage({ params }) {
       allUsers={allUsers}
       initialFiles={projectFiles}
       initialDesignInfo={initialDesignInfo}
+      masterTypes={masterTypes}
     />
   );
 }
