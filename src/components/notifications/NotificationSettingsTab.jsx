@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { NOTIFICATION_TYPES, NOTIFICATION_MODULES } from '@/lib/notify';
+import NotificationLog from './NotificationLog';
 
 const PATTERN_BADGE = {
   EVENT:     { label: 'Immediate',   cls: 'bg-green-50 text-green-700 border-green-200' },
@@ -144,6 +145,7 @@ function ModuleSection({ module, keys, configs, onChange }) {
 }
 
 export default function NotificationSettingsTab({ projectId }) {
+  const [view,     setView]     = useState('settings'); // 'settings' | 'log'
   const [configs,  setConfigs]  = useState({});
   const [loading,  setLoading]  = useState(true);
 
@@ -175,14 +177,36 @@ export default function NotificationSettingsTab({ projectId }) {
 
   return (
     <div>
-      {/* Header */}
-      <div className="mb-5">
-        <h2 className="text-lg font-semibold text-slate-800">Notification Settings</h2>
-        <p className="text-sm text-slate-400 mt-0.5">
-          Configure who receives external email notifications for each event type.
-          Internal notifications are always logged.
-        </p>
+      {/* Header + view toggle */}
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-800">Notifications</h2>
+          <p className="text-sm text-slate-400 mt-0.5">
+            {view === 'settings'
+              ? 'Configure who receives external email notifications for each event type.'
+              : 'Audit trail of all notifications triggered for this project.'}
+          </p>
+        </div>
+        <div className="flex gap-1 bg-slate-100 p-0.5 rounded-lg">
+          {[['settings', 'Settings'], ['log', 'Activity Log']].map(([val, lbl]) => (
+            <button
+              key={val}
+              onClick={() => setView(val)}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                view === val ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              {lbl}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {/* Activity log view */}
+      {view === 'log' && <NotificationLog projectId={projectId} />}
+
+      {/* Settings view */}
+      {view === 'settings' && <div className="space-y-0">
 
       {/* Legend */}
       <div className="flex flex-wrap gap-3 mb-5 p-3 bg-slate-50 rounded-xl border border-slate-100">
@@ -228,6 +252,7 @@ export default function NotificationSettingsTab({ projectId }) {
           ))}
         </div>
       )}
+      </div>}
     </div>
   );
 }

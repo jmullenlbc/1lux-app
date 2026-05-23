@@ -12,6 +12,15 @@
  */
 
 import { prisma } from '@/lib/db';
+import {
+  shipShipped, shipDelivered,
+  submittalUploaded, submittalWithComments,
+  budgetSent, budgetUpdated,
+  contractUploaded, contractSigned,
+  meetingNote, changeOrderNew,
+  coiExpiring, constructionDeadline,
+  weeklyDigest,
+} from '@/lib/emailTemplates';
 
 // ── Email stub ────────────────────────────────────────────────────────────────
 
@@ -25,6 +34,45 @@ async function sendEmail({ to, subject, html }) {
   // const client = Client.initWithMiddleware({ authProvider: getMsalProvider() });
   // await client.api(`/users/${process.env.ILC_GRAPH_MAILBOX}/sendMail`).post({ message: { ... } });
   console.warn('[NOTIFY] sendEmail called but no email provider is configured.');
+}
+
+// ── Template builder ──────────────────────────────────────────────────────────
+
+function buildEmailFromType(type, payload, projectName, pixelUrl) {
+  switch (type) {
+    case 'SHIP_SHIPPED':
+      return shipShipped({ projectName, manufacturer: payload.manufacturer, trackingNumber: payload.trackingNumber, pixelUrl });
+    case 'SHIP_DELIVERED':
+      return shipDelivered({ projectName, manufacturer: payload.manufacturer, deliveredDate: payload.deliveredDate, pixelUrl });
+    case 'SUBMITTAL_UPLOADED':
+      return submittalUploaded({ projectName, submissionName: payload.submissionName, pixelUrl });
+    case 'SUBMITTAL_WITH_COMMENTS':
+      return submittalWithComments({ projectName, submissionName: payload.submissionName, pixelUrl });
+    case 'BUDGET_SENT':
+      return budgetSent({ projectName, budgetType: payload.budgetType, pixelUrl });
+    case 'BUDGET_UPDATED':
+      return budgetUpdated({ projectName, pixelUrl });
+    case 'CONTRACT_UPLOADED':
+      return contractUploaded({ projectName, pixelUrl });
+    case 'CONTRACT_SIGNED':
+      return contractSigned({ projectName, pixelUrl });
+    case 'MEETING_NOTE':
+      return meetingNote({ projectName, noteTitle: payload.title, meetingDate: payload.meetingDate, pixelUrl });
+    case 'CHANGE_ORDER_NEW':
+      return changeOrderNew({ projectName, fileName: payload.fileName, pixelUrl });
+    case 'COI_EXPIRING':
+      return coiExpiring({ projectName, expiryDate: payload.expiryDate, daysOut: payload.daysOut, pixelUrl });
+    case 'CONSCHED_3M':
+    case 'CONSCHED_2M':
+    case 'CONSCHED_1M':
+    case 'CONSCHED_2W':
+      return constructionDeadline({ projectName, milestone: payload.milestone, date: payload.date, daysOut: payload.daysOut, pixelUrl });
+    default:
+      return {
+        subject: `[ILC Studios] Update — ${projectName}`,
+        html: `<p>${type.replace(/_/g, ' ')}</p>`,
+      };
+  }
 }
 
 // ── Config helpers ─────────────────────────────────────────────────────────────
@@ -45,25 +93,44 @@ function parseEmails(raw) {
 /**
  * Fire an immediate (event-driven) notification.
  * Logs to NotificationLog whether or not email is enabled.
+ * Optional dedupeKey: set on the internal log for threshold deduplication.
  */
-export async function sendNotification(projectId, notificationType, payload = {}) {
+export async function sendNotification(projectId, notificationType, payload = {}, { dedupeKey = null } = {}) {
   try {
-    const config = await getConfig(projectId, notificationType);
-    const emails = config?.enabled ? parseEmails(config.externalEmails) : [];
-    const payloadStr = JSON.stringify(payload);
+    const [config, project] = await Promise.all([
+      getConfig(projectId, notificationType),
+      prisma.project.findUnique({ where: { id: projectId }, select: { name: true } }),
+    ]);
+
+    const projectName = project?.name || 'Your Project';
+    const emails      = config?.enabled ? parseEmails(config.externalEmails) : [];
+    const payloadStr  = JSON.stringify(payload);
+    const appUrl      = process.env.APP_URL || '';
 
     for (const email of emails) {
       const log = await prisma.notificationLog.create({
-        data: { project_id: projectId, notificationType, audience: 'EXTERNAL', recipientEmail: email, payload: payloadStr },
+        data: {
+          project_id:       projectId,
+          notificationType,
+          audience:         'EXTERNAL',
+          recipientEmail:   email,
+          payload:          payloadStr,
+        },
       });
-      const pixelUrl = `${process.env.APP_URL || ''}/api/notifications/opened/${log.openToken}`;
-      // TODO: pass pixelUrl to email template
-      await sendEmail({ to: email, subject: `[ILC Studios] ${notificationType}`, html: `<p>${notificationType}</p><img src="${pixelUrl}" width="1" height="1" />` });
+      const pixelUrl      = `${appUrl}/api/notifications/opened/${log.openToken}`;
+      const { subject, html } = buildEmailFromType(notificationType, payload, projectName, pixelUrl);
+      await sendEmail({ to: email, subject, html });
     }
 
-    // Always log internal record
+    // Always log internal record (used for audit trail + threshold deduplication)
     await prisma.notificationLog.create({
-      data: { project_id: projectId, notificationType, audience: 'INTERNAL', payload: payloadStr },
+      data: {
+        project_id:       projectId,
+        notificationType,
+        audience:         'INTERNAL',
+        payload:          payloadStr,
+        dedupeKey:        dedupeKey || null,
+      },
     });
   } catch (err) {
     console.error('[NOTIFY] sendNotification failed:', err);
@@ -78,7 +145,7 @@ export async function queueDigestEvent(projectId, notificationType, payload = {}
   try {
     const config = await getConfig(projectId, notificationType);
     if (!config?.enabled) return;
-    const emails = parseEmails(config.externalEmails);
+    const emails     = parseEmails(config.externalEmails);
     const payloadStr = JSON.stringify(payload);
 
     for (const email of emails) {
@@ -93,19 +160,16 @@ export async function queueDigestEvent(projectId, notificationType, payload = {}
 
 /**
  * Fire a threshold notification — deduplicates by dedupeKey.
- * dedupeKey should be unique per project+type+time-window, e.g. "proj_abc:CONSCHED_1M:2026-05-01"
+ * dedupeKey must be unique per project+type+time-window.
+ * Example: `${projectId}:CONSCHED_1M:constructionEndDate:2026-05`
  */
 export async function sendThresholdNotification(projectId, notificationType, dedupeKey, payload = {}) {
   try {
     const existing = await prisma.notificationLog.findFirst({ where: { dedupeKey } });
     if (existing) return; // already fired this threshold window
 
-    await sendNotification(projectId, notificationType, payload);
-    // Update the just-created log with the dedupeKey (update the internal log)
-    await prisma.notificationLog.updateMany({
-      where: { project_id: projectId, notificationType, audience: 'INTERNAL', dedupeKey: null },
-      data: { dedupeKey },
-    });
+    // Pass dedupeKey through so the internal log is stamped on creation
+    await sendNotification(projectId, notificationType, payload, { dedupeKey });
   } catch (err) {
     console.error('[NOTIFY] sendThresholdNotification failed:', err);
   }

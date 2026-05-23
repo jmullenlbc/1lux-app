@@ -202,17 +202,70 @@ export function changeOrderNew({ projectName, fileName, pixelUrl }) {
   };
 }
 
+// ── COI Expiry ────────────────────────────────────────────────────────────────
+
+export function coiExpiring({ projectName, expiryDate, daysOut, pixelUrl }) {
+  const fmt = expiryDate ? new Date(expiryDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '';
+  return {
+    subject: `[ILC Studios] COI expiring soon — ${projectName}`,
+    html: baseHtml({
+      title: 'Certificate of Insurance Expiring',
+      projectName,
+      pixelUrl,
+      body: `<p>Your Certificate of Insurance${fmt ? ` expires on <strong>${fmt}</strong>` : ' is expiring soon'}${daysOut ? ` (${daysOut} day${daysOut !== 1 ? 's' : ''} away)` : ''}.</p>
+             <p>Please provide a renewed COI to avoid any lapse in coverage.</p>`,
+    }),
+  };
+}
+
+// ── Construction Schedule Alert ───────────────────────────────────────────────
+
+export function constructionDeadline({ projectName, milestone, date, daysOut, pixelUrl }) {
+  const fmt = date ? new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '';
+  const urgency = daysOut <= 14 ? '⚠️ ' : '';
+  return {
+    subject: `[ILC Studios] ${urgency}${milestone} in ${daysOut} day${daysOut !== 1 ? 's' : ''} — ${projectName}`,
+    html: baseHtml({
+      title: `${urgency}${milestone} Upcoming`,
+      projectName,
+      pixelUrl,
+      body: `<p><strong>${milestone}</strong>${fmt ? ` is scheduled for ${fmt}` : ' is approaching'}${daysOut != null ? ` — ${daysOut} day${daysOut !== 1 ? 's' : ''} away` : ''}.</p>
+             <p>Please ensure all deliverables are on track for this milestone.</p>`,
+    }),
+  };
+}
+
 // ── Digest (generic) ──────────────────────────────────────────────────────────
 
+function formatEventRow(e) {
+  const p = (typeof e.payload === 'string')
+    ? (() => { try { return JSON.parse(e.payload); } catch { return {}; } })()
+    : (e.payload || {});
+  switch (e.type) {
+    case 'SHIP_ESD_UPDATE': {
+      const d = p.esdDate ? new Date(p.esdDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD';
+      return `ESD updated for <strong>${p.manufacturer || 'Unknown'}</strong> → ${d}`;
+    }
+    case 'SHIP_LEAD_TIME_UPDATE':
+      return `Lead time updated for <strong>${p.manufacturer || 'Unknown'}</strong> → ${p.leadTimeWeeks || 'TBD'} weeks`;
+    case 'SHIP_ESD_2WEEKS': {
+      const d = p.esdDate ? new Date(p.esdDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD';
+      return `<strong>${p.manufacturer || 'Unknown'}</strong> ESD within 2 weeks (${d})`;
+    }
+    default:
+      return `${(e.type || '').replace(/_/g, ' ')}${p.manufacturer ? ` — ${p.manufacturer}` : ''}`;
+  }
+}
+
 export function weeklyDigest({ projectName, events, pixelUrl }) {
-  const rows = events.map(e => `<li><strong>${e.type.replace(/_/g, ' ')}</strong>: ${JSON.stringify(e.payload)}</li>`).join('');
+  const rows = events.map(e => `<li style="margin-bottom:6px;">${formatEventRow(e)}</li>`).join('');
   return {
     subject: `[ILC Studios] Weekly project update — ${projectName}`,
     html: baseHtml({
-      title: 'Weekly Project Digest',
+      title: 'Weekly Project Update',
       projectName,
       pixelUrl,
-      body: `<p>Here's your project activity from this week:</p><ul>${rows}</ul>`,
+      body: `<p>Here's your project activity from this week:</p><ul style="padding-left:20px;margin:12px 0;">${rows}</ul>`,
     }),
   };
 }
