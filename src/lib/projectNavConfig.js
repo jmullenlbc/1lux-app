@@ -1,10 +1,10 @@
 // NAV_CONFIG drives the project sidebar.
-// Keys must exactly match the serviceType enum values in the DB.
-// FULL_SERVICE_DESIGN and DESIGN_ASSIST share the same nav structure.
-// PEER_REVIEW and BID_ONLY share the same nav structure.
+// Keys match the serviceType enum values stored in the DB exactly.
+// fullDesign and designAssist share the same nav structure.
+// peerReview, bidOnly, and other share the same nav structure.
 
 export const NAV_CONFIG = {
-  FULL_SERVICE_DESIGN: [
+  fullDesign: [
     {
       section: 'Overview',
       icon: '⊡',
@@ -16,8 +16,8 @@ export const NAV_CONFIG = {
       section: 'Pre-Construction',
       icon: '◈',
       items: [
-        { id: 'budgets',   label: 'Budgets' },
-        { id: 'takeoffs',  label: 'Takeoffs' },
+        { id: 'budgets',  label: 'Budgets' },
+        { id: 'takeoffs', label: 'Takeoffs' },
       ],
     },
     {
@@ -33,26 +33,26 @@ export const NAV_CONFIG = {
       section: 'Construction',
       icon: '◉',
       items: [
-        { id: 'submittals',     label: 'Submittals' },
-        { id: 'ship-schedule',  label: 'Ship Schedule' },
-        { id: 'contracts',      label: 'Contracts' },
-        { id: 'ca',             label: 'CA' },
-        { id: 'notifications',  label: 'External Notifications' },
+        { id: 'submittals',    label: 'Submittals' },
+        { id: 'ship-schedule', label: 'Ship Schedule' },
+        { id: 'contracts',     label: 'Contracts' },
+        { id: 'ca',            label: 'CA' },
+        { id: 'notifications', label: 'External Notifications' },
       ],
     },
     {
       section: 'Communications',
       icon: '◎',
       items: [
-        { id: 'meetings',        label: 'Meetings' },
-        { id: 'correspondence',  label: 'Correspondence' },
+        { id: 'meetings',       label: 'Meetings' },
+        { id: 'correspondence', label: 'Correspondence' },
       ],
     },
   ],
 
-  DESIGN_ASSIST: null, // assigned below — same as FULL_SERVICE_DESIGN
+  designAssist: null, // assigned below — same as fullDesign
 
-  PEER_REVIEW: [
+  peerReview: [
     {
       section: 'Overview',
       icon: '⊡',
@@ -74,11 +74,11 @@ export const NAV_CONFIG = {
       section: 'Construction',
       icon: '◉',
       items: [
-        { id: 'submittals',     label: 'Submittals' },
-        { id: 'ship-schedule',  label: 'Ship Schedule' },
-        { id: 'contracts',      label: 'Contracts' },
-        { id: 'ca',             label: 'CA' },
-        { id: 'notifications',  label: 'External Notifications' },
+        { id: 'submittals',    label: 'Submittals' },
+        { id: 'ship-schedule', label: 'Ship Schedule' },
+        { id: 'contracts',     label: 'Contracts' },
+        { id: 'ca',            label: 'CA' },
+        { id: 'notifications', label: 'External Notifications' },
       ],
     },
     {
@@ -91,19 +91,21 @@ export const NAV_CONFIG = {
     },
   ],
 
-  BID_ONLY: null, // assigned below — same as PEER_REVIEW
+  bidOnly: null, // assigned below — same as peerReview
+  other:   null, // assigned below — same as peerReview
 };
 
-NAV_CONFIG.DESIGN_ASSIST = NAV_CONFIG.FULL_SERVICE_DESIGN;
-NAV_CONFIG.BID_ONLY      = NAV_CONFIG.PEER_REVIEW;
+NAV_CONFIG.designAssist = NAV_CONFIG.fullDesign;
+NAV_CONFIG.bidOnly      = NAV_CONFIG.peerReview;
+NAV_CONFIG.other        = NAV_CONFIG.peerReview;
 
-// Helper: default tab for a given service type
+// Helper: default tab for any service type
 export function getDefaultTab() {
   return 'dashboard';
 }
 
 // Helper: all valid tab ids for a given service type
 export function getValidTabIds(serviceType) {
-  const config = NAV_CONFIG[serviceType] ?? NAV_CONFIG.FULL_SERVICE_DESIGN;
+  const config = NAV_CONFIG[serviceType] ?? NAV_CONFIG.fullDesign;
   return config.flatMap(section => section.items.map(item => item.id));
 }

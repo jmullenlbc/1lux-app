@@ -23,7 +23,7 @@ import FixtureScheduleTab from './FixtureScheduleTab';
 import FixtureScheduleEditor from './FixtureScheduleEditor';
 import PdfViewerModal from '@/components/ui/PdfViewerModal';
 import DrawingMarkupModal from '@/components/drawing/DrawingMarkupModal';
-import ParametricEstimatePanel from './ParametricEstimatePanel';
+// import ParametricEstimatePanel from './ParametricEstimatePanel'; // TODO: restore when Estimate absorbs into Drawings (Feature 1)
 import ShipScheduleTab from '@/components/shipSchedule/ShipScheduleTab';
 import NotificationSettingsTab from '@/components/notifications/NotificationSettingsTab';
 import ContactsTab from '@/components/contacts/ContactsTab';
@@ -195,7 +195,7 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
   }
 
   // Sidebar nav config for this project's service type
-  const navConfig = NAV_CONFIG[project.serviceType] ?? NAV_CONFIG.FULL_SERVICE_DESIGN;
+  const navConfig = NAV_CONFIG[project.serviceType] ?? NAV_CONFIG.fullDesign;
   const [phase,          setPhase]          = useState(project.phase || 'sd');
   const [savingPhase,    setSavingPhase]    = useState(false);
   const [serviceType,    setServiceType]    = useState(project.serviceType || '');
