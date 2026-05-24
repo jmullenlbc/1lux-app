@@ -1,7 +1,9 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { NAV_CONFIG, getValidTabIds, getDefaultTab } from '@/lib/projectNavConfig';
+import ProjectSidebar from '@/components/project/ProjectSidebar';
 import { formatCurrency } from '@/lib/calculations';
 import { buildingTypeLabel, phaseLabel, serviceTypeLabel, clientTypeLabel, locationTypeLabel, PROJECT_PHASES, SERVICE_TYPES, BUILDING_TYPES } from '@/lib/utils';
 import FileDropZone from '@/components/files/FileDropZone';
@@ -64,15 +66,6 @@ function PlaceholderTab({ icon, title, description, phase }) {
 }
 
 const DESIGN_SERVICE_TYPES = new Set(['fullDesign', 'designAssist']);
-
-function buildTabs(serviceType) {
-  const isDesign = DESIGN_SERVICE_TYPES.has(serviceType);
-  return [
-    'Dashboard', 'Budgets',
-    'Fixture Schedule',
-    'Takeoffs', 'Drawings', 'Estimate', 'Design Info', 'Meetings', 'Correspondence', 'Submittals', 'CA', 'Ship Schedule', 'Contracts', 'External Notifications',
-  ];
-}
 
 const TAB_LABELS = {
   drawings: 'Drawings', correspondence: 'Correspondence', submittals: 'Submittals',
@@ -186,9 +179,23 @@ function initials(user) {
 }
 
 export default function ProjectHubClient({ project, budget, peerReviewTotal, clients = [], allUsers = [], initialFiles = [], initialDesignInfo = {}, masterTypes = [] }) {
-  const router = useRouter();
-  const TABS = buildTabs(project.serviceType);
-  const [activeTab,      setActiveTab]      = useState('Dashboard');
+  const router       = useRouter();
+  const searchParams = useSearchParams();
+  const pathname     = usePathname();
+
+  // URL-driven tab state — ?tab=budgets persists on refresh and is shareable
+  const validTabs = getValidTabIds(project.serviceType);
+  const rawTab    = searchParams.get('tab');
+  const activeTab = validTabs.includes(rawTab) ? rawTab : getDefaultTab();
+
+  function setActiveTab(tabId) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', tabId);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
+  // Sidebar nav config for this project's service type
+  const navConfig = NAV_CONFIG[project.serviceType] ?? NAV_CONFIG.FULL_SERVICE_DESIGN;
   const [phase,          setPhase]          = useState(project.phase || 'sd');
   const [savingPhase,    setSavingPhase]    = useState(false);
   const [serviceType,    setServiceType]    = useState(project.serviceType || '');
@@ -665,35 +672,24 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
           </div>
         </div>
 
-        {/* Tab bar */}
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="flex gap-1">
-            {TABS.map(tab => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={[
-                  'px-4 py-2.5 text-sm font-medium border-b-2 transition-colors',
-                  activeTab === tab
-                    ? 'border-amber-500 text-amber-700'
-                    : 'border-transparent text-slate-500 hover:text-slate-700',
-                ].join(' ')}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
-      {/* Project Search */}
-      <ProjectSearch projectId={project.id} />
+      {/* Two-column body: sidebar + content */}
+      <div className="flex">
+        <ProjectSidebar
+          config={navConfig}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
+        <div className="flex-1 min-w-0">
+          {/* Project Search */}
+          <ProjectSearch projectId={project.id} />
 
-      {/* Tab content */}
-      <div className="max-w-6xl mx-auto px-6 py-8">
+          {/* Tab content */}
+          <div className="px-8 py-8">
 
         {/* ── DASHBOARD ────────────────────────────────────────────────── */}
-        {activeTab === 'Dashboard' && (
+        {activeTab === 'dashboard' && (
           <div className="space-y-6">
             <ProjectDashboard
               project={project}
@@ -709,7 +705,7 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
         )}
 
         {/* ── BUDGETS ──────────────────────────────────────────────────── */}
-        {activeTab === 'Budgets' && (
+        {activeTab === 'budgets' && (
           <div className="space-y-6">
 
             {/* ── Create / Open Budget type cards ────────────────────────── */}
@@ -959,7 +955,7 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
         )}
 
         {/* ── DRAWINGS ─────────────────────────────────────────────────── */}
-        {activeTab === 'Drawings' && (() => {
+        {activeTab === 'drawings' && (() => {
           const drawingFiles  = filesByTab('drawings').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
           const latestDrawing = drawingFiles[0] ?? null;
           // drawingUrl kept for reference but we now use PdfViewerModal
@@ -1045,7 +1041,7 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
         })()}
 
         {/* ── CORRESPONDENCE ───────────────────────────────────────────── */}
-        {activeTab === 'Correspondence' && (
+        {activeTab === 'correspondence' && (
           <div>
             <div className="flex items-center justify-between mb-5">
               <div>
@@ -1058,7 +1054,7 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
         )}
 
         {/* ── SUBMITTALS ───────────────────────────────────────────────── */}
-        {activeTab === 'Submittals' && (
+        {activeTab === 'submittals' && (
           <div className="space-y-6">
             {/* Approval Tracker card */}
             <Link
@@ -1090,7 +1086,7 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
         )}
 
         {/* ── CONSTRUCTION ADMIN ───────────────────────────────────────── */}
-        {activeTab === 'CA' && (
+        {activeTab === 'ca' && (
           <div>
             <div className="flex items-center justify-between mb-5">
               <div>
@@ -1121,7 +1117,7 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
         )}
 
         {/* ── CONTRACTS ────────────────────────────────────────────────── */}
-        {activeTab === 'Contracts' && (
+        {activeTab === 'contracts' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
@@ -1155,7 +1151,7 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
         )}
 
         {/* ── MEETINGS ─────────────────────────────────────────────────── */}
-        {activeTab === 'Meetings' && (
+        {activeTab === 'meetings' && (
           <div className="space-y-6">
             <MeetingNotes projectId={project.id} />
             <div>
@@ -1166,7 +1162,7 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
         )}
 
         {/* ── DESIGN INFO ───────────────────────────────────────────────── */}
-        {activeTab === 'Design Info' && (
+        {activeTab === 'design-info' && (
           <div className="space-y-5">
             <div className="flex items-center justify-between">
               <div>
@@ -1237,7 +1233,7 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
         )}
 
         {/* ── FIXTURE SCHEDULE ─────────────────────────────────────────── */}
-        {activeTab === 'Fixture Schedule' && (
+        {activeTab === 'fixture-schedule' && (
           DESIGN_SERVICE_TYPES.has(project.serviceType) ? (
             /* New Design Fixture Schedule editor */
             <div className="space-y-4">
@@ -1262,7 +1258,7 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
         )}
 
         {/* ── TAKEOFFS ─────────────────────────────────────────────────── */}
-        {activeTab === 'Takeoffs' && (
+        {activeTab === 'takeoffs' && (
           <div>
             <div className="flex items-center justify-between mb-5">
               <div>
@@ -1276,20 +1272,23 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
         )}
 
         {/* ── ESTIMATE ─────────────────────────────────────────────────── */}
-        {activeTab === 'Estimate' && (
+        {/* TODO: estimate tab removed per nav refactor — content to be absorbed into Drawings tab (Feature 1) */}
+        {/* {activeTab === 'estimate' && (
           <ParametricEstimatePanel projectId={project.id} />
-        )}
+        )} */}
 
         {/* ── SHIP SCHEDULE ────────────────────────────────────────────── */}
-        {activeTab === 'Ship Schedule' && (
+        {activeTab === 'ship-schedule' && (
           <ShipScheduleTab projectId={project.id} />
         )}
 
         {/* ── NOTIFICATIONS ────────────────────────────────────────────── */}
-        {activeTab === 'External Notifications' && (
+        {activeTab === 'notifications' && (
           <NotificationSettingsTab projectId={project.id} />
         )}
 
+          </div>
+        </div>
       </div>
     </div>
 
