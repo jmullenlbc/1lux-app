@@ -24,7 +24,8 @@ export async function PATCH(request, { params }) {
   const body = await request.json();
   const {
     type, location, description, manufacturer, catalogNumber,
-    finish, cct, lumens, wattage, voltage, dimming, mounting, notes, internalNotes, sortOrder,
+    finish, cct, lumens, wattage, voltage, dimming, mounting, notes, internalNotes,
+    isAlternate, alternateOf, aiFlagged, sortOrder,
   } = body;
 
   const updated = await prisma.fixtureScheduleItem.update({
@@ -44,6 +45,9 @@ export async function PATCH(request, { params }) {
       ...(mounting      !== undefined && { mounting:      mounting      || null }),
       ...(notes         !== undefined && { notes:         notes         || null }),
       ...(internalNotes !== undefined && { internalNotes: internalNotes || null }),
+      ...(isAlternate   !== undefined && { isAlternate:   Boolean(isAlternate) }),
+      ...(alternateOf   !== undefined && { alternateOf:   alternateOf   || null }),
+      ...(aiFlagged     !== undefined && { aiFlagged:     Boolean(aiFlagged) }),
       ...(sortOrder     !== undefined && { sortOrder:     Number(sortOrder) }),
     },
   });

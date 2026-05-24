@@ -49,7 +49,8 @@ export async function POST(request, { params }) {
   const draft = await getOrCreateDraft(params.id);
   const body  = await request.json();
   const { type = '', location = '', description = '', manufacturer, catalogNumber,
-          finish, cct, lumens, wattage, voltage, dimming, mounting, notes, internalNotes, sortOrder } = body;
+          finish, cct, lumens, wattage, voltage, dimming, mounting, notes, internalNotes,
+          isAlternate, alternateOf, sortOrder } = body;
 
   // sortOrder defaults to end of list
   const maxOrder = draft.items.length > 0
@@ -71,6 +72,8 @@ export async function POST(request, { params }) {
       mounting:      mounting      || null,
       notes:         notes         || null,
       internalNotes: internalNotes || null,
+      isAlternate:   Boolean(isAlternate) || false,
+      alternateOf:   alternateOf   || null,
       sortOrder:     sortOrder     != null ? Number(sortOrder) : maxOrder + 1,
     },
   });

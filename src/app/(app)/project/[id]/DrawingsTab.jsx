@@ -1,0 +1,457 @@
+'use client';
+import { useState, useEffect, useRef } from 'react';
+import PdfViewerModal from '@/components/ui/PdfViewerModal';
+
+const PHASE_TAGS = ['SD', 'DD', 'CD', 'IFC', 'ASI', 'RFI', 'PERMIT', 'OTHER'];
+const PHASE_COLORS = {
+  SD:     'bg-violet-50 text-violet-700 border-violet-200',
+  DD:     'bg-blue-50   text-blue-700   border-blue-200',
+  CD:     'bg-cyan-50   text-cyan-700   border-cyan-200',
+  IFC:    'bg-green-50  text-green-700  border-green-200',
+  ASI:    'bg-amber-50  text-amber-700  border-amber-200',
+  RFI:    'bg-orange-50 text-orange-700 border-orange-200',
+  PERMIT: 'bg-rose-50   text-rose-700   border-rose-200',
+  OTHER:  'bg-slate-50  text-slate-500  border-slate-200',
+};
+
+function formatBytes(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024)        return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatDate(str) {
+  return new Date(str).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// ── Phase tag badge (inline editable) ────────────────────────────────────────
+function PhaseTagBadge({ tag, readOnly, onChange }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handler(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const colorCls = tag ? PHASE_COLORS[tag] : 'bg-slate-100 text-slate-400 border-slate-200';
+
+  return (
+    <div className="relative inline-block" ref={ref}>
+      <button
+        onClick={() => !readOnly && setOpen(v => !v)}
+        className={`text-[10px] font-bold px-2 py-1 rounded-full border uppercase tracking-wide transition-colors ${colorCls} ${readOnly ? '' : 'hover:opacity-80 cursor-pointer'}`}
+      >
+        {tag || 'Untagged'}
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full mt-1 z-20 bg-white rounded-xl shadow-xl border border-slate-200 p-2 flex flex-wrap gap-1 w-48">
+          <button
+            onClick={() => { onChange(null); setOpen(false); }}
+            className="text-[10px] px-2 py-1 rounded-full border border-slate-200 text-slate-400 hover:bg-slate-50 uppercase tracking-wide"
+          >
+            Clear
+          </button>
+          {PHASE_TAGS.map(t => (
+            <button
+              key={t}
+              onClick={() => { onChange(t); setOpen(false); }}
+              className={`text-[10px] font-bold px-2 py-1 rounded-full border uppercase tracking-wide transition-colors ${PHASE_COLORS[t]} ${tag === t ? 'ring-2 ring-offset-1 ring-current' : ''}`}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Upload modal ──────────────────────────────────────────────────────────────
+function UploadModal({ projectId, onUploaded, onClose }) {
+  const [files,     setFiles]     = useState([]);
+  const [source,    setSource]    = useState('EXTERNAL');
+  const [phaseTag,  setPhaseTag]  = useState('');
+  const [notes,     setNotes]     = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [error,     setError]     = useState(null);
+  const [dragging,  setDragging]  = useState(false);
+  const fileRef = useRef(null);
+
+  function addFiles(newFiles) {
+    setFiles(prev => [...prev, ...Array.from(newFiles).filter(f => f.type === 'application/pdf' || f.name.endsWith('.pdf'))]);
+  }
+
+  function removeFile(idx) {
+    setFiles(prev => prev.filter((_, i) => i !== idx));
+  }
+
+  async function doUpload() {
+    if (files.length === 0) { setError('Please select at least one PDF file.'); return; }
+    setUploading(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      files.forEach(f => fd.append('files', f));
+      fd.append('source', source);
+      if (phaseTag) fd.append('phaseTag', phaseTag);
+      if (notes)    fd.append('notes', notes);
+
+      const res  = await fetch(`/api/projects/${projectId}/drawing-submissions`, { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      onUploaded(data.submission);
+    } catch (e) {
+      setError(e.message);
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <h2 className="font-semibold text-slate-800">Upload Drawing Set</h2>
+          <button onClick={onClose} disabled={uploading} className="text-slate-400 hover:text-slate-600">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          {/* Drop zone */}
+          <div
+            onDragOver={e => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={e => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer.files); }}
+            onClick={() => fileRef.current?.click()}
+            className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center gap-2 cursor-pointer transition-colors ${dragging ? 'border-blue-400 bg-blue-50' : 'border-slate-200 hover:border-slate-400 hover:bg-slate-50'}`}
+          >
+            <svg className="w-7 h-7 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+            </svg>
+            <p className="text-sm text-slate-600">Drop PDFs here or click to browse</p>
+            <p className="text-xs text-slate-400">Multiple files allowed · PDF only</p>
+            <input ref={fileRef} type="file" accept=".pdf,application/pdf" multiple className="hidden"
+              onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = ''; }} />
+          </div>
+
+          {/* Selected files */}
+          {files.length > 0 && (
+            <div className="space-y-1.5">
+              {files.map((f, i) => (
+                <div key={i} className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg text-xs">
+                  <svg className="w-4 h-4 text-red-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                  </svg>
+                  <span className="flex-1 truncate text-slate-700">{f.name}</span>
+                  <span className="text-slate-400 shrink-0">{formatBytes(f.size)}</span>
+                  <button onClick={() => removeFile(i)} className="text-slate-300 hover:text-red-400 transition-colors shrink-0">
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Source selector */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Source</label>
+            <div className="flex gap-2">
+              {['EXTERNAL', 'INTERNAL'].map(s => (
+                <button key={s} type="button" onClick={() => setSource(s)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-colors ${
+                    source === s
+                      ? 'bg-slate-800 text-white border-slate-800'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                  }`}>
+                  {s === 'EXTERNAL' ? 'External (Outside design team)' : 'Internal (ILC)'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Phase tag */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+              Phase tag <span className="font-normal normal-case text-slate-400">— optional, can be added later</span>
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {PHASE_TAGS.map(t => (
+                <button key={t} type="button" onClick={() => setPhaseTag(phaseTag === t ? '' : t)}
+                  className={`text-[10px] font-bold px-2.5 py-1 rounded-full border uppercase tracking-wide transition-colors ${
+                    phaseTag === t ? PHASE_COLORS[t] + ' ring-2 ring-offset-1 ring-current' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
+                  }`}>
+                  {t}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1.5 text-xs text-slate-400">Tag can be added later — it's always on the drawings</p>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Notes <span className="font-normal normal-case text-slate-400">— optional</span></label>
+            <textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              rows={2}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none placeholder:text-slate-300"
+              placeholder="e.g. 100% CD set — includes mechanical changes…"
+            />
+          </div>
+
+          {error && <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-xs text-red-600">{error}</div>}
+
+          <div className="flex justify-end gap-3">
+            <button onClick={onClose} disabled={uploading} className="text-sm px-4 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
+              Cancel
+            </button>
+            <button onClick={doUpload} disabled={uploading || files.length === 0}
+              className="text-sm px-5 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 transition-colors flex items-center gap-2">
+              {uploading && <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>}
+              {uploading ? 'Uploading…' : `Upload ${files.length > 0 ? `${files.length} file${files.length !== 1 ? 's' : ''}` : ''}`}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Submission card ───────────────────────────────────────────────────────────
+function SubmissionCard({ submission, projectId, onUpdate, onDelete }) {
+  const [deleting, setDeleting] = useState(false);
+  const [viewFile, setViewFile] = useState(null);
+
+  async function updateTag(phaseTag) {
+    const res  = await fetch(`/api/projects/${projectId}/drawing-submissions/${submission.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phaseTag }),
+    });
+    const data = await res.json();
+    if (res.ok) onUpdate(data.submission);
+  }
+
+  async function handleDelete() {
+    if (!confirm(`Delete this drawing set (${submission.files.length} file${submission.files.length !== 1 ? 's' : ''})?`)) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/drawing-submissions/${submission.id}`, { method: 'DELETE' });
+      if (res.ok) onDelete(submission.id);
+    } catch {
+      setDeleting(false);
+    }
+  }
+
+  // Build a faux file object for PdfViewerModal (expects storedPath or id + projectId pattern)
+  function makeViewFile(df) {
+    return {
+      id:           df.id,
+      originalName: df.fileName,
+      storedPath:   df.storedPath,
+      mimeType:     df.mimeType || 'application/pdf',
+      // custom URL for drawing files
+      _drawingFileUrl: `/api/projects/${projectId}/drawing-submissions/${submission.id}/files/${df.id}`,
+    };
+  }
+
+  const sourceLabel = submission.source === 'INTERNAL' ? 'Internal' : 'External';
+  const sourceCls   = submission.source === 'INTERNAL'
+    ? 'bg-purple-50 text-purple-700 border-purple-200'
+    : 'bg-slate-100 text-slate-500 border-slate-200';
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-colors shadow-sm">
+      {/* Submission header */}
+      <div className="flex items-start gap-3 px-4 py-3 border-b border-slate-100">
+        <div className="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center shrink-0 mt-0.5">
+          <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+          </svg>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <PhaseTagBadge tag={submission.phaseTag} onChange={updateTag} />
+            <span className={`text-[10px] font-semibold px-2 py-1 rounded-full border ${sourceCls}`}>{sourceLabel}</span>
+            <span className="text-xs text-slate-400">{formatDate(submission.createdAt)}</span>
+            <span className="text-xs text-slate-400">· {submission.files.length} file{submission.files.length !== 1 ? 's' : ''}</span>
+          </div>
+          {submission.notes && (
+            <p className="text-xs text-slate-500 mt-1 line-clamp-2">{submission.notes}</p>
+          )}
+        </div>
+
+        <button
+          onClick={handleDelete}
+          disabled={deleting}
+          className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-slate-300 hover:text-red-400 hover:bg-red-50 transition-all disabled:opacity-50"
+          title="Delete submission"
+        >
+          {deleting
+            ? <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+            : <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+          }
+        </button>
+      </div>
+
+      {/* File list */}
+      <div className="divide-y divide-slate-50">
+        {submission.files.map(df => (
+          <button
+            key={df.id}
+            onClick={() => setViewFile(makeViewFile(df))}
+            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors text-left group"
+          >
+            <svg className="w-4 h-4 text-slate-300 group-hover:text-red-400 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+            </svg>
+            <span className="flex-1 text-sm text-slate-700 group-hover:text-blue-700 truncate transition-colors">{df.fileName}</span>
+            <div className="flex items-center gap-2 shrink-0">
+              {df.pageCount && <span className="text-xs text-slate-400">{df.pageCount}p</span>}
+              {df.size      && <span className="text-xs text-slate-400">{formatBytes(df.size)}</span>}
+              <svg className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+              </svg>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {viewFile && (
+        <PdfViewerModal
+          file={viewFile}
+          projectId={projectId}
+          customUrl={viewFile._drawingFileUrl}
+          onClose={() => setViewFile(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+export default function DrawingsTab({ projectId }) {
+  const [submissions, setSubmissions] = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [showUpload,  setShowUpload]  = useState(false);
+  const [error,       setError]       = useState(null);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const res  = await fetch(`/api/projects/${projectId}/drawing-submissions`);
+      const data = await res.json();
+      setSubmissions(data.submissions || []);
+    } catch {
+      setError('Failed to load drawing submissions');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(); }, [projectId]);
+
+  function handleUploaded(submission) {
+    setSubmissions(prev => [submission, ...prev]);
+    setShowUpload(false);
+  }
+
+  function handleUpdate(updated) {
+    setSubmissions(prev => prev.map(s => s.id === updated.id ? updated : s));
+  }
+
+  function handleDelete(id) {
+    setSubmissions(prev => prev.filter(s => s.id !== id));
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-slate-500">
+            {submissions.length > 0
+              ? `${submissions.length} submission${submissions.length !== 1 ? 's' : ''} · click a file to view`
+              : 'Upload drawing sets and tag them by phase'}
+          </p>
+        </div>
+        <button
+          onClick={() => setShowUpload(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+          </svg>
+          + Upload Drawing Set
+        </button>
+      </div>
+
+      {/* Loading */}
+      {loading && (
+        <div className="flex items-center gap-2 py-8 text-slate-400 text-sm justify-center">
+          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+          </svg>
+          Loading…
+        </div>
+      )}
+
+      {/* Error */}
+      {error && <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-600">{error}</div>}
+
+      {/* Empty state */}
+      {!loading && submissions.length === 0 && (
+        <div className="bg-white rounded-2xl border border-dashed border-slate-200 py-20 flex flex-col items-center gap-4 text-center px-8">
+          <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center">
+            <svg className="w-7 h-7 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12v3m0 0v3m0-3h-3m3 0h3M13.5 4.5H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V8.625a4.5 4.5 0 00-4.5-4.5z" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-700">No drawing sets yet</p>
+            <p className="text-xs text-slate-400 mt-1">Upload PDFs organized by phase submission. Phase tags can be added later.</p>
+          </div>
+          <button
+            onClick={() => setShowUpload(true)}
+            className="px-5 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+          >
+            + Upload Drawing Set
+          </button>
+        </div>
+      )}
+
+      {/* Submission list */}
+      {!loading && submissions.length > 0 && (
+        <div className="space-y-3">
+          {submissions.map(s => (
+            <SubmissionCard
+              key={s.id}
+              submission={s}
+              projectId={projectId}
+              onUpdate={handleUpdate}
+              onDelete={handleDelete}
+            />
+          ))}
+        </div>
+      )}
+
+      {showUpload && (
+        <UploadModal
+          projectId={projectId}
+          onUploaded={handleUploaded}
+          onClose={() => setShowUpload(false)}
+        />
+      )}
+    </div>
+  );
+}

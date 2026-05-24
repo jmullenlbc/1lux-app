@@ -1,8 +1,8 @@
 'use client';
 
-export default function PdfViewerModal({ file, projectId, onClose }) {
-  // Works with both {id, originalName} (ProjectFile records) and raw storedPath
-  const url = `/api/projects/${projectId}/files/${file.id}`;
+export default function PdfViewerModal({ file, projectId, customUrl, onClose }) {
+  // customUrl overrides the default — used for drawing files served from a different route
+  const url = customUrl || `/api/projects/${projectId}/files/${file.id}`;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black/60" onClick={onClose}>
