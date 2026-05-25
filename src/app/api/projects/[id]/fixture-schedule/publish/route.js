@@ -23,6 +23,14 @@ export async function POST(request, { params }) {
 
   const { submissionTag } = await request.json().catch(() => ({}));
 
+  // Load project to determine matrix type
+  const project = await prisma.project.findUnique({ where: { id: params.id }, select: { serviceType: true, createdById: true } });
+  if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+  if (user.role !== 'ILC_ADMIN' && project.createdById !== user.id)
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  const matrixType = ['peerReview', 'bidOnly'].includes(project.serviceType) ? 'PEER_REVIEW' : 'DESIGN_BID';
+
   // Load current draft
   const draft = await prisma.fixtureSchedule.findFirst({
     where: { projectId: params.id, state: 'DRAFT' },
@@ -146,7 +154,10 @@ export async function POST(request, { params }) {
             mounting:      item.mounting,
             notes:         item.notes,
             internalNotes: item.internalNotes,
+            isAlternate:   item.isAlternate,
+            alternateOf:   item.alternateOf,
             sortOrder:     item.sortOrder,
+            // aiConfidence + aiFlagged intentionally NOT carried forward — fresh draft starts clean
           })),
         },
       },
@@ -161,6 +172,7 @@ export async function POST(request, { params }) {
         version:         nextBidVersion,
         pushedById:      user.id,
         submissionTag:   submissionTag || null,
+        matrixType,
         changeSummary,
         items: { create: bidItems },
       },
