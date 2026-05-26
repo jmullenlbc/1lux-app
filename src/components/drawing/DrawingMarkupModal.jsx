@@ -136,6 +136,7 @@ function TakeoffPanel({ fixtures }) {
 export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose }) {
   const canvasRef    = useRef(null);
   const pdfDocRef    = useRef(null);
+  const cloudDragRef = useRef(null); // { startXFrac, startYFrac, startXPx, startYPx, wasDrag }
   const [totalPages,  setTotalPages]  = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [canvasSize,  setCanvasSize]  = useState({ w: 0, h: 0 });
@@ -162,6 +163,21 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
   // polyDraft: { points: [{xFrac, yFrac, xPx, yPx}, ...] }
   const [polyDraft,       setPolyDraft]       = useState(null);
   const [areaAnnotations, setAreaAnnotations] = useState([]);
+
+  // ── Cloud annotation ──
+  // cloudDraft: null | { mode:'rect', x1Frac,y1Frac,x2Frac,y2Frac,x1px,y1px,x2px,y2px }
+  //                  | { mode:'poly', points:[{xFrac,yFrac,xPx,yPx},...] }
+  const [cloudDraft,       setCloudDraft]       = useState(null);
+  const [cloudAnnotations, setCloudAnnotations] = useState([]);
+
+  // ── Callout annotation ──
+  // calloutDraft: null | { phase:'leader', anchorXFrac,anchorYFrac,anchorXPx,anchorYPx }
+  //                    | { phase:'editing', ...above, textXFrac,textYFrac,textXPx,textYPx, text:'' }
+  const [calloutDraft,       setCalloutDraft]       = useState(null);
+  const [calloutAnnotations, setCalloutAnnotations] = useState([]);
+  const [calloutColor,    setCalloutColor]    = useState('#f59e0b');
+  const [calloutFontSize, setCalloutFontSize] = useState(12);
+  const calloutBoxWidth = 140; // canvas px
 
   // ── Load PDF ──
   useEffect(() => {
@@ -218,7 +234,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
     load();
   }, [file.id, projectId]);
 
-  // ── Load area annotations (reload when page changes) ──
+  // ── Load all annotations for current page ──
   useEffect(() => {
     async function load() {
       const res = await fetch(
@@ -227,6 +243,8 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
       if (res.ok) {
         const data = await res.json();
         setAreaAnnotations(data.filter(a => a.annotation_type === 'AREA'));
+        setCloudAnnotations(data.filter(a => a.annotation_type === 'CLOUD'));
+        setCalloutAnnotations(data.filter(a => a.annotation_type === 'CALLOUT'));
       }
     }
     load();
@@ -241,6 +259,47 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
       area -= pts[j].xPx * pts[i].yPx;
     }
     return Math.abs(area) / 2;
+  }
+
+  // ── Cloud arc path builder ──
+  // Generates an SVG 'd' string with arc bumps along each segment of a closed polygon.
+  // pointsPx: [{x, y}, ...] in canvas pixels. bumpR controls bump size.
+  function buildCloudPath(pointsPx, bumpR = 14) {
+    if (!pointsPx || pointsPx.length < 2) return '';
+    let d = `M ${pointsPx[0].x.toFixed(1)} ${pointsPx[0].y.toFixed(1)}`;
+    for (let i = 0; i < pointsPx.length; i++) {
+      const a = pointsPx[i];
+      const b = pointsPx[(i + 1) % pointsPx.length];
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const segLen = Math.sqrt(dx * dx + dy * dy);
+      if (segLen < 1) continue;
+      const n  = Math.max(1, Math.round(segLen / (2 * bumpR)));
+      const ux = dx / segLen;
+      const uy = dy / segLen;
+      for (let j = 0; j < n; j++) {
+        const ex = a.x + ux * segLen * (j + 1) / n;
+        const ey = a.y + uy * segLen * (j + 1) / n;
+        d += ` A ${bumpR} ${bumpR} 0 0 1 ${ex.toFixed(1)} ${ey.toFixed(1)}`;
+      }
+    }
+    return d + ' Z';
+  }
+
+  // ── Text wrap for callout SVG labels ──
+  function wrapText(text, boxWidthPx, fontSize) {
+    const charsPerLine = Math.max(8, Math.floor(boxWidthPx / (fontSize * 0.55)));
+    const words = (text || '').split(/\s+/).filter(Boolean);
+    if (!words.length) return [''];
+    const lines = [];
+    let current = '';
+    for (const word of words) {
+      const test = current ? `${current} ${word}` : word;
+      if (test.length > charsPerLine && current) { lines.push(current); current = word; }
+      else current = test;
+    }
+    if (current) lines.push(current);
+    return lines;
   }
 
   function formatArea(areaSqPx, ratio, pdfScale) {
@@ -294,6 +353,67 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
     if (res.ok) setAreaAnnotations(prev => prev.filter(a => a.id !== ann.id));
   }
 
+  // ── Cloud save / delete ──
+  async function saveCloudAnnotation(pointsFrac, shape) {
+    const cx = pointsFrac.reduce((s, p) => s + p.x, 0) / pointsFrac.length;
+    const cy = pointsFrac.reduce((s, p) => s + p.y, 0) / pointsFrac.length;
+    const res = await fetch(`/api/projects/${projectId}/annotations`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        drawing_id:      file.id,
+        page_number:     currentPage,
+        annotation_type: 'CLOUD',
+        tool_id:         'TOOL_CLOUD',
+        x: cx, y: cy,
+        scale_factor:    scaleRatio,
+        text_content:    'Revision cloud',
+        metadata:        JSON.stringify({ points: pointsFrac, shape }),
+      }),
+    });
+    if (res.ok) setCloudAnnotations(prev => [...prev, await res.json()]);
+    setCloudDraft(null);
+  }
+
+  async function closeCloudPoly(points) {
+    if (points.length < 3) { setCloudDraft(null); return; }
+    await saveCloudAnnotation(points.map(p => ({ x: p.xFrac, y: p.yFrac })), 'poly');
+  }
+
+  async function deleteCloudAnnotation(ann) {
+    const res = await fetch(`/api/annotations/${ann.id}`, { method: 'DELETE' });
+    if (res.ok) setCloudAnnotations(prev => prev.filter(a => a.id !== ann.id));
+  }
+
+  // ── Callout save / delete ──
+  async function finishCallout() {
+    if (!calloutDraft?.text?.trim()) { setCalloutDraft(null); return; }
+    const res = await fetch(`/api/projects/${projectId}/annotations`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        drawing_id:      file.id,
+        page_number:     currentPage,
+        annotation_type: 'CALLOUT',
+        tool_id:         'TOOL_CALLOUT',
+        x:               calloutDraft.anchorXFrac,
+        y:               calloutDraft.anchorYFrac,
+        x2:              calloutDraft.textXFrac,
+        y2:              calloutDraft.textYFrac,
+        text_content:    calloutDraft.text.trim(),
+        scale_factor:    scaleRatio,
+        metadata:        JSON.stringify({ color: calloutColor, fontSize: calloutFontSize, boxWidth: calloutBoxWidth }),
+      }),
+    });
+    if (res.ok) setCalloutAnnotations(prev => [...prev, await res.json()]);
+    setCalloutDraft(null);
+  }
+
+  async function deleteCalloutAnnotation(ann) {
+    const res = await fetch(`/api/annotations/${ann.id}`, { method: 'DELETE' });
+    if (res.ok) setCalloutAnnotations(prev => prev.filter(a => a.id !== ann.id));
+  }
+
   // ── Save scale to DrawingFile ──
   async function saveScale(ratio) {
     setScaleRatio(ratio);
@@ -313,6 +433,8 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
   useEffect(() => {
     const handler = (e) => {
       if (e.key === 'Escape') {
+        if (calloutDraft)    { setCalloutDraft(null);    return; }
+        if (cloudDraft)      { setCloudDraft(null);      return; }
         if (polyDraft)       { setPolyDraft(null);       return; }
         if (linearDraft)     { setLinearDraft(null);     return; }
         if (selectedFixture) { setSelectedFixture(null); return; }
@@ -322,7 +444,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [onClose, polyDraft, linearDraft, selectedFixture, selectedSymbol]);
+  }, [onClose, calloutDraft, cloudDraft, polyDraft, linearDraft, selectedFixture, selectedSymbol]);
 
   // ── Convert canvas event → fractions and canvas pixels ──
   function eventToCoords(e) {
@@ -334,45 +456,151 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
     return { xFrac, yFrac, xPx, yPx };
   }
 
-  // ── Mouse move — update cursor position for ghost preview & linear draft ──
+  // ── Mouse move — ghost preview, linear draft readout, cloud rect drag ──
   const handleMouseMove = useCallback((e) => {
-    if (!canvasRef.current || !canvasSize.w || !selectedSymbol) return;
-    const rect = canvasRef.current.getBoundingClientRect();
-    setMousePos({
-      x: (e.clientX - rect.left) / rect.width  * canvasSize.w,
-      y: (e.clientY - rect.top)  / rect.height * canvasSize.h,
-    });
+    if (!canvasRef.current || !canvasSize.w) return;
+    const rect  = canvasRef.current.getBoundingClientRect();
+    const xFrac = (e.clientX - rect.left) / rect.width;
+    const yFrac = (e.clientY - rect.top)  / rect.height;
+    const x     = xFrac * canvasSize.w;
+    const y     = yFrac * canvasSize.h;
+
+    if (selectedSymbol) setMousePos({ x, y });
+
+    // Cloud rect drag: detect distance and update live rect draft
+    if (selectedSymbol?.id === 'TOOL_CLOUD' && cloudDragRef.current) {
+      const dx = x - cloudDragRef.current.startXPx;
+      const dy = y - cloudDragRef.current.startYPx;
+      if (Math.sqrt(dx * dx + dy * dy) > 8) cloudDragRef.current.wasDrag = true;
+      if (cloudDragRef.current.wasDrag) {
+        setCloudDraft({
+          mode:   'rect',
+          x1Frac: cloudDragRef.current.startXFrac,
+          y1Frac: cloudDragRef.current.startYFrac,
+          x2Frac: xFrac,
+          y2Frac: yFrac,
+          x1px:   cloudDragRef.current.startXPx,
+          y1px:   cloudDragRef.current.startYPx,
+          x2px:   x,
+          y2px:   y,
+        });
+      }
+    }
   }, [selectedSymbol, canvasSize]);
 
-  // ── Canvas double-click — close polygon ──
+  // ── Canvas double-click — close polygon or cloud poly ──
   const handleCanvasDblClick = useCallback(async (e) => {
-    if (selectedSymbol?.id !== 'TOOL_POLY_AREA' || !polyDraft) return;
     e.stopPropagation();
-    await closePoly(polyDraft.points);
+    if (selectedSymbol?.id === 'TOOL_POLY_AREA' && polyDraft) {
+      await closePoly(polyDraft.points);
+    } else if (selectedSymbol?.id === 'TOOL_CLOUD' && cloudDraft?.mode === 'poly') {
+      await closeCloudPoly(cloudDraft.points);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSymbol, polyDraft, scaleRatio, projectId, file.id, currentPage]);
+  }, [selectedSymbol, polyDraft, cloudDraft, scaleRatio, projectId, file.id, currentPage]);
+
+  // ── Canvas mousedown — begin cloud rect drag ──
+  const handleCanvasMouseDown = useCallback((e) => {
+    if (selectedSymbol?.id !== 'TOOL_CLOUD') return;
+    const rect  = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const xFrac = (e.clientX - rect.left) / rect.width;
+    const yFrac = (e.clientY - rect.top)  / rect.height;
+    cloudDragRef.current = {
+      startXFrac: xFrac,
+      startYFrac: yFrac,
+      startXPx:   xFrac * canvasSize.w,
+      startYPx:   yFrac * canvasSize.h,
+      wasDrag:    false,
+    };
+  }, [selectedSymbol, canvasSize]);
+
+  // ── Canvas mouseup — finalize cloud rect (if drag detected) ──
+  const handleCanvasMouseUp = useCallback(async (e) => {
+    if (selectedSymbol?.id !== 'TOOL_CLOUD' || !cloudDragRef.current) return;
+    const drag = cloudDragRef.current;
+    if (!drag.wasDrag) {
+      // Not a drag — let onClick handle polygon click
+      cloudDragRef.current = null;
+      return;
+    }
+    cloudDragRef.current = null;
+    if (cloudDraft?.mode !== 'rect') return;
+    const { x1Frac, y1Frac, x2Frac, y2Frac, x1px, y1px, x2px, y2px } = cloudDraft;
+    const minXpx = Math.min(x1px, x2px);
+    const maxXpx = Math.max(x1px, x2px);
+    const minYpx = Math.min(y1px, y2px);
+    const maxYpx = Math.max(y1px, y2px);
+    if ((maxXpx - minXpx) < 10 || (maxYpx - minYpx) < 10) { setCloudDraft(null); return; }
+    const minXF = Math.min(x1Frac, x2Frac);
+    const maxXF = Math.max(x1Frac, x2Frac);
+    const minYF = Math.min(y1Frac, y2Frac);
+    const maxYF = Math.max(y1Frac, y2Frac);
+    await saveCloudAnnotation([
+      { x: minXF, y: minYF },
+      { x: maxXF, y: minYF },
+      { x: maxXF, y: maxYF },
+      { x: minXF, y: maxYF },
+    ], 'rect');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSymbol, cloudDraft, projectId, file.id, currentPage, scaleRatio]);
 
   // ── Canvas click ──
   const handleCanvasClick = useCallback(async (e) => {
     if (!selectedSymbol || !canvasRef.current || saving) return;
+
+    // Cloud rect drag was completed in mouseup — don't double-fire
+    if (selectedSymbol.id === 'TOOL_CLOUD' && cloudDragRef.current?.wasDrag) return;
+
     const { xFrac, yFrac, xPx, yPx } = eventToCoords(e);
+
+    // ── Cloud: polygon click mode (single click = add vertex) ──
+    if (selectedSymbol.id === 'TOOL_CLOUD') {
+      if (!cloudDraft || cloudDraft.mode === 'rect') {
+        setCloudDraft({ mode: 'poly', points: [{ xFrac, yFrac, xPx, yPx }] });
+        return;
+      }
+      if (cloudDraft.mode === 'poly') {
+        const CLOSE_THRESH = 14;
+        const first = cloudDraft.points[0];
+        if (Math.hypot(xPx - first.xPx, yPx - first.yPx) < CLOSE_THRESH && cloudDraft.points.length >= 3) {
+          await closeCloudPoly(cloudDraft.points);
+          return;
+        }
+        setCloudDraft(prev => ({ ...prev, points: [...prev.points, { xFrac, yFrac, xPx, yPx }] }));
+        return;
+      }
+    }
+
+    // ── Callout: two-click leader then text-box placement ──
+    if (selectedSymbol.id === 'TOOL_CALLOUT') {
+      if (calloutDraft?.phase === 'editing') return; // swallow clicks while editing
+      if (!calloutDraft) {
+        setCalloutDraft({ phase: 'leader', anchorXFrac: xFrac, anchorYFrac: yFrac, anchorXPx: xPx, anchorYPx: yPx });
+        return;
+      }
+      if (calloutDraft.phase === 'leader') {
+        setCalloutDraft(prev => ({
+          ...prev, phase: 'editing',
+          textXFrac: xFrac, textYFrac: yFrac,
+          textXPx: xPx, textYPx: yPx, text: '',
+        }));
+        return;
+      }
+    }
 
     // ── Polygon area: multi-click flow ──
     if (selectedSymbol.id === 'TOOL_POLY_AREA') {
-      const CLOSE_THRESH = 14; // px — clicking this close to first point closes the polygon
+      const CLOSE_THRESH = 14;
       if (!polyDraft) {
-        // First click: start polygon
         setPolyDraft({ points: [{ xFrac, yFrac, xPx, yPx }] });
         return;
       }
-      // Check if clicking near the first vertex to close
       const first = polyDraft.points[0];
-      const dist  = Math.hypot(xPx - first.xPx, yPx - first.yPx);
-      if (dist < CLOSE_THRESH && polyDraft.points.length >= 3) {
+      if (Math.hypot(xPx - first.xPx, yPx - first.yPx) < CLOSE_THRESH && polyDraft.points.length >= 3) {
         await closePoly(polyDraft.points);
         return;
       }
-      // Add vertex
       setPolyDraft(prev => ({ points: [...prev.points, { xFrac, yFrac, xPx, yPx }] }));
       return;
     }
@@ -380,19 +608,14 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
     // ── Linear: two-click flow ──
     if (selectedSymbol.isLinear) {
       if (!linearDraft) {
-        // First click: anchor the start point
         setLinearDraft({ symbolId: selectedSymbol.id, x1Frac: xFrac, y1Frac: yFrac, x1px: xPx, y1px: yPx });
         return;
       }
-
-      // Second click: complete placement
-      const dx       = xPx - linearDraft.x1px;
-      const dy       = yPx - linearDraft.y1px;
-      const lenPx    = Math.sqrt(dx * dx + dy * dy);
-      if (lenPx < 5) { setLinearDraft(null); return; } // too short — cancel
-
+      const dx = xPx - linearDraft.x1px;
+      const dy = yPx - linearDraft.y1px;
+      const lenPx = Math.sqrt(dx * dx + dy * dy);
+      if (lenPx < 5) { setLinearDraft(null); return; }
       const lenInches = toRealWorld(lenPx, scaleRatio, PDF_RENDER_SCALE);
-
       setSaving(true);
       const res = await fetch(`/api/projects/${projectId}/placed-fixtures`, {
         method:  'POST',
@@ -411,10 +634,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
           scale_ratio:    scaleRatio,
         }),
       });
-      if (res.ok) {
-        const fixture = await res.json();
-        setFixtures(prev => [...prev, fixture]);
-      }
+      if (res.ok) setFixtures(prev => [...prev, await res.json()]);
       setLinearDraft(null);
       setSaving(false);
       return;
@@ -435,13 +655,10 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
         scale_ratio:    scaleRatio,
       }),
     });
-    if (res.ok) {
-      const fixture = await res.json();
-      setFixtures(prev => [...prev, fixture]);
-    }
+    if (res.ok) setFixtures(prev => [...prev, await res.json()]);
     setSaving(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSymbol, polyDraft, linearDraft, saving, scaleRatio, projectId, file.id, currentPage, canvasSize]);
+  }, [selectedSymbol, polyDraft, cloudDraft, calloutDraft, linearDraft, saving, scaleRatio, projectId, file.id, currentPage, canvasSize]);
 
   // ── Confirm fixture ──
   async function confirmFixture(fixture) {
@@ -481,6 +698,16 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
 
   // Cursor label
   const statusMsg = (() => {
+    if (calloutDraft?.phase === 'editing') return 'Type callout text — Enter to save · Esc to cancel';
+    if (calloutDraft?.phase === 'leader')  return 'Click to anchor the text box';
+    if (selectedSymbol?.id === 'TOOL_CALLOUT') return 'Click the point to call out (arrow tip)';
+    if (cloudDraft?.mode === 'poly') {
+      const n = cloudDraft.points.length;
+      return n < 3
+        ? `${n} point${n !== 1 ? 's' : ''} — keep clicking to add cloud vertices`
+        : `${n} points — click start point or double-click to close cloud`;
+    }
+    if (selectedSymbol?.id === 'TOOL_CLOUD') return 'Drag to draw rectangle cloud · single click for polygon cloud';
     if (polyDraft) {
       const n = polyDraft.points.length;
       return n < 3
@@ -625,6 +852,35 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
             </div>
           )}
 
+          {/* Cloud draft indicator */}
+          {cloudDraft?.mode === 'poly' && (
+            <div className="mx-2 mt-1 px-2 py-1.5 rounded-lg bg-sky-900/30 border border-sky-600/40 shrink-0">
+              <p className="text-[9px] text-sky-400 font-semibold">
+                Cloud: {cloudDraft.points.length} {cloudDraft.points.length === 1 ? 'point' : 'points'}
+              </p>
+              <p className="text-[8px] text-zinc-400 mt-0.5">
+                {cloudDraft.points.length < 3 ? 'Keep clicking' : 'Click start or dbl-click to close'}
+              </p>
+              <button onClick={() => setCloudDraft(null)}
+                className="text-[8px] text-sky-500 hover:text-sky-200 mt-0.5">
+                Esc to cancel ×
+              </button>
+            </div>
+          )}
+
+          {/* Callout draft indicator */}
+          {calloutDraft && (
+            <div className="mx-2 mt-1 px-2 py-1.5 rounded-lg bg-violet-900/30 border border-violet-600/40 shrink-0">
+              <p className="text-[9px] text-violet-400 font-semibold">
+                Callout: {calloutDraft.phase === 'leader' ? 'click text position' : 'type text'}
+              </p>
+              <button onClick={() => setCalloutDraft(null)}
+                className="text-[8px] text-violet-500 hover:text-violet-200 mt-0.5">
+                Esc to cancel ×
+              </button>
+            </div>
+          )}
+
           {/* Symbol grid (scrollable) */}
           <div className="flex-1 overflow-y-auto">
             <SymbolGrid
@@ -634,6 +890,8 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                 setSelectedSymbol(sym);
                 setLinearDraft(null);
                 setPolyDraft(null);
+                setCloudDraft(null);
+                setCalloutDraft(null);
               }}
             />
           </div>
@@ -668,8 +926,10 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                 className="block"
                 onClick={handleCanvasClick}
                 onDoubleClick={handleCanvasDblClick}
+                onMouseDown={handleCanvasMouseDown}
+                onMouseUp={handleCanvasMouseUp}
                 onMouseMove={handleMouseMove}
-                onMouseLeave={() => setMousePos(null)}
+                onMouseLeave={() => { setMousePos(null); }}
               />
 
               {/* ── Symbol overlay ── */}
@@ -748,6 +1008,8 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                 {/* Point symbol ghost preview on hover (non-linear, non-poly) */}
                 {selectedSymbol && !selectedSymbol.isLinear
                   && selectedSymbol.id !== 'TOOL_POLY_AREA'
+                  && selectedSymbol.id !== 'TOOL_CLOUD'
+                  && selectedSymbol.id !== 'TOOL_CALLOUT'
                   && mousePos && !linearDraft && (
                   <CanvasSymbol
                     symbolId={selectedSymbol.id}
@@ -834,20 +1096,174 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                       <polygon points={ptStr}
                         fill="#f59e0b" fillOpacity="0.12"
                         stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="5 2"/>
-                      {/* Label background */}
                       <rect x={lx - label.length * 3.5} y={ly - 11}
                         width={label.length * 7 + 8} height={17}
                         rx={4} fill="rgba(0,0,0,0.6)"/>
-                      <text x={lx} y={ly + 3}
-                        textAnchor="middle"
+                      <text x={lx} y={ly + 3} textAnchor="middle"
                         fontSize="11" fontWeight="700" fontFamily="Arial, sans-serif"
-                        fill="#f59e0b">
-                        {label}
-                      </text>
+                        fill="#f59e0b">{label}</text>
+                    </g>
+                  );
+                })}
+
+                {/* ── Cloud draft in progress ── */}
+                {cloudDraft && canvasSize.w > 0 && (() => {
+                  if (cloudDraft.mode === 'rect') {
+                    const x1 = Math.min(cloudDraft.x1px, cloudDraft.x2px);
+                    const y1 = Math.min(cloudDraft.y1px, cloudDraft.y2px);
+                    const x2 = Math.max(cloudDraft.x1px, cloudDraft.x2px);
+                    const y2 = Math.max(cloudDraft.y1px, cloudDraft.y2px);
+                    const pts = [{ x: x1, y: y1 }, { x: x2, y: y1 }, { x: x2, y: y2 }, { x: x1, y: y2 }];
+                    const d = buildCloudPath(pts, Math.min(14, (x2 - x1) / 6, (y2 - y1) / 4));
+                    return <>
+                      <path d={d} fill="#38bdf8" fillOpacity="0.10" stroke="#38bdf8" strokeWidth="1.5"/>
+                    </>;
+                  }
+                  if (cloudDraft.mode === 'poly') {
+                    const pts = cloudDraft.points;
+                    const livePts = mousePos ? [...pts, { xPx: mousePos.x, yPx: mousePos.y }] : pts;
+                    const closedPts = pts.map(p => ({ x: p.xPx, y: p.yPx }));
+                    const d = pts.length >= 3 ? buildCloudPath(closedPts) : null;
+                    return <>
+                      {d && <path d={d} fill="#38bdf8" fillOpacity="0.10" stroke="#38bdf8" strokeWidth="1.5"/>}
+                      {pts.length >= 2 && !d && (
+                        <polyline points={pts.map(p => `${p.xPx},${p.yPx}`).join(' ')}
+                          stroke="#38bdf8" strokeWidth="1.5" fill="none" strokeDasharray="5 2"/>
+                      )}
+                      {mousePos && pts.length >= 1 && (
+                        <line x1={pts[pts.length - 1].xPx} y1={pts[pts.length - 1].yPx}
+                          x2={mousePos.x} y2={mousePos.y}
+                          stroke="#38bdf8" strokeWidth="1" strokeDasharray="4 2" opacity="0.6"/>
+                      )}
+                      {pts.map((p, i) => (
+                        <circle key={i} cx={p.xPx} cy={p.yPx}
+                          r={i === 0 ? 7 : 4}
+                          fill={i === 0 ? '#38bdf8' : '#fff'}
+                          stroke="#38bdf8" strokeWidth="1.5"/>
+                      ))}
+                      {pts.length >= 3 && (
+                        <circle cx={pts[0].xPx} cy={pts[0].yPx} r={14}
+                          fill="none" stroke="#38bdf8" strokeWidth="1"
+                          strokeDasharray="3 2" opacity="0.5"/>
+                      )}
+                    </>;
+                  }
+                  return null;
+                })()}
+
+                {/* ── Saved cloud annotations ── */}
+                {cloudAnnotations.map(ann => {
+                  let meta = null;
+                  try { meta = ann.metadata ? JSON.parse(ann.metadata) : null; } catch {}
+                  if (!meta?.points) return null;
+                  const ptsPx = meta.points.map(p => ({ x: p.x * canvasSize.w, y: p.y * canvasSize.h }));
+                  const bumpR = meta.shape === 'rect'
+                    ? Math.min(14, (ptsPx[1].x - ptsPx[0].x) / 6, (ptsPx[2].y - ptsPx[1].y) / 4)
+                    : 14;
+                  const d = buildCloudPath(ptsPx, bumpR);
+                  return (
+                    <g key={ann.id} style={{ pointerEvents: 'all' }}
+                      onDoubleClick={() => deleteCloudAnnotation(ann)}
+                      title="Double-click to delete">
+                      <path d={d} fill="#38bdf8" fillOpacity="0.10"
+                        stroke="#38bdf8" strokeWidth="1.5"/>
+                    </g>
+                  );
+                })}
+
+                {/* ── Callout draft: rubber-band leader + crosshair ── */}
+                {calloutDraft && mousePos && calloutDraft.phase === 'leader' && (
+                  <>
+                    <circle cx={calloutDraft.anchorXPx} cy={calloutDraft.anchorYPx}
+                      r={5} fill={calloutColor} opacity="0.9"/>
+                    <line x1={calloutDraft.anchorXPx} y1={calloutDraft.anchorYPx}
+                      x2={mousePos.x} y2={mousePos.y}
+                      stroke={calloutColor} strokeWidth="1.5" strokeDasharray="5 2"/>
+                  </>
+                )}
+                {calloutDraft && calloutDraft.phase === 'editing' && (
+                  <>
+                    <circle cx={calloutDraft.anchorXPx} cy={calloutDraft.anchorYPx}
+                      r={5} fill={calloutColor}/>
+                    <line x1={calloutDraft.anchorXPx} y1={calloutDraft.anchorYPx}
+                      x2={calloutDraft.textXPx} y2={calloutDraft.textYPx}
+                      stroke={calloutColor} strokeWidth="1.5"/>
+                  </>
+                )}
+
+                {/* ── Saved callout annotations ── */}
+                {calloutAnnotations.map(ann => {
+                  let meta = null;
+                  try { meta = ann.metadata ? JSON.parse(ann.metadata) : null; } catch {}
+                  const color    = meta?.color    || '#f59e0b';
+                  const fontSize = meta?.fontSize || 12;
+                  const boxWidth = meta?.boxWidth  || 140;
+                  const ax = ann.x  * canvasSize.w;
+                  const ay = ann.y  * canvasSize.h;
+                  const tx = ann.x2 * canvasSize.w;
+                  const ty = ann.y2 * canvasSize.h;
+                  const lines = wrapText(ann.text_content || '', boxWidth, fontSize);
+                  const lineH  = fontSize + 4;
+                  const boxH   = lines.length * lineH + 8;
+                  return (
+                    <g key={ann.id} style={{ pointerEvents: 'all' }}
+                      onDoubleClick={() => deleteCalloutAnnotation(ann)}
+                      title="Double-click to delete">
+                      <circle cx={ax} cy={ay} r={4} fill={color}/>
+                      <line x1={ax} y1={ay} x2={tx} y2={ty}
+                        stroke={color} strokeWidth="1.5"/>
+                      <rect x={tx} y={ty} width={boxWidth} height={boxH} rx={3}
+                        fill="rgba(0,0,0,0.72)" stroke={color} strokeWidth="1"/>
+                      {lines.map((line, i) => (
+                        <text key={i}
+                          x={tx + 5} y={ty + 4 + (i + 1) * lineH - 3}
+                          fontSize={fontSize} fontFamily="Arial, sans-serif" fill={color}>
+                          {line}
+                        </text>
+                      ))}
                     </g>
                   );
                 })}
               </svg>
+
+              {/* ── Callout editing overlay ── */}
+              {calloutDraft?.phase === 'editing' && (
+                <div className="absolute z-20 shadow-2xl"
+                  style={{ left: calloutDraft.textXPx, top: calloutDraft.textYPx, width: calloutBoxWidth }}>
+                  {/* Mini toolbar */}
+                  <div className="flex items-center gap-1 px-1.5 py-1 bg-zinc-800 border border-zinc-600 rounded-t">
+                    {['#f59e0b', '#ef4444', '#22c55e', '#3b82f6', '#e2e8f0'].map(col => (
+                      <button key={col} onClick={() => setCalloutColor(col)}
+                        className="w-4 h-4 rounded-full border-2 shrink-0 transition-transform hover:scale-125"
+                        style={{ background: col, borderColor: calloutColor === col ? '#fff' : 'transparent' }}/>
+                    ))}
+                    <select value={calloutFontSize}
+                      onChange={e => setCalloutFontSize(Number(e.target.value))}
+                      className="ml-auto text-[9px] bg-zinc-700 text-zinc-200 border border-zinc-600 rounded px-0.5 py-px">
+                      {[8, 10, 12, 14, 16, 20].map(s => <option key={s} value={s}>{s}px</option>)}
+                    </select>
+                  </div>
+                  {/* Textarea */}
+                  <textarea
+                    autoFocus
+                    value={calloutDraft.text || ''}
+                    onChange={e => setCalloutDraft(prev => ({ ...prev, text: e.target.value }))}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); finishCallout(); }
+                      if (e.key === 'Escape') setCalloutDraft(null);
+                    }}
+                    placeholder="Type callout text…"
+                    rows={3}
+                    className="w-full bg-zinc-900/95 border-x border-zinc-600 text-zinc-100 resize-none outline-none px-2 py-1 block"
+                    style={{ fontSize: calloutFontSize, color: calloutColor, lineHeight: 1.4 }}
+                  />
+                  {/* Done button */}
+                  <button onClick={finishCallout}
+                    className="w-full text-[10px] font-semibold bg-red-800 hover:bg-red-700 text-white rounded-b border border-t-0 border-zinc-600 py-1 transition-colors">
+                    Done  (Enter)
+                  </button>
+                </div>
+              )}
 
               {/* ── Fixture action popover ── */}
               {selectedFixture && canvasSize.w > 0 && (() => {

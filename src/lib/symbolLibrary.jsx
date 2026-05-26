@@ -583,6 +583,23 @@ export function getSymbolContent(symbolId, stroke = SYM_STROKE, fill = SYM_FILL_
       </>;
     }
 
+    case 'TOOL_CLOUD':
+      // Revision cloud — clockwise bumpy-arc rectangle (4,14)→(36,30)
+      return <path
+        d="M4,30 A4,4 0 0 1 12,30 A4,4 0 0 1 20,30 A4,4 0 0 1 28,30 A4,4 0 0 1 36,30 A4,4 0 0 1 36,22 A4,4 0 0 1 36,14 A4,4 0 0 1 28,14 A4,4 0 0 1 20,14 A4,4 0 0 1 12,14 A4,4 0 0 1 4,14 A4,4 0 0 1 4,22 A4,4 0 0 1 4,30 Z"
+        stroke={c} strokeWidth={sw} fill={f} fillOpacity={fo}/>;
+
+    case 'TOOL_CALLOUT':
+      // Text callout: dot at lower-left, leader line, text box at upper-right
+      return <>
+        <circle cx={7} cy={33} r={3} fill={c}/>
+        <line x1={7} y1={33} x2={17} y2={21} stroke={c} strokeWidth={sw}/>
+        <rect x={15} y={5} width={23} height={17} rx={2} stroke={c} strokeWidth={sw} fill={f} fillOpacity={fo}/>
+        <line x1={18} y1={11} x2={35} y2={11} stroke={c} strokeWidth="1"/>
+        <line x1={18} y1={15} x2={32} y2={15} stroke={c} strokeWidth="1"/>
+        <line x1={18} y1={19} x2={35} y2={19} stroke={c} strokeWidth="1"/>
+      </>;
+
     default:
       return <>
         <circle cx={20} cy={20} r={14} stroke={c} strokeWidth={sw} fill="none"/>
@@ -864,8 +881,10 @@ export const SYMBOLS = [
   { id: 'CTRL_010V',        label: 'Z',         desc: '0-10V Dimming Switch',          toolset: 'CONTROLS', family: 'Z',   isLinear: false, symInches: null, isFixedSize: true  },
   { id: 'CTRL_KEYPAD',      label: 'S_K',       desc: 'Keypad',                        toolset: 'CONTROLS', family: 'SK',  isLinear: false, symInches: null, isFixedSize: true  },
   { id: 'CTRL_KEYPAD_AMEN', label: 'K',         desc: 'Keypad (Amenities)',            toolset: 'CONTROLS', family: 'K',   isLinear: false, symInches: null, isFixedSize: true  },
-  // ── TOOLS (11) ─────────────────────────────────────────────────────────────
-  { id: 'TOOL_POLY_AREA',        label: 'AREA',  desc: 'Polygon Area Measurement',      toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true  },
+  // ── TOOLS (13) ─────────────────────────────────────────────────────────────
+  { id: 'TOOL_CLOUD',            label: 'CLOUD',   desc: 'Revision Cloud Markup',            toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true  },
+  { id: 'TOOL_CALLOUT',          label: 'CALLOUT', desc: 'Text Callout with Leader Arrow',   toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true  },
+  { id: 'TOOL_POLY_AREA',        label: 'AREA',    desc: 'Polygon Area Measurement',         toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true  },
   { id: 'TOOL_CENTERLINE',      label: 'CL',    desc: 'Centerline Marker',             toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true  },
   { id: 'TOOL_X',               label: 'X',     desc: 'X Mark',                        toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true  },
   { id: 'TOOL_REMOVE',          label: 'DEMO',  desc: 'Remove / Demolish',             toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true  },
