@@ -864,11 +864,11 @@ export const SYMBOLS = [
   { id: 'TOOL_STAMP_DATE',      label: 'DATE',  desc: 'Date Stamp',                    toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true  },
   { id: 'TOOL_ILC_LOGO',        label: 'LOGO',  desc: 'ILC Logo',                      toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true  },
   { id: 'TOOL_SUBMITTAL_BLOCK', label: 'STAMP', desc: 'Submittal Block',               toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true  },
-  { id: 'TOOL_DIM_1_5',         label: "1.5'",  desc: "1.5' Dimension Marker",         toolset: 'TOOLS', family: null, isLinear: true,  symInches: null, isFixedSize: true  },
-  { id: 'TOOL_DIM_2',           label: "2'",    desc: "2' Dimension Marker",           toolset: 'TOOLS', family: null, isLinear: true,  symInches: null, isFixedSize: true  },
-  { id: 'TOOL_DIM_2_5',         label: "2.5'",  desc: "2.5' Dimension Marker",         toolset: 'TOOLS', family: null, isLinear: true,  symInches: null, isFixedSize: true  },
-  { id: 'TOOL_DIM_3',           label: "3'",    desc: "3' Dimension Marker",           toolset: 'TOOLS', family: null, isLinear: true,  symInches: null, isFixedSize: true  },
-  { id: 'TOOL_DIM_4',           label: "4'",    desc: "4' Dimension Marker",           toolset: 'TOOLS', family: null, isLinear: true,  symInches: null, isFixedSize: true  },
+  { id: 'TOOL_DIM_1_5',         label: "1.5'",  desc: "1.5' Dimension Marker",         toolset: 'TOOLS', family: null, isLinear: false, symInches:  18, isFixedSize: false },
+  { id: 'TOOL_DIM_2',           label: "2'",    desc: "2' Dimension Marker",           toolset: 'TOOLS', family: null, isLinear: false, symInches:  24, isFixedSize: false },
+  { id: 'TOOL_DIM_2_5',         label: "2.5'",  desc: "2.5' Dimension Marker",         toolset: 'TOOLS', family: null, isLinear: false, symInches:  30, isFixedSize: false },
+  { id: 'TOOL_DIM_3',           label: "3'",    desc: "3' Dimension Marker",           toolset: 'TOOLS', family: null, isLinear: false, symInches:  36, isFixedSize: false },
+  { id: 'TOOL_DIM_4',           label: "4'",    desc: "4' Dimension Marker",           toolset: 'TOOLS', family: null, isLinear: false, symInches:  48, isFixedSize: false },
 ];
 
 // ── Lookup maps ───────────────────────────────────────────────────────────────
