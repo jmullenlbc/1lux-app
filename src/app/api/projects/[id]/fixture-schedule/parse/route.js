@@ -105,8 +105,13 @@ export async function POST(request, { params }) {
   if (user.role !== 'ILC_ADMIN' && project.createdById !== user.id)
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const formData = await request.formData();
-  const file     = formData.get('file');
+  let formData;
+  try {
+    formData = await request.formData();
+  } catch {
+    return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+  }
+  const file = formData.get('file');
   if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
 
   const buffer = Buffer.from(await file.arrayBuffer());
