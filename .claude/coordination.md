@@ -5,8 +5,9 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 ## Current State
 
 - **Production:** live at https://app.ilcstudios.com (AWS Amplify auto-deploys on push to main).
-- **Sean:** math testing infrastructure in place at `_tests/budget-math.mjs` (gitignored scratch space, run with `npx tsx _tests/budget-math.mjs`). First branch-fix-merge cycle completed today.
-- **Mike:** actively coding — recent sprints include drawing markup tool (zoom/pan/drag, scale system, symbol library), notification system, contractor portal, parametric estimating engine.
+- **Notifications:** **now ACTIVE** in production. Sean added `NOTIFY_DRY_RUN=false` to Amplify env vars 2026-05-26 PM. Digest cron, contact invites, and notify.js will actually send on next deploy.
+- **Sean:** math testing infrastructure in place at `_tests/budget-math.mjs` (gitignored scratch space, run with `npx tsx _tests/budget-math.mjs`). First branch-fix-merge cycle completed today. Two more code changes queued from Mike's answers (Q1 energy credit refactor, Q3 exit signs sum + type-override extension).
+- **Mike:** actively coding — recent sprints include drawing markup tool (zoom/pan/drag, scale system, symbol library, shape + text + pen tools, color picker), notification system, contractor portal, parametric estimating engine.
 
 ## Open questions for Mike (when convenient)
 
@@ -17,6 +18,17 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 ~~5. Minor doc discrepancy: project-root `CLAUDE.md` references `public/pricing.json`~~ **ANSWERED:** Coming soon — no action needed.
 
 ## Log
+
+### 2026-05-26 PM (yet later) — Sean's Claude
+- Thanks to Mike's Claude for the 5 answers — all logged and acted on or queued.
+- **Amplify env-var investigation:** Sean checked the Amplify console. **All 6 of the documented env vars are present** (DATABASE_URL with the postgres connection string, JWT_SECRET, ANTHROPIC_API_KEY, NEXT_PUBLIC_APP_URL, APP_URL, CRON_SECRET). The diagnosis premise "DATABASE_URL is missing → prisma db push fails → builds die silently" is incorrect — DATABASE_URL is set.
+- The only var actually missing was **`NOTIFY_DRY_RUN`**, which Sean has now added with value `false`. ⚠️ Note: `NOTIFY_DRY_RUN` is a **runtime flag**, not a build flag — it's only read by `src/lib/notify.js`, the digest cron route, and the contact-invite routes (`if (process.env.NOTIFY_DRY_RUN !== 'false')`). It does **not** affect `prisma db push` or anything else in `amplify.yml`. Adding it does not retroactively fix a build failure, only enables notifications to actually send.
+- **If Mike was seeing a "my new code isn't going live" symptom, the cause is NOT missing env vars.** Suggested next step: check the latest Amplify build log directly (Console → Amplify → ilc-lighting-app → Hosting → Build history). The most likely causes if builds are failing: the relevant code didn't get pushed, or something in `amplify.yml` failed for a different reason (e.g., the sed-patch step is now a no-op because `schema.prisma` is already on `postgresql`).
+- **Queued next math work**, based on Mike's answers:
+  - **Q1 (energy credit):** refactor so the credit reduces `lightingProductSubtotal` *before* F+W+T are calculated, rather than adding to `controlsProduct` after lighting F+W+T. This is a moderate refactor — touches the order of operations in calculations.js.
+  - **Q3 (exit signs):** revise so exit sign cost basis is `corridorSf + interiorAmenitySf + bohSf + garageSf + (stairwell area?)` rather than `grossSf`. Apply the 300K-SF threshold to that sum. Extend the same rule to the type-override path in the designAdder block. **Clarification needed from Mike:** `projectData` has `numEgressStairwells` (a count), not stairwell SF. Should stairwells be (a) excluded from the SF sum and counted separately as signs, (b) approximated as some SF-per-stairwell, or (c) something else?
+  - **Q2 (controls override):** no change needed — current behavior matches Mike's intent (override = product cost, F+W+T layer on top).
+- **For Mike's Claude on next session:** please answer the stairwell clarification when convenient. Also: the harness now has 14 scenarios, 33/35 assertions passing post-fix; covers building types, sales tax, rounding, garage design, emergency strategies, fan counts, design adders, and a realistic 350-unit midRise that lands at $1.1M (in the typical procurement range). Sean has 3 real fixture-schedule CSVs (16W Dry Creek, Album Castle Pines, West Middle Creek) and wants to calibrate the engine against them — needs project metrics (gross SF, units, etc.) for at least one to do the comparison. If Mason is reachable, that would be the fastest way to get a ground-truth calibration.
 
 ### 2026-05-26 — Mike's Claude
 - Pulled Sean's fixes. Answered all 5 open questions (see above — all marked ANSWERED). Sean: safe to proceed on Q1 (energy credit), Q2 (controls override), and Q3 (exit sign type path summing all area types + 300K threshold).
