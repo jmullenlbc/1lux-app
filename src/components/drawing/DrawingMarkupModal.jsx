@@ -137,6 +137,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
   const canvasRef          = useRef(null);
   const pdfDocRef          = useRef(null);
   const cloudDragRef       = useRef(null); // { startXFrac, startYFrac, startXPx, startYPx, wasDrag }
+  const shapeDragRef       = useRef(null); // { toolId, startXFrac, startYFrac, startXPx, startYPx, wasDrag }
   const scrollContainerRef = useRef(null);
   const panDragRef         = useRef(null); // { x, y, sl, st } — pan drag start
   const fixtureDragRef     = useRef(null); // { fixture, startClientX/Y, origX/YFrac, currentX/YFrac, hasMoved }
@@ -193,6 +194,13 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
   const [calloutColor,    setCalloutColor]    = useState('#f59e0b');
   const [calloutFontSize, setCalloutFontSize] = useState(12);
   const calloutBoxWidth = 140; // canvas px
+
+  // ── Basic shape annotations (LINE, ARROW, RECT, CIRCLE) ──
+  // shapeDraft: null | { toolId, x1, y1, x2, y2 } in canvas px
+  const [shapeDraft,       setShapeDraft]       = useState(null);
+  const [shapeAnnotations, setShapeAnnotations] = useState([]);
+  const [selectedShape,    setSelectedShape]    = useState(null);
+  const [shapeColor,       setShapeColor]       = useState('#FF0000');
 
   // ── Load PDF ──
   useEffect(() => {
@@ -295,6 +303,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
         setAreaAnnotations(data.filter(a => a.annotation_type === 'AREA'));
         setCloudAnnotations(data.filter(a => a.annotation_type === 'CLOUD'));
         setCalloutAnnotations(data.filter(a => a.annotation_type === 'CALLOUT'));
+        setShapeAnnotations(data.filter(a => a.annotation_type === 'SHAPE'));
       }
     }
     load();
@@ -464,6 +473,14 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
     if (res.ok) setCalloutAnnotations(prev => prev.filter(a => a.id !== ann.id));
   }
 
+  async function deleteShapeAnnotation(ann) {
+    const res = await fetch(`/api/annotations/${ann.id}`, { method: 'DELETE' });
+    if (res.ok) {
+      setShapeAnnotations(prev => prev.filter(a => a.id !== ann.id));
+      setSelectedShape(null);
+    }
+  }
+
   // ── Save scale to DrawingFile ──
   async function saveScale(ratio) {
     setScaleRatio(ratio);
@@ -486,7 +503,9 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
         if (calloutDraft)    { setCalloutDraft(null);    return; }
         if (cloudDraft)      { setCloudDraft(null);      return; }
         if (polyDraft)       { setPolyDraft(null);       return; }
+        if (shapeDraft)      { setShapeDraft(null); shapeDragRef.current = null; return; }
         if (linearDraft)     { setLinearDraft(null);     return; }
+        if (selectedShape)   { setSelectedShape(null);   return; }
         if (selectedFixture) { setSelectedFixture(null); return; }
         if (selectedSymbol)  { setSelectedSymbol(null);  return; }
         onClose();
@@ -494,7 +513,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [onClose, calloutDraft, cloudDraft, polyDraft, linearDraft, selectedFixture, selectedSymbol]);
+  }, [onClose, calloutDraft, cloudDraft, polyDraft, shapeDraft, linearDraft, selectedShape, selectedFixture, selectedSymbol]);
 
   // ── Convert canvas event → fractions and canvas pixels ──
   function eventToCoords(e) {
@@ -619,6 +638,20 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
 
     if (selectedSymbol) setMousePos({ x, y });
 
+    // Shape tool drag: update live shape draft
+    if (selectedSymbol?.id?.startsWith('TOOL_SHAPE_') && shapeDragRef.current) {
+      const dx = x - shapeDragRef.current.startXPx;
+      const dy = y - shapeDragRef.current.startYPx;
+      if (Math.sqrt(dx * dx + dy * dy) > 6) shapeDragRef.current.wasDrag = true;
+      if (shapeDragRef.current.wasDrag) {
+        setShapeDraft({
+          toolId: shapeDragRef.current.toolId,
+          x1: shapeDragRef.current.startXPx, y1: shapeDragRef.current.startYPx,
+          x2: x, y2: y,
+        });
+      }
+    }
+
     // Cloud rect drag: detect distance and update live rect draft
     if (selectedSymbol?.id === 'TOOL_CLOUD' && cloudDragRef.current) {
       const dx = x - cloudDragRef.current.startXPx;
@@ -652,14 +685,30 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSymbol, polyDraft, cloudDraft, scaleRatio, projectId, file.id, currentPage]);
 
-  // ── Canvas mousedown — begin cloud rect drag ──
+  // ── Canvas mousedown — begin cloud rect drag or shape drag ──
   const handleCanvasMouseDown = useCallback((e) => {
     if (isPanMode) return;
-    if (selectedSymbol?.id !== 'TOOL_CLOUD') return;
     const rect  = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
     const xFrac = (e.clientX - rect.left) / rect.width;
     const yFrac = (e.clientY - rect.top)  / rect.height;
+
+    // Shape tool drag-to-draw
+    if (selectedSymbol?.id?.startsWith('TOOL_SHAPE_')) {
+      e.stopPropagation();
+      shapeDragRef.current = {
+        toolId:     selectedSymbol.id,
+        startXFrac: xFrac,
+        startYFrac: yFrac,
+        startXPx:   xFrac * canvasSize.w,
+        startYPx:   yFrac * canvasSize.h,
+        wasDrag:    false,
+      };
+      return;
+    }
+
+    // Cloud rect drag
+    if (selectedSymbol?.id !== 'TOOL_CLOUD') return;
     cloudDragRef.current = {
       startXFrac: xFrac,
       startYFrac: yFrac,
@@ -667,13 +716,41 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
       startYPx:   yFrac * canvasSize.h,
       wasDrag:    false,
     };
-  }, [selectedSymbol, canvasSize]);
+  }, [selectedSymbol, canvasSize, isPanMode]);
 
-  // ── Canvas mouseup — finalize cloud rect (if drag detected) ──
-  // Bug fix: recalculate rect from current mouse position rather than relying on cloudDraft state
-  // (state may be stale if React batched updates during a fast drag).
+  // ── Canvas mouseup — finalize shape drag or cloud rect drag ──
   const handleCanvasMouseUp = useCallback(async (e) => {
     if (isPanMode) return;
+
+    // Shape tool: finalize drag
+    if (selectedSymbol?.id?.startsWith('TOOL_SHAPE_') && shapeDragRef.current) {
+      const drag = shapeDragRef.current;
+      shapeDragRef.current = null;
+      setShapeDraft(null);
+      if (!drag.wasDrag) return;
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const x2Frac = (e.clientX - rect.left) / rect.width;
+      const y2Frac = (e.clientY - rect.top)  / rect.height;
+      const x2Px   = x2Frac * canvasSize.w;
+      const y2Px   = y2Frac * canvasSize.h;
+      const dist = Math.sqrt((drag.startXPx - x2Px) ** 2 + (drag.startYPx - y2Px) ** 2);
+      if (dist < 8) return;
+      const res = await fetch(`/api/projects/${projectId}/annotations`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          drawing_id: file.id, page_number: currentPage,
+          annotation_type: 'SHAPE', tool_id: drag.toolId,
+          x: drag.startXFrac, y: drag.startYFrac,
+          x2: x2Frac, y2: y2Frac,
+          scale_factor: scaleRatio,
+          metadata: JSON.stringify({ color: shapeColor }),
+        }),
+      });
+      if (res.ok) { const ann = await res.json(); setShapeAnnotations(prev => [...prev, ann]); }
+      return;
+    }
+
     if (selectedSymbol?.id !== 'TOOL_CLOUD' || !cloudDragRef.current) return;
     const drag = cloudDragRef.current;
     if (!drag.wasDrag) { cloudDragRef.current = null; return; }
@@ -701,12 +778,15 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
       { x: maxXF, y: maxYF }, { x: minXF, y: maxYF },
     ], 'rect');
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPanMode, selectedSymbol, canvasSize, projectId, file.id, currentPage, scaleRatio]);
+  }, [isPanMode, selectedSymbol, canvasSize, projectId, file.id, currentPage, scaleRatio, shapeColor]);
 
   // ── Canvas click ──
   const handleCanvasClick = useCallback(async (e) => {
     if (isPanMode) return;
     if (!selectedSymbol || !canvasRef.current || saving) return;
+
+    // Shape tools use drag — don't process click
+    if (selectedSymbol.id?.startsWith('TOOL_SHAPE_')) return;
 
     // Cloud rect drag was completed in mouseup — don't double-fire
     if (selectedSymbol.id === 'TOOL_CLOUD' && cloudDragRef.current?.wasDrag) return;
@@ -874,6 +954,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
         : `${n} points — click start point or double-click to close polygon`;
     }
     if (selectedSymbol?.id === 'TOOL_POLY_AREA') return 'Click to place first vertex of area polygon';
+    if (selectedSymbol?.id?.startsWith('TOOL_SHAPE_')) return `Drag to draw a ${selectedSymbol.label.toLowerCase()} · click placed shapes to delete`;
     if (linearDraft) return `Click end point to place linear fixture — ${liveLength || '…'} so far`;
     if (selectedSymbol?.isLinear) return `Click start point of ${selectedSymbol.label}`;
     if (selectedSymbol)           return `Click drawing to place ${selectedSymbol.label} — ${selectedSymbol.desc}`;
@@ -1095,6 +1176,8 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                 setPolyDraft(null);
                 setCloudDraft(null);
                 setCalloutDraft(null);
+                setShapeDraft(null);
+                shapeDragRef.current = null;
               }}
             />
           </div>
@@ -1108,7 +1191,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
           onMouseMove={handleContainerMouseMove}
           onMouseUp={handleContainerMouseUp}
           onMouseLeave={handleContainerMouseUp}
-          onClick={(!isPanMode && selectedFixture) ? () => setSelectedFixture(null) : undefined}
+          onClick={(!isPanMode && (selectedFixture || selectedShape)) ? () => { setSelectedFixture(null); setSelectedShape(null); } : undefined}
           style={{ cursor: isPanMode ? (isPanDragging ? 'grabbing' : 'grab') : (selectedSymbol ? 'crosshair' : 'default') }}>
 
           {pdfError ? (
@@ -1230,6 +1313,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                   && selectedSymbol.id !== 'TOOL_POLY_AREA'
                   && selectedSymbol.id !== 'TOOL_CLOUD'
                   && selectedSymbol.id !== 'TOOL_CALLOUT'
+                  && !selectedSymbol.id?.startsWith('TOOL_SHAPE_')
                   && mousePos && !linearDraft && (
                   <CanvasSymbol
                     symbolId={selectedSymbol.id}
@@ -1391,6 +1475,83 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                   );
                 })}
 
+                {/* ── Basic shape draft preview ── */}
+                {shapeDraft && canvasSize.w > 0 && (() => {
+                  const { toolId, x1, y1, x2, y2 } = shapeDraft;
+                  const sw = '1.5'; const col = shapeColor;
+                  if (toolId === 'TOOL_SHAPE_LINE') {
+                    return <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={col} strokeWidth={sw} strokeLinecap="round" strokeDasharray="5 2"/>;
+                  }
+                  if (toolId === 'TOOL_SHAPE_ARROW') {
+                    const angle = Math.atan2(y2 - y1, x2 - x1);
+                    const aLen = 14; const aAng = 0.4;
+                    const ax1 = x2 - aLen * Math.cos(angle - aAng);
+                    const ay1 = y2 - aLen * Math.sin(angle - aAng);
+                    const ax2 = x2 - aLen * Math.cos(angle + aAng);
+                    const ay2 = y2 - aLen * Math.sin(angle + aAng);
+                    return <g>
+                      <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={col} strokeWidth={sw} strokeLinecap="round"/>
+                      <polygon points={`${x2},${y2} ${ax1},${ay1} ${ax2},${ay2}`} fill={col}/>
+                    </g>;
+                  }
+                  if (toolId === 'TOOL_SHAPE_RECT') {
+                    const rx = Math.min(x1, x2), ry = Math.min(y1, y2);
+                    const rw = Math.abs(x2 - x1), rh = Math.abs(y2 - y1);
+                    return <rect x={rx} y={ry} width={rw} height={rh} stroke={col} strokeWidth={sw} fill={col} fillOpacity="0.08" strokeDasharray="5 2"/>;
+                  }
+                  if (toolId === 'TOOL_SHAPE_CIRCLE') {
+                    const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
+                    const erx = Math.abs(x2 - x1) / 2, ery = Math.abs(y2 - y1) / 2;
+                    return <ellipse cx={cx} cy={cy} rx={erx} ry={ery} stroke={col} strokeWidth={sw} fill={col} fillOpacity="0.08" strokeDasharray="5 2"/>;
+                  }
+                  return null;
+                })()}
+
+                {/* ── Saved shape annotations ── */}
+                {shapeAnnotations
+                  .filter(a => a.page_number === currentPage)
+                  .map(a => {
+                    let meta = null;
+                    try { meta = a.metadata ? JSON.parse(a.metadata) : null; } catch {}
+                    const col = meta?.color || '#FF0000';
+                    const isSel = selectedShape?.id === a.id;
+                    const sw = isSel ? 2.5 : 1.5;
+                    const x1 = a.x  * canvasSize.w, y1 = a.y  * canvasSize.h;
+                    const x2 = a.x2 * canvasSize.w, y2 = a.y2 * canvasSize.h;
+                    let shape = null;
+                    if (a.tool_id === 'TOOL_SHAPE_LINE') {
+                      shape = <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={col} strokeWidth={sw} strokeLinecap="round"/>;
+                    } else if (a.tool_id === 'TOOL_SHAPE_ARROW') {
+                      const angle = Math.atan2(y2 - y1, x2 - x1);
+                      const aLen = 14; const aAng = 0.4;
+                      const ax1 = x2 - aLen * Math.cos(angle - aAng);
+                      const ay1 = y2 - aLen * Math.sin(angle - aAng);
+                      const ax2 = x2 - aLen * Math.cos(angle + aAng);
+                      const ay2 = y2 - aLen * Math.sin(angle + aAng);
+                      shape = <g>
+                        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={col} strokeWidth={sw} strokeLinecap="round"/>
+                        <polygon points={`${x2},${y2} ${ax1},${ay1} ${ax2},${ay2}`} fill={col}/>
+                      </g>;
+                    } else if (a.tool_id === 'TOOL_SHAPE_RECT') {
+                      const rx = Math.min(x1, x2), ry = Math.min(y1, y2);
+                      const rw = Math.abs(x2 - x1), rh = Math.abs(y2 - y1);
+                      shape = <rect x={rx} y={ry} width={rw} height={rh} stroke={col} strokeWidth={sw} fill="none"/>;
+                    } else if (a.tool_id === 'TOOL_SHAPE_CIRCLE') {
+                      const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
+                      const erx = Math.abs(x2 - x1) / 2, ery = Math.abs(y2 - y1) / 2;
+                      shape = <ellipse cx={cx} cy={cy} rx={erx} ry={ery} stroke={col} strokeWidth={sw} fill="none"/>;
+                    }
+                    return (
+                      <g key={a.id} style={{ pointerEvents: 'all', cursor: 'pointer' }}
+                        onClick={e => { e.stopPropagation(); setSelectedShape(prev => prev?.id === a.id ? null : a); }}>
+                        {shape}
+                        {isSel && <circle cx={(x1 + x2) / 2} cy={(y1 + y2) / 2} r={6}
+                          fill={col} opacity="0.5"/>}
+                      </g>
+                    );
+                  })
+                }
+
                 {/* ── Callout draft: rubber-band leader + crosshair ── */}
                 {calloutDraft && mousePos && calloutDraft.phase === 'leader' && (
                   <>
@@ -1484,6 +1645,24 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                   </button>
                 </div>
               )}
+
+              {/* ── Shape action popover ── */}
+              {selectedShape && canvasSize.w > 0 && (() => {
+                const px = ((selectedShape.x + selectedShape.x2) / 2) * canvasSize.w;
+                const py = ((selectedShape.y + selectedShape.y2) / 2) * canvasSize.h;
+                const flipY = py > canvasSize.h * 0.8;
+                return (
+                  <div className="absolute z-10 bg-zinc-800 border border-zinc-600 rounded-xl shadow-2xl p-2.5 w-40"
+                    style={{ left: px + 12, top: flipY ? py - 100 : py + 12 }}
+                    onClick={e => e.stopPropagation()}>
+                    <p className="text-[10px] text-zinc-400 font-medium mb-2 capitalize">{selectedShape.tool_id?.replace('TOOL_SHAPE_', '').toLowerCase()} shape</p>
+                    <button onClick={() => deleteShapeAnnotation(selectedShape)}
+                      className="w-full py-1.5 rounded-lg bg-zinc-700 hover:bg-red-900/50 hover:text-red-300 text-zinc-300 text-xs font-medium transition-colors">
+                      Remove
+                    </button>
+                  </div>
+                );
+              })()}
 
               {/* ── Fixture action popover ── */}
               {selectedFixture && canvasSize.w > 0 && (() => {

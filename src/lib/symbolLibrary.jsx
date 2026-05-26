@@ -586,6 +586,22 @@ export function getSymbolContent(symbolId, stroke = SYM_STROKE, fill = SYM_FILL_
       </>;
     }
 
+    // ── Basic shape markup tools ──────────────────────────────────────────────
+    case 'TOOL_SHAPE_LINE':
+      return <line x1={6} y1={34} x2={34} y2={6} stroke={c} strokeWidth="2.5" strokeLinecap="round"/>;
+
+    case 'TOOL_SHAPE_ARROW':
+      return <>
+        <line x1={6} y1={34} x2={30} y2={10} stroke={c} strokeWidth="2.5" strokeLinecap="round"/>
+        <polygon points="30,10 18,13 27,22" fill={c}/>
+      </>;
+
+    case 'TOOL_SHAPE_RECT':
+      return <rect x={5} y={8} width={30} height={24} stroke={c} strokeWidth="2.5" fill="none"/>;
+
+    case 'TOOL_SHAPE_CIRCLE':
+      return <ellipse cx={20} cy={20} rx={16} ry={12} stroke={c} strokeWidth="2.5" fill="none"/>;
+
     case 'TOOL_CLOUD':
       // Revision cloud — clockwise bumpy-arc rectangle (4,14)→(36,30)
       return <path
@@ -884,7 +900,11 @@ export const SYMBOLS = [
   { id: 'CTRL_010V',        label: 'Z',         desc: '0-10V Dimming Switch',          toolset: 'CONTROLS', family: 'Z',   isLinear: false, symInches: null, isFixedSize: true  },
   { id: 'CTRL_KEYPAD',      label: 'S_K',       desc: 'Keypad',                        toolset: 'CONTROLS', family: 'SK',  isLinear: false, symInches: null, isFixedSize: true  },
   { id: 'CTRL_KEYPAD_AMEN', label: 'K',         desc: 'Keypad (Amenities)',            toolset: 'CONTROLS', family: 'K',   isLinear: false, symInches: null, isFixedSize: true  },
-  // ── TOOLS (13) ─────────────────────────────────────────────────────────────
+  // ── TOOLS (17) ─────────────────────────────────────────────────────────────
+  { id: 'TOOL_SHAPE_LINE',   label: 'LINE',   desc: 'Draw a straight line',     toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true },
+  { id: 'TOOL_SHAPE_ARROW',  label: 'ARROW',  desc: 'Draw an arrow',            toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true },
+  { id: 'TOOL_SHAPE_RECT',   label: 'RECT',   desc: 'Draw a rectangle',         toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true },
+  { id: 'TOOL_SHAPE_CIRCLE', label: 'CIRCLE', desc: 'Draw a circle / ellipse',  toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true },
   { id: 'TOOL_CLOUD',            label: 'CLOUD',   desc: 'Revision Cloud Markup',            toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true  },
   { id: 'TOOL_CALLOUT',          label: 'CALLOUT', desc: 'Text Callout with Leader Arrow',   toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true  },
   { id: 'TOOL_POLY_AREA',        label: 'AREA',    desc: 'Polygon Area Measurement',         toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true  },
