@@ -202,6 +202,20 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
   const [selectedShape,    setSelectedShape]    = useState(null);
   const [shapeColor,       setShapeColor]       = useState('#FF0000');
 
+  // ── Text label tool ──
+  // textDraft: null | { xFrac, yFrac, xPx, yPx, text, color, fontSize }
+  const [textDraft,       setTextDraft]       = useState(null);
+  const [textAnnotations, setTextAnnotations] = useState([]);
+  const [textColor,       setTextColor]       = useState('#FF0000');
+  const [textFontSize,    setTextFontSize]    = useState(14);
+
+  // ── Pen/freehand tool ──
+  // penDraft: null | { points: [{x,y},...] }  in canvas px
+  const penDragRef = useRef(null);
+  const [penDraft,       setPenDraft]       = useState(null);
+  const [penAnnotations, setPenAnnotations] = useState([]);
+  const [penColor,       setPenColor]       = useState('#FF0000');
+
   // ── Load PDF ──
   useEffect(() => {
     let cancelled = false;
@@ -304,6 +318,8 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
         setCloudAnnotations(data.filter(a => a.annotation_type === 'CLOUD'));
         setCalloutAnnotations(data.filter(a => a.annotation_type === 'CALLOUT'));
         setShapeAnnotations(data.filter(a => a.annotation_type === 'SHAPE'));
+        setTextAnnotations(data.filter(a => a.annotation_type === 'TEXT'));
+        setPenAnnotations(data.filter(a => a.annotation_type === 'PEN'));
       }
     }
     load();
@@ -481,6 +497,33 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
     }
   }
 
+  async function deleteTextAnnotation(ann) {
+    const res = await fetch(`/api/annotations/${ann.id}`, { method: 'DELETE' });
+    if (res.ok) setTextAnnotations(prev => prev.filter(a => a.id !== ann.id));
+  }
+
+  async function deletePenAnnotation(ann) {
+    const res = await fetch(`/api/annotations/${ann.id}`, { method: 'DELETE' });
+    if (res.ok) setPenAnnotations(prev => prev.filter(a => a.id !== ann.id));
+  }
+
+  async function finishText() {
+    if (!textDraft?.text?.trim()) { setTextDraft(null); return; }
+    const res = await fetch(`/api/projects/${projectId}/annotations`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        drawing_id: file.id, page_number: currentPage,
+        annotation_type: 'TEXT', tool_id: 'TOOL_TEXT',
+        x: textDraft.xFrac, y: textDraft.yFrac,
+        text_content: textDraft.text.trim(),
+        scale_factor: scaleRatio,
+        metadata: JSON.stringify({ color: textDraft.color, fontSize: textDraft.fontSize }),
+      }),
+    });
+    if (res.ok) { const ann = await res.json(); setTextAnnotations(prev => [...prev, ann]); }
+    setTextDraft(null);
+  }
+
   // ── Save scale to DrawingFile ──
   async function saveScale(ratio) {
     setScaleRatio(ratio);
@@ -504,6 +547,8 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
         if (cloudDraft)      { setCloudDraft(null);      return; }
         if (polyDraft)       { setPolyDraft(null);       return; }
         if (shapeDraft)      { setShapeDraft(null); shapeDragRef.current = null; return; }
+        if (textDraft)       { setTextDraft(null);  return; }
+        if (penDraft)        { setPenDraft(null);  penDragRef.current = null; return; }
         if (linearDraft)     { setLinearDraft(null);     return; }
         if (selectedShape)   { setSelectedShape(null);   return; }
         if (selectedFixture) { setSelectedFixture(null); return; }
@@ -513,7 +558,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [onClose, calloutDraft, cloudDraft, polyDraft, shapeDraft, linearDraft, selectedShape, selectedFixture, selectedSymbol]);
+  }, [onClose, calloutDraft, cloudDraft, polyDraft, shapeDraft, textDraft, penDraft, linearDraft, selectedShape, selectedFixture, selectedSymbol]);
 
   // ── Convert canvas event → fractions and canvas pixels ──
   function eventToCoords(e) {
@@ -638,6 +683,14 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
 
     if (selectedSymbol) setMousePos({ x, y });
 
+    // Pen tool: append stroke point
+    if (selectedSymbol?.id === 'TOOL_PEN' && penDragRef.current) {
+      penDragRef.current.points.push({ x, y });
+      penDragRef.current.xFracs.push(xFrac);
+      penDragRef.current.yFracs.push(yFrac);
+      setPenDraft({ points: [...penDragRef.current.points] });
+    }
+
     // Shape tool drag: update live shape draft
     if (selectedSymbol?.id?.startsWith('TOOL_SHAPE_') && shapeDragRef.current) {
       const dx = x - shapeDragRef.current.startXPx;
@@ -707,6 +760,16 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
       return;
     }
 
+    // Pen tool — start freehand stroke
+    if (selectedSymbol?.id === 'TOOL_PEN') {
+      e.stopPropagation();
+      const xPx = xFrac * canvasSize.w;
+      const yPx = yFrac * canvasSize.h;
+      penDragRef.current = { points: [{ x: xPx, y: yPx }], xFracs: [xFrac], yFracs: [yFrac] };
+      setPenDraft({ points: [{ x: xPx, y: yPx }] });
+      return;
+    }
+
     // Cloud rect drag
     if (selectedSymbol?.id !== 'TOOL_CLOUD') return;
     cloudDragRef.current = {
@@ -721,6 +784,28 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
   // ── Canvas mouseup — finalize shape drag or cloud rect drag ──
   const handleCanvasMouseUp = useCallback(async (e) => {
     if (isPanMode) return;
+
+    // Pen tool: finalize stroke
+    if (selectedSymbol?.id === 'TOOL_PEN' && penDragRef.current) {
+      const drag = penDragRef.current;
+      penDragRef.current = null;
+      setPenDraft(null);
+      if (drag.points.length < 3) return;
+      // Simplify: store fraction arrays
+      const pts = drag.xFracs.map((x, i) => ({ x, y: drag.yFracs[i] }));
+      const res = await fetch(`/api/projects/${projectId}/annotations`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          drawing_id: file.id, page_number: currentPage,
+          annotation_type: 'PEN', tool_id: 'TOOL_PEN',
+          x: pts[0].x, y: pts[0].y,
+          scale_factor: scaleRatio,
+          metadata: JSON.stringify({ points: pts, color: penColor }),
+        }),
+      });
+      if (res.ok) { const ann = await res.json(); setPenAnnotations(prev => [...prev, ann]); }
+      return;
+    }
 
     // Shape tool: finalize drag
     if (selectedSymbol?.id?.startsWith('TOOL_SHAPE_') && shapeDragRef.current) {
@@ -778,7 +863,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
       { x: maxXF, y: maxYF }, { x: minXF, y: maxYF },
     ], 'rect');
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPanMode, selectedSymbol, canvasSize, projectId, file.id, currentPage, scaleRatio, shapeColor]);
+  }, [isPanMode, selectedSymbol, canvasSize, projectId, file.id, currentPage, scaleRatio, shapeColor, penColor]);
 
   // ── Canvas click ──
   const handleCanvasClick = useCallback(async (e) => {
@@ -787,6 +872,16 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
 
     // Shape tools use drag — don't process click
     if (selectedSymbol.id?.startsWith('TOOL_SHAPE_')) return;
+
+    // Pen tool uses drag — don't process click
+    if (selectedSymbol.id === 'TOOL_PEN') return;
+
+    // Text tool: single click places a text input at that position
+    if (selectedSymbol.id === 'TOOL_TEXT') {
+      const { xFrac, yFrac, xPx, yPx } = eventToCoords(e);
+      setTextDraft({ xFrac, yFrac, xPx, yPx, text: '', color: textColor, fontSize: textFontSize });
+      return;
+    }
 
     // Cloud rect drag was completed in mouseup — don't double-fire
     if (selectedSymbol.id === 'TOOL_CLOUD' && cloudDragRef.current?.wasDrag) return;
@@ -897,7 +992,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
     if (res.ok) { const f = await res.json(); setFixtures(prev => [...prev, f]); }
     setSaving(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSymbol, polyDraft, cloudDraft, calloutDraft, linearDraft, saving, scaleRatio, projectId, file.id, currentPage, canvasSize]);
+  }, [selectedSymbol, polyDraft, cloudDraft, calloutDraft, linearDraft, saving, scaleRatio, projectId, file.id, currentPage, canvasSize, textColor, textFontSize]);
 
   // ── Confirm fixture ──
   async function confirmFixture(fixture) {
@@ -954,7 +1049,9 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
         : `${n} points — click start point or double-click to close polygon`;
     }
     if (selectedSymbol?.id === 'TOOL_POLY_AREA') return 'Click to place first vertex of area polygon';
-    if (selectedSymbol?.id?.startsWith('TOOL_SHAPE_')) return `Drag to draw a ${selectedSymbol.label.toLowerCase()} · click placed shapes to delete`;
+    if (selectedSymbol?.id?.startsWith('TOOL_SHAPE_')) return `Drag to draw a ${selectedSymbol.label.toLowerCase()} · click to select/delete`;
+    if (selectedSymbol?.id === 'TOOL_TEXT') return 'Click drawing to place a text label';
+    if (selectedSymbol?.id === 'TOOL_PEN')  return 'Drag to draw freehand · double-click placed strokes to delete';
     if (linearDraft) return `Click end point to place linear fixture — ${liveLength || '…'} so far`;
     if (selectedSymbol?.isLinear) return `Click start point of ${selectedSymbol.label}`;
     if (selectedSymbol)           return `Click drawing to place ${selectedSymbol.label} — ${selectedSymbol.desc}`;
@@ -1178,6 +1275,9 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                 setCalloutDraft(null);
                 setShapeDraft(null);
                 shapeDragRef.current = null;
+                setTextDraft(null);
+                setPenDraft(null);
+                penDragRef.current = null;
               }}
             />
           </div>
@@ -1314,6 +1414,8 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                   && selectedSymbol.id !== 'TOOL_CLOUD'
                   && selectedSymbol.id !== 'TOOL_CALLOUT'
                   && !selectedSymbol.id?.startsWith('TOOL_SHAPE_')
+                  && selectedSymbol.id !== 'TOOL_PEN'
+                  && selectedSymbol.id !== 'TOOL_TEXT'
                   && mousePos && !linearDraft && (
                   <CanvasSymbol
                     symbolId={selectedSymbol.id}
@@ -1474,6 +1576,56 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                     </g>
                   );
                 })}
+
+                {/* ── Pen draft preview ── */}
+                {penDraft && penDraft.points.length >= 2 && (
+                  <polyline
+                    points={penDraft.points.map(p => `${p.x},${p.y}`).join(' ')}
+                    stroke={penColor} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                )}
+
+                {/* ── Saved pen annotations ── */}
+                {penAnnotations
+                  .filter(a => a.page_number === currentPage)
+                  .map(a => {
+                    let meta = null;
+                    try { meta = a.metadata ? JSON.parse(a.metadata) : null; } catch {}
+                    if (!meta?.points) return null;
+                    const pts = meta.points.map(p => `${p.x * canvasSize.w},${p.y * canvasSize.h}`).join(' ');
+                    const col = meta?.color || '#FF0000';
+                    return (
+                      <g key={a.id} style={{ pointerEvents: 'all' }}
+                        onDoubleClick={() => deletePenAnnotation(a)}
+                        title="Double-click to delete">
+                        <polyline points={pts} stroke={col} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                      </g>
+                    );
+                  })
+                }
+
+                {/* ── Saved text annotations ── */}
+                {textAnnotations
+                  .filter(a => a.page_number === currentPage)
+                  .map(a => {
+                    let meta = null;
+                    try { meta = a.metadata ? JSON.parse(a.metadata) : null; } catch {}
+                    const col  = meta?.color    || '#FF0000';
+                    const fs   = meta?.fontSize  || 14;
+                    const text = a.text_content  || '';
+                    const px   = a.x * canvasSize.w;
+                    const py   = a.y * canvasSize.h;
+                    return (
+                      <g key={a.id} style={{ pointerEvents: 'all' }}
+                        onDoubleClick={() => deleteTextAnnotation(a)}
+                        title="Double-click to delete">
+                        <rect x={px - 2} y={py - fs - 2} width={text.length * fs * 0.6 + 8} height={fs + 6}
+                          rx={2} fill="rgba(0,0,0,0.45)"/>
+                        <text x={px + 2} y={py} fontSize={fs} fontFamily="Arial, sans-serif"
+                          fontWeight="600" fill={col}>{text}</text>
+                      </g>
+                    );
+                  })
+                }
 
                 {/* ── Basic shape draft preview ── */}
                 {shapeDraft && canvasSize.w > 0 && (() => {
@@ -1643,6 +1795,49 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                     className="w-full text-[10px] font-semibold bg-red-800 hover:bg-red-700 text-white rounded-b border border-t-0 border-zinc-600 py-1 transition-colors">
                     Done  (Enter)
                   </button>
+                </div>
+              )}
+
+              {/* ── Text tool editing overlay ── */}
+              {textDraft && (
+                <div className="absolute z-20 shadow-2xl"
+                  style={{ left: textDraft.xPx, top: textDraft.yPx - 60, minWidth: 180 }}>
+                  {/* Mini toolbar */}
+                  <div className="flex items-center gap-1 px-1.5 py-1 bg-zinc-800 border border-zinc-600 rounded-t">
+                    {['#FF0000', '#f59e0b', '#22c55e', '#3b82f6', '#e2e8f0', '#000000'].map(col => (
+                      <button key={col} onClick={() => setTextColor(col)}
+                        className="w-4 h-4 rounded-full border-2 shrink-0 transition-transform hover:scale-125"
+                        style={{ background: col, borderColor: textColor === col ? '#fff' : 'transparent' }}/>
+                    ))}
+                    <select value={textFontSize}
+                      onChange={e => setTextFontSize(Number(e.target.value))}
+                      className="ml-auto text-[9px] bg-zinc-700 text-zinc-200 border border-zinc-600 rounded px-0.5 py-px">
+                      {[10, 12, 14, 16, 20, 24, 32].map(s => <option key={s} value={s}>{s}px</option>)}
+                    </select>
+                  </div>
+                  <input
+                    autoFocus
+                    type="text"
+                    value={textDraft.text || ''}
+                    onChange={e => setTextDraft(prev => ({ ...prev, text: e.target.value, color: textColor, fontSize: textFontSize }))}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') { e.preventDefault(); finishText(); }
+                      if (e.key === 'Escape') setTextDraft(null);
+                    }}
+                    placeholder="Type label text…"
+                    className="w-full bg-zinc-900/95 border-x border-zinc-600 text-zinc-100 outline-none px-2 py-1 block"
+                    style={{ fontSize: textFontSize, color: textColor, lineHeight: 1.4 }}
+                  />
+                  <div className="flex gap-1 border border-t-0 border-zinc-600 rounded-b overflow-hidden">
+                    <button onClick={finishText}
+                      className="flex-1 text-[10px] font-semibold bg-red-800 hover:bg-red-700 text-white py-1 transition-colors">
+                      Place (Enter)
+                    </button>
+                    <button onClick={() => setTextDraft(null)}
+                      className="px-2 text-[10px] text-zinc-400 hover:text-white bg-zinc-700 py-1 transition-colors">
+                      ✕
+                    </button>
+                  </div>
                 </div>
               )}
 

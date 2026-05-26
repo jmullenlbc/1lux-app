@@ -602,6 +602,19 @@ export function getSymbolContent(symbolId, stroke = SYM_STROKE, fill = SYM_FILL_
     case 'TOOL_SHAPE_CIRCLE':
       return <ellipse cx={20} cy={20} rx={16} ry={12} stroke={c} strokeWidth="2.5" fill="none"/>;
 
+    case 'TOOL_TEXT':
+      return <>
+        <rect x={4} y={4} width={32} height={24} rx={2} stroke={c} strokeWidth="1.5" fill="none"/>
+        <text x={20} y={20} textAnchor="middle" fontSize="11" fontWeight="700"
+          fill={c} fontFamily="Arial, sans-serif">ABC</text>
+        <line x1={4} y1={32} x2={36} y2={32} stroke={c} strokeWidth="2"/>
+      </>;
+
+    case 'TOOL_PEN':
+      return <path
+        d="M8,32 C12,24 10,16 16,12 C22,8 28,14 26,20 C24,26 28,30 34,28"
+        stroke={c} strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>;
+
     case 'TOOL_CLOUD':
       // Revision cloud — clockwise bumpy-arc rectangle (4,14)→(36,30)
       return <path
@@ -905,6 +918,8 @@ export const SYMBOLS = [
   { id: 'TOOL_SHAPE_ARROW',  label: 'ARROW',  desc: 'Draw an arrow',            toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true },
   { id: 'TOOL_SHAPE_RECT',   label: 'RECT',   desc: 'Draw a rectangle',         toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true },
   { id: 'TOOL_SHAPE_CIRCLE', label: 'CIRCLE', desc: 'Draw a circle / ellipse',  toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true },
+  { id: 'TOOL_TEXT',         label: 'TEXT',   desc: 'Place a text label',       toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true },
+  { id: 'TOOL_PEN',          label: 'PEN',    desc: 'Freehand pen drawing',     toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true },
   { id: 'TOOL_CLOUD',            label: 'CLOUD',   desc: 'Revision Cloud Markup',            toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true  },
   { id: 'TOOL_CALLOUT',          label: 'CALLOUT', desc: 'Text Callout with Leader Arrow',   toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true  },
   { id: 'TOOL_POLY_AREA',        label: 'AREA',    desc: 'Polygon Area Measurement',         toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true  },
