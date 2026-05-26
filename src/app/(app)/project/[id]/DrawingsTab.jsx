@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import PdfViewerModal from '@/components/ui/PdfViewerModal';
+import DrawingMarkupModal from '@/components/drawing/DrawingMarkupModal';
 
 const PHASE_TAGS = ['SD', 'DD', 'CD', 'IFC', 'ASI', 'RFI', 'PERMIT', 'OTHER'];
 const PHASE_COLORS = {
@@ -227,8 +228,8 @@ function UploadModal({ projectId, onUploaded, onClose }) {
 
 // ── Submission card ───────────────────────────────────────────────────────────
 function SubmissionCard({ submission, projectId, onUpdate, onDelete }) {
-  const [deleting, setDeleting] = useState(false);
-  const [viewFile, setViewFile] = useState(null);
+  const [deleting,    setDeleting]    = useState(false);
+  const [markupFile,  setMarkupFile]  = useState(null); // { id, originalName, pdfUrl }
 
   async function updateTag(phaseTag) {
     const res  = await fetch(`/api/projects/${projectId}/drawing-submissions/${submission.id}`, {
@@ -251,16 +252,14 @@ function SubmissionCard({ submission, projectId, onUpdate, onDelete }) {
     }
   }
 
-  // Build a faux file object for PdfViewerModal (expects storedPath or id + projectId pattern)
-  function makeViewFile(df) {
-    return {
+  function openMarkup(df) {
+    setMarkupFile({
       id:           df.id,
+      fileName:     df.fileName,
       originalName: df.fileName,
-      storedPath:   df.storedPath,
-      mimeType:     df.mimeType || 'application/pdf',
-      // custom URL for drawing files
-      _drawingFileUrl: `/api/projects/${projectId}/drawing-submissions/${submission.id}/files/${df.id}`,
-    };
+      scale_ratio:  df.scale_ratio ?? null,
+      pdfUrl:       `/api/projects/${projectId}/drawing-submissions/${submission.id}/files/${df.id}`,
+    });
   }
 
   const sourceLabel = submission.source === 'INTERNAL' ? 'Internal' : 'External';
@@ -308,7 +307,7 @@ function SubmissionCard({ submission, projectId, onUpdate, onDelete }) {
         {submission.files.map(df => (
           <button
             key={df.id}
-            onClick={() => setViewFile(makeViewFile(df))}
+            onClick={() => openMarkup(df)}
             className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors text-left group"
           >
             <svg className="w-4 h-4 text-slate-300 group-hover:text-red-400 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -326,12 +325,12 @@ function SubmissionCard({ submission, projectId, onUpdate, onDelete }) {
         ))}
       </div>
 
-      {viewFile && (
-        <PdfViewerModal
-          file={viewFile}
+      {markupFile && (
+        <DrawingMarkupModal
+          file={markupFile}
           projectId={projectId}
-          customUrl={viewFile._drawingFileUrl}
-          onClose={() => setViewFile(null)}
+          pdfUrl={markupFile.pdfUrl}
+          onClose={() => setMarkupFile(null)}
         />
       )}
     </div>
