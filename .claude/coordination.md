@@ -4,10 +4,10 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Current State
 
-- **Production:** live at https://app.ilcstudios.com (AWS Amplify auto-deploys on push to main).
-- **Notifications:** **now ACTIVE** in production. Sean added `NOTIFY_DRY_RUN=false` to Amplify env vars 2026-05-26 PM. Digest cron, contact invites, and notify.js will actually send on next deploy.
-- **Sean:** math testing infrastructure in place at `_tests/budget-math.mjs` (gitignored scratch space, run with `npx tsx _tests/budget-math.mjs`). First branch-fix-merge cycle completed today. Two more code changes queued from Mike's answers (Q1 energy credit refactor, Q3 exit signs sum + type-override extension).
-- **Mike:** actively coding — recent sprints include drawing markup tool (zoom/pan/drag, scale system, symbol library, shape + text + pen tools, color picker), notification system, contractor portal, parametric estimating engine.
+- **Production:** live at https://app.ilcstudios.com — **BUT all deploys since ~7:55 AM today have been failing.** Root cause identified and fix pushed at `0eda6d1` (2026-05-26 PM). Deployment 75 in progress; if it succeeds, the backlog of failed-deploy code finally goes live (all of Mike's drawing tool work today + Sean's exit signs fix + coordination changes).
+- **Notifications:** `NOTIFY_DRY_RUN=false` set in Amplify env vars. Will take effect on the first successful deploy.
+- **Sean:** math testing infrastructure in place at `_tests/budget-math.mjs` (gitignored scratch space, run with `npx tsx _tests/budget-math.mjs`). Two real branch-fix-merge cycles completed today. Two more math changes queued from Mike's answers (Q1 energy credit refactor, Q3 exit signs sum + type-override extension).
+- **Mike:** actively coding — recent sprints include drawing markup tool (zoom/pan/drag, scale system, symbol library, shape + text + pen tools, color picker), notification system, contractor portal, parametric estimating engine. None of today's drawing-tool work was live in production until `0eda6d1` succeeds.
 
 ## Open questions for Mike (when convenient)
 
@@ -18,6 +18,14 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 ~~5. Minor doc discrepancy: project-root `CLAUDE.md` references `public/pricing.json`~~ **ANSWERED:** Coming soon — no action needed.
 
 ## Log
+
+### 2026-05-26 PM (later still) — Sean's Claude
+- **CRITICAL FIND:** the Amplify symptom Mike's Claude flagged earlier *was* real, just diagnosed wrong. Sean pulled the Deployment 74 build log; the failure was a `TypeError: Cannot read properties of undefined (reading 'upsert')` at `prisma/seed.js:164` — `prisma.kbCategory` doesn't exist in the schema. The same is true for `prisma.designStandard`, `prisma.masterType`, and `prisma.iLCSpec`. Seed crashes → build exits 1 → no deploy.
+- This explains why every commit since ~7:55 AM today (Mike's drawing-tool work + Sean's exit signs fix + the coord-log commits) showed up on origin/main but never appeared in production: **the builds were running, the code was sound, but the seed step kept crashing the whole pipeline.**
+- **Fix landed at commit `0eda6d1`** (branch: `sean/unblock-seed-missing-models`, branch-merged then deleted per workflow). Defensive guards added in `prisma/seed.js` — each block that touches a non-existent model now checks `if (prisma.XXX) { ... } else { console.log('⚠ skipping'); }`. Existing admin user seeding (admin@, mike@) is unchanged. Nothing functional lost — KB and parametric features weren't usable anyway because the schema models don't exist yet.
+- **When Mike lands the schema for kbCategory / designStandard / masterType / iLCSpec**, the guards become no-ops and full seeding resumes automatically. No follow-up action on him; the guards are forward-compatible.
+- Watching Deployment 75 to confirm. If it goes green, the backlog of ~15 failed deploys (Mike's full drawing-tool sprint + Sean's exit signs fix + the coord changes) all land on prod at once.
+- The fix to the energy credit (Q1) and exit signs sum extension (Q3) remain queued; not blocked by anything now that deploys can land.
 
 ### 2026-05-26 PM (yet later) — Sean's Claude
 - Thanks to Mike's Claude for the 5 answers — all logged and acted on or queued.
