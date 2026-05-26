@@ -160,14 +160,20 @@ async function main() {
   }
 
   // ── Knowledge Base categories ────────────────────────────────────────────────
-  for (const cat of KB_CATEGORIES) {
-    await prisma.kbCategory.upsert({
-      where:  { key: cat.key },
-      update: {}, // never overwrite user customisations after first seed
-      create: { key: cat.key, label: cat.label, desc: cat.desc, color: cat.color, icon: cat.icon, position: cat.position, isBuiltIn: cat.isBuiltIn ?? false },
-    });
+  // Defensive: skip if the model isn't in schema yet (WIP feature per Mike).
+  // Without this guard the seed crashes and every Amplify build fails.
+  if (prisma.kbCategory) {
+    for (const cat of KB_CATEGORIES) {
+      await prisma.kbCategory.upsert({
+        where:  { key: cat.key },
+        update: {}, // never overwrite user customisations after first seed
+        create: { key: cat.key, label: cat.label, desc: cat.desc, color: cat.color, icon: cat.icon, position: cat.position, isBuiltIn: cat.isBuiltIn ?? false },
+      });
+    }
+    console.log(`✓ KB categories ready (${KB_CATEGORIES.length})`);
+  } else {
+    console.log('⚠ KB categories: prisma.kbCategory not in schema — skipping');
   }
-  console.log(`✓ KB categories ready (${KB_CATEGORIES.length})`);
 
   // ── Knowledge Base entries ───────────────────────────────────────────────────
   // Get any ILC_ADMIN to use as createdById
@@ -175,7 +181,7 @@ async function main() {
     where: { role: { in: ['ILC_ADMIN', 'SUPER_ADMIN'] } },
   });
 
-  if (adminUser) {
+  if (adminUser && prisma.designStandard) {
     for (const entry of KB_ENTRIES) {
       const { id, ...data } = entry;
       await prisma.designStandard.upsert({
@@ -185,13 +191,23 @@ async function main() {
       });
       console.log('✓ KB entry ready:', entry.title);
     }
+  } else if (!prisma.designStandard) {
+    console.log('⚠ KB entries: prisma.designStandard not in schema — skipping');
   }
 
   // ── Master Types ─────────────────────────────────────────────────────────────
-  await seedMasterTypes(prisma);
+  if (prisma.masterType) {
+    await seedMasterTypes(prisma);
+  } else {
+    console.log('⚠ Master types: prisma.masterType not in schema — skipping');
+  }
 
   // ── ILC Specs ────────────────────────────────────────────────────────────────
-  await seedILCSpecs(prisma);
+  if (prisma.iLCSpec) {
+    await seedILCSpecs(prisma);
+  } else {
+    console.log('⚠ ILC specs: prisma.iLCSpec not in schema — skipping');
+  }
 }
 
 main()
