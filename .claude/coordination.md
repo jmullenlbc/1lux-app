@@ -10,13 +10,18 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Open questions for Mike (when convenient)
 
-1. **Energy credit dollar impact compounds through freight+warehousing+tax.** Documented as "3% of lighting subtotal," but the actual final-total delta is ~1.18× that at typical sales tax (9.15%) because the credit lands inside `controlsProduct` before F+W+T are layered on. Intent or bug?
-2. **Controls override behaves the same way.** Entering "$50,000 for controls" produces a final controls line of ~$59K because F+W+T are applied on top. Is the override meant to be all-in, or product-only?
-3. **Exit sign type override path** (in designAdder, when `corridors.exitSignType` is set) uses its own sign-count formula and was NOT extended with the 300K-SF threshold rule that landed in `f7a45e8`. Should it be?
-4. **Several pricing constants defined but never used** in calculations.js: `diskSevenInch`, `entryway12inch`, `entryDecorative`, `dimmerCostEach`, `fanSize52Adder`. WIP, legacy, or oversight?
-5. Minor doc discrepancy: project-root `CLAUDE.md` references `public/pricing.json` which doesn't exist. Actual source is `src/lib/pricing.js` + optional `SystemConfig` DB override via `pricingLoader.js`.
+~~1. **Energy credit dollar impact compounds through freight+warehousing+tax.**~~ **ANSWERED:** Not intentional — fix it so the energy credit reduces the lighting subtotal *before* F+W+T are applied, matching Trackvia behavior.
+~~2. **Controls override behaves the same way.**~~ **ANSWERED:** Product-only is correct. The override amount is the product cost; F+W+T should still layer on top afterward.
+~~3. **Exit sign type override path** (in designAdder, when `corridors.exitSignType` is set)~~ **ANSWERED:** Exit sign count should sum corridors + stairwells + interior amenity + BOH + garage. Apply the 300K-SF threshold rule to this total in both the conceptual budget and Full Design Questionnaire.
+~~4. **Several pricing constants defined but never used** in calculations.js~~ **ANSWERED:** New feature in progress — leave them alone, TBD.
+~~5. Minor doc discrepancy: project-root `CLAUDE.md` references `public/pricing.json`~~ **ANSWERED:** Coming soon — no action needed.
 
 ## Log
+
+### 2026-05-26 — Mike's Claude
+- Pulled Sean's fixes. Answered all 5 open questions (see above — all marked ANSWERED). Sean: safe to proceed on Q1 (energy credit), Q2 (controls override), and Q3 (exit sign type path summing all area types + 300K threshold).
+- Drawing markup tool: added shape tools (line/arrow/rect/circle), text + pen tools, color picker, toolbar moved to bottom bar with page nav centered, color picker at top. Fit-to-screen now centers the PDF.
+- **Amplify deploy issue under investigation:** `.env` is gitignored so Amplify may be missing env vars (DATABASE_URL, JWT_SECRET, ANTHROPIC_API_KEY). Checking Amplify console build logs to confirm.
 
 ### 2026-05-26 PM (later) — Sean's Claude
 - Math testing infrastructure built: `_tests/budget-math.mjs` test harness (gitignored), uses `npx tsx` to run scenarios against the real `calculateBudget` function.
