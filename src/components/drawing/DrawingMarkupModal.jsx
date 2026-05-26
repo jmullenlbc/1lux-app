@@ -139,6 +139,8 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
   const cloudDragRef       = useRef(null); // { startXFrac, startYFrac, startXPx, startYPx, wasDrag }
   const scrollContainerRef = useRef(null);
   const panDragRef         = useRef(null); // { x, y, sl, st } — pan drag start
+  const fixtureDragRef     = useRef(null); // { fixture, startClientX/Y, origX/YFrac, currentX/YFrac, hasMoved }
+  const lastDragWasMove    = useRef(false);// lets onClick know if just a drag ended
   const hasAutoFit         = useRef(false);
   const zoomRef            = useRef(1);   // mirrors zoom state, safe to read in imperative handlers
   const [totalPages,  setTotalPages]  = useState(0);
@@ -157,6 +159,10 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
   const [zoom,          setZoom]         = useState(1);
   const [isPanMode,     setIsPanMode]    = useState(false);
   const [isPanDragging, setIsPanDragging] = useState(false);
+
+  // ── Fixture drag ──
+  const [dragOverride, setDragOverride] = useState(null);
+  // { id, xFrac, yFrac, x2Frac?, y2Frac? }
 
   // ── Scale system ──
   const [scaleRatio,    setScaleRatio]   = useState(file.scale_ratio ?? DEFAULT_SCALE);
@@ -513,16 +519,84 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
   }, [isPanMode]);
 
   const handleContainerMouseMove = useCallback((e) => {
-    if (!panDragRef.current || !scrollContainerRef.current) return;
-    scrollContainerRef.current.scrollLeft = panDragRef.current.sl - (e.clientX - panDragRef.current.x);
-    scrollContainerRef.current.scrollTop  = panDragRef.current.st - (e.clientY - panDragRef.current.y);
+    // Pan
+    if (panDragRef.current && scrollContainerRef.current) {
+      scrollContainerRef.current.scrollLeft = panDragRef.current.sl - (e.clientX - panDragRef.current.x);
+      scrollContainerRef.current.scrollTop  = panDragRef.current.st - (e.clientY - panDragRef.current.y);
+      return;
+    }
+    // Fixture drag
+    if (fixtureDragRef.current && canvasRef.current) {
+      const drag = fixtureDragRef.current;
+      const dx = e.clientX - drag.startClientX;
+      const dy = e.clientY - drag.startClientY;
+      if (!drag.hasMoved && Math.sqrt(dx * dx + dy * dy) > 4) drag.hasMoved = true;
+      if (!drag.hasMoved) return;
+      const rect = canvasRef.current.getBoundingClientRect();
+      const newX = Math.max(0, Math.min(1, drag.origXFrac + dx / rect.width));
+      const newY = Math.max(0, Math.min(1, drag.origYFrac + dy / rect.height));
+      drag.currentXFrac = newX;
+      drag.currentYFrac = newY;
+      const override = { id: drag.fixture.id, xFrac: newX, yFrac: newY };
+      if (drag.origX2Frac != null) {
+        override.x2Frac = Math.max(0, Math.min(1, drag.origX2Frac + dx / rect.width));
+        override.y2Frac = Math.max(0, Math.min(1, drag.origY2Frac + dy / rect.height));
+        drag.currentX2Frac = override.x2Frac;
+        drag.currentY2Frac = override.y2Frac;
+      }
+      setDragOverride(override);
+    }
   }, []);
 
-  const handleContainerMouseUp = useCallback(() => {
-    if (!panDragRef.current) return;
-    panDragRef.current = null;
-    setIsPanDragging(false);
+  const handleContainerMouseUp = useCallback(async () => {
+    // Pan end
+    if (panDragRef.current) {
+      panDragRef.current = null;
+      setIsPanDragging(false);
+    }
+    // Fixture drag end
+    if (fixtureDragRef.current) {
+      const drag = fixtureDragRef.current;
+      lastDragWasMove.current = drag.hasMoved;
+      if (drag.hasMoved) {
+        const body = { x: drag.currentXFrac, y: drag.currentYFrac };
+        if (drag.origX2Frac != null) {
+          body.x2 = drag.currentX2Frac;
+          body.y2 = drag.currentY2Frac;
+        }
+        // Optimistic update
+        setFixtures(prev => prev.map(f => f.id === drag.fixture.id ? { ...f, ...body } : f));
+        fetch(`/api/placed-fixtures/${drag.fixture.id}`, {
+          method:  'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify(body),
+        });
+      }
+      fixtureDragRef.current = null;
+      setDraggingId && setDraggingId(null);
+      setDragOverride(null);
+    }
   }, []);
+
+  // Start dragging a fixture (called from fixture <g> onMouseDown)
+  const startFixtureDrag = useCallback((e, fixture) => {
+    if (isPanMode || selectedSymbol) return; // pan mode or placing — don't drag fixtures
+    e.stopPropagation();
+    fixtureDragRef.current = {
+      fixture,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      origXFrac:  fixture.x,
+      origYFrac:  fixture.y,
+      origX2Frac: fixture.x2 ?? null,
+      origY2Frac: fixture.y2 ?? null,
+      currentXFrac:  fixture.x,
+      currentYFrac:  fixture.y,
+      currentX2Frac: fixture.x2 ?? null,
+      currentY2Frac: fixture.y2 ?? null,
+      hasMoved: false,
+    };
+  }, [isPanMode, selectedSymbol]);
 
   const fitToScreen = useCallback(() => {
     const c = scrollContainerRef.current;
@@ -803,7 +877,8 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
     if (linearDraft) return `Click end point to place linear fixture — ${liveLength || '…'} so far`;
     if (selectedSymbol?.isLinear) return `Click start point of ${selectedSymbol.label}`;
     if (selectedSymbol)           return `Click drawing to place ${selectedSymbol.label} — ${selectedSymbol.desc}`;
-    return 'Select a symbol from the toolbar, then click the drawing to place it';
+    if (!isPanMode)               return 'Click a fixture to select · drag to reposition';
+    return 'Hand mode — drag to pan · click ↖ to switch back';
   })();
 
   return (
@@ -1076,26 +1151,34 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                   const symId    = f.symbol_id || 'INT_D_CIRCLE';
                   const sym      = SYMBOL_MAP[symId];
                   const isLinear = sym?.isLinear && f.x2 != null && f.y2 != null;
-                  const isSelected = selectedFixture?.id === f.id;
+                  const isSelected  = selectedFixture?.id === f.id;
                   const isConfirmed = f.status === 'CONFIRMED';
+                  const isDragging  = dragOverride?.id === f.id;
+
+                  // Use drag-override coordinates when dragging
+                  const dispX  = isDragging ? dragOverride.xFrac  : f.x;
+                  const dispY  = isDragging ? dragOverride.yFrac  : f.y;
+                  const dispX2 = isDragging ? (dragOverride.x2Frac ?? f.x2) : f.x2;
+                  const dispY2 = isDragging ? (dragOverride.y2Frac ?? f.y2) : f.y2;
 
                   if (isLinear) {
-                    const x1px = f.x  * canvasSize.w;
-                    const y1px = f.y  * canvasSize.h;
-                    const x2px = f.x2 * canvasSize.w;
-                    const y2px = f.y2 * canvasSize.h;
-                    const lenIn = f.length_inches;
-                    const label = lenIn ? formatDimension(lenIn) : undefined;
+                    const x1px = dispX  * canvasSize.w;
+                    const y1px = dispY  * canvasSize.h;
+                    const x2px = dispX2 * canvasSize.w;
+                    const y2px = dispY2 * canvasSize.h;
+                    const label = f.length_inches ? formatDimension(f.length_inches) : undefined;
                     return (
-                      <g key={f.id} style={{ pointerEvents: 'all' }}
-                        onClick={e => { e.stopPropagation(); setSelectedFixture(prev => prev?.id === f.id ? null : f); }}>
+                      <g key={f.id}
+                        style={{ pointerEvents: 'all', cursor: (!isPanMode && !selectedSymbol) ? 'move' : 'default', opacity: isDragging ? 0.75 : 1 }}
+                        onMouseDown={e => startFixtureDrag(e, f)}
+                        onClick={e => { e.stopPropagation(); if (lastDragWasMove.current) { lastDragWasMove.current = false; return; } setSelectedFixture(prev => prev?.id === f.id ? null : f); }}>
                         <CanvasLinearSymbol
                           symbolId={symId}
                           x1={x1px} y1={y1px}
                           x2={x2px} y2={y2px}
                           typeCode={f.master_type_id}
                           confirmed={isConfirmed}
-                          selected={isSelected}
+                          selected={isSelected || isDragging}
                           scaleRatio={scaleRatio}
                           pdfScale={PDF_RENDER_SCALE}
                           lengthLabel={label}
@@ -1104,17 +1187,19 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                     );
                   }
 
-                  const cx = f.x * canvasSize.w;
-                  const cy = f.y * canvasSize.h;
+                  const cx = dispX * canvasSize.w;
+                  const cy = dispY * canvasSize.h;
                   return (
-                    <g key={f.id} style={{ pointerEvents: 'all' }}
-                      onClick={e => { e.stopPropagation(); setSelectedFixture(prev => prev?.id === f.id ? null : f); }}>
+                    <g key={f.id}
+                      style={{ pointerEvents: 'all', cursor: (!isPanMode && !selectedSymbol) ? 'move' : 'default', opacity: isDragging ? 0.75 : 1 }}
+                      onMouseDown={e => startFixtureDrag(e, f)}
+                      onClick={e => { e.stopPropagation(); if (lastDragWasMove.current) { lastDragWasMove.current = false; return; } setSelectedFixture(prev => prev?.id === f.id ? null : f); }}>
                       <CanvasSymbol
                         symbolId={symId}
                         cx={cx} cy={cy}
                         typeCode={f.master_type_id}
                         confirmed={isConfirmed}
-                        selected={isSelected}
+                        selected={isSelected || isDragging}
                         scaleRatio={scaleRatio}
                         pdfScale={PDF_RENDER_SCALE}
                       />
