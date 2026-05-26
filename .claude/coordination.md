@@ -4,10 +4,11 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Current State
 
-- **Production:** live at https://app.ilcstudios.com — **BUT all deploys since ~7:55 AM today have been failing.** Root cause identified and fix pushed at `0eda6d1` (2026-05-26 PM). Deployment 75 in progress; if it succeeds, the backlog of failed-deploy code finally goes live (all of Mike's drawing tool work today + Sean's exit signs fix + coordination changes).
-- **Notifications:** `NOTIFY_DRY_RUN=false` set in Amplify env vars. Will take effect on the first successful deploy.
-- **Sean:** math testing infrastructure in place at `_tests/budget-math.mjs` (gitignored scratch space, run with `npx tsx _tests/budget-math.mjs`). Two real branch-fix-merge cycles completed today. Two more math changes queued from Mike's answers (Q1 energy credit refactor, Q3 exit signs sum + type-override extension).
-- **Mike:** actively coding — recent sprints include drawing markup tool (zoom/pan/drag, scale system, symbol library, shape + text + pen tools, color picker), notification system, contractor portal, parametric estimating engine. None of today's drawing-tool work was live in production until `0eda6d1` succeeds.
+- **Production:** live at https://app.ilcstudios.com and **fully current as of 2026-05-26 PM**. Deployments 75 (`0eda6d1`) and 76 (`518da7d`) both green; the day's backlog of ~20 commits — all of Mike's drawing-tool sprint, Sean's exit signs fix, the coordination updates, NOTIFY_DRY_RUN activation — landed in production at once.
+- **Notifications:** **ACTIVE in production** (NOTIFY_DRY_RUN=false set in Amplify, took effect with Deployment 75/76). Digest cron, contact invites, and notify.js helpers are now actually sending.
+- **Coordination tooling:** four project-scoped slash commands available in both Claude sessions (`/sean`, `/mike`, `/coord`, `/log` — see `.claude/commands/`). The `/log` command is what wrote this entry — `/log` is now the deliberate-write side of cross-Claude coordination.
+- **Sean:** math testing infrastructure in place at `_tests/budget-math.mjs` (gitignored scratch space, run with `npx tsx _tests/budget-math.mjs`). Two real branch-fix-merge cycles completed today (exit signs, seed.js guards). Two math changes still queued from Mike's answers (Q1 energy credit refactor, Q3 exit signs sum + type-override extension).
+- **Mike:** drawing-tool sprint work from today is now live in production. Recent sprints include drawing markup tool (zoom/pan/drag, scale system, symbol library, shape + text + pen tools, color picker), notification system, contractor portal, parametric estimating engine.
 
 ## Open questions for Mike (when convenient)
 
@@ -18,6 +19,12 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 ~~5. Minor doc discrepancy: project-root `CLAUDE.md` references `public/pricing.json`~~ **ANSWERED:** Coming soon — no action needed.
 
 ## Log
+
+### 2026-05-26 PM (end of day) — Sean's Claude
+- **Seed.js fix confirmed working.** Deployments 75 and 76 both deployed green (~3 minutes each). The ~20-commit backlog from earlier in the day — Mike's entire drawing-tool sprint, the exit signs threshold fix, the NOTIFY_DRY_RUN activation, and all coord-log updates — landed in production at once. First successful deploys since ~7:55 AM today.
+- **Four slash commands added** at commit `403b216` in `.claude/commands/`: `/sean`, `/mike`, `/coord`, `/log`. Project-scoped, picked up automatically by both Sean's and Mike's Claude sessions on next session start. `/sean` and `/mike` summarise recent activity; `/coord` snapshots state; `/log` writes a new entry (which is what wrote this one — first real use of the command).
+- **For Mike's Claude on next session:** try `/sean` for a tight summary of what Sean has done. Or `/coord` for a state snapshot including open questions waiting on you. The stairwell-SF clarification from earlier (for Q3 exit signs sum extension) is still pending.
+- Sean's queued work tomorrow: Q1 energy credit refactor (move from controlsProduct post-FWT to lightingProductSubtotal pre-FWT), Q3 exit signs sum extension (waiting on stairwell clarification), and possible ground-truth calibration against three real fixture-schedule CSVs (16W Dry Creek, Album Castle Pines, West Middle Creek) — needs Mason for project metrics.
 
 ### 2026-05-26 PM (later still) — Sean's Claude
 - **CRITICAL FIND:** the Amplify symptom Mike's Claude flagged earlier *was* real, just diagnosed wrong. Sean pulled the Deployment 74 build log; the failure was a `TypeError: Cannot read properties of undefined (reading 'upsert')` at `prisma/seed.js:164` — `prisma.kbCategory` doesn't exist in the schema. The same is true for `prisma.designStandard`, `prisma.masterType`, and `prisma.iLCSpec`. Seed crashes → build exits 1 → no deploy.
