@@ -285,6 +285,13 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
     setZoom(z);
     zoomRef.current = z;
     hasAutoFit.current = true;
+    // Center the PDF on initial load
+    requestAnimationFrame(() => {
+      const scaledW = canvasSize.w * z;
+      const scaledH = canvasSize.h * z;
+      c.scrollLeft = Math.max(0, (scaledW - c.clientWidth)  / 2);
+      c.scrollTop  = Math.max(0, (scaledH - c.clientHeight) / 2);
+    });
   }, [canvasSize.w, canvasSize.h]);
 
   // ── Wheel zoom (non-passive, keeps cursor position fixed) ──
@@ -681,7 +688,13 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
     const fit = Math.min((c.clientWidth - 48) / canvasSize.w, (c.clientHeight - 48) / canvasSize.h);
     const z = Math.min(Math.max(fit, 0.05), 1);
     setZoom(z); zoomRef.current = z;
-    c.scrollLeft = 0; c.scrollTop = 0;
+    // Center the PDF in the scroll container after zoom settles
+    requestAnimationFrame(() => {
+      const scaledW = canvasSize.w * z;
+      const scaledH = canvasSize.h * z;
+      c.scrollLeft = Math.max(0, (scaledW - c.clientWidth)  / 2);
+      c.scrollTop  = Math.max(0, (scaledH - c.clientHeight) / 2);
+    });
   }, [canvasSize]);
 
   // ── Mouse move — ghost preview, linear draft readout, cloud rect drag ──
