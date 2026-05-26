@@ -497,6 +497,13 @@ export function getSymbolContent(symbolId, stroke = SYM_STROKE, fill = SYM_FILL_
     // LIGHTING TOOLS (utility / annotation)
     // ══════════════════════════════════════════════════════════════════════════
 
+    case 'TOOL_POLY_AREA':
+      return <>
+        <polygon points="20,4 36,28 28,36 12,36 4,28" stroke={c} strokeWidth={sw} fill={f} fillOpacity="0.25"/>
+        <text x={20} y={26} textAnchor="middle" fontSize="8" fontWeight="700"
+          fill={c} fontFamily="Arial, sans-serif">AREA</text>
+      </>;
+
     case 'TOOL_CENTERLINE':
       // C label + centerline dash-dot line
       return <>
@@ -858,6 +865,7 @@ export const SYMBOLS = [
   { id: 'CTRL_KEYPAD',      label: 'S_K',       desc: 'Keypad',                        toolset: 'CONTROLS', family: 'SK',  isLinear: false, symInches: null, isFixedSize: true  },
   { id: 'CTRL_KEYPAD_AMEN', label: 'K',         desc: 'Keypad (Amenities)',            toolset: 'CONTROLS', family: 'K',   isLinear: false, symInches: null, isFixedSize: true  },
   // ── TOOLS (11) ─────────────────────────────────────────────────────────────
+  { id: 'TOOL_POLY_AREA',        label: 'AREA',  desc: 'Polygon Area Measurement',      toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true  },
   { id: 'TOOL_CENTERLINE',      label: 'CL',    desc: 'Centerline Marker',             toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true  },
   { id: 'TOOL_X',               label: 'X',     desc: 'X Mark',                        toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true  },
   { id: 'TOOL_REMOVE',          label: 'DEMO',  desc: 'Remove / Demolish',             toolset: 'TOOLS', family: null, isLinear: false, symInches: null, isFixedSize: true  },

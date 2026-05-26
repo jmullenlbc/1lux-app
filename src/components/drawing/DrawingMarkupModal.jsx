@@ -158,6 +158,11 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
   // mousePos: { x, y } in canvas pixels (for live preview line)
   const [mousePos,    setMousePos]    = useState(null);
 
+  // ── Polygon area measurement ──
+  // polyDraft: { points: [{xFrac, yFrac, xPx, yPx}, ...] }
+  const [polyDraft,       setPolyDraft]       = useState(null);
+  const [areaAnnotations, setAreaAnnotations] = useState([]);
+
   // ── Load PDF ──
   useEffect(() => {
     let cancelled = false;
@@ -213,6 +218,82 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
     load();
   }, [file.id, projectId]);
 
+  // ── Load area annotations (reload when page changes) ──
+  useEffect(() => {
+    async function load() {
+      const res = await fetch(
+        `/api/projects/${projectId}/annotations?drawingId=${file.id}&page=${currentPage}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setAreaAnnotations(data.filter(a => a.annotation_type === 'AREA'));
+      }
+    }
+    load();
+  }, [file.id, projectId, currentPage]);
+
+  // ── Polygon area helpers ──
+  function shoelaceAreaSqPx(pts) {
+    let area = 0;
+    for (let i = 0; i < pts.length; i++) {
+      const j = (i + 1) % pts.length;
+      area += pts[i].xPx * pts[j].yPx;
+      area -= pts[j].xPx * pts[i].yPx;
+    }
+    return Math.abs(area) / 2;
+  }
+
+  function formatArea(areaSqPx, ratio, pdfScale) {
+    const pxPerInch = ratio * 72 * pdfScale;
+    const sqFt = areaSqPx / (pxPerInch * pxPerInch) / 144;
+    if (sqFt < 0.01) {
+      const sqIn = areaSqPx / (pxPerInch * pxPerInch);
+      return `${sqIn.toFixed(2)} in²`;
+    }
+    return `${sqFt.toFixed(2)} sq ft`;
+  }
+
+  async function closePoly(points) {
+    if (points.length < 3) { setPolyDraft(null); return; }
+    const areaSqPx  = shoelaceAreaSqPx(points);
+    const areaLabel = formatArea(areaSqPx, scaleRatio, PDF_RENDER_SCALE);
+    const pxPerInch = scaleRatio * 72 * PDF_RENDER_SCALE;
+    const areaSqFt  = areaSqPx / (pxPerInch * pxPerInch) / 144;
+    // Centroid (average of vertices)
+    const cx = points.reduce((s, p) => s + p.xFrac, 0) / points.length;
+    const cy = points.reduce((s, p) => s + p.yFrac, 0) / points.length;
+
+    const res = await fetch(`/api/projects/${projectId}/annotations`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        drawing_id:      file.id,
+        page_number:     currentPage,
+        annotation_type: 'AREA',
+        tool_id:         'TOOL_POLY_AREA',
+        x:               cx,
+        y:               cy,
+        scale_factor:    scaleRatio,
+        text_content:    areaLabel,
+        metadata: {
+          points:     points.map(p => ({ x: p.xFrac, y: p.yFrac })),
+          areaSqFt,
+          scaleRatio,
+        },
+      }),
+    });
+    if (res.ok) {
+      const ann = await res.json();
+      setAreaAnnotations(prev => [...prev, ann]);
+    }
+    setPolyDraft(null);
+  }
+
+  async function deleteAreaAnnotation(ann) {
+    const res = await fetch(`/api/annotations/${ann.id}`, { method: 'DELETE' });
+    if (res.ok) setAreaAnnotations(prev => prev.filter(a => a.id !== ann.id));
+  }
+
   // ── Save scale to DrawingFile ──
   async function saveScale(ratio) {
     setScaleRatio(ratio);
@@ -232,7 +313,8 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
   useEffect(() => {
     const handler = (e) => {
       if (e.key === 'Escape') {
-        if (linearDraft) { setLinearDraft(null); return; }
+        if (polyDraft)       { setPolyDraft(null);       return; }
+        if (linearDraft)     { setLinearDraft(null);     return; }
         if (selectedFixture) { setSelectedFixture(null); return; }
         if (selectedSymbol)  { setSelectedSymbol(null);  return; }
         onClose();
@@ -240,7 +322,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [onClose, linearDraft, selectedFixture, selectedSymbol]);
+  }, [onClose, polyDraft, linearDraft, selectedFixture, selectedSymbol]);
 
   // ── Convert canvas event → fractions and canvas pixels ──
   function eventToCoords(e) {
@@ -262,10 +344,38 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
     });
   }, [selectedSymbol, canvasSize]);
 
+  // ── Canvas double-click — close polygon ──
+  const handleCanvasDblClick = useCallback(async (e) => {
+    if (selectedSymbol?.id !== 'TOOL_POLY_AREA' || !polyDraft) return;
+    e.stopPropagation();
+    await closePoly(polyDraft.points);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSymbol, polyDraft, scaleRatio, projectId, file.id, currentPage]);
+
   // ── Canvas click ──
   const handleCanvasClick = useCallback(async (e) => {
     if (!selectedSymbol || !canvasRef.current || saving) return;
     const { xFrac, yFrac, xPx, yPx } = eventToCoords(e);
+
+    // ── Polygon area: multi-click flow ──
+    if (selectedSymbol.id === 'TOOL_POLY_AREA') {
+      const CLOSE_THRESH = 14; // px — clicking this close to first point closes the polygon
+      if (!polyDraft) {
+        // First click: start polygon
+        setPolyDraft({ points: [{ xFrac, yFrac, xPx, yPx }] });
+        return;
+      }
+      // Check if clicking near the first vertex to close
+      const first = polyDraft.points[0];
+      const dist  = Math.hypot(xPx - first.xPx, yPx - first.yPx);
+      if (dist < CLOSE_THRESH && polyDraft.points.length >= 3) {
+        await closePoly(polyDraft.points);
+        return;
+      }
+      // Add vertex
+      setPolyDraft(prev => ({ points: [...prev.points, { xFrac, yFrac, xPx, yPx }] }));
+      return;
+    }
 
     // ── Linear: two-click flow ──
     if (selectedSymbol.isLinear) {
@@ -330,7 +440,8 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
       setFixtures(prev => [...prev, fixture]);
     }
     setSaving(false);
-  }, [selectedSymbol, linearDraft, saving, scaleRatio, projectId, file.id, currentPage, canvasSize]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSymbol, polyDraft, linearDraft, saving, scaleRatio, projectId, file.id, currentPage, canvasSize]);
 
   // ── Confirm fixture ──
   async function confirmFixture(fixture) {
@@ -370,6 +481,13 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
 
   // Cursor label
   const statusMsg = (() => {
+    if (polyDraft) {
+      const n = polyDraft.points.length;
+      return n < 3
+        ? `${n} point${n !== 1 ? 's' : ''} — keep clicking to add vertices`
+        : `${n} points — click start point or double-click to close polygon`;
+    }
+    if (selectedSymbol?.id === 'TOOL_POLY_AREA') return 'Click to place first vertex of area polygon';
     if (linearDraft) return `Click end point to place linear fixture — ${liveLength || '…'} so far`;
     if (selectedSymbol?.isLinear) return `Click start point of ${selectedSymbol.label}`;
     if (selectedSymbol)           return `Click drawing to place ${selectedSymbol.label} — ${selectedSymbol.desc}`;
@@ -489,6 +607,24 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
             </div>
           )}
 
+          {/* Polygon draft indicator */}
+          {polyDraft && (
+            <div className="mx-2 mt-1 px-2 py-1.5 rounded-lg bg-amber-900/30 border border-amber-600/40 shrink-0">
+              <p className="text-[9px] text-amber-400 font-semibold">
+                {polyDraft.points.length} {polyDraft.points.length === 1 ? 'point' : 'points'}
+              </p>
+              <p className="text-[8px] text-zinc-400 mt-0.5">
+                {polyDraft.points.length < 3
+                  ? 'Keep clicking to add vertices'
+                  : 'Click start point or dbl-click to close'}
+              </p>
+              <button onClick={() => setPolyDraft(null)}
+                className="text-[8px] text-amber-500 hover:text-amber-200 mt-0.5">
+                Esc to cancel ×
+              </button>
+            </div>
+          )}
+
           {/* Symbol grid (scrollable) */}
           <div className="flex-1 overflow-y-auto">
             <SymbolGrid
@@ -496,7 +632,8 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
               selectedSymbol={selectedSymbol}
               onSelect={(sym) => {
                 setSelectedSymbol(sym);
-                setLinearDraft(null); // reset draft on symbol change
+                setLinearDraft(null);
+                setPolyDraft(null);
               }}
             />
           </div>
@@ -530,6 +667,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                 ref={canvasRef}
                 className="block"
                 onClick={handleCanvasClick}
+                onDoubleClick={handleCanvasDblClick}
                 onMouseMove={handleMouseMove}
                 onMouseLeave={() => setMousePos(null)}
               />
@@ -607,8 +745,10 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                   />
                 )}
 
-                {/* Point symbol ghost preview on hover (non-linear) */}
-                {selectedSymbol && !selectedSymbol.isLinear && mousePos && !linearDraft && (
+                {/* Point symbol ghost preview on hover (non-linear, non-poly) */}
+                {selectedSymbol && !selectedSymbol.isLinear
+                  && selectedSymbol.id !== 'TOOL_POLY_AREA'
+                  && mousePos && !linearDraft && (
                   <CanvasSymbol
                     symbolId={selectedSymbol.id}
                     cx={mousePos.x} cy={mousePos.y}
@@ -616,6 +756,97 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                     pdfScale={PDF_RENDER_SCALE}
                   />
                 )}
+
+                {/* ── Polygon area: draft in progress ── */}
+                {polyDraft && canvasSize.w > 0 && (() => {
+                  const pts = polyDraft.points;
+                  const ptStr = pts.map(p => `${p.xPx},${p.yPx}`).join(' ');
+                  // Live area (include cursor as temporary vertex)
+                  const livePts = mousePos
+                    ? [...pts, { xPx: mousePos.x, yPx: mousePos.y }]
+                    : pts;
+                  const liveArea = livePts.length >= 3
+                    ? formatArea(shoelaceAreaSqPx(livePts), scaleRatio, PDF_RENDER_SCALE)
+                    : null;
+                  return <>
+                    {/* Filled preview area (3+ points) */}
+                    {pts.length >= 3 && (
+                      <polygon points={ptStr}
+                        fill="#f59e0b" fillOpacity="0.15" stroke="none"/>
+                    )}
+                    {/* Edges drawn so far */}
+                    {pts.length >= 2 && (
+                      <polyline points={ptStr}
+                        stroke="#f59e0b" strokeWidth="1.5" fill="none" strokeDasharray="5 2"/>
+                    )}
+                    {/* Live edge from last point to cursor */}
+                    {mousePos && pts.length >= 1 && (
+                      <line
+                        x1={pts[pts.length - 1].xPx} y1={pts[pts.length - 1].yPx}
+                        x2={mousePos.x} y2={mousePos.y}
+                        stroke="#f59e0b" strokeWidth="1" strokeDasharray="4 2" opacity="0.7"/>
+                    )}
+                    {/* Vertex dots — first is larger and acts as close target */}
+                    {pts.map((p, i) => (
+                      <circle key={i}
+                        cx={p.xPx} cy={p.yPx}
+                        r={i === 0 ? 7 : 4}
+                        fill={i === 0 ? '#f59e0b' : '#fff'}
+                        stroke="#f59e0b" strokeWidth="1.5"/>
+                    ))}
+                    {/* First-point close indicator ring */}
+                    {pts.length >= 3 && (
+                      <circle cx={pts[0].xPx} cy={pts[0].yPx} r={14}
+                        fill="none" stroke="#f59e0b" strokeWidth="1"
+                        strokeDasharray="3 2" opacity="0.5"/>
+                    )}
+                    {/* Live area label near cursor */}
+                    {liveArea && mousePos && (
+                      <g>
+                        <rect x={mousePos.x + 10} y={mousePos.y - 22}
+                          width={liveArea.length * 6.5 + 10} height={18}
+                          rx={4} fill="rgba(0,0,0,0.65)"/>
+                        <text x={mousePos.x + 15} y={mousePos.y - 9}
+                          fontSize="11" fontWeight="700" fontFamily="Arial, sans-serif"
+                          fill="#f59e0b">
+                          {liveArea}
+                        </text>
+                      </g>
+                    )}
+                  </>;
+                })()}
+
+                {/* ── Saved area annotations ── */}
+                {areaAnnotations.map(ann => {
+                  let meta = null;
+                  try { meta = ann.metadata ? JSON.parse(ann.metadata) : null; } catch {}
+                  if (!meta?.points) return null;
+                  const ptStr = meta.points
+                    .map(p => `${p.x * canvasSize.w},${p.y * canvasSize.h}`)
+                    .join(' ');
+                  const lx = ann.x * canvasSize.w;
+                  const ly = ann.y * canvasSize.h;
+                  const label = ann.text_content || '';
+                  return (
+                    <g key={ann.id} style={{ pointerEvents: 'all' }}
+                      onDoubleClick={() => deleteAreaAnnotation(ann)}
+                      title="Double-click to delete">
+                      <polygon points={ptStr}
+                        fill="#f59e0b" fillOpacity="0.12"
+                        stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="5 2"/>
+                      {/* Label background */}
+                      <rect x={lx - label.length * 3.5} y={ly - 11}
+                        width={label.length * 7 + 8} height={17}
+                        rx={4} fill="rgba(0,0,0,0.6)"/>
+                      <text x={lx} y={ly + 3}
+                        textAnchor="middle"
+                        fontSize="11" fontWeight="700" fontFamily="Arial, sans-serif"
+                        fill="#f59e0b">
+                        {label}
+                      </text>
+                    </g>
+                  );
+                })}
               </svg>
 
               {/* ── Fixture action popover ── */}
