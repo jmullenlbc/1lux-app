@@ -180,18 +180,31 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
   const [polyDraft,       setPolyDraft]       = useState(null);
   const [areaAnnotations, setAreaAnnotations] = useState([]);
 
+  // ── Markup color (shared across all drawing/annotation tools) ──
+  const MARKUP_COLORS = ['#FF0000','#f97316','#facc15','#22c55e','#3b82f6','#a855f7','#000000','#ffffff'];
+  const [markupColor, _setMarkupColor] = useState('#FF0000');
+  function setMarkupColor(col) {
+    _setMarkupColor(col);
+    setCalloutColor(col);
+    setCloudColor(col);
+    setShapeColor(col);
+    setTextColor(col);
+    setPenColor(col);
+  }
+
   // ── Cloud annotation ──
   // cloudDraft: null | { mode:'rect', x1Frac,y1Frac,x2Frac,y2Frac,x1px,y1px,x2px,y2px }
   //                  | { mode:'poly', points:[{xFrac,yFrac,xPx,yPx},...] }
   const [cloudDraft,       setCloudDraft]       = useState(null);
   const [cloudAnnotations, setCloudAnnotations] = useState([]);
+  const [cloudColor,       setCloudColor]       = useState('#FF0000');
 
   // ── Callout annotation ──
   // calloutDraft: null | { phase:'leader', anchorXFrac,anchorYFrac,anchorXPx,anchorYPx }
   //                    | { phase:'editing', ...above, textXFrac,textYFrac,textXPx,textYPx, text:'' }
   const [calloutDraft,       setCalloutDraft]       = useState(null);
   const [calloutAnnotations, setCalloutAnnotations] = useState([]);
-  const [calloutColor,    setCalloutColor]    = useState('#f59e0b');
+  const [calloutColor,    setCalloutColor]    = useState('#FF0000');
   const [calloutFontSize, setCalloutFontSize] = useState(12);
   const calloutBoxWidth = 140; // canvas px
 
@@ -443,7 +456,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
         x: cx, y: cy,
         scale_factor:    scaleRatio,
         text_content:    'Revision cloud',
-        metadata:        JSON.stringify({ points: pointsFrac, shape }),
+        metadata:        JSON.stringify({ points: pointsFrac, shape, color: cloudColor }),
       }),
     });
     if (res.ok) { const ann = await res.json(); setCloudAnnotations(prev => [...prev, ann]); }
@@ -863,7 +876,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
       { x: maxXF, y: maxYF }, { x: minXF, y: maxYF },
     ], 'rect');
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPanMode, selectedSymbol, canvasSize, projectId, file.id, currentPage, scaleRatio, shapeColor, penColor]);
+  }, [isPanMode, selectedSymbol, canvasSize, projectId, file.id, currentPage, scaleRatio, shapeColor, penColor, cloudColor]);
 
   // ── Canvas click ──
   const handleCanvasClick = useCallback(async (e) => {
@@ -1130,6 +1143,30 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
             </svg>
           </button>
+
+          {/* ── Markup color picker ── */}
+          <div className="w-px h-4 bg-zinc-700 mx-0.5"/>
+          <span className="text-[9px] text-zinc-500 shrink-0 select-none">Color</span>
+          <div className="flex items-center gap-0.5">
+            {MARKUP_COLORS.map(col => (
+              <button key={col} title={col}
+                onClick={() => setMarkupColor(col)}
+                className="rounded-full border-2 transition-transform hover:scale-125 shrink-0"
+                style={{
+                  width: 14, height: 14,
+                  background: col,
+                  borderColor: markupColor === col ? '#fff' : 'transparent',
+                  boxShadow: col === '#ffffff' ? 'inset 0 0 0 1px #666' : 'none',
+                }}/>
+            ))}
+            {/* Custom color picker */}
+            <label title="Custom color" className="relative cursor-pointer shrink-0"
+              style={{ width: 14, height: 14 }}>
+              <input type="color" value={markupColor} onChange={e => setMarkupColor(e.target.value)}
+                className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"/>
+              <span className="flex items-center justify-center w-full h-full rounded-full border border-zinc-500 bg-gradient-to-br from-zinc-600 to-zinc-800 text-[8px] text-zinc-300">+</span>
+            </label>
+          </div>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
@@ -1522,7 +1559,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                     const pts = [{ x: x1, y: y1 }, { x: x2, y: y1 }, { x: x2, y: y2 }, { x: x1, y: y2 }];
                     const d = buildCloudPath(pts, Math.min(14, (x2 - x1) / 6, (y2 - y1) / 4));
                     return <>
-                      <path d={d} fill="#38bdf8" fillOpacity="0.10" stroke="#38bdf8" strokeWidth="1.5"/>
+                      <path d={d} fill={cloudColor} fillOpacity="0.10" stroke={cloudColor} strokeWidth="1.5"/>
                     </>;
                   }
                   if (cloudDraft.mode === 'poly') {
@@ -1531,25 +1568,25 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                     const closedPts = pts.map(p => ({ x: p.xPx, y: p.yPx }));
                     const d = pts.length >= 3 ? buildCloudPath(closedPts) : null;
                     return <>
-                      {d && <path d={d} fill="#38bdf8" fillOpacity="0.10" stroke="#38bdf8" strokeWidth="1.5"/>}
+                      {d && <path d={d} fill={cloudColor} fillOpacity="0.10" stroke={cloudColor} strokeWidth="1.5"/>}
                       {pts.length >= 2 && !d && (
                         <polyline points={pts.map(p => `${p.xPx},${p.yPx}`).join(' ')}
-                          stroke="#38bdf8" strokeWidth="1.5" fill="none" strokeDasharray="5 2"/>
+                          stroke={cloudColor} strokeWidth="1.5" fill="none" strokeDasharray="5 2"/>
                       )}
                       {mousePos && pts.length >= 1 && (
                         <line x1={pts[pts.length - 1].xPx} y1={pts[pts.length - 1].yPx}
                           x2={mousePos.x} y2={mousePos.y}
-                          stroke="#38bdf8" strokeWidth="1" strokeDasharray="4 2" opacity="0.6"/>
+                          stroke={cloudColor} strokeWidth="1" strokeDasharray="4 2" opacity="0.6"/>
                       )}
                       {pts.map((p, i) => (
                         <circle key={i} cx={p.xPx} cy={p.yPx}
                           r={i === 0 ? 7 : 4}
-                          fill={i === 0 ? '#38bdf8' : '#fff'}
-                          stroke="#38bdf8" strokeWidth="1.5"/>
+                          fill={i === 0 ? cloudColor : '#fff'}
+                          stroke={cloudColor} strokeWidth="1.5"/>
                       ))}
                       {pts.length >= 3 && (
                         <circle cx={pts[0].xPx} cy={pts[0].yPx} r={14}
-                          fill="none" stroke="#38bdf8" strokeWidth="1"
+                          fill="none" stroke={cloudColor} strokeWidth="1"
                           strokeDasharray="3 2" opacity="0.5"/>
                       )}
                     </>;
@@ -1571,8 +1608,8 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                     <g key={ann.id} style={{ pointerEvents: 'all' }}
                       onDoubleClick={() => deleteCloudAnnotation(ann)}
                       title="Double-click to delete">
-                      <path d={d} fill="#38bdf8" fillOpacity="0.10"
-                        stroke="#38bdf8" strokeWidth="1.5"/>
+                      <path d={d} fill={meta?.color || '#FF0000'} fillOpacity="0.10"
+                        stroke={meta?.color || '#FF0000'} strokeWidth="1.5"/>
                     </g>
                   );
                 })}
