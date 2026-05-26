@@ -200,3 +200,14 @@ mike@ilcstudios.com   / ILCstudios2024!  (ILC_ADMIN)
 ```
 
 These are upserted on every deploy — changing the password in-app won't be overwritten (seed uses `update: {}`).
+
+## Cross-Session Claude Coordination
+
+Two humans (Mike and Sean) work on this repo, each running their own Claude Code sessions. To keep Claude sessions roughly oriented across users and time, every Claude session in this repo should:
+
+1. **At session start:** read `.claude/coordination.md` to see what the other user's Claude has been doing recently.
+2. **After meaningful work:** append a brief entry at the top of the log section in `.claude/coordination.md`, tagged with date and user (Mike or Sean), summarizing what happened in 1–3 lines.
+
+Update the "Current State" block at the top of `coordination.md` only when something materially changes (active work area, what's deployed, what's blocked). The log itself is append-only and newest-first, so concurrent edits produce trivial conflicts.
+
+Append when something is worth the other Claude knowing: a feature landed, a decision was made, an open question surfaced, or a gotcha worth flagging. Skip routine micro-steps — this is a logbook, not a journal.
