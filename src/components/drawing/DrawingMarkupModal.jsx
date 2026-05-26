@@ -1077,7 +1077,8 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-zinc-800 border-b border-zinc-700 shrink-0">
-        <div className="flex items-center gap-3 min-w-0">
+        {/* Left: file info */}
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           <svg className="w-4 h-4 text-red-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z"/>
           </svg>
@@ -1102,66 +1103,22 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
           {saving && <span className="text-xs text-zinc-500 shrink-0">Saving…</span>}
         </div>
 
-        {/* ── Zoom & pan toolbar ── */}
-        <div className="flex items-center gap-0.5 shrink-0 border-l border-zinc-700 pl-2 mr-2">
-          {/* Select cursor */}
-          <button onClick={() => setIsPanMode(false)} title="Select / place tool"
-            className={`p-1.5 rounded transition-colors ${!isPanMode ? 'bg-zinc-600 text-white' : 'text-zinc-500 hover:bg-zinc-700'}`}>
-            <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M2 1l11 5.5-4.3 1.2 2.8 6-1.7.8-2.8-6L4 10.2z"/>
-            </svg>
-          </button>
-          {/* Hand / pan */}
-          <button onClick={() => setIsPanMode(true)} title="Hand tool — click and drag to pan">
-            <span className={`block p-1.5 rounded transition-colors text-sm leading-none ${isPanMode ? 'bg-zinc-600 text-white' : 'text-zinc-500 hover:bg-zinc-700'}`}>
-              ✋
-            </span>
-          </button>
-          <div className="w-px h-4 bg-zinc-700 mx-0.5"/>
-          {/* Zoom out */}
-          <button title="Zoom out" onClick={() => { const z = Math.max(0.05, zoom / 1.25); setZoom(z); zoomRef.current = z; }}
-            className="p-1.5 rounded text-zinc-400 hover:bg-zinc-700">
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <circle cx={11} cy={11} r={8}/><path strokeLinecap="round" d="M21 21l-4.35-4.35M8 11h6"/>
-            </svg>
-          </button>
-          {/* Zoom % */}
-          <span className="text-[10px] font-mono text-zinc-400 min-w-[38px] text-center tabular-nums select-none">
-            {Math.round(zoom * 100)}%
-          </span>
-          {/* Zoom in */}
-          <button title="Zoom in" onClick={() => { const z = Math.min(10, zoom * 1.25); setZoom(z); zoomRef.current = z; }}
-            className="p-1.5 rounded text-zinc-400 hover:bg-zinc-700">
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <circle cx={11} cy={11} r={8}/><path strokeLinecap="round" d="M21 21l-4.35-4.35M11 8v6M8 11h6"/>
-            </svg>
-          </button>
-          {/* Fit to screen */}
-          <button title="Fit to screen" onClick={fitToScreen}
-            className="p-1.5 rounded text-zinc-400 hover:bg-zinc-700">
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
-            </svg>
-          </button>
-
-          {/* ── Markup color picker ── */}
-          <div className="w-px h-4 bg-zinc-700 mx-0.5"/>
-          <span className="text-[9px] text-zinc-500 shrink-0 select-none">Color</span>
-          <div className="flex items-center gap-0.5">
+        {/* Center: color picker */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="text-[10px] text-zinc-500 font-medium select-none">Color</span>
+          <div className="flex items-center gap-1">
             {MARKUP_COLORS.map(col => (
               <button key={col} title={col}
                 onClick={() => setMarkupColor(col)}
                 className="rounded-full border-2 transition-transform hover:scale-125 shrink-0"
                 style={{
-                  width: 14, height: 14,
+                  width: 16, height: 16,
                   background: col,
                   borderColor: markupColor === col ? '#fff' : 'transparent',
                   boxShadow: col === '#ffffff' ? 'inset 0 0 0 1px #666' : 'none',
                 }}/>
             ))}
-            {/* Custom color picker */}
-            <label title="Custom color" className="relative cursor-pointer shrink-0"
-              style={{ width: 14, height: 14 }}>
+            <label title="Custom color" className="relative cursor-pointer shrink-0" style={{ width: 16, height: 16 }}>
               <input type="color" value={markupColor} onChange={e => setMarkupColor(e.target.value)}
                 className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"/>
               <span className="flex items-center justify-center w-full h-full rounded-full border border-zinc-500 bg-gradient-to-br from-zinc-600 to-zinc-800 text-[8px] text-zinc-300">+</span>
@@ -1169,26 +1126,8 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          {totalPages > 1 && (
-            <div className="flex items-center gap-1">
-              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
-                className="p-1 rounded hover:bg-zinc-700 text-zinc-400 disabled:opacity-30">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/>
-                </svg>
-              </button>
-              <span className="text-xs text-zinc-400 min-w-[64px] text-center">
-                Page {currentPage} / {totalPages}
-              </span>
-              <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
-                className="p-1 rounded hover:bg-zinc-700 text-zinc-400 disabled:opacity-30">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/>
-                </svg>
-              </button>
-            </div>
-          )}
+        {/* Right: close */}
+        <div className="flex items-center gap-2 shrink-0 flex-1 justify-end">
           <button onClick={onClose}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-300 text-xs font-medium transition-colors">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1955,14 +1894,82 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
         <TakeoffPanel fixtures={fixtures}/>
       </div>
 
-      {/* ── Footer ── */}
-      <div className="shrink-0 flex items-center justify-between px-4 py-2 bg-zinc-800 border-t border-zinc-700">
-        <div className="flex items-center gap-4 text-xs text-zinc-400">
-          <span><span className="text-white font-semibold">{totalCount}</span> placed</span>
-          <span><span className="text-green-400 font-semibold">{confirmedCount}</span> confirmed</span>
-          <span><span className="text-red-400 font-semibold">{totalCount - confirmedCount}</span> suggested</span>
+      {/* ── Bottom toolbar ── */}
+      <div className="shrink-0 flex items-center px-4 py-2 bg-zinc-800 border-t border-zinc-700 relative">
+
+        {/* Left: view tools + counts */}
+        <div className="flex items-center gap-1 shrink-0">
+          {/* Select cursor */}
+          <button onClick={() => setIsPanMode(false)} title="Select / place tool"
+            className={`p-1.5 rounded transition-colors ${!isPanMode ? 'bg-zinc-600 text-white' : 'text-zinc-500 hover:bg-zinc-700'}`}>
+            <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M2 1l11 5.5-4.3 1.2 2.8 6-1.7.8-2.8-6L4 10.2z"/>
+            </svg>
+          </button>
+          {/* Hand / pan */}
+          <button onClick={() => setIsPanMode(true)} title="Hand tool — click and drag to pan">
+            <span className={`block p-1.5 rounded transition-colors text-sm leading-none ${isPanMode ? 'bg-zinc-600 text-white' : 'text-zinc-500 hover:bg-zinc-700'}`}>
+              ✋
+            </span>
+          </button>
+          <div className="w-px h-4 bg-zinc-700 mx-0.5"/>
+          {/* Zoom out */}
+          <button title="Zoom out" onClick={() => { const z = Math.max(0.05, zoom / 1.25); setZoom(z); zoomRef.current = z; }}
+            className="p-1.5 rounded text-zinc-400 hover:bg-zinc-700">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <circle cx={11} cy={11} r={8}/><path strokeLinecap="round" d="M21 21l-4.35-4.35M8 11h6"/>
+            </svg>
+          </button>
+          {/* Zoom % */}
+          <span className="text-[10px] font-mono text-zinc-400 min-w-[38px] text-center tabular-nums select-none">
+            {Math.round(zoom * 100)}%
+          </span>
+          {/* Zoom in */}
+          <button title="Zoom in" onClick={() => { const z = Math.min(10, zoom * 1.25); setZoom(z); zoomRef.current = z; }}
+            className="p-1.5 rounded text-zinc-400 hover:bg-zinc-700">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <circle cx={11} cy={11} r={8}/><path strokeLinecap="round" d="M21 21l-4.35-4.35M11 8v6M8 11h6"/>
+            </svg>
+          </button>
+          {/* Fit to screen */}
+          <button title="Fit to screen" onClick={fitToScreen}
+            className="p-1.5 rounded text-zinc-400 hover:bg-zinc-700">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+            </svg>
+          </button>
+          <div className="w-px h-4 bg-zinc-700 mx-1.5"/>
+          {/* Counts */}
+          <div className="flex items-center gap-3 text-xs text-zinc-400">
+            <span><span className="text-white font-semibold">{totalCount}</span> placed</span>
+            <span><span className="text-green-400 font-semibold">{confirmedCount}</span> confirmed</span>
+            <span><span className="text-red-400 font-semibold">{totalCount - confirmedCount}</span> suggested</span>
+          </div>
         </div>
-        <p className="text-xs text-zinc-500 truncate max-w-[420px]">{statusMsg}</p>
+
+        {/* Center: page navigation (absolutely centered) */}
+        {totalPages > 1 && (
+          <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1">
+            <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
+              className="p-1 rounded hover:bg-zinc-700 text-zinc-400 disabled:opacity-30">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/>
+              </svg>
+            </button>
+            <span className="text-xs text-zinc-400 min-w-[72px] text-center select-none">
+              Page {currentPage} / {totalPages}
+            </span>
+            <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
+              className="p-1 rounded hover:bg-zinc-700 text-zinc-400 disabled:opacity-30">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/>
+              </svg>
+            </button>
+          </div>
+        )}
+
+        {/* Right: status message */}
+        <p className="ml-auto text-xs text-zinc-500 truncate max-w-[300px]">{statusMsg}</p>
       </div>
     </div>
   );
