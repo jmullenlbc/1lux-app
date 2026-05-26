@@ -134,9 +134,13 @@ function TakeoffPanel({ fixtures }) {
 
 // ── Main modal ────────────────────────────────────────────────────────────────
 export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose }) {
-  const canvasRef    = useRef(null);
-  const pdfDocRef    = useRef(null);
-  const cloudDragRef = useRef(null); // { startXFrac, startYFrac, startXPx, startYPx, wasDrag }
+  const canvasRef          = useRef(null);
+  const pdfDocRef          = useRef(null);
+  const cloudDragRef       = useRef(null); // { startXFrac, startYFrac, startXPx, startYPx, wasDrag }
+  const scrollContainerRef = useRef(null);
+  const panDragRef         = useRef(null); // { x, y, sl, st } — pan drag start
+  const hasAutoFit         = useRef(false);
+  const zoomRef            = useRef(1);   // mirrors zoom state, safe to read in imperative handlers
   const [totalPages,  setTotalPages]  = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [canvasSize,  setCanvasSize]  = useState({ w: 0, h: 0 });
@@ -148,6 +152,11 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
   const [selectedFixture, setSelectedFixture] = useState(null);
   const [saving,          setSaving]          = useState(false);
   const [activeToolset,   setActiveToolset]   = useState('INTERIOR');
+
+  // ── Zoom & pan ──
+  const [zoom,          setZoom]         = useState(1);
+  const [isPanMode,     setIsPanMode]    = useState(false);
+  const [isPanDragging, setIsPanDragging] = useState(false);
 
   // ── Scale system ──
   const [scaleRatio,    setScaleRatio]   = useState(file.scale_ratio ?? DEFAULT_SCALE);
@@ -224,6 +233,41 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
       if (renderTask) { try { renderTask.cancel(); } catch {} }
     };
   }, [pdfReady, currentPage]);
+
+  // ── Auto-fit zoom on first render of each page ──
+  useEffect(() => { hasAutoFit.current = false; }, [currentPage]);
+  useEffect(() => {
+    if (!canvasSize.w || !scrollContainerRef.current || hasAutoFit.current) return;
+    const c = scrollContainerRef.current;
+    const fit = Math.min((c.clientWidth - 48) / canvasSize.w, (c.clientHeight - 48) / canvasSize.h);
+    const z = Math.min(Math.max(fit, 0.05), 1);
+    setZoom(z);
+    zoomRef.current = z;
+    hasAutoFit.current = true;
+  }, [canvasSize.w, canvasSize.h]);
+
+  // ── Wheel zoom (non-passive, keeps cursor position fixed) ──
+  useEffect(() => {
+    const c = scrollContainerRef.current;
+    if (!c) return;
+    const onWheel = (e) => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      const rect = c.getBoundingClientRect();
+      const cx = e.clientX - rect.left;
+      const cy = e.clientY - rect.top;
+      const prev = zoomRef.current;
+      const next = Math.max(0.05, Math.min(10, prev * factor));
+      zoomRef.current = next;
+      setZoom(next);
+      requestAnimationFrame(() => {
+        c.scrollLeft = (c.scrollLeft + cx) * (next / prev) - cx;
+        c.scrollTop  = (c.scrollTop  + cy) * (next / prev) - cy;
+      });
+    };
+    c.addEventListener('wheel', onWheel, { passive: false });
+    return () => c.removeEventListener('wheel', onWheel);
+  }, []); // attach once — reads zoom via zoomRef
 
   // ── Load placed fixtures ──
   useEffect(() => {
@@ -456,8 +500,42 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
     return { xFrac, yFrac, xPx, yPx };
   }
 
+  // ── Pan container handlers ──
+  const handleContainerMouseDown = useCallback((e) => {
+    if (!isPanMode) return;
+    e.preventDefault();
+    setIsPanDragging(true);
+    panDragRef.current = {
+      x: e.clientX, y: e.clientY,
+      sl: scrollContainerRef.current?.scrollLeft ?? 0,
+      st: scrollContainerRef.current?.scrollTop  ?? 0,
+    };
+  }, [isPanMode]);
+
+  const handleContainerMouseMove = useCallback((e) => {
+    if (!panDragRef.current || !scrollContainerRef.current) return;
+    scrollContainerRef.current.scrollLeft = panDragRef.current.sl - (e.clientX - panDragRef.current.x);
+    scrollContainerRef.current.scrollTop  = panDragRef.current.st - (e.clientY - panDragRef.current.y);
+  }, []);
+
+  const handleContainerMouseUp = useCallback(() => {
+    if (!panDragRef.current) return;
+    panDragRef.current = null;
+    setIsPanDragging(false);
+  }, []);
+
+  const fitToScreen = useCallback(() => {
+    const c = scrollContainerRef.current;
+    if (!c || !canvasSize.w) return;
+    const fit = Math.min((c.clientWidth - 48) / canvasSize.w, (c.clientHeight - 48) / canvasSize.h);
+    const z = Math.min(Math.max(fit, 0.05), 1);
+    setZoom(z); zoomRef.current = z;
+    c.scrollLeft = 0; c.scrollTop = 0;
+  }, [canvasSize]);
+
   // ── Mouse move — ghost preview, linear draft readout, cloud rect drag ──
   const handleMouseMove = useCallback((e) => {
+    if (isPanMode) return;
     if (!canvasRef.current || !canvasSize.w) return;
     const rect  = canvasRef.current.getBoundingClientRect();
     const xFrac = (e.clientX - rect.left) / rect.width;
@@ -490,6 +568,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
 
   // ── Canvas double-click — close polygon or cloud poly ──
   const handleCanvasDblClick = useCallback(async (e) => {
+    if (isPanMode) return;
     e.stopPropagation();
     if (selectedSymbol?.id === 'TOOL_POLY_AREA' && polyDraft) {
       await closePoly(polyDraft.points);
@@ -501,6 +580,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
 
   // ── Canvas mousedown — begin cloud rect drag ──
   const handleCanvasMouseDown = useCallback((e) => {
+    if (isPanMode) return;
     if (selectedSymbol?.id !== 'TOOL_CLOUD') return;
     const rect  = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -516,37 +596,42 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
   }, [selectedSymbol, canvasSize]);
 
   // ── Canvas mouseup — finalize cloud rect (if drag detected) ──
+  // Bug fix: recalculate rect from current mouse position rather than relying on cloudDraft state
+  // (state may be stale if React batched updates during a fast drag).
   const handleCanvasMouseUp = useCallback(async (e) => {
+    if (isPanMode) return;
     if (selectedSymbol?.id !== 'TOOL_CLOUD' || !cloudDragRef.current) return;
     const drag = cloudDragRef.current;
-    if (!drag.wasDrag) {
-      // Not a drag — let onClick handle polygon click
-      cloudDragRef.current = null;
-      return;
-    }
+    if (!drag.wasDrag) { cloudDragRef.current = null; return; }
     cloudDragRef.current = null;
-    if (cloudDraft?.mode !== 'rect') return;
-    const { x1Frac, y1Frac, x2Frac, y2Frac, x1px, y1px, x2px, y2px } = cloudDraft;
-    const minXpx = Math.min(x1px, x2px);
-    const maxXpx = Math.max(x1px, x2px);
-    const minYpx = Math.min(y1px, y2px);
-    const maxYpx = Math.max(y1px, y2px);
-    if ((maxXpx - minXpx) < 10 || (maxYpx - minYpx) < 10) { setCloudDraft(null); return; }
-    const minXF = Math.min(x1Frac, x2Frac);
-    const maxXF = Math.max(x1Frac, x2Frac);
-    const minYF = Math.min(y1Frac, y2Frac);
-    const maxYF = Math.max(y1Frac, y2Frac);
+
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const xFrac2 = (e.clientX - rect.left) / rect.width;
+    const yFrac2 = (e.clientY - rect.top)  / rect.height;
+    const xPx2   = xFrac2 * canvasSize.w;
+    const yPx2   = yFrac2 * canvasSize.h;
+
+    const minXF = Math.min(drag.startXFrac, xFrac2);
+    const maxXF = Math.max(drag.startXFrac, xFrac2);
+    const minYF = Math.min(drag.startYFrac, yFrac2);
+    const maxYF = Math.max(drag.startYFrac, yFrac2);
+    const minXp = Math.min(drag.startXPx, xPx2);
+    const maxXp = Math.max(drag.startXPx, xPx2);
+    const minYp = Math.min(drag.startYPx, yPx2);
+    const maxYp = Math.max(drag.startYPx, yPx2);
+
+    if ((maxXp - minXp) < 10 || (maxYp - minYp) < 10) { setCloudDraft(null); return; }
     await saveCloudAnnotation([
-      { x: minXF, y: minYF },
-      { x: maxXF, y: minYF },
-      { x: maxXF, y: maxYF },
-      { x: minXF, y: maxYF },
+      { x: minXF, y: minYF }, { x: maxXF, y: minYF },
+      { x: maxXF, y: maxYF }, { x: minXF, y: maxYF },
     ], 'rect');
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSymbol, cloudDraft, projectId, file.id, currentPage, scaleRatio]);
+  }, [isPanMode, selectedSymbol, canvasSize, projectId, file.id, currentPage, scaleRatio]);
 
   // ── Canvas click ──
   const handleCanvasClick = useCallback(async (e) => {
+    if (isPanMode) return;
     if (!selectedSymbol || !canvasRef.current || saving) return;
 
     // Cloud rect drag was completed in mouseup — don't double-fire
@@ -751,6 +836,49 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
           {saving && <span className="text-xs text-zinc-500 shrink-0">Saving…</span>}
         </div>
 
+        {/* ── Zoom & pan toolbar ── */}
+        <div className="flex items-center gap-0.5 shrink-0 border-l border-zinc-700 pl-2 mr-2">
+          {/* Select cursor */}
+          <button onClick={() => setIsPanMode(false)} title="Select / place tool"
+            className={`p-1.5 rounded transition-colors ${!isPanMode ? 'bg-zinc-600 text-white' : 'text-zinc-500 hover:bg-zinc-700'}`}>
+            <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M2 1l11 5.5-4.3 1.2 2.8 6-1.7.8-2.8-6L4 10.2z"/>
+            </svg>
+          </button>
+          {/* Hand / pan */}
+          <button onClick={() => setIsPanMode(true)} title="Hand tool — click and drag to pan">
+            <span className={`block p-1.5 rounded transition-colors text-sm leading-none ${isPanMode ? 'bg-zinc-600 text-white' : 'text-zinc-500 hover:bg-zinc-700'}`}>
+              ✋
+            </span>
+          </button>
+          <div className="w-px h-4 bg-zinc-700 mx-0.5"/>
+          {/* Zoom out */}
+          <button title="Zoom out" onClick={() => { const z = Math.max(0.05, zoom / 1.25); setZoom(z); zoomRef.current = z; }}
+            className="p-1.5 rounded text-zinc-400 hover:bg-zinc-700">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <circle cx={11} cy={11} r={8}/><path strokeLinecap="round" d="M21 21l-4.35-4.35M8 11h6"/>
+            </svg>
+          </button>
+          {/* Zoom % */}
+          <span className="text-[10px] font-mono text-zinc-400 min-w-[38px] text-center tabular-nums select-none">
+            {Math.round(zoom * 100)}%
+          </span>
+          {/* Zoom in */}
+          <button title="Zoom in" onClick={() => { const z = Math.min(10, zoom * 1.25); setZoom(z); zoomRef.current = z; }}
+            className="p-1.5 rounded text-zinc-400 hover:bg-zinc-700">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <circle cx={11} cy={11} r={8}/><path strokeLinecap="round" d="M21 21l-4.35-4.35M11 8v6M8 11h6"/>
+            </svg>
+          </button>
+          {/* Fit to screen */}
+          <button title="Fit to screen" onClick={fitToScreen}
+            className="p-1.5 rounded text-zinc-400 hover:bg-zinc-700">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+            </svg>
+          </button>
+        </div>
+
         <div className="flex items-center gap-2 shrink-0">
           {totalPages > 1 && (
             <div className="flex items-center gap-1">
@@ -899,9 +1027,14 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
 
         {/* ── Drawing Canvas Area ── */}
         <div
-          className="flex-1 overflow-auto bg-zinc-700 flex items-start justify-center p-6"
-          onClick={selectedFixture ? () => setSelectedFixture(null) : undefined}
-          style={{ cursor: selectedSymbol ? 'crosshair' : 'default' }}>
+          ref={scrollContainerRef}
+          className="flex-1 overflow-auto bg-zinc-700 p-6"
+          onMouseDown={handleContainerMouseDown}
+          onMouseMove={handleContainerMouseMove}
+          onMouseUp={handleContainerMouseUp}
+          onMouseLeave={handleContainerMouseUp}
+          onClick={(!isPanMode && selectedFixture) ? () => setSelectedFixture(null) : undefined}
+          style={{ cursor: isPanMode ? (isPanDragging ? 'grabbing' : 'grab') : (selectedSymbol ? 'crosshair' : 'default') }}>
 
           {pdfError ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
@@ -919,8 +1052,10 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
               <p className="text-sm text-zinc-400">Loading drawing…</p>
             </div>
           ) : (
+            /* Outer div sets the true scrollable area (canvas logical size × zoom) */
+            <div style={{ width: canvasSize.w * zoom, height: canvasSize.h * zoom, position: 'relative', flexShrink: 0 }}>
             <div className="relative shadow-2xl"
-              style={{ width: canvasSize.w, height: canvasSize.h, minWidth: canvasSize.w }}>
+              style={{ width: canvasSize.w, height: canvasSize.h, position: 'absolute', top: 0, left: 0, transform: `scale(${zoom})`, transformOrigin: 'top left' }}>
               <canvas
                 ref={canvasRef}
                 className="block"
@@ -1315,6 +1450,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                   </div>
                 );
               })()}
+            </div>
             </div>
           )}
         </div>
