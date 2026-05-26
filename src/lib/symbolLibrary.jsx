@@ -41,9 +41,10 @@ export function getSymbolContent(symbolId, stroke = SYM_STROKE, fill = SYM_FILL_
 
     case 'INT_D_CIRCLE':
     case 'UNIT_D_CIRCLE':
+      // Outer circle filled + inner aperture ring at ~74% of outer (matches BTX)
       return <>
         <circle cx={20} cy={20} r={16} stroke={c} strokeWidth={sw} fill={f} fillOpacity={fo}/>
-        <circle cx={20} cy={20} r={8}  stroke={c} strokeWidth={sw} fill="none"/>
+        <circle cx={20} cy={20} r={12} stroke={c} strokeWidth={sw} fill="none"/>
       </>;
 
     case 'INT_D_SQUARE':
@@ -52,19 +53,19 @@ export function getSymbolContent(symbolId, stroke = SYM_STROKE, fill = SYM_FILL_
 
     case 'INT_D_WW_CIRCLE':
     case 'UNIT_D_WW_CIRCLE':
-      // Circle + inner dot + direction arrow (wall washer)
+      // Circle + inner aperture ring (~77% of outer) + directional arrow (wall washer)
       return <>
         <circle cx={17} cy={20} r={13} stroke={c} strokeWidth={sw} fill={f} fillOpacity={fo}/>
-        <circle cx={17} cy={20} r={5}  stroke={c} strokeWidth={sw} fill={c}/>
-        <polygon points="27,17 37,20 27,23" fill={c}/>
+        <circle cx={17} cy={20} r={10} stroke={c} strokeWidth={sw} fill="none"/>
+        <polygon points="27,16 36,20 27,24" fill={c}/>
       </>;
 
     case 'INT_D_WW_SQUARE':
     case 'UNIT_D_WW_SQUARE':
-      // Square + direction arrow tail
+      // Square (offset left) + directional arrow pointing right (wall washer)
       return <>
-        <rect x={4} y={7} width={22} height={26} stroke={c} strokeWidth={sw} fill={f} fillOpacity={fo}/>
-        <polygon points="26,14 37,20 26,26" fill={c}/>
+        <rect x={4} y={6} width={24} height={28} stroke={c} strokeWidth={sw} fill={f} fillOpacity={fo}/>
+        <polygon points="28,14 38,20 28,26" fill={c}/>
       </>;
 
     // ── Stem / Surface Cylinder ───────────────────────────────────────────────
@@ -79,44 +80,46 @@ export function getSymbolContent(symbolId, stroke = SYM_STROKE, fill = SYM_FILL_
 
     case 'INT_N_SQUARE':
     case 'UNIT_N_SQUARE':
-      // Square + inner circle
+      // Square + small filled center dot (matches BTX: solid dot not ring)
       return <>
         <rect x={5} y={5} width={30} height={30} stroke={c} strokeWidth={sw} fill={f} fillOpacity={fo}/>
-        <circle cx={20} cy={20} r={6} stroke={c} strokeWidth={sw} fill="none"/>
+        <circle cx={20} cy={20} r={4} fill={c}/>
       </>;
 
     // ── Pendant ───────────────────────────────────────────────────────────────
 
     case 'INT_P':
     case 'UNIT_P':
-      // Two cord drops + concentric circles (pendant head)
+      // Canopy rect at top + pendant drop + circle head + inner aperture ring
       return <>
-        <line x1={12} y1={3}  x2={12} y2={15} stroke={c} strokeWidth={sw}/>
-        <line x1={28} y1={3}  x2={28} y2={15} stroke={c} strokeWidth={sw}/>
-        <circle cx={20} cy={28} r={11} stroke={c} strokeWidth={sw} fill={f} fillOpacity={fo}/>
-        <circle cx={20} cy={28} r={5}  stroke={c} strokeWidth={sw} fill="none"/>
+        <rect x={8}  y={3}  width={24} height={5} stroke={c} strokeWidth={sw} fill={f} fillOpacity={fo}/>
+        <line x1={20} y1={8} x2={20} y2={17} stroke={c} strokeWidth={sw}/>
+        <circle cx={20} cy={27} r={11} stroke={c} strokeWidth={sw} fill={f} fillOpacity={fo}/>
+        <circle cx={20} cy={27} r={8}  stroke={c} strokeWidth={sw} fill="none"/>
       </>;
 
     // ── Surface Ceiling Mount ─────────────────────────────────────────────────
 
     case 'INT_C':
     case 'UNIT_C':
-      // Vertical stem from top + circle luminaire at base
+      // Circle + inner concentric ring + crosshairs (matches BTX ceiling mount symbol)
       return <>
-        <line x1={20} y1={3}  x2={20} y2={18} stroke={c} strokeWidth="2"/>
-        <circle cx={20} cy={29} r={10} stroke={c} strokeWidth={sw} fill={f} fillOpacity={fo}/>
-        <circle cx={20} cy={29} r={3}  fill={c}/>
+        <circle cx={20} cy={20} r={16} stroke={c} strokeWidth={sw} fill={f} fillOpacity={fo}/>
+        <circle cx={20} cy={20} r={9}  stroke={c} strokeWidth={sw} fill="none"/>
+        <line x1={20} y1={4}  x2={20} y2={36} stroke={c} strokeWidth={sw}/>
+        <line x1={4}  y1={20} x2={36} y2={20} stroke={c} strokeWidth={sw}/>
       </>;
 
     // ── Wall Sconce / Vanity ──────────────────────────────────────────────────
 
     case 'INT_WV':
     case 'UNIT_WV':
-      // Wall line (left edge) + horizontal arm + circle fixture
+      // Wall line (left) + horizontal arm + circle fixture head (standard wall sconce symbol)
       return <>
-        <line x1={4} y1={6}  x2={4}  y2={34} stroke={c} strokeWidth="2.5"/>
-        <line x1={4} y1={20} x2={14} y2={20} stroke={c} strokeWidth={sw}/>
-        <circle cx={26} cy={20} r={12} stroke={c} strokeWidth={sw} fill={f} fillOpacity={fo}/>
+        <line x1={4} y1={4}   x2={4}  y2={36} stroke={c} strokeWidth="2.5"/>
+        <line x1={4} y1={20}  x2={15} y2={20} stroke={c} strokeWidth={sw}/>
+        <circle cx={28} cy={20} r={11} stroke={c} strokeWidth={sw} fill={f} fillOpacity={fo}/>
+        <circle cx={28} cy={20} r={4}  fill={c}/>
       </>;
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -144,11 +147,11 @@ export function getSymbolContent(symbolId, stroke = SYM_STROKE, fill = SYM_FILL_
       </>;
 
     case 'INT_B_TROFFER':
-      // Recessed troffer: tall rect + inner square + center line
+      // Recessed troffer: wide rect + vertical end-cap lines (matches BTX long rectangle + caps)
       return <>
-        <rect x={4} y={7} width={32} height={26} stroke={c} strokeWidth={sw} fill={f} fillOpacity={fo}/>
-        <rect x={9} y={12} width={22} height={16} stroke={c} strokeWidth="1" fill="none"/>
-        <line x1={20} y1={12} x2={20} y2={28} stroke={c} strokeWidth="1"/>
+        <rect x={2} y={14} width={36} height={12} stroke={c} strokeWidth={sw} fill={f} fillOpacity={fo}/>
+        <line x1={2}  y1={10} x2={2}  y2={30} stroke={c} strokeWidth={sw}/>
+        <line x1={38} y1={10} x2={38} y2={30} stroke={c} strokeWidth={sw}/>
       </>;
 
     case 'INT_R_LINEAR':
@@ -182,22 +185,22 @@ export function getSymbolContent(symbolId, stroke = SYM_STROKE, fill = SYM_FILL_
 
     case 'INT_L_TAPE':
     case 'UNIT_L_TAPE':
-      // LED tape: dashed wide band
+      // LED tape with channel: single line + dashed parallel (matches BTX "LINEAR LED TAPE WITH CHANNEL")
       return <>
-        <rect x={3} y={13} width={34} height={14} rx={2}
-          stroke={c} strokeWidth={sw} strokeDasharray="5 2" fill="none"/>
-        <line x1={3} y1={20} x2={37} y2={20} stroke={c} strokeWidth="1" strokeDasharray="3 3"/>
+        <line x1={3} y1={17} x2={37} y2={17} stroke={c} strokeWidth="2"/>
+        <line x1={3} y1={23} x2={37} y2={23} stroke={c} strokeWidth="2" strokeDasharray="6 3"/>
       </>;
 
     // ── Multi-head recessed ───────────────────────────────────────────────────
 
     case 'INT_D_2HEAD':
     case 'UNIT_D_2HEAD':
+      // Two unfilled circles side-by-side (matches BTX item 17)
       return <>
         <circle cx={11} cy={20} r={9}  stroke={c} strokeWidth={sw} fill={f} fillOpacity={fo}/>
-        <circle cx={11} cy={20} r={4}  stroke={c} strokeWidth="1.2" fill="none"/>
+        <circle cx={11} cy={20} r={7}  stroke={c} strokeWidth={sw} fill="none"/>
         <circle cx={29} cy={20} r={9}  stroke={c} strokeWidth={sw} fill={f} fillOpacity={fo}/>
-        <circle cx={29} cy={20} r={4}  stroke={c} strokeWidth="1.2" fill="none"/>
+        <circle cx={29} cy={20} r={7}  stroke={c} strokeWidth={sw} fill="none"/>
       </>;
 
     case 'INT_D_3HEAD':
