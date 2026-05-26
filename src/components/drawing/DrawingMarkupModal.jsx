@@ -371,7 +371,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
         metadata:        JSON.stringify({ points: pointsFrac, shape }),
       }),
     });
-    if (res.ok) setCloudAnnotations(prev => [...prev, await res.json()]);
+    if (res.ok) { const ann = await res.json(); setCloudAnnotations(prev => [...prev, ann]); }
     setCloudDraft(null);
   }
 
@@ -405,7 +405,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
         metadata:        JSON.stringify({ color: calloutColor, fontSize: calloutFontSize, boxWidth: calloutBoxWidth }),
       }),
     });
-    if (res.ok) setCalloutAnnotations(prev => [...prev, await res.json()]);
+    if (res.ok) { const ann = await res.json(); setCalloutAnnotations(prev => [...prev, ann]); }
     setCalloutDraft(null);
   }
 
@@ -634,7 +634,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
           scale_ratio:    scaleRatio,
         }),
       });
-      if (res.ok) setFixtures(prev => [...prev, await res.json()]);
+      if (res.ok) { const f = await res.json(); setFixtures(prev => [...prev, f]); }
       setLinearDraft(null);
       setSaving(false);
       return;
@@ -655,7 +655,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
         scale_ratio:    scaleRatio,
       }),
     });
-    if (res.ok) setFixtures(prev => [...prev, await res.json()]);
+    if (res.ok) { const f = await res.json(); setFixtures(prev => [...prev, f]); }
     setSaving(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSymbol, polyDraft, cloudDraft, calloutDraft, linearDraft, saving, scaleRatio, projectId, file.id, currentPage, canvasSize]);
