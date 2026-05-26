@@ -8,6 +8,8 @@ export async function GET() {
   const { error } = await requireAuth();
   if (error) return error;
 
+  if (!prisma.masterType) return NextResponse.json([]);
+
   const masterTypes = await prisma.masterType.findMany({
     where: { is_active: true },
     orderBy: { code: 'asc' },

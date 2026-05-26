@@ -35,9 +35,9 @@ export async function GET(req, { params }) {
       },
       orderBy: [{ is_default: 'desc' }, { tier: 'asc' }],
     }),
-    prisma.masterType.findMany({
-      select: { code: true, fixture_family: true, is_unit_type: true },
-    }),
+    prisma.masterType
+      ? prisma.masterType.findMany({ select: { code: true, fixture_family: true, is_unit_type: true } })
+      : Promise.resolve([]),
   ]);
 
   const pd = project.projectData || {};

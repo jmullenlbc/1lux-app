@@ -11,9 +11,9 @@ export default async function FixtureLibraryPage() {
   if (session.role !== 'ILC_ADMIN' && session.role !== 'SUPER_ADMIN') redirect('/dashboard');
 
   const [masterTypes, specs, fixtureTypes] = await Promise.all([
-    prisma.masterType.findMany({ orderBy: { code: 'asc' } }),
-    prisma.iLCSpec.findMany({ orderBy: [{ master_type_id: 'asc' }, { family: 'asc' }] }),
-    prisma.fixtureType.findMany({ orderBy: [{ master_type_id: 'asc' }, { code: 'asc' }] }),
+    prisma.masterType  ? prisma.masterType.findMany({ orderBy: { code: 'asc' } }) : [],
+    prisma.iLCSpec     ? prisma.iLCSpec.findMany({ orderBy: [{ master_type_id: 'asc' }, { family: 'asc' }] }) : [],
+    prisma.fixtureType ? prisma.fixtureType.findMany({ orderBy: [{ master_type_id: 'asc' }, { code: 'asc' }] }) : [],
   ]);
 
   return (
