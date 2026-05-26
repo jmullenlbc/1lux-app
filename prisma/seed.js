@@ -147,7 +147,7 @@ async function main() {
     const passwordHash = await bcrypt.hash(admin.password, 10);
     const user = await prisma.user.upsert({
       where:  { email: admin.email },
-      update: {},   // never overwrite an existing account's data
+      update: { role: 'ILC_ADMIN' },  // always ensure admin role is correct
       create: {
         email: admin.email,
         name:  admin.name,
