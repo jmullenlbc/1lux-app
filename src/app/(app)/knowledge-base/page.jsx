@@ -19,16 +19,20 @@ export default async function KnowledgeBasePage() {
   if (error) redirect('/login');
 
   const [standards, categories] = await Promise.all([
-    prisma.designStandard.findMany({
-      where: { isActive: true },
-      orderBy: [{ category: 'asc' }, { severity: 'asc' }, { createdAt: 'asc' }],
-      include: {
-        createdBy: { select: { id: true, name: true } },
-        updatedBy: { select: { id: true, name: true } },
-      },
-    }).catch(err => { console.error('[/knowledge-base] standards query failed:', err?.message); return []; }),
-    prisma.kbCategory.findMany({ orderBy: [{ position: 'asc' }, { label: 'asc' }] })
-      .catch(err => { console.error('[/knowledge-base] categories query failed:', err?.message); return []; }),
+    prisma.designStandard
+      ? prisma.designStandard.findMany({
+          where: { isActive: true },
+          orderBy: [{ category: 'asc' }, { severity: 'asc' }, { createdAt: 'asc' }],
+          include: {
+            createdBy: { select: { id: true, name: true } },
+            updatedBy: { select: { id: true, name: true } },
+          },
+        }).catch(err => { console.error('[/knowledge-base] standards query failed:', err?.message); return []; })
+      : [],
+    prisma.kbCategory
+      ? prisma.kbCategory.findMany({ orderBy: [{ position: 'asc' }, { label: 'asc' }] })
+          .catch(err => { console.error('[/knowledge-base] categories query failed:', err?.message); return []; })
+      : [],
   ]);
 
   return (

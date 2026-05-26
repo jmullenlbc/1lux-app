@@ -17,17 +17,20 @@ export default async function CategoryPage({ params }) {
   const categoryKey = params.category.toUpperCase();
 
   const [catConfig, standards, allCategories] = await Promise.all([
-    prisma.kbCategory.findUnique({ where: { key: categoryKey } }),
-    prisma.designStandard.findMany({
-      where:   { category: categoryKey, isActive: true },
-      orderBy: [{ severity: 'asc' }, { createdAt: 'asc' }],
-      include: {
-        createdBy: { select: { id: true, name: true } },
-        updatedBy: { select: { id: true, name: true } },
-      },
-    }).catch(err => { console.error('[/knowledge-base/category] DB query failed:', err?.message); return []; }),
-    prisma.kbCategory.findMany({ orderBy: [{ position: 'asc' }, { label: 'asc' }] })
-      .catch(() => []),
+    prisma.kbCategory ? prisma.kbCategory.findUnique({ where: { key: categoryKey } }) : null,
+    prisma.designStandard
+      ? prisma.designStandard.findMany({
+          where:   { category: categoryKey, isActive: true },
+          orderBy: [{ severity: 'asc' }, { createdAt: 'asc' }],
+          include: {
+            createdBy: { select: { id: true, name: true } },
+            updatedBy: { select: { id: true, name: true } },
+          },
+        }).catch(err => { console.error('[/knowledge-base/category] DB query failed:', err?.message); return []; })
+      : [],
+    prisma.kbCategory
+      ? prisma.kbCategory.findMany({ orderBy: [{ position: 'asc' }, { label: 'asc' }] }).catch(() => [])
+      : [],
   ]);
 
   if (!catConfig) notFound();
