@@ -8,3 +8,9 @@ sk-ant-api03*.txt
 *.db
 deploy-log.json
 public/pdf.worker.min.mjs
+
+# Sean's local math-testing scratch space (Claude-generated test scripts).
+# Promote individual scripts out of this folder when they're ready to commit
+# as proper regression tests.
+_tests/
+PLANNING/
