@@ -191,7 +191,12 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   }
 
   // ─── EXIT SIGNS ───────────────────────────────────────────────────────────
-  const exitSignsProduct = grossSf * PRICING.exitSigns.perSf;
+  // Large-project threshold: per pricing.js, exit signs cost is halved when
+  // the project exceeds the large-project threshold (default 300,000 SF).
+  // Before this rule was applied, large projects were over-billed at full rate.
+  const exitSignsRaw     = grossSf * PRICING.exitSigns.perSf;
+  const exitSignsCutoff  = n(PRICING.exitSigns.largeProjectThreshold, 300000);
+  const exitSignsProduct = grossSf > exitSignsCutoff ? exitSignsRaw / 2 : exitSignsRaw;
 
   // ─── DESIGN BUDGET ADDERS ────────────────────────────────────────────────
   // NOTE: The base rate (grossSf × $0.38) already includes the standard design
