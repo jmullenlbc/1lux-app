@@ -4,11 +4,11 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Current State
 
-- **Production:** live at https://app.ilcstudios.com and **fully current as of 2026-05-26 PM**. Deployments 75 (`0eda6d1`) and 76 (`518da7d`) both green; the day's backlog of ~20 commits — all of Mike's drawing-tool sprint, Sean's exit signs fix, the coordination updates, NOTIFY_DRY_RUN activation — landed in production at once.
-- **Notifications:** **ACTIVE in production** (NOTIFY_DRY_RUN=false set in Amplify, took effect with Deployment 75/76). Digest cron, contact invites, and notify.js helpers are now actually sending.
-- **Coordination tooling:** four project-scoped slash commands available in both Claude sessions (`/sean`, `/mike`, `/coord`, `/log` — see `.claude/commands/`). The `/log` command is what wrote this entry — `/log` is now the deliberate-write side of cross-Claude coordination.
-- **Sean:** math testing infrastructure in place at `_tests/budget-math.mjs` (gitignored scratch space, run with `npx tsx _tests/budget-math.mjs`). Two real branch-fix-merge cycles completed today (exit signs, seed.js guards). Two math changes still queued from Mike's answers (Q1 energy credit refactor, Q3 exit signs sum + type-override extension).
-- **Mike:** drawing-tool sprint work from today is now live in production. Recent sprints include drawing markup tool (zoom/pan/drag, scale system, symbol library, shape + text + pen tools, color picker), notification system, contractor portal, parametric estimating engine.
+- **Production:** live at https://app.ilcstudios.com, deploys flowing cleanly since 2026-05-26 PM. Mike pushed 5 commits on 2026-05-27 AM extending the defensive-guard pattern from seed.js to client/KB/master-types pages and routes — same approach Sean used in `0eda6d1`. Pipeline stable.
+- **Notifications:** ACTIVE in production (NOTIFY_DRY_RUN=false).
+- **Coordination tooling:** four project-scoped slash commands available (`/sean`, `/mike`, `/coord`, `/log` — see `.claude/commands/`).
+- **Sean:** math test harness at `_tests/budget-math.mjs` + calibration script `_tests/calibrate-conceptual.mjs` (both gitignored). Calibration run against 4 real spreadsheets (2 conceptual, 2 Full Design) on 2026-05-27 AM with Mason's review — engine matches within 1-2% on conceptuals; explainable patterns on Full Design. Two math changes still queued (Q1 energy credit refactor, Q3 exit signs sum extension — Q3 needs stairwell-SF clarification).
+- **Mike:** Drawing-tool sprint live in production. Most recent work: defensive-guard sweep across pages and routes (commits `d4070a1` through `9e706e6`) to prevent crashes from missing schema models (KB, master types, client standards) — extends Sean's `0eda6d1` pattern.
 
 ## Open questions for Mike (when convenient)
 
@@ -18,7 +18,19 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 ~~4. **Several pricing constants defined but never used** in calculations.js~~ **ANSWERED:** New feature in progress — leave them alone, TBD.
 ~~5. Minor doc discrepancy: project-root `CLAUDE.md` references `public/pricing.json`~~ **ANSWERED:** Coming soon — no action needed.
 
+### New questions surfaced 2026-05-27 (post-Mason-review):
+
+6. **Vanity & fan prices: net or gross?** `pricing.js` uses NET (e.g. `illuminatedMirrorMedium = $155`, comment says "$45 base credit already in $0.38/SF"). Mike's spreadsheets use GROSS ($200). Mason confirms engine totals trend low; this is the biggest contributor across all 4 calibrated projects. **Mike: which is right?** If gross, one-shot patch to `pricing.js` aligns everything.
+7. **`designUpgrades` defined-but-unused constants** (`dimmerCostEach`, `entryDecorative`, `diskSevenInch`, `fanSize52Adder`, `closetOccSensor`) — Q4 above was "WIP, leave alone" but Mason's "engine too low" comment suggests these should be wired into `calculateBudget`. ~$19K of expected charges per Link+Pin alone aren't being applied. **Mike: revise the Q4 answer — wire them up, or keep WIP?**
+
 ## Log
+
+### 2026-05-27 AM — Sean's Claude
+- **Engine calibrated against 4 real Mike-provided spreadsheets** in `_tests/calibrate-conceptual.mjs` (gitignored): 2 conceptual (Modera Town Lake, Broadstone Southglenn) + 2 Full Design (16 W Dry Creek, Link + Pin). Conceptuals match within 1-2%; Full Design within 11-32% depending on age and manual overrides present.
+- **Mason confirmed all 4 open questions** Sean had posted earlier this morning: (1) exit signs halving patch `f7a45e8` is correct — engine right, older Excels stale. (2) Broadstone's $0.030/SF vs Modera's $0.025/SF was Mike's intentional manual change, reason unknown. (3) Broadstone emergency strategy = `integrated_frogeyes` (off by only $105.95 — basically rounding). (4) **Broadstone units total delta was Excel error** — Mike's kitchen pendants reference was off by $10/device; engine is correct. Three of four "deltas" turn out to be spreadsheet bugs, not engine bugs.
+- **Mason's capstone:** engine totals "trend too low overall, except BOH which is spot-on." Root-cause analysis found three patterns: (a) vanity/fan **gross-vs-net pricing methodology** (engine uses net per pricing.js comments; Excels use gross — see new Q6 above), (b) **designUpgrades defined-but-unused constants** not applied in calculations.js (see Q7 — revises Q4's "leave alone" answer), (c) manual exterior overrides (acknowledged design per Mike's earlier email).
+- **For Mike's Claude on next session:** the two new questions (Q6 + Q7 above) are the bottleneck on getting the engine "100% correct" per Mason's goal. Both have one-shot fixes possible once Mike weighs in: Q6 = update vanity/fan prices in `pricing.js` to gross; Q7 = wire the defined-but-unused constants into `calculateBudget`. Q1 (energy credit refactor) and Q3 (exit signs sum + type-override extension) from yesterday remain queued and unimplemented; Q3 still needs stairwell-SF clarification.
+- Sean noted Mike's 5 new commits today extend Sean's `0eda6d1` defensive-guard pattern to clients/KB/masterType pages — cross-Claude pattern propagation working as intended.
 
 ### 2026-05-26 PM (end of day) — Sean's Claude
 - **Seed.js fix confirmed working.** Deployments 75 and 76 both deployed green (~3 minutes each). The ~20-commit backlog from earlier in the day — Mike's entire drawing-tool sprint, the exit signs threshold fix, the NOTIFY_DRY_RUN activation, and all coord-log updates — landed in production at once. First successful deploys since ~7:55 AM today.
