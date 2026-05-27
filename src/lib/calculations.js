@@ -219,6 +219,19 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     designAdderTotal += numUnits * n(PRICING.designUpgrades?.livingRoom4Disks, 34);
   }
 
+  // Entry disk upgrade — 12" oversized or decorative surface mount.
+  // Default 'typical' (5"/7" disk, included in base) has no adder.
+  if (r.entryDisk === '12inch') {
+    designAdderTotal += numUnits * n(PRICING.designUpgrades?.entryway12inch, 25);
+  } else if (r.entryDisk === 'decorative') {
+    designAdderTotal += numUnits * n(PRICING.designUpgrades?.entryDecorative, 30);
+  }
+
+  // 52" fan upgrade — $25/fan over 48" default (only counts when fans are present)
+  if (r.fanSize52 === 'yes' && fanCount > 0) {
+    designAdderTotal += fanCount * n(PRICING.designUpgrades?.fanSize52Adder, 25);
+  }
+
   // Corridor elevated design adder (only when no specific spacing is set)
   if (corridorSf > 0 && !corridors.fixtureSpacing && corridors.corridorLevel === 'elevated') {
     designAdderTotal += corridorSf * n(PRICING.designCorridors?.elevatedAdderPerSf, 0.25);
