@@ -32,7 +32,7 @@ export default async function ClientDetailPage({ params }) {
   if (!client) notFound();
   if (!isAdmin && client.createdById !== session.id) notFound();
 
-  const standardsAnswers = canEditStandards
+  const standardsAnswers = (canEditStandards && prisma.clientStandardsAnswer)
     ? await prisma.clientStandardsAnswer.findMany({ where: { clientId: params.id }, orderBy: { question_key: 'asc' } })
     : [];
 

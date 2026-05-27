@@ -13,6 +13,8 @@ export async function GET(req, { params }) {
   const canView    = isIlcAdmin || perms.clientStandards === true;
   if (!canView) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
+  if (!prisma.clientStandardsAnswer) return NextResponse.json([]);
+
   const answers = await prisma.clientStandardsAnswer.findMany({
     where: { clientId: params.id },
     orderBy: [{ section: 'asc' }, { subsection: 'asc' }, { question_key: 'asc' }],
@@ -31,6 +33,8 @@ export async function POST(req, { params }) {
   const isIlcAdmin = session.role === 'ILC_ADMIN' || session.role === 'SUPER_ADMIN';
   const canEdit    = isIlcAdmin || perms.clientStandards === true;
   if (!canEdit) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  if (!prisma.clientStandardsAnswer) return NextResponse.json({ error: 'Feature not available' }, { status: 503 });
 
   const body = await req.json();
   const { question_key, section, subsection, input_type, answer_value, answer_note } = body;
