@@ -1,0 +1,62 @@
+{
+  "code": "IECC 2021 — Commercial Provisions",
+  "title": "International Energy Conservation Code — Commercial Buildings",
+  "publisher": "International Code Council",
+  "year": 2021,
+  "sections": [
+    {
+      "id": "C405.2",
+      "title": "Interior Lighting Controls — Automatic Shutoff",
+      "text": "Interior lighting in commercial buildings must be equipped with automatic controls capable of turning off all lighting in each space independently. Automatic shutoff is required for all buildings regardless of size. Acceptable methods: (1) occupancy sensor that turns off within 20 minutes of vacancy (IECC is slightly more stringent than ASHRAE 90.1's 30-minute requirement), (2) time-of-day schedule operating no longer than 2 hours past normal business hours, (3) signal from another control system or building management system. Manual override switches must allow overriding the automatic shutoff for no more than 2 hours.",
+      "tags": ["controls", "automatic shutoff", "occupancy sensor", "20 minutes", "time switch", "commercial", "override"]
+    },
+    {
+      "id": "C405.2.1",
+      "title": "Occupancy Sensors — Required Spaces",
+      "text": "Occupancy sensors are mandatory in: classrooms and lecture halls, conference/meeting rooms, employee lunch and break rooms, private offices, restrooms, storage rooms (100 sf or smaller), janitorial closets. For spaces with only one occupant (private offices), vacancy sensors (manual-on, auto-off) are preferred. Sensors in corridors, open offices, and large spaces may use partial-off (dim to 20% or less) in lieu of full shutoff, provided the space returns to full power when reoccupied.",
+      "tags": ["occupancy sensor", "vacancy sensor", "required spaces", "classrooms", "offices", "restrooms", "storage", "partial-off"]
+    },
+    {
+      "id": "C405.2.3",
+      "title": "Daylight Zone Controls",
+      "text": "Daylight-responsive automatic controls are required for: (1) all enclosed spaces with windows or skylights where the window area exceeds 150 sf or skylight area exceeds 900 sf, (2) all enclosed spaces that are adjacent to exterior windows where the sidelighted area is at least 120 sf and has a window-to-wall ratio of 40% or more. Controls must maintain illuminance to within 10% of the design set point, or reduce lighting to 50% or less when sufficient daylight is available. Photosensors must be separately zoned for each exposure (north, south, east, west).",
+      "tags": ["daylight", "photosensor", "controls", "sidelighted", "skylights", "window area", "zoning", "illuminance set point"]
+    },
+    {
+      "id": "C405.3",
+      "title": "Exterior Lighting Controls",
+      "text": "All exterior lighting must be controlled by a combination photosensor/time switch or an astronomically timed control that turns lighting on at dusk and off at dawn. Additionally, exterior building façade lighting and exterior landscape/accent lighting must be capable of being turned off or reduced by at least 50% between midnight and 6 AM, or when business is closed, whichever is later. Exemptions: lighting for safety and security, lighting for signs (covered by separate section), and lighting required by a regulatory agency.",
+      "tags": ["exterior lighting", "photosensor", "time switch", "astronomical", "façade", "landscape", "midnight", "50 percent reduction"]
+    },
+    {
+      "id": "C405.4",
+      "title": "Interior Lighting Power Allowance",
+      "text": "The IECC adopts the lighting power allowances from ASHRAE 90.1 by reference. Buildings must comply with either the Space-by-Space method (Table C405.4.2(1)) or the Building Area method (Table C405.4.2(2)). The IECC tables match ASHRAE 90.1-2019 values; states adopting IECC 2021 may amend the tables. Additional LPD allowances are available for: retail display lighting (+1.0 W/ft²), ornamental/special-effects lighting in performing arts venues, and task lighting at individual workstations that is controlled independently.",
+      "tags": ["LPD", "interior lighting power", "allowance", "space-by-space", "building area", "retail display", "task lighting"]
+    },
+    {
+      "id": "C405.5",
+      "title": "Exterior Lighting Power Allowance",
+      "text": "Exterior lighting power allowances are based on the lighting zone of the site (LZ1 through LZ4) per IESNA RP-33. Base allowances per lighting zone: LZ1 (rural, dark): 50% reduction from standard. LZ2 (residential): standard base. LZ3 (commercial/suburban): 125% of base. LZ4 (high commercial activity): 150% of base. Additionally, uncovered vehicle sales lots get 2.4 W/ft² for display. Covered canopies (gas stations, drop-off): 1.25 W/ft². Walkways under 10 ft wide: 1.0 W/linear ft.",
+      "tags": ["exterior lighting", "LPD", "lighting zone", "LZ1", "LZ2", "LZ3", "LZ4", "canopy", "vehicle sales", "walkway"]
+    },
+    {
+      "id": "C303.1",
+      "title": "Residential — Lighting Efficacy Requirements",
+      "text": "In the residential provisions (R-2 multifamily common areas subject to commercial code), at least 75% of the lamps in permanently installed fixtures must have an efficacy of 45 lumens per watt or greater. The remaining 25% may use lower-efficacy sources. This applies to all common areas including corridors, lobbies, stairwells, laundry rooms, and amenity spaces. Individual dwelling units are covered by the residential IECC (IRC) provisions, not the commercial provisions.",
+      "tags": ["residential", "multifamily", "efficacy", "45 lumens per watt", "75 percent", "common areas", "R-2", "lamps"]
+    },
+    {
+      "id": "C405.2.4",
+      "title": "Hotel and Motel Guest Room Controls",
+      "text": "Each hotel and motel guest room must have a control device at the main entry that automatically turns off all HVAC and lighting within 30 minutes of the guest leaving the room (as detected by door switch, key card, or occupancy sensor). All bathroom lighting must be separately switched from bedroom lighting. All decorative and accent lighting in the guest room must be able to be turned off by the master control. A means must be provided to override the master-off for maintenance personnel.",
+      "tags": ["hotel", "motel", "guest room", "master control", "key card", "30 minutes", "bathroom", "HVAC", "auto-off"]
+    },
+    {
+      "id": "C406",
+      "title": "Additional Energy Efficiency — Lighting Credits",
+      "text": "Buildings may meet IECC requirements by selecting from a menu of energy efficiency measures. Lighting-related credits include: (1) Enhanced interior lighting controls: occupancy sensors in all spaces including corridors and open offices with partial-off capability, earning 2 compliance points. (2) Daylighting with sidelighting: installing continuous dimming daylight controls for at least 50% of the connected interior lighting load, earning 2 points. (3) High-efficacy luminaires: installing lighting with a system efficacy of 60 lm/W or more throughout 90% of spaces, earning 1 point.",
+      "tags": ["energy credits", "compliance", "enhanced controls", "daylighting", "high efficacy", "60 lm/W", "partial-off", "continuous dimming"]
+    }
+  ]
+}

@@ -5,6 +5,34 @@ import { COLOR_MAP } from './categories';
 import KnowledgeBaseChat from '@/components/KnowledgeBaseChat';
 import RichTextEditor, { RichContent } from '@/components/RichTextEditor';
 
+// ── Code Search banner card ────────────────────────────────────────────────────
+function CodeSearchCard() {
+  return (
+    <Link href="/knowledge-base/code-search"
+      className="group bg-gradient-to-br from-violet-50 to-indigo-50 rounded-xl border border-violet-200 shadow-sm hover:shadow-md transition-all p-5 flex flex-col gap-3 col-span-full sm:col-span-2 lg:col-span-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center text-xl shrink-0">⚖️</div>
+          <div>
+            <div className="text-sm font-bold text-violet-800">Code Search</div>
+            <div className="text-xs text-violet-500">AI-powered — ASHRAE 90.1 · IBC · IECC · NEC</div>
+          </div>
+        </div>
+        <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-violet-100 text-violet-700 border border-violet-200 shrink-0">
+          New
+        </span>
+      </div>
+      <p className="text-xs text-violet-700 leading-relaxed">
+        Ask questions about LPD allowances, emergency lighting, egress requirements, controls, and more — with section citations and confidence levels.
+      </p>
+      <div className="flex items-center gap-1 text-xs font-semibold text-violet-600 opacity-0 group-hover:opacity-100 transition-opacity mt-auto">
+        Search building codes
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
+      </div>
+    </Link>
+  );
+}
+
 export const SEVERITY_CONFIG = {
   REQUIRED:    { label: 'Required',    color: 'text-red-700 bg-red-50 border-red-200',    dot: 'bg-red-500' },
   RECOMMENDED: { label: 'Recommended', color: 'text-amber-700 bg-amber-50 border-amber-200', dot: 'bg-amber-500' },
@@ -398,6 +426,7 @@ export default function KnowledgeBaseClient({ standards: initial, categories: in
 
       <div className="max-w-6xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <CodeSearchCard />
           {visibleCats.map(cat => {
             const count  = standards.filter(s => s.category === cat.key).length;
             const colors = getColors(cat.color);
@@ -445,6 +474,11 @@ function Header({ search, setSearch, total, isEditor, isAdmin, onAdd, onManageCa
             <p className="text-xs text-slate-400 mt-0.5">{total} ILC design standards across {catCount} categories</p>
           </div>
           <div className="flex items-center gap-2">
+            <Link href="/knowledge-base/code-search"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-violet-200 bg-violet-50 text-violet-700 text-xs font-semibold hover:bg-violet-100 transition-colors">
+              <span>⚖️</span>
+              Code Search
+            </Link>
             {isAdmin && (
               <button onClick={onManageCats}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 text-slate-600 text-xs font-medium hover:bg-slate-50 transition-colors">

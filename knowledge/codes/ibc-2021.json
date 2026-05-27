@@ -1,0 +1,80 @@
+{
+  "code": "IBC 2021",
+  "title": "International Building Code",
+  "publisher": "International Code Council",
+  "year": 2021,
+  "sections": [
+    {
+      "id": "1006",
+      "title": "Means of Egress Illumination — General Requirements",
+      "text": "The means of egress must be illuminated at all times the building is occupied. Required illumination includes all exit access corridors, exit corridors, exit discharge, and exit passageways. The minimum illuminance at the walking surface must be not less than 1 foot-candle (10 lux). For sleeping units in Groups I-1, I-2, I-3, R-1, and R-2, the illuminance may be reduced to 0.2 foot-candles during nighttime hours. Emergency lighting must be capable of maintaining the required 1 fc for at least 90 minutes after a power outage.",
+      "tags": ["egress", "illumination", "1 foot-candle", "emergency lighting", "corridors", "exit", "sleeping units", "90 minutes"]
+    },
+    {
+      "id": "1006.2",
+      "title": "Emergency Lighting — Required Spaces",
+      "text": "Emergency lighting is required in: (1) aisles, corridors, and exit passageways in Group A, B, E, F, H, I, M, R-1, R-2, and S occupancies, (2) extended detention and mental health facilities, (3) underground and windowless structures, (4) assembly areas, (5) interior exit stairways and ramps, (6) interior exit access stairways and ramps, (7) electrical rooms requiring over 600V service, (8) corridors serving an occupant load of 30 or more persons in residential occupancies. Note: sprinklered Group B offices under 10 persons and 1,000 sf are exempt.",
+      "tags": ["emergency lighting", "required spaces", "occupancy", "corridors", "stairways", "assembly", "residential"]
+    },
+    {
+      "id": "1006.3",
+      "title": "Emergency Lighting Duration and Level",
+      "text": "Emergency lighting must provide an average illumination of at least 1 foot-candle (10 lux) at the walking surface and not less than 0.1 foot-candle (1 lux) at any point during the required 90-minute duration. The ratio of maximum to minimum illumination must not exceed 40:1. Initial emergency lighting level immediately after failure must be at least 1 fc average for the first 10 seconds. After this initial period, it may reduce to 0.6 fc average and 0.06 fc minimum, but only if the space is being evacuated.",
+      "tags": ["emergency lighting", "1 foot-candle", "0.1 foot-candle", "90 minutes", "40:1 ratio", "duration", "average illumination"]
+    },
+    {
+      "id": "1013",
+      "title": "Exit Signs — Where Required",
+      "text": "Exit signs are required at: (1) every exit door from a story, (2) where two or more exits or exit access doors are required, at each exit or exit access door, (3) where exit access corridors or aisles are required, at each point where a corridor path intersects with another corridor or changes direction. Exit signs must be located where the exit or exit access door is not readily visible from the egress path. Not required in Main Exits of Group A with 300 or fewer occupants, Group I-1, and residential Group R occupancies with 4 or fewer stories.",
+      "tags": ["exit signs", "where required", "exit door", "corridor", "egress path", "Group A", "residential"]
+    },
+    {
+      "id": "1013.3",
+      "title": "Exit Sign Illumination",
+      "text": "Exit signs must be internally or externally illuminated. The face of an exit sign must be illuminated to a level of not less than 5 foot-candles (54 lux) by a self-contained power source or connected to the emergency lighting circuit. Internally illuminated exit signs must have a minimum luminance of 25 foot-lamberts (86 cd/m²). LED exit signs are permitted and must meet UL 924 listing requirements.",
+      "tags": ["exit signs", "illumination", "5 foot-candles", "internally illuminated", "self-luminous", "LED", "UL 924", "foot-lamberts"]
+    },
+    {
+      "id": "1013.4",
+      "title": "Exit Sign Power",
+      "text": "Exit signs must be connected to the building's emergency power supply. Signs must remain lit during normal and emergency power conditions. The power supply for exit signs must be capable of maintaining the required illumination for at least 90 minutes in case of primary power failure. Approved self-luminous signs that provide continuous illumination independent of external power sources are permitted in lieu of electrically illuminated signs.",
+      "tags": ["exit signs", "emergency power", "90 minutes", "self-luminous", "battery backup", "power failure"]
+    },
+    {
+      "id": "1008",
+      "title": "Illumination Emergency Power",
+      "text": "The power supply for required emergency lighting must be provided by one of the following: (1) battery-powered unit equipment listed for emergency use complying with UL 924, (2) on-site generator complying with Chapter 27 of the IBC, (3) a separate uninterruptible power supply (UPS), (4) separate storage batteries directly connected to emergency lighting circuits. The emergency power supply must supply power for at least 90 minutes and must be fully automatic in activation.",
+      "tags": ["emergency power", "battery", "generator", "UPS", "unit equipment", "UL 924", "automatic", "90 minutes"]
+    },
+    {
+      "id": "1010",
+      "title": "Doors — Visibility and Illumination at Exits",
+      "text": "Required egress doors must be distinguishable from the adjacent construction. Mirrors and highly reflective surfaces shall not be installed on or adjacent to any required egress door where they may confuse occupants. Exit access doors in a Group I-2 occupancy used for sleeping units must have illuminated hardware or a lighted room number adjacent to the door to allow identification from the corridor during emergency conditions.",
+      "tags": ["egress doors", "visibility", "mirrors", "healthcare", "Group I-2", "sleeping units", "illuminated hardware"]
+    },
+    {
+      "id": "420.7",
+      "title": "Sleeping Units — Nighttime Illumination",
+      "text": "In hotel and motel guest rooms (Group R-1) and apartment units (Group R-2), nighttime illumination of egress paths must be provided. A night light or low-level lighting that automatically activates when the main room lighting is turned off must illuminate the path from sleeping areas to bathroom facilities. Occupant-controlled dimmers on exit path lighting are acceptable if set to maintain a minimum of 0.1 foot-candle at floor level.",
+      "tags": ["hotel", "motel", "guest room", "sleeping units", "nighttime", "R-1", "R-2", "night light", "0.1 foot-candle"]
+    },
+    {
+      "id": "907.5.2.3",
+      "title": "Notification Appliances — Visible (Strobes)",
+      "text": "In sleeping units, visible notification appliances (strobes) must be installed in compliance with NFPA 72. For hotel and motel guest rooms, a strobe must be provided in the room. The candela output for sleeping area strobes must comply with NFPA 72 Table 18.5.5.4.1(a) based on room dimensions. Strobes in corridors used as sleeping unit paths must be spaced per NFPA 72. Candela ratings and placement must be coordinated between the fire alarm and lighting designers.",
+      "tags": ["strobe", "visible notification", "NFPA 72", "sleeping units", "hotel", "guest room", "fire alarm", "candela"]
+    },
+    {
+      "id": "1205",
+      "title": "Natural Light and Minimum Illumination — Habitable Spaces",
+      "text": "Every habitable room must have natural light through windows or skylights with a minimum glazing area of not less than 8% of the floor area of the room. Where natural light cannot be provided, artificial light providing not less than 6 foot-candles of average maintained illuminance at a height of 30 inches above the floor is acceptable as an alternative. This applies to offices (Group B), residential (Group R), and care occupancies (Group I).",
+      "tags": ["natural light", "habitable", "windows", "glazing", "8 percent", "6 foot-candles", "artificial light", "alternative"]
+    },
+    {
+      "id": "1205.4",
+      "title": "Parking Garages — Illumination Requirements",
+      "text": "Parking garages open to the outside (open parking structures) are exempt from interior lighting power limits under ASHRAE 90.1 but must comply with minimum illumination requirements. Enclosed parking garages must provide minimum 1 fc average at floor level in all driving aisles, with not less than 0.5 fc at any point. Ramps must provide a minimum of 5 fc at the top and bottom of each ramp and 2 fc along the ramp length.",
+      "tags": ["parking garage", "illumination", "1 foot-candle", "ramp", "5 foot-candles", "enclosed garage", "open parking"]
+    }
+  ]
+}

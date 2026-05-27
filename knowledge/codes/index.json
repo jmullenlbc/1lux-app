@@ -1,0 +1,41 @@
+{
+  "lastUpdated": "2025-05-27",
+  "codes": [
+    {
+      "file": "ashrae-901-2022.json",
+      "code": "ASHRAE 90.1-2022",
+      "title": "Energy Standard for Sites and Buildings Except Low-Rise Residential",
+      "publisher": "ASHRAE",
+      "year": 2022,
+      "sectionCount": 24,
+      "tags": ["LPD", "energy", "controls", "lighting power density", "interior", "exterior", "dimming", "occupancy sensors"]
+    },
+    {
+      "file": "ibc-2021.json",
+      "code": "IBC 2021",
+      "title": "International Building Code",
+      "publisher": "ICC",
+      "year": 2021,
+      "sectionCount": 12,
+      "tags": ["emergency lighting", "egress", "exit signs", "foot-candles", "IBC", "life safety", "battery backup"]
+    },
+    {
+      "file": "iecc-2021-commercial.json",
+      "code": "IECC 2021",
+      "title": "International Energy Conservation Code — Commercial",
+      "publisher": "ICC",
+      "year": 2021,
+      "sectionCount": 8,
+      "tags": ["energy code", "automatic controls", "daylight", "exterior lighting", "hotel", "commercial", "efficacy"]
+    },
+    {
+      "file": "nec-2020.json",
+      "code": "NEC 2020",
+      "title": "NFPA 70 — National Electrical Code",
+      "publisher": "NFPA",
+      "year": 2020,
+      "sectionCount": 14,
+      "tags": ["NEC", "electrical", "emergency power", "luminaire listing", "wet locations", "branch circuit", "healthcare", "track lighting"]
+    }
+  ]
+}

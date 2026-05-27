@@ -1,0 +1,182 @@
+{
+  "code": "ASHRAE 90.1-2022",
+  "title": "Energy Standard for Sites and Buildings Except Low-Rise Residential Buildings",
+  "publisher": "ASHRAE",
+  "year": 2022,
+  "sections": [
+    {
+      "id": "9.1",
+      "title": "General — Scope of Lighting Requirements",
+      "text": "Section 9 applies to interior and exterior lighting systems in all buildings covered by the standard. Lighting power limits apply to all permanently installed lighting, including general illumination, decorative lighting, and lighting in mechanical rooms and stairwells. Exceptions include emergency lighting that operates only on backup power, lighting in spaces specifically exempted by Section 9.2, and lighting in dwelling units.",
+      "tags": ["scope", "general", "interior", "exterior", "permanently installed"]
+    },
+    {
+      "id": "9.2",
+      "title": "Exemptions",
+      "text": "The following lighting is exempt from the interior lighting power limits: (1) emergency lighting that has dual-switching capability operating only on emergency backup power, (2) decorative gas lighting systems, (3) lighting in dwelling units, (4) lighting equipment that is for sale or being demonstrated in lighting showrooms, (5) lighting equipment used in agricultural applications. Note: Exit signs are not exempt from the standard even though they are required by life safety codes.",
+      "tags": ["exemptions", "emergency lighting", "dwelling units", "exceptions"]
+    },
+    {
+      "id": "9.4.1",
+      "title": "Interior Lighting Controls — Automatic Shutoff",
+      "text": "All interior lighting in buildings larger than 5,000 sq ft must have automatic shutoff controls. Acceptable methods include: (1) occupancy sensor that turns lights off within 30 minutes of occupancy ceasing, (2) scheduled automatic shutoff that turns lights off at specific times, (3) signal from another control or building automation system. Occupancy sensors must also comply: in spaces where automatic partial-off is used instead of full shutoff, lights must reduce to at least 50% power within 30 minutes of vacancy.",
+      "tags": ["controls", "automatic shutoff", "occupancy sensor", "scheduling", "5000 sq ft"]
+    },
+    {
+      "id": "9.4.1.1",
+      "title": "Space Controls — Occupancy Sensing",
+      "text": "Occupancy sensors are required in the following space types: offices 250 sf or smaller, classrooms and lecture halls, conference/meeting rooms, employee lunch and break rooms, storage rooms, janitorial closets, restrooms, locker rooms. For spaces 250 sf or smaller the sensor must control all lighting in the space. Manual-on sensors (vacancy sensors) are preferred over auto-on in private offices and other enclosed spaces where occupants can manually turn on lights.",
+      "tags": ["occupancy sensor", "vacancy sensor", "required spaces", "offices", "classrooms", "restrooms"]
+    },
+    {
+      "id": "9.4.1.2",
+      "title": "Daylight Controls — Mandatory Sidelighting and Toplighting",
+      "text": "Daylight-responsive controls are required in: (1) all primary sidelighted areas of 120 sf or more where the total installed lighting power is 150 W or more, (2) all daylit areas under skylights of 900 sf or more where the total installed lighting power is 150 W or more, (3) all primary sidelighted areas in addition to those in item 1 that are 900 sf or more. Daylight controls must reduce electric lighting by at least 50% or maintain illuminance set point within 10% under sufficient daylight conditions.",
+      "tags": ["daylight controls", "daylight sensors", "sidelighting", "toplighting", "skylights", "photosensor"]
+    },
+    {
+      "id": "9.4.1.3",
+      "title": "Decorative Lighting Controls",
+      "text": "Decorative and display lighting, including case lighting, and lighting in hotel lobbies, must be separately switched from general illumination and must be controlled by a time-of-day schedule or occupancy sensor. This allows decorative lighting to be turned off during periods of no occupancy while maintaining general illumination if needed.",
+      "tags": ["decorative lighting", "display lighting", "hotel lobby", "separate switching"]
+    },
+    {
+      "id": "9.4.2",
+      "title": "Hotel and Motel Guest Room Controls",
+      "text": "Each hotel and motel guest room must have at least one master control at the main entrance that controls all permanently installed luminaires and switched receptacles. This master control must automatically turn off all loads within 20 minutes of the guest leaving the room, which may be accomplished by a key card switch, door sensor, or occupancy sensor. All bathroom lighting must be controlled separately from the bedroom.",
+      "tags": ["hotel", "motel", "guest room", "master control", "key card", "bathroom"]
+    },
+    {
+      "id": "9.4.3",
+      "title": "Exit Signs",
+      "text": "All exit signs must use LED sources or equivalent with a maximum of 5 watts per face. Illuminated exit signs that use more than 5 W per face are not compliant. This applies to internally illuminated exit signs; externally illuminated exit signs are exempt from the 5W limit but must comply with IBC requirements. Exit signs in compliance with this section do not count toward the building's interior LPD allowance.",
+      "tags": ["exit signs", "LED", "5 watts", "emergency"]
+    },
+    {
+      "id": "9.5",
+      "title": "Interior Lighting Power Allowance — Space-by-Space Method",
+      "text": "The Space-by-Space Method calculates the interior lighting power allowance by multiplying the LPD allowance for each space type by the area of that space. The total allowance is the sum of all space allowances. This method is preferred when a building has many different space types. LPD allowances are listed in Table 9.5.1. Spaces not listed must use the LPD of the most similar space type or default to 0.82 W/ft² (office).",
+      "tags": ["space-by-space", "LPD", "interior lighting power", "allowance", "calculation method"]
+    },
+    {
+      "id": "9.5.1-office",
+      "title": "Table 9.5.1 — Office Spaces LPD",
+      "text": "Office (open plan): 0.98 W/ft². Office (enclosed): 0.98 W/ft². Conference/meeting/multipurpose room: 1.23 W/ft². Copy/print room: 0.72 W/ft². Break room/lounge: 0.75 W/ft². Reception/waiting: 0.92 W/ft².",
+      "tags": ["LPD", "office", "open plan", "enclosed office", "conference room", "break room", "reception", "watts per square foot"]
+    },
+    {
+      "id": "9.5.1-corridor",
+      "title": "Table 9.5.1 — Corridor, Lobby, Stairway LPD",
+      "text": "Corridor/transition (office or school): 0.66 W/ft². Corridor/transition (manufacturing or high-bay): 0.41 W/ft². Lobby (main entry): 0.90 W/ft². Lobby (elevator): 0.74 W/ft². Stairway/stairwell: 0.69 W/ft². Atrium (first 40 ft height): 0.03 W/ft² per ft. Atrium (above 40 ft): 0.02 W/ft² per ft.",
+      "tags": ["LPD", "corridor", "lobby", "stairway", "atrium", "transition", "elevator lobby"]
+    },
+    {
+      "id": "9.5.1-restroom",
+      "title": "Table 9.5.1 — Restroom, Locker Room LPD",
+      "text": "Restroom: 0.98 W/ft². Locker room: 0.75 W/ft². Shower/changing room: 0.69 W/ft².",
+      "tags": ["LPD", "restroom", "bathroom", "locker room", "toilet room"]
+    },
+    {
+      "id": "9.5.1-mechanical",
+      "title": "Table 9.5.1 — Mechanical, Electrical, Storage LPD",
+      "text": "Electrical/mechanical room: 0.95 W/ft². Storage room (general): 0.63 W/ft². Storage room (active): 0.63 W/ft². Janitorial/closet: 0.52 W/ft².",
+      "tags": ["LPD", "mechanical room", "electrical room", "storage", "janitorial"]
+    },
+    {
+      "id": "9.5.1-food",
+      "title": "Table 9.5.1 — Food Service LPD",
+      "text": "Food preparation (commercial kitchen): 1.28 W/ft². Dining area (leisure/bar): 1.07 W/ft². Dining area (family/cafeteria): 0.87 W/ft². Cafeteria/fast food dining: 0.65 W/ft². Convenience store (sales area): 1.31 W/ft².",
+      "tags": ["LPD", "kitchen", "dining", "food service", "restaurant", "cafeteria", "bar"]
+    },
+    {
+      "id": "9.5.1-retail",
+      "title": "Table 9.5.1 — Retail LPD",
+      "text": "Retail sales floor: 1.26 W/ft². Mall concourse: 1.10 W/ft². Dressing room (retail): 0.71 W/ft².",
+      "tags": ["LPD", "retail", "sales floor", "mall", "dressing room", "store"]
+    },
+    {
+      "id": "9.5.1-healthcare",
+      "title": "Table 9.5.1 — Healthcare LPD",
+      "text": "Exam/treatment room: 1.66 W/ft². Nurses' station: 0.87 W/ft². Patient room: 0.62 W/ft². Operating room: 3.25 W/ft². Recovery room: 0.80 W/ft². Medical supply room: 1.51 W/ft². Pharmacy: 1.76 W/ft². Radiology/imaging room: 1.32 W/ft². Physical therapy: 0.91 W/ft². Waiting room (healthcare): 0.92 W/ft².",
+      "tags": ["LPD", "healthcare", "hospital", "clinic", "exam room", "operating room", "patient room", "pharmacy", "nurses station"]
+    },
+    {
+      "id": "9.5.1-education",
+      "title": "Table 9.5.1 — Education LPD",
+      "text": "Classroom/lecture hall: 1.24 W/ft². Laboratory (science): 1.28 W/ft². Art room: 1.43 W/ft². Shop (woodworking/metal): 1.59 W/ft². Library (reading area): 1.06 W/ft². Library (stacks area): 1.71 W/ft². Gymnasium (with audience seating): 0.91 W/ft².",
+      "tags": ["LPD", "education", "classroom", "school", "university", "library", "laboratory", "gymnasium", "lecture hall"]
+    },
+    {
+      "id": "9.5.1-hotel",
+      "title": "Table 9.5.1 — Hotel/Motel Guest Room LPD",
+      "text": "Hotel/motel guest room: 1.11 W/ft². Living quarters (residential-style in non-residential buildings): 0.60 W/ft². Bedroom (non-residential): 0.60 W/ft². Laundry room: 0.60 W/ft².",
+      "tags": ["LPD", "hotel", "motel", "guest room", "bedroom", "living quarters", "laundry"]
+    },
+    {
+      "id": "9.5.1-parking",
+      "title": "Table 9.5.1 — Parking and Automotive LPD",
+      "text": "Parking garage (interior, covered): 0.19 W/ft². Automotive service (repair bay): 0.67 W/ft². Automotive (vehicle display): 1.45 W/ft².",
+      "tags": ["LPD", "parking garage", "automotive", "garage", "repair", "vehicle"]
+    },
+    {
+      "id": "9.5.1-worship",
+      "title": "Table 9.5.1 — Worship and Assembly LPD",
+      "text": "Worship/fellowship hall (sanctuary): 1.53 W/ft². Fellowship hall/social hall: 0.64 W/ft². Audience seating (assembly): 0.43 W/ft².",
+      "tags": ["LPD", "church", "worship", "sanctuary", "fellowship hall", "assembly", "religious"]
+    },
+    {
+      "id": "9.5.1-sports",
+      "title": "Table 9.5.1 — Sports and Recreation LPD",
+      "text": "Gymnasium (without audience): 0.72 W/ft². Exercise/fitness center: 0.72 W/ft². Court sports (racquetball/squash): 2.26 W/ft². Sport arena (seating): 0.43 W/ft². Ice/curling rink: 0.91 W/ft². Indoor swimming pool (pool area): 0.91 W/ft².",
+      "tags": ["LPD", "gymnasium", "fitness", "exercise", "sports", "recreation", "pool", "racquetball", "arena"]
+    },
+    {
+      "id": "9.5.1-theater",
+      "title": "Table 9.5.1 — Theater and Performance LPD",
+      "text": "Motion picture theater (seating area): 0.27 W/ft². Motion picture theater (lobby): 0.90 W/ft². Performing arts theater (audience/seating): 2.43 W/ft². Performing arts backstage: 0.69 W/ft².",
+      "tags": ["LPD", "theater", "cinema", "performing arts", "backstage", "auditorium", "movie theater"]
+    },
+    {
+      "id": "9.5.1-industrial",
+      "title": "Table 9.5.1 — Industrial and Warehouse LPD",
+      "text": "Workshop/fabrication: 1.59 W/ft². Warehouse (bulk storage, high bay): 1.05 W/ft². Warehouse (fine material): 0.73 W/ft². Manufacturing (detailed work): 1.29 W/ft². Manufacturing (general): 1.14 W/ft². Loading dock (interior): 0.88 W/ft².",
+      "tags": ["LPD", "warehouse", "manufacturing", "industrial", "workshop", "high bay", "loading dock"]
+    },
+    {
+      "id": "9.6",
+      "title": "Building Area Method — Interior LPD",
+      "text": "The Building Area Method allows a single LPD allowance applied to the entire building gross square footage. It is simpler but typically less flexible than the Space-by-Space Method. The total LPD cannot exceed the value in Table 9.6.1 for the building type. If a building contains multiple uses, the building type is the predominant use by floor area.",
+      "tags": ["building area method", "LPD", "gross square footage", "building type", "simple method"]
+    },
+    {
+      "id": "9.6.1-table",
+      "title": "Table 9.6.1 — Building Area LPD Allowances",
+      "text": "Automotive facility: 0.80 W/ft². Convention center: 1.08 W/ft². Courthouse: 1.05 W/ft². Dining — bar/lounge/leisure: 1.07 W/ft². Dining — cafeteria/fast food: 0.65 W/ft². Dining — family: 0.70 W/ft². Dormitory: 0.55 W/ft². Exercise center: 0.84 W/ft². Gymnasium: 0.94 W/ft². Health care — clinic: 0.87 W/ft². Health care — hospital: 1.05 W/ft². Hotel: 0.87 W/ft². Library: 1.19 W/ft². Manufacturing facility: 1.11 W/ft². Motel: 0.88 W/ft². Motion picture theater: 0.76 W/ft². Multi-family: 0.51 W/ft². Museum: 1.06 W/ft². Office: 0.82 W/ft². Parking garage: 0.21 W/ft². Penitentiary: 0.78 W/ft². Performing arts theater: 1.39 W/ft². Police/fire station: 0.87 W/ft². Post office: 0.87 W/ft². Religious building: 1.53 W/ft². Retail: 1.26 W/ft². School/university: 0.87 W/ft². Sports arena: 1.03 W/ft². Town hall: 0.92 W/ft². Transportation: 0.77 W/ft². Warehouse: 0.66 W/ft². Workshop: 1.59 W/ft².",
+      "tags": ["building area method", "LPD", "table", "allowances", "building types", "whole building"]
+    },
+    {
+      "id": "9.4.2.1",
+      "title": "Exterior Lighting Controls",
+      "text": "All exterior lighting must be controlled by a combination of a photosensor and a time switch, or an astronomical time switch. The photosensor must turn lights on at dusk and off at dawn. The time switch provides additional control for reducing lighting during late-night hours. Façade and landscape lighting must be turned off between midnight and 6 AM or when the building is not in use, whichever is later.",
+      "tags": ["exterior lighting", "photosensor", "time switch", "astronomical", "dusk to dawn", "façade", "landscape"]
+    },
+    {
+      "id": "9.4.2.2",
+      "title": "Exterior Lighting Power Allowance",
+      "text": "Exterior lighting power is calculated using a base allowance plus tradeable and non-tradeable allowances based on exterior zones (E1-E4 per ASHRAE/IESNA). The total exterior LPD is limited based on the lighting zone designation of the site. Trade-off between exterior zones is not permitted. Non-tradeable allowances apply to specific features such as vehicle canopies, walkways, sales lots, and building facades.",
+      "tags": ["exterior lighting", "LPD", "exterior zone", "E1", "E2", "E3", "E4", "canopy", "walkway", "facade"]
+    },
+    {
+      "id": "9.3.1",
+      "title": "Lighting Power Compliance — Allowed Adjustments",
+      "text": "Additional LPD allowances are permitted for: (1) additional 1.0 W/ft² for retail display lighting beyond the base space allowance, (2) hotel and motel guest rooms get an additional 0.35 W/ft² when supplemental heat lamps are installed in bathrooms, (3) specific task lighting connected to switched receptacles (less than 0.3 W/ft²) may be excluded if it is plug-in and not permanently installed. Supplemental task lighting at workstations is included in the LPD calculation when it is hardwired.",
+      "tags": ["LPD adjustments", "retail display", "hotel", "task lighting", "receptacle", "allowances"]
+    },
+    {
+      "id": "9.2.2",
+      "title": "Lighting Controls — Multi-level Capability",
+      "text": "All interior lighting must be capable of being reduced to at least 50% power through any of the following methods: (1) daylight-responsive controls, (2) occupancy/vacancy sensing, (3) manual continuous dimming, (4) multi-level switching (at least 2 steps where one is ≤50%). Exceptions: single-occupant spaces controlled by occupancy sensor, spaces where multi-level would endanger safety, and emergency lighting.",
+      "tags": ["multi-level", "dimming", "50 percent", "continuous dimming", "switching", "controls"]
+    }
+  ]
+}
