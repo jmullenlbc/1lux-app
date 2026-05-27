@@ -76,12 +76,33 @@ export async function POST(request) {
   try { body = await request.json(); }
   catch { return NextResponse.json({ error: 'Invalid request body' }, { status: 400 }); }
 
-  const { query, history = [] } = body;
+  const { query, history = [], projectContext = null } = body;
   if (!query?.trim()) {
     return NextResponse.json({ error: 'query is required' }, { status: 400 });
   }
 
   const { text: corpusText, meta: corpusMeta } = getCorpus();
+
+  // ── Build project context block if provided ───────────────────────────────
+  let projectBlock = '';
+  if (projectContext) {
+    const { projectName, buildingType, city, state, serviceType } = projectContext;
+    const parts = [];
+    if (projectName) parts.push(`Project: ${projectName}`);
+    if (buildingType) parts.push(`Building Type: ${buildingType}`);
+    if (city && state)   parts.push(`Location: ${city}, ${state}`);
+    else if (state)      parts.push(`State: ${state}`);
+    else if (city)       parts.push(`City: ${city}`);
+    if (serviceType) parts.push(`Service Type: ${serviceType}`);
+
+    if (parts.length) {
+      projectBlock = `\nPROJECT CONTEXT (scope your answer to this specific project):
+${parts.map(p => `  • ${p}`).join('\n')}
+
+When the project state is known, note if state amendments commonly affect the answer (e.g., California Title 24, Washington State Energy Code). Lead with how the code applies to this specific project type and location, then give the general rule.
+`;
+    }
+  }
 
   // ── Build the system prompt with prompt caching on the code corpus ─────────
   const systemContent = [
@@ -90,7 +111,7 @@ export async function POST(request) {
       text: `You are an expert code consultant for ILC Studios, a professional lighting design firm. You answer questions about building codes relevant to lighting design: ASHRAE 90.1 (energy/LPD), IBC (life safety/egress), IECC (energy conservation), and NEC/NFPA 70 (electrical).
 
 Your knowledge comes from the code corpus below. Always cite the specific section number (e.g., "ASHRAE 90.1-2022 Section 9.5.1" or "IBC 2021 Section 1006") when referencing a requirement.
-
+${projectBlock}
 CONFIDENCE LEVELS — always end your answer with one of these:
 - ✅ CERTAIN — The code text directly answers the question
 - ⚠️ LIKELY — The code implies this answer but may have exceptions or jurisdiction-specific amendments
@@ -102,7 +123,7 @@ BEHAVIOR RULES:
 - For LPD questions, always state the exact W/ft² value from the table
 - If the answer depends on the building type or occupancy, ask for clarification or cover multiple cases
 - If a question is outside the scope of the loaded codes, say so clearly
-- For healthcare, high-rise, or life safety questions, always recommend VERIFY WITH EOR
+- For high-rise, healthcare, or life safety questions, always recommend VERIFY WITH EOR
 - Do not invent code requirements not present in the corpus
 
 LOADED CODES (${corpusMeta.length} codes, ${corpusMeta.reduce((s, m) => s + m.sectionCount, 0)} sections):

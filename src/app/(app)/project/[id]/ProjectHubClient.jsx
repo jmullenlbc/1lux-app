@@ -27,6 +27,7 @@ import DrawingMarkupModal from '@/components/drawing/DrawingMarkupModal';
 import ShipScheduleTab from '@/components/shipSchedule/ShipScheduleTab';
 import NotificationSettingsTab from '@/components/notifications/NotificationSettingsTab';
 import ContactsTab from '@/components/contacts/ContactsTab';
+import ProjectCodeSearch from '@/components/ProjectCodeSearch';
 
 const BUDGET_TYPE_META = {
   conceptual:  { label: 'Conceptual Budget',    color: 'bg-slate-100 text-slate-600' },
@@ -1143,6 +1144,17 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
                 </div>
               </div>
             </div>
+
+            {/* Code Intelligence — project-aware code search */}
+            <ProjectCodeSearch
+              projectContext={{
+                projectName:  project.name,
+                buildingType: buildingTypeLabel(project.buildingType),
+                city:         project.city  || '',
+                state:        project.state || '',
+                serviceType:  project.serviceType || '',
+              }}
+            />
 
             {/* Design Schedule widget */}
             <DesignScheduleCard
