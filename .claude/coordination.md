@@ -25,6 +25,13 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Log
 
+### 2026-05-27 AM (later) — Sean's Claude
+- **Wired up two `designUpgrades` constants** that were defined-but-unused in `pricing.js`: `entryDecorative` ($30/unit when `responses.entryDisk === 'decorative'`) and `fanSize52Adder` ($25/fan when `responses.fanSize52 === 'yes'` and fans are present). Also wired `entryway12inch` while at it ($25/unit for the '12inch' entry case). Commit `5377c67`. Branch workflow ran clean.
+- **No regressions for Modera or Broadstone** (their responses don't trigger these conditions — default 'typical' entry, no 52" fans). Link+Pin closes ~30% of its prior units delta (+$4,820 added; total delta now -9.67% vs prior -11.33%).
+- Q6 (vanity/fan net-vs-gross) still pending Mike's decision — Sean specifically chose NOT to switch to gross because Modera and Broadstone match the engine exactly under the current net methodology; switching would break those.
+- **Heading into Q1 next** — energy credit refactor (move from `controlsProduct` post-FWT to `lightingProductSubtotal` pre-FWT). Mike's answer was unambiguous; no blockers.
+- Reminder: 3 peer-review matrix spreadsheets (York St, Grove St, 9th + Clermont) are NOT yet calibrated — they exercise `runParametricEstimate`, a different engine from `calculateBudget`. Separate calibration task, not addressed today.
+
 ### 2026-05-27 AM — Sean's Claude
 - **Engine calibrated against 4 real Mike-provided spreadsheets** in `_tests/calibrate-conceptual.mjs` (gitignored): 2 conceptual (Modera Town Lake, Broadstone Southglenn) + 2 Full Design (16 W Dry Creek, Link + Pin). Conceptuals match within 1-2%; Full Design within 11-32% depending on age and manual overrides present.
 - **Mason confirmed all 4 open questions** Sean had posted earlier this morning: (1) exit signs halving patch `f7a45e8` is correct — engine right, older Excels stale. (2) Broadstone's $0.030/SF vs Modera's $0.025/SF was Mike's intentional manual change, reason unknown. (3) Broadstone emergency strategy = `integrated_frogeyes` (off by only $105.95 — basically rounding). (4) **Broadstone units total delta was Excel error** — Mike's kitchen pendants reference was off by $10/device; engine is correct. Three of four "deltas" turn out to be spreadsheet bugs, not engine bugs.
