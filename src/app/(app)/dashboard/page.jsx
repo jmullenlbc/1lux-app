@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { calculateBudget } from '@/lib/calculations';
+import { loadPricing } from '@/lib/pricingLoader';
 import { responsesToSections } from '@/lib/utils';
 import DashboardClient from './DashboardClient';
 
@@ -23,9 +24,17 @@ export default async function DashboardPage() {
     orderBy: { updatedAt: 'desc' },
   });
 
+  // Load active pricing once; each project uses its frozen snapshot if present,
+  // else falls back to active. This MUST match the project hub / wizard / summary
+  // pages, which all do snapshot-or-active + buildingTypeKey injection. Without
+  // this, the dashboard total diverges from the project's own pages.
+  const activePricing = await loadPricing();
+
   const hydrated = projects.map(p => {
-    const sections = responsesToSections(p.responses);
-    const budget   = calculateBudget(p.projectData, sections);
+    const sections    = responsesToSections(p.responses);
+    const pricing     = p.pricingSnapshot ? JSON.parse(p.pricingSnapshot) : activePricing;
+    const projectData = { ...(p.projectData || {}), buildingTypeKey: p.buildingType };
+    const budget      = calculateBudget(projectData, sections, pricing);
     return {
       ...p,
       budget,
