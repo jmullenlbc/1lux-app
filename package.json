@@ -18,6 +18,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",
     "@napi-rs/canvas": "^0.1.100",
+    "@paralleldrive/cuid2": "^3.3.0",
     "@prisma/client": "^5.22.0",
     "@tiptap/extension-link": "^3.23.5",
     "@tiptap/extension-table": "^3.23.5",

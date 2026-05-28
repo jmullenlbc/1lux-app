@@ -163,14 +163,39 @@ model Client {
 }
 
 model ClientPlaybook {
-  id         String   @id @default(cuid())
-  clientId   String   @unique
-  client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  scope      String   @default("{}") // JSON: project types, contacts, team relationships, budget authority, watch-outs
-  approval   String   @default("[]") // JSON: array of deliverable rows
-  process    String   @default("{}") // JSON: procurement, management, process notes
-  timeframes String   @default("{}") // JSON: lead times, cadence, response expectations
-  updatedAt  DateTime @updatedAt
+  id      String @id @default(cuid())
+  clientId String @unique
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Section 1 — Scope & Relationships
+  projectTypes    String?  // JSON array: ['BTR','GARDEN','PODIUM','HIGHRISE','LIHTC']
+  projectsPerYear Int?
+  primaryMarkets  String?
+  costTierNotes   String?
+  architectRel    String?  // JSON: { exists, firm, contact, introStatus, notes }
+  eeRel           String?  // JSON: { exists, firm, contact, introStatus, notes }
+  gcRel           String?  // JSON: { exists, firm, contact, introStatus, gcModel, notes }
+  primaryContactId  String?
+  approverContactId String?
+
+  // Section 3 — General Process
+  engagementTiming  String?  // SD|DD|CD|BID|VARIES
+  submittalPlatform String?  // EMAIL|PROCORE|BUILDING_CONNECTED|BLUEBEAM|OTHER
+  coTolerance       String?  // TIGHT|NORMAL|FLEXIBLE
+  mgmtStructure     String?  // CENTRAL|REGIONAL|MIXED
+  hasDesignTeam     Boolean  @default(false)
+  processNotes      String?
+
+  // Section 4 — Timeframes
+  engagementLeadTime     String?  // 6_PLUS|3_TO_6|1_TO_3|AT_GB|VARIES
+  budgetCadence          String?  // EACH_PHASE|CD_ONLY|AS_REQUESTED|QUARTERLY
+  submittalTurnaround    String?  // 3_DAYS|5_DAYS|2_WEEKS|NONE
+  typicalSdToCd          String?
+  rfiResponseExpectation String?  // SAME_DAY|24HR|48HR|NOT_SPECIFIED
+  timeframeNotes         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model ClientContact {
@@ -832,14 +857,16 @@ model ClientStandardsAnswer {
   adder_flag     Boolean      @default(false)
   adder_prompt   String?
   reference_key  String?
-  source         String       @default("MANUAL")
+  projectType    String       @default("")  // "" = global | "BTR"|"GARDEN"|"PODIUM"|"HIGHRISE"|"LIHTC"
+  region         String       @default("")  // "" = all regions | client-defined key e.g. "AZ_TX"
+  source         String       @default("MANUAL")  // MANUAL | CASCADE
   answeredById   String?
   answeredBy     User?        @relation("AnsweredByUser", fields: [answeredById], references: [id])
   answered_at    DateTime?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  @@unique([clientId, question_key])
+  @@unique([clientId, question_key, projectType, region])
 }
 
 model ProjectStandardsOverride {

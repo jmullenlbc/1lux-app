@@ -2,7 +2,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { buildingTypeLabel } from '@/lib/utils';
-import { STANDARDS_SECTIONS, SECTION_COLOR_MAP, TOTAL_SUBSECTIONS, CCT_OPTIONS, CCT_EXTERIOR_OPTIONS, CCT_INTERIOR_AREAS } from '@/lib/standardsSections';
+import {
+  STANDARDS_SECTIONS, SECTION_COLOR_MAP, TAG_COLORS,
+  CCT_OPTIONS, CCT_EXTERIOR_OPTIONS, CCT_INTERIOR_AREAS,
+  PROJECT_TYPES, resolveAnswer,
+} from '@/lib/standards-questions';
 import PlaybookTab from './PlaybookTab';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -722,110 +726,163 @@ function ProjectsTab({ client, available, onRefresh }) {
 }
 
 // ── Client Standards Tab ──────────────────────────────────────────────────────
+
+function buildAnswerMap(answers) {
+  const map = {};
+  for (const a of answers) {
+    const key = `${a.question_key}::${a.projectType || ''}::${a.region || ''}`;
+    map[key] = a;
+  }
+  return map;
+}
+
 function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
-  const [answers,        setAnswers]        = useState(() => {
-    const map = {};
-    for (const a of initialAnswers) map[a.question_key] = a;
-    return map;
-  });
-  const [activeSection,  setActiveSection]  = useState(STANDARDS_SECTIONS[0].key);
-  const [saving,         setSaving]         = useState({});
-  const [drafts,         setDrafts]         = useState({});
+  const [answers,          setAnswers]          = useState(() => buildAnswerMap(initialAnswers));
+  const [activeSection,    setActiveSection]    = useState(STANDARDS_SECTIONS[0].key);
+  const [activeProjectType, setActiveProjectType] = useState(''); // '' = Global
+  const [saving,           setSaving]           = useState({});
+  const [cascadeToast,     setCascadeToast]     = useState(null);
 
-  const section = STANDARDS_SECTIONS.find(s => s.key === activeSection);
-  const colors  = SECTION_COLOR_MAP[section?.color] || SECTION_COLOR_MAP.slate;
+  const allAnswers = Object.values(answers);
 
-  // Count answered subsections per section
-  function answeredCount(sectionKey) {
-    const sec = STANDARDS_SECTIONS.find(s => s.key === sectionKey);
-    if (!sec) return { answered: 0, total: sec?.subsections.length || 0 };
-    const answered = sec.subsections.filter(sub => {
-      const key = `${sectionKey}.${sub.key}`;
-      const a = answers[key];
-      return a && (a.answer_value?.trim() || a.answer_note?.trim());
-    }).length;
-    return { answered, total: sec.subsections.length };
+  // Resolve the effective answer for a question + current project type
+  function getAnswer(questionKey, pt = activeProjectType) {
+    return resolveAnswer(allAnswers, questionKey, pt, '');
   }
 
-  const totalAnswered = Object.values(answers).filter(a => a.answer_value?.trim() || a.answer_note?.trim()).length;
-  const pct = TOTAL_SUBSECTIONS > 0 ? Math.round((totalAnswered / TOTAL_SUBSECTIONS) * 100) : 0;
+  // Is the resolved value inherited (came from global, not this specific project type)?
+  function isInherited(questionKey) {
+    if (!activeProjectType) return false;
+    return !answers[`${questionKey}::${activeProjectType}::`];
+  }
 
-  async function saveNote(subsectionKey, note) {
-    const question_key = `${activeSection}.${subsectionKey}`;
-    setSaving(prev => ({ ...prev, [question_key]: true }));
+  // Does this project type have a specific override?
+  function hasOverride(questionKey) {
+    if (!activeProjectType) return false;
+    const rec = answers[`${questionKey}::${activeProjectType}::`];
+    return !!rec && rec.answer_value != null;
+  }
+
+  // ── Save a standards answer ───────────────────────────────────────────────
+  async function saveAnswer(question, value, sectionKey) {
+    const mapKey = `${question.key}::${activeProjectType}::`;
+    setSaving(prev => ({ ...prev, [mapKey]: true }));
     try {
       const res = await fetch(`/api/clients/${clientId}/standards`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          question_key,
-          section:    activeSection,
-          subsection: subsectionKey,
-          input_type: 'TEXT',
-          answer_note: note,
+          question_key: question.key,
+          section:      sectionKey || activeSection,
+          subsection:   '',
+          input_type:   question.inputType || 'CHIPS',
+          answer_value: value,
+          projectType:  activeProjectType,
+          region:       '',
         }),
       });
       if (res.ok) {
-        const saved = await res.json();
-        setAnswers(prev => ({ ...prev, [question_key]: saved }));
+        const { answer, cascaded } = await res.json();
+        setAnswers(prev => ({ ...prev, [mapKey]: answer }));
+
+        if (cascaded > 0) {
+          // Reload to pick up all cascaded records
+          const allRes = await fetch(`/api/clients/${clientId}/standards`);
+          if (allRes.ok) {
+            const all = await allRes.json();
+            setAnswers(buildAnswerMap(all));
+          }
+          setCascadeToast({ count: cascaded, label: question.label });
+          setTimeout(() => setCascadeToast(null), 3500);
+        }
       }
     } finally {
-      setSaving(prev => ({ ...prev, [question_key]: false }));
-      setDrafts(prev => { const n = { ...prev }; delete n[question_key]; return n; });
+      setSaving(prev => { const n = { ...prev }; delete n[mapKey]; return n; });
     }
   }
 
-  async function saveCCT(subsectionKey, value) {
-    const question_key = `COLOR_TEMPERATURE.${subsectionKey}`;
-    setSaving(prev => ({ ...prev, [question_key]: true }));
+  // ── Clear a project-type override (set answer_value to null) ─────────────
+  async function clearOverride(question, sectionKey) {
+    await saveAnswer({ ...question, inputType: question.inputType || 'CHIPS' }, null, sectionKey);
+    // Remove from local map so inherited value shows through
+    const mapKey = `${question.key}::${activeProjectType}::`;
+    setAnswers(prev => {
+      const n = { ...prev };
+      if (n[mapKey]) n[mapKey] = { ...n[mapKey], answer_value: null };
+      return n;
+    });
+  }
+
+  // ── CCT save ─────────────────────────────────────────────────────────────
+  async function saveCCT(questionKey, value) {
+    const mapKey = `${questionKey}::${activeProjectType}::`;
+    setSaving(prev => ({ ...prev, [mapKey]: true }));
     try {
       const res = await fetch(`/api/clients/${clientId}/standards`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          question_key,
-          section:     'COLOR_TEMPERATURE',
-          subsection:  subsectionKey,
-          input_type:  'DROPDOWN',
+          question_key: questionKey,
+          section:      'COLOR_TEMPERATURE',
+          subsection:   '',
+          input_type:   'CHIPS',
           answer_value: value || null,
+          projectType:  activeProjectType,
+          region:       '',
         }),
       });
       if (res.ok) {
-        const saved = await res.json();
-        setAnswers(prev => ({ ...prev, [question_key]: saved }));
+        const { answer } = await res.json();
+        setAnswers(prev => ({ ...prev, [mapKey]: answer }));
       }
     } finally {
-      setSaving(prev => ({ ...prev, [question_key]: false }));
+      setSaving(prev => { const n = { ...prev }; delete n[mapKey]; return n; });
     }
   }
 
-  // ── CCT section renderer ──────────────────────────────────────────────────
+  // ── Completion ────────────────────────────────────────────────────────────
+  const QUESTION_SECTIONS = STANDARDS_SECTIONS.filter(s => !s.isCCT && s.questions?.length > 0);
+  const totalQuestions    = QUESTION_SECTIONS.reduce((n, s) => n + s.questions.length, 0);
+  const answeredGlobal    = QUESTION_SECTIONS.reduce((n, s) =>
+    n + s.questions.filter(q => getAnswer(q.key, '')?.answer_value != null).length, 0);
+  const pct = totalQuestions > 0 ? Math.round((answeredGlobal / totalQuestions) * 100) : 0;
+
+  function sectionAnsweredCount(sectionKey) {
+    const sec = STANDARDS_SECTIONS.find(s => s.key === sectionKey);
+    if (!sec?.questions?.length) return { answered: 0, total: 0 };
+    const answered = sec.questions.filter(q => getAnswer(q.key)?.answer_value != null).length;
+    return { answered, total: sec.questions.length };
+  }
+
+  // ── CCT Section renderer ──────────────────────────────────────────────────
   function CCTSection() {
-    const interiorKey = 'COLOR_TEMPERATURE.ALL_INTERIOR';
-    const exteriorKey = 'COLOR_TEMPERATURE.EXTERIOR';
-    const interiorCCT = answers[interiorKey]?.answer_value || '';
-    const exteriorCCT = answers[exteriorKey]?.answer_value || '';
+    const interiorCCT = getAnswer('cct_all_interior')?.answer_value || '';
+    const exteriorCCT = getAnswer('cct_exterior')?.answer_value || '';
+    const isSavingInterior = !!saving[`cct_all_interior::${activeProjectType}::`];
+    const isSavingExterior = !!saving[`cct_exterior::${activeProjectType}::`];
 
     function effectiveCCT(areaKey) {
-      const override = answers[`COLOR_TEMPERATURE.${areaKey}`]?.answer_value;
+      const override = getAnswer(areaKey)?.answer_value;
       return override || interiorCCT || '';
     }
 
-    function isOverride(areaKey) {
-      const v = answers[`COLOR_TEMPERATURE.${areaKey}`]?.answer_value;
+    function isAreaOverride(areaKey) {
+      const v = getAnswer(areaKey)?.answer_value;
       return v && v !== interiorCCT;
     }
 
-    function CCTChips({ value, onChange, options = CCT_OPTIONS }) {
+    function CCTChips({ questionKey, value, onChange, options = CCT_OPTIONS }) {
+      const isSav = !!saving[`${questionKey}::${activeProjectType}::`];
       return (
         <div className="flex flex-wrap gap-1.5 mt-1">
           {options.map(cct => (
-            <button key={cct} type="button" onClick={() => canEdit && onChange(value === cct ? '' : cct)}
+            <button key={cct} type="button"
+              onClick={() => canEdit && !isSav && onChange(value === cct ? '' : cct)}
               className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
                 value === cct
                   ? 'bg-amber-500 text-white border-amber-500'
                   : 'bg-white text-slate-500 border-slate-200 hover:border-amber-400 hover:text-amber-600'
-              } ${!canEdit ? 'pointer-events-none' : ''}`}>
+              } ${!canEdit ? 'pointer-events-none opacity-60' : ''}`}>
               {cct}
             </button>
           ))}
@@ -833,13 +890,13 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
             <button type="button" onClick={() => onChange('')}
               className="px-2 py-1.5 text-xs text-slate-400 hover:text-slate-600">✕ Clear</button>
           )}
+          {isSav && <span className="text-[10px] text-slate-400 italic self-center ml-1">Saving…</span>}
         </div>
       );
     }
 
     return (
       <div className="space-y-6">
-        {/* Primary pickers */}
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-white rounded-xl border border-slate-200 p-4">
             <div className="flex items-center gap-2 mb-1">
@@ -847,7 +904,8 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
               <span className="text-sm font-bold text-slate-800">All Interior</span>
               <span className="text-[10px] text-slate-400 ml-auto">Default for all interior areas</span>
             </div>
-            <CCTChips value={interiorCCT} onChange={v => saveCCT('ALL_INTERIOR', v)} />
+            <CCTChips questionKey="cct_all_interior" value={interiorCCT}
+              onChange={v => saveCCT('cct_all_interior', v)} />
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-4">
             <div className="flex items-center gap-2 mb-1">
@@ -855,11 +913,11 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
               <span className="text-sm font-bold text-slate-800">Exterior</span>
               <span className="text-[10px] text-slate-400 ml-auto">All exterior areas</span>
             </div>
-            <CCTChips value={exteriorCCT} onChange={v => saveCCT('EXTERIOR', v)} options={CCT_EXTERIOR_OPTIONS} />
+            <CCTChips questionKey="cct_exterior" value={exteriorCCT}
+              onChange={v => saveCCT('cct_exterior', v)} options={CCT_EXTERIOR_OPTIONS} />
           </div>
         </div>
 
-        {/* Per-area overrides */}
         <div>
           <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">
             Area overrides — set only if different from interior default
@@ -867,8 +925,9 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
           <div className="grid grid-cols-1 gap-2">
             {CCT_INTERIOR_AREAS.map(area => {
               const current  = effectiveCCT(area.key);
-              const override = isOverride(area.key);
-              const isSav    = saving[`COLOR_TEMPERATURE.${area.key}`];
+              const override = isAreaOverride(area.key);
+              const isSav    = !!saving[`${area.key}::${activeProjectType}::`];
+              const areaSpecific = answers[`${area.key}::${activeProjectType}::`]?.answer_value;
               return (
                 <div key={area.key} className={`bg-white rounded-lg border px-4 py-3 ${override ? 'border-amber-200' : 'border-slate-100'}`}>
                   <div className="flex items-center gap-3">
@@ -876,7 +935,7 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
                     <div className="flex flex-wrap gap-1.5 flex-1">
                       {CCT_OPTIONS.map(cct => (
                         <button key={cct} type="button"
-                          onClick={() => canEdit && saveCCT(area.key, answers[`COLOR_TEMPERATURE.${area.key}`]?.answer_value === cct ? '' : cct)}
+                          onClick={() => canEdit && !isSav && saveCCT(area.key, areaSpecific === cct ? '' : cct)}
                           className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
                             current === cct && override
                               ? 'bg-amber-500 text-white border-amber-500'
@@ -908,6 +967,120 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
     );
   }
 
+  // ── Question card renderer ────────────────────────────────────────────────
+  function QuestionCard({ question, sectionKey }) {
+    const effectiveAnswer = getAnswer(question.key);
+    const currentValue    = effectiveAnswer?.answer_value;
+    const inherited       = isInherited(question.key);
+    const overridden      = hasOverride(question.key);
+    const isSav           = !!saving[`${question.key}::${activeProjectType}::`];
+
+    // dependsOn check
+    if (question.dependsOn) {
+      const depVal = getAnswer(question.dependsOn.key)?.answer_value;
+      if (depVal !== question.dependsOn.value) return null;
+    }
+
+    function handleChipClick(optValue) {
+      if (!canEdit || isSav) return;
+      const newVal = currentValue === optValue ? null : optValue;
+      saveAnswer(question, newVal, sectionKey);
+    }
+
+    function handleToggle(checked) {
+      if (!canEdit || isSav) return;
+      saveAnswer(question, checked ? 'true' : 'false', sectionKey);
+    }
+
+    return (
+      <div className={`bg-white rounded-xl border transition-colors ${
+        currentValue != null ? 'border-slate-200' : 'border-dashed border-slate-200'
+      }`}>
+        {/* Card header */}
+        <div className="px-4 pt-3.5 pb-2.5">
+          <div className="flex items-start justify-between gap-3 mb-1">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-semibold text-slate-800">{question.label}</span>
+                {question.tags?.map(tag => (
+                  <span key={tag} className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${TAG_COLORS[tag] || 'bg-slate-50 text-slate-400 border-slate-200'}`}>
+                    {tag}
+                  </span>
+                ))}
+              </div>
+              {question.hint && (
+                <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">{question.hint}</p>
+              )}
+            </div>
+            <div className="shrink-0 flex items-center gap-2">
+              {isSav && <span className="text-[10px] text-slate-400 italic">Saving…</span>}
+              {!isSav && inherited && activeProjectType && (
+                <span className="text-[10px] text-slate-400 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded">
+                  ↑ Global
+                </span>
+              )}
+              {!isSav && overridden && (
+                <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                  Override
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Input area */}
+        <div className="px-4 pb-4">
+          {question.inputType === 'CHIPS' && (
+            <div className="flex flex-wrap gap-1.5">
+              {question.options?.map(opt => {
+                const isSelected = currentValue === opt.value;
+                return (
+                  <button key={opt.value} type="button"
+                    onClick={() => handleChipClick(opt.value)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                      isSelected
+                        ? 'bg-amber-600 text-white border-amber-600'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+                    } ${!canEdit ? 'pointer-events-none' : ''}`}>
+                    {opt.label}
+                    {opt.price && (
+                      <span className={`text-[10px] font-normal ${isSelected ? 'text-amber-100' : 'text-slate-400'}`}>
+                        {opt.price}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+              {overridden && canEdit && (
+                <button type="button" onClick={() => clearOverride(question, sectionKey)}
+                  className="px-2.5 py-1 text-[10px] text-slate-400 hover:text-slate-600 border border-dashed border-slate-200 rounded-full transition-colors">
+                  Clear override
+                </button>
+              )}
+            </div>
+          )}
+
+          {question.inputType === 'BOOLEAN' && (
+            <div className="flex items-center justify-between py-1">
+              <span className="text-xs text-slate-500">{currentValue === 'true' ? 'Yes' : currentValue === 'false' ? 'No' : 'Not set'}</span>
+              <button type="button"
+                onClick={() => handleToggle(currentValue !== 'true')}
+                disabled={!canEdit || isSav}
+                className={`relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-50 ${
+                  currentValue === 'true' ? 'bg-amber-500' : 'bg-slate-200'
+                }`}>
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform mt-0.5 ${
+                  currentValue === 'true' ? 'translate-x-4.5' : 'translate-x-0.5'
+                }`} />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Locked view ───────────────────────────────────────────────────────────
   if (!canEdit) {
     return (
       <div className="py-16 text-center text-slate-400">
@@ -918,119 +1091,135 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
     );
   }
 
+  const section = STANDARDS_SECTIONS.find(s => s.key === activeSection);
+  const colors  = SECTION_COLOR_MAP[section?.color] || SECTION_COLOR_MAP.slate;
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="flex gap-6">
+
       {/* ── Section sidebar ── */}
       <div className="w-56 shrink-0">
         {/* Overall progress */}
         <div className="mb-4 p-3 rounded-xl bg-white border border-slate-200">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Overall</span>
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Global</span>
             <span className="text-xs font-bold text-slate-700">{pct}%</span>
           </div>
           <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
             <div className="h-full rounded-full bg-amber-400 transition-all duration-300" style={{ width: `${pct}%` }} />
           </div>
-          <p className="text-[10px] text-slate-400 mt-1.5">{totalAnswered} of {TOTAL_SUBSECTIONS} subsections have notes</p>
+          <p className="text-[10px] text-slate-400 mt-1.5">{answeredGlobal} of {totalQuestions} questions answered</p>
         </div>
 
         <nav className="space-y-0.5">
           {STANDARDS_SECTIONS.map(sec => {
             const c = SECTION_COLOR_MAP[sec.color] || SECTION_COLOR_MAP.slate;
-            const { answered, total } = answeredCount(sec.key);
-            const isActive = activeSection === sec.key;
+            const isActive  = activeSection === sec.key;
+            const { answered, total } = sectionAnsweredCount(sec.key);
+            const isStub    = !sec.isCCT && total === 0;
             return (
               <button key={sec.key} onClick={() => setActiveSection(sec.key)}
                 className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left text-xs font-medium transition-colors ${
                   isActive ? `${c.bg} ${c.text} border ${c.border}` : 'text-slate-600 hover:bg-slate-100'
-                }`}>
+                } ${isStub ? 'opacity-50' : ''}`}>
                 <span className="text-sm shrink-0">{sec.icon}</span>
                 <span className="flex-1 leading-snug">{sec.label}</span>
-                <span className={`shrink-0 text-[10px] font-bold tabular-nums ${answered === total ? 'text-green-600' : 'text-slate-400'}`}>
-                  {answered}/{total}
-                </span>
+                {isStub ? (
+                  <span className="text-[9px] text-slate-400 shrink-0">soon</span>
+                ) : sec.isCCT ? null : (
+                  <span className={`shrink-0 text-[10px] font-bold tabular-nums ${answered === total && total > 0 ? 'text-green-600' : 'text-slate-400'}`}>
+                    {answered}/{total}
+                  </span>
+                )}
               </button>
             );
           })}
         </nav>
       </div>
 
-      {/* ── Subsection cards ── */}
+      {/* ── Content area ── */}
       <div className="flex-1 min-w-0">
-        <div className={`flex items-center gap-3 mb-5 px-4 py-3 rounded-xl border ${colors.bg} ${colors.border}`}>
+
+        {/* Section header + project type tabs */}
+        <div className={`flex items-center gap-3 mb-4 px-4 py-3 rounded-xl border ${colors.bg} ${colors.border}`}>
           <span className="text-xl">{section?.icon}</span>
           <div>
             <h2 className={`text-sm font-bold ${colors.text}`}>{section?.label}</h2>
             <p className="text-[11px] text-slate-500">
               {section?.isCCT
-                ? 'Set color temperature for each area — all interior inherits the global default'
-                : `${section?.subsections.length} subsections · click any note field to edit`}
+                ? 'Color temperature per area — all interior inherits the global default'
+                : section?.questions?.length > 0
+                ? `${section.questions.length} question${section.questions.length !== 1 ? 's' : ''} · answers auto-save on selection`
+                : 'Questions coming in a future update'}
             </p>
           </div>
         </div>
 
+        {/* Project type tabs */}
+        <div className="flex items-center gap-1 mb-5 flex-wrap">
+          <button
+            onClick={() => setActiveProjectType('')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+              activeProjectType === ''
+                ? 'bg-slate-800 text-white border-slate-800'
+                : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
+            }`}>
+            Global
+          </button>
+          {PROJECT_TYPES.map(pt => (
+            <button key={pt.value}
+              onClick={() => setActiveProjectType(pt.value)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                activeProjectType === pt.value
+                  ? 'bg-slate-800 text-white border-slate-800'
+                  : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
+              }`}>
+              {pt.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Inheritance banner */}
+        {activeProjectType && (
+          <div className="mb-4 flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-500">
+            <svg className="w-3.5 h-3.5 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Showing <strong className="text-slate-700">{PROJECT_TYPES.find(p => p.value === activeProjectType)?.label}</strong> — questions without overrides inherit from Global.
+          </div>
+        )}
+
+        {/* Cascade toast */}
+        {cascadeToast && (
+          <div className="mb-4 flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-50 border border-purple-200 text-xs text-purple-700">
+            <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <strong>{cascadeToast.count} field{cascadeToast.count !== 1 ? 's' : ''} auto-filled</strong> from "{cascadeToast.label}" cascade
+          </div>
+        )}
+
+        {/* CCT section */}
         {section?.isCCT && <CCTSection />}
 
-        {!section?.isCCT && <div className="grid grid-cols-1 gap-3">
-          {section?.subsections.map(sub => {
-            const question_key = `${activeSection}.${sub.key}`;
-            const existing     = answers[question_key];
-            const draftKey     = question_key;
-            const isDirty      = draftKey in drafts;
-            const isSav        = saving[question_key];
-            const hasNote      = existing?.answer_note?.trim();
-            const noteVal      = isDirty ? drafts[draftKey] : (existing?.answer_note || '');
+        {/* Stub sections */}
+        {!section?.isCCT && section?.questions?.length === 0 && (
+          <div className="py-16 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
+            <div className="text-3xl mb-2">🚧</div>
+            <p className="text-sm font-medium text-slate-500">Questions coming soon</p>
+            <p className="text-xs mt-1">This section is in the next build iteration.</p>
+          </div>
+        )}
 
-            return (
-              <div key={sub.key} className={`bg-white rounded-xl border transition-colors ${
-                hasNote ? 'border-slate-200' : 'border-dashed border-slate-200'
-              }`}>
-                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    {hasNote
-                      ? <span className="w-2 h-2 rounded-full bg-green-400 shrink-0" />
-                      : <span className="w-2 h-2 rounded-full bg-slate-200 shrink-0" />
-                    }
-                    <span className="text-sm font-semibold text-slate-800">{sub.label}</span>
-                  </div>
-                  {isSav && (
-                    <span className="text-[10px] text-slate-400 italic">Saving…</span>
-                  )}
-                  {!isSav && isDirty && (
-                    <button onClick={() => saveNote(sub.key, drafts[draftKey])}
-                      className="text-[11px] font-semibold text-blue-600 hover:text-blue-700">
-                      Save
-                    </button>
-                  )}
-                  {!isSav && !isDirty && hasNote && (
-                    <span className="text-[10px] text-green-600 font-medium">✓ Noted</span>
-                  )}
-                </div>
-
-                <div className="px-4 py-3">
-                  {canEdit ? (
-                    <textarea
-                      value={noteVal}
-                      onChange={e => setDrafts(prev => ({ ...prev, [draftKey]: e.target.value }))}
-                      onBlur={() => {
-                        if (isDirty) saveNote(sub.key, drafts[draftKey]);
-                      }}
-                      placeholder="Add notes for this client's standards…"
-                      rows={2}
-                      className="w-full text-xs text-slate-700 placeholder-slate-300 resize-none focus:outline-none focus:ring-0 bg-transparent leading-relaxed"
-                    />
-                  ) : (
-                    <p className="text-xs text-slate-500 italic">{hasNote || 'No notes yet.'}</p>
-                  )}
-                  {/* Specific questions placeholder */}
-                  <div className="mt-2 pt-2 border-t border-dashed border-slate-100">
-                    <span className="text-[10px] text-slate-300 italic">Specific questions coming soon</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>}
+        {/* Question cards */}
+        {!section?.isCCT && section?.questions?.length > 0 && (
+          <div className="space-y-3">
+            {section.questions.map(q => (
+              <QuestionCard key={q.key} question={q} sectionKey={section.key} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
