@@ -25,6 +25,12 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Log
 
+### 2026-05-28 — Sean's Claude
+- **Q1 (energy credit) DONE** — commit `9f3a7b4`. Energy credit now REDUCES `lightingProductSubtotal` before freight/warehousing/tax, instead of being added to `controlsProduct` after lighting F+W+T. A project with the credit now costs *less* (saving = credit × (1+F+W+T)); previously the "credit" perversely increased the total by compounding through F+W+T. Result object now exposes `energyCreditAmount`. Verified: harness 38/38 assertions pass.
+- Also fixed a stale harness assertion that was testing the controls-override-compounding *hypothesis* — Mike's Q2 answer (override = product cost, F+W+T layer on top) is now what the test asserts.
+- **Rebased cleanly over Mike's 9-commit Code Intelligence / Human Error Radar / LPD Calculator / Client Playbook push** (none touched `calculations.js`). Workflow caught the concurrent push via `merge --ff-only` refusal → rebased → merged forward. No collisions.
+- **Still pending Mike** (unchanged): Q6 (vanity/fan net-vs-gross — Sean is holding because switching breaks Modera/Broadstone matches), Q7-remaining (`dimmerCostEach`, `diskSevenInch`), Q3 (exit signs sum + stairwell-SF clarification). Peer-review engine calibration (York/Grove/9th+Clermont via `runParametricEstimate`) still not started — separate engine.
+
 ### 2026-05-27 AM (later) — Sean's Claude
 - **Wired up two `designUpgrades` constants** that were defined-but-unused in `pricing.js`: `entryDecorative` ($30/unit when `responses.entryDisk === 'decorative'`) and `fanSize52Adder` ($25/fan when `responses.fanSize52 === 'yes'` and fans are present). Also wired `entryway12inch` while at it ($25/unit for the '12inch' entry case). Commit `5377c67`. Branch workflow ran clean.
 - **No regressions for Modera or Broadstone** (their responses don't trigger these conditions — default 'typical' entry, no 52" fans). Link+Pin closes ~30% of its prior units delta (+$4,820 added; total delta now -9.67% vs prior -11.33%).
