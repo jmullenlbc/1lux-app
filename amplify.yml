@@ -15,9 +15,15 @@ frontend:
         # Amplify build container, never touches the source in the repo.
         - sed -i 's/provider = "sqlite"/provider = "postgresql"/' prisma/schema.prisma
         - echo "Schema provider after patch:" && grep 'provider' prisma/schema.prisma
-        # ── Generate client + push schema ────────────────────────────────────
+        # ── Generate client + migrate schema ─────────────────────────────────
         - npx prisma generate
-        - npx prisma db push --accept-data-loss
+        # Baseline: mark 0001_baseline as already applied on first-ever migrate
+        # run (tables were created by db push — no need to re-run the DDL).
+        # Silently ignored on every subsequent deploy when it's already recorded.
+        - npx prisma migrate resolve --applied "0001_baseline" 2>/dev/null || true
+        # Apply any new migrations committed since the last deploy.
+        # Safe: never drops data, never touches already-applied migrations.
+        - npx prisma migrate deploy
         # ── Seed admin accounts (upsert — safe to run every deploy) ─────────
         - node prisma/seed.js
     build:
