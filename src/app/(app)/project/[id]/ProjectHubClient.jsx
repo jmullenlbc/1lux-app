@@ -29,6 +29,7 @@ import NotificationSettingsTab from '@/components/notifications/NotificationSett
 import ContactsTab from '@/components/contacts/ContactsTab';
 import ProjectCodeSearch from '@/components/ProjectCodeSearch';
 import LPDCalculator from '@/components/LPDCalculator';
+import CodeCheckPanel from '@/components/CodeCheckPanel';
 
 const BUDGET_TYPE_META = {
   conceptual:  { label: 'Conceptual Budget',    color: 'bg-slate-100 text-slate-600' },
@@ -1190,6 +1191,7 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
               </p>
             </div>
             <FixtureScheduleEditor projectId={project.id} serviceType={project.serviceType} />
+            <CodeCheckPanel projectId={project.id} />
           </div>
         )}
 
