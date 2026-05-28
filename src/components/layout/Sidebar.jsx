@@ -8,7 +8,9 @@ import { useState, useEffect, useRef } from 'react';
 function AlertBell({ userId, expanded }) {
   const [alerts, setAlerts] = useState([]);
   const [open, setOpen]     = useState(false);
+  const [pos, setPos]       = useState({ bottom: 0, left: 248 });
   const ref                 = useRef(null);
+  const btnRef              = useRef(null);
 
   async function load() {
     try {
@@ -25,6 +27,14 @@ function AlertBell({ userId, expanded }) {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  function toggle() {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setPos({ bottom: window.innerHeight - r.bottom, left: r.right + 8 });
+    }
+    setOpen(o => !o);
+  }
+
   async function markAllRead() {
     await fetch('/api/alerts', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ all: true }) });
     setAlerts(prev => prev.map(a => ({ ...a, isRead: true })));
@@ -40,7 +50,8 @@ function AlertBell({ userId, expanded }) {
   return (
     <div className="relative" ref={ref}>
       <button
-        onClick={() => setOpen(o => !o)}
+        ref={btnRef}
+        onClick={toggle}
         title={!expanded ? 'Notifications' : undefined}
         className={`w-full flex items-center py-1.5 rounded-lg text-xs font-medium transition-colors ${expanded ? 'gap-2.5 px-3' : 'justify-center px-0'} relative`}
         style={{ color: open ? '#e2e8f0' : '#627d98', backgroundColor: open ? '#1e293b' : 'transparent' }}
@@ -67,8 +78,8 @@ function AlertBell({ userId, expanded }) {
       </button>
 
       {open && (
-        <div className="absolute bottom-full left-full mb-0 ml-2 w-80 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden"
-          style={{ bottom: 0, left: '100%', marginLeft: '8px' }}>
+        <div className="fixed w-80 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden"
+          style={{ bottom: pos.bottom, left: pos.left, zIndex: 9999 }}>
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
             <span className="text-sm font-semibold text-slate-800">Notifications</span>
             {unread > 0 && (
