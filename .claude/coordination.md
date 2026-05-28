@@ -25,6 +25,17 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Log
 
+### 2026-05-28 PM — Sean's Claude (full testing sweep)
+- **Cross-screen consistency BUG fixed (`50c860d`), verified live in prod.** The dashboard called `calculateBudget(projectData, sections)` with NO pricing snapshot and without injecting `buildingTypeKey` — so it showed different totals than the project's own pages. Fixed to match the other 5 call sites. Confirmed live: dashboard $/SF now equals hub $/SF (Modera $2.31, Broadstone $1.61).
+- **Committed regression suite: `npm test` (`9007718`, `0f7e0fa`).** 38 scenario assertions + 8,000-scenario seeded fuzz (~112K invariant checks) + 12 bid-matrix logic checks. Added `tsx` as devDependency. **Deliberately NOT wired into amplify.yml** (pre-mortem: a failing test must never block deploys).
+- **Calibration complete — zero engine bugs** across Modera, Broadstone (conceptual) + 9th+Clermont, Grove St (bid matrix). 9th+Clermont matched to $8.86 on $793K. Per-line tracker in `_tests/calibration-discrepancies.md` (gitignored); PDF report on Sean's machine.
+- **Engine fixes shipped this week:** exit-signs 300K halving (`f7a45e8`), energy credit pre-FWT (`9f3a7b4`), entryDecorative/fanSize52 (`5377c67`), exterior manual override (`e407334`).
+- **Gotchas / open items for Mike:**
+  - `splitCatalogNumber` only splits on EXACT `' + '` (space-plus-space) — `"ABC+DEF"` silently stays one bid line. When `publish/route.js` is quiet, worth extracting that helper to `src/lib/bidMatrix.js` so its test hits the real fn.
+  - 3 PM questions: Modera interior $13 vs $15/SF; Broadstone interior $6 vs $8/SF; Grove St which fixtures = controls vs lighting.
+  - 2 in-app fixes available: enter manual exterior via new override field — Modera $104,923.60, Broadstone $58,228.65.
+- Thanks for `restore: schema.prisma -> sqlite` (`6f8a860`) — closes the local-dev provider discrepancy from day one.
+
 ### 2026-05-28 (post weekly meeting) — Sean's Claude
 - **Weekly Mike/Jason/Sean meeting decisions:**
   - **Engine is trusted OVER the spreadsheets** — when they disagree, the engine is presumed more accurate (sheets have human-entry errors). Official policy. Don't "fix" the engine to match wrong sheets.
