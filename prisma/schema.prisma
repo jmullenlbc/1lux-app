@@ -158,6 +158,8 @@ model Client {
   salesNotes       SalesNoteClient[]
   standardsAnswers ClientStandardsAnswer[]
   playbook         ClientPlaybook?
+  signals          MarketSignal[]
+  aliases          ClientAlias[]
 }
 
 model ClientPlaybook {
@@ -608,6 +610,7 @@ model Deal {
   contacts   DealContact[]
   activities DealActivity[]
   salesNotes SalesNoteDeal[]
+  signalTags MarketSignalDeal[]
 }
 
 model DealContact {
@@ -1013,4 +1016,76 @@ model ProjectExternalContact {
   updatedAt                DateTime    @updatedAt
 
   @@unique([project_id, email])
+}
+
+// ── Market Intelligence ───────────────────────────────────────────────────────
+
+model MarketSource {
+  id               String         @id @default(cuid())
+  name             String         @unique
+  feedUrl          String
+  siteUrl          String
+  sourceType       String         @default("RSS")
+  projectTypes     String         @default("[]") // JSON array: ["MARKET_RATE","AFFORDABLE","STUDENT_HOUSING","SENIOR_LIVING"]
+  isActive         Boolean        @default(true)
+  lastPolledAt     DateTime?
+  pollingFrequency String         @default("DAILY") // "DAILY" | "WEEKLY"
+  notes            String?
+  signals          MarketSignal[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model MarketSignal {
+  id             String            @id @default(cuid())
+  sourceId       String
+  source         MarketSource      @relation(fields: [sourceId], references: [id])
+  title          String
+  summary        String?
+  url            String?
+  publishedAt    DateTime?
+  signalType     String            @default("NEWS") // NEWS | GROUNDBREAKING | FINANCING | ACQUISITION | DEVELOPER_AWARD
+  projectType    String?           // MARKET_RATE | AFFORDABLE | STUDENT_HOUSING | SENIOR_LIVING
+  developerNames String?           // JSON array of extracted org names
+  linkedClientId String?
+  linkedClient   Client?           @relation(fields: [linkedClientId], references: [id], onDelete: SetNull)
+  matchScore     Float?
+  matchStatus    String            @default("UNREVIEWED") // AUTO_LINKED | SUGGESTED | UNREVIEWED | CONFIRMED | REJECTED
+  reviewStatus   String            @default("UNREVIEWED") // UNREVIEWED | REVIEWED | CONVERTED | DISMISSED
+  dealTags       MarketSignalDeal[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+}
+
+model MarketSignalDeal {
+  id        String       @id @default(cuid())
+  signalId  String
+  signal    MarketSignal @relation(fields: [signalId], references: [id], onDelete: Cascade)
+  dealId    String
+  deal      Deal         @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  taggedById String
+  taggedAt  DateTime     @default(now())
+
+  @@unique([signalId, dealId])
+}
+
+model ClientAlias {
+  id              String   @id @default(cuid())
+  clientId        String
+  client          Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  aliasName       String
+  normalizedAlias String
+  createdById     String
+  createdAt       DateTime @default(now())
+}
+
+model FuzzyMatchFeedback {
+  id              String   @id @default(cuid())
+  candidateName   String
+  matchedClientId String?
+  score           Float
+  outcome         String   // CONFIRMED | REJECTED
+  signalId        String
+  userId          String
+  createdAt       DateTime @default(now())
 }

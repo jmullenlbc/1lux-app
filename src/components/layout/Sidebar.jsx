@@ -417,7 +417,7 @@ export default function Sidebar({ user }) {
         <div>
           <SectionHeader
             icon={<IconSales />}
-            label="CRM"
+            label="Sales"
             isActive={crmRelated}
             isOpen={crmOpen}
             expanded={expanded}
@@ -429,8 +429,8 @@ export default function Sidebar({ user }) {
               <SubNavItem href="/crm"            icon={<IconPipeline />}        label="Pipeline"    expanded={expanded} active={at('/crm') || (crmRelated && !startsWith('/crm/dashboards') && !startsWith('/crm/notes') && !startsWith('/clients'))} />
               <SubNavItem href="/crm/dashboards" icon={<IconDashboardWidget />} label="Dashboards"  expanded={expanded} active={startsWith('/crm/dashboards')} />
               <SubNavItem href="/crm/notes"      icon={<IconNotes />}           label="Sales Notes" expanded={expanded} active={startsWith('/crm/notes')} />
-              <SubNavItem href="#" icon={<IconDoc />}      label="Proposals"   expanded={expanded} disabled />
-              <SubNavItem href="#" icon={<IconNews />}     label="Market News" expanded={expanded} disabled />
+              <SubNavItem href="#" icon={<IconDoc />}      label="Proposals"        expanded={expanded} disabled />
+              <SubNavItem href="/market-intel" icon={<IconNews />} label="Market Intelligence" expanded={expanded} active={startsWith('/market-intel')} />
             </div>
           )}
         </div>
