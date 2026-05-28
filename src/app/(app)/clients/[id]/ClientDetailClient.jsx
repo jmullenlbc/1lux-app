@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { buildingTypeLabel } from '@/lib/utils';
 import { STANDARDS_SECTIONS, SECTION_COLOR_MAP, TOTAL_SUBSECTIONS } from '@/lib/standardsSections';
+import PlaybookTab from './PlaybookTab';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -32,8 +33,9 @@ const LOCATION_TYPES = [
 const TABS = [
   { id: 'overview',   label: 'Overview'       },
   { id: 'people',     label: 'People'         },
-  { id: 'projects',   label: 'Projects'       },
+  { id: 'playbook',   label: 'Playbook'       },
   { id: 'standards',  label: 'Standards'      },
+  { id: 'projects',   label: 'Projects'       },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -877,7 +879,7 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function ClientDetailClient({ client: initial, availableProjects, user, canEditStandards = false, initialStandardsAnswers = [] }) {
+export default function ClientDetailClient({ client: initial, availableProjects, user, canEditStandards = false, initialStandardsAnswers = [], canEditPlaybook = false }) {
   const [client,    setClient]    = useState(initial);
   const [available, setAvailable] = useState(availableProjects);
   const [editing,   setEditing]   = useState(false);
@@ -940,6 +942,7 @@ export default function ClientDetailClient({ client: initial, availableProjects,
                 {t.label}
                 {t.id === 'people'    && client.contacts?.length > 0      && <span className="ml-1.5 text-[10px] font-bold text-slate-400">{client.contacts.length}</span>}
                 {t.id === 'projects'  && client.projects?.length > 0     && <span className="ml-1.5 text-[10px] font-bold text-slate-400">{client.projects.length}</span>}
+                {t.id === 'playbook'  && !canEditPlaybook                 && <span className="ml-1.5 text-[10px] text-slate-300">🔒</span>}
                 {t.id === 'standards' && !canEditStandards                && <span className="ml-1.5 text-[10px] text-slate-300">🔒</span>}
               </button>
             ))}
@@ -951,6 +954,13 @@ export default function ClientDetailClient({ client: initial, availableProjects,
       <div className="max-w-6xl mx-auto px-6 py-6">
         {activeTab === 'overview'  && <OverviewTab client={client} onEditClick={() => setEditing(true)} />}
         {activeTab === 'people'    && <PeopleTab contacts={client.contacts || []} clientId={client.id} />}
+        {activeTab === 'playbook'  && (
+          <PlaybookTab
+            clientId={client.id}
+            contacts={client.contacts || []}
+            canEdit={canEditPlaybook}
+          />
+        )}
         {activeTab === 'projects'  && (
           <ProjectsTab client={client} available={available} onRefresh={refreshClient} />
         )}

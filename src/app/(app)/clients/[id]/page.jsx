@@ -12,6 +12,7 @@ export default async function ClientDetailPage({ params }) {
   const isAdmin = session.role === 'ILC_ADMIN' || session.role === 'ADMIN';
   const sessionPerms = (() => { try { return JSON.parse(session.permissions || '{}'); } catch { return {}; } })();
   const canEditStandards = session.role === 'ILC_ADMIN' || session.role === 'SUPER_ADMIN' || sessionPerms.clientStandards === true;
+  const canEditPlaybook  = session.role === 'ILC_ADMIN' || session.role === 'SUPER_ADMIN' || sessionPerms.clients === true;
 
   const client = await prisma.client.findUnique({
     where: { id: params.id },
@@ -51,6 +52,7 @@ export default async function ClientDetailPage({ params }) {
       availableProjects={unlinkableProjects}
       user={session}
       canEditStandards={canEditStandards}
+      canEditPlaybook={canEditPlaybook}
       initialStandardsAnswers={standardsAnswers}
     />
   );
