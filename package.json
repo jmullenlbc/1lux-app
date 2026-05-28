@@ -12,7 +12,7 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:seed": "node prisma/seed.js",
-    "test": "tsx tests/budget-math.mjs && tsx tests/fuzz-budget.mjs",
+    "test": "tsx tests/budget-math.mjs && tsx tests/fuzz-budget.mjs && tsx tests/bid-matrix-logic.mjs",
     "postinstall": "node -e \"try{const fs=require('fs');fs.copyFileSync(require.resolve('pdfjs-dist/build/pdf.worker.min.mjs'),'public/pdf.worker.min.mjs');console.log('✓ pdf.worker.min.mjs copied to public/')}catch(e){console.warn('pdf worker copy failed:',e.message)}\"",
     "prebuild": "node -e \"try{const fs=require('fs');fs.copyFileSync(require.resolve('pdfjs-dist/build/pdf.worker.min.mjs'),'public/pdf.worker.min.mjs');console.log('✓ pdf.worker.min.mjs copied to public/')}catch(e){console.warn('pdf worker copy failed:',e.message)}\""
   },
