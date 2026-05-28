@@ -3,6 +3,116 @@ import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 
+// ── Alert Bell ────────────────────────────────────────────────────────────────
+
+function AlertBell({ userId, expanded }) {
+  const [alerts, setAlerts] = useState([]);
+  const [open, setOpen]     = useState(false);
+  const ref                 = useRef(null);
+
+  async function load() {
+    try {
+      const res = await fetch('/api/alerts');
+      if (res.ok) setAlerts(await res.json());
+    } catch {}
+  }
+
+  useEffect(() => { if (userId) load(); }, [userId]);
+
+  useEffect(() => {
+    function handler(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  async function markAllRead() {
+    await fetch('/api/alerts', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ all: true }) });
+    setAlerts(prev => prev.map(a => ({ ...a, isRead: true })));
+  }
+
+  async function markRead(id) {
+    await fetch('/api/alerts', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: [id] }) });
+    setAlerts(prev => prev.map(a => a.id === id ? { ...a, isRead: true } : a));
+  }
+
+  const unread = alerts.filter(a => !a.isRead).length;
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        title={!expanded ? 'Notifications' : undefined}
+        className={`w-full flex items-center py-1.5 rounded-lg text-xs font-medium transition-colors ${expanded ? 'gap-2.5 px-3' : 'justify-center px-0'} relative`}
+        style={{ color: open ? '#e2e8f0' : '#627d98', backgroundColor: open ? '#1e293b' : 'transparent' }}
+        onMouseEnter={e => { e.currentTarget.style.color = '#e2e8f0'; e.currentTarget.style.backgroundColor = '#1e293b'; }}
+        onMouseLeave={e => { if (!open) { e.currentTarget.style.color = '#627d98'; e.currentTarget.style.backgroundColor = 'transparent'; } }}
+      >
+        <span className="relative shrink-0">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
+              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+          </svg>
+          {unread > 0 && (
+            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-500 rounded-full text-white text-[8px] font-bold flex items-center justify-center leading-none">
+              {unread > 9 ? '9+' : unread}
+            </span>
+          )}
+        </span>
+        {expanded && <span className="flex-1 text-left whitespace-nowrap">Notifications</span>}
+        {expanded && unread > 0 && (
+          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500 text-white leading-none min-w-[18px] text-center">
+            {unread > 9 ? '9+' : unread}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute bottom-full left-full mb-0 ml-2 w-80 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden"
+          style={{ bottom: 0, left: '100%', marginLeft: '8px' }}>
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+            <span className="text-sm font-semibold text-slate-800">Notifications</span>
+            {unread > 0 && (
+              <button onClick={markAllRead} className="text-xs text-amber-600 hover:text-amber-700 font-medium">
+                Mark all read
+              </button>
+            )}
+          </div>
+          <div className="max-h-96 overflow-y-auto">
+            {alerts.length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-8">No notifications</p>
+            ) : (
+              alerts.map(alert => (
+                <div key={alert.id} className={`px-4 py-3 border-b border-slate-50 last:border-0 ${alert.isRead ? '' : 'bg-amber-50'}`}>
+                  <div className="flex items-start gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm text-slate-800 ${alert.isRead ? 'font-medium' : 'font-semibold'}`}>{alert.title}</p>
+                      <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{alert.message}</p>
+                      <div className="flex items-center gap-3 mt-1.5">
+                        {alert.link && (
+                          <Link href={alert.link} onClick={() => { markRead(alert.id); setOpen(false); }}
+                            className="text-xs text-amber-600 hover:text-amber-700 font-medium">
+                            View →
+                          </Link>
+                        )}
+                        {!alert.isRead && (
+                          <button onClick={() => markRead(alert.id)} className="text-xs text-slate-400 hover:text-slate-600">
+                            Dismiss
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {!alert.isRead && <div className="w-2 h-2 rounded-full bg-amber-500 mt-1.5 shrink-0" />}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Icons ────────────────────────────────────────────────────────────────────
 
 function IconGrid() {
@@ -408,6 +518,7 @@ export default function Sidebar({ user }) {
             </div>
           </div>
         )}
+        <AlertBell userId={user?.id} expanded={expanded} />
         <button onClick={handleLogout} disabled={signingOut}
           className={`w-full flex items-center py-1.5 rounded-lg text-xs font-medium transition-colors ${expanded ? 'gap-2.5 px-3' : 'justify-center px-0'}`}
           style={{ color: '#627d98' }}

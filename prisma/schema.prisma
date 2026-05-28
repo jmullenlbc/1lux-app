@@ -43,6 +43,20 @@ model User {
   standardsOverrides ProjectStandardsOverride[] @relation("OverrideActivator")
   confirmedFixtures  PlacedFixture[]            @relation("FixtureConfirmer")
   ownedClients       Client[]                   @relation("ClientOwner")
+  alerts             UserAlert[]
+}
+
+model UserAlert {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean  @default(false)
+  dedupeKey String?  @unique
+  createdAt DateTime @default(now())
 }
 
 model Task {

@@ -1,33 +1,22 @@
 /**
  * GET /api/cron/client-review-check
  *
- * Checks all clients with an assigned owner and sends a reminder email
+ * Checks all clients with an assigned owner and creates an in-app alert
  * when the playbook hasn't been updated in >= 12 months.
  *
  * Protected by CRON_SECRET header — set this env var and pass it as
  * the Authorization: Bearer <secret> header from your scheduler.
  *
  * Schedule: run monthly (e.g. 1st of each month at 9 AM).
- * Only sends when the threshold (12 months since last update) is crossed.
+ * Deduplicates by year so at most one alert per client per calendar year.
  */
 
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { clientAnnualReview } from '@/lib/emailTemplates';
 
 const REVIEW_INTERVAL_MS = 365 * 24 * 60 * 60 * 1000; // 12 months
 
-async function sendReminderEmail({ to, subject, html }) {
-  if (process.env.NOTIFY_DRY_RUN !== 'false') {
-    console.log(`[CRON DRY RUN] Annual review reminder → ${to}: ${subject}`);
-    return;
-  }
-  // TODO: Microsoft Graph API — same stub pattern as notify.js
-  console.warn('[CRON] sendReminderEmail: no email provider configured.');
-}
-
 export async function GET(request) {
-  // Auth check
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret) {
     const authHeader = request.headers.get('authorization');
@@ -36,55 +25,54 @@ export async function GET(request) {
     }
   }
 
-  if (!prisma.clientPlaybook) {
-    return NextResponse.json({ skipped: true, reason: 'clientPlaybook model not available' });
-  }
-
-  const now = Date.now();
+  const now    = Date.now();
+  const year   = new Date().getFullYear();
   const threshold = new Date(now - REVIEW_INTERVAL_MS);
   const appUrl = process.env.APP_URL || '';
 
-  // Find all clients with an owner assigned
   const clients = await prisma.client.findMany({
     where: { ownerId: { not: null } },
     select: {
-      id:       true,
-      name:     true,
+      id:        true,
+      name:      true,
       createdAt: true,
-      owner:    { select: { name: true, email: true } },
-      playbook: { select: { updatedAt: true } },
+      owner:     { select: { id: true, name: true } },
+      playbook:  { select: { updatedAt: true } },
     },
   });
 
-  const notified = [];
-  const skipped  = [];
+  const created = [];
+  const skipped = [];
 
   for (const client of clients) {
-    const owner = client.owner;
-    if (!owner?.email) { skipped.push({ id: client.id, reason: 'no owner email' }); continue; }
+    if (!client.owner) { skipped.push({ id: client.id, reason: 'no owner' }); continue; }
 
-    // Determine last review date: playbook updatedAt, or client createdAt as fallback
     const lastUpdated = client.playbook?.updatedAt ?? client.createdAt;
     if (new Date(lastUpdated) > threshold) {
       skipped.push({ id: client.id, reason: 'reviewed recently' });
       continue;
     }
 
-    const { subject, html } = clientAnnualReview({
-      ownerName:   owner.name,
-      clientName:  client.name,
-      clientUrl:   `${appUrl}/clients/${client.id}`,
-      lastUpdated: lastUpdated,
-    });
+    // One alert per owner per client per calendar year
+    const dedupeKey = `CLIENT_ANNUAL_REVIEW:${client.id}:${client.owner.id}:${year}`;
 
-    await sendReminderEmail({ to: owner.email, subject, html });
-    notified.push({ clientId: client.id, clientName: client.name, ownerEmail: owner.email });
+    try {
+      await prisma.userAlert.create({
+        data: {
+          userId:    client.owner.id,
+          type:      'CLIENT_ANNUAL_REVIEW',
+          title:     `Annual review due — ${client.name}`,
+          message:   `It's been over a year since the standards and playbook for ${client.name} were last reviewed. Please verify the information is still current.`,
+          link:      `${appUrl}/clients/${client.id}`,
+          dedupeKey,
+        },
+      });
+      created.push({ clientId: client.id, clientName: client.name, ownerId: client.owner.id });
+    } catch {
+      // dedupeKey unique constraint means it was already created this year
+      skipped.push({ id: client.id, reason: 'already alerted this year' });
+    }
   }
 
-  return NextResponse.json({
-    ran:      true,
-    notified: notified.length,
-    skipped:  skipped.length,
-    detail:   notified,
-  });
+  return NextResponse.json({ ran: true, created: created.length, skipped: skipped.length, detail: created });
 }
