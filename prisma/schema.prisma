@@ -8,67 +8,153 @@ datasource db {
 }
 
 model User {
-  id                 String    @id @default(cuid())
-  email              String    @unique
+  id                 String                     @id @default(cuid())
+  email              String                     @unique
   name               String?
   passwordHash       String?
-  role               String    @default("USER")
+  role               String                     @default("USER")
   // Roles: SUPER_ADMIN | COMPANY_ADMIN | USER | CLIENT_VIEWER
   // Legacy roles still supported: ILC_ADMIN (=SUPER_ADMIN), ADMIN (=COMPANY_ADMIN)
-  permissions        String    @default("{}")  // JSON: { projects, clients, preCon, manufacturers, admin }
-  mustChangePassword Boolean   @default(false)
-  isActive           Boolean   @default(true)
-  inviteToken        String?   @unique
+  permissions        String                     @default("{}") // JSON: { projects, clients, preCon, manufacturers, admin, knowledgeBase }
+  mustChangePassword Boolean                    @default(false)
+  isActive           Boolean                    @default(true)
+  inviteToken        String?                    @unique
   inviteExpiry       DateTime?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  dashboardConfig    String? // JSON: { version, widgets: [{id, order, size?}] }
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
   invitedById        String?
-  projects         Project[]
-  clients          Client[]
-  assignedProjects ProjectAssignee[]
-  uploadedFiles    ProjectFile[]
-  projectAccess    ProjectAccess[]
+  projects           Project[]
+  clients            Client[]
+  assignedProjects   ProjectAssignee[]
+  uploadedFiles      ProjectFile[]
+  projectAccess      ProjectAccess[]
+  standardsCreated   DesignStandard[]           @relation("KBCreator")
+  standardsUpdated   DesignStandard[]           @relation("KBUpdater")
+  ownedDeals         Deal[]                     @relation("DealOwner")
+  createdDeals       Deal[]                     @relation("DealCreator")
+  salesNotes         SalesNote[]                @relation("SalesNoteCreator")
+  publishedSchedules FixtureSchedule[]          @relation("SchedulePublisher")
+  pushedBidMatrices  DesignBidMatrix[]          @relation("BidPusher")
+  tasksCreated       Task[]                     @relation("TaskCreator")
+  tasksAssigned      Task[]                     @relation("TaskAssignee")
+  dashboards         Dashboard[]                @relation("DashboardCreator")
+  standardsAnswers   ClientStandardsAnswer[]    @relation("AnsweredByUser")
+  standardsOverrides ProjectStandardsOverride[] @relation("OverrideActivator")
+  confirmedFixtures  PlacedFixture[]            @relation("FixtureConfirmer")
+  ownedClients       Client[]                   @relation("ClientOwner")
+}
+
+model Task {
+  id          String           @id @default(cuid())
+  title       String
+  description String?
+  status      String           @default("TODO") // TODO | IN_PROGRESS | IN_REVIEW | DONE
+  priority    String           @default("MEDIUM") // LOW | MEDIUM | HIGH | URGENT
+  assigneeId  String?
+  createdById String
+  dueDate     DateTime?
+  tags        String           @default("[]") // JSON string array of menu tag ids
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  assignee    User?            @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  createdBy   User             @relation("TaskCreator", fields: [createdById], references: [id])
+  attachments TaskAttachment[]
+}
+
+model TaskAttachment {
+  id           String   @id @default(cuid())
+  taskId       String
+  task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  originalName String
+  storedPath   String
+  mimeType     String?
+  size         Int
+  createdAt    DateTime @default(now())
+}
+
+model KbCategory {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  label     String
+  desc      String   @default("")
+  color     String   @default("slate")
+  icon      String   @default("📁")
+  position  Int      @default(0)
+  isBuiltIn Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DesignStandard {
+  id          String   @id @default(cuid())
+  category    String
+  title       String
+  content     String
+  severity    String   @default("REQUIRED") // REQUIRED | RECOMMENDED | NOTE
+  tags        String   @default("[]")
+  sourceUrl   String?
+  isActive    Boolean  @default(true)
+  createdById String
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   User     @relation("KBCreator", fields: [createdById], references: [id])
+  updatedBy   User?    @relation("KBUpdater", fields: [updatedById], references: [id])
 }
 
 model Client {
-  id           String    @id @default(cuid())
-  clientNumber Int?      @unique
+  id           String @id @default(cuid())
+  clientNumber Int?   @unique
   name         String
-  type         String    @default("developer")
-  // Types: developer | architect | interiorDesigner | generalContractor | electricalEngineer | electricalContractor | clientRep | selfPerformingGc | developerSelfPerformingGc
-  locationType String    @default("standalone")
-  // Location types: none | localBranch | national | standalone
+  type         String @default("developer")
+  locationType String @default("standalone")
 
-  // Contact info
-  email        String?
-  phone        String?
-  website      String?
-  address      String?
-  city         String?
-  state        String?
+  email   String?
+  phone   String?
+  website String?
+  address String?
+  city    String?
+  state   String?
 
-  // Additional CRM fields
-  linkedIn     String?   // LinkedIn company page URL
-  primaryContact String? // Primary point of contact name
+  linkedIn            String?
+  primaryContact      String?
   primaryContactTitle String?
   primaryContactEmail String?
   primaryContactPhone String?
 
-  notes        String?
+  notes String?
 
-  // CRM fields
-  tier           String?  // '1' | '2' | '3'
-  markets        String   @default("[]") // JSON string[]
-  developerType  String?  // 'merchant' | 'longTermHold'
-  orgTypes       String   @default("[]") // JSON string[] — multi-select org types
+  tier          String?
+  markets       String  @default("[]")
+  developerType String?
+  orgTypes      String  @default("[]")
 
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  createdById  String
-  createdBy    User      @relation(fields: [createdById], references: [id])
-  projects     Project[]
-  contacts     ClientContact[]
-  kbSections   ClientKBSection[]
+  ownerId          String?
+  owner            User?                   @relation("ClientOwner", fields: [ownerId], references: [id])
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+  createdById      String
+  createdBy        User                    @relation(fields: [createdById], references: [id])
+  projects         Project[]
+  contacts         ClientContact[]
+  kbSections       ClientKBSection[]
+  deals            Deal[]
+  crmContacts      Contact[]
+  salesNotes       SalesNoteClient[]
+  standardsAnswers ClientStandardsAnswer[]
+  playbook         ClientPlaybook?
+}
+
+model ClientPlaybook {
+  id         String   @id @default(cuid())
+  clientId   String   @unique
+  client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  scope      String   @default("{}") // JSON: project types, contacts, team relationships, budget authority, watch-outs
+  approval   String   @default("[]") // JSON: array of deliverable rows
+  process    String   @default("{}") // JSON: procurement, management, process notes
+  timeframes String   @default("{}") // JSON: lead times, cadence, response expectations
+  updatedAt  DateTime @updatedAt
 }
 
 model ClientContact {
@@ -106,78 +192,84 @@ model ClientKBAttachment {
 }
 
 model Project {
-  id            String    @id @default(cuid())
-  projectNumber Int?      @unique
-  name          String
-  buildingType String?   // stores pricing key: 'highRise', 'midRise', etc.
-  location     String?
-  contactEmail String?
-  address      String?   // kept for legacy data, hidden from UI
-  date         String?   // kept for legacy data, hidden from UI
-  budgetType   String    @default("conceptual")
-  // BudgetType: conceptual | design | peer_review
-  budgetNumber String?   @unique  // Auto-assigned: C00001 | D00001 | B00001
-  budgetSentDate DateTime?        // When the budget was sent to the client
-  phase        String    @default("sd")
-  // Phases: sd | dd | cd | ifc | construction | closeout
-  city         String?
-  state        String?
-  status       String    @default("DRAFT")
-  // Status: DRAFT, IN_REVIEW, COMPLETE
-  serviceType     String?
-  // Service types: fullDesign | designAssist | peerReview | bidOnly | other
-  flagged         Boolean   @default(false)
-  flagNote        String?
-  contractValue        Float?  // supply contract value
-  contractSignedDate   String? // supply contract signed date YYYY-MM-DD
-  designContractValue      Float?  // design consulting contract value
-  designContractSignedDate String? // design contract signed date YYYY-MM-DD
-  constructionStartDate String? // ISO date string YYYY-MM-DD
-  mepRoughInDate  String? // ISO date string YYYY-MM-DD
-  constructionEndDate String? // ISO date string YYYY-MM-DD
-  currentStep     String    @default("project-data")
-  completedSteps  String    @default("[]")
-  pricingSnapshot String?   // JSON snapshot of pricing at project creation — frozen forever
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  createdById  String
-  createdBy    User      @relation(fields: [createdById], references: [id])
-  clientId     String?
-  client       Client?   @relation(fields: [clientId], references: [id])
+  id                       String    @id @default(cuid())
+  projectNumber            Int?      @unique
+  name                     String
+  buildingType             String?
+  location                 String?
+  contactEmail             String?
+  address                  String?
+  date                     String?
+  budgetType               String    @default("conceptual")
+  budgetNumber             String?   @unique
+  budgetSentDate           DateTime?
+  phase                    String    @default("sd")
+  city                     String?
+  state                    String?
+  status                   String    @default("DRAFT")
+  serviceType              String?
+  peerReviewMatrixType     String    @default("PEER_REVIEW")
+  flagged                  Boolean   @default(false)
+  flagNote                 String?
+  contractValue            Float?
+  contractSignedDate       String?
+  designContractValue      Float?
+  designContractSignedDate String?
+  constructionStartDate    String?
+  mepRoughInDate           String?
+  constructionEndDate      String?
+  currentStep              String    @default("project-data")
+  completedSteps           String    @default("[]")
+  pricingSnapshot          String?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+  createdById              String
+  createdBy                User      @relation(fields: [createdById], references: [id])
+  clientId                 String?
+  client                   Client?   @relation(fields: [clientId], references: [id])
 
-  projectData      ProjectData?
-  responses        QuestionnaireResponse[]
-  shares           ProjectShare[]
-  peerReviewItems  PeerReviewItem[]
-  assignees        ProjectAssignee[]
-  files            ProjectFile[]
-  projectAccess    ProjectAccess[]
-  meetingNotes     MeetingNote[]
-  submittalTracker SubmittalTracker?
-  activities       ProjectActivity[]
-  chatConversations ChatConversation[]
+  projectData         ProjectData?
+  responses           QuestionnaireResponse[]
+  shares              ProjectShare[]
+  peerReviewItems     PeerReviewItem[]
+  assignees           ProjectAssignee[]
+  files               ProjectFile[]
+  projectAccess       ProjectAccess[]
+  meetingNotes        MeetingNote[]
+  submittalTracker    SubmittalTracker?
+  activities          ProjectActivity[]
+  chatConversations   ChatConversation[]
+  linkedDeals         Deal[]                      @relation("DealProject")
+  fixtureSchedules    FixtureSchedule[]
+  designBidMatrices   DesignBidMatrix[]
+  standardsOverrides  ProjectStandardsOverride[]
+  placedFixtures      PlacedFixture[]
+  shipments           Shipment[]
+  notificationConfigs ProjectNotificationConfig[]
+  notificationLogs    NotificationLog[]
+  notificationQueue   NotificationQueue[]
+  externalContacts    ProjectExternalContact[]
 }
 
 model ProjectFile {
-  id           String   @id @default(cuid())
-  projectId    String
-  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  tab          String
-  // tabs: drawings | correspondence | submittals | ca | contracts
-  fileType     String?
-  // ca types: rfi | changeOrder | constructionSchedule
-  originalName String
-  storedPath   String
-  size         Int
-  mimeType     String?
-  tags         String?   // JSON array of tag strings
-  textContent   String?   // extracted text for search
-  takeoffData   String?   // JSON {fixtureType: totalQty} parsed from Excel/CSV
-  parsedAmount  Float?    // dollar amount parsed from file (change orders, invoices, etc.)
-  analysisData  String?   // JSON — contract review result from Claude (supply contracts only)
-  uploadedById String
-  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
-  createdAt    DateTime @default(now())
+  id             String          @id @default(cuid())
+  projectId      String
+  project        Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tab            String
+  fileType       String?
+  originalName   String
+  storedPath     String
+  size           Int
+  mimeType       String?
+  tags           String?
+  textContent    String?
+  takeoffData    String?
+  parsedAmount   Float?
+  analysisData   String?
+  uploadedById   String
+  uploadedBy     User            @relation(fields: [uploadedById], references: [id])
+  createdAt      DateTime        @default(now())
+  placedFixtures PlacedFixture[]
 }
 
 model ProjectAssignee {
@@ -203,29 +295,26 @@ model ProjectAccess {
 }
 
 model ProjectData {
-  id                  String  @id @default(cuid())
-  projectId           String  @unique
-  project             Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  projectId String  @unique
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  // Building metrics
   grossSf             Float?
-  unitsSf             Float?  // Residential units SF only (used for base $0.38/SF calc)
+  unitsSf             Float?
   numUnits            Int?
   numBedrooms         Int?
   numBalconies        Int?
   numBathrooms        Int?
   numVanities         Int?
-  numEgressStairwells    Int?
-  numFans                Int?   // explicit fan count — overrides unit-mix multiplier calculation
-  numAccentDownlights    Int?   // # of recessed adjustable downlight accents (corridors)
+  numEgressStairwells Int?
+  numFans             Int?
+  numAccentDownlights Int?
 
-  // Parking & exterior
-  numSurfaceParking   Int?
-  numCarports         Int?
-  numGarages          Int?
-  numExteriorDoors    Int?
+  numSurfaceParking Int?
+  numCarports       Int?
+  numGarages        Int?
+  numExteriorDoors  Int?
 
-  // Area breakdowns (SF)
   exteriorAmenitySf   Float?
   lotSf               Float?
   buildingFootprintSf Float?
@@ -234,12 +323,11 @@ model ProjectData {
   garageSf            Float?
   bohSf               Float?
 
-  // Budget
   clientInitialBudget Float?
-  freightPct          Float?  // default 0.06 — overridable per project
-  warehousingPct      Float?  // default 0.03 — overridable per project
-  salesTaxPct         Float?  // jurisdiction sales tax rate (e.g. 0.0915 for 9.15%)
-  marginPct           Float?  // project margin override (e.g. 0.20 for 20%)
+  freightPct          Float?
+  warehousingPct      Float?
+  salesTaxPct         Float?
+  marginPct           Float?
 }
 
 model ProjectShare {
@@ -247,58 +335,54 @@ model ProjectShare {
   projectId    String
   project      Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   token        String    @unique @default(cuid())
-  sentTo       String    @default("[]") // JSON array of email addresses
+  sentTo       String    @default("[]")
   message      String?
   sentAt       DateTime  @default(now())
   sentById     String
   viewCount    Int       @default(0)
   lastViewedAt DateTime?
-  viewLog      String    @default("[]") // JSON [{ip, userAgent, at}]
+  viewLog      String    @default("[]")
 }
 
 model SystemConfig {
   id          String   @id @default(cuid())
   key         String   @unique
-  value       String   // JSON string
+  value       String
   updatedAt   DateTime @updatedAt
   updatedById String?
 }
 
 model PeerReviewItem {
-  id           String   @id @default(cuid())
-  projectId    String
-  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  section      String   @default("units")
-  // Sections: units | common | garage | exterior | other
-  typeCode         String?  // fixture type code, e.g. "SP1", "D1", "A"
-  description      String?  // fixture description
-  location         String   @default("")  // drawing ref / location notes
-  notes            String   @default("")  // review notes / recommendation (client-visible)
-  internalNotes    String   @default("")  // internal ILC notes (never shown to client)
-  qty              Float?
-  // ── Specified product (architect's spec) ──────────────────────────────────
-  specManufacturer String?
-  specModel        String?
-  specDetails      String?  // color/finish/mounting detail from spec
-  prevQty          Float?   // previous quantity for change tracking
-  qtyType          String?  // 'unit' | 'linearFt'
-  altChoices       String?  // 'eLuma' | 'originalSpec' | 'altSpec' | 'ilcStandard'
-  // ── ILC Proposed product ───────────────────────────────────────────────────
+  id                 String   @id @default(cuid())
+  projectId          String
+  project            Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  section            String   @default("units")
+  typeCode           String?
+  description        String?
+  location           String   @default("")
+  notes              String   @default("")
+  internalNotes      String   @default("")
+  qty                Float?
+  specManufacturer   String?
+  specModel          String?
+  specDetails        String?
+  prevQty            Float?
+  qtyType            String?
+  altChoices         String?
   propManufacturer   String?
-  propManufacturerId String?  // FK to Manufacturer (optional structured link)
+  propManufacturerId String?
   propModel          String?
-  propProductId      String?  // FK to ManufacturerProduct (optional structured link)
-  propUnitDN       Float?   // dealer net / ILC internal cost
-  propUnitPrice    Float?   // client net (CN) — what client pays
-  repName          String?  // sales rep name, e.g. "PCS→DENVER"
-  repEmail         String?  // sales rep email
-  rfqStatus        String?  // 'received' | 'budgetPrice' | 'pending' | 'needsReview'
-  // ── Totals (auto-calculated) ───────────────────────────────────────────────
-  unitSavings  Float?  // legacy / unused — kept for backward compat
-  totalSavings Float?  // qty × propUnitPrice (CN total)
-  sortOrder    Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  propProductId      String?
+  propUnitDN         Float?
+  propUnitPrice      Float?
+  repName            String?
+  repEmail           String?
+  rfqStatus          String?
+  unitSavings        Float?
+  totalSavings       Float?
+  sortOrder          Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model QuestionnaireResponse {
@@ -314,67 +398,65 @@ model QuestionnaireResponse {
   @@unique([projectId, section, questionKey])
 }
 
-// ── Submittal Tracker ────────────────────────────────────────────────────────
-
 model SubmittalTracker {
-  id            String   @id @default(cuid())
-  projectId     String   @unique
-  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id            String                @id @default(cuid())
+  projectId     String                @unique
+  project       Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
   specSection   String?
-  // JSON array of active reviewer role keys, e.g. ["ILC","Developer","Architect","LA","ID","EE"]
-  reviewerRoles String   @default("[\"ILC\",\"Developer\",\"Architect\",\"LA\",\"ID\",\"EE\"]")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  reviewerRoles String                @default("[\"ILC\",\"Developer\",\"Architect\",\"LA\",\"ID\",\"EE\"]")
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
   items         SubmittalItem[]
   submissions   SubmittalSubmission[]
 }
 
 model SubmittalItem {
-  id            String   @id @default(cuid())
-  trackerId     String
-  tracker       SubmittalTracker @relation(fields: [trackerId], references: [id], onDelete: Cascade)
-  typeCode      String   // e.g. "D1", "SP1", "EL1-P"
-  description   String?
-  location      String?
-  sortOrder     Int      @default(0)
-  createdAt     DateTime @default(now())
-  versions      SubmittalItemVersion[]
+  id                String                 @id @default(cuid())
+  trackerId         String
+  tracker           SubmittalTracker       @relation(fields: [trackerId], references: [id], onDelete: Cascade)
+  typeCode          String
+  description       String?
+  location          String?
+  sortOrder         Int                    @default(0)
+  createdAt         DateTime               @default(now())
+  versions          SubmittalItemVersion[]
+  shipmentLineItems ShipmentLineItem[]
 }
 
 model SubmittalSubmission {
-  id            String   @id @default(cuid())
+  id            String                 @id @default(cuid())
   trackerId     String
-  tracker       SubmittalTracker @relation(fields: [trackerId], references: [id], onDelete: Cascade)
-  name          String   // e.g. "Submission 1", "265100-001.0 — Aug 2025"
-  submittedDate String?  // YYYY-MM-DD
+  tracker       SubmittalTracker       @relation(fields: [trackerId], references: [id], onDelete: Cascade)
+  name          String
+  submittedDate String?
   notes         String?
-  createdAt     DateTime @default(now())
+  createdAt     DateTime               @default(now())
   versions      SubmittalItemVersion[]
 }
 
 model SubmittalItemVersion {
-  id            String   @id @default(cuid())
-  itemId        String
-  item          SubmittalItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  submissionId  String
-  submission    SubmittalSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  manufacturer  String?
-  modelNumber   String?  // full catalog string, may contain "+" joined components
-  createdAt     DateTime @default(now())
-  reviews       SubmittalReview[]
+  id           String              @id @default(cuid())
+  itemId       String
+  item         SubmittalItem       @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  submissionId String
+  submission   SubmittalSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  manufacturer String?
+  modelNumber  String?
+  createdAt    DateTime            @default(now())
+  reviews      SubmittalReview[]
 }
 
 model SubmittalReview {
-  id            String   @id @default(cuid())
-  versionId     String
-  version       SubmittalItemVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
-  reviewerRole  String   // "ILC" | "Developer" | "Architect" | "LA" | "ID" | "EE" | "GC" | "EC"
-  reviewerName  String?
-  status        String   // "Approved" | "ApprovedAsNoted" | "Resubmit" | "NoAction"
-  dateNoted     String?  // YYYY-MM-DD
-  notes         String?
-  createdAt     DateTime @default(now())
-  createdById   String?
+  id           String               @id @default(cuid())
+  versionId    String
+  version      SubmittalItemVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  reviewerRole String
+  reviewerName String?
+  status       String
+  dateNoted    String?
+  notes        String?
+  createdAt    DateTime             @default(now())
+  createdById  String?
 }
 
 model ProjectActivity {
@@ -382,12 +464,11 @@ model ProjectActivity {
   projectId   String
   project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   userId      String
-  userName    String?  // denormalized — survives user deletion
+  userName    String?
   userEmail   String?
   type        String
-  // types: file_upload | file_delete | questionnaire | project_data | phase_change | project_meta | note_added
   description String
-  metadata    String?  // JSON for extra context
+  metadata    String?
   createdAt   DateTime @default(now())
 }
 
@@ -395,7 +476,7 @@ model ChatConversation {
   id        String        @id @default(cuid())
   projectId String
   project   Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  title     String?       // first question, truncated to ~80 chars
+  title     String?
   createdAt DateTime      @default(now())
   messages  ChatMessage[]
 }
@@ -404,32 +485,31 @@ model ChatMessage {
   id             String           @id @default(cuid())
   conversationId String
   conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  role           String           // 'user' | 'assistant'
+  role           String
   content        String
   createdAt      DateTime         @default(now())
 }
 
 model MeetingNote {
-  id          String   @id @default(cuid())
-  projectId   String
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  title       String   @default("")
-  content     String   @default("") // stored as HTML — LLM-readable
-  meetingDate String?  // YYYY-MM-DD date of the meeting
-  meetingLink String?  // Zoom, Google Meet, Teams URL
-  attendees   String?  // JSON array of attendee name strings
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                String   @id @default(cuid())
+  projectId         String
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title             String   @default("")
+  content           String   @default("")
+  meetingDate       String?
+  meetingLink       String?
+  attendees         String?
+  isExternalVisible Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
-// ── Manufacturer catalog ─────────────────────────────────────────────────────
-
 model Manufacturer {
-  id              String   @id @default(cuid())
-  numericId       Int      @unique
+  id              String                @id @default(cuid())
+  numericId       Int                   @unique
   name            String
   acctLastUpdated String?
-  setupToSell     Boolean  @default(false)
+  setupToSell     Boolean               @default(false)
   terms           String?
   credit          Float?
   notes           String?
@@ -443,8 +523,8 @@ model Manufacturer {
   city            String?
   state           String?
   zip             String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
   products        ManufacturerProduct[]
 }
 
@@ -461,7 +541,7 @@ model ManufacturerProduct {
   dimming        String?
   voltage        String?
   mounting       String?
-  fixtureType    String?      // FIXTURE | CONTROL_DEVICE
+  fixtureType    String?
   cost           Float?
   salePrice      Float?
   notes          String?
@@ -469,4 +549,454 @@ model ManufacturerProduct {
   updatedAt      DateTime     @updatedAt
 
   @@unique([manufacturerId, partNumber])
+}
+
+model Deal {
+  id                String    @id @default(cuid())
+  dealNumber        Int       @unique
+  title             String
+  pipeline          String
+  stage             String
+  dealStatus        String    @default("OPEN")
+  designStatus      String    @default("OPEN")
+  projectStatus     String    @default("ACTIVE")
+  city              String?
+  state             String?
+  buildingType      String?
+  numberOfUnits     Int?
+  projectType       String?
+  serviceType       String?
+  totalRevenue      Float?
+  designFeeTotal    Float?
+  probability       Int       @default(50)
+  expectedOrderDate DateTime?
+  notes             String?
+  nextActionText    String?
+  nextActionDue     DateTime?
+  wonAt             DateTime?
+  lostAt            DateTime?
+  lostReason        String?
+
+  linkedDealId    String?
+  linkedDeal      Deal?    @relation("DealLink", fields: [linkedDealId], references: [id])
+  linkedDeals     Deal[]   @relation("DealLink")
+  linkedProjectId String?
+  linkedProject   Project? @relation("DealProject", fields: [linkedProjectId], references: [id])
+  clientId        String?
+  client          Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  ownerId         String?
+  owner           User?    @relation("DealOwner", fields: [ownerId], references: [id])
+  createdById     String
+  createdBy       User     @relation("DealCreator", fields: [createdById], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  contacts   DealContact[]
+  activities DealActivity[]
+  salesNotes SalesNoteDeal[]
+}
+
+model DealContact {
+  id        String   @id @default(cuid())
+  dealId    String
+  deal      Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  contactId String
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  role      String
+  createdAt DateTime @default(now())
+
+  @@unique([dealId, contactId])
+}
+
+model Contact {
+  id            String        @id @default(cuid())
+  contactNumber Int           @unique
+  clientId      String?
+  client        Client?       @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  name          String
+  title         String?
+  email         String?
+  phone         String?
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  dealContacts  DealContact[]
+}
+
+model SalesNote {
+  id          String            @id @default(cuid())
+  noteNumber  Int               @unique
+  title       String            @default("")
+  body        String            @default("")
+  meetingDate DateTime?
+  attendees   String            @default("[]")
+  calendarRef String?
+  createdById String
+  createdBy   User              @relation("SalesNoteCreator", fields: [createdById], references: [id])
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  clients     SalesNoteClient[]
+  deals       SalesNoteDeal[]
+}
+
+model SalesNoteClient {
+  id          String    @id @default(cuid())
+  salesNoteId String
+  salesNote   SalesNote @relation(fields: [salesNoteId], references: [id], onDelete: Cascade)
+  clientId    String
+  client      Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@unique([salesNoteId, clientId])
+}
+
+model SalesNoteDeal {
+  id          String    @id @default(cuid())
+  salesNoteId String
+  salesNote   SalesNote @relation(fields: [salesNoteId], references: [id], onDelete: Cascade)
+  dealId      String
+  deal        Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@unique([salesNoteId, dealId])
+}
+
+model DealActivity {
+  id        String   @id @default(cuid())
+  dealId    String
+  deal      Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  userId    String
+  userName  String?
+  type      String
+  body      String
+  metadata  String?
+  createdAt DateTime @default(now())
+}
+
+model FixtureSchedule {
+  id                String                @id @default(cuid())
+  projectId         String
+  project           Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  state             String                @default("DRAFT")
+  version           Int                   @default(0)
+  publishedAt       DateTime?
+  publishedById     String?
+  publishedBy       User?                 @relation("SchedulePublisher", fields: [publishedById], references: [id])
+  submissionTag     String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  items             FixtureScheduleItem[]
+  designBidMatrices DesignBidMatrix[]
+}
+
+model FixtureScheduleItem {
+  id             String                @id @default(cuid())
+  scheduleId     String
+  schedule       FixtureSchedule       @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  type           String                @default("")
+  location       String                @default("")
+  description    String                @default("")
+  manufacturer   String?
+  catalogNumber  String?
+  finish         String?
+  cct            String?
+  lumens         String?
+  wattage        String?
+  voltage        String?
+  dimming        String?
+  mounting       String?
+  notes          String?
+  internalNotes  String?
+  sortOrder      Int                   @default(0)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  designBidItems DesignBidMatrixItem[]
+}
+
+model DesignBidMatrix {
+  id               String                @id @default(cuid())
+  projectId        String
+  project          Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sourceScheduleId String
+  sourceSchedule   FixtureSchedule       @relation(fields: [sourceScheduleId], references: [id], onDelete: Cascade)
+  version          Int                   @default(1)
+  createdAt        DateTime              @default(now())
+  pushedById       String
+  pushedBy         User                  @relation("BidPusher", fields: [pushedById], references: [id])
+  submissionTag    String?
+  matrixType       String                @default("DESIGN_BID")
+  changeSummary    String?
+  items            DesignBidMatrixItem[]
+}
+
+model Dashboard {
+  id          String            @id @default(cuid())
+  name        String
+  isDefault   Boolean           @default(false)
+  createdById String
+  createdBy   User              @relation("DashboardCreator", fields: [createdById], references: [id])
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  widgets     DashboardWidget[]
+}
+
+model DashboardWidget {
+  id          String    @id @default(cuid())
+  dashboardId String
+  dashboard   Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  name        String
+  category    String
+  metric      String
+  viewBy      String
+  segmentBy   String?
+  filters     String    @default("[]")
+  position    Int
+  width       String    @default("HALF")
+  createdAt   DateTime  @default(now())
+}
+
+model MasterType {
+  code           String          @id
+  description    String
+  fixture_family String
+  symbol_svg     String          @default("")
+  is_unit_type   Boolean         @default(false)
+  is_active      Boolean         @default(true)
+  fixtureTypes   FixtureType[]
+  ilcSpecs       ILCSpec[]
+  placedFixtures PlacedFixture[]
+}
+
+model FixtureType {
+  code           String                  @id
+  master_type_id String
+  masterType     MasterType              @relation(fields: [master_type_id], references: [code])
+  family         String
+  description    String?
+  is_active      Boolean                 @default(true)
+  placedFixtures PlacedFixture[]
+  clientAnswers  ClientStandardsAnswer[]
+}
+
+model ILCSpec {
+  id             String     @id @default(cuid())
+  master_type_id String
+  masterType     MasterType @relation(fields: [master_type_id], references: [code])
+  family         String
+  description    String
+  manufacturer   String
+  base_catalog   String
+  full_catalog   String?
+  variables      String?
+  budget_cost    Float?
+  design_notes   String?
+  use_context    String     @default("[]")
+  is_default     Boolean    @default(false)
+  tier           String     @default("STANDARD")
+  is_active      Boolean    @default(true)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+}
+
+model ClientStandardsAnswer {
+  id             String       @id @default(cuid())
+  clientId       String
+  client         Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  section        String
+  subsection     String
+  question_key   String
+  input_type     String
+  fixture_family String?
+  answer_value   String?
+  answer_note    String?
+  type_code      String?
+  fixtureType    FixtureType? @relation(fields: [type_code], references: [code])
+  resolved_sku   String?
+  adder_flag     Boolean      @default(false)
+  adder_prompt   String?
+  reference_key  String?
+  source         String       @default("MANUAL")
+  answeredById   String?
+  answeredBy     User?        @relation("AnsweredByUser", fields: [answeredById], references: [id])
+  answered_at    DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([clientId, question_key])
+}
+
+model ProjectStandardsOverride {
+  id             String   @id @default(cuid())
+  projectId      String
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  question_key   String
+  override_value String
+  activatedById  String
+  activatedBy    User     @relation("OverrideActivator", fields: [activatedById], references: [id])
+  activated_at   DateTime @default(now())
+  note           String?
+}
+
+model PlacedFixture {
+  id             String       @id @default(cuid())
+  drawing_id     String
+  drawing        ProjectFile  @relation(fields: [drawing_id], references: [id], onDelete: Cascade)
+  projectId      String
+  project        Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  page_number    Int          @default(1)
+  x              Float
+  y              Float
+  ai_suggested_x Float?
+  ai_suggested_y Float?
+  master_type_id String
+  masterType     MasterType   @relation(fields: [master_type_id], references: [code])
+  type_code      String?
+  fixtureType    FixtureType? @relation(fields: [type_code], references: [code])
+  status         String       @default("SUGGESTED")
+  unit_type      String?
+  room_type      String?
+  confirmedById  String?
+  confirmedBy    User?        @relation("FixtureConfirmer", fields: [confirmedById], references: [id])
+  confirmed_at   DateTime?
+  note           String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model DesignBidMatrixItem {
+  id                 String               @id @default(cuid())
+  matrixId           String
+  matrix             DesignBidMatrix      @relation(fields: [matrixId], references: [id], onDelete: Cascade)
+  sourceItemId       String?
+  sourceItem         FixtureScheduleItem? @relation(fields: [sourceItemId], references: [id])
+  type               String               @default("")
+  description        String               @default("")
+  locationTag        String?
+  manufacturer       String?
+  partNumber         String?
+  salesRep           String?
+  rfqStatus          String?
+  qty                Int?
+  qtyType            String?
+  dnPerUnit          Float?
+  cnPerUnit          Float?
+  cnTotal            Float?
+  pricingLastUpdated DateTime?
+  notes              String?
+  internalNotes      String?
+  sortOrder          Int                  @default(0)
+  isArchived         Boolean              @default(false)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+}
+
+model Shipment {
+  id             String             @id @default(cuid())
+  project_id     String
+  project        Project            @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  manufacturer   String
+  poDate         DateTime?
+  leadTimeWeeks  String?
+  esdDate        DateTime?
+  trackingNumber String?
+  deliveredDate  DateTime?
+  status         String             @default("PO_PLACED")
+  notes          String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  lineItems      ShipmentLineItem[]
+}
+
+model ShipmentLineItem {
+  id              String         @id @default(cuid())
+  shipment_id     String
+  shipment        Shipment       @relation(fields: [shipment_id], references: [id], onDelete: Cascade)
+  fixtureType     String
+  description     String
+  catalogNo       String?
+  qty             Int            @default(1)
+  fixtureStatus   String?
+  notes           String?
+  submittalItemId String?
+  submittalItem   SubmittalItem? @relation(fields: [submittalItemId], references: [id], onDelete: SetNull)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model ProjectNotificationConfig {
+  id               String   @id @default(cuid())
+  project_id       String
+  project          Project  @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  notificationType String
+  externalEmails   String   @default("")
+  enabled          Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([project_id, notificationType])
+}
+
+model NotificationLog {
+  id               String    @id @default(cuid())
+  project_id       String
+  project          Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  notificationType String
+  audience         String
+  recipientEmail   String?
+  sentAt           DateTime  @default(now())
+  openedAt         DateTime?
+  openToken        String    @unique @default(cuid())
+  dedupeKey        String?
+  payload          String    @default("{}")
+
+  @@index([project_id])
+  @@index([dedupeKey])
+}
+
+model NotificationQueue {
+  id               String   @id @default(cuid())
+  project_id       String
+  project          Project  @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  notificationType String
+  audience         String   @default("EXTERNAL")
+  recipientEmail   String
+  payload          String   @default("{}")
+  createdAt        DateTime @default(now())
+}
+
+model PortalUser {
+  id            String                   @id @default(cuid())
+  email         String                   @unique
+  passwordHash  String
+  name          String
+  role          String                   @default("EXTERNAL")
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+  projectAccess ProjectExternalContact[]
+}
+
+model ProjectExternalContact {
+  id                       String      @id @default(cuid())
+  project_id               String
+  project                  Project     @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  portalUserId             String?
+  portalUser               PortalUser? @relation(fields: [portalUserId], references: [id], onDelete: SetNull)
+  name                     String
+  email                    String
+  role                     String
+  canViewShipSchedule      Boolean     @default(false)
+  canViewSubmittals        Boolean     @default(false)
+  canViewMeetings          Boolean     @default(false)
+  canViewContracts         Boolean     @default(false)
+  canViewConstructionSched Boolean     @default(false)
+  canViewChangeOrders      Boolean     @default(false)
+  canViewBudgets           Boolean     @default(false)
+  inviteToken              String?     @unique
+  inviteTokenExpiresAt     DateTime?
+  invitedAt                DateTime?
+  acceptedAt               DateTime?
+  createdAt                DateTime    @default(now())
+  updatedAt                DateTime    @updatedAt
+
+  @@unique([project_id, email])
 }
