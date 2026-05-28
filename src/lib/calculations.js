@@ -274,7 +274,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   }
 
   // ─── SUBTOTALS ────────────────────────────────────────────────────────────
-  const lightingProductSubtotal =
+  let lightingProductSubtotal =
     unitsProductTotal    +
     corridorProductTotal +
     bohProduct           +
@@ -285,19 +285,25 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     exitSignsProduct     +
     designAdderTotal;
 
+  // ─── ENERGY CREDIT ───────────────────────────────────────────────────────
+  // Per Mike: the energy credit REDUCES the lighting subtotal *before* freight,
+  // warehousing, and tax are calculated — matching Trackvia behavior. (Previously
+  // the credit was added to controlsProduct after lighting F+W+T, which caused
+  // the credit's dollar impact to compound through F+W+T.)
+  // PRICING.controls.energyCreditAdderPct retains its historical name but is
+  // now applied as a reduction.
+  const energyCreditAmount = controls.energyCredit === 'yes'
+    ? lightingProductSubtotal * PRICING.controls.energyCreditAdderPct
+    : 0;
+  lightingProductSubtotal -= energyCreditAmount;
+
   // ─── CONTROLS ─────────────────────────────────────────────────────────────
   // Controls apply to total gross SF (IECC 2021 — Excel-verified)
   const buildingType = pd.buildingTypeKey || controls.buildingType || controls.projectType || 'midRise';
   const ctrlRate     = PRICING.controls.rates[buildingType] || PRICING.controls.rates.midRise;
   let controlsProduct = Math.min(grossSf * ctrlRate.perSf, ctrlRate.cap);
 
-  // Energy credit: adds 3% of the lighting product subtotal
-  const energyCreditAdder = controls.energyCredit === 'yes'
-    ? lightingProductSubtotal * PRICING.controls.energyCreditAdderPct
-    : 0;
-  controlsProduct += energyCreditAdder;
-
-  // Manual override
+  // Manual override (the energy credit no longer touches controlsProduct)
   const controlsOverrideVal = n(controls.controlsOverride);
   if (controlsOverrideVal > 0) controlsProduct = controlsOverrideVal;
 
@@ -364,6 +370,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     freightRate,
     warehousingRate,
     lightingProductSubtotal,
+    energyCreditAmount,
     subtotalLightingOnly,
     controls:               controlsProduct,
     controlsFreight,
