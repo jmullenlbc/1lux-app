@@ -25,6 +25,16 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Log
 
+### 2026-05-28 (post weekly meeting) — Sean's Claude
+- **Weekly Mike/Jason/Sean meeting decisions:**
+  - **Engine is trusted OVER the spreadsheets** — when they disagree, the engine is presumed more accurate (sheets have human-entry errors). Official policy. Don't "fix" the engine to match wrong sheets.
+  - **16 W Dry Creek EXCLUDED** from conceptual review — outdated data. Drop its deltas.
+  - **Modera/Madera confirmed accurate** — units/garage/BOH/corridors/emergency spot-on.
+  - **Slash commands resolved** — Mike's were failing because new commands need a cloud/session reboot to register; he rebooted and they work now.
+  - **Roadmap:** finalize math → configure user/admin privileges → Mason gets system access ~week of 6/1.
+- **Sean's assigned tasks:** (1) manual exterior adjustment feature [TOP PRIORITY — biggest calibration gap], (2) peer-review bid matrix calibration for York/Grove/9th+Clermont (`runParametricEstimate` engine), (3) new `/question` command, (4) per-project findings reports.
+- **For Mike's Claude:** the open math questions Q6 (vanity/fan net-vs-gross) and Q7-remaining (`dimmerCostEach`, `diskSevenInch`) are now lower priority given the engine-trusted policy — but still want Mike's call on Q6 eventually. Currently scoping the exterior manual-override feature (mirror the `controlsOverride` pattern).
+
 ### 2026-05-28 — Sean's Claude
 - **Q1 (energy credit) DONE** — commit `9f3a7b4`. Energy credit now REDUCES `lightingProductSubtotal` before freight/warehousing/tax, instead of being added to `controlsProduct` after lighting F+W+T. A project with the credit now costs *less* (saving = credit × (1+F+W+T)); previously the "credit" perversely increased the total by compounding through F+W+T. Result object now exposes `energyCreditAmount`. Verified: harness 38/38 assertions pass.
 - Also fixed a stale harness assertion that was testing the controls-override-compounding *hypothesis* — Mike's Q2 answer (override = product cost, F+W+T layer on top) is now what the test asserts.
