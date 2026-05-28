@@ -11,6 +11,7 @@ export default function ExteriorSection({ responses, projectData, onSaveResponse
     amenityLevel:      responses.amenityLevel      || 'medium',
     amenityHours:      responses.amenityHours      || 'beforeDusk',
     landscapeBudget:   responses.landscapeBudget   ?? '',
+    exteriorOverride:  responses.exteriorOverride  ?? '',
     // Design-only
     exteriorEmergency: responses.exteriorEmergency || 'wallpack',
     exteriorPoleControl: responses.exteriorPoleControl || 'photocell',
@@ -44,7 +45,12 @@ export default function ExteriorSection({ responses, projectData, onSaveResponse
   const landscapeTotal  = autoLandscape + landscapeAdder;
   const subBeforeMisc   = amenityProduct + parkingProduct + carportProduct + garageProduct + doorProduct + landscapeTotal;
   const miscBuffer      = subBeforeMisc * 0.05;
-  const exteriorTotal   = subBeforeMisc + miscBuffer;
+  const exteriorFormulaTotal = subBeforeMisc + miscBuffer;
+
+  // Manual override replaces the formula total when a positive value is entered.
+  const overrideVal     = parseFloat(answers.exteriorOverride) > 0 ? parseFloat(answers.exteriorOverride) : 0;
+  const overrideActive  = overrideVal > 0;
+  const exteriorTotal   = overrideActive ? overrideVal : exteriorFormulaTotal;
 
   async function handleNext() {
     setSaving(true);
@@ -157,10 +163,38 @@ export default function ExteriorSection({ responses, projectData, onSaveResponse
         )}
       </div>
 
+      {/* Manual exterior override — replaces the formula total when set */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <p className="font-semibold text-slate-900 mb-1">Manual Exterior Total (Override)</p>
+        <p className="text-xs text-slate-400 mb-4">
+          If the exterior/site lighting was built out manually (outside this tool),
+          enter the total here. It <strong>replaces</strong> the calculated estimate below.
+          Leave blank to use the formula.
+        </p>
+        <div className="max-w-xs">
+          <Input
+            label="Manual Exterior Total ($)"
+            type="number"
+            placeholder="0"
+            prefix="$"
+            value={answers.exteriorOverride}
+            onChange={e => setAnswers(a => ({ ...a, exteriorOverride: e.target.value }))}
+            min={0}
+          />
+        </div>
+        {overrideActive && (
+          <p className="mt-2 text-xs text-amber-700">
+            Override in use: {formatCurrency(overrideVal)} — the calculated estimate below is shown for reference only.
+          </p>
+        )}
+      </div>
+
       {/* Live cost breakdown */}
-      {exteriorTotal > 0 && (
-        <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
-          <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Exterior Cost Breakdown (Live Estimate)</div>
+      {(exteriorFormulaTotal > 0 || overrideActive) && (
+        <div className={`rounded-xl border p-4 ${overrideActive ? 'bg-slate-50/60 border-slate-200 opacity-70' : 'bg-slate-50 border-slate-200'}`}>
+          <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">
+            Exterior Cost Breakdown {overrideActive ? '(Formula Estimate — overridden)' : '(Live Estimate)'}
+          </div>
           <div className="space-y-1.5 text-sm">
             {[
               { label: `Exterior Amenities (${extSf.toLocaleString()} SF × $${baseRate}/SF${nightMult === 2 ? ' × 2 nighttime' : ''})`, value: amenityProduct, show: extSf > 0 },
@@ -177,9 +211,15 @@ export default function ExteriorSection({ responses, projectData, onSaveResponse
               </div>
             ))}
             <div className="flex justify-between border-t border-slate-300 pt-2 mt-2 font-bold text-slate-900">
-              <span className="text-sm">Total Exterior (product only)</span>
-              <span className="font-mono text-sm">{formatCurrency(exteriorTotal)}</span>
+              <span className="text-sm">Formula Total Exterior (product only)</span>
+              <span className="font-mono text-sm">{formatCurrency(exteriorFormulaTotal)}</span>
             </div>
+            {overrideActive && (
+              <div className="flex justify-between pt-1 font-bold text-amber-700">
+                <span className="text-sm">→ Manual Override In Use</span>
+                <span className="font-mono text-sm">{formatCurrency(overrideVal)}</span>
+              </div>
+            )}
           </div>
         </div>
       )}

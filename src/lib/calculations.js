@@ -171,9 +171,17 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const landscapeFlat  = autoLandscape + landscapeAdder;
 
   // Misc buffer = 5% of subtotal before misc
-  const extSubBeforeMisc  = extAmenityProduct + parkingProduct + carportProduct + garageExtProduct + extDoorProduct + landscapeFlat;
-  const extMiscBuffer     = extSubBeforeMisc * PRICING.exterior.miscBufferPct;
-  const exteriorProductTotal = extSubBeforeMisc + extMiscBuffer;
+  const extSubBeforeMisc     = extAmenityProduct + parkingProduct + carportProduct + garageExtProduct + extDoorProduct + landscapeFlat;
+  const extMiscBuffer        = extSubBeforeMisc * PRICING.exterior.miscBufferPct;
+  const exteriorFormulaTotal = extSubBeforeMisc + extMiscBuffer;
+
+  // Manual override: site/exterior is frequently hand-calculated outside the
+  // formula (manually built in the spreadsheet). A positive exteriorOverride
+  // replaces the formula total entirely. Mirrors controlsOverride. The formula
+  // breakdown is still returned for transparency (see sections.exterior.formulaTotal).
+  const exteriorOverrideVal  = n(exterior.exteriorOverride);
+  const exteriorOverrideUsed = exteriorOverrideVal > 0;
+  const exteriorProductTotal = exteriorOverrideUsed ? exteriorOverrideVal : exteriorFormulaTotal;
 
   // ─── EMERGENCY LIGHTING ───────────────────────────────────────────────────
   const strategyKey = emergency.strategy || 'integrated_inverters';
@@ -356,6 +364,8 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
         doors:     { product: extDoorProduct       },
         landscape: { product: landscapeFlat        },
         misc:      { product: extMiscBuffer        },
+        formulaTotal:    exteriorFormulaTotal,
+        overrideApplied: exteriorOverrideUsed,
         total:     { product: exteriorProductTotal },
       },
       emergency:   { product: emergencyProduct  },
