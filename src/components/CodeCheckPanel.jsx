@@ -1,5 +1,30 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import SaveToKBButton from './SaveToKBButton';
+
+function buildCheckContent(check) {
+  const parts = [];
+  if (check.summary) parts.push(`<p>${check.summary}</p>`);
+  if (check.items?.length) {
+    parts.push('<ul>' + check.items.map(it =>
+      `<li><strong>${it.type || ''}</strong>${it.message ? ' — ' + it.message : ''}${it.detail ? ' (' + it.detail + ')' : ''}</li>`
+    ).join('') + '</ul>');
+  }
+  if (check.code) parts.push(`<p><em>Reference: ${check.code}</em></p>`);
+  return parts.join('') || check.title;
+}
+
+function buildAIIssueContent(issue) {
+  const parts = [];
+  if (issue.items?.length) {
+    parts.push('<ul>' + issue.items.map(it => `<li>${it}</li>`).join('') + '</ul>');
+  }
+  if (issue.recommendation) {
+    parts.push(`<p><strong>Recommendation:</strong> ${issue.recommendation}</p>`);
+  }
+  if (issue.code) parts.push(`<p><em>Reference: ${issue.code}</em></p>`);
+  return parts.join('') || issue.title;
+}
 
 const STATUS_META = {
   PASS:   { label: 'PASS',   bg: 'bg-green-100',  text: 'text-green-700',  dot: 'bg-green-500'  },
@@ -65,6 +90,16 @@ function CheckCard({ check, defaultOpen }) {
               ))}
             </div>
           )}
+          {(check.status === 'FLAG' || check.status === 'VERIFY') && (
+            <div className="mt-3 pt-3 border-t border-slate-200/60 flex justify-end">
+              <SaveToKBButton
+                title={check.title}
+                content={buildCheckContent(check)}
+                severity={check.status}
+                suggestedTags={['code-check', 'deterministic']}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -101,6 +136,14 @@ function AIIssueCard({ issue }) {
               <span className="font-semibold text-slate-700">Recommendation: </span>{issue.recommendation}
             </p>
           )}
+          <div className="mt-3 pt-3 border-t border-slate-200/60 flex justify-end">
+            <SaveToKBButton
+              title={issue.title}
+              content={buildAIIssueContent(issue)}
+              severity={issue.severity}
+              suggestedTags={['code-check', 'ai-review', issue.code ? issue.code.toLowerCase().replace(/[\s.§]/g, '-').replace(/-+/g, '-') : null].filter(Boolean)}
+            />
+          </div>
         </div>
       )}
     </div>

@@ -1,5 +1,17 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import SaveToKBButton from './SaveToKBButton';
+
+function buildRadarIssueContent(issue, radarType) {
+  const parts = [`<p>${issue.message}</p>`];
+  if (issue.items?.length) {
+    parts.push('<ul>' + issue.items.map(it =>
+      `<li><code>${it.type || it}</code>${it.detail ? ' — ' + it.detail : ''}</li>`
+    ).join('') + '</ul>');
+  }
+  parts.push(`<p><em>Source: Human Error Radar — ${radarType}</em></p>`);
+  return parts.join('');
+}
 
 const STATUS_META = {
   PASS: { label: 'PASS', bg: 'bg-green-100',  text: 'text-green-700',  dot: 'bg-green-500',  border: 'border-green-200' },
@@ -134,6 +146,14 @@ function SpecRadarSection({ radar }) {
                     <span className="text-xs font-semibold text-slate-700">{issue.title}</span>
                   </div>
                   <p className="text-xs text-slate-600 leading-relaxed">{issue.message}</p>
+                  <div className="mt-2 flex justify-end">
+                    <SaveToKBButton
+                      title={issue.title}
+                      content={buildRadarIssueContent(issue, 'Specification')}
+                      severity={issue.severity}
+                      suggestedTags={['error-radar', 'spec']}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
@@ -193,6 +213,14 @@ function BidRadarSection({ radar }) {
                       ))}
                     </div>
                   )}
+                  <div className="mt-2 pt-2 border-t border-slate-200/60 flex justify-end">
+                    <SaveToKBButton
+                      title={issue.title}
+                      content={buildRadarIssueContent(issue, 'Bid')}
+                      severity={issue.severity}
+                      suggestedTags={['error-radar', 'bid']}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
