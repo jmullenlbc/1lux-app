@@ -33,6 +33,34 @@ function CodeSearchCard() {
   );
 }
 
+// ── LPD Check banner card ──────────────────────────────────────────────────────
+function LPDCheckCard() {
+  return (
+    <Link href="/knowledge-base/lpd-check"
+      className="group bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl border border-emerald-200 shadow-sm hover:shadow-md transition-all p-5 flex flex-col gap-3 col-span-full sm:col-span-2 lg:col-span-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-xl shrink-0">📊</div>
+          <div>
+            <div className="text-sm font-bold text-emerald-800">LPD Compliance Check</div>
+            <div className="text-xs text-emerald-600">ASHRAE 90.1-2022 §9.5.1 · Upload CSV or Excel</div>
+          </div>
+        </div>
+        <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 shrink-0">
+          New
+        </span>
+      </div>
+      <p className="text-xs text-emerald-700 leading-relaxed">
+        Upload any fixture schedule spreadsheet and instantly check LPD compliance per area. Auto-detects columns, groups by location, and flags spaces that exceed ASHRAE limits.
+      </p>
+      <div className="flex items-center gap-1 text-xs font-semibold text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity mt-auto">
+        Check LPD compliance
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
+      </div>
+    </Link>
+  );
+}
+
 export const SEVERITY_CONFIG = {
   REQUIRED:    { label: 'Required',    color: 'text-red-700 bg-red-50 border-red-200',    dot: 'bg-red-500' },
   RECOMMENDED: { label: 'Recommended', color: 'text-amber-700 bg-amber-50 border-amber-200', dot: 'bg-amber-500' },
@@ -427,6 +455,7 @@ export default function KnowledgeBaseClient({ standards: initial, categories: in
       <div className="max-w-6xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <CodeSearchCard />
+          <LPDCheckCard />
           {visibleCats.map(cat => {
             const count  = standards.filter(s => s.category === cat.key).length;
             const colors = getColors(cat.color);
