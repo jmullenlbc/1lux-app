@@ -27,6 +27,7 @@ export default async function ClientDetailPage({ params }) {
       },
       contacts: { orderBy: { createdAt: 'asc' } },
       createdBy: { select: { name: true, email: true } },
+      owner:     { select: { id: true, name: true, email: true } },
     },
   });
 

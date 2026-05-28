@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { buildingTypeLabel } from '@/lib/utils';
-import { STANDARDS_SECTIONS, SECTION_COLOR_MAP, TOTAL_SUBSECTIONS } from '@/lib/standardsSections';
+import { STANDARDS_SECTIONS, SECTION_COLOR_MAP, TOTAL_SUBSECTIONS, CCT_OPTIONS, CCT_EXTERIOR_OPTIONS, CCT_INTERIOR_AREAS } from '@/lib/standardsSections';
 import PlaybookTab from './PlaybookTab';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -114,9 +114,15 @@ function EditModal({ client, onClose, onSave }) {
     orgTypes:            parseJSON(client.orgTypes),
     markets:             parseJSON(client.markets),
     notes:               client.notes               || '',
+    ownerId:             client.ownerId              || '',
   });
   const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState('');
+  const [err, setErr]       = useState('');
+  const [users, setUsers]   = useState([]);
+
+  useEffect(() => {
+    fetch('/api/users').then(r => r.json()).then(d => setUsers(d.users || [])).catch(() => {});
+  }, []);
 
   function set(k, v) { setForm(f => ({ ...f, [k]: v })); }
 
@@ -142,6 +148,7 @@ function EditModal({ client, onClose, onSave }) {
           type: form.orgTypes[0] || client.type,
           orgTypes: form.orgTypes,
           markets: form.markets,
+          ownerId: form.ownerId || null,
         }),
       });
       if (!res.ok) { const d = await res.json(); setErr(d.error || 'Save failed'); return; }
@@ -189,6 +196,18 @@ function EditModal({ client, onClose, onSave }) {
                   ))}
                 </div>
               </div>
+            </div>
+          </section>
+
+          <section className="border-t border-slate-100 pt-5">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Account Owner</p>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Assigned Salesperson</label>
+              <select value={form.ownerId} onChange={e => set('ownerId', e.target.value)}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500">
+                <option value="">— Unassigned —</option>
+                {users.map(u => <option key={u.id} value={u.id}>{u.name || u.email}</option>)}
+              </select>
             </div>
           </section>
 
@@ -756,6 +775,139 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
     }
   }
 
+  async function saveCCT(subsectionKey, value) {
+    const question_key = `COLOR_TEMPERATURE.${subsectionKey}`;
+    setSaving(prev => ({ ...prev, [question_key]: true }));
+    try {
+      const res = await fetch(`/api/clients/${clientId}/standards`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question_key,
+          section:     'COLOR_TEMPERATURE',
+          subsection:  subsectionKey,
+          input_type:  'DROPDOWN',
+          answer_value: value || null,
+        }),
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setAnswers(prev => ({ ...prev, [question_key]: saved }));
+      }
+    } finally {
+      setSaving(prev => ({ ...prev, [question_key]: false }));
+    }
+  }
+
+  // ── CCT section renderer ──────────────────────────────────────────────────
+  function CCTSection() {
+    const interiorKey = 'COLOR_TEMPERATURE.ALL_INTERIOR';
+    const exteriorKey = 'COLOR_TEMPERATURE.EXTERIOR';
+    const interiorCCT = answers[interiorKey]?.answer_value || '';
+    const exteriorCCT = answers[exteriorKey]?.answer_value || '';
+
+    function effectiveCCT(areaKey) {
+      const override = answers[`COLOR_TEMPERATURE.${areaKey}`]?.answer_value;
+      return override || interiorCCT || '';
+    }
+
+    function isOverride(areaKey) {
+      const v = answers[`COLOR_TEMPERATURE.${areaKey}`]?.answer_value;
+      return v && v !== interiorCCT;
+    }
+
+    function CCTChips({ value, onChange, options = CCT_OPTIONS }) {
+      return (
+        <div className="flex flex-wrap gap-1.5 mt-1">
+          {options.map(cct => (
+            <button key={cct} type="button" onClick={() => canEdit && onChange(value === cct ? '' : cct)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                value === cct
+                  ? 'bg-amber-500 text-white border-amber-500'
+                  : 'bg-white text-slate-500 border-slate-200 hover:border-amber-400 hover:text-amber-600'
+              } ${!canEdit ? 'pointer-events-none' : ''}`}>
+              {cct}
+            </button>
+          ))}
+          {value && canEdit && (
+            <button type="button" onClick={() => onChange('')}
+              className="px-2 py-1.5 text-xs text-slate-400 hover:text-slate-600">✕ Clear</button>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        {/* Primary pickers */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-white rounded-xl border border-slate-200 p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0" />
+              <span className="text-sm font-bold text-slate-800">All Interior</span>
+              <span className="text-[10px] text-slate-400 ml-auto">Default for all interior areas</span>
+            </div>
+            <CCTChips value={interiorCCT} onChange={v => saveCCT('ALL_INTERIOR', v)} />
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200 p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-2.5 h-2.5 rounded-full bg-blue-400 shrink-0" />
+              <span className="text-sm font-bold text-slate-800">Exterior</span>
+              <span className="text-[10px] text-slate-400 ml-auto">All exterior areas</span>
+            </div>
+            <CCTChips value={exteriorCCT} onChange={v => saveCCT('EXTERIOR', v)} options={CCT_EXTERIOR_OPTIONS} />
+          </div>
+        </div>
+
+        {/* Per-area overrides */}
+        <div>
+          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">
+            Area overrides — set only if different from interior default
+          </div>
+          <div className="grid grid-cols-1 gap-2">
+            {CCT_INTERIOR_AREAS.map(area => {
+              const current  = effectiveCCT(area.key);
+              const override = isOverride(area.key);
+              const isSav    = saving[`COLOR_TEMPERATURE.${area.key}`];
+              return (
+                <div key={area.key} className={`bg-white rounded-lg border px-4 py-3 ${override ? 'border-amber-200' : 'border-slate-100'}`}>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-semibold text-slate-700 w-44 shrink-0">{area.label}</span>
+                    <div className="flex flex-wrap gap-1.5 flex-1">
+                      {CCT_OPTIONS.map(cct => (
+                        <button key={cct} type="button"
+                          onClick={() => canEdit && saveCCT(area.key, answers[`COLOR_TEMPERATURE.${area.key}`]?.answer_value === cct ? '' : cct)}
+                          className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                            current === cct && override
+                              ? 'bg-amber-500 text-white border-amber-500'
+                              : current === cct && !override
+                              ? 'bg-slate-100 text-slate-600 border-slate-200'
+                              : 'bg-white text-slate-400 border-slate-100 hover:border-amber-300 hover:text-amber-600'
+                          } ${!canEdit ? 'pointer-events-none' : ''}`}>
+                          {cct}
+                        </button>
+                      ))}
+                      {!override && interiorCCT && (
+                        <span className="text-[10px] text-slate-400 self-center ml-1">↑ inherited</span>
+                      )}
+                      {override && canEdit && (
+                        <button type="button" onClick={() => saveCCT(area.key, '')}
+                          className="text-[10px] text-slate-400 hover:text-slate-600 self-center ml-1">
+                          Clear override
+                        </button>
+                      )}
+                    </div>
+                    {isSav && <span className="text-[10px] text-slate-400 italic shrink-0">Saving…</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!canEdit) {
     return (
       <div className="py-16 text-center text-slate-400">
@@ -809,11 +961,17 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
           <span className="text-xl">{section?.icon}</span>
           <div>
             <h2 className={`text-sm font-bold ${colors.text}`}>{section?.label}</h2>
-            <p className="text-[11px] text-slate-500">{section?.subsections.length} subsections · click any note field to edit</p>
+            <p className="text-[11px] text-slate-500">
+              {section?.isCCT
+                ? 'Set color temperature for each area — all interior inherits the global default'
+                : `${section?.subsections.length} subsections · click any note field to edit`}
+            </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3">
+        {section?.isCCT && <CCTSection />}
+
+        {!section?.isCCT && <div className="grid grid-cols-1 gap-3">
           {section?.subsections.map(sub => {
             const question_key = `${activeSection}.${sub.key}`;
             const existing     = answers[question_key];
@@ -872,7 +1030,7 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
               </div>
             );
           })}
-        </div>
+        </div>}
       </div>
     </div>
   );
@@ -916,6 +1074,12 @@ export default function ClientDetailClient({ client: initial, availableProjects,
               )}
             </div>
             <div className="ml-auto flex items-center gap-2">
+              {client.owner && (
+                <span className="flex items-center gap-1.5 text-xs text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
+                  <svg className="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                  {client.owner.name || client.owner.email}
+                </span>
+              )}
               {parseJSON(client.orgTypes).map(t => (
                 <span key={t} className={`text-xs font-medium px-2 py-0.5 rounded-full ${orgTypeColor(t)}`}>{t}</span>
               ))}

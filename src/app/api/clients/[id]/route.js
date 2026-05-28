@@ -32,6 +32,7 @@ export async function GET(request, { params }) {
         },
       },
       createdBy: { select: { name: true, email: true } },
+      owner:     { select: { id: true, name: true, email: true } },
     },
   });
 
@@ -52,7 +53,7 @@ export async function PATCH(request, { params }) {
     email, phone, website, address, city, state,
     linkedIn, primaryContact, primaryContactTitle,
     primaryContactEmail, primaryContactPhone,
-    tier, markets, developerType, orgTypes,
+    tier, markets, developerType, orgTypes, ownerId,
   } = body;
 
   if (name !== undefined && !name?.trim()) {
@@ -81,6 +82,7 @@ export async function PATCH(request, { params }) {
       ...(markets             !== undefined && { markets: JSON.stringify(markets) }),
       ...(developerType       !== undefined && { developerType: developerType || null }),
       ...(orgTypes            !== undefined && { orgTypes: JSON.stringify(orgTypes) }),
+      ...(ownerId             !== undefined && { ownerId: ownerId || null }),
     },
   });
 

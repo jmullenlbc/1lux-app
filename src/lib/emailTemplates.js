@@ -237,6 +237,32 @@ export function constructionDeadline({ projectName, milestone, date, daysOut, pi
 
 // ── Digest (generic) ──────────────────────────────────────────────────────────
 
+// ── Annual client review reminder ─────────────────────────────────────────────
+
+export function clientAnnualReview({ ownerName, clientName, clientUrl, lastUpdated }) {
+  const lastFmt = lastUpdated
+    ? new Date(lastUpdated).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    : 'over a year ago';
+  return {
+    subject: `[ILC Studios] Annual review reminder — ${clientName}`,
+    html: baseHtml({
+      title: `Annual Standards & Playbook Review`,
+      pixelUrl: null,
+      ctaUrl: clientUrl,
+      ctaLabel: 'Review Client →',
+      body: `
+        <p>Hi ${ownerName || 'team'},</p>
+        <p>It's been a year since the standards and playbook for <strong>${clientName}</strong> were last reviewed (${lastFmt}). Please take a few minutes to verify the information is still current:</p>
+        <ul style="padding-left:20px;margin:12px 0;">
+          <li>Playbook — key contacts, approval process, GC routing</li>
+          <li>Standards — fixture selections, CCT preferences, control preferences</li>
+        </ul>
+        <p style="font-size:13px;color:#64748b;">Keeping this information up to date ensures every ILC team member is working from the right playbook.</p>
+      `,
+    }),
+  };
+}
+
 function formatEventRow(e) {
   const p = (typeof e.payload === 'string')
     ? (() => { try { return JSON.parse(e.payload); } catch { return {}; } })()

@@ -5,7 +5,34 @@
 // Specific questions within each subsection are added in a later sprint.
 // question_key format: SECTION_KEY.SUBSECTION_KEY  (e.g. RESIDENTIAL_UNITS.ENTRYWAYS)
 
+// CCT options available for all areas
+export const CCT_OPTIONS = ['2700K', '3000K', '3500K', '4000K'];
+export const CCT_EXTERIOR_OPTIONS = ['2700K', '3000K', '3500K', '4000K', '5000K'];
+
+// Interior areas that cascade from ALL_INTERIOR
+export const CCT_INTERIOR_AREAS = [
+  { key: 'UNIT_LIVING',   label: 'Unit — Living / Dining' },
+  { key: 'UNIT_BEDROOM',  label: 'Unit — Bedroom'         },
+  { key: 'UNIT_BATHROOM', label: 'Unit — Bathroom / Vanity'},
+  { key: 'UNIT_KITCHEN',  label: 'Unit — Kitchen'         },
+  { key: 'CORRIDORS',     label: 'Corridors / Stairwells' },
+  { key: 'AMENITIES',     label: 'Interior Amenities'     },
+  { key: 'GARAGE',        label: 'Garage'                 },
+];
+
 export const STANDARDS_SECTIONS = [
+  {
+    key:   'COLOR_TEMPERATURE',
+    label: 'Color Temperature',
+    icon:  '🌡️',
+    color: 'amber',
+    isCCT: true, // special rendering flag
+    subsections: [
+      { key: 'ALL_INTERIOR', label: 'All Interior (default)' },
+      { key: 'EXTERIOR',     label: 'Exterior'               },
+      ...CCT_INTERIOR_AREAS,
+    ],
+  },
   {
     key:   'RESIDENTIAL_UNITS',
     label: 'Residential Units',
