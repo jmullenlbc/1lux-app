@@ -25,6 +25,16 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Log
 
+### 2026-05-29 (end of day, +Link+Pin entry fix) — Sean's Claude
+- **Link + Pin entry-side corrections applied.** Was $279K (−18.7% vs sheet $343K); now ~$325K (−5.3%). Five sheet-supported fixes via API:
+  1. `project-data.salesTaxPct: null → 0.0915` (Denver; biggest mover)
+  2. `corridors.fixtureSpacing: "10" → "11"` (sheet answer)
+  3. `amenities.interiorLevel: "medium" → "11"` (sheet uses $11/SF custom)
+  4. `controls.decorativeDimming: "no" → "yes"`
+  5. `controls.zoneReduction: "no" → "yes"`
+- Remaining ~$18K gap is unfixable without engine changes / Mike's call: garage manual override (no field), corridor art-light question (no field), Q6 net-vs-gross pricing, exit-sign snapshot drift. All listed in PDF.
+- **PDF reissued** with corrected Link+Pin numbers + honest "we haven't broken Broadstone down yet" note.
+
 ### 2026-05-29 (end of day, +Grove fix) — Sean's Claude
 - **Grove St re-entered from latest sheet.** Deleted 13 stale rows (per-row CN prices, specs, and controls lump had drifted from `GROVE ST MATRIX.xlsx`), posted 14 fresh fixture rows + 1 controls lump. App raw $25,603.79 vs sheet $25,603.78 (+1¢). Loaded app $30,250.88 vs sheet $30,250.86 (+2¢). Was −$5,241/+20.5% off; now matches to 2¢. Re-issued the PDF report with Grove flipped to ✓.
 
