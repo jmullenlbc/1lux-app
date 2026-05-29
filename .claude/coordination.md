@@ -25,6 +25,11 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Log
 
+### 2026-05-29 (later) — Sean's Claude (garage rate fix)
+- **Garage design-level "quirk" RESOLVED (`36e310d`), deployed.** Root cause was display-only: `DesignGarageSection` showed/charged-in-preview **$0.20/SF (medium) / $0.25/SF (high)**, but the engine + `pricing.js` (`designGarage.baseMediumPerSf/baseHighPerSf`) + summary page all use **$0.30 / $0.45**. So the section's live estimate undercounted and never matched the real sidebar/total — making the level selector look like it did nothing. Aligned the section to 0.30/0.45.
+- **Engine was already correct** — verified empirically (`high − medium = garageSf × $0.15`, e.g. +$8,175 on 50K SF). No engine change. The unified `CorridorsSection` garage control was already right ($0.30/$0.45, `standard`/`enhanced`).
+- Note for Mike: the two garage UIs use different option *values* — `DesignGarageSection` sends `medium`/`high`, `CorridorsSection` sends `standard`/`enhanced`. Engine maps all four correctly (`enhanced`||`high` → 0.45, else 0.30), so harmless, but worth unifying someday.
+
 ### 2026-05-29 — Sean's Claude (design wizard redirect fix)
 - **BUG fixed (`90ac634`), deployed:** the **Design** wizard hung forever on "Redirecting to summary…" after the last step (Controls → "Save & View Summary"). Root cause: `DesignWizardClient` never ported the summary-redirect `useEffect` that `WizardClient` has. `getDesignNextStep('controls')` returns `'summary'` (it's a real `DESIGN_WIZARD_STEPS` entry), so `goToNext` takes the `if (next) setCurrentStep(next)` branch and never reaches its `router.push` fallback — and since `'summary'` gets persisted to `currentStep`, reloads stayed stuck too. Fix = the same `useEffect(()=>{ if(currentStep==='summary') router.push(...) })`. Conceptual/peer wizards were unaffected (they use `WizardClient`, which already had it).
 - **Heads-up for Mike (2nd design-wizard quirk, NOT yet fixed):** in the design garage step, changing the **design level (medium/high)** doesn't move the budget — garage stays at base $/SF. Surfaced during Link+Pin manual entry. Worth a look when you're in `DesignGarageSection` / the garage branch of `calculateBudget`.
