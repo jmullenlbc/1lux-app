@@ -25,6 +25,11 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Log
 
+### 2026-05-29 (end of day, +Broadstone entry fix) — Sean's Claude
+- **Broadstone entry-side correction applied.** Was $856K (−8.3% vs sheet $935K); now ~$896K (−4.2%). Single fix: `amenities.interiorLevel: "low" ($6/SF) → "8"` ($8/SF custom). Sheet's questionnaire answers all line-by-line verified; the interior amenity rate was the ONLY entry-side correction available. Added $40K.
+- Remaining ~$39K traces to Q6 (vanity gross-vs-net = ~$23K alone on 519 vanities × $45) + smaller fan/pricing items in the same family. Same engine/policy ask as Link+Pin.
+- **PDF reissued** with Broadstone numbers + the now-tighter "all remaining gaps are Q6/feature, entry side exhausted" framing.
+
 ### 2026-05-29 (end of day, +Link+Pin entry fix) — Sean's Claude
 - **Link + Pin entry-side corrections applied.** Was $279K (−18.7% vs sheet $343K); now ~$325K (−5.3%). Five sheet-supported fixes via API:
   1. `project-data.salesTaxPct: null → 0.0915` (Denver; biggest mover)
