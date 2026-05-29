@@ -22,7 +22,8 @@ export default function DesignGarageSection({
 
   const garageSf = Number(projectData?.garageSf) || 0;
 
-  const baseRate = ans.garageDesignLevel === 'high' ? 0.25 : 0.20;
+  // Must match the engine (calculations.js → designGarage.baseMediumPerSf / baseHighPerSf)
+  const baseRate = ans.garageDesignLevel === 'high' ? 0.45 : 0.30;
   const ctrlAdder = { none: 0, occSensor: 0.02, battery: 0.05, batteryAndSensor: 0.06 }[ans.garageControls] ?? 0;
   const totalRate  = baseRate + ctrlAdder;
   const liveTotal  = garageSf * totalRate;
@@ -89,8 +90,8 @@ export default function DesignGarageSection({
         note={`Standard eLuma-spec linear LED troffer vs. premium spec. ${garageSf > 0 ? `(${garageSf.toLocaleString()} SF)` : ''}`}
         costSuffix="/SF"
         options={[
-          { value: 'medium', label: 'Medium — Standard spec',  sub: '$0.20/SF — eLuma linear LED or equivalent', cost: 0.20 },
-          { value: 'high',   label: 'High — Premium spec',     sub: '$0.25/SF — Higher-end linear LED', cost: 0.25 },
+          { value: 'medium', label: 'Medium — Standard spec',  sub: '$0.30/SF — eLuma linear LED or equivalent', cost: 0.30 },
+          { value: 'high',   label: 'High — Premium spec',     sub: '$0.45/SF — Higher-end linear LED', cost: 0.45 },
         ]}
         value={ans.garageDesignLevel}
         onChange={v => set('garageDesignLevel', v)}
