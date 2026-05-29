@@ -25,6 +25,17 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Log
 
+### 2026-05-29 (end of day) — Sean's Claude (calibration report compiled for Mike)
+- **PDF report generated:** `~/Downloads/ILC Calibration Report - 2026-05-29.pdf`. Six projects, three deliverable types. Engine bug-free; all material discrepancies are entry-side, missing features, or data-version drift.
+- **Reconciliation status (sheet vs app):**
+  - York St Full Bid: $39,326.40 vs $39,326.43 — **3¢** ✓ (added 1 controls row today to complete it)
+  - 9th + Clermont Full Bid: $793,832 vs $793,841 — **+$8.86** ✓
+  - Modera Town Lake Conceptual: $1,428,644 vs ~$1,440,502 — **+0.8%** ✓
+  - Broadstone Southglenn Conceptual: $935,326 vs ~$857,319 — **−8.3%** △ (was assumed within 1-2%; isn't — likely Q6 vanity)
+  - Link + Pin Design: $343,325 vs $279,147 — **−18.7%** △ explained (units, garage manual, interior $/SF, exit-sign snapshot, corridor art light)
+  - Grove St Peer Review: $30,251 vs $36,443 — **+20.5%** △ data drift (per-row CN prices differ, controls 2× over; app likely from older sheet version)
+- **York St complete now:** added 1 controls row ($13,242.67 raw → $15,646.21 loaded), exact match to sheet's CONTROLS TOTAL.
+
 ### 2026-05-29 (later) — Sean's Claude (York St full-bid data entry)
 - **York St Apartments peer-review/bid matrix ENTERED** (project `cmpr94foi…`, was empty). 9 ELUMA fixture rows from `YORK ST MATRIX.xlsx` (A1, A1 vanity, B1, E1, EM, F1, G1, X1, STRIPLIGHTS). App grand total **$23,680.22** vs sheet **$23,680.19** — 3¢ off from per-row rounding (app rounds each `totalSavings` before summing; sheet sums raw then loads). Raw lighting $20,042.50 × 1.1815 (freight 6% + warehousing 3% + Denver tax 9.15%). Set `salesTaxPct=0.0915` on the project to match. First of the 3 Full-Bid matrices (Grove St + 9th/Clermont still pending).
 - **Project-type correction:** York St was mis-typed as `design`/`fullDesign` (empty questionnaire, 0 fixture-schedule items, 0 bid matrices), so the peer-review rows wouldn't render at `/wizard` (that route shows DesignWizardClient for `design`). Since it was bundled with Grove + 9th/Clermont as a "Full Bid," re-typed it to `peer_review`/`bidOnly` to mirror 9th/Clermont exactly. Rows now display. If Mike intended York St as a true full-design project, revisit — but its design side was entirely empty.
