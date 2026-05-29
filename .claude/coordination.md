@@ -25,6 +25,9 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Log
 
+### 2026-05-29 (end of day, +Grove fix) — Sean's Claude
+- **Grove St re-entered from latest sheet.** Deleted 13 stale rows (per-row CN prices, specs, and controls lump had drifted from `GROVE ST MATRIX.xlsx`), posted 14 fresh fixture rows + 1 controls lump. App raw $25,603.79 vs sheet $25,603.78 (+1¢). Loaded app $30,250.88 vs sheet $30,250.86 (+2¢). Was −$5,241/+20.5% off; now matches to 2¢. Re-issued the PDF report with Grove flipped to ✓.
+
 ### 2026-05-29 (end of day) — Sean's Claude (calibration report compiled for Mike)
 - **PDF report generated:** `~/Downloads/ILC Calibration Report - 2026-05-29.pdf`. Six projects, three deliverable types. Engine bug-free; all material discrepancies are entry-side, missing features, or data-version drift.
 - **Reconciliation status (sheet vs app):**
