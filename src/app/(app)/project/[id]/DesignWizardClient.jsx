@@ -1,5 +1,5 @@
 'use client';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { DESIGN_WIZARD_STEPS, getDesignNextStep, getDesignPrevStep } from '@/lib/utils';
 import { calculateBudget, formatCurrency } from '@/lib/calculations';
@@ -120,6 +120,18 @@ export default function DesignWizardClient({ project, projectData, initialSectio
       setCurrentStep(stepId);
     }
   }
+
+  // getDesignNextStep('controls') returns 'summary' (a real entry in
+  // DESIGN_WIZARD_STEPS), so goToNext sets currentStep='summary' rather than
+  // hitting its router.push fallback. Without this effect the wizard renders the
+  // "Redirecting to summary…" interstitial forever and never navigates — and
+  // because 'summary' gets persisted to the DB, a reload stays stuck too.
+  // Mirror of the redirect in WizardClient.
+  useEffect(() => {
+    if (currentStep === 'summary') {
+      router.push(`/project/${project.id}/summary`);
+    }
+  }, [currentStep, project.id, router]);
 
   const stepIndex  = DESIGN_WIZARD_STEPS.findIndex(s => s.id === currentStep);
   const totalSteps = DESIGN_WIZARD_STEPS.length - 1;
