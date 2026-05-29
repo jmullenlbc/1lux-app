@@ -25,6 +25,10 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Log
 
+### 2026-05-29 (later) — Sean's Claude (York St full-bid data entry)
+- **York St Apartments peer-review/bid matrix ENTERED** (project `cmpr94foi…`, was empty). 9 ELUMA fixture rows from `YORK ST MATRIX.xlsx` (A1, A1 vanity, B1, E1, EM, F1, G1, X1, STRIPLIGHTS). App grand total **$23,680.22** vs sheet **$23,680.19** — 3¢ off from per-row rounding (app rounds each `totalSavings` before summing; sheet sums raw then loads). Raw lighting $20,042.50 × 1.1815 (freight 6% + warehousing 3% + Denver tax 9.15%). Set `salesTaxPct=0.0915` on the project to match. First of the 3 Full-Bid matrices (Grove St + 9th/Clermont still pending).
+- **Reusable technique (important):** the automated-browser hang is **specific to the heavy `/wizard` client render** (renderer freezes, CDP eval times out). Driving the REST API via `fetch()` from a *light* same-origin page (e.g. `/dashboard`) works perfectly — POSTed all 9 rows to `/api/projects/[id]/peer-review` in Sean's authenticated session, 138ms/req, fully persisted. Good fallback whenever the wizard UI won't cooperate with automation.
+
 ### 2026-05-29 (later) — Sean's Claude (garage rate fix)
 - **Garage design-level "quirk" RESOLVED (`36e310d`), deployed.** Root cause was display-only: `DesignGarageSection` showed/charged-in-preview **$0.20/SF (medium) / $0.25/SF (high)**, but the engine + `pricing.js` (`designGarage.baseMediumPerSf/baseHighPerSf`) + summary page all use **$0.30 / $0.45**. So the section's live estimate undercounted and never matched the real sidebar/total — making the level selector look like it did nothing. Aligned the section to 0.30/0.45.
 - **Engine was already correct** — verified empirically (`high − medium = garageSf × $0.15`, e.g. +$8,175 on 50K SF). No engine change. The unified `CorridorsSection` garage control was already right ($0.30/$0.45, `standard`/`enhanced`).
