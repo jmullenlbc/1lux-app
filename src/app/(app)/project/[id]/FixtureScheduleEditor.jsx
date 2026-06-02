@@ -201,7 +201,15 @@ function ParseFromPdfModal({ projectId, onParsed, onClose }) {
   const [file,     setFile]     = useState(null);
   const [parsing,  setParsing]  = useState(false);
   const [error,    setError]    = useState(null);
+  const [dragging, setDragging] = useState(false);
   const fileRef = useRef(null);
+
+  function onDrop(e) {
+    e.preventDefault();
+    setDragging(false);
+    const dropped = e.dataTransfer.files?.[0];
+    if (dropped) { setFile(dropped); setError(null); }
+  }
 
   async function doParse() {
     if (!file) return;
@@ -246,8 +254,12 @@ function ParseFromPdfModal({ projectId, onParsed, onClose }) {
           {/* Drop zone */}
           <div
             onClick={() => !parsing && fileRef.current?.click()}
+            onDragOver={e => { e.preventDefault(); if (!parsing) setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={onDrop}
             className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center gap-2 transition-colors ${
               parsing  ? 'border-blue-200 bg-blue-50 pointer-events-none' :
+              dragging ? 'border-blue-400 bg-blue-50 cursor-copy' :
               file     ? 'border-green-300 bg-green-50 cursor-pointer' :
                          'border-slate-200 hover:border-slate-400 hover:bg-slate-50 cursor-pointer'
             }`}
