@@ -5,7 +5,7 @@ import Link from 'next/link';
 const BUDGET_TYPE_META = {
   conceptual:  { label: 'Conceptual', color: 'bg-slate-100 text-slate-600',   dot: 'bg-slate-400'   },
   design:      { label: 'Design',     color: 'bg-amber-100 text-amber-700',   dot: 'bg-amber-500'   },
-  peer_review: { label: 'Peer Review Matrix', color: 'bg-blue-100 text-blue-700', dot: 'bg-blue-500' },
+  peer_review: { label: 'Budget Matrix', color: 'bg-blue-100 text-blue-700', dot: 'bg-blue-500' },
 };
 
 const PHASE_LABELS = {
@@ -86,7 +86,7 @@ export default function PreConBudgetsTable({ projects }) {
             <option value="">All Types</option>
             <option value="conceptual">Conceptual</option>
             <option value="design">Design</option>
-            <option value="peer_review">Peer Review Matrix</option>
+            <option value="peer_review">Budget Matrix</option>
           </select>
         </div>
       </div>

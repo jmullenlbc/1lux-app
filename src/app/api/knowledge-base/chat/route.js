@@ -19,7 +19,7 @@ export async function POST(request) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
-  const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
+  const apiKey = getAnthropicKey()?.trim();
   if (!apiKey) {
     return new Response('Error: ANTHROPIC_API_KEY is not set', { headers: { 'Content-Type': 'text/plain' } });
   }

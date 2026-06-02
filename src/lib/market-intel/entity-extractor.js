@@ -1,6 +1,7 @@
+import { getAnthropicKey } from '@/lib/anthropicKey.js';
 import Anthropic from '@anthropic-ai/sdk';
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const client = new Anthropic({ apiKey: getAnthropicKey() });
 
 const SYSTEM_PROMPT = `You are a real estate intelligence parser for a lighting design company.
 Extract structured data from multifamily and senior housing industry news articles.

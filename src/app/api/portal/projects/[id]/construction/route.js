@@ -47,6 +47,14 @@ export async function GET(req, { params }) {
     }
   } catch {}
 
+  // First upcoming delivery from ship schedule (not yet delivered/released)
+  const DELIVERED = ['RELEASED', 'DELIVERED'];
+  const firstDelivery = await prisma.shipment.findFirst({
+    where:   { project_id: params.id, esdDate: { not: null }, status: { notIn: DELIVERED } },
+    orderBy: { esdDate: 'asc' },
+    select:  { manufacturer: true, esdDate: true },
+  });
+
   return NextResponse.json({
     projectDates: {
       constructionStartDate: project.constructionStartDate,
@@ -54,5 +62,6 @@ export async function GET(req, { params }) {
       constructionEndDate:   project.constructionEndDate,
     },
     aiMilestones,
+    firstDelivery: firstDelivery ?? null,
   });
 }

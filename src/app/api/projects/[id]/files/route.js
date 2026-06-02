@@ -6,8 +6,9 @@ import path from 'path';
 import { logActivity, TAB_LABELS } from '@/lib/activity';
 import { sendNotification } from '@/lib/notify';
 import Anthropic from '@anthropic-ai/sdk';
+import { getAnthropicKey } from '@/lib/anthropicKey';
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// Anthropic client created per-request inside the POST handler so env vars are available
 
 const VALID_TABS = ['drawings', 'correspondence', 'submittals', 'ca', 'contracts', 'meetings', 'designInfo', 'takeoffs', 'budgets', 'fixture-schedule'];
 
@@ -54,7 +55,7 @@ function parseTags(raw) {
 // ── AI-powered construction schedule milestone extractor ───────────────────────
 // Sends schedule text to Claude — handles Primavera P6, MS Project, Excel exports,
 // multi-phase electrical/MEP rough-ins (one row per phase/building), "A" dates, etc.
-async function extractScheduleMilestonesWithAI(textContent) {
+async function extractScheduleMilestonesWithAI(textContent, anthropic) {
   const prompt = `You are reading a construction schedule (may be Primavera P6, MS Project, Excel, or similar Gantt export).
 
 Extract milestone dates and return ONLY a valid JSON array — no markdown, no explanation.
@@ -100,7 +101,7 @@ Schedule text (first 12000 chars):
 ${textContent.slice(0, 12000)}`;
 
   const msg = await anthropic.messages.create({
-    model:      'claude-haiku-4-5-20251001',
+    model:      'claude-haiku-4-5',
     max_tokens: 1200,
     messages:   [{ role: 'user', content: prompt }],
   });
@@ -144,6 +145,8 @@ export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
   if (!await canAccess(params.id, user)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  const anthropic = new Anthropic({ apiKey: getAnthropicKey() });
 
   const formData = await request.formData();
   const file     = formData.get('file');
@@ -264,7 +267,7 @@ export async function POST(request, { params }) {
   let scheduleUpdate = null;
   if (tab === 'ca' && tags.includes('Construction Schedule') && textContent) {
     try {
-      const milestones = await extractScheduleMilestonesWithAI(textContent);
+      const milestones = await extractScheduleMilestonesWithAI(textContent, anthropic);
       if (milestones && milestones.length > 0) {
         takeoffData    = JSON.stringify({ milestones });
         scheduleUpdate = { milestones };

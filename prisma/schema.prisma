@@ -42,6 +42,14 @@ model User {
   standardsAnswers   ClientStandardsAnswer[]    @relation("AnsweredByUser")
   standardsOverrides ProjectStandardsOverride[] @relation("OverrideActivator")
   confirmedFixtures  PlacedFixture[]            @relation("FixtureConfirmer")
+  drawingUploads     DrawingSubmission[]        @relation("DrawingUploader")
+  fixtureShares      FixtureScheduleShare[]     @relation("FixtureShareCreator")
+  changeOrdersCreated ChangeOrder[]             @relation("COCreator")
+  changeOrderSends   ChangeOrderSend[]          @relation("COSender")
+  changeOrderShares  ChangeOrderShare[]         @relation("COShareCreator")
+  parsedEmails       EmailMessage[]             @relation("EmailParser")
+  warehouseReleases  WarehouseRelease[]         @relation("WarehouseReleaser")
+  shipSchedulePushes ShipSchedulePush[]         @relation("ShipPusher")
   ownedClients       Client[]                   @relation("ClientOwner")
   alerts             UserAlert[]
 }
@@ -254,6 +262,7 @@ model Project {
   flagNote                 String?
   contractValue            Float?
   contractSignedDate       String?
+  totalInvoiced            Float?
   designContractValue      Float?
   designContractSignedDate String?
   constructionStartDate    String?
@@ -290,6 +299,11 @@ model Project {
   notificationLogs    NotificationLog[]
   notificationQueue   NotificationQueue[]
   externalContacts    ProjectExternalContact[]
+  drawingSubmissions  DrawingSubmission[]
+  fixtureShares       FixtureScheduleShare[]
+  changeOrders        ChangeOrder[]
+  emails              EmailMessage[]
+  shipSchedulePushes  ShipSchedulePush[]
 }
 
 model ProjectFile {
@@ -750,6 +764,10 @@ model FixtureScheduleItem {
   notes          String?
   internalNotes  String?
   sortOrder      Int                   @default(0)
+  isAlternate    Boolean               @default(false)
+  alternateOf    String?
+  aiFlagged      Boolean               @default(false)
+  aiConfidence   Float?
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
   designBidItems DesignBidMatrixItem[]
@@ -952,19 +970,57 @@ model Shipment {
 }
 
 model ShipmentLineItem {
-  id              String         @id @default(cuid())
-  shipment_id     String
-  shipment        Shipment       @relation(fields: [shipment_id], references: [id], onDelete: Cascade)
-  fixtureType     String
-  description     String
-  catalogNo       String?
-  qty             Int            @default(1)
-  fixtureStatus   String?
-  notes           String?
-  submittalItemId String?
-  submittalItem   SubmittalItem? @relation(fields: [submittalItemId], references: [id], onDelete: SetNull)
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id               String             @id @default(cuid())
+  shipment_id      String
+  shipment         Shipment           @relation(fields: [shipment_id], references: [id], onDelete: Cascade)
+  fixtureType      String
+  description      String
+  catalogNo        String?
+  qty              Int                @default(1)
+  qtyType          String?
+  fixtureStatus    String?
+  notes            String?
+  submittalItemId  String?
+  submittalItem    SubmittalItem?     @relation(fields: [submittalItemId], references: [id], onDelete: SetNull)
+  // Push-populated fields
+  sortOrder        Int                @default(0)
+  sourceItemId     String?            // DesignBidMatrixItem.id or PeerReviewItem.id
+  sourceType       String?            // "DESIGN_BID" | "PEER_REVIEW" | "CHANGE_ORDER" | "MANUAL"
+  sourceBatchLabel String?            // "Initial Order", "CO-00003 Supplemental", etc.
+  propManufacturer String?            // proposed mfr from bid (display only, no pricing)
+  propModel        String?            // proposed part # from bid
+  isRemoved        Boolean            @default(false)  // greyed out when type removed from bid
+  releases         WarehouseRelease[]
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+}
+
+model WarehouseRelease {
+  id           String          @id @default(cuid())
+  lineItemId   String
+  lineItem     ShipmentLineItem @relation(fields: [lineItemId], references: [id], onDelete: Cascade)
+  qty          Int
+  releasedById String
+  releasedBy   User            @relation("WarehouseReleaser", fields: [releasedById], references: [id])
+  notes        String?
+  releasedAt   DateTime        @default(now())
+
+  @@index([lineItemId])
+}
+
+model ShipSchedulePush {
+  id            String   @id @default(cuid())
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sourceType    String   // "DESIGN_BID" | "PEER_REVIEW" | "CHANGE_ORDER"
+  sourceVersion Int?     // bid matrix version number
+  sourceCoId    String?  // if pushed from a CO
+  pushedById    String
+  pushedBy      User     @relation("ShipPusher", fields: [pushedById], references: [id])
+  pushedAt      DateTime @default(now())
+  summary       String?  // JSON { added, updated, removed }
+
+  @@index([projectId])
 }
 
 model ProjectNotificationConfig {
@@ -1115,4 +1171,204 @@ model FuzzyMatchFeedback {
   signalId        String
   userId          String
   createdAt       DateTime @default(now())
+}
+
+// ── Drawing Submissions ───────────────────────────────────────────────────────
+
+// ── Fixture Schedule Share Links ─────────────────────────────────────────────
+
+model FixtureScheduleShare {
+  id         String   @id @default(cuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  token      String   @unique @default(cuid())
+  permission String   @default("view")  // "view" | "edit"
+  createdById String
+  createdBy  User     @relation("FixtureShareCreator", fields: [createdById], references: [id])
+  createdAt  DateTime @default(now())
+  lastViewedAt DateTime?
+}
+
+model DrawingSubmission {
+  id           String        @id @default(cuid())
+  projectId    String
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  phaseTag     String?       // SD | DD | CD | IFC | ASI | RFI | PERMIT | OTHER
+  source       String        @default("EXTERNAL") // EXTERNAL | INTERNAL
+  notes        String?
+  uploadedById String
+  uploadedBy   User          @relation("DrawingUploader", fields: [uploadedById], references: [id])
+  createdAt    DateTime      @default(now())
+  files        DrawingFile[]
+}
+
+model DrawingFile {
+  id           String            @id @default(cuid())
+  submissionId String
+  submission   DrawingSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  fileName     String
+  storedPath   String
+  pageCount    Int?
+  size         Int
+  mimeType     String            @default("application/pdf")
+  createdAt    DateTime          @default(now())
+}
+
+// ── Change Order Matrix ───────────────────────────────────────────────────────
+
+model ChangeOrder {
+  id           String                     @id @default(cuid())
+  projectId    String
+  project      Project                    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  coNumber     String                     // auto-assigned: CO-00001, CO-00002, ...
+  title        String
+  date         DateTime                   @default(now())
+  status       String                     @default("DRAFT")  // DRAFT | SENT | APPROVED
+  notes        String?
+  createdById  String
+  createdBy    User                       @relation("COCreator", fields: [createdById], references: [id])
+  createdAt    DateTime                   @default(now())
+  updatedAt    DateTime                   @updatedAt
+  optionGroups ChangeOrderOptionGroup[]
+  sends        ChangeOrderSend[]
+  shares       ChangeOrderShare[]
+
+  @@index([projectId])
+}
+
+model ChangeOrderOptionGroup {
+  id            String               @id @default(cuid())
+  changeOrderId String
+  changeOrder   ChangeOrder          @relation(fields: [changeOrderId], references: [id], onDelete: Cascade)
+  label         String               @default("Default")
+  sortOrder     Int                  @default(0)
+  isSelected    Boolean              @default(false)
+  lineItems     ChangeOrderLineItem[]
+
+  @@index([changeOrderId])
+}
+
+model ChangeOrderLineItem {
+  id            String                 @id @default(cuid())
+  optionGroupId String
+  optionGroup   ChangeOrderOptionGroup @relation(fields: [optionGroupId], references: [id], onDelete: Cascade)
+  sortOrder     Int                    @default(0)
+  fixtureType   String                 @default("")
+  qty           Float                  @default(0)
+  manufacturer  String?
+  partNumber    String?
+  description   String?
+  originalDN    Float?                 // internal buy price — never shown to clients
+  cnUnitPrice   Float                  @default(0)
+  // TOTAL CN = qty × cnUnitPrice — calculated, never stored
+  quoteReference  String?
+  leadTime        String?
+  notes           String?
+  // Per-line option groups: alternate pricing rows for the same fixture type
+  parentLineItemId String?              // null = standalone or Option A root; set = sibling option
+  isOptionRow      Boolean              @default(false)   // true = part of a group
+  optionLabel      String?              // "Option A", "Option B", etc.
+  isGroupSelected  Boolean              @default(false)   // true = this option counts toward total (one per group)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  @@index([optionGroupId])
+  @@index([parentLineItemId])
+}
+
+model ChangeOrderSend {
+  id            String      @id @default(cuid())
+  changeOrderId String
+  changeOrder   ChangeOrder @relation(fields: [changeOrderId], references: [id], onDelete: Cascade)
+  sentById      String
+  sentBy        User        @relation("COSender", fields: [sentById], references: [id])
+  recipients    String      // comma-separated email addresses
+  notes         String?
+  sentAt        DateTime    @default(now())
+
+  @@index([changeOrderId])
+}
+
+model ChangeOrderShare {
+  id            String      @id @default(cuid())
+  changeOrderId String
+  changeOrder   ChangeOrder @relation(fields: [changeOrderId], references: [id], onDelete: Cascade)
+  token         String      @unique @default(cuid())
+  createdById   String
+  createdBy     User        @relation("COShareCreator", fields: [createdById], references: [id])
+  lastViewedAt  DateTime?
+  createdAt     DateTime    @default(now())
+
+  @@index([changeOrderId])
+}
+
+// ── Email / Correspondence ────────────────────────────────────────────────────
+
+model EmailAccount {
+  id           String         @id @default(cuid())
+  provider     String         @default("MOCK")  // MOCK | MICROSOFT
+  email        String         @unique
+  displayName  String?
+  accountType  String         // USER | SHARED_MAILBOX
+  inboxRole    String         // PERSONAL | ORDERS | PRECON | DESIGN
+  accessToken  String?        // encrypted, Phase B only
+  refreshToken String?        // encrypted, Phase B only
+  tokenExpiry  DateTime?
+  webhookSubId  String?       // Graph subscription ID, Phase B
+  webhookExpiry DateTime?     // Graph subscriptions expire every ~3 days
+  lastSyncedAt DateTime?
+  isActive     Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  messages     EmailMessage[]
+}
+
+model EmailMessage {
+  id                String            @id @default(cuid())
+  accountId         String
+  account           EmailAccount      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  projectId         String?
+  project           Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  externalId        String            @unique   // Graph message ID (cuid for mock)
+  conversationId    String                      // groups messages into threads
+  subject           String
+  bodyPreview       String?           // first 255 chars, plain text
+  bodyHtml          String?           // full body HTML
+  fromEmail         String
+  fromName          String?
+  toEmails          String            // JSON array: [{ email, name }]
+  sentAt            DateTime
+  receivedAt        DateTime
+  tags              String            @default("[]")  // JSON array e.g. ["Design","Schedule"]
+  outlookLabel      String?           // Outlook category that triggered match (Phase B)
+  matchMethod       String?           // EXACT_LABEL | FUZZY | MANUAL | SEEDED
+  webUrl            String?           // open in Outlook (Phase B)
+  isRead            Boolean           @default(false)
+  hasAttachments    Boolean           @default(false)
+  attachments       EmailAttachment[]
+  internetMessageId String?
+  inReplyTo         String?
+  parsedFields      String?           // JSON: { esdDate, trackingNumber, leadTime }
+  parseStatus       String?           // PENDING | APPROVED | REJECTED | SKIPPED
+  parsedById        String?
+  parsedBy          User?             @relation("EmailParser", fields: [parsedById], references: [id])
+  parsedAt          DateTime?
+  createdAt         DateTime          @default(now())
+
+  @@index([projectId])
+  @@index([conversationId])
+  @@index([outlookLabel])
+}
+
+model EmailAttachment {
+  id        String       @id @default(cuid())
+  messageId String
+  message   EmailMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  filename  String
+  size      Int?         // bytes — for display ("142 KB")
+  mimeType  String?      // used to choose file-type icon
+  // fileUrl String?     // Phase B only — Microsoft Graph download URL
+  createdAt DateTime     @default(now())
+
+  @@index([messageId])
 }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import Anthropic from '@anthropic-ai/sdk';
+import { getAnthropicKey } from '@/lib/anthropicKey';
 import { readFile } from 'fs/promises';
 import path from 'path';
 import { CONTRACT_SYSTEM_PROMPT } from '@/lib/contractSystemPrompt';
@@ -9,7 +10,7 @@ import { CONTRACT_SYSTEM_PROMPT } from '@/lib/contractSystemPrompt';
 // Allow up to 5 minutes — large scanned PDFs can take 3–4 min
 export const maxDuration = 300;
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const anthropic = new Anthropic({ apiKey: getAnthropicKey() });
 
 // POST /api/projects/[id]/analyze-contract
 // Body: { fileId } — ID of an already-uploaded ProjectFile (PDF)

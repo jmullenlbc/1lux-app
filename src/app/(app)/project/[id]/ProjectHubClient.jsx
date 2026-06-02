@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { NAV_CONFIG, getValidTabIds, getDefaultTab } from '@/lib/projectNavConfig';
@@ -18,6 +18,7 @@ import ProjectDashboard from '@/components/ProjectDashboard';
 import ContractsPanel from '@/components/contracts/ContractsPanel';
 import ProjectActivityFeed from '@/components/ProjectActivityFeed';
 import BudgetLineItemWidget from '@/components/BudgetLineItemWidget';
+import CorrespondenceTab from '@/components/correspondence/CorrespondenceTab';
 import DesignScheduleCard from '@/components/DesignScheduleCard';
 import FixtureScheduleEditor from './FixtureScheduleEditor';
 import DrawingsTab from './DrawingsTab';
@@ -31,11 +32,12 @@ import ProjectCodeSearch from '@/components/ProjectCodeSearch';
 import LPDCalculator from '@/components/LPDCalculator';
 import CodeCheckPanel from '@/components/CodeCheckPanel';
 import HumanErrorRadar from '@/components/HumanErrorRadar';
+import ChangeOrdersTab from '@/components/changeOrders/ChangeOrdersTab';
 
 const BUDGET_TYPE_META = {
   conceptual:  { label: 'Conceptual Budget',    color: 'bg-slate-100 text-slate-600' },
   design:      { label: 'Full Design',           color: 'bg-amber-100 text-amber-700' },
-  peer_review: { label: 'Peer Review Matrix',     color: 'bg-blue-100 text-blue-700' },
+  peer_review: { label: 'Budget Matrix',           color: 'bg-blue-100 text-blue-700' },
 };
 
 function PhaseTag({ phase }) {
@@ -73,7 +75,9 @@ const DESIGN_SERVICE_TYPES = new Set(['fullDesign', 'designAssist']);
 
 const TAB_LABELS = {
   drawings: 'Drawings', correspondence: 'Correspondence', submittals: 'Submittals',
-  ca: 'CA', contracts: 'Contracts', meetings: 'Meetings', designInfo: 'Design Info', takeoffs: 'Takeoffs',
+  'construction-schedule': 'Construction Schedule', rfis: 'RFIs', 'change-orders': 'Change Orders',
+  contracts: 'Contracts', meetings: 'Meetings', code: 'Code', 'design-schedule': 'Design Schedule',
+  'design-contracts': 'Design Contracts', takeoffs: 'Takeoffs', notifications: 'Client Portal Access',
 };
 
 function ProjectSearch({ projectId }) {
@@ -182,7 +186,464 @@ function initials(user) {
   return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 }
 
-export default function ProjectHubClient({ project, budget, peerReviewTotal, clients = [], allUsers = [], initialFiles = [], initialDesignInfo = {}, masterTypes = [] }) {
+// ── Auto-tagged file tab (RFIs, Change Orders) ────────────────────────────────
+// Uploads files with a fixed tag (no modal). Shows flat list with view/download/delete.
+// ── RFI Tab ───────────────────────────────────────────────────────────────────
+// Full RFI management: email import, PDF upload, AI question extraction
+function RFITab({ projectId, files, onFileAdded, onFileDeleted }) {
+  const [viewingFile,   setViewingFile]   = useState(null);
+  const [dragging,      setDragging]      = useState(false);
+  const [uploading,     setUploading]     = useState([]);
+  const [questions,     setQuestions]     = useState({}); // { fileId: string }
+  const [extracting,    setExtracting]    = useState({}); // { fileId: true }
+  // Email import state
+  const [emailPaste,    setEmailPaste]    = useState('');
+  const [emailParsing,  setEmailParsing]  = useState(false);
+  const [emailError,    setEmailError]    = useState('');
+  const fileRef = useRef(null);
+
+  const fmtDate = d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  // Pre-load cached questions from analysisData
+  useEffect(() => {
+    const cached = {};
+    files.forEach(f => {
+      try {
+        const a = JSON.parse(f.analysisData || '{}');
+        if (a.rfiQuestion) cached[f.id] = a.rfiQuestion;
+      } catch {}
+    });
+    setQuestions(prev => ({ ...prev, ...cached }));
+  }, [files]);
+
+  // Auto-extract question for files that have textContent but no cached question
+  useEffect(() => {
+    files.forEach(f => {
+      if (f.textContent && !questions[f.id] && !extracting[f.id]) {
+        extractQuestion(f.id);
+      }
+    });
+  }, [files.length]); // eslint-disable-line
+
+  async function extractQuestion(fileId) {
+    setExtracting(prev => ({ ...prev, [fileId]: true }));
+    try {
+      const res  = await fetch(`/api/projects/${projectId}/rfi-extract`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileId }),
+      });
+      const data = await res.json();
+      if (data.question) setQuestions(prev => ({ ...prev, [fileId]: data.question }));
+    } catch {}
+    setExtracting(prev => { const n = { ...prev }; delete n[fileId]; return n; });
+  }
+
+  async function upload(fileList) {
+    const arr = Array.from(fileList).filter(f => f.type === 'application/pdf' || f.name.endsWith('.pdf'));
+    if (!arr.length) return;
+    setUploading(prev => [...prev, ...arr.map(f => f.name)]);
+    for (const file of arr) {
+      try {
+        const form = new FormData();
+        form.append('file', file);
+        form.append('tab',  'ca');
+        form.append('tags', JSON.stringify(['RFI']));
+        const res  = await fetch(`/api/projects/${projectId}/files`, { method: 'POST', body: form });
+        if (res.ok) {
+          const data = await res.json();
+          onFileAdded?.(data.file, data.contractUpdate ?? null, data.scheduleUpdate ?? null, data.designScheduleUpdate ?? null);
+        }
+      } catch {}
+    }
+    setUploading(prev => prev.filter(n => !arr.map(f => f.name).includes(n)));
+  }
+
+  async function deleteFile(id) {
+    if (!confirm('Delete this RFI?')) return;
+    await fetch(`/api/projects/${projectId}/files/${id}`, { method: 'DELETE' });
+    onFileDeleted?.(id);
+  }
+
+  async function importEmail() {
+    if (!emailPaste.trim()) { setEmailError('Paste email content first'); return; }
+    setEmailParsing(true);
+    setEmailError('');
+    try {
+      const res  = await fetch(`/api/projects/${projectId}/rfi-extract`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emailContent: emailPaste.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setEmailError(data.error || 'Parse failed'); return; }
+      onFileAdded?.(data.file);
+      if (data.parsed?.question) setQuestions(prev => ({ ...prev, [data.file.id]: data.parsed.question }));
+      setEmailPaste('');
+    } catch (e) {
+      setEmailError('Failed to parse email');
+    } finally {
+      setEmailParsing(false);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {viewingFile && <PdfViewerModal file={viewingFile} projectId={projectId} onClose={() => setViewingFile(null)} />}
+
+      {/* Header */}
+      <div>
+        <h2 className="text-lg font-semibold text-slate-800">RFIs</h2>
+        <p className="text-sm text-slate-400 mt-0.5">Requests for Information — {files.length} filed</p>
+      </div>
+
+      {/* ── Email import section ── */}
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100">
+          <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+            <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-slate-800">Import RFI from Email</p>
+            <p className="text-xs text-slate-400 mt-0.5">Paste the email content below — Claude will extract the request and add it to your RFI log</p>
+          </div>
+        </div>
+        <div className="px-5 py-4 space-y-3">
+          <textarea
+            value={emailPaste}
+            onChange={e => setEmailPaste(e.target.value)}
+            placeholder="Paste the full email here (body, subject, any RFI attachments' text)…"
+            rows={4}
+            className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none text-slate-700 placeholder:text-slate-300"
+          />
+          {emailError && <p className="text-xs text-red-600">{emailError}</p>}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={importEmail}
+              disabled={emailParsing || !emailPaste.trim()}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              {emailParsing ? (
+                <>
+                  <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                  </svg>
+                  Parsing with AI…
+                </>
+              ) : (
+                <>
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                  </svg>
+                  Import & Parse RFI
+                </>
+              )}
+            </button>
+            <p className="text-[11px] text-slate-400">Claude extracts the request — no boilerplate</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── PDF upload zone ── */}
+      <div
+        onDragOver={e => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={e => { e.preventDefault(); setDragging(false); upload(e.dataTransfer.files); }}
+        onClick={() => fileRef.current?.click()}
+        className={`border-2 border-dashed rounded-xl py-7 flex flex-col items-center gap-2 cursor-pointer transition-colors ${dragging ? 'border-blue-400 bg-blue-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'}`}
+      >
+        <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+        </svg>
+        <p className="text-sm text-slate-600">Drop RFI PDFs here or click to browse</p>
+        <p className="text-xs text-slate-400">PDF only · automatically tagged as RFI · AI extracts the request</p>
+        <input ref={fileRef} type="file" accept=".pdf,application/pdf" multiple className="hidden"
+          onChange={e => { upload(e.target.files); e.target.value = ''; }} />
+      </div>
+
+      {/* Upload progress */}
+      {uploading.map((name, i) => (
+        <div key={i} className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+          <svg className="animate-spin w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+          </svg>
+          <span className="truncate">Uploading {name}…</span>
+        </div>
+      ))}
+
+      {/* ── RFI file list ── */}
+      {files.length > 0 && (
+        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+          <div className="px-5 py-3 border-b border-slate-100 bg-slate-50">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              {files.length} RFI{files.length !== 1 ? 's' : ''} Filed
+            </p>
+          </div>
+          <div className="divide-y divide-slate-50">
+            {files.map(f => {
+              const question = questions[f.id];
+              const isExtracting = extracting[f.id];
+              const isPdf = f.originalName?.toLowerCase().endsWith('.pdf');
+              const fileUrl = `/api/uploads/${f.storedPath?.replace(/\\/g, '/')}`;
+
+              return (
+                <div key={f.id} className="flex items-start gap-3 px-5 py-4 hover:bg-slate-50/50 transition-colors">
+                  {/* PDF icon */}
+                  <svg className="w-6 h-7 text-red-400 shrink-0 mt-0.5" viewBox="0 0 24 28" fill="none">
+                    <rect width="24" height="28" rx="2" fill="currentColor" fillOpacity="0.12"/>
+                    <text x="12" y="18" textAnchor="middle" fill="currentColor" fontSize="6" fontWeight="bold">PDF</text>
+                  </svg>
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    {/* Filename */}
+                    <button
+                      onClick={() => isPdf && setViewingFile(f)}
+                      className="text-sm font-semibold text-slate-800 hover:text-amber-600 transition-colors text-left block w-full truncate"
+                    >
+                      {f.originalName}
+                    </button>
+
+                    {/* AI-extracted request — the actual question */}
+                    <div className="mt-1.5">
+                      {isExtracting ? (
+                        <p className="text-[11px] text-slate-300 italic flex items-center gap-1.5">
+                          <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                          </svg>
+                          Reading request…
+                        </p>
+                      ) : question ? (
+                        <p className="text-xs text-slate-600 leading-relaxed">{question}</p>
+                      ) : f.textContent ? (
+                        <button onClick={() => extractQuestion(f.id)} className="text-[11px] text-blue-500 hover:text-blue-700 transition-colors">
+                          ⚡ Extract request
+                        </button>
+                      ) : (
+                        <p className="text-[11px] text-slate-300 italic">Scanned PDF — not readable by AI</p>
+                      )}
+                    </div>
+
+                    {/* Meta */}
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className="text-[10px] text-slate-400">{fmtDate(f.createdAt)}</span>
+                      {f.uploadedBy && <span className="text-[10px] text-slate-400">· {f.uploadedBy.name || f.uploadedBy.email}</span>}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <a href={fileUrl} download={f.originalName}
+                      className="p-1.5 rounded-lg text-slate-300 hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Download">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                      </svg>
+                    </a>
+                    <button onClick={() => deleteFile(f.id)}
+                      className="p-1.5 rounded-lg text-slate-300 hover:text-red-400 hover:bg-red-50 transition-colors" title="Delete">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {files.length === 0 && uploading.length === 0 && (
+        <p className="text-center text-xs text-slate-400 py-4">
+          No RFIs yet — import from email above or upload a PDF
+        </p>
+      )}
+    </div>
+  );
+}
+
+// Extract up to 3 short sentences from raw text content for a quick summary
+function extractSummary(textContent, maxChars = 280) {
+  if (!textContent) return null;
+  // Collapse whitespace, strip header noise
+  const clean = textContent
+    .replace(/\s+/g, ' ')
+    .replace(/^[\s\d\-–—|:]+/, '')
+    .trim();
+  if (clean.length < 20) return null;
+  // Take first 3 sentences
+  const sentences = clean.match(/[^.!?]*[.!?]+/g) || [];
+  const summary = sentences.slice(0, 3).join(' ').trim() || clean.slice(0, maxChars);
+  return summary.length > maxChars ? summary.slice(0, maxChars).replace(/\s+\S*$/, '…') : summary;
+}
+
+function AutoTaggedFileTab({ title, subtitle, autoTag, files, projectId, tab, onFileAdded, onFileDeleted, statLabel, statValue, renderFileExtra, beforeUpload, showSummary = false, hideHeader = false, showReparseButton = false }) {
+  const [dragging,    setDragging]    = useState(false);
+  const [uploading,   setUploading]   = useState([]); // [name]
+  const [viewingFile, setViewingFile] = useState(null);
+  const [reparsing,   setReparsing]   = useState({}); // { fileId: true }
+  const [reparseMsg,  setReparseMsg]  = useState({}); // { fileId: 'message' }
+  const fileRef = useRef(null);
+
+  async function upload(fileList) {
+    const arr = Array.from(fileList).filter(f => f.type === 'application/pdf' || f.name.endsWith('.pdf'));
+    if (!arr.length) return;
+    // Run beforeUpload check (e.g. duplicate schedule warning)
+    if (beforeUpload && !beforeUpload()) return;
+    setUploading(prev => [...prev, ...arr.map(f => f.name)]);
+    for (const file of arr) {
+      try {
+        const form = new FormData();
+        form.append('file', file);
+        form.append('tab', tab);
+        form.append('tags', JSON.stringify([autoTag]));
+        const res  = await fetch(`/api/projects/${projectId}/files`, { method: 'POST', body: form });
+        if (res.ok) {
+          const data = await res.json();
+          // API returns { file, contractUpdate, scheduleUpdate, designScheduleUpdate }
+          onFileAdded?.(data.file, data.contractUpdate ?? null, data.scheduleUpdate ?? null, data.designScheduleUpdate ?? null);
+        }
+      } catch {}
+    }
+    setUploading(prev => prev.filter(n => !arr.map(f => f.name).includes(n)));
+  }
+
+  async function deleteFile(id) {
+    if (!confirm('Delete this file?')) return;
+    await fetch(`/api/projects/${projectId}/files/${id}`, { method: 'DELETE' });
+    onFileDeleted?.(id);
+  }
+
+  async function reparseFile(fileId) {
+    setReparsing(prev => ({ ...prev, [fileId]: true }));
+    setReparseMsg(prev => ({ ...prev, [fileId]: '' }));
+    try {
+      const res  = await fetch(`/api/projects/${projectId}/files/${fileId}/reparse`, { method: 'POST' });
+      const data = await res.json();
+      if (data.error) {
+        setReparseMsg(prev => ({ ...prev, [fileId]: data.error }));
+      } else {
+        setReparseMsg(prev => ({ ...prev, [fileId]: `✓ Found ${data.count} milestone${data.count !== 1 ? 's' : ''} — refresh to see Gantt` }));
+      }
+    } catch (e) {
+      setReparseMsg(prev => ({ ...prev, [fileId]: 'Parse failed' }));
+    } finally {
+      setReparsing(prev => ({ ...prev, [fileId]: false }));
+    }
+  }
+
+  const fmtDate = d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  return (
+    <div className="space-y-5">
+      {viewingFile && <PdfViewerModal file={viewingFile} projectId={projectId} onClose={() => setViewingFile(null)} />}
+      {!hideHeader && (
+        <>
+          <div>
+            <h2 className="text-lg font-semibold text-slate-800">{title}</h2>
+            <p className="text-sm text-slate-400 mt-0.5">{subtitle}</p>
+          </div>
+          {/* Stat widget */}
+          <div className="bg-white border border-slate-200 rounded-xl px-5 py-4 inline-flex flex-col gap-1 min-w-[200px]">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{statLabel}</p>
+            {statValue
+              ? <p className="text-2xl font-bold text-slate-800">{statValue}</p>
+              : <p className="text-sm text-slate-300 italic">No {title.toLowerCase()} uploaded yet</p>}
+          </div>
+        </>
+      )}
+      {/* Drop zone */}
+      <div
+        onDragOver={e => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={e => { e.preventDefault(); setDragging(false); upload(e.dataTransfer.files); }}
+        onClick={() => fileRef.current?.click()}
+        className={`border-2 border-dashed rounded-xl py-8 flex flex-col items-center gap-2 cursor-pointer transition-colors ${
+          dragging ? 'border-blue-400 bg-blue-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+        }`}
+      >
+        <svg className="w-7 h-7 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+        </svg>
+        <p className="text-sm text-slate-600">Drop PDFs here or click to browse</p>
+        <p className="text-xs text-slate-400">PDF only · automatically tagged as {autoTag}</p>
+        <input ref={fileRef} type="file" accept=".pdf,application/pdf" multiple className="hidden"
+          onChange={e => { upload(e.target.files); e.target.value = ''; }} />
+      </div>
+      {/* Upload progress */}
+      {uploading.length > 0 && uploading.map((name, i) => (
+        <div key={i} className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+          <svg className="animate-spin w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+          </svg>
+          <span className="truncate">Uploading {name}…</span>
+        </div>
+      ))}
+      {/* File list */}
+      {files.length > 0 && (
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-slate-100">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{title} — {files.length} document{files.length !== 1 ? 's' : ''}</p>
+          </div>
+          <div className="divide-y divide-slate-50">
+            {files.map(f => {
+              const isPdf = f.originalName?.toLowerCase().endsWith('.pdf');
+              const fileUrl = `/api/uploads/${f.storedPath?.replace(/\\/g, '/')}`;
+              return (
+                <div key={f.id} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50/50 transition-colors">
+                  {/* PDF icon */}
+                  <svg className="w-6 h-7 text-red-400 shrink-0" viewBox="0 0 24 28" fill="none">
+                    <rect width="24" height="28" rx="2" fill="currentColor" fillOpacity="0.12"/>
+                    <text x="12" y="18" textAnchor="middle" fill="currentColor" fontSize="6" fontWeight="bold">PDF</text>
+                  </svg>
+                  {/* Filename + optional summary */}
+                  <div className="flex-1 min-w-0">
+                    <button
+                      onClick={() => isPdf && setViewingFile(f)}
+                      className="text-sm text-slate-800 hover:text-amber-600 transition-colors text-left block w-full truncate"
+                    >
+                      {f.originalName}
+                    </button>
+                    {showSummary && (() => {
+                      const summary = extractSummary(f.textContent);
+                      return summary ? (
+                        <p className="text-[11px] text-slate-400 mt-0.5 leading-snug line-clamp-2">{summary}</p>
+                      ) : null;
+                    })()}
+                  </div>
+                  {/* Extra (e.g. CO amount) */}
+                  {renderFileExtra?.(f)}
+                  {/* Date */}
+                  <span className="text-xs text-slate-400 shrink-0">{fmtDate(f.createdAt)}</span>
+                  {/* Download */}
+                  <a href={fileUrl} download={f.originalName}
+                    className="p-1.5 rounded-lg text-slate-300 hover:text-blue-500 hover:bg-blue-50 transition-colors shrink-0" title="Download">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                    </svg>
+                  </a>
+                  {/* Delete */}
+                  <button onClick={() => deleteFile(f.id)}
+                    className="p-1.5 rounded-lg text-slate-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0" title="Delete">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function ProjectHubClient({ userId, project, budget, peerReviewTotal, clients = [], allUsers = [], initialFiles = [], initialDesignInfo = {}, masterTypes = [] }) {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const pathname     = usePathname();
@@ -350,6 +811,7 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
 
   const [allFiles,              setAllFiles]              = useState(initialFiles);
   const [designInfo,            setDesignInfo]            = useState(initialDesignInfo);
+  const codeRef = { iecc: useRef(null), ibc: useRef(null), nec: useRef(null), ashrae: useRef(null), nfpa: useRef(null) };
   const [designMilestonesVer,   setDesignMilestonesVer]   = useState(0);
   const [contractValue,         setContractValue]         = useState(project.contractValue ?? null);
   const [contractSignedDate,    setContractSignedDate]    = useState(project.contractSignedDate ?? null);
@@ -684,13 +1146,14 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
           config={navConfig}
           activeTab={activeTab}
           onTabChange={setActiveTab}
+          userId={userId}
         />
         <div className="flex-1 min-w-0">
           {/* Project Search */}
           <ProjectSearch projectId={project.id} />
 
-          {/* Tab content */}
-          <div className="px-8 py-8">
+          {/* Tab content — correspondence gets no padding (owns its own layout) */}
+          <div className={activeTab === 'correspondence' ? '' : 'px-8 py-8'}>
 
         {/* ── DASHBOARD ────────────────────────────────────────────────── */}
         {activeTab === 'dashboard' && (
@@ -702,8 +1165,9 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
               files={allFiles}
               onProjectUpdate={() => router.refresh()}
               onProjectDataUpdate={() => router.refresh()}
+              designInfo={designInfo}
+              saveDesignInfo={saveDesignInfo}
             />
-            <ContactsTab projectId={project.id} />
             <ProjectActivityFeed projectId={project.id} />
           </div>
         )}
@@ -716,39 +1180,14 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
             <div>
               <h2 className="text-lg font-semibold text-slate-800 mb-4">Budgets</h2>
 
-              {/* Conversion confirmation banner */}
-              {convertingTo && (
-                <div className="mb-4 bg-amber-50 border border-amber-300 rounded-xl px-5 py-4 flex items-start gap-4">
-                  <svg className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                {/* Budget type cards — click any to navigate directly, no confirmation */}
+              {convertLoading && (
+                <div className="mb-4 flex items-center gap-2 text-sm text-slate-500 bg-slate-50 rounded-xl px-4 py-3 border border-slate-200">
+                  <svg className="animate-spin w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
                   </svg>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-amber-900">
-                      {convertingTo === 'design' ? 'Switch to Full Design?' : convertingTo === 'peer_review' ? 'Switch to Peer Review Matrix?' : 'Switch to Conceptual Budget?'}
-                    </p>
-                    <p className="text-xs text-amber-700 mt-1">
-                      {convertingTo === 'design'
-                        ? 'All existing project data and questionnaire answers carry over. The design wizard will open with extra questions to fill in — nothing is lost.'
-                        : convertingTo === 'peer_review'
-                        ? 'Opens the Peer Review Matrix — a fixture-by-fixture review matrix. Enter specified vs. proposed products and the savings auto-calculate. Existing project data is preserved.'
-                        : 'Your project data carries over. Design-only answers will be hidden but not deleted — you can convert back at any time.'}
-                    </p>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <button
-                      onClick={() => convertBudgetType(convertingTo)}
-                      disabled={convertLoading}
-                      className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold disabled:opacity-60"
-                    >
-                      {convertLoading ? 'Converting…' : 'Yes, convert'}
-                    </button>
-                    <button
-                      onClick={() => setConvertingTo(null)}
-                      className="px-3 py-1.5 rounded-lg border border-amber-300 text-amber-700 text-xs font-medium hover:bg-amber-100"
-                    >
-                      Cancel
-                    </button>
-                  </div>
+                  Switching budget type…
                 </div>
               )}
 
@@ -766,30 +1205,26 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white">Active</span>
                     </div>
                     <div>
-                      <div className="text-sm font-semibold text-amber-800">Open Conceptual Budget</div>
+                      <div className="text-sm font-semibold text-amber-800">Conceptual Budget</div>
                       <div className="text-xs text-slate-400 mt-0.5">Short questionnaire · quick SF estimate</div>
                     </div>
                   </Link>
                 ) : (
-                  <button
-                    onClick={() => setConvertingTo('conceptual')}
-                    className="group flex flex-col gap-2 p-4 rounded-2xl border-2 border-slate-200 bg-white hover:border-amber-300 hover:bg-amber-50 transition-all text-left"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="w-9 h-9 rounded-xl bg-slate-100 group-hover:bg-amber-100 flex items-center justify-center">
-                        <svg className="w-4 h-4 text-slate-400 group-hover:text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                        </svg>
-                      </div>
+                  <button onClick={() => convertBudgetType('conceptual')} disabled={convertLoading}
+                    className="group flex flex-col gap-2 p-4 rounded-2xl border-2 border-slate-200 bg-white hover:border-amber-300 hover:bg-amber-50 transition-all text-left disabled:opacity-60">
+                    <div className="w-9 h-9 rounded-xl bg-slate-100 group-hover:bg-amber-100 flex items-center justify-center">
+                      <svg className="w-4 h-4 text-slate-400 group-hover:text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
                     </div>
                     <div>
-                      <div className="text-sm font-semibold text-slate-700">Switch to Conceptual Budget</div>
+                      <div className="text-sm font-semibold text-slate-700">Conceptual Budget</div>
                       <div className="text-xs text-slate-400 mt-0.5">Short questionnaire · quick SF estimate</div>
                     </div>
                   </button>
                 )}
 
-                {/* Design Budget */}
+                {/* Full Design Budget */}
                 {budgetType === 'design' ? (
                   <Link href={wizardUrl} className="group flex flex-col gap-2 p-4 rounded-2xl border-2 border-amber-400 bg-amber-50 hover:bg-amber-100 transition-all">
                     <div className="flex items-center justify-between">
@@ -801,30 +1236,26 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white">Active</span>
                     </div>
                     <div>
-                      <div className="text-sm font-semibold text-amber-800">Open Full Design</div>
+                      <div className="text-sm font-semibold text-amber-800">Full Design Questionnaire</div>
                       <div className="text-xs text-slate-400 mt-0.5">Full questionnaire · all design questions</div>
                     </div>
                   </Link>
                 ) : (
-                  <button
-                    onClick={() => setConvertingTo('design')}
-                    className="group flex flex-col gap-2 p-4 rounded-2xl border-2 border-slate-200 bg-white hover:border-amber-300 hover:bg-amber-50 transition-all text-left"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="w-9 h-9 rounded-xl bg-slate-100 group-hover:bg-amber-100 flex items-center justify-center">
-                        <svg className="w-4 h-4 text-slate-400 group-hover:text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
-                        </svg>
-                      </div>
+                  <button onClick={() => convertBudgetType('design')} disabled={convertLoading}
+                    className="group flex flex-col gap-2 p-4 rounded-2xl border-2 border-slate-200 bg-white hover:border-amber-300 hover:bg-amber-50 transition-all text-left disabled:opacity-60">
+                    <div className="w-9 h-9 rounded-xl bg-slate-100 group-hover:bg-amber-100 flex items-center justify-center">
+                      <svg className="w-4 h-4 text-slate-400 group-hover:text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
+                      </svg>
                     </div>
                     <div>
-                      <div className="text-sm font-semibold text-slate-700">Switch to Full Design</div>
+                      <div className="text-sm font-semibold text-slate-700">Full Design Questionnaire</div>
                       <div className="text-xs text-slate-400 mt-0.5">Full questionnaire · all design questions</div>
                     </div>
                   </button>
                 )}
 
-                {/* Peer Review Budget */}
+                {/* Budget Matrix (was Peer Review) */}
                 {budgetType === 'peer_review' ? (
                   <Link href={wizardUrl} className="group flex flex-col gap-2 p-4 rounded-2xl border-2 border-blue-400 bg-blue-50 hover:bg-blue-100 transition-all">
                     <div className="flex items-center justify-between">
@@ -836,24 +1267,20 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-600 text-white">Active</span>
                     </div>
                     <div>
-                      <div className="text-sm font-semibold text-blue-800">Open Peer Review Matrix</div>
-                      <div className="text-xs text-slate-400 mt-0.5">Fixture-by-fixture review &amp; pricing matrix</div>
+                      <div className="text-sm font-semibold text-blue-800">Budget Matrix</div>
+                      <div className="text-xs text-slate-400 mt-0.5">Line-by-line fixture matrix</div>
                     </div>
                   </Link>
                 ) : (
-                  <button
-                    onClick={() => setConvertingTo('peer_review')}
-                    className="group flex flex-col gap-2 p-4 rounded-2xl border-2 border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50 transition-all text-left"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="w-9 h-9 rounded-xl bg-slate-100 group-hover:bg-blue-100 flex items-center justify-center">
-                        <svg className="w-4 h-4 text-slate-400 group-hover:text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
+                  <button onClick={() => convertBudgetType('peer_review')} disabled={convertLoading}
+                    className="group flex flex-col gap-2 p-4 rounded-2xl border-2 border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50 transition-all text-left disabled:opacity-60">
+                    <div className="w-9 h-9 rounded-xl bg-slate-100 group-hover:bg-blue-100 flex items-center justify-center">
+                      <svg className="w-4 h-4 text-slate-400 group-hover:text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
                     </div>
                     <div>
-                      <div className="text-sm font-semibold text-slate-700">Switch to Peer Review Matrix</div>
+                      <div className="text-sm font-semibold text-slate-700">Budget Matrix</div>
                       <div className="text-xs text-slate-400 mt-0.5">Line-by-line fixture matrix</div>
                     </div>
                   </button>
@@ -976,15 +1403,10 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
 
         {/* ── CORRESPONDENCE ───────────────────────────────────────────── */}
         {activeTab === 'correspondence' && (
-          <div>
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-800">Correspondence</h2>
-                <p className="text-sm text-slate-400 mt-0.5">Emails, letters, meeting notes — Phase 2: Outlook label integration</p>
-              </div>
-            </div>
-            <FileDropZone projectId={project.id} tab="correspondence" initialFiles={filesByTab('correspondence')} onFileAdded={onFileAdded} onFileDeleted={onFileDeleted} />
-          </div>
+          <CorrespondenceTab
+            projectId={project.id}
+            projectName={project.name}
+          />
         )}
 
         {/* ── SUBMITTALS ───────────────────────────────────────────────── */}
@@ -1019,67 +1441,125 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
           </div>
         )}
 
-        {/* ── CONSTRUCTION ADMIN ───────────────────────────────────────── */}
-        {activeTab === 'ca' && (
-          <div>
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-800">Construction Administration</h2>
-                <p className="text-sm text-slate-400 mt-0.5">RFIs, change orders, construction schedules — Phase 2: Procore RFI email integration</p>
-              </div>
+        {/* ── CONSTRUCTION SCHEDULE ────────────────────────────────────── */}
+        {activeTab === 'construction-schedule' && (
+          <div className="space-y-5">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-800">Construction Schedule</h2>
+              <p className="text-sm text-slate-400 mt-0.5">Upload a PDF — milestones auto-parse and the Gantt updates automatically</p>
             </div>
-            <CAScheduleWidgets files={filesByTab('ca')} />
-            <CAScheduleCard files={filesByTab('ca')} projectId={project.id} />
-            <FileDropZone
+            <CAScheduleCard
+              files={filesByTab('ca')}
+              projectId={project.id}
+              onFileUpdated={updatedFile => setAllFiles(prev => prev.map(f => f.id === updatedFile.id ? updatedFile : f))}
+            />
+            <AutoTaggedFileTab
+              title="Construction Schedule"
+              subtitle="All uploads are automatically tagged as Construction Schedule · milestones parse from the PDF"
+              autoTag="Construction Schedule"
+              files={filesByTab('ca').filter(f => {
+                try { return (typeof f.tags === 'string' ? JSON.parse(f.tags) : f.tags ?? []).includes('Construction Schedule'); } catch { return false; }
+              })}
               projectId={project.id}
               tab="ca"
-              initialFiles={filesByTab('ca')}
               onFileAdded={onFileAdded}
               onFileDeleted={onFileDeleted}
-              onBeforeTaggedUpload={(tags) => {
-                if (!tags.includes('Construction Schedule')) return true;
+              statLabel="Schedule Files"
+              statValue={null}
+              hideHeader
+              showReparseButton
+              beforeUpload={() => {
                 const existing = filesByTab('ca').some(f => {
                   try { return (typeof f.tags === 'string' ? JSON.parse(f.tags) : f.tags ?? []).includes('Construction Schedule'); } catch { return false; }
                 });
                 if (!existing) return true;
                 return window.confirm(
-                  'A construction schedule is already on file.\n\nUpload this as the new version? The existing file will remain but this one will be used for milestones going forward.'
+                  'A construction schedule is already on file.\n\nUpload this as the new version? The existing file will remain, but this one will be used for milestones going forward.'
                 );
               }}
             />
           </div>
         )}
 
-        {/* ── CONTRACTS ────────────────────────────────────────────────── */}
+        {/* ── RFIs ─────────────────────────────────────────────────────── */}
+        {activeTab === 'rfis' && (
+          <RFITab
+            projectId={project.id}
+            files={filesByTab('ca').filter(f => {
+              try { return (typeof f.tags === 'string' ? JSON.parse(f.tags) : f.tags ?? []).includes('RFI'); } catch { return false; }
+            })}
+            onFileAdded={onFileAdded}
+            onFileDeleted={onFileDeleted}
+          />
+        )}
+
+        {/* ── CHANGE ORDERS ────────────────────────────────────────────── */}
+        {activeTab === 'change-orders' && (
+          <div className="space-y-6">
+            {/* New structured CO system */}
+            <ChangeOrdersTab projectId={project.id} />
+
+            {/* Historical PDF uploads (legacy) */}
+            {(() => {
+              const coFiles = filesByTab('ca').filter(f => {
+                try { return (typeof f.tags === 'string' ? JSON.parse(f.tags) : f.tags ?? []).includes('Change Order'); } catch { return false; }
+              });
+              if (coFiles.length === 0) return null;
+              return (
+                <details className="group">
+                  <summary className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors list-none select-none">
+                    <svg className="w-3.5 h-3.5 group-open:rotate-90 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                    Historical CO Documents ({coFiles.length} uploaded PDFs)
+                  </summary>
+                  <div className="mt-3">
+                    <AutoTaggedFileTab
+                      title=""
+                      subtitle="Legacy CO PDF uploads — for reference only"
+                      autoTag="Change Order"
+                      files={coFiles}
+                      projectId={project.id}
+                      tab="ca"
+                      onFileAdded={onFileAdded}
+                      onFileDeleted={onFileDeleted}
+                      statLabel=""
+                      statValue={null}
+                      hideHeader
+                      renderFileExtra={f => f.parsedAmount != null && (
+                        <span className="text-sm font-semibold text-blue-700 shrink-0">
+                          {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(f.parsedAmount)}
+                        </span>
+                      )}
+                    />
+                  </div>
+                </details>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* ── CONTRACTS (Supply) ───────────────────────────────────────── */}
         {activeTab === 'contracts' && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-800">Contracts</h2>
-                <p className="text-sm text-slate-400 mt-0.5">
-                  Supply contracts · COIs · SOVs · Amendments — supply contracts are auto-reviewed by Claude AI
-                </p>
-              </div>
+            <div>
+              <h2 className="text-lg font-semibold text-slate-800">Supply Contracts</h2>
+              <p className="text-sm text-slate-400 mt-0.5">Supply contracts · COIs · SOVs · Amendments — supply contracts auto-reviewed by Claude AI</p>
             </div>
-
             <ContractWidgets
               projectId={project.id}
               value={contractValue}
               signedDate={contractSignedDate}
               onValueChange={setContractValue}
               onSignedDateChange={setContractSignedDate}
-              designValue={designContractValue}
-              designDate={designContractDate}
-              onDesignValueChange={setDesignContractValue}
-              onDesignDateChange={setDesignContractDate}
+              supplyOnly
             />
-
-            {/* ── Unified file zone: upload + AI review in one place ────── */}
             <ContractsPanel
               projectId={project.id}
               initialFiles={filesByTab('contracts')}
               onFileAdded={onFileAdded}
               onFileDeleted={onFileDeleted}
+              supplyOnly
             />
           </div>
         )}
@@ -1095,60 +1575,65 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
           </div>
         )}
 
-        {/* ── DESIGN INFO ───────────────────────────────────────────────── */}
-        {activeTab === 'design-info' && (
+        {/* ── CODE ──────────────────────────────────────────────────────── */}
+        {activeTab === 'code' && (
           <div className="space-y-5">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-slate-800">Design Information</h2>
-                <p className="text-sm text-slate-400 mt-0.5">Code research, product specs, design criteria, calculations</p>
+                <h2 className="text-lg font-semibold text-slate-800">Code</h2>
+                <p className="text-sm text-slate-400 mt-0.5">Design criteria, code research, and LPD calculations</p>
               </div>
             </div>
 
             {/* Design criteria fields */}
             <div className="bg-white border border-slate-200 rounded-2xl px-6 py-5 shadow-sm">
               <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-4">Design Criteria</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                {/* Building Codes — multi-line */}
-                <div className="sm:col-span-2">
-                  <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-                    Building Codes &amp; Years
-                  </label>
-                  <textarea
-                    rows={4}
-                    placeholder={"IBC 2021\nNEC 2020\nNFPA 101 2021\nASHRAE 90.1 2019"}
-                    defaultValue={designInfo.codes || ''}
-                    onBlur={e => {
-                      const val = e.target.value.trim();
-                      if (val !== (designInfo.codes || '').trim()) saveDesignInfo('codes', val);
-                    }}
-                    className="w-full text-sm text-slate-800 bg-white border border-slate-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent leading-relaxed"
-                  />
-                  <p className="text-[10px] text-slate-300 mt-1">One code per line — saves on focus out</p>
-                </div>
-
-                {/* Revit Year */}
-                <div>
-                  <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-                    Revit Year
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="2024"
-                    min="2010"
-                    max="2035"
-                    defaultValue={designInfo.revitYear || ''}
-                    onBlur={e => {
-                      const val = e.target.value.trim();
-                      if (val !== (designInfo.revitYear || '').toString()) saveDesignInfo('revitYear', val);
-                    }}
-                    className="w-full text-sm font-semibold text-slate-800 bg-white border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
-                  />
-                </div>
-              </div>
+              {(() => {
+                const lines = (designInfo.codes || '').split('\n').map(l => l.trim()).filter(Boolean);
+                const extract = prefix => {
+                  const line = lines.find(l => l.toLowerCase().startsWith(prefix.toLowerCase()));
+                  return line ? line.slice(prefix.length).trim() : '';
+                };
+                const parsed = {
+                  iecc:   extract('IECC'),
+                  ibc:    extract('IBC'),
+                  nec:    extract('NEC'),
+                  ashrae: extract('ASHRAE 90.1') || extract('ASHRAE'),
+                  nfpa:   extract('NFPA 101')    || extract('NFPA'),
+                };
+                function saveCodeFields() {
+                  const parts = [
+                    codeRef.iecc.current?.value   ? `IECC ${codeRef.iecc.current.value.trim()}`          : '',
+                    codeRef.ibc.current?.value    ? `IBC ${codeRef.ibc.current.value.trim()}`            : '',
+                    codeRef.nec.current?.value    ? `NEC ${codeRef.nec.current.value.trim()}`            : '',
+                    codeRef.ashrae.current?.value ? `ASHRAE 90.1 ${codeRef.ashrae.current.value.trim()}` : '',
+                    codeRef.nfpa.current?.value   ? `NFPA 101 ${codeRef.nfpa.current.value.trim()}`     : '',
+                  ].filter(Boolean).join('\n');
+                  if (parts !== (designInfo.codes || '').trim()) saveDesignInfo('codes', parts);
+                }
+                const fieldCls = 'w-full text-sm font-semibold text-slate-800 bg-white border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent';
+                const labelCls = 'block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5';
+                return (
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+                    {[
+                      { label: 'IECC',        ref: codeRef.iecc,   val: parsed.iecc,   ph: '2021' },
+                      { label: 'IBC',         ref: codeRef.ibc,    val: parsed.ibc,    ph: '2021' },
+                      { label: 'NEC',         ref: codeRef.nec,    val: parsed.nec,    ph: '2020' },
+                      { label: 'ASHRAE 90.1', ref: codeRef.ashrae, val: parsed.ashrae, ph: '2019' },
+                      { label: 'NFPA 101',    ref: codeRef.nfpa,   val: parsed.nfpa,   ph: '2021' },
+                    ].map(f => (
+                      <div key={f.label}>
+                        <label className={labelCls}>{f.label}</label>
+                        <input ref={f.ref} type="text" placeholder={f.ph} defaultValue={f.val}
+                          onBlur={saveCodeFields} className={fieldCls} />
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
 
-            {/* Code Intelligence — project-aware code search */}
+            {/* Code Intelligence — passes code editions + location + project type */}
             <ProjectCodeSearch
               projectContext={{
                 projectName:  project.name,
@@ -1156,26 +1641,71 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
                 city:         project.city  || '',
                 state:        project.state || '',
                 serviceType:  project.serviceType || '',
+                codes: (() => {
+                  const lines = (designInfo.codes || '').split('\n').map(l => l.trim()).filter(Boolean);
+                  const extract = prefix => { const ln = lines.find(l => l.toLowerCase().startsWith(prefix.toLowerCase())); return ln ? ln.slice(prefix.length).trim() : ''; };
+                  return {
+                    iecc:   extract('IECC'),
+                    ibc:    extract('IBC'),
+                    nec:    extract('NEC'),
+                    ashrae: extract('ASHRAE 90.1') || extract('ASHRAE'),
+                    nfpa:   extract('NFPA 101')    || extract('NFPA'),
+                  };
+                })(),
               }}
             />
 
             {/* LPD Calculator */}
             <LPDCalculator projectId={project.id} />
+          </div>
+        )}
 
-            {/* Design Schedule widget */}
+        {/* ── DESIGN SCHEDULE ───────────────────────────────────────────── */}
+        {activeTab === 'design-schedule' && (
+          <div className="space-y-5">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-800">Design Schedule</h2>
+              <p className="text-sm text-slate-400 mt-0.5">Milestones, review dates, and submission deadlines</p>
+            </div>
             <DesignScheduleCard
               key={designMilestonesVer}
               projectId={project.id}
               initialMilestones={designInfo.designMilestones}
               onSaved={m => setDesignInfo(prev => ({ ...prev, designMilestones: m }))}
             />
-
             <FileDropZone
               projectId={project.id}
               tab="designInfo"
               initialFiles={filesByTab('designInfo')}
               onFileAdded={onFileAdded}
               onFileDeleted={onFileDeleted}
+            />
+          </div>
+        )}
+
+        {/* ── DESIGN CONTRACTS ──────────────────────────────────────────── */}
+        {activeTab === 'design-contracts' && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-800">Design Contracts</h2>
+              <p className="text-sm text-slate-400 mt-0.5">Design service agreements, scopes of work, and fee schedules</p>
+            </div>
+            {/* Design contract value + signed date */}
+            <ContractWidgets
+              projectId={project.id}
+              designValue={designContractValue}
+              designDate={designContractDate}
+              onDesignValueChange={setDesignContractValue}
+              onDesignDateChange={setDesignContractDate}
+              designOnly
+            />
+            {/* Design contract files */}
+            <ContractsPanel
+              projectId={project.id}
+              initialFiles={filesByTab('contracts')}
+              onFileAdded={onFileAdded}
+              onFileDeleted={onFileDeleted}
+              designOnly
             />
           </div>
         )}
@@ -1206,8 +1736,8 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
                 <p className="text-sm text-slate-400 mt-0.5">Fixture counts across submissions — tag each upload with its phase (SD, DD, CD, IFC…)</p>
               </div>
             </div>
-            <TakeoffDashboard files={filesByTab('takeoffs')} />
             <FileDropZone projectId={project.id} tab="takeoffs" initialFiles={filesByTab('takeoffs')} onFileAdded={onFileAdded} onFileDeleted={onFileDeleted} />
+            <TakeoffDashboard files={filesByTab('takeoffs')} />
           </div>
         )}
 
@@ -1222,9 +1752,12 @@ export default function ProjectHubClient({ project, budget, peerReviewTotal, cli
           <ShipScheduleTab projectId={project.id} />
         )}
 
-        {/* ── NOTIFICATIONS ────────────────────────────────────────────── */}
+        {/* ── CLIENT PORTAL ACCESS ─────────────────────────────────────── */}
         {activeTab === 'notifications' && (
-          <NotificationSettingsTab projectId={project.id} />
+          <div className="space-y-6">
+            <ContactsTab projectId={project.id} />
+            <NotificationSettingsTab projectId={project.id} />
+          </div>
         )}
 
           </div>

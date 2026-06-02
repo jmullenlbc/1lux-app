@@ -1,5 +1,6 @@
 'use client';
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import PdfViewerModal from '@/components/ui/PdfViewerModal';
 
 // ─── Tag definitions ──────────────────────────────────────────────────────────
 const CONTRACT_TAGS = [
@@ -88,10 +89,13 @@ function coiExpiryMeta(isoDate) {
 }
 
 // ─── Tag selector modal ───────────────────────────────────────────────────────
-function TagModal({ fileName, onConfirm, onCancel }) {
+function TagModal({ fileName, onConfirm, onCancel, allowedTags = null }) {
   const [selected, setSelected] = useState(null);
 
   const meta = selected ? tagMeta(selected) : null;
+  const visibleTags = allowedTags
+    ? CONTRACT_TAGS.filter(t => allowedTags.includes(t.value))
+    : CONTRACT_TAGS;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
@@ -101,7 +105,7 @@ function TagModal({ fileName, onConfirm, onCancel }) {
           <p className="text-xs text-slate-400 mt-0.5 truncate">{fileName}</p>
         </div>
         <div className="p-4 space-y-2 max-h-[60vh] overflow-y-auto">
-          {CONTRACT_TAGS.map(tag => (
+          {visibleTags.map(tag => (
             <button
               key={tag.value}
               type="button"
@@ -333,7 +337,7 @@ function AnalysisPanel({ analysis, fileName }) {
 }
 
 // ─── File row ─────────────────────────────────────────────────────────────────
-function ContractFileRow({ file, projectId, onDelete, analysisOverride }) {
+function ContractFileRow({ file, projectId, onDelete, analysisOverride, onView = null }) {
   const [expanded,   setExpanded]   = useState(false);
   const [analyzing,  setAnalyzing]  = useState(false);
   const [analysis,   setAnalysis]   = useState(analysisOverride || parseAnalysis(file.analysisData));
@@ -414,10 +418,18 @@ function ContractFileRow({ file, projectId, onDelete, analysisOverride }) {
 
         {/* Name + metadata */}
         <div className="flex-1 min-w-0">
-          <a href={url} target="_blank" rel="noopener noreferrer"
-            className="text-sm font-medium text-slate-800 hover:text-amber-600 transition-colors truncate block">
-            {file.originalName}
-          </a>
+          {onView ? (
+            <button onClick={onView}
+              className="text-sm font-medium text-slate-800 hover:text-amber-600 transition-colors truncate block text-left w-full">
+              {file.originalName}
+              <span className="ml-1.5 text-[10px] text-slate-400">· click to view</span>
+            </button>
+          ) : (
+            <a href={url} target="_blank" rel="noopener noreferrer"
+              className="text-sm font-medium text-slate-800 hover:text-amber-600 transition-colors truncate block">
+              {file.originalName}
+            </a>
+          )}
           <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
             {/* Tag badges — skip internal COI_EXPIRY meta-tags */}
             {tags.filter(t => !t.startsWith('COI_EXPIRY:')).map(tag => {
@@ -487,6 +499,18 @@ function ContractFileRow({ file, projectId, onDelete, analysisOverride }) {
             <span className="text-[10px] text-slate-400 italic">Scanned PDF</span>
           )}
 
+          {/* Download */}
+          <a
+            href={url}
+            download={file.originalName}
+            className="p-1 rounded-lg text-slate-300 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+            title="Download"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+          </a>
+
           {/* Delete */}
           <button
             onClick={() => onDelete(file.id)}
@@ -551,14 +575,97 @@ function DropZone({ onFiles, dragging, setDragging, inputRef }) {
 }
 
 // ─── Main ContractsPanel ──────────────────────────────────────────────────────
-export default function ContractsPanel({ projectId, initialFiles = [], onFileAdded, onFileDeleted }) {
+// Tag helpers for filtering
+function isDesignTag(tag) { return tag === 'Design - Executed' || tag === 'Design'; }
+function isSupplyTagFull(tag) { return !isDesignTag(tag); } // everything else is supply-side
+
+// ─── Simple file row (COI, SOV, and grouped contract sections) ────────────────
+function SimpleFileRow({ file, projectId, onDelete, onView }) {
+  const ext   = file.originalName.split('.').pop()?.toLowerCase();
+  const isPdf = ext === 'pdf';
+  const url   = `/api/uploads/${file.storedPath.replace(/\\/g, '/')}`;
+  const tags  = parseTags(file.tags).filter(t => !t.startsWith('COI_EXPIRY:'));
+
+  return (
+    <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors">
+      {/* Icon */}
+      <div className="shrink-0">
+        {isPdf ? (
+          <svg className="w-7 h-8 text-red-400" viewBox="0 0 24 28" fill="none">
+            <rect width="24" height="28" rx="2" fill="currentColor" fillOpacity="0.12"/>
+            <text x="12" y="18" textAnchor="middle" fill="currentColor" fontSize="6" fontWeight="bold">PDF</text>
+          </svg>
+        ) : (
+          <svg className="w-7 h-8 text-green-500" viewBox="0 0 24 28" fill="none">
+            <rect width="24" height="28" rx="2" fill="currentColor" fillOpacity="0.12"/>
+            <text x="12" y="18" textAnchor="middle" fill="currentColor" fontSize="6" fontWeight="bold">{ext?.toUpperCase().slice(0,3)}</text>
+          </svg>
+        )}
+      </div>
+
+      {/* Name + meta */}
+      <div className="flex-1 min-w-0">
+        {isPdf && onView ? (
+          <button onClick={onView} className="text-sm font-medium text-slate-800 hover:text-amber-600 transition-colors text-left truncate block w-full">
+            {file.originalName}
+          </button>
+        ) : (
+          <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-slate-800 hover:text-amber-600 transition-colors truncate block">
+            {file.originalName}
+          </a>
+        )}
+        <div className="flex items-center gap-2 mt-0.5">
+          {tags.map(t => {
+            const m = tagMeta(t);
+            return <span key={t} className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${m.color}`}>{m.label}</span>;
+          })}
+          <span className="text-[10px] text-slate-400">{formatBytes(file.size)}</span>
+          <span className="text-[10px] text-slate-400">
+            {new Date(file.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
+          </span>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-1 shrink-0">
+        {/* View (PDF only) */}
+        {isPdf && onView && (
+          <button onClick={onView} className="p-1.5 rounded-lg text-slate-300 hover:text-amber-500 hover:bg-amber-50 transition-colors" title="View">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
+        )}
+        {/* Download */}
+        <a href={url} download={file.originalName} className="p-1.5 rounded-lg text-slate-300 hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Download">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+          </svg>
+        </a>
+        {/* Delete */}
+        <button onClick={() => onDelete(file.id)} className="p-1.5 rounded-lg text-slate-300 hover:text-red-400 hover:bg-red-50 transition-colors" title="Delete">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default function ContractsPanel({ projectId, initialFiles = [], onFileAdded, onFileDeleted, supplyOnly = false, designOnly = false }) {
   const [files,       setFiles]       = useState(initialFiles);
   const [dragging,    setDragging]    = useState(false);
   const [pendingFile, setPendingFile] = useState(null); // { file: File }
   const [uploading,   setUploading]   = useState([]);   // [{ id, name }]
   const [newAnalyses, setNewAnalyses] = useState({});   // fileId → analysis
   const [activeTag,   setActiveTag]   = useState(null);
+  const [viewingFile, setViewingFile] = useState(null); // PDF viewer
   const inputRef = useRef(null);
+
+  // For designOnly mode: only show these two tag options
+  const DESIGN_ALLOWED_TAGS = ['Design - Executed', 'Design'];
 
   const handleFiles = useCallback((fileList) => {
     const arr = Array.from(fileList);
@@ -638,22 +745,39 @@ export default function ContractsPanel({ projectId, initialFiles = [], onFileAdd
     return [...set].sort((a, b) => order.indexOf(a) - order.indexOf(b));
   }, [files]);
 
-  const visibleFiles = activeTag
-    ? files.filter(f => parseTags(f.tags).includes(activeTag))
+  // Apply supply/design filter first, then activeTag filter
+  const typeFilteredFiles = designOnly
+    ? files.filter(f => parseTags(f.tags).some(isDesignTag))
+    : supplyOnly
+    ? files.filter(f => !parseTags(f.tags).some(isDesignTag))
     : files;
 
-  // Stats
-  const reviewedCount = files.filter(f => f.analysisData || newAnalyses[f.id]).length;
-  const supplyCount   = files.filter(f => parseTags(f.tags).some(isSupplyTag)).length;
+  const visibleFiles = activeTag
+    ? typeFilteredFiles.filter(f => parseTags(f.tags).includes(activeTag))
+    : typeFilteredFiles;
+
+  // Stats — scoped to typeFilteredFiles
+  const reviewedCount = typeFilteredFiles.filter(f => f.analysisData || newAnalyses[f.id]).length;
+  const supplyCount   = typeFilteredFiles.filter(f => parseTags(f.tags).some(isSupplyTag)).length;
 
   return (
     <div className="space-y-4">
+      {/* PDF viewer */}
+      {viewingFile && (
+        <PdfViewerModal
+          file={viewingFile}
+          projectId={projectId}
+          onClose={() => setViewingFile(null)}
+        />
+      )}
+
       {/* Tag modal */}
       {pendingFile && (
         <TagModal
           fileName={pendingFile.file.name}
           onConfirm={onModalConfirm}
           onCancel={() => setPendingFile(null)}
+          allowedTags={designOnly ? DESIGN_ALLOWED_TAGS : null}
         />
       )}
 
@@ -683,67 +807,132 @@ export default function ContractsPanel({ projectId, initialFiles = [], onFileAdd
         </div>
       )}
 
-      {/* File list */}
-      {files.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-          {/* List header */}
-          <div className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-100 bg-slate-50">
-            <span className="text-xs text-slate-500 font-medium">{files.length} document{files.length !== 1 ? 's' : ''}</span>
-            {supplyCount > 0 && (
-              <span className="text-xs text-slate-400">
-                · {reviewedCount}/{supplyCount} supply contract{supplyCount !== 1 ? 's' : ''} reviewed
-              </span>
-            )}
+      {/* ── Grouped sections (supplyOnly) or flat list (designOnly / all) ──────── */}
+      {supplyOnly ? (() => {
+        // Split files into three buckets — tagged COI/SOV go to their own section only
+        const coiFiles      = typeFilteredFiles.filter(f => parseTags(f.tags).includes('COI'));
+        const sovFiles      = typeFilteredFiles.filter(f => parseTags(f.tags).includes('SOV'));
+        const contractFiles = typeFilteredFiles.filter(f => !parseTags(f.tags).includes('COI') && !parseTags(f.tags).includes('SOV'));
+        const noFiles       = coiFiles.length === 0 && sovFiles.length === 0 && contractFiles.length === 0 && uploading.length === 0;
 
-            {/* Tag filters */}
-            {presentTags.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1 ml-auto">
-                <button
-                  onClick={() => setActiveTag(null)}
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-colors ${
-                    !activeTag ? 'bg-slate-700 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
-                  }`}
-                >All</button>
-                {presentTags.map(tag => {
-                  const m = tagMeta(tag);
-                  const count = files.filter(f => parseTags(f.tags).includes(tag)).length;
-                  return (
-                    <button
-                      key={tag}
-                      onClick={() => setActiveTag(prev => prev === tag ? null : tag)}
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-colors ${
-                        activeTag === tag ? 'bg-amber-500 border-amber-500 text-white' : `bg-white ${m.color} hover:opacity-80`
-                      }`}
-                    >
-                      {m.label} {count}
-                    </button>
-                  );
-                })}
-              </div>
+        function SectionHeader({ color, label, count }) {
+          return (
+            <div className="flex items-center gap-2 px-5 py-3 border-b border-slate-100">
+              <span className={`w-2 h-2 rounded-full ${color} shrink-0`} />
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex-1">{label}</p>
+              <span className="text-[10px] text-slate-400">{count} file{count !== 1 ? 's' : ''}</span>
+            </div>
+          );
+        }
+
+        return (
+          <div className="space-y-4">
+            {/* ── Supply Contracts section ── */}
+            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+              <SectionHeader color="bg-blue-500" label="Supply Contracts" count={contractFiles.length} />
+              {contractFiles.length > 0 ? (
+                contractFiles.map(f => (
+                  <ContractFileRow
+                    key={f.id}
+                    file={f}
+                    projectId={projectId}
+                    onDelete={deleteFile}
+                    analysisOverride={newAnalyses[f.id] || null}
+                    onView={null}
+                  />
+                ))
+              ) : (
+                <p className="text-xs text-slate-300 italic text-center py-5">No supply contracts uploaded yet</p>
+              )}
+            </div>
+
+            {/* ── Certificates of Insurance section ── */}
+            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+              <SectionHeader color="bg-green-500" label="Certificates of Insurance" count={coiFiles.length} />
+              {coiFiles.length > 0 ? (
+                coiFiles.map(f => (
+                  <SimpleFileRow
+                    key={f.id}
+                    file={f}
+                    projectId={projectId}
+                    onDelete={deleteFile}
+                    onView={() => setViewingFile(f)}
+                  />
+                ))
+              ) : (
+                <p className="text-xs text-slate-300 italic text-center py-5">No COIs uploaded yet</p>
+              )}
+            </div>
+
+            {/* ── Schedules of Values section ── */}
+            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+              <SectionHeader color="bg-teal-500" label="Schedules of Values" count={sovFiles.length} />
+              {sovFiles.length > 0 ? (
+                sovFiles.map(f => (
+                  <SimpleFileRow
+                    key={f.id}
+                    file={f}
+                    projectId={projectId}
+                    onDelete={deleteFile}
+                    onView={() => setViewingFile(f)}
+                  />
+                ))
+              ) : (
+                <p className="text-xs text-slate-300 italic text-center py-5">No SOVs uploaded yet</p>
+              )}
+            </div>
+
+            {noFiles && (
+              <p className="text-center text-xs text-slate-400 py-2">Drop files above to get started — tag them as Contract, COI, or SOV.</p>
             )}
           </div>
-
-          {/* File rows */}
-          {visibleFiles.length > 0
-            ? visibleFiles.map(f => (
-                <ContractFileRow
-                  key={f.id}
-                  file={f}
-                  projectId={projectId}
-                  onDelete={deleteFile}
-                  analysisOverride={newAnalyses[f.id] || null}
-                />
-              ))
-            : <p className="text-center text-xs text-slate-400 py-8">No documents tagged "{activeTag}".</p>
-          }
-        </div>
-      )}
-
-      {files.length === 0 && uploading.length === 0 && (
-        <div className="text-center py-4">
-          <p className="text-xs text-slate-400">No documents uploaded yet. Drop a file above to get started.</p>
-          <p className="text-xs text-slate-300 mt-1">Supply contracts are automatically reviewed by Claude AI.</p>
-        </div>
+        );
+      })() : (
+        <>
+          {/* Flat list for designOnly / default mode */}
+          {files.length > 0 && (
+            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+              <div className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-100 bg-slate-50">
+                <span className="text-xs text-slate-500 font-medium">{files.length} document{files.length !== 1 ? 's' : ''}</span>
+                {supplyCount > 0 && (
+                  <span className="text-xs text-slate-400">· {reviewedCount}/{supplyCount} reviewed</span>
+                )}
+                {presentTags.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1 ml-auto">
+                    <button onClick={() => setActiveTag(null)}
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-colors ${!activeTag ? 'bg-slate-700 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>
+                      All
+                    </button>
+                    {presentTags.map(tag => {
+                      const m = tagMeta(tag);
+                      const count = files.filter(f => parseTags(f.tags).includes(tag)).length;
+                      return (
+                        <button key={tag} onClick={() => setActiveTag(prev => prev === tag ? null : tag)}
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-colors ${activeTag === tag ? 'bg-amber-500 border-amber-500 text-white' : `bg-white ${m.color} hover:opacity-80`}`}>
+                          {m.label} {count}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              {visibleFiles.length > 0
+                ? visibleFiles.map(f => (
+                    <ContractFileRow key={f.id} file={f} projectId={projectId} onDelete={deleteFile}
+                      analysisOverride={newAnalyses[f.id] || null}
+                      onView={designOnly ? () => setViewingFile(f) : null}
+                    />
+                  ))
+                : <p className="text-center text-xs text-slate-400 py-8">No documents tagged "{activeTag}".</p>
+              }
+            </div>
+          )}
+          {files.length === 0 && uploading.length === 0 && (
+            <div className="text-center py-4">
+              <p className="text-xs text-slate-400">No documents uploaded yet. Drop a file above to get started.</p>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

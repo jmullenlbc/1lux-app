@@ -5,13 +5,13 @@ export const metadata = {
 
 export default function PortalLayout({ children }) {
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="h-screen flex flex-col bg-slate-50 overflow-hidden">
       {/* Minimal header */}
-      <header className="bg-[#0a1929] px-6 py-4 flex items-center gap-3">
-        <span className="text-[#f97316] font-bold text-lg tracking-tight">ILC Studios</span>
+      <header className="bg-[#0a1929] px-6 py-3 flex items-center gap-3 shrink-0 z-10">
+        <span className="text-[#f97316] font-bold text-base tracking-tight">ILC Studios</span>
         <span className="text-slate-500 text-sm">/ Project Portal</span>
       </header>
-      <main className="max-w-5xl mx-auto px-4 py-8">
+      <main className="flex-1 overflow-hidden">
         {children}
       </main>
     </div>

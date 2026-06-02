@@ -337,6 +337,85 @@ function SubmissionCard({ submission, projectId, onUpdate, onDelete }) {
   );
 }
 
+// ── Flat drawing file row ─────────────────────────────────────────────────────
+function DrawingFileRow({ file, projectId, onDeleteSubmission }) {
+  const [markupOpen, setMarkupOpen] = useState(false);
+  const [deleting,   setDeleting]   = useState(false);
+
+  const downloadUrl = file.pdfUrl; // served from drawing-submissions route
+
+  async function handleDelete() {
+    if (!confirm(`Delete "${file.fileName}"? This removes the entire drawing set upload.`)) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/drawing-submissions/${file.submissionId}`, { method: 'DELETE' });
+      if (res.ok) onDeleteSubmission();
+    } catch { setDeleting(false); }
+  }
+
+  return (
+    <>
+      <div className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50/50 transition-colors group">
+        {/* PDF icon */}
+        <svg className="w-6 h-7 text-red-400 shrink-0" viewBox="0 0 24 28" fill="none">
+          <rect width="24" height="28" rx="2" fill="currentColor" fillOpacity="0.12"/>
+          <text x="12" y="18" textAnchor="middle" fill="currentColor" fontSize="6" fontWeight="bold">PDF</text>
+        </svg>
+
+        {/* Filename — click to open markup viewer */}
+        <button
+          onClick={() => setMarkupOpen(true)}
+          className="flex-1 text-sm text-slate-800 hover:text-blue-700 transition-colors text-left truncate"
+        >
+          {file.fileName}
+        </button>
+
+        {/* Phase tag */}
+        {file.phaseTag && (
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wide shrink-0 ${PHASE_COLORS[file.phaseTag] || 'bg-slate-50 text-slate-400 border-slate-200'}`}>
+            {file.phaseTag}
+          </span>
+        )}
+
+        {/* Meta */}
+        {file.pageCount && <span className="text-xs text-slate-400 shrink-0">{file.pageCount}p</span>}
+        {file.size && <span className="text-xs text-slate-400 shrink-0">{formatBytes(file.size)}</span>}
+        <span className="text-xs text-slate-400 shrink-0">
+          {new Date(file.submissionCreatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+        </span>
+
+        {/* Download */}
+        <a href={downloadUrl} download={file.fileName}
+          className="p-1.5 rounded-lg text-slate-300 hover:text-blue-500 hover:bg-blue-50 transition-colors shrink-0" title="Download">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+          </svg>
+        </a>
+
+        {/* Delete */}
+        <button onClick={handleDelete} disabled={deleting}
+          className="p-1.5 rounded-lg text-slate-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0 disabled:opacity-50" title="Delete">
+          {deleting
+            ? <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+            : <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+          }
+        </button>
+      </div>
+
+      {markupOpen && (
+        <DrawingMarkupModal
+          file={{ id: file.id, fileName: file.fileName, originalName: file.fileName, pdfUrl: file.pdfUrl }}
+          projectId={projectId}
+          pdfUrl={file.pdfUrl}
+          onClose={() => setMarkupOpen(false)}
+        />
+      )}
+    </>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function DrawingsTab({ projectId }) {
   const [submissions, setSubmissions] = useState([]);
@@ -429,20 +508,41 @@ export default function DrawingsTab({ projectId }) {
         </div>
       )}
 
-      {/* Submission list */}
-      {!loading && submissions.length > 0 && (
-        <div className="space-y-3">
-          {submissions.map(s => (
-            <SubmissionCard
-              key={s.id}
-              submission={s}
-              projectId={projectId}
-              onUpdate={handleUpdate}
-              onDelete={handleDelete}
-            />
-          ))}
-        </div>
-      )}
+      {/* Flat file list — one row per file across all submissions */}
+      {!loading && submissions.length > 0 && (() => {
+        // Flatten all files, attaching parent submission metadata to each
+        const allFiles = submissions.flatMap(s =>
+          (s.files || []).map(df => ({
+            ...df,
+            submissionId: s.id,
+            phaseTag:     s.phaseTag,
+            source:       s.source,
+            submissionCreatedAt: s.createdAt,
+            notes:        s.notes,
+            pdfUrl:       `/api/projects/${projectId}/drawing-submissions/${s.id}/files/${df.id}`,
+          }))
+        );
+
+        return (
+          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                {allFiles.length} drawing file{allFiles.length !== 1 ? 's' : ''} · {submissions.length} set{submissions.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+            <div className="divide-y divide-slate-50">
+              {allFiles.map(df => (
+                <DrawingFileRow
+                  key={`${df.submissionId}-${df.id}`}
+                  file={df}
+                  projectId={projectId}
+                  onDeleteSubmission={() => handleDelete(df.submissionId)}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {showUpload && (
         <UploadModal

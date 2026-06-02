@@ -64,8 +64,24 @@ export default function FixtureImportModal({ projectId, onImported, onClose }) {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
         if (!data || data.length < 2) { setError('File appears to be empty'); return; }
-        const hdrs = data[0].map(h => String(h ?? '').trim());
-        const dataRows = data.slice(1).filter(r => r.some(c => c !== ''));
+
+        // Auto-detect title row: if first row has only 1 non-empty cell, it's a
+        // merged "LUMINAIRE SCHEDULE" style title — use row 2 as actual headers.
+        let headerRowIdx = 0;
+        const row0NonEmpty = data[0].filter(c => String(c ?? '').trim() !== '').length;
+        if (row0NonEmpty <= 1 && data.length > 2) headerRowIdx = 1;
+
+        // Build unique header names — blank/duplicate cells get "Column N" suffix
+        const rawHdrs = data[headerRowIdx].map(h => String(h ?? '').trim());
+        const seen = {};
+        const hdrs = rawHdrs.map((h, i) => {
+          const base = h || `Column ${i + 1}`;
+          if (seen[base] === undefined) { seen[base] = 0; return base; }
+          seen[base]++;
+          return `${base}_${seen[base]}`;
+        });
+
+        const dataRows = data.slice(headerRowIdx + 1).filter(r => r.some(c => c !== ''));
         const autoMapped = {};
         hdrs.forEach(h => { const f = autoMap(h); if (f) autoMapped[h] = f; });
         setHeaders(hdrs);
@@ -176,9 +192,11 @@ export default function FixtureImportModal({ projectId, onImported, onClose }) {
           {/* ── Step 2: Map columns ────────────────────────────────────────── */}
           {step === 'map' && (
             <>
-              <p className="text-sm text-slate-600">
-                Match each column from your file to a fixture schedule field. Unmapped columns are ignored.
-              </p>
+              <div className="flex items-center gap-4 text-xs text-slate-500">
+                <span>Match each column to a fixture schedule field.</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-100 border border-green-300 inline-block" />Auto-mapped</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-red-50 border border-red-200 inline-block" />Needs mapping</span>
+              </div>
               <div className="overflow-x-auto rounded-xl border border-slate-200">
                 <table className="min-w-full text-sm">
                   <thead className="bg-slate-50 border-b border-slate-200">
@@ -189,26 +207,42 @@ export default function FixtureImportModal({ projectId, onImported, onClose }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {headers.map((h, i) => (
-                      <tr key={h} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
-                        <td className="px-4 py-2 font-medium text-slate-700">{h}</td>
-                        <td className="px-4 py-2 text-slate-400 truncate max-w-[140px]">
-                          {rows.slice(0, 3).map(r => r[i]).filter(Boolean).join(', ') || '—'}
-                        </td>
-                        <td className="px-4 py-2">
-                          <select
-                            className="text-xs border border-slate-200 rounded px-2 py-1 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                            value={mapping[h] || ''}
-                            onChange={e => setMap(h, e.target.value)}
-                          >
-                            <option value="">— skip —</option>
-                            {FIXTURE_FIELDS.map(f => (
-                              <option key={f.key} value={f.key}>{f.label}</option>
-                            ))}
-                          </select>
-                        </td>
-                      </tr>
-                    ))}
+                    {headers.map((h, i) => {
+                      const mapped   = mapping[h];
+                      const hasData  = rows.slice(0, 3).some(r => r[i] != null && r[i] !== '');
+                      // Only flag as "needs mapping" if the column has actual data
+                      const rowCls = mapped
+                        ? 'bg-green-50'
+                        : hasData ? 'bg-red-50/60' : 'bg-white opacity-50';
+                      return (
+                        <tr key={`${h}-${i}`} className={rowCls}>
+                          <td className="px-4 py-2 font-medium text-slate-700">
+                            {h}
+                            {!mapped && hasData && (
+                              <span className="ml-1.5 text-[10px] font-bold text-red-400 uppercase">needs mapping</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-2 text-slate-400 truncate max-w-[140px]">
+                            {rows.slice(0, 3).map(r => r[i]).filter(v => v != null && v !== '').join(', ') || '—'}
+                          </td>
+                          <td className="px-4 py-2">
+                            <select
+                              className={`text-xs border rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-blue-200 ${
+                                mapped ? 'border-green-300 text-green-700 font-semibold' :
+                                hasData ? 'border-red-300 text-slate-600' : 'border-slate-200 text-slate-400'
+                              }`}
+                              value={mapped || ''}
+                              onChange={e => setMap(h, e.target.value)}
+                            >
+                              <option value="">— skip —</option>
+                              {FIXTURE_FIELDS.map(f => (
+                                <option key={f.key} value={f.key}>{f.label}</option>
+                              ))}
+                            </select>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 
-export default function PushToBidModal({ projectId, itemCount, onPushed, onClose }) {
+export default function PushToBidModal({ projectId, itemCount, nextVersion = null, onPushed, onClose }) {
   const [tag,      setTag]      = useState('');
   const [pushing,  setPushing]  = useState(false);
   const [error,    setError]    = useState(null);
@@ -33,8 +33,15 @@ export default function PushToBidModal({ projectId, itemCount, onPushed, onClose
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div>
-            <h2 className="font-semibold text-slate-800">Push to Design Bid Matrix</h2>
-            <p className="text-xs text-slate-400 mt-0.5">This publishes the current draft as a versioned snapshot</p>
+            <div className="flex items-center gap-2">
+              <h2 className="font-semibold text-slate-800">Push to Design Bid Matrix</h2>
+              {nextVersion && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-white">
+                  v{nextVersion}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">Adds new types, removes deleted types, preserves all pricing you've entered</p>
           </div>
           <button className="text-slate-400 hover:text-slate-600" onClick={onClose}>
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

@@ -72,6 +72,7 @@ export default async function ProjectHubPage({ params }) {
 
   return (
     <ProjectHubClient
+      userId={session.id}
       project={{
         ...project,
         responses:      undefined,

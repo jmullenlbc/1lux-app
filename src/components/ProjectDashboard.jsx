@@ -144,6 +144,8 @@ export default function ProjectDashboard({
   files,
   onProjectUpdate,    // (updatedProject) => void — called after project-level saves
   onProjectDataUpdate,// (updatedProjectData) => void — called after data saves
+  designInfo = {},
+  saveDesignInfo,     // (key, value) => void — saves to design-info responses
 }) {
   const [project,     setProject]     = useState(initialProject);
   const [projectData, setProjectData] = useState(initialProject.projectData ?? {});
@@ -318,6 +320,12 @@ export default function ProjectDashboard({
             rawValue={project.address || ''}
             onSave={p('address')}
             wide
+          />
+          <EditableStat
+            label="Revit Year"
+            displayValue={designInfo.revitYear ? String(designInfo.revitYear) : null}
+            rawValue={designInfo.revitYear || ''}
+            onSave={val => saveDesignInfo?.('revitYear', val)}
           />
 
           {/* ── Square Footage ── */}

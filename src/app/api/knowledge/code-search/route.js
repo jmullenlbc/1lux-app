@@ -188,7 +188,8 @@ export async function POST(request) {
   const { user, error } = await requireAuth();
   if (error) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
+  const { getAnthropicKey } = await import('@/lib/anthropicKey');
+  const apiKey = getAnthropicKey();
   if (!apiKey) return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 503 });
 
   let body;
@@ -207,33 +208,42 @@ export async function POST(request) {
   // ── Project context block ──────────────────────────────────────────────────
   let projectBlock = '';
   if (projectContext) {
-    const { projectName, buildingType, city, state, serviceType } = projectContext;
+    const { projectName, buildingType, city, state, codes = {} } = projectContext;
     const parts = [];
     if (projectName)  parts.push(`Project: ${projectName}`);
-    if (buildingType) parts.push(`Building Type: ${buildingType}`);
+    if (buildingType) parts.push(`Building Type: ${buildingType} (multifamily residential)`);
     if (city && state)   parts.push(`Location: ${city}, ${state}`);
     else if (state)      parts.push(`State: ${state}`);
     else if (city)       parts.push(`City: ${city}`);
-    if (serviceType)  parts.push(`Service Type: ${serviceType}`);
+
+    // Individual adopted code editions for this project
+    const codeEditions = [
+      codes.iecc   ? `IECC ${codes.iecc}`          : null,
+      codes.ibc    ? `IBC ${codes.ibc}`            : null,
+      codes.nec    ? `NEC ${codes.nec}`            : null,
+      codes.ashrae ? `ASHRAE 90.1-${codes.ashrae}` : null,
+      codes.nfpa   ? `NFPA 101-${codes.nfpa}`      : null,
+    ].filter(Boolean);
+    if (codeEditions.length) parts.push(`Adopted codes: ${codeEditions.join(', ')}`);
 
     if (parts.length) {
-      projectBlock = `\nPROJECT CONTEXT — scope your answer to this specific project:\n${parts.map(p => `  • ${p}`).join('\n')}\n\nWhen the state is known, note if that state commonly amends the relevant code (e.g., California Title 24, Washington State Energy Code). Lead with how this applies to THIS project, then give the general rule.\n`;
+      projectBlock = `\nPROJECT CONTEXT — scope your answer to this specific project:\n${parts.map(p => `  • ${p}`).join('\n')}\n\nIMPORTANT: This is always a multifamily residential project (apartments, condos, BTR, or similar). Do not reference office, retail, healthcare, warehouse, or other non-residential occupancy types unless directly asked.\n\nWhen specific code editions are listed above, cite those exact editions in your answer. When the state is known, note any state energy code amendments (e.g., California Title 24, Washington State Energy Code) that override the base code.\n`;
     }
   }
 
   // ── System prompt — static instruction block (not cached, cheap) ──────────
   const instructionBlock = {
     type: 'text',
-    text: `You are an expert code consultant for ILC Studios, a professional lighting design firm. Answer questions about building codes relevant to lighting design.
+    text: `You are an expert code consultant for ILC Studios, a professional lighting design firm specializing in multifamily residential projects (apartments, condos, build-to-rent, podium/wrap, garden-style, high-rise). All projects are multifamily residential unless explicitly stated otherwise.
 
-Always cite the specific section (e.g., "ASHRAE 90.1-2022 §9.5.1" or "IBC 2021 §1006"). Be direct — designers use this on the job.
+Answer questions about building codes relevant to lighting design. Always cite the specific section (e.g., "ASHRAE 90.1-2022 §9.5.1" or "IBC 2021 §1006"). Be direct — designers use this on the job.
 ${projectBlock}
 CONFIDENCE — end every answer with one:
 - ✅ CERTAIN — code text directly answers the question
 - ⚠️ LIKELY — code implies this but exceptions or amendments may apply
-- 🔍 VERIFY WITH EOR — life safety, egress, or healthcare; always confirm with stamping engineer
+- 🔍 VERIFY WITH EOR — life safety or egress; always confirm with stamping engineer
 
-RULES: Use **bold** for numbers (W/ft², foot-candles, distances, durations). Do not invent requirements not in the corpus. For healthcare, high-rise, or life-safety questions always recommend VERIFY WITH EOR.
+RULES: Use **bold** for numbers (W/ft², foot-candles, distances, durations). Do not invent requirements not in the corpus. For egress or life-safety questions always recommend VERIFY WITH EOR. Keep answers focused on multifamily residential occupancies (R-2 in IBC terms).
 
 Searching ${sections.length} of ${allSections.length} total sections (pre-filtered by topic).`,
   };
@@ -261,7 +271,6 @@ Searching ${sections.length} of ${allSections.length} total sections (pre-filter
           max_tokens: 1500,
           system:     [instructionBlock, corpusBlock],
           messages,
-          betas:      ['prompt-caching-2024-07-31'],
         });
 
         for await (const event of streamer) {

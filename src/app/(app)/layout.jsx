@@ -15,7 +15,7 @@ export default async function AppLayout({ children }) {
       <Sidebar user={session} />
       <main className="flex-1 overflow-y-auto flex flex-col">
         <AppBreadcrumb />
-        <div className="flex-1">
+        <div className="flex-1 pb-28">
           {children}
         </div>
       </main>

@@ -5,6 +5,7 @@ import { runAllChecks } from '@/lib/fixtureScheduleChecks';
 import fs from 'fs';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
+import { getAnthropicKey } from '@/lib/anthropicKey';
 
 // ── Load code corpus (reuse same pattern as code-search route) ────────────────
 function parseFrontmatter(content) {
@@ -96,7 +97,7 @@ export async function POST(request, { params }) {
   const { error } = await requireAuth();
   if (error) return error;
 
-  const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
+  const apiKey = getAnthropicKey()?.trim();
   if (!apiKey) return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 503 });
 
   const projectId = params.id;

@@ -89,6 +89,9 @@ export default function ContractWidgets({
   // Design contract
   designValue,    onDesignValueChange,
   designDate,     onDesignDateChange,
+  // Filter flags — show only one contract type
+  supplyOnly = false,
+  designOnly  = false,
 }) {
 
   async function patch(body) {
@@ -122,41 +125,28 @@ export default function ContractWidgets({
 
   return (
     <div className="space-y-3 mb-6">
-      {/* Row 1 — Design contract */}
-      <div className="flex gap-3">
-        <Widget label="Design Contract Value" autoParsed={designValue != null}>
-          <EditableField
-            display={formatCurrencyDisplay(designValue)}
-            onSave={saveDesignValue}
-            placeholder="e.g. 36200"
-          />
-        </Widget>
-        <Widget label="Design Contract Signed Date" autoParsed={designDate != null}>
-          <EditableField
-            display={formatDateDisplay(designDate)}
-            onSave={saveDesignDate}
-            inputType="date"
-          />
-        </Widget>
-      </div>
-
-      {/* Row 2 — Supply contract */}
-      <div className="flex gap-3">
-        <Widget label="Supply Contract Value" autoParsed={value != null}>
-          <EditableField
-            display={formatCurrencyDisplay(value)}
-            onSave={saveSupplyValue}
-            placeholder="e.g. 754000"
-          />
-        </Widget>
-        <Widget label="Supply Contract Signed Date" autoParsed={signedDate != null}>
-          <EditableField
-            display={formatDateDisplay(signedDate)}
-            onSave={saveSupplyDate}
-            inputType="date"
-          />
-        </Widget>
-      </div>
+      {/* Design contract row — hidden in supplyOnly mode */}
+      {!supplyOnly && (
+        <div className="flex gap-3">
+          <Widget label="Design Contract Value" autoParsed={designValue != null}>
+            <EditableField display={formatCurrencyDisplay(designValue)} onSave={saveDesignValue} placeholder="e.g. 36200" />
+          </Widget>
+          <Widget label="Design Contract Signed Date" autoParsed={designDate != null}>
+            <EditableField display={formatDateDisplay(designDate)} onSave={saveDesignDate} inputType="date" />
+          </Widget>
+        </div>
+      )}
+      {/* Supply contract row — hidden in designOnly mode */}
+      {!designOnly && (
+        <div className="flex gap-3">
+          <Widget label="Supply Contract Value" autoParsed={value != null}>
+            <EditableField display={formatCurrencyDisplay(value)} onSave={saveSupplyValue} placeholder="e.g. 754000" />
+          </Widget>
+          <Widget label="Supply Contract Signed Date" autoParsed={signedDate != null}>
+            <EditableField display={formatDateDisplay(signedDate)} onSave={saveSupplyDate} inputType="date" />
+          </Widget>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,6 +2,8 @@
 // Keys match the serviceType enum values stored in the DB exactly.
 // fullDesign and designAssist share the same nav structure.
 // peerReview, bidOnly, and other share the same nav structure.
+//
+// icon: Lucide icon name — used by ProjectSidebar for the collapsed rail.
 
 export const NAV_CONFIG = {
   fullDesign: [
@@ -9,43 +11,47 @@ export const NAV_CONFIG = {
       section: 'Overview',
       icon: '⊡',
       items: [
-        { id: 'dashboard', label: 'Dashboard' },
+        { id: 'dashboard',       label: 'Dashboard',       icon: 'LayoutDashboard' },
       ],
     },
     {
       section: 'Pre-Construction',
       icon: '◈',
       items: [
-        { id: 'budgets',  label: 'Budgets' },
-        { id: 'takeoffs', label: 'Takeoffs' },
+        { id: 'budgets',         label: 'Budgets',         icon: 'Calculator' },
+        { id: 'takeoffs',        label: 'Takeoffs',        icon: 'Ruler' },
       ],
     },
     {
       section: 'Design',
       icon: '✦',
       items: [
-        { id: 'drawings',         label: 'Drawings' },
-        { id: 'fixture-schedule', label: 'Fixture Schedule' },
-        { id: 'design-info',      label: 'Design Info' },
+        { id: 'drawings',        label: 'Drawings',        icon: 'FileText' },
+        { id: 'fixture-schedule',label: 'Fixture Schedule',icon: 'ListChecks' },
+        { id: 'code',            label: 'Code',            icon: 'Code2' },
+        { id: 'design-schedule', label: 'Design Schedule', icon: 'CalendarDays' },
+        { id: 'rfis',            label: 'RFIs',            icon: 'HelpCircle' },
+        { id: 'design-contracts',label: 'Contracts',       icon: 'Receipt' },
       ],
     },
     {
       section: 'Construction',
       icon: '◉',
       items: [
-        { id: 'submittals',    label: 'Submittals' },
-        { id: 'ship-schedule', label: 'Ship Schedule' },
-        { id: 'contracts',     label: 'Contracts' },
-        { id: 'ca',            label: 'CA' },
-        { id: 'notifications', label: 'External Notifications' },
+        { id: 'submittals',            label: 'Submittals',           icon: 'ClipboardCheck' },
+        { id: 'ship-schedule',         label: 'Ship Schedule',        icon: 'Truck' },
+        { id: 'change-orders',         label: 'Change Orders',        icon: 'FileDiff' },
+        { id: 'construction-schedule', label: 'Construction Schedule',icon: 'CalendarClock' },
+        { id: 'contracts',             label: 'Contracts',            icon: 'Receipt' },
+        { id: 'notifications',         label: 'Client Portal Access', icon: 'Users' },
       ],
     },
     {
       section: 'Communications',
       icon: '◎',
       items: [
-        { id: 'meetings',       label: 'Meetings' },
-        { id: 'correspondence', label: 'Correspondence' },
+        { id: 'meetings',        label: 'Meetings',        icon: 'Calendar' },
+        { id: 'correspondence',  label: 'Correspondence',  icon: 'Mail' },
       ],
     },
   ],
@@ -57,36 +63,38 @@ export const NAV_CONFIG = {
       section: 'Overview',
       icon: '⊡',
       items: [
-        { id: 'dashboard', label: 'Dashboard' },
+        { id: 'dashboard',       label: 'Dashboard',       icon: 'LayoutDashboard' },
       ],
     },
     {
       section: 'Pre-Construction',
       icon: '◈',
       items: [
-        { id: 'budgets',          label: 'Budgets' },
-        { id: 'drawings',         label: 'Drawings' },
-        { id: 'fixture-schedule', label: 'Fixture Schedule' },
-        { id: 'takeoffs',         label: 'Takeoffs' },
+        { id: 'budgets',         label: 'Budgets',         icon: 'Calculator' },
+        { id: 'drawings',        label: 'Drawings',        icon: 'FileText' },
+        { id: 'fixture-schedule',label: 'Fixture Schedule',icon: 'ListChecks' },
+        { id: 'takeoffs',        label: 'Takeoffs',        icon: 'Ruler' },
+        { id: 'rfis',            label: 'RFIs',            icon: 'HelpCircle' },
       ],
     },
     {
       section: 'Construction',
       icon: '◉',
       items: [
-        { id: 'submittals',    label: 'Submittals' },
-        { id: 'ship-schedule', label: 'Ship Schedule' },
-        { id: 'contracts',     label: 'Contracts' },
-        { id: 'ca',            label: 'CA' },
-        { id: 'notifications', label: 'External Notifications' },
+        { id: 'submittals',            label: 'Submittals',           icon: 'ClipboardCheck' },
+        { id: 'ship-schedule',         label: 'Ship Schedule',        icon: 'Truck' },
+        { id: 'construction-schedule', label: 'Construction Schedule',icon: 'CalendarClock' },
+        { id: 'change-orders',         label: 'Change Orders',        icon: 'FileDiff' },
+        { id: 'contracts',             label: 'Contracts',            icon: 'Receipt' },
+        { id: 'notifications',         label: 'Client Portal Access', icon: 'Users' },
       ],
     },
     {
       section: 'Communications',
       icon: '◎',
       items: [
-        { id: 'meetings',       label: 'Meetings' },
-        { id: 'correspondence', label: 'Correspondence' },
+        { id: 'meetings',        label: 'Meetings',        icon: 'Calendar' },
+        { id: 'correspondence',  label: 'Correspondence',  icon: 'Mail' },
       ],
     },
   ],

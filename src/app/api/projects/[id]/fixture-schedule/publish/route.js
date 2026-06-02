@@ -12,11 +12,27 @@ function splitCatalogNumber(raw) {
   return parts.length > 0 ? parts : [raw];
 }
 
+// Normalize a location string to the standard section id
+function normalizeSectionId(raw) {
+  if (!raw) return 'other';
+  const v = raw.toLowerCase().replace(/[^a-z]/g, '');
+  if (v.includes('unit'))     return 'units';
+  if (v.includes('corridor')) return 'corridor';
+  if (v.includes('stair'))    return 'corridor';
+  if (v.includes('garage'))   return 'garage';
+  if (v.includes('boh') || v.includes('mechanical') || v.includes('electrical') || v.includes('storage')) return 'boh';
+  if (v.includes('amenity') || v.includes('lobby') || v.includes('leasing') || v.includes('fitness') || v.includes('clubhouse')) return 'amenity';
+  if (v.includes('exterior') || v.includes('site') || v.includes('pool'))  return 'exterior';
+  if (v.includes('control'))  return 'controls';
+  return 'other';
+}
+
 // POST /api/projects/[id]/fixture-schedule/publish
 // Body: { submissionTag?: string }
 // 1. Publish the DRAFT as a new PUBLISHED version
 // 2. Compute diff vs previous bid matrix (if any)
 // 3. Create a DesignBidMatrix with split items, carrying forward pricing by type+partNumber
+// 4. Sync PeerReviewItem records so items appear in the Budget Matrix page
 export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
@@ -185,6 +201,97 @@ export async function POST(request, { params }) {
 
     return [newDraft, matrix];
   });
+
+  // ── Step 4: Smart merge PeerReviewItem records ────────────────────────────
+  // SMART MERGE — never wipes user-entered pricing/specs.
+  // • New type codes in this push → CREATE
+  // • Type codes removed from schedule → DELETE
+  // • Type codes still present → UPDATE description/location/notes only (keep all pricing)
+  try {
+    const existingItems = await prisma.peerReviewItem.findMany({
+      where: { projectId: params.id },
+    });
+
+    // Index existing items by typeCode (lowercase)
+    const existingByType = new Map();
+    for (const item of existingItems) {
+      const key = (item.typeCode || '').toLowerCase().trim();
+      if (key) existingByType.set(key, item);
+    }
+
+    // Build de-duped list of new items from bidMatrix (first occurrence per typeCode wins)
+    const seen = new Set();
+    const newItems = [];
+    let order = 0;
+    for (const bi of bidMatrix.items) {
+      const typeKey = (bi.type || '').toLowerCase().trim();
+      if (typeKey && seen.has(typeKey)) continue;
+      seen.add(typeKey);
+      newItems.push({ bi, typeKey, order: order++ });
+    }
+
+    const newTypeKeys   = new Set(newItems.map(n => n.typeKey).filter(Boolean));
+    const existTypeKeys = new Set(existingByType.keys());
+
+    // DELETE: type codes that no longer exist in the schedule
+    const toDelete = [...existTypeKeys].filter(k => !newTypeKeys.has(k));
+    if (toDelete.length > 0) {
+      await prisma.peerReviewItem.deleteMany({
+        where: {
+          projectId: params.id,
+          typeCode: { in: [...existingByType.entries()]
+            .filter(([k]) => toDelete.includes(k))
+            .map(([, v]) => v.typeCode) },
+        },
+      });
+    }
+
+    // ADD or UPDATE
+    for (const { bi, typeKey, order: sortOrder } of newItems) {
+      const existing = existingByType.get(typeKey);
+
+      if (existing) {
+        // UPDATE: refresh schedule-derived fields, preserve all user-entered data
+        await prisma.peerReviewItem.update({
+          where: { id: existing.id },
+          data: {
+            description:   bi.description  || '',
+            location:      bi.locationTag  || '',
+            notes:         bi.notes        || '',
+            internalNotes: bi.internalNotes || '',
+            section:       normalizeSectionId(bi.locationTag),
+            sortOrder,
+            // Backfill manufacturer/partNumber only if user hasn't filled them yet
+            propManufacturer: existing.propManufacturer ?? bi.manufacturer ?? null,
+            propModel:        existing.propModel        ?? bi.partNumber   ?? null,
+          },
+        });
+      } else {
+        // CREATE: brand new type code
+        await prisma.peerReviewItem.create({
+          data: {
+            projectId:       params.id,
+            section:         normalizeSectionId(bi.locationTag),
+            typeCode:        bi.type         || '',
+            description:     bi.description  || '',
+            location:        bi.locationTag  || '',
+            notes:           bi.notes        || '',
+            internalNotes:   bi.internalNotes || '',
+            sortOrder,
+            qtyType:         'Unit',
+            propManufacturer: bi.manufacturer || null,
+            propModel:        bi.partNumber   || null,
+            propUnitDN:       bi.dnPerUnit    ?? null,
+            propUnitPrice:    bi.cnPerUnit    ?? null,
+            repName:          bi.salesRep     ?? null,
+            rfqStatus:        bi.rfqStatus    ?? null,
+          },
+        });
+      }
+    }
+  } catch (syncErr) {
+    console.error('[publish] PeerReviewItem sync error:', syncErr?.message ?? syncErr);
+  }
 
   return NextResponse.json({ draft: newDraft, bidMatrix, version: nextVersion });
 }

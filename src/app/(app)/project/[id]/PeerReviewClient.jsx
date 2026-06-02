@@ -463,6 +463,125 @@ function ImportModal({ projectId, onImported, onClose }) {
   );
 }
 
+// ── Duplicate Bid button + modal ──────────────────────────────────────────────
+function DuplicateBidButton({ projectId, currentVersion, onDuplicated }) {
+  const [open,      setOpen]      = useState(false);
+  const [name,      setName]      = useState('');
+  const [duplicating, setDuplicating] = useState(false);
+  const [err,       setErr]       = useState('');
+
+  function openModal() {
+    setName(currentVersion != null ? `Copy of v${currentVersion}` : 'Best Price Version');
+    setErr('');
+    setOpen(true);
+  }
+
+  async function duplicate() {
+    setDuplicating(true); setErr('');
+    try {
+      const res = await fetch(`/api/projects/${projectId}/design-bid-matrix/duplicate`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceVersion: currentVersion ?? undefined, name: name.trim() }),
+      });
+      let data; try { data = await res.json(); } catch { data = {}; }
+      if (!res.ok) { setErr(data.error || 'Duplicate failed'); setDuplicating(false); return; }
+      onDuplicated?.(data.matrix);
+      setOpen(false);
+    } catch (e) {
+      setErr(e.message || 'Network error');
+    } finally {
+      setDuplicating(false);
+    }
+  }
+
+  return (
+    <>
+      <button onClick={openModal}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors print:hidden">
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+        </svg>
+        Duplicate
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <div>
+                <h2 className="font-semibold text-slate-800">Duplicate Budget Version</h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Copies all items and pricing from {currentVersion != null ? `v${currentVersion}` : 'the current live budget'} into a new version you can edit independently
+                </p>
+              </div>
+              <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Version Name *</label>
+                <input
+                  autoFocus
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && duplicate()}
+                  placeholder="e.g. Best Price Version, Alternate Spec"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">This becomes the version label in the version selector</p>
+              </div>
+              {err && <p className="text-xs text-red-600">{err}</p>}
+              <div className="flex gap-2 pt-1">
+                <button onClick={() => setOpen(false)} className="flex-1 px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
+                <button onClick={duplicate} disabled={duplicating || !name.trim()}
+                  className="flex-1 px-4 py-2 rounded-lg bg-slate-800 text-white text-sm font-semibold hover:bg-slate-700 disabled:opacity-60 transition-colors">
+                  {duplicating ? 'Duplicating…' : 'Duplicate'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ── Push to Ship Schedule button ──────────────────────────────────────────────
+function PushToShipButton({ projectId }) {
+  const [pushing, setPushing] = useState(false);
+  const [result,  setResult]  = useState(null);
+  const [err,     setErr]     = useState('');
+
+  async function push() {
+    setPushing(true); setErr(''); setResult(null);
+    const res = await fetch(`/api/projects/${projectId}/ship-schedule/push`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}),
+    });
+    const data = await res.json();
+    if (!res.ok) { setErr(data.error || 'Push failed'); setPushing(false); return; }
+    setResult(data);
+    setPushing(false);
+    setTimeout(() => setResult(null), 4000);
+  }
+
+  return (
+    <div className="relative print:hidden">
+      <button onClick={push} disabled={pushing}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors disabled:opacity-60">
+        {pushing
+          ? <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
+          : <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" /></svg>
+        }
+        {pushing ? 'Pushing…' : result ? `✓ +${result.added} upd:${result.updated}` : 'Push to Ship Schedule'}
+      </button>
+      {err && <div className="absolute top-full left-0 mt-1 z-20 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-600 whitespace-nowrap shadow-sm">{err}</div>}
+    </div>
+  );
+}
+
 // ── Manufacturer Popup ────────────────────────────────────────────────────────
 
 function MfrPopup({ onCreated, onClose }) {
@@ -847,7 +966,7 @@ function EmailBidPopup({ project, onClose }) {
             <textarea value={body} onChange={e => setBody(e.target.value)} rows={10}
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
           </div>
-          <p className="text-[10px] text-slate-400">Tip: Print the Peer Review Matrix to PDF first, then attach it before sending.</p>
+          <p className="text-[10px] text-slate-400">Tip: Print the Budget Matrix to PDF first, then attach it before sending.</p>
         </div>
 
         {/* Footer */}
@@ -881,7 +1000,12 @@ function EmailBidPopup({ project, onClose }) {
 const DESIGN_BID_SERVICE_TYPES = new Set(['fullDesign', 'designAssist']);
 
 export default function PeerReviewClient({ project, initialItems }) {
-  const [matrixType, setMatrixType] = useState(project?.peerReviewMatrixType || 'PEER_REVIEW');
+  // Full Design / Design Assist → Design Bid view by default
+  // Peer Review / Bid Only → Budget Matrix view by default
+  // Explicit peerReviewMatrixType in DB always wins (user's saved preference)
+  const defaultMatrixType = project?.peerReviewMatrixType ||
+    (DESIGN_BID_SERVICE_TYPES.has(project?.serviceType) ? 'DESIGN_BID' : 'PEER_REVIEW');
+  const [matrixType, setMatrixType] = useState(defaultMatrixType);
   const [showToggleConfirm, setShowToggleConfirm] = useState(false);
   const isDesignBid = matrixType === 'DESIGN_BID';
 
@@ -925,10 +1049,20 @@ export default function PeerReviewClient({ project, initialItems }) {
   const [dragItem,      setDragItem]      = useState(null);
   const [dragOverId,    setDragOverId]    = useState(null);
   const [showEmailPopup, setShowEmailPopup] = useState(false);
+  const [bidHistory,      setBidHistory]      = useState([]); // full DesignBidMatrix objects with items
+  const [selectedBidVer,  setSelectedBidVer]  = useState(null); // null = live current
 
   useEffect(() => {
     fetch('/api/manufacturers').then(r => r.json()).then(d => setManufacturers(d.manufacturers || []));
   }, []);
+
+  // Load bid version history (full matrix objects with items)
+  useEffect(() => {
+    fetch(`/api/projects/${project.id}/design-bid-matrix`)
+      .then(r => r.json())
+      .then(d => { if (d.matrices) setBidHistory(d.matrices); })
+      .catch(() => {});
+  }, [project.id]);
 
   // Freeze budget settings in DB on first open so they never drift with future code defaults
   useEffect(() => {
@@ -1185,9 +1319,9 @@ export default function PeerReviewClient({ project, initialItems }) {
       { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 30 }, { wch: 30 },
     ];
 
-    XLSX.utils.book_append_sheet(wb, ws, 'Peer Review Matrix');
+    XLSX.utils.book_append_sheet(wb, ws, 'Budget Matrix');
     const safeName = project.name.replace(/[\\/:*?"<>|]/g, '_').slice(0, 40);
-    XLSX.writeFile(wb, `Peer Review Matrix – ${safeName}.xlsx`);
+    XLSX.writeFile(wb, `Budget Matrix – ${safeName}.xlsx`);
   }
 
   // ── Sort ────────────────────────────────────────────────────────────────────
@@ -1359,14 +1493,45 @@ export default function PeerReviewClient({ project, initialItems }) {
             </svg>
           </Link>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: isDesignBid ? '#7c3aed' : '#2563eb' }}>
-                {isDesignBid ? 'Design Bid Matrix' : 'Peer Review Matrix'}
+                {isDesignBid ? 'Design Bid Matrix' : 'Budget Matrix'}
               </span>
+              {/* Version selector — matches Fixture Schedule pattern */}
+              {bidHistory.length > 0 && (
+                <select
+                  value={selectedBidVer ?? 'live'}
+                  onChange={e => setSelectedBidVer(e.target.value === 'live' ? null : e.target.value)}
+                  className="text-xs border border-slate-200 rounded-lg px-2.5 py-1 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                >
+                  <option value="live">Current (live)</option>
+                  {bidHistory.map(m => {
+                    const fmtDate = new Date(m.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    const change = (() => { try { return JSON.parse(m.changeSummary || '{}'); } catch { return {}; } })();
+                    const diff = [
+                      change.added?.length > 0   ? `+${change.added.length}`   : '',
+                      change.removed?.length > 0 ? `-${change.removed.length}` : '',
+                    ].filter(Boolean).join(' ');
+                    return (
+                      <option key={m.id} value={m.id}>
+                        v{m.version} · {fmtDate}{m.submissionTag ? ` · ${m.submissionTag}` : ''}{diff ? ` (${diff})` : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+              )}
+              {selectedBidVer && (
+                <span className="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-500 font-medium">
+                  Read-only snapshot
+                </span>
+              )}
               <span className="text-slate-300">·</span>
               <span className="text-sm font-semibold text-slate-900">{project.name}</span>
             </div>
-            <p className="text-[10px] text-slate-400">Click any cell to edit · Tab to advance</p>
+            <p className="text-[10px] text-slate-400">
+              {selectedBidVer ? 'Read-only snapshot — select "Current (live)" to edit' : 'Click any cell to edit · Tab to advance'}
+              {!selectedBidVer && bidHistory.length > 0 && ` · ${bidHistory.length} version${bidHistory.length !== 1 ? 's' : ''}`}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -1379,28 +1544,11 @@ export default function PeerReviewClient({ project, initialItems }) {
               Saving…
             </div>
           )}
-          <Link href="/manufacturers"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors print:hidden">
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205l3 1m1.5.5l-1.5-.5M6.75 7.364V3h-3v18m3-13.636l10.5-3.819" />
-            </svg>
-            Manufacturers
-          </Link>
-          {/* Matrix type toggle */}
-          <button
-            onClick={handleToggleRequest}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors print:hidden"
-            style={isDesignBid
-              ? { borderColor: '#7c3aed', backgroundColor: '#f5f3ff', color: '#6d28d9' }
-              : { borderColor: '#2563eb', backgroundColor: '#eff6ff', color: '#1d4ed8' }
-            }
-            title="Switch between Peer Review Matrix and Design Bid view"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-            </svg>
-            {isDesignBid ? 'Design Bid view' : 'Peer Review view'}
-          </button>
+          {/* Push to Ship Schedule */}
+          <PushToShipButton projectId={project.id} />
+          {/* Duplicate bid */}
+          <DuplicateBidButton projectId={project.id} currentVersion={selectedBidVer ? bidHistory.find(m => m.id === selectedBidVer)?.version : null} onDuplicated={m => setBidHistory(prev => [m, ...prev])} />
+          {/* Export Excel */}
           <button onClick={exportToExcel} disabled={items.length === 0}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors print:hidden disabled:opacity-40 disabled:cursor-not-allowed">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1408,6 +1556,7 @@ export default function PeerReviewClient({ project, initialItems }) {
             </svg>
             Export Excel
           </button>
+          {/* Email Bid */}
           <button onClick={() => setShowEmailPopup(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors print:hidden">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1415,6 +1564,7 @@ export default function PeerReviewClient({ project, initialItems }) {
             </svg>
             Email Bid
           </button>
+          {/* Print */}
           <button onClick={() => window.print()}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1422,12 +1572,28 @@ export default function PeerReviewClient({ project, initialItems }) {
             </svg>
             Print
           </button>
+          {/* Budget Settings */}
           <button onClick={() => setShowSettings(s => !s)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${showSettings ? 'bg-slate-900 border-slate-900 text-white' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'}`}>
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
             </svg>
             Budget Settings
+          </button>
+          {/* Matrix type toggle — far right */}
+          <button
+            onClick={handleToggleRequest}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors print:hidden"
+            style={isDesignBid
+              ? { borderColor: '#7c3aed', backgroundColor: '#f5f3ff', color: '#6d28d9' }
+              : { borderColor: '#2563eb', backgroundColor: '#eff6ff', color: '#1d4ed8' }
+            }
+            title="Switch between Budget Matrix and Design Bid view"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+            </svg>
+            {isDesignBid ? 'Design Bid view' : 'Budget Matrix view'}
           </button>
         </div>
       </div>
@@ -1525,8 +1691,140 @@ export default function PeerReviewClient({ project, initialItems }) {
           </div>
         )}
 
-        {/* ── Location Tag tabs ── */}
-        <div className="flex gap-2 mb-4 flex-wrap">
+        {/* ── Historical version view (read-only snapshot) ── */}
+        {selectedBidVer && (() => {
+          const matrix = bidHistory.find(m => m.id === selectedBidVer);
+          if (!matrix) return null;
+          const change = (() => { try { return JSON.parse(matrix.changeSummary || '{}'); } catch { return {}; } })();
+          const addedTypes   = new Set((change.added   || []).map(i => i.type));
+          const removedTypes = new Set((change.removed || []).map(i => i.type));
+          const fmtDate = d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          const fmt = v => v != null ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(v) : '—';
+
+          return (
+            <div className="mb-6 space-y-3">
+              {/* Version header */}
+              <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-50 border border-slate-200">
+                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-slate-800 text-white">v{matrix.version}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-slate-700">
+                    Pushed {fmtDate(matrix.createdAt)}{matrix.submissionTag ? ` · ${matrix.submissionTag}` : ''}
+                  </p>
+                  {(change.added?.length > 0 || change.removed?.length > 0) && (
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {change.added?.length > 0 && <span className="text-green-600 font-semibold">+{change.added.length} added </span>}
+                      {change.removed?.length > 0 && <span className="text-red-500 font-semibold">−{change.removed.length} removed</span>}
+                      {' '}from previous version
+                    </p>
+                  )}
+                </div>
+                <button onClick={() => setSelectedBidVer(null)}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-slate-800 text-white hover:bg-slate-700 transition-colors font-semibold">
+                  Back to current
+                </button>
+              </div>
+
+              {/* Historical table */}
+              <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto shadow-sm">
+                <table className="min-w-full text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200">
+                      {['Type', 'Description', 'Location', 'Manufacturer', 'Part #', 'Qty', 'DN $/Unit', 'CN $/Unit', 'CN Total', 'Notes'].map(h => (
+                        <th key={h} className="px-3 py-2 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(matrix.items || []).map((item, idx) => {
+                      const isNew     = addedTypes.has(item.type);
+                      const isRemoved = removedTypes.has(item.type);
+                      return (
+                        <tr key={item.id}
+                          className={`border-b last:border-0 ${isNew ? 'bg-green-50' : isRemoved ? 'bg-red-50' : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}`}>
+                          <td className="px-3 py-2 font-semibold text-slate-800 whitespace-nowrap">
+                            {item.type}
+                            {isNew && <span className="ml-1.5 text-[9px] font-bold text-green-600 bg-green-100 px-1.5 py-0.5 rounded-full">NEW</span>}
+                            {isRemoved && <span className="ml-1.5 text-[9px] font-bold text-red-500 bg-red-100 px-1.5 py-0.5 rounded-full">REMOVED</span>}
+                          </td>
+                          <td className="px-3 py-2 text-slate-600 max-w-[200px]">{item.description || '—'}</td>
+                          <td className="px-3 py-2 text-slate-500">{item.locationTag || '—'}</td>
+                          <td className="px-3 py-2 text-blue-700 font-medium">{item.manufacturer || '—'}</td>
+                          <td className="px-3 py-2 font-mono text-slate-600">{item.partNumber || '—'}</td>
+                          <td className="px-3 py-2 text-slate-600 text-right">{item.qty ?? '—'}</td>
+                          <td className="px-3 py-2 text-slate-600 text-right">{item.dnPerUnit != null ? fmt(item.dnPerUnit) : '—'}</td>
+                          <td className="px-3 py-2 text-blue-600 font-semibold text-right">{item.cnPerUnit != null ? fmt(item.cnPerUnit) : '—'}</td>
+                          <td className="px-3 py-2 font-bold text-blue-700 text-right">{item.cnTotal != null ? fmt(item.cnTotal) : item.cnPerUnit != null && item.qty != null ? fmt(item.cnPerUnit * item.qty) : '—'}</td>
+                          <td className="px-3 py-2 text-slate-400 max-w-[120px] truncate">{item.notes || '—'}</td>
+                        </tr>
+                      );
+                    })}
+                    {(matrix.items || []).length === 0 && (
+                      <tr><td colSpan={10} className="py-8 text-center text-sm text-slate-400">No items in this version</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* ── Pricing Summary — always uses live budget rates & totals ── */}
+              <div className="mt-4 flex justify-end">
+                <div className="w-80 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                  <div className="px-4 py-2.5 border-b border-slate-100">
+                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Pricing Summary</p>
+                  </div>
+                  <table className="w-full text-sm">
+                    <tbody>
+                      <tr className="border-b border-slate-100">
+                        <td className="px-4 py-2 text-slate-600">CN Subtotal — Lighting</td>
+                        <td className="px-4 py-2 text-right font-mono font-semibold text-slate-700">{rawLighting > 0 ? fmt(rawLighting) : '—'}</td>
+                      </tr>
+                      {rawControls > 0 && (
+                        <tr className="border-b border-slate-100">
+                          <td className="px-4 py-2 text-violet-600">CN Subtotal — Controls</td>
+                          <td className="px-4 py-2 text-right font-mono font-semibold text-violet-600">{fmt(rawControls)}</td>
+                        </tr>
+                      )}
+                      {freightAmt > 0 && (
+                        <tr className="border-b border-slate-50">
+                          <td className="px-4 py-1.5 text-slate-400 text-xs">Freight ({freightPctVal > 0 ? `${(freightPctVal*100).toFixed(0)}%` : ''})</td>
+                          <td className="px-4 py-1.5 text-right font-mono text-xs text-slate-400">{fmt(freightAmt)}</td>
+                        </tr>
+                      )}
+                      {warehousingAmt > 0 && (
+                        <tr className="border-b border-slate-50">
+                          <td className="px-4 py-1.5 text-slate-400 text-xs">Warehousing ({warehousingPctVal > 0 ? `${(warehousingPctVal*100).toFixed(0)}%` : ''})</td>
+                          <td className="px-4 py-1.5 text-right font-mono text-xs text-slate-400">{fmt(warehousingAmt)}</td>
+                        </tr>
+                      )}
+                      {salesTaxAmt > 0 && (
+                        <tr className="border-b border-slate-100">
+                          <td className="px-4 py-1.5 text-slate-400 text-xs">Sales Tax ({salesTaxPctVal > 0 ? `${(salesTaxPctVal*100).toFixed(2)}%` : '0%'})</td>
+                          <td className="px-4 py-1.5 text-right font-mono text-xs text-slate-400">{fmt(salesTaxAmt)}</td>
+                        </tr>
+                      )}
+                      <tr className="border-b border-slate-100">
+                        <td className="px-4 py-2 text-slate-700 font-semibold">Subtotal Lighting (loaded)</td>
+                        <td className="px-4 py-2 text-right font-mono font-semibold text-slate-700">{subtotalLighting > 0 ? fmt(subtotalLighting) : '—'}</td>
+                      </tr>
+                      {rawControls > 0 && (
+                        <tr className="border-b border-slate-200">
+                          <td className="px-4 py-2 text-violet-700 font-semibold">Subtotal Controls (loaded)</td>
+                          <td className="px-4 py-2 text-right font-mono font-semibold text-violet-700">{fmt(subtotalControls)}</td>
+                        </tr>
+                      )}
+                      <tr className="bg-blue-600 text-white">
+                        <td className="px-4 py-3 font-bold">Grand Total</td>
+                        <td className="px-4 py-3 text-right font-mono font-bold">{fmt(grandTotal)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ── Live view: location tabs + matrix (hidden when viewing a historical version) ── */}
+        {!selectedBidVer && <><div className="flex gap-2 mb-4 flex-wrap">
           <button onClick={() => setActiveSection('all')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
               activeSection === 'all' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
@@ -1936,6 +2234,7 @@ export default function PeerReviewClient({ project, initialItems }) {
             {sectionItems.length > 0 && secTotal > 0 && ` · ${fmt(secTotal)} CN`}
           </span>
         </div>
+        </>}{/* end of !selectedBidVer live-view wrapper */}
 
       </div>
 

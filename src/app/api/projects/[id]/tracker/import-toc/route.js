@@ -4,8 +4,9 @@ import { prisma } from '@/lib/db';
 import path from 'path';
 import { readFile } from 'fs/promises';
 import Anthropic from '@anthropic-ai/sdk';
+import { getAnthropicKey } from '@/lib/anthropicKey';
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const anthropic = new Anthropic({ apiKey: getAnthropicKey() });
 
 async function extractTOCWithAI(text) {
   const prompt = `You are reading a lighting fixture submittal package. The Table of Contents (TOC) lists every fixture type that was submitted.

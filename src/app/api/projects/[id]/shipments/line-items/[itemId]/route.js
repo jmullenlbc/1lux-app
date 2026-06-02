@@ -17,16 +17,26 @@ export async function PATCH(req, { params }) {
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const body = await req.json();
+  const u = (field, transform) =>
+    body[field] !== undefined ? (transform ? transform(body[field]) : body[field]) : existing[field];
   const updated = await prisma.shipmentLineItem.update({
     where: { id: params.itemId },
     data: {
-      fixtureType:    body.fixtureType    !== undefined ? body.fixtureType    : existing.fixtureType,
-      description:    body.description    !== undefined ? body.description    : existing.description,
-      catalogNo:      body.catalogNo      !== undefined ? (body.catalogNo || null) : existing.catalogNo,
-      qty:            body.qty            !== undefined ? body.qty            : existing.qty,
-      fixtureStatus:  body.fixtureStatus  !== undefined ? (body.fixtureStatus || null) : existing.fixtureStatus,
-      notes:          body.notes          !== undefined ? (body.notes || null) : existing.notes,
-      submittalItemId:body.submittalItemId!== undefined ? (body.submittalItemId || null) : existing.submittalItemId,
+      fixtureType:      u('fixtureType'),
+      description:      u('description'),
+      catalogNo:        u('catalogNo',        v => v || null),
+      qty:              u('qty',              v => (v != null ? parseInt(v) : existing.qty)),
+      fixtureStatus:    u('fixtureStatus',    v => v || null),
+      notes:            u('notes',            v => v || null),
+      submittalItemId:  u('submittalItemId',  v => v || null),
+      sortOrder:        u('sortOrder',        v => v != null ? parseInt(v) : existing.sortOrder),
+      propManufacturer: u('propManufacturer', v => v || null),
+      propModel:        u('propModel',        v => v || null),
+      sourceBatchLabel: u('sourceBatchLabel', v => v || null),
+      leadTimeWeeks:    u('leadTimeWeeks',    v => v != null ? String(v) : existing.leadTimeWeeks),
+      esdDate:          u('esdDate',          v => v ? new Date(v) : null),
+      trackingNumber:   u('trackingNumber',   v => v || null),
+      isRemoved:        u('isRemoved'),
     },
   });
 

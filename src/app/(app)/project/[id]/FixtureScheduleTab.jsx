@@ -216,7 +216,7 @@ export default function FixtureScheduleTab({ projectId }) {
       }
     } catch {}
 
-    // 2. AI parse for Peer Review Matrix import
+    // 2. AI parse for Budget Matrix import
     try {
       const fd2 = new FormData();
       fd2.append('file', file);
@@ -288,8 +288,8 @@ export default function FixtureScheduleTab({ projectId }) {
             </svg>
           </div>
           <div className="text-center">
-            <p className="text-lg font-bold text-slate-800">{imported} fixture{imported !== 1 ? 's' : ''} pushed to Peer Review Matrix</p>
-            <p className="text-sm text-slate-400 mt-1">Open the Peer Review Matrix from the Budgets tab to review, price, and finalize.</p>
+            <p className="text-lg font-bold text-slate-800">{imported} fixture{imported !== 1 ? 's' : ''} pushed to Budget Matrix</p>
+            <p className="text-sm text-slate-400 mt-1">Open the Budget Matrix from the Budgets tab to review, price, and finalize.</p>
           </div>
           <button onClick={reset}
             className="px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
@@ -393,7 +393,7 @@ export default function FixtureScheduleTab({ projectId }) {
               <p className="text-sm font-bold text-slate-800">
                 {fixtures.length} fixture type{fixtures.length !== 1 ? 's' : ''} found in &ldquo;{fileName}&rdquo;
               </p>
-              <p className="text-xs text-slate-400 mt-0.5">Adjust sections if needed, remove unwanted rows, then push to Peer Review Matrix</p>
+              <p className="text-xs text-slate-400 mt-0.5">Adjust sections if needed, remove unwanted rows, then push to Budget Matrix</p>
             </div>
             <div className="flex gap-2 shrink-0">
               <button onClick={reset}
@@ -406,7 +406,7 @@ export default function FixtureScheduleTab({ projectId }) {
                   {step === 'importing' ? (
                     <><svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>Pushing…</>
                   ) : (
-                    <>Push {fixtures.length} fixture{fixtures.length !== 1 ? 's' : ''} to Peer Review Matrix</>
+                    <>Push {fixtures.length} fixture{fixtures.length !== 1 ? 's' : ''} to Budget Matrix</>
                   )}
                 </button>
               )}

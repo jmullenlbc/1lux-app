@@ -265,7 +265,7 @@ export default function ContactsTab({ projectId }) {
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h2 className="text-lg font-semibold text-slate-800">External Contacts</h2>
+          <h2 className="text-lg font-semibold text-slate-800">Client Portal Access</h2>
           <p className="text-sm text-slate-400 mt-0.5">
             Manage contractors and clients who have access to the project portal.
           </p>

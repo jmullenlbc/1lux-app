@@ -1,164 +1,20 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function StatusBadge({ status }) {
-  const styles = {
-    PO_PLACED:          'bg-slate-100 text-slate-600',
-    LEAD_TIME_CONFIRMED:'bg-blue-50 text-blue-700',
-    ESD_CONFIRMED:      'bg-indigo-50 text-indigo-700',
-    SHIPPED:            'bg-amber-50 text-amber-700',
-    DELIVERED:          'bg-green-50 text-green-700',
-  };
-  const labels = {
-    PO_PLACED: 'PO Placed', LEAD_TIME_CONFIRMED: 'Lead Time Set',
-    ESD_CONFIRMED: 'ESD Confirmed', SHIPPED: 'Shipped', DELIVERED: 'Delivered',
-  };
-  return (
-    <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${styles[status] || styles.PO_PLACED}`}>
-      {labels[status] || status}
-    </span>
-  );
-}
-
 function fmtDate(d) {
   if (!d) return '—';
-  return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-// ── Ship Schedule view ────────────────────────────────────────────────────────
-
-function ShipScheduleView({ projectId }) {
-  const [shipments, setShipments] = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [expanded,  setExpanded]  = useState({});
-
-  useEffect(() => {
-    fetch(`/api/portal/projects/${projectId}/shipments`)
-      .then(r => r.json()).then(d => { setShipments(d.shipments || []); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, [projectId]);
-
-  if (loading) return <div className="text-center py-10 text-sm text-slate-400">Loading…</div>;
-
-  if (shipments.length === 0) {
-    return <div className="text-center py-12 text-sm text-slate-400">No shipments yet.</div>;
-  }
-
-  return (
-    <div className="space-y-3">
-      {shipments.map(s => (
-        <div key={s.id} className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-          <button
-            onClick={() => setExpanded(prev => ({ ...prev, [s.id]: !prev[s.id] }))}
-            className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-50"
-          >
-            <div className="flex items-center gap-3">
-              <span className="font-semibold text-slate-800 text-sm">{s.manufacturer}</span>
-              <StatusBadge status={s.status} />
-            </div>
-            <div className="flex items-center gap-4 text-xs text-slate-400">
-              {s.esdDate && <span>ESD {fmtDate(s.esdDate)}</span>}
-              {s.deliveredDate && <span className="text-green-600 font-medium">Delivered {fmtDate(s.deliveredDate)}</span>}
-              <svg className={`w-4 h-4 transition-transform ${expanded[s.id] ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </button>
-          {expanded[s.id] && s.lineItems.length > 0 && (
-            <div className="border-t border-slate-100">
-              <table className="w-full text-xs">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-slate-500 font-medium">Fixture</th>
-                    <th className="px-4 py-2 text-left text-slate-500 font-medium">Description</th>
-                    <th className="px-4 py-2 text-right text-slate-500 font-medium">Qty</th>
-                    <th className="px-4 py-2 text-left text-slate-500 font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {s.lineItems.map(li => (
-                    <tr key={li.id} className="border-t border-slate-50">
-                      <td className="px-4 py-2 text-slate-700 font-mono">{li.fixtureType}</td>
-                      <td className="px-4 py-2 text-slate-600">{li.description}</td>
-                      <td className="px-4 py-2 text-right text-slate-600">{li.qty}</td>
-                      <td className="px-4 py-2 text-slate-500">{li.fixtureStatus || '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
+function fmtCurrency(n) {
+  if (n == null) return '—';
+  const abs = Math.abs(n);
+  const str = abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return n < 0 ? `−$${str}` : `$${str}`;
 }
-
-// ── Meeting Notes view ────────────────────────────────────────────────────────
-
-function MeetingNotesView({ projectId }) {
-  const [notes,   setNotes]   = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [active,  setActive]  = useState(null);
-
-  useEffect(() => {
-    fetch(`/api/portal/projects/${projectId}/meeting-notes`)
-      .then(r => r.json()).then(d => { setNotes(d.notes || []); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, [projectId]);
-
-  if (loading) return <div className="text-center py-10 text-sm text-slate-400">Loading…</div>;
-
-  if (active) {
-    return (
-      <div>
-        <button onClick={() => setActive(null)} className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-600 mb-4">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
-          All Notes
-        </button>
-        <div className="bg-white border border-slate-200 rounded-2xl p-6">
-          <h2 className="text-lg font-bold text-slate-800 mb-1">{active.title || 'Untitled'}</h2>
-          {active.meetingDate && (
-            <p className="text-sm text-slate-400 mb-4">{fmtDate(active.meetingDate)}</p>
-          )}
-          <div
-            className="prose prose-sm max-w-none text-slate-700"
-            dangerouslySetInnerHTML={{ __html: active.content || '<p class="text-slate-400">No content.</p>' }}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  if (notes.length === 0) {
-    return <div className="text-center py-12 text-sm text-slate-400">No meeting notes have been shared yet.</div>;
-  }
-
-  return (
-    <div className="space-y-2">
-      {notes.map(n => (
-        <button
-          key={n.id}
-          onClick={() => setActive(n)}
-          className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-left hover:border-amber-200 hover:bg-amber-50/30 transition-all group flex items-center justify-between"
-        >
-          <div>
-            <p className="font-medium text-slate-700 group-hover:text-slate-900 text-sm">{n.title || 'Untitled'}</p>
-            {n.meetingDate && <p className="text-xs text-slate-400 mt-0.5">{fmtDate(n.meetingDate)}</p>}
-          </div>
-          <svg className="w-4 h-4 text-slate-300 group-hover:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-// ── Files view (submittals / contracts / change orders) ───────────────────────
 
 function fmtSize(b) {
   if (!b) return '';
@@ -166,146 +22,515 @@ function fmtSize(b) {
   return `${Math.round(b / 1024)} KB`;
 }
 
-function FileIcon({ mimeType }) {
-  const isPdf = mimeType?.includes('pdf');
+function daysUntil(d) {
+  if (!d) return null;
+  const now = new Date(); now.setHours(12, 0, 0, 0);
+  const tgt = new Date(d); tgt.setHours(12, 0, 0, 0);
+  return Math.round((tgt - now) / 86400000);
+}
+
+function StatusPill({ status }) {
+  const map = {
+    PO_PLACED:           ['bg-slate-100 text-slate-600',  'On order'],
+    LEAD_TIME_CONFIRMED: ['bg-blue-50 text-blue-700',     'Lead time set'],
+    ESD_CONFIRMED:       ['bg-indigo-50 text-indigo-700', 'ESD confirmed'],
+    SHIPPED:             ['bg-amber-50 text-amber-700',   'Shipped'],
+    IN_TRANSIT:          ['bg-amber-50 text-amber-700',   'In transit'],
+    AT_WAREHOUSE:        ['bg-orange-50 text-orange-700', 'In warehouse'],
+    PARTIALLY_RELEASED:  ['bg-orange-50 text-orange-700', 'In warehouse'],
+    RELEASED:            ['bg-green-100 text-green-700',  'Released to site'],
+    DELIVERED:           ['bg-green-100 text-green-700',  'Released to site'],
+    UNDER_REVIEW:        ['bg-purple-50 text-purple-700', 'Under review'],
+    REMOVED:             ['bg-slate-100 text-slate-400',  'Removed'],
+  };
+  const [cls, label] = map[status] || ['bg-slate-100 text-slate-500', status || '—'];
+  return <span className={`inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full ${cls}`}>{label}</span>;
+}
+
+// ── Release modal ─────────────────────────────────────────────────────────────
+
+function ReleaseModal({ shipment, onCancel, onConfirm }) {
   return (
-    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isPdf ? 'bg-red-50' : 'bg-slate-100'}`}>
-      {isPdf ? (
-        <svg className="w-4 h-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-      ) : (
-        <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-      )}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+        <h3 className="text-base font-bold text-slate-800 mb-2">Confirm Release</h3>
+        <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+          Release <strong className="text-slate-700">{shipment.manufacturer}</strong> fixtures from
+          ILC warehouse to job site? This notifies ILC to arrange delivery.
+        </p>
+        <div className="flex gap-3 justify-end">
+          <button onClick={onCancel} className="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">
+            Cancel
+          </button>
+          <button onClick={onConfirm} className="px-4 py-2 text-sm rounded-lg bg-orange-600 text-white font-semibold hover:bg-orange-700">
+            Confirm Release
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
 
-function FilesView({ projectId, tab, label }) {
-  const [files,   setFiles]   = useState([]);
+// ── Ship Schedule ─────────────────────────────────────────────────────────────
+
+function ShipScheduleView({ projectId }) {
+  const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(true);
+  const [pending, setPending] = useState(null); // shipment awaiting release confirm
+  const [released, setReleased] = useState({}); // id → true after local confirm
 
   useEffect(() => {
-    fetch(`/api/portal/projects/${projectId}/files?tab=${tab}`)
-      .then(r => r.json()).then(d => { setFiles(d.files || []); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, [projectId, tab]);
-
-  if (loading) return <div className="text-center py-10 text-sm text-slate-400">Loading…</div>;
-
-  if (files.length === 0) {
-    return <div className="text-center py-12 text-sm text-slate-400">No {label.toLowerCase()} on file yet.</div>;
-  }
-
-  return (
-    <div className="space-y-2">
-      {files.map(f => (
-        <a
-          key={f.id}
-          href={`/api/portal/projects/${projectId}/files/${f.id}`}
-          target="_blank"
-          rel="noreferrer"
-          className="bg-white border border-slate-200 rounded-xl px-4 py-3 flex items-center gap-3 hover:border-amber-300 hover:shadow-sm transition-all group"
-        >
-          <FileIcon mimeType={f.mimeType} />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm text-slate-700 font-medium truncate group-hover:text-amber-700 transition-colors">{f.originalName}</p>
-            <p className="text-xs text-slate-400 mt-0.5">{fmtDate(f.createdAt)}{f.size ? ` · ${fmtSize(f.size)}` : ''}</p>
-          </div>
-          <div className="flex items-center gap-1 text-xs font-medium text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-            Open
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
-          </div>
-        </a>
-      ))}
-    </div>
-  );
-}
-
-// ── Budget view ───────────────────────────────────────────────────────────────
-
-function BudgetView({ projectId }) {
-  const [files,   setFiles]   = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch(`/api/portal/projects/${projectId}/files?tab=budgets`)
-      .then(r => r.json()).then(d => { setFiles(d.files || []); setLoading(false); })
+    fetch(`/api/portal/projects/${projectId}/shipments`)
+      .then(r => r.json())
+      .then(d => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
   }, [projectId]);
 
-  if (loading) return <div className="text-center py-10 text-sm text-slate-400">Loading…</div>;
+  if (loading) return <Spinner />;
+  if (!data?.shipments?.length) return <Empty text="No shipments yet." />;
 
-  if (files.length === 0) {
-    return (
-      <div className="text-center py-12 text-sm text-slate-400">
-        No budget documents have been shared yet.
+  const { shipments, stats } = data;
+  const WAREHOUSE = ['AT_WAREHOUSE', 'PARTIALLY_RELEASED'];
+
+  function handleRelease(s) { setPending(s); }
+  function cancelRelease()  { setPending(null); }
+  function confirmRelease() {
+    setReleased(r => ({ ...r, [pending.id]: true }));
+    setPending(null);
+  }
+
+  return (
+    <>
+      {pending && <ReleaseModal shipment={pending} onCancel={cancelRelease} onConfirm={confirmRelease} />}
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+        {[
+          { label: 'Delivered to site', val: stats.toSite },
+          { label: 'In warehouse',      val: stats.inWarehouse },
+          { label: 'In transit',        val: stats.inTransit },
+          { label: 'On order',          val: stats.onOrder },
+        ].map(s => (
+          <div key={s.label} className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+            <p className="text-[11px] text-slate-400 mb-1">{s.label}</p>
+            <p className="text-xl font-bold text-slate-800">{s.val}</p>
+          </div>
+        ))}
       </div>
-    );
+
+      {/* Desktop table */}
+      <div className="hidden sm:block border border-slate-200 rounded-xl overflow-hidden overflow-x-auto mb-3">
+        <table className="w-full text-xs min-w-[620px]">
+          <thead className="bg-slate-50 border-b border-slate-200">
+            <tr>
+              {['Manufacturer','Description','ESD','Status','Tracking','Arrived',''].map(h => (
+                <th key={h} className="px-3 py-2 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {shipments.map((s, i) => {
+              const isReleased = released[s.id];
+              const effectiveStatus = isReleased ? 'RELEASED' : s.status;
+              const canRelease = !isReleased && WAREHOUSE.includes(s.status);
+              return (
+                <tr key={s.id} className={`border-b border-slate-50 last:border-0 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
+                  <td className="px-3 py-2.5 font-medium text-slate-800">{s.manufacturer}</td>
+                  <td className="px-3 py-2.5 text-slate-500">
+                    {s.lineItems.map(li => li.description).filter(Boolean).join(', ') || '—'}
+                  </td>
+                  <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{fmtDate(s.esdDate)}</td>
+                  <td className="px-3 py-2.5"><StatusPill status={effectiveStatus} /></td>
+                  <td className="px-3 py-2.5 text-slate-400 font-mono text-[11px]">{s.trackingNumber || '—'}</td>
+                  <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap">{fmtDate(s.deliveredDate)}</td>
+                  <td className="px-3 py-2.5">
+                    {canRelease && (
+                      <button
+                        onClick={() => handleRelease(s)}
+                        className="px-2.5 py-1 text-[11px] font-semibold border border-orange-500 text-orange-600 rounded-md hover:bg-orange-50"
+                      >
+                        Release
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile table */}
+      <div className="sm:hidden border border-slate-200 rounded-xl overflow-hidden overflow-x-auto mb-3">
+        <table className="w-full text-xs min-w-[300px]">
+          <thead className="bg-slate-50 border-b border-slate-200">
+            <tr>
+              {['Manufacturer','ESD','Status',''].map(h => (
+                <th key={h} className="px-3 py-2 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {shipments.map((s, i) => {
+              const isReleased = released[s.id];
+              const effectiveStatus = isReleased ? 'RELEASED' : s.status;
+              const canRelease = !isReleased && WAREHOUSE.includes(s.status);
+              return (
+                <tr key={s.id} className={`border-b border-slate-50 last:border-0 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
+                  <td className="px-3 py-2.5 font-medium text-slate-800">{s.manufacturer}</td>
+                  <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap">{fmtDate(s.esdDate)}</td>
+                  <td className="px-3 py-2.5"><StatusPill status={effectiveStatus} /></td>
+                  <td className="px-3 py-2.5">
+                    {canRelease && (
+                      <button onClick={() => handleRelease(s)} className="px-2 py-1 text-[11px] font-semibold border border-orange-500 text-orange-600 rounded-md hover:bg-orange-50">
+                        Release
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <p className="text-[11px] text-slate-400">
+        Release button available for shipments at ILC warehouse · Contact your rep with questions
+      </p>
+    </>
+  );
+}
+
+// ── Budget ────────────────────────────────────────────────────────────────────
+
+function BudgetView({ projectId }) {
+  const [data,    setData]    = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/portal/projects/${projectId}/budget`)
+      .then(r => r.json())
+      .then(d => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [projectId]);
+
+  if (loading) return <Spinner />;
+  if (!data?.matrix) return <Empty text="Budget has not been shared yet." />;
+
+  const { matrix, coSummary } = data;
+  const { items, salesTaxRate, freightRate, warehousingRate } = matrix;
+
+  const subtotal  = items.reduce((s, i) => s + (i.cnTotal || 0), 0);
+  const freight   = subtotal * ((freightRate || 0) / 100);
+  const warehousing = subtotal * ((warehousingRate || 0) / 100);
+  const tax       = subtotal * ((salesTaxRate || 0) / 100);
+  const total     = subtotal + freight + warehousing + tax;
+  const revised   = total + (coSummary.approvedTotal || 0);
+
+  // Group items by locationTag
+  const groups = [];
+  let currentGroup = null;
+  for (const item of items) {
+    const tag = item.locationTag || '';
+    if (!currentGroup || currentGroup.tag !== tag) {
+      currentGroup = { tag, items: [] };
+      groups.push(currentGroup);
+    }
+    currentGroup.items.push(item);
   }
 
   return (
     <div>
-      <p className="text-xs text-slate-400 mb-4">
-        Budget documents below reflect sell pricing. Click to open any PDF in your browser.
-      </p>
-      <div className="space-y-2">
-        {files.map(f => (
-          <a
-            key={f.id}
-            href={`/api/portal/projects/${projectId}/files/${f.id}`}
-            target="_blank"
-            rel="noreferrer"
-            className="bg-white border border-slate-200 rounded-xl px-4 py-3 flex items-center gap-3 hover:border-amber-300 hover:shadow-sm transition-all group"
-          >
-            <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center shrink-0">
-              <svg className="w-4 h-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm text-slate-700 font-medium truncate group-hover:text-amber-700 transition-colors">
-                {f.originalName}
-              </p>
-              <p className="text-xs text-slate-400 mt-0.5">
-                {fmtDate(f.createdAt)}{f.size ? ` · ${fmtSize(f.size)}` : ''}
-              </p>
-            </div>
-            <div className="flex items-center gap-1 text-xs font-medium text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-              Open PDF
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-            </div>
-          </a>
-        ))}
+      {/* CO summary bar */}
+      <div className="grid grid-cols-3 gap-3 mb-5">
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-2">
+          <div>
+            <p className="text-[11px] text-slate-400 mb-1">CO's approved</p>
+            <p className="text-base font-bold text-green-700">{fmtCurrency(coSummary.approvedTotal)}</p>
+          </div>
+          {coSummary.approvedCount > 0 && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">{coSummary.approvedCount} CO</span>
+          )}
+        </div>
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-2">
+          <div>
+            <p className="text-[11px] text-slate-400 mb-1">CO's pending</p>
+            <p className="text-base font-bold text-amber-700">{fmtCurrency(coSummary.pendingTotal)}</p>
+          </div>
+          {coSummary.pendingCount > 0 && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">{coSummary.pendingCount} CO's</span>
+          )}
+        </div>
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+          <p className="text-[11px] text-slate-400 mb-1">Revised total</p>
+          <p className="text-base font-bold text-slate-800">{fmtCurrency(revised)}</p>
+          <p className="text-[10px] text-slate-400">w/ approved</p>
+        </div>
       </div>
+
+      {/* PDF download */}
+      <div className="flex justify-end mb-3">
+        <a
+          href={`/api/projects/${projectId}/bid-matrix/pdf`}
+          target="_blank" rel="noreferrer"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50"
+        >
+          <svg className="w-3.5 h-3.5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+          </svg>
+          Download PDF
+        </a>
+      </div>
+
+      {/* Items table — hidden on small screens, full on large */}
+      <div className="hidden sm:block border border-slate-200 rounded-xl overflow-hidden overflow-x-auto mb-3">
+        <table className="w-full text-xs min-w-[520px]">
+          <thead className="bg-slate-50 border-b border-slate-200">
+            <tr>
+              {['Type','Description','Manufacturer','Qty','Unit (CN)','Total'].map(h => (
+                <th key={h} className="px-3 py-2 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {groups.map(g => (
+              <>
+                {g.tag && (
+                  <tr key={`hdr-${g.tag}`} className="bg-orange-50">
+                    <td colSpan={6} className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-orange-700">{g.tag}</td>
+                  </tr>
+                )}
+                {g.items.map((item, i) => (
+                  <tr key={item.id} className={`border-b border-slate-50 last:border-0 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
+                    <td className="px-3 py-2 font-mono text-slate-700">{item.type}</td>
+                    <td className="px-3 py-2 text-slate-600">{item.description}</td>
+                    <td className="px-3 py-2 text-slate-500">{item.manufacturer || '—'}</td>
+                    <td className="px-3 py-2 text-right text-slate-600">{item.qty ?? '—'}</td>
+                    <td className="px-3 py-2 text-right text-slate-600">{item.cnPerUnit != null ? fmtCurrency(item.cnPerUnit) : '—'}</td>
+                    <td className="px-3 py-2 text-right font-medium text-slate-800">{item.cnTotal != null ? fmtCurrency(item.cnTotal) : '—'}</td>
+                  </tr>
+                ))}
+              </>
+            ))}
+            <tr className="bg-slate-50 border-t border-slate-200">
+              <td colSpan={5} className="px-3 py-2 text-right text-slate-500">Subtotal</td>
+              <td className="px-3 py-2 text-right font-semibold text-slate-800">{fmtCurrency(subtotal)}</td>
+            </tr>
+            {freightRate > 0 && (
+              <tr className="text-slate-400">
+                <td colSpan={5} className="px-3 py-1.5 text-right text-[11px]">Freight ({freightRate}%)</td>
+                <td className="px-3 py-1.5 text-right text-[11px]">{fmtCurrency(freight)}</td>
+              </tr>
+            )}
+            {warehousingRate > 0 && (
+              <tr className="text-slate-400">
+                <td colSpan={5} className="px-3 py-1.5 text-right text-[11px]">Warehousing ({warehousingRate}%)</td>
+                <td className="px-3 py-1.5 text-right text-[11px]">{fmtCurrency(warehousing)}</td>
+              </tr>
+            )}
+            {salesTaxRate > 0 && (
+              <tr className="text-slate-400">
+                <td colSpan={5} className="px-3 py-1.5 text-right text-[11px]">Sales tax ({salesTaxRate}%)</td>
+                <td className="px-3 py-1.5 text-right text-[11px]">{fmtCurrency(tax)}</td>
+              </tr>
+            )}
+            <tr className="bg-[#1C3A5E] text-white">
+              <td colSpan={5} className="px-3 py-2.5 text-right font-bold">Contract total</td>
+              <td className="px-3 py-2.5 text-right font-bold text-sm">{fmtCurrency(total)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile: totals only + download */}
+      <div className="sm:hidden border border-slate-200 rounded-xl overflow-hidden overflow-x-auto mb-3">
+        <table className="w-full text-xs min-w-[280px]">
+          <thead className="bg-slate-50 border-b border-slate-200">
+            <tr>
+              {['Type','Description','Total'].map(h => (
+                <th key={h} className="px-3 py-2 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {groups.map(g => (
+              <>
+                {g.tag && (
+                  <tr key={`mhdr-${g.tag}`} className="bg-orange-50">
+                    <td colSpan={3} className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-orange-700">{g.tag}</td>
+                  </tr>
+                )}
+                {g.items.map(item => (
+                  <tr key={item.id} className="border-b border-slate-50 last:border-0">
+                    <td className="px-3 py-2 font-mono text-slate-700">{item.type}</td>
+                    <td className="px-3 py-2 text-slate-500 max-w-[140px] truncate">{item.description}</td>
+                    <td className="px-3 py-2 text-right font-medium text-slate-700">{item.cnTotal != null ? fmtCurrency(item.cnTotal) : '—'}</td>
+                  </tr>
+                ))}
+              </>
+            ))}
+            <tr className="bg-slate-50 border-t border-slate-200">
+              <td colSpan={2} className="px-3 py-2 text-right text-slate-500">Subtotal</td>
+              <td className="px-3 py-2 text-right font-semibold text-slate-700">{fmtCurrency(subtotal)}</td>
+            </tr>
+            <tr className="bg-[#1C3A5E] text-white">
+              <td colSpan={2} className="px-3 py-2.5 text-right font-bold">Total</td>
+              <td className="px-3 py-2.5 text-right font-bold">{fmtCurrency(total)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p className="text-[11px] text-slate-400">
+        Pricing shown is your contracted sell rate (CN) · ILC buy price not disclosed · Contact your rep for questions
+      </p>
     </div>
   );
 }
 
-// ── Construction Schedule view ────────────────────────────────────────────────
+// ── Change Orders ─────────────────────────────────────────────────────────────
 
-function daysUntil(dateStr) {
-  if (!dateStr) return null;
-  const d = new Date(dateStr + 'T12:00:00');
-  const now = new Date();
-  now.setHours(12, 0, 0, 0);
-  return Math.round((d - now) / 86400000);
+function ChangeOrdersView({ projectId }) {
+  const [data,    setData]    = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/portal/projects/${projectId}/change-orders`)
+      .then(r => r.json())
+      .then(d => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [projectId]);
+
+  if (loading) return <Spinner />;
+  if (!data?.changeOrders?.length) return <Empty text="No change orders on this project yet." />;
+
+  const { changeOrders, approvedTotal, pendingTotal } = data;
+  const pending  = changeOrders.filter(c => c.status === 'DRAFT' || c.status === 'SENT');
+  const approved = changeOrders.filter(c => c.status === 'APPROVED');
+
+  return (
+    <div>
+      {/* Summary bar */}
+      <div className="grid grid-cols-2 gap-3 mb-5">
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-2">
+          <div>
+            <p className="text-[11px] text-slate-400 mb-1">Net approved</p>
+            <p className="text-base font-bold text-green-700">{fmtCurrency(approvedTotal)}</p>
+          </div>
+          {approved.length > 0 && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">{approved.length} approved</span>
+          )}
+        </div>
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-2">
+          <div>
+            <p className="text-[11px] text-slate-400 mb-1">Pending</p>
+            <p className="text-base font-bold text-amber-700">{fmtCurrency(pendingTotal)}</p>
+          </div>
+          {pending.length > 0 && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">{pending.length} pending</span>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {changeOrders.map(co => (
+          <div key={co.id} className="border border-slate-200 rounded-xl p-4">
+            <div className="flex items-start justify-between gap-3 mb-2">
+              <div>
+                <p className="font-semibold text-slate-800 text-sm">{co.coNumber} · {co.title}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{fmtDate(co.date)}</p>
+              </div>
+              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
+                co.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
+                co.status === 'DRAFT'   ? 'bg-amber-100 text-amber-700' :
+                co.status === 'SENT'    ? 'bg-amber-100 text-amber-700' :
+                'bg-slate-100 text-slate-500'
+              }`}>
+                {co.status === 'DRAFT' || co.status === 'SENT' ? 'Pending' : co.status.charAt(0) + co.status.slice(1).toLowerCase()}
+              </span>
+            </div>
+            <p className={`text-sm font-semibold mb-1 ${co.total < 0 ? 'text-red-600' : 'text-slate-700'}`}>
+              {co.total >= 0 ? '+' : ''}{fmtCurrency(co.total)}
+            </p>
+            {co.notes && <p className="text-xs text-slate-500 leading-relaxed">{co.notes}</p>}
+            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
+              <a
+                href={`/api/projects/${projectId}/change-orders/${co.id}/pdf`}
+                target="_blank" rel="noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50"
+              >
+                <svg className="w-3.5 h-3.5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                </svg>
+                Download PDF
+              </a>
+              {(co.status === 'DRAFT' || co.status === 'SENT') && (
+                <a
+                  href="mailto:orders@ilcstudios.com"
+                  className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-orange-300 rounded-lg text-orange-600 hover:bg-orange-50"
+                >
+                  Contact rep
+                </a>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="text-[11px] text-slate-400 mt-3">
+        Contact your ILC rep to discuss pending CO's · Approved CO's are binding per contract terms
+      </p>
+    </div>
+  );
 }
 
-function MilestonePill({ days }) {
-  if (days === null) return null;
-  if (days < 0)  return <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-slate-100 text-slate-500">{Math.abs(days)}d ago</span>;
-  if (days === 0) return <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-700">Today</span>;
-  if (days <= 14) return <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-red-50 text-red-600">In {days}d</span>;
-  if (days <= 30) return <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-amber-50 text-amber-700">In {days}d</span>;
-  return <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-green-50 text-green-700">In {days}d</span>;
+// ── Meeting Notes ─────────────────────────────────────────────────────────────
+
+function MeetingNotesView({ projectId }) {
+  const [notes,    setNotes]   = useState([]);
+  const [loading,  setLoading] = useState(true);
+  const [expanded, setExpanded] = useState({});
+
+  useEffect(() => {
+    fetch(`/api/portal/projects/${projectId}/meeting-notes`)
+      .then(r => r.json()).then(d => { setNotes(d.notes || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [projectId]);
+
+  if (loading) return <Spinner />;
+  if (!notes.length) return <Empty text="No meeting notes have been shared yet." />;
+
+  return (
+    <div className="space-y-3">
+      {notes.map(n => (
+        <div key={n.id} className="border border-slate-200 rounded-xl p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="font-semibold text-slate-800 text-sm">{n.title || 'Untitled'}</p>
+              {n.meetingDate && <p className="text-xs text-slate-400 mt-0.5">{fmtDate(n.meetingDate)}</p>}
+            </div>
+          </div>
+          {n.content && (
+            <>
+              <div
+                className={`text-xs text-slate-500 leading-relaxed mt-2 overflow-hidden transition-all ${expanded[n.id] ? '' : 'max-h-10'}`}
+                dangerouslySetInnerHTML={{ __html: n.content }}
+              />
+              <button
+                onClick={() => setExpanded(e => ({ ...e, [n.id]: !e[n.id] }))}
+                className="text-[11px] text-orange-600 mt-1.5 inline-flex items-center gap-1 hover:text-orange-700"
+              >
+                {expanded[n.id] ? 'Less ▲' : 'More ▼'}
+              </button>
+            </>
+          )}
+        </div>
+      ))}
+      <p className="text-[11px] text-slate-400">Only notes marked shared by ILC Studios are visible here</p>
+    </div>
+  );
 }
+
+// ── Construction Schedule ─────────────────────────────────────────────────────
 
 function ConstructionScheduleView({ projectId }) {
   const [data,    setData]    = useState(null);
@@ -317,39 +542,93 @@ function ConstructionScheduleView({ projectId }) {
       .catch(() => setLoading(false));
   }, [projectId]);
 
-  if (loading) return <div className="text-center py-10 text-sm text-slate-400">Loading…</div>;
-  if (!data)   return <div className="text-center py-12 text-sm text-slate-400">Unable to load schedule.</div>;
+  if (loading) return <Spinner />;
+  if (!data)   return <Empty text="Unable to load schedule." />;
 
-  const { projectDates, aiMilestones } = data;
+  const { projectDates, aiMilestones, firstDelivery } = data;
+  const today = new Date(); today.setHours(12, 0, 0, 0);
 
-  const keyDates = [
-    { label: 'Construction Start',    date: projectDates.constructionStartDate },
-    { label: 'MEP Rough-In',          date: projectDates.mepRoughInDate },
-    { label: 'Construction Complete', date: projectDates.constructionEndDate },
-  ].filter(m => m.date);
+  // Build phase structure from project dates + AI milestones
+  const projectMilestones = [
+    projectDates.constructionStartDate && { label: 'Construction start',    date: projectDates.constructionStartDate },
+    projectDates.mepRoughInDate        && { label: 'MEP rough-in',          date: projectDates.mepRoughInDate },
+    projectDates.constructionEndDate   && { label: 'Substantial completion', date: projectDates.constructionEndDate },
+  ].filter(Boolean);
 
-  const hasAnyData = keyDates.length > 0 || aiMilestones.length > 0;
+  const allMilestones = [...projectMilestones, ...aiMilestones];
+  const hasData = allMilestones.length > 0 || firstDelivery;
+  if (!hasData) return <Empty text="Construction schedule dates have not been set yet." />;
 
-  if (!hasAnyData) {
-    return <div className="text-center py-12 text-sm text-slate-400">Construction schedule dates have not been set yet.</div>;
+  // Classify each milestone
+  function classify(dateStr) {
+    if (!dateStr) return 'pending';
+    const d = new Date(dateStr); d.setHours(12, 0, 0, 0);
+    const days = Math.round((d - today) / 86400000);
+    if (days < -1) return 'done';
+    if (days <= 14) return 'active';
+    return 'pending';
   }
 
+  const done    = allMilestones.filter(m => classify(m.date) === 'done').length;
+  const total   = allMilestones.length;
+  const pct     = total > 0 ? Math.round((done / total) * 100) : 0;
+  const nextUp  = allMilestones.find(m => classify(m.date) !== 'done');
+
+  // Group AI milestones by phase if they have phase labels; otherwise flat
+  const hasPhases = aiMilestones.some(m => m.phase);
+
   return (
-    <div className="space-y-6">
-      {/* Key project milestones */}
-      {keyDates.length > 0 && (
-        <div>
-          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Key Milestones</h3>
+    <div>
+      {/* Progress header */}
+      {total > 0 && (
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-semibold text-slate-700">{done} of {total} milestones complete</span>
+            <span className="text-sm text-slate-400">{pct}%</span>
+          </div>
+          <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+            <div className="h-full bg-orange-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+          </div>
+          {nextUp && (
+            <p className="text-xs text-slate-400 mt-2">
+              Next: <span className="font-semibold text-slate-700">{nextUp.label} · {fmtDate(nextUp.date)}</span>
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* First delivery callout */}
+      {firstDelivery?.esdDate && (
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-5 flex items-center gap-3">
+          <svg className="w-6 h-6 text-orange-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l1 1h2M13 16l1-8h3l3 4v4h-2M13 16H9" />
+          </svg>
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-orange-700 mb-0.5">First delivery</p>
+            <p className="text-sm font-bold text-slate-800">{firstDelivery.manufacturer}</p>
+            <p className="text-sm font-semibold text-orange-600">{fmtDate(firstDelivery.esdDate)}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Key project dates */}
+      {projectMilestones.length > 0 && (
+        <div className="mb-5">
+          <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-3">Key Dates</h3>
           <div className="grid gap-3 sm:grid-cols-3">
-            {keyDates.map(m => {
+            {projectMilestones.map(m => {
+              const state = classify(m.date);
               const days = daysUntil(m.date);
               return (
-                <div key={m.label} className="bg-white border border-slate-200 rounded-xl p-4">
-                  <p className="text-xs text-slate-400 font-medium mb-1">{m.label}</p>
-                  <p className="text-base font-bold text-slate-800">{fmtDate(m.date)}</p>
-                  <div className="mt-2">
-                    <MilestonePill days={days} />
-                  </div>
+                <div key={m.label} className={`border rounded-xl p-3 ${state === 'done' ? 'bg-slate-50 border-slate-200' : state === 'active' ? 'bg-orange-50 border-orange-200' : 'bg-white border-slate-200'}`}>
+                  <p className="text-[11px] text-slate-400 mb-1">{m.label}</p>
+                  <p className="text-sm font-bold text-slate-800">{fmtDate(m.date)}</p>
+                  {days !== null && (
+                    <p className={`text-[11px] mt-1 font-medium ${days < 0 ? 'text-slate-400' : days <= 14 ? 'text-orange-600' : 'text-slate-500'}`}>
+                      {days < 0 ? `${Math.abs(days)}d ago` : days === 0 ? 'Today' : `In ${days} days`}
+                    </p>
+                  )}
                 </div>
               );
             })}
@@ -357,31 +636,39 @@ function ConstructionScheduleView({ projectId }) {
         </div>
       )}
 
-      {/* AI-extracted detailed milestones */}
+      {/* AI milestones */}
       {aiMilestones.length > 0 && (
         <div>
-          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Detailed Schedule</h3>
-          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+          <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-3">Detailed Schedule</h3>
+          <div className="border border-slate-200 rounded-xl overflow-hidden">
             {aiMilestones.map((m, i) => {
-              const days = daysUntil(m.date);
+              const state = classify(m.date);
+              const days  = daysUntil(m.date);
               return (
-                <div
-                  key={m.id || i}
-                  className={`flex items-center justify-between px-4 py-3 ${i > 0 ? 'border-t border-slate-50' : ''}`}
-                >
+                <div key={m.id || i} className={`flex items-center justify-between px-4 py-3 ${i > 0 ? 'border-t border-slate-50' : ''} ${state === 'active' ? 'bg-orange-50/60' : ''}`}>
                   <div className="flex items-center gap-3">
-                    {/* Timeline dot */}
-                    <div className={`w-2 h-2 rounded-full shrink-0 ${
-                      days === null ? 'bg-slate-200' :
-                      days < 0     ? 'bg-slate-300' :
-                      days <= 14   ? 'bg-red-400'   :
-                      days <= 30   ? 'bg-amber-400'  : 'bg-green-400'
+                    <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                      state === 'done'   ? 'bg-green-500' :
+                      state === 'active' ? 'bg-orange-500 shadow-[0_0_0_3px_rgba(234,88,12,0.15)]' :
+                      'bg-slate-300'
                     }`} />
-                    <span className="text-sm text-slate-700">{m.label}</span>
+                    <span className={`text-sm ${state === 'done' ? 'text-slate-400' : state === 'active' ? 'text-orange-700 font-semibold' : 'text-slate-700'}`}>
+                      {m.label}
+                    </span>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
                     {m.date && <span className="text-xs text-slate-400">{fmtDate(m.date)}</span>}
-                    <MilestonePill days={days} />
+                    {days !== null && (
+                      <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                        state === 'done'   ? 'bg-slate-100 text-slate-400' :
+                        days <= 0         ? 'bg-red-50 text-red-600' :
+                        days <= 14        ? 'bg-orange-50 text-orange-700' :
+                        days <= 30        ? 'bg-amber-50 text-amber-700' :
+                        'bg-green-50 text-green-700'
+                      }`}>
+                        {state === 'done' ? 'Done' : days === 0 ? 'Today' : days < 0 ? `${Math.abs(days)}d ago` : `In ${days}d`}
+                      </span>
+                    )}
                   </div>
                 </div>
               );
@@ -389,29 +676,89 @@ function ConstructionScheduleView({ projectId }) {
           </div>
         </div>
       )}
+
+      <p className="text-[11px] text-slate-400 mt-4">
+        Lighting milestones only · Managed by ILC Studios · Dates subject to change
+      </p>
     </div>
   );
 }
 
-// ── Section cards ─────────────────────────────────────────────────────────────
+// ── Files (Submittals / Contracts) ────────────────────────────────────────────
 
-const SECTIONS = [
-  { key: 'canViewShipSchedule',      id: 'ship',         label: 'Ship Schedule',         icon: '📦' },
-  { key: 'canViewSubmittals',        id: 'subs',         label: 'Submittals',            icon: '📋' },
-  { key: 'canViewMeetings',          id: 'meetings',     label: 'Meeting Notes',         icon: '📝' },
-  { key: 'canViewContracts',         id: 'contracts',    label: 'Contracts',             icon: '📄' },
-  { key: 'canViewChangeOrders',      id: 'ca',           label: 'Change Orders',         icon: '🔄' },
-  { key: 'canViewConstructionSched', id: 'construction', label: 'Construction Schedule', icon: '🏗️' },
-  { key: 'canViewBudgets',           id: 'budget',       label: 'Budget',                icon: '💰' },
+function FilesView({ projectId, tab, label }) {
+  const [files,   setFiles]   = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/portal/projects/${projectId}/files?tab=${tab}`)
+      .then(r => r.json()).then(d => { setFiles(d.files || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [projectId, tab]);
+
+  if (loading) return <Spinner />;
+  if (!files.length) return <Empty text={`No ${label.toLowerCase()} on file yet.`} />;
+
+  return (
+    <div className="space-y-2">
+      {files.map(f => (
+        <a
+          key={f.id}
+          href={`/api/portal/projects/${projectId}/files/${f.id}`}
+          target="_blank" rel="noreferrer"
+          className="bg-white border border-slate-200 rounded-xl px-4 py-3 flex items-center gap-3 hover:border-amber-300 hover:shadow-sm transition-all group"
+        >
+          <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center shrink-0">
+            <svg className="w-4 h-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-slate-700 font-medium truncate group-hover:text-amber-700 transition-colors">{f.originalName}</p>
+            <p className="text-xs text-slate-400 mt-0.5">{fmtDate(f.createdAt)}{f.size ? ` · ${fmtSize(f.size)}` : ''}</p>
+          </div>
+          <div className="flex items-center gap-1 text-xs font-medium text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+            Download
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+            </svg>
+          </div>
+        </a>
+      ))}
+    </div>
+  );
+}
+
+// ── Shared primitives ─────────────────────────────────────────────────────────
+
+function Spinner() {
+  return <div className="flex justify-center py-12"><div className="w-6 h-6 border-2 border-slate-200 border-t-orange-500 rounded-full animate-spin" /></div>;
+}
+
+function Empty({ text }) {
+  return <p className="text-center py-12 text-sm text-slate-400">{text}</p>;
+}
+
+// ── Nav config ────────────────────────────────────────────────────────────────
+
+const NAV_ITEMS = [
+  { key: 'canViewShipSchedule',      id: 'ship',         label: 'Ship schedule',         shortLabel: 'Ship',     icon: 'M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0zM13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l1 1h2M13 16l1-8h3l3 4v4h-2M13 16H9' },
+  { key: 'canViewBudgets',           id: 'budget',       label: 'Budgets',               shortLabel: 'Budget',   icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+  { key: 'canViewChangeOrders',      id: 'cos',          label: "Change orders",         shortLabel: 'CO\'s',    icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4', hasBadge: true },
+  { key: 'canViewMeetings',          id: 'meetings',     label: 'Meeting notes',         shortLabel: 'Meetings', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+  { key: 'canViewConstructionSched', id: 'construction', label: 'Construction schedule', shortLabel: 'Schedule', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
+  { key: 'canViewSubmittals',        id: 'subs',         label: 'Submittals',            shortLabel: 'Subs',     icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+  { key: 'canViewContracts',         id: 'contracts',    label: 'Contracts',             shortLabel: 'Contracts',icon: 'M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13' },
 ];
 
-// ── Main portal project page ──────────────────────────────────────────────────
+// ── Main portal page ──────────────────────────────────────────────────────────
 
 export default function PortalProjectPage({ params }) {
-  const router  = useRouter();
-  const [data,  setData]  = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [activeSection, setActiveSection] = useState(null);
+  const router = useRouter();
+  const [data,          setData]          = useState(null);
+  const [loading,       setLoading]       = useState(true);
+  const [activeId,      setActiveId]      = useState(null);
+  const [pendingCOCount, setPendingCOCount] = useState(0);
 
   useEffect(() => {
     fetch(`/api/portal/projects/${params.id}`)
@@ -420,88 +767,156 @@ export default function PortalProjectPage({ params }) {
         if (r.status === 403 || r.status === 404) { router.replace('/portal/projects'); return null; }
         return r.json();
       })
-      .then(d => { if (d) setData(d); setLoading(false); })
+      .then(d => {
+        if (!d) return;
+        setData(d);
+        // Default to first available section
+        const first = NAV_ITEMS.find(n => d.permissions[n.key]);
+        if (first) setActiveId(first.id);
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, [params.id, router]);
 
-  if (loading) return <div className="text-center py-20 text-slate-400">Loading…</div>;
-  if (!data)   return null;
+  // Load pending CO count for badge
+  useEffect(() => {
+    if (!data?.permissions?.canViewChangeOrders) return;
+    fetch(`/api/portal/projects/${params.id}/change-orders`)
+      .then(r => r.json())
+      .then(d => {
+        const pending = (d.changeOrders || []).filter(c => c.status === 'DRAFT' || c.status === 'SENT').length;
+        setPendingCOCount(pending);
+      })
+      .catch(() => {});
+  }, [params.id, data?.permissions?.canViewChangeOrders]);
+
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="w-8 h-8 border-2 border-slate-200 border-t-orange-500 rounded-full animate-spin" />
+    </div>
+  );
+  if (!data) return null;
 
   const { project, permissions } = data;
-  const available = SECTIONS.filter(s => permissions[s.key]);
+  const available = NAV_ITEMS.filter(n => permissions[n.key]);
+  const active = available.find(n => n.id === activeId) ?? available[0];
 
   async function logout() {
     await fetch('/api/portal/auth/logout', { method: 'POST' });
     router.replace('/portal/login');
   }
 
+  function NavIcon({ pathD }) {
+    return (
+      <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+        <path strokeLinecap="round" strokeLinejoin="round" d={pathD} />
+      </svg>
+    );
+  }
+
   return (
-    <div>
-      {/* Top bar */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <button
-            onClick={() => router.push('/portal/projects')}
-            className="text-xs text-slate-400 hover:text-slate-600 mb-1 flex items-center gap-1"
-          >
-            ← All Projects
-          </button>
-          <h1 className="text-2xl font-bold text-slate-800">{project.name}</h1>
+    <div className="flex h-screen bg-slate-50 overflow-hidden">
+
+      {/* ── Desktop sidebar ── */}
+      <aside className="hidden md:flex w-52 shrink-0 flex-col bg-white border-r border-slate-200 h-full">
+        <div className="px-4 py-4 border-b border-slate-200">
+          <p className="font-bold text-slate-800 text-sm leading-tight">{project.name}</p>
           {(project.city || project.state) && (
-            <p className="text-sm text-slate-400 mt-0.5">{[project.city, project.state].filter(Boolean).join(', ')}</p>
+            <p className="text-xs text-slate-400 mt-0.5">{[project.city, project.state].filter(Boolean).join(', ')}</p>
           )}
         </div>
-        <button onClick={logout} className="text-xs text-slate-400 hover:text-slate-600">Sign out</button>
-      </div>
 
-      {/* Section navigation */}
-      {!activeSection && (
-        <>
-          {available.length === 0 ? (
-            <div className="text-center py-16 text-sm text-slate-400">
-              No sections have been shared with you yet. Contact your ILC project manager.
-            </div>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {available.map(s => (
-                <button
-                  key={s.id}
-                  onClick={() => setActiveSection(s)}
-                  className="bg-white border border-slate-200 rounded-2xl p-5 text-left hover:border-amber-300 hover:shadow-sm transition-all group"
-                >
-                  <div className="text-2xl mb-3">{s.icon}</div>
-                  <h3 className="font-semibold text-slate-800 group-hover:text-amber-700 transition-colors">{s.label}</h3>
-                  <p className="text-xs text-slate-400 mt-1">View →</p>
-                </button>
-              ))}
-            </div>
-          )}
-        </>
-      )}
+        <nav className="flex-1 py-2 overflow-y-auto">
+          {available.map(item => (
+            <button
+              key={item.id}
+              onClick={() => setActiveId(item.id)}
+              className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-all border-l-2 ${
+                active?.id === item.id
+                  ? 'border-orange-500 text-orange-600 bg-orange-50/60 font-semibold'
+                  : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+              }`}
+            >
+              <NavIcon pathD={item.icon} />
+              <span className="flex-1 text-left">{item.label}</span>
+              {item.hasBadge && pendingCOCount > 0 && (
+                <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{pendingCOCount}</span>
+              )}
+            </button>
+          ))}
+        </nav>
 
-      {/* Section content */}
-      {activeSection && (
-        <div>
-          <button
-            onClick={() => setActiveSection(null)}
-            className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-600 mb-5"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-            {project.name}
+        <div className="px-4 py-3 border-t border-slate-200">
+          <button onClick={() => router.push('/portal/projects')} className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1.5 mb-1.5">
+            ← All projects
           </button>
-          <h2 className="text-lg font-bold text-slate-800 mb-4">{activeSection.label}</h2>
-
-          {activeSection.id === 'ship'         && <ShipScheduleView projectId={params.id} />}
-          {activeSection.id === 'meetings'     && <MeetingNotesView projectId={params.id} />}
-          {activeSection.id === 'subs'         && <FilesView projectId={params.id} tab="submittals" label="Submittals" />}
-          {activeSection.id === 'contracts'    && <FilesView projectId={params.id} tab="contracts"  label="Contracts" />}
-          {activeSection.id === 'ca'           && <FilesView projectId={params.id} tab="ca"         label="Change Orders" />}
-          {activeSection.id === 'construction' && <ConstructionScheduleView projectId={params.id} />}
-          {activeSection.id === 'budget'       && <BudgetView projectId={params.id} />}
+          <button onClick={logout} className="text-xs text-slate-400 hover:text-slate-600">Sign out</button>
         </div>
-      )}
+      </aside>
+
+      {/* ── Main content ── */}
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+
+        {/* Mobile top bar */}
+        <div className="md:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200 shrink-0">
+          <div>
+            <p className="font-bold text-slate-800 text-sm">{project.name}</p>
+            {(project.city || project.state) && (
+              <p className="text-xs text-slate-400">{[project.city, project.state].filter(Boolean).join(', ')}</p>
+            )}
+          </div>
+          <button onClick={logout} className="text-xs text-slate-400 hover:text-slate-600">Sign out</button>
+        </div>
+
+        {/* Section title (desktop) */}
+        {active && (
+          <div className="hidden md:block px-6 pt-5 pb-0 shrink-0">
+            <h2 className="text-lg font-bold text-slate-800">{active.label}</h2>
+          </div>
+        )}
+
+        {/* Content area */}
+        <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4 pb-24 md:pb-6">
+          {!active ? (
+            <Empty text="No sections have been shared with you yet. Contact your ILC project manager." />
+          ) : (
+            <>
+              {active.id === 'ship'         && <ShipScheduleView         projectId={params.id} />}
+              {active.id === 'budget'       && <BudgetView               projectId={params.id} />}
+              {active.id === 'cos'          && <ChangeOrdersView         projectId={params.id} />}
+              {active.id === 'meetings'     && <MeetingNotesView         projectId={params.id} />}
+              {active.id === 'construction' && <ConstructionScheduleView projectId={params.id} />}
+              {active.id === 'subs'         && <FilesView projectId={params.id} tab="submittals" label="Submittals" />}
+              {active.id === 'contracts'    && <FilesView projectId={params.id} tab="contracts"  label="Contracts" />}
+            </>
+          )}
+        </div>
+
+        {/* ── Mobile bottom nav ── */}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex z-40">
+          {available.slice(0, 6).map(item => (
+            <button
+              key={item.id}
+              onClick={() => setActiveId(item.id)}
+              className={`flex-1 flex flex-col items-center gap-1 py-2 relative ${
+                active?.id === item.id ? 'text-orange-600' : 'text-slate-400'
+              }`}
+            >
+              <div className="relative">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={active?.id === item.id ? 2 : 1.75}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d={item.icon} />
+                </svg>
+                {item.hasBadge && pendingCOCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-orange-500 rounded-full" />
+                )}
+              </div>
+              <span className={`text-[9px] whitespace-nowrap ${active?.id === item.id ? 'font-bold' : ''}`}>
+                {item.shortLabel}
+              </span>
+            </button>
+          ))}
+        </nav>
+      </div>
     </div>
   );
 }

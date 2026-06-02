@@ -1,7 +1,8 @@
+import { getAnthropicKey } from '@/lib/anthropicKey';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
+  const apiKey = getAnthropicKey()?.trim();
   if (!apiKey) return NextResponse.json({ error: 'No API key set' }, { status: 500 });
 
   const res = await fetch('https://api.anthropic.com/v1/models', {

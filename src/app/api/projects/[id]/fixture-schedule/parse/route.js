@@ -142,7 +142,7 @@ export async function POST(request, { params }) {
 
   // Call Claude
   const Anthropic = (await import('@anthropic-ai/sdk')).default;
-  const anthropic  = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const anthropic  = new Anthropic({ apiKey: getAnthropicKey() });
 
   let rows = [];
   try {

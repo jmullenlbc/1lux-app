@@ -1,0 +1,33 @@
+import { NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth';
+import { prisma } from '@/lib/db';
+
+// POST — select this option as the active one within its group
+// Deselects all other siblings (same root)
+export async function POST(req, { params }) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
+  const item = await prisma.changeOrderLineItem.findUnique({ where: { id: params.itemId } });
+  if (!item || item.optionGroupId !== params.groupId) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  // Find root of this group
+  const rootId = item.parentLineItemId || item.id;
+
+  // Deselect all in the group (root + children), then select this one
+  await prisma.$transaction([
+    prisma.changeOrderLineItem.updateMany({
+      where: {
+        optionGroupId: params.groupId,
+        OR: [{ id: rootId }, { parentLineItemId: rootId }],
+      },
+      data: { isGroupSelected: false },
+    }),
+    prisma.changeOrderLineItem.update({
+      where: { id: params.itemId },
+      data:  { isGroupSelected: true },
+    }),
+  ]);
+
+  return NextResponse.json({ ok: true });
+}

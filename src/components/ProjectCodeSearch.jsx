@@ -72,12 +72,14 @@ function ConfidenceBadge({ text }) {
 }
 
 const QUICK_QUESTIONS = [
-  'What are the emergency lighting requirements for this building?',
-  'What is the LPD allowance for corridors?',
-  'Are occupancy sensors required in corridors?',
-  'What controls are required for exterior lighting?',
-  'What is the egress illumination requirement (foot-candles)?',
-  'Do I need daylight controls near windows?',
+  'What are the lighting and emergency lighting requirements for dwelling units?',
+  'What are the code requirements for corridor lighting and emergency lighting?',
+  'What are the lighting requirements for electrical and mechanical rooms (life safety)?',
+  'What are the lighting and LPD requirements for interior amenity areas (clubhouse, fitness, leasing)?',
+  'What are the lighting requirements for exterior egress doors and exit paths?',
+  'What are the code requirements for stairwell lighting and emergency lighting?',
+  'What are the lighting requirements for pool equipment rooms?',
+  'What are the lighting requirements for resident storage areas and bike rooms?',
 ];
 
 // ── Main component ─────────────────────────────────────────────────────────────
@@ -88,11 +90,16 @@ export default function ProjectCodeSearch({ projectContext = {} }) {
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
   const [current, setCurrent] = useState('');
-  const bottomRef = useRef(null);
-  const inputRef  = useRef(null);
+  const containerRef = useRef(null);
+  const inputRef     = useRef(null);
 
+  // Auto-scroll the chat container — only if the user is already near the bottom
+  // (within 150px), so manual scroll-up is never fought during streaming.
   useEffect(() => {
-    if (open) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = containerRef.current;
+    if (!open || !el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150;
+    if (nearBottom) el.scrollTop = el.scrollHeight;
   }, [history, current, open]);
 
   useEffect(() => {
@@ -152,13 +159,21 @@ export default function ProjectCodeSearch({ projectContext = {} }) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSearch(); }
   }
 
-  // Context chips
+  // Context chips — show location, building type, and any set code editions
+  const { codes = {} } = projectContext;
+  const codeChips = [
+    codes.iecc   ? `IECC ${codes.iecc}`   : null,
+    codes.ibc    ? `IBC ${codes.ibc}`     : null,
+    codes.nec    ? `NEC ${codes.nec}`     : null,
+    codes.ashrae ? `ASHRAE ${codes.ashrae}` : null,
+    codes.nfpa   ? `NFPA ${codes.nfpa}`   : null,
+  ].filter(Boolean);
   const contextChips = [
     projectContext.buildingType,
     projectContext.city && projectContext.state
       ? `${projectContext.city}, ${projectContext.state}`
       : projectContext.state || projectContext.city,
-    projectContext.serviceType,
+    ...codeChips,
   ].filter(Boolean);
 
   const isEmpty = history.length === 0 && !current;
@@ -220,11 +235,11 @@ export default function ProjectCodeSearch({ projectContext = {} }) {
           )}
 
           {/* Conversation or quick questions */}
-          <div className="px-6 py-4 max-h-96 overflow-y-auto space-y-3">
+          <div ref={containerRef} className="px-6 py-4 max-h-96 overflow-y-auto space-y-3">
             {isEmpty && (
               <div>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Common questions for this project:</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                <div className="grid grid-cols-1 gap-1.5">
                   {QUICK_QUESTIONS.map((q, i) => (
                     <button key={i} onClick={() => handleSearch(q)}
                       className="text-left text-xs px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 transition-all">
@@ -271,7 +286,6 @@ export default function ProjectCodeSearch({ projectContext = {} }) {
               </div>
             )}
 
-            <div ref={bottomRef} />
           </div>
 
           {/* Input bar */}

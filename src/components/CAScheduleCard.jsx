@@ -268,7 +268,7 @@ function AddPicker({ milestones, onAdd, onClose }) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function CAScheduleCard({ files, projectId }) {
+export default function CAScheduleCard({ files, projectId, onFileUpdated }) {
   const scheduleFile = useMemo(() => {
     return files
       .filter(f => {
@@ -306,19 +306,59 @@ export default function CAScheduleCard({ files, projectId }) {
     return sortMilestones(result);
   }, [scheduleFile]);
 
-  const [milestones, setMilestones]   = useState(sourceMilestones);
-  const [editingId, setEditingId]     = useState(null);
-  const [editValue, setEditValue]     = useState('');
-  const [dirty, setDirty]             = useState(false);
-  const [saving, setSaving]           = useState(false);
-  const [saveError, setSaveError]     = useState(null);
-  const [showGantt, setShowGantt]     = useState(true);
-  const [showAddPicker, setShowAddPicker] = useState(false);
+  const [milestones,     setMilestones]     = useState(sourceMilestones);
+  const [editingId,      setEditingId]      = useState(null);
+  const [editValue,      setEditValue]      = useState('');
+  const [dirty,          setDirty]          = useState(false);
+  const [saving,         setSaving]         = useState(false);
+  const [saveError,      setSaveError]      = useState(null);
+  const [showGantt,      setShowGantt]      = useState(true);
+  const [showAddPicker,  setShowAddPicker]  = useState(false);
+  const [autoParsing,    setAutoParsing]    = useState(false);
+  const [autoParseError, setAutoParseError] = useState(null);
 
+  // Re-sync milestones when the schedule file changes
   useEffect(() => {
     setMilestones(sourceMilestones);
     setDirty(false);
     setEditingId(null);
+  }, [scheduleFile?.id]);
+
+  // Auto-parse: when a schedule file exists with no stored milestones, run AI extraction automatically
+  useEffect(() => {
+    if (!scheduleFile || !projectId) return;
+    // Skip if already has milestone data
+    let stored = [];
+    try { stored = JSON.parse(scheduleFile.takeoffData || '{}')?.milestones ?? []; } catch {}
+    if (stored.length > 0) return;
+    // Skip if no text content (scanned PDF)
+    if (!scheduleFile.textContent) return;
+    // Skip if already parsing
+    if (autoParsing) return;
+
+    setAutoParsing(true);
+    setAutoParseError(null);
+
+    fetch(`/api/projects/${projectId}/files/${scheduleFile.id}/reparse`, { method: 'POST' })
+      .then(r => r.json())
+      .then(data => {
+        if (data.milestones?.length > 0) {
+          const parsed = sortMilestones(data.milestones);
+          setMilestones(prev => {
+            // Merge: keep user-entered dates, fill in AI-found dates for empty milestones
+            return prev.map(m => {
+              const found = parsed.find(p => p.id === m.id);
+              return found && !m.date ? { ...m, date: found.date } : m;
+            }).concat(parsed.filter(p => !prev.some(m => m.id === p.id)));
+          });
+          // Notify parent so file record updates in state (no refresh needed)
+          onFileUpdated?.({ ...scheduleFile, takeoffData: JSON.stringify({ milestones: data.milestones }) });
+        } else if (data.error) {
+          setAutoParseError(data.error);
+        }
+      })
+      .catch(e => setAutoParseError(e.message))
+      .finally(() => setAutoParsing(false));
   }, [scheduleFile?.id]);
 
   const startEdit = (id, currentDate) => {
@@ -386,8 +426,24 @@ export default function CAScheduleCard({ files, projectId }) {
             Construction Schedule
           </p>
           {scheduleFile ? (
-            <p className="text-[11px] text-slate-300 truncate mt-0.5" title={scheduleFile.originalName}>
+            <p className="text-[11px] text-slate-300 truncate mt-0.5 flex items-center gap-1.5" title={scheduleFile.originalName}>
               {scheduleFile.originalName}
+              {autoParsing && (
+                <span className="flex items-center gap-1 text-purple-500 font-medium shrink-0">
+                  <svg className="animate-spin w-2.5 h-2.5" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                  </svg>
+                  Reading dates…
+                </span>
+              )}
+              {autoParseError && !autoParsing && (
+                <span className="text-slate-400 shrink-0 italic">
+                  {autoParseError.includes('authentication') || autoParseError.includes('apiKey')
+                    ? 'Auto-parse unavailable · enter dates manually'
+                    : `⚠ ${autoParseError}`}
+                </span>
+              )}
             </p>
           ) : (
             <p className="text-[11px] text-slate-300 italic mt-0.5">
