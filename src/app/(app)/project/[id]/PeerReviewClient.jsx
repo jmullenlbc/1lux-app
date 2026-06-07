@@ -1,5 +1,8 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
+import BudgetQCStrip from '@/components/budgetQC/BudgetQCStrip';
+import PriceAlertBadge from '@/components/pricing/PriceAlertBadge';
+import RetailPriceDot from '@/components/pricing/RetailPriceDot';
 import Link from 'next/link';
 
 // ── Location Tags ─────────────────────────────────────────────────────────────
@@ -903,6 +906,13 @@ function EmailBidPopup({ project, onClose }) {
   }
 
   function openMailto() {
+    // Fire-and-forget price history write on send
+    fetch('/api/pricing/price-history', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectId: project.id }),
+    }).catch(() => {});
+
     const params = new URLSearchParams();
     if (cc) params.set('cc', cc);
     params.set('subject', subject);
@@ -999,7 +1009,7 @@ function EmailBidPopup({ project, onClose }) {
 // Which service types are auto-assigned DESIGN_BID
 const DESIGN_BID_SERVICE_TYPES = new Set(['fullDesign', 'designAssist']);
 
-export default function PeerReviewClient({ project, initialItems }) {
+export default function PeerReviewClient({ project, initialItems, currentUser, allUsers }) {
   // Full Design / Design Assist → Design Bid view by default
   // Peer Review / Bid Only → Budget Matrix view by default
   // Explicit peerReviewMatrixType in DB always wins (user's saved preference)
@@ -1049,8 +1059,14 @@ export default function PeerReviewClient({ project, initialItems }) {
   const [dragItem,      setDragItem]      = useState(null);
   const [dragOverId,    setDragOverId]    = useState(null);
   const [showEmailPopup, setShowEmailPopup] = useState(false);
-  const [bidHistory,      setBidHistory]      = useState([]); // full DesignBidMatrix objects with items
-  const [selectedBidVer,  setSelectedBidVer]  = useState(null); // null = live current
+  const qcStripRef = useRef(null);
+  const [priceFlags,      setPriceFlags]      = useState({}); // { "MFR|PART": flag }
+  const [retailCacheMap,  setRetailCacheMap]  = useState({}); // { "MFR|PART": cacheRecord }
+  const [bidHistory,        setBidHistory]        = useState([]); // full DesignBidMatrix objects with items
+  const [selectedBidVer,    setSelectedBidVer]    = useState(null); // null = live current
+  const [renamingBudgetId,  setRenamingBudgetId]  = useState(null);
+  const [budgetRenameInput, setBudgetRenameInput] = useState('');
+  const [deleteBudgetConfirm, setDeleteBudgetConfirm] = useState(null); // { id, label }
 
   useEffect(() => {
     fetch('/api/manufacturers').then(r => r.json()).then(d => setManufacturers(d.manufacturers || []));
@@ -1063,6 +1079,94 @@ export default function PeerReviewClient({ project, initialItems }) {
       .then(d => { if (d.matrices) setBidHistory(d.matrices); })
       .catch(() => {});
   }, [project.id]);
+
+  // ── Feature 1: Cross-project price increase check (non-blocking, fires after items load) ──
+  useEffect(() => {
+    if (!items.length || selectedBidVer) return; // only check live version
+    const eligible = items.filter(i => i.propManufacturer && i.propModel && i.propUnitPrice);
+    if (!eligible.length) return;
+
+    const payload = eligible.map(i => ({
+      manufacturer: i.propManufacturer,
+      partNumber:   i.propModel,
+      unitPrice:    i.propUnitPrice,
+    }));
+
+    fetch(`/api/pricing/price-check?projectId=${project.id}&items=${encodeURIComponent(JSON.stringify(payload))}`)
+      .then(r => r.json())
+      .then(d => {
+        const map = {};
+        (d.flags || []).forEach(f => {
+          const key = `${(f.manufacturer||'').toLowerCase().trim()}|${(f.partNumber||'').toLowerCase().trim()}`;
+          map[key] = f;
+        });
+        setPriceFlags(map);
+      })
+      .catch(() => {});
+  }, [items, project.id, selectedBidVer]);
+
+  // ── Feature 2: Retail cache fetch for Amenity items (background after items load) ──
+  useEffect(() => {
+    if (!items.length || selectedBidVer) return;
+    const amenityItems = items.filter(i =>
+      i.locationTag === 'Amenity' && i.propManufacturer && i.propModel
+    );
+    if (!amenityItems.length) return;
+
+    const payload = amenityItems.map(i => ({ manufacturer: i.propManufacturer, partNumber: i.propModel }));
+
+    fetch(`/api/pricing/retail-cache?items=${encodeURIComponent(JSON.stringify(payload))}`)
+      .then(r => r.json())
+      .then(d => {
+        const map = {};
+        (d.results || []).forEach(r => {
+          const key = `${(r.manufacturer||'').toLowerCase().trim()}|${(r.partNumber||'').toLowerCase().trim()}`;
+          map[key] = r;
+        });
+        setRetailCacheMap(map);
+      })
+      .catch(() => {});
+  }, [items, project.id, selectedBidVer]);
+
+  function getPriceKey(mfr, part) {
+    return `${(mfr||'').toLowerCase().trim()}|${(part||'').toLowerCase().trim()}`;
+  }
+
+  async function refreshRetailCache(manufacturer, partNumber) {
+    try {
+      const res  = await fetch('/api/pricing/retail-lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ manufacturer, partNumber, forceRefresh: true }),
+      });
+      const data = await res.json();
+      if (data.cached) {
+        const key = getPriceKey(manufacturer, partNumber);
+        setRetailCacheMap(prev => ({
+          ...prev,
+          [key]: { ...data.cached, manufacturer, partNumber },
+        }));
+      }
+    } catch {}
+  }
+
+  async function renameBudgetVersion(matrixId) {
+    await fetch(`/api/projects/${project.id}/design-bid-matrix/${matrixId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ submissionTag: budgetRenameInput }),
+    });
+    setBidHistory(prev => prev.map(m => m.id === matrixId ? { ...m, submissionTag: budgetRenameInput.trim() || null } : m));
+    setRenamingBudgetId(null);
+    setBudgetRenameInput('');
+  }
+
+  async function deleteBudgetVersion(matrixId) {
+    await fetch(`/api/projects/${project.id}/design-bid-matrix/${matrixId}`, { method: 'DELETE' });
+    setBidHistory(prev => prev.filter(m => m.id !== matrixId));
+    if (selectedBidVer === matrixId) setSelectedBidVer(null);
+    setDeleteBudgetConfirm(null);
+  }
 
   // Freeze budget settings in DB on first open so they never drift with future code defaults
   useEffect(() => {
@@ -1525,6 +1629,45 @@ export default function PeerReviewClient({ project, initialItems }) {
                   Read-only snapshot
                 </span>
               )}
+
+              {/* Rename / delete controls for selected budget version */}
+              {selectedBidVer && (
+                renamingBudgetId === selectedBidVer ? (
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      autoFocus
+                      value={budgetRenameInput}
+                      onChange={e => setBudgetRenameInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') renameBudgetVersion(selectedBidVer); if (e.key === 'Escape') { setRenamingBudgetId(null); setBudgetRenameInput(''); } }}
+                      placeholder="Label (optional)"
+                      className="text-xs border border-blue-300 rounded-md px-2 py-1 w-32 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    />
+                    <button onClick={() => renameBudgetVersion(selectedBidVer)} className="text-xs px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700">Save</button>
+                    <button onClick={() => { setRenamingBudgetId(null); setBudgetRenameInput(''); }} className="text-xs px-2 py-1 rounded border border-slate-200 text-slate-500 hover:bg-slate-50">Cancel</button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => { const m = bidHistory.find(x => x.id === selectedBidVer); setRenamingBudgetId(selectedBidVer); setBudgetRenameInput(m?.submissionTag || ''); }}
+                      title="Rename this version"
+                      className="p-1.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => { const m = bidHistory.find(x => x.id === selectedBidVer); setDeleteBudgetConfirm({ id: selectedBidVer, label: `v${m?.version}${m?.submissionTag ? ` · ${m.submissionTag}` : ''}` }); }}
+                      title="Delete this version"
+                      className="p-1.5 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                )
+              )}
               <span className="text-slate-300">·</span>
               <span className="text-sm font-semibold text-slate-900">{project.name}</span>
             </div>
@@ -1557,7 +1700,10 @@ export default function PeerReviewClient({ project, initialItems }) {
             Export Excel
           </button>
           {/* Email Bid */}
-          <button onClick={() => setShowEmailPopup(true)}
+          <button onClick={async () => {
+            const ok = await qcStripRef.current?.checkCanSend();
+            if (ok !== false) setShowEmailPopup(true);
+          }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors print:hidden">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
@@ -1565,7 +1711,10 @@ export default function PeerReviewClient({ project, initialItems }) {
             Email Bid
           </button>
           {/* Print */}
-          <button onClick={() => window.print()}
+          <button onClick={async () => {
+            const ok = await qcStripRef.current?.checkCanSend();
+            if (ok !== false) window.print();
+          }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" />
@@ -1597,6 +1746,17 @@ export default function PeerReviewClient({ project, initialItems }) {
           </button>
         </div>
       </div>
+
+      {/* ── Budget QC Strip ── */}
+      <BudgetQCStrip
+        ref={qcStripRef}
+        projectId={project.id}
+        projectName={project.name}
+        phase={project.phase}
+        currentUserId={currentUser?.id}
+        currentUserRole={currentUser?.role}
+        allUsers={allUsers ?? []}
+      />
 
       <div className="print:hidden px-6 pt-6 pb-5">
 
@@ -1752,7 +1912,21 @@ export default function PeerReviewClient({ project, initialItems }) {
                           <td className="px-3 py-2 font-mono text-slate-600">{item.partNumber || '—'}</td>
                           <td className="px-3 py-2 text-slate-600 text-right">{item.qty ?? '—'}</td>
                           <td className="px-3 py-2 text-slate-600 text-right">{item.dnPerUnit != null ? fmt(item.dnPerUnit) : '—'}</td>
-                          <td className="px-3 py-2 text-blue-600 font-semibold text-right">{item.cnPerUnit != null ? fmt(item.cnPerUnit) : '—'}</td>
+                          <td className="px-3 py-2 text-blue-600 font-semibold text-right">
+                            <span className="inline-flex items-center gap-1.5 justify-end">
+                              {item.cnPerUnit != null ? fmt(item.cnPerUnit) : '—'}
+                              <PriceAlertBadge flag={priceFlags[getPriceKey(item.propManufacturer, item.propModel)]} />
+                              {item.locationTag === 'Amenity' && (
+                                <RetailPriceDot
+                                  cache={retailCacheMap[getPriceKey(item.propManufacturer, item.propModel)]}
+                                  unitPrice={item.cnPerUnit}
+                                  manufacturer={item.propManufacturer}
+                                  partNumber={item.propModel}
+                                  onRefresh={() => refreshRetailCache(item.propManufacturer, item.propModel)}
+                                />
+                              )}
+                            </span>
+                          </td>
                           <td className="px-3 py-2 font-bold text-blue-700 text-right">{item.cnTotal != null ? fmt(item.cnTotal) : item.cnPerUnit != null && item.qty != null ? fmt(item.cnPerUnit * item.qty) : '—'}</td>
                           <td className="px-3 py-2 text-slate-400 max-w-[120px] truncate">{item.notes || '—'}</td>
                         </tr>
@@ -2546,6 +2720,27 @@ export default function PeerReviewClient({ project, initialItems }) {
         </div>
         );
       })()}
+
+      {/* Budget version delete confirm */}
+      {deleteBudgetConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <h3 className="text-base font-bold text-slate-800 mb-2">Delete budget version?</h3>
+            <p className="text-sm text-slate-500 mb-1">
+              You're about to permanently delete <strong className="text-slate-700">{deleteBudgetConfirm.label}</strong> of the budget matrix.
+            </p>
+            <p className="text-sm text-red-600 mb-6">This cannot be undone. All pricing data in this version will be deleted.</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setDeleteBudgetConfirm(null)} className="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">
+                Cancel
+              </button>
+              <button onClick={() => deleteBudgetVersion(deleteBudgetConfirm.id)} className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700">
+                Delete version
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

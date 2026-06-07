@@ -28,6 +28,38 @@ When a deal is marked WON, offer a "Convert to Project" action in the DealDrawer
 
 ---
 
+## 🤖 Sales Bot + Automation
+
+### Phase B — Live Follow-Up Drafting _(done)_
+Bot scans open deals daily via BotRules (DEAL_STALE trigger). When a deal exceeds the configured stale threshold, Claude Haiku drafts a contextual follow-up email using your templates and Bot Knowledge entries. Drafts appear in Bot Queue → Follow-Ups for review, edit, and manual send (copy to clipboard).
+
+---
+
+### Phase C — Market Signal → Draft _(planned)_
+When Market Intelligence auto-links a signal to a client (matchStatus: AUTO_LINKED or SUGGESTED), evaluate active BotRules with `MARKET_SIGNAL` trigger. Rules configured with `DRAFT_FOLLOW_UP_EMAIL` generate a BotDraft; rules with `NOTIFY_ONLY` surface a card in the queue without drafting. Connects Market Intel to Bot Queue automatically.
+
+**Scope:** Medium. Requires wiring the Market Intel signal ingestion pipeline (already built) to the BotRule evaluator, and a new `NOTIFY_ONLY` card type in Bot Queue UI.
+
+---
+
+### Phase D — Travel Detection _(future)_
+Nightly scan of the deal owner's M365 calendar using Claude Haiku to extract city from event titles/locations. Upserts `UserLocationState` records. Scheduling Rules panel goes live with detected travel state. Slot resolver applies travel buffer on days the user is outside their home base.
+
+**Requires:** M365 calendar read permission.
+
+**Scope:** Medium. `src/app/api/bot/sync-location` route already stubbed.
+
+---
+
+### Phase E — Scheduling Bot _(future)_
+Full inbound scheduling intent detection: emails from prospects expressing interest in a meeting are classified by Claude Haiku. Bot resolves available slots against the deal owner's calendar + SchedulingRules + UserLocationState, drafts a reply proposing 2–3 times, and places it in Bot Queue → Scheduling for review. After the review window, auto-sends via Microsoft Graph `sendMail`. Confirmation detection closes the loop by creating a calendar event when the prospect accepts.
+
+**Requires:** M365 email webhook, calendar read, sendMail permission.
+
+**Scope:** Large. All schema models (SchedulingRule, BotDraft, UserLocationState) already built in Phase A.
+
+---
+
 ## 👥 Sales Reps
 
 ### Dedicated SalesRep Model _(future)_
@@ -47,6 +79,24 @@ The Code Intelligence Layer is a multi-phase initiative to embed building code k
 A searchable database of building codes (ASHRAE 90.1, IBC, IECC, NEC) accessible from the Knowledge Base. Users can ask natural-language questions and get answers with specific section citations and a confidence level (✅ CERTAIN / ⚠️ LIKELY / 🔍 VERIFY WITH EOR). Uses Claude with prompt caching on the code corpus for cost efficiency.
 
 **Live at:** `/knowledge-base/code-search`
+
+---
+
+### LPD Check v2 — Takeoff-Driven _(planned)_
+The current LPD Check requires a manually prepared spreadsheet upload. The correct approach: pull fixture types and wattages directly from the project's fixture schedule, pull quantities from the takeoff data already in the system, and compute LPD per space automatically without any manual input.
+
+**What changes:**
+- No more spreadsheet upload — data sourced entirely from existing project records
+- LPD = Σ(qty × watts) per space zone, where qty comes from takeoffs and watts from the fixture schedule
+- Results update automatically when the schedule or takeoff changes
+- Surfaces directly on the project's Code tab instead of the standalone tool at `/knowledge-base/lpd-check`
+
+**What's required:**
+- Takeoff data must be in the system (takeoff rows linked to space types and fixture types)
+- Fixture schedule must have wattages populated
+- Space areas needed for W/ft² calculation (can be pulled from takeoff area field or manually entered)
+
+**Scope:** Medium. Mostly a new API route + UI component on the project Code tab. No external parsing needed — all data is in the DB.
 
 ---
 
@@ -111,4 +161,68 @@ Compares a received bid against the fixture schedule line by line.
 
 ---
 
-_Last updated: 2026-05-27_
+### Phase 4 — Drawing Intelligence (Claude Vision) _(planned)_
+Use Claude Vision to read uploaded lighting plan PDFs and extract structured data: fixture locations by space, control devices, emergency fixtures, exit signs, switch legs. ILC's limited symbol vocabulary (~20–40 variations between ILC-designed and reviewed drawings) makes this feasible without a full computer vision pipeline.
+
+**Two-folder training corpus:**
+ILC would provide ~100 drawings split into two sets:
+1. **ILC-designed** — drawings produced by ILC (consistent symbol conventions, control callouts, emergency notation)
+2. **Reviewed/third-party** — drawings ILC reviews for peer review engagements
+
+Claude processes both sets to extract a **design pattern library**: what ILC-designed drawings consistently include (occupancy sensors in corridors, controls at every amenity space, EM drivers called out at egress, etc.). These extracted patterns become the QC rubric.
+
+**What it can check from a drawing:**
+- Are occupancy/vacancy sensors called out in corridors?
+- Are controls shown at interior amenity spaces (gym, club, lounge)?
+- Are emergency fixtures placed at all egress doors and stair landings?
+- Are controls shown in electrical rooms, mechanical rooms, janitor closets?
+- Do fixture types on the plan match the fixture schedule?
+- Are exit signs shown at all required locations?
+
+**How it works (per drawing page):**
+1. Drawing PDF → convert to images (one per page)
+2. Each page sent to Claude Vision with the ILC symbol reference sheet as context
+3. Claude returns structured JSON: `{ fixtures: [{type, location, qty}], controls: [{type, location}], flags: [...] }`
+4. Results compared against the QC rule library extracted from ILC's training corpus
+5. Discrepancies flagged as: PASS / MISSING / VERIFY
+
+**Key insight:** This is NOT general-purpose floor plan analysis (which is hard). ILC's drawings have a very consistent look — same CAD blocks, same annotation style, same layer conventions. Claude Vision with a few reference examples can reliably read them. lighttable.ai is solving a much harder version of this problem across all drawing styles. ILC only needs to solve it for ~40 fixture symbols and their own drawing conventions.
+
+**Scope:** Large, but achievable in phases. Start with corridor/egress controls check (highest code risk), then expand.
+
+---
+
+### Phase 5A — QC Controls Checklist (Schedule-Based) _(planned)_
+Automated check that specific control devices are present in every required space type. Phase 5A attempts this using only fixture schedule data — no drawing analysis required.
+
+**Required coverage per ASHRAE 90.1 Section 9.4:**
+
+| Space Type | Required Control |
+|---|---|
+| Corridors | Occupancy/vacancy sensor |
+| Interior amenity spaces (gym, club, lounge) | Occupancy sensor OR manual-on/auto-off |
+| Outside egress doors | Photocontrol (daylight linkage) |
+| Electrical rooms | Occupancy sensor |
+| Mechanical rooms | Occupancy sensor |
+| Janitor / storage rooms | Occupancy sensor |
+| Conference / meeting rooms | Occupancy sensor |
+| Private offices | Occupancy/vacancy sensor |
+| Open office > 250 SF | Daylight zone controls at perimeter |
+| Parking garages | Occupancy sensor, daylight sensor at entry |
+
+**Concept:** Check if fixture schedule location tags that have luminaires also have corresponding control device rows. Flag spaces with luminaires but no controls.
+
+**Why this is harder than it sounds:**
+- Location tags in the schedule (Corridor, BOH, Amenity, etc.) are broad categories — a single tag maps to multiple distinct space types with different control requirements
+- Distinguishing a "control device" row from a "luminaire" row requires consistent schedule data entry (manufacturer, description, type code patterns) that may not always be present
+- A control device might exist in the schedule but be associated with the wrong space, or not associated with a space at all
+- The ASHRAE requirements vary by space function, project type, and jurisdiction adoption — a flat rule check would produce false positives
+- The schedule reflects the designer's intent at time of entry, not what's actually placed in drawings — a sensor could be in the schedule but never placed on the plan
+
+**Phase 5B (drawing-verified):** Cross-check Phase 4's drawing extraction output against the required controls table. More reliable since it reads actual placed devices.
+
+**Needs design work before building:** Requires a clear decision on how controls are represented in the schedule, how space types map to control requirements, and what confidence threshold distinguishes a real flag from noise.
+
+---
+
+_Last updated: 2026-06-04_

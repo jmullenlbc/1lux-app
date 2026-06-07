@@ -12,5 +12,9 @@
       "mcp__computer-use__wait",
       "mcp__Claude_in_Chrome__list_connected_browsers"
     ]
-  }
+  },
+  "env": {
+    "CLAUDE_CODE_DISABLE_1M_CONTEXT": "1"
+  },
+  "model": "sonnet"
 }

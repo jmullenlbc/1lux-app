@@ -47,7 +47,7 @@ export async function POST(request) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
-  const { name, title, email, phone, notes, clientId } = await request.json();
+  const { name, title, email, phone, notes, clientId, linkedInUrl, preferredName, company } = await request.json();
   if (!name?.trim()) return NextResponse.json({ error: 'name is required' }, { status: 400 });
 
   // Validate clientId by ID — never by text
@@ -61,12 +61,15 @@ export async function POST(request) {
   const contact = await prisma.contact.create({
     data: {
       contactNumber,
-      name:     name.trim(),
-      title:    title    || null,
-      email:    email    || null,
-      phone:    phone    || null,
-      notes:    notes    || null,
-      clientId: clientId || null,
+      name:          name.trim(),
+      title:         title         || null,
+      email:         email         || null,
+      phone:         phone         || null,
+      notes:         notes         || null,
+      clientId:      clientId      || null,
+      linkedInUrl:   linkedInUrl   || null,
+      preferredName: preferredName || null,
+      company:       company       || null,
     },
     include: {
       client: { select: { id: true, clientNumber: true, name: true } },

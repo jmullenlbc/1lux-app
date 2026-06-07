@@ -1,33 +1,56 @@
 /**
- * Seed 6 mock email threads for the Modera Marmalade project.
- * Run: node prisma/seed-correspondence.js
+ * Seed 6 mock email threads for any project.
+ *
+ * Usage:
+ *   node prisma/seed-correspondence.js                        ← first project in DB
+ *   node prisma/seed-correspondence.js <projectId>           ← ID from URL bar
+ *   node prisma/seed-correspondence.js "The Summit"          ← name search
  *
  * IMPORTANT: EmailAccount records represent ILC-CONTROLLED inboxes only.
- * External senders (Travis, Jordan, LAC, Alliance) are identified via
- * fromEmail/fromName on each message — never as EmailAccount records.
+ * External senders are identified via fromEmail/fromName — not EmailAccount records.
  */
 
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function main() {
-  // ── 1. Find Modera Marmalade ────────────────────────────────────────────────
-  // Prefer Modera Marmalade; fall back to any first project for local dev
-  let project = await prisma.project.findFirst({
-    where: { name: { contains: 'Modera Marmalade' } },
-    select: { id: true, name: true },
-  });
-  if (!project) {
-    project = await prisma.project.findFirst({
+  // ── 1. Find target project ──────────────────────────────────────────────────
+  const arg = process.argv[2]?.trim();
+  let project = null;
+
+  if (arg) {
+    // Try exact ID match first (from URL bar)
+    project = await prisma.project.findUnique({
+      where:  { id: arg },
       select: { id: true, name: true },
-      orderBy: { createdAt: 'asc' },
+    });
+    // Fall back to name search
+    if (!project) {
+      project = await prisma.project.findFirst({
+        where:   { name: { contains: arg } },
+        select:  { id: true, name: true },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
+    if (!project) {
+      console.error(`ERROR: No project found matching "${arg}"`);
+      console.error('Tip: copy the ID from your browser URL bar, e.g.:');
+      console.error('  node prisma/seed-correspondence.js cmp3jmk01000bdhgo6don6055');
+      process.exit(1);
+    }
+  } else {
+    // No argument — use the most recently created project
+    project = await prisma.project.findFirst({
+      select:  { id: true, name: true },
+      orderBy: { createdAt: 'desc' },
     });
   }
+
   if (!project) {
     console.error('ERROR: No projects found in DB. Create a project first.');
     process.exit(1);
   }
-  console.log(`Using project: ${project.name} (${project.id})`);
+  console.log(`Seeding: ${project.name} (${project.id})`);
 
   // ── 2. ILC email account ────────────────────────────────────────────────────
   const mikeAccount = await prisma.emailAccount.upsert({

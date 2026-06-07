@@ -3,7 +3,17 @@ import { useState, useEffect, useRef } from 'react';
 import PdfViewerModal from '@/components/ui/PdfViewerModal';
 import DrawingMarkupModal from '@/components/drawing/DrawingMarkupModal';
 
-const PHASE_TAGS = ['SD', 'DD', 'CD', 'IFC', 'ASI', 'RFI', 'PERMIT', 'OTHER'];
+const PHASE_TAGS = ['SD', 'DD', 'CD', 'IFC', 'ASI', 'RFI', 'OTHER'];
+
+// Tags that trigger a project phase update (only advance, never go backward)
+const TAG_TO_PHASE = {
+  SD:  'sd',
+  DD:  'dd',
+  CD:  'cd',
+  IFC: 'ifc',
+  ASI: 'construction',
+  RFI: 'construction',
+};
 const PHASE_COLORS = {
   SD:     'bg-violet-50 text-violet-700 border-violet-200',
   DD:     'bg-blue-50   text-blue-700   border-blue-200',
@@ -104,7 +114,7 @@ function UploadModal({ projectId, onUploaded, onClose }) {
       const res  = await fetch(`/api/projects/${projectId}/drawing-submissions`, { method: 'POST', body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Upload failed');
-      onUploaded(data.submission);
+      onUploaded(data.submission, data.phaseAdvanced ?? null);
     } catch (e) {
       setError(e.message);
       setUploading(false);
@@ -418,10 +428,11 @@ function DrawingFileRow({ file, projectId, onDeleteSubmission }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function DrawingsTab({ projectId }) {
-  const [submissions, setSubmissions] = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [showUpload,  setShowUpload]  = useState(false);
-  const [error,       setError]       = useState(null);
+  const [submissions,    setSubmissions]    = useState([]);
+  const [loading,        setLoading]        = useState(true);
+  const [showUpload,     setShowUpload]     = useState(false);
+  const [error,          setError]          = useState(null);
+  const [phaseToast,     setPhaseToast]     = useState(null); // e.g. "construction"
 
   async function load() {
     setLoading(true);
@@ -438,9 +449,13 @@ export default function DrawingsTab({ projectId }) {
 
   useEffect(() => { load(); }, [projectId]);
 
-  function handleUploaded(submission) {
+  function handleUploaded(submission, phaseAdvanced) {
     setSubmissions(prev => [submission, ...prev]);
     setShowUpload(false);
+    if (phaseAdvanced) {
+      setPhaseToast(phaseAdvanced);
+      setTimeout(() => setPhaseToast(null), 6000);
+    }
   }
 
   function handleUpdate(updated) {
@@ -451,8 +466,22 @@ export default function DrawingsTab({ projectId }) {
     setSubmissions(prev => prev.filter(s => s.id !== id));
   }
 
+  const PHASE_LONG = { sd:'Schematic Design', dd:'Design Development', cd:'Construction Documents', ifc:'Issued for Construction', construction:'Construction Administration', closeout:'Project Closeout' };
+
   return (
     <div className="space-y-4">
+
+      {/* Phase advanced toast */}
+      {phaseToast && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-green-50 border border-green-200 text-sm text-green-800">
+          <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>Project phase automatically advanced to <strong>{PHASE_LONG[phaseToast] ?? phaseToast}</strong> based on drawing tag.</span>
+          <button onClick={() => setPhaseToast(null)} className="ml-auto text-green-500 hover:text-green-700">✕</button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

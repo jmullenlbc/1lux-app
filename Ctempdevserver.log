@@ -1,0 +1,19 @@
+
+> ilc-lighting-app@0.1.0 dev:3000
+> powershell -ExecutionPolicy Bypass -File start-dev.ps1
+
+✓ deploy-log.json written — 103 commits
+Starting dev server on http://localhost:3000
+
+> ilc-lighting-app@0.1.0 dev
+> node --max-old-space-size=4096 node_modules/next/dist/bin/next dev -p 3000
+
+  ▲ Next.js 14.2.3
+  - Local:        http://localhost:3000
+  - Environments: .env
+  - Experiments (use with caution):
+    · staleTimes
+
+ ✓ Starting...
+ ✓ Ready in 5.5s
+[?25h

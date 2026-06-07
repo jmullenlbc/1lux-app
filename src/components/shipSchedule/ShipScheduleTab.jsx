@@ -122,6 +122,81 @@ function ReleaseModal({ item, projectId, onReleased, onClose }) {
 }
 
 // ── Push Banner ────────────────────────────────────────────────────────────────
+// ── Log Delivery Modal ────────────────────────────────────────────────────────
+function LogDeliveryModal({ projectId, lineItemId, item, onLogged, onClose }) {
+  const [form,   setForm]   = useState({ deliveryDate: new Date().toISOString().split('T')[0], carrier: '', trackingNumber: '', qtyReceived: '', notes: '' });
+  const [saving, setSaving] = useState(false);
+  const [error,  setError]  = useState('');
+
+  function set(k, v) { setForm(f => ({ ...f, [k]: v })); }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!form.qtyReceived || parseInt(form.qtyReceived) < 1) { setError('Qty received must be ≥ 1'); return; }
+    setSaving(true); setError('');
+    try {
+      const res  = await fetch(`/api/projects/${projectId}/shipments/line-items/${lineItemId}/deliveries`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, qtyReceived: parseInt(form.qtyReceived) }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      onLogged();
+    } catch (err) { setError(err.message); setSaving(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <div>
+            <h3 className="font-semibold text-slate-900">Log Delivery to Warehouse</h3>
+            {item && <p className="text-xs text-slate-400 mt-0.5 font-mono">{item.fixtureType} — {item.description}</p>}
+          </div>
+          <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400">✕</button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Delivery Date *</label>
+              <input type="date" value={form.deliveryDate} onChange={e => set('deliveryDate', e.target.value)} required
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Qty Received *</label>
+              <input type="number" min="1" value={form.qtyReceived} onChange={e => set('qtyReceived', e.target.value)} required
+                placeholder="0"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Carrier</label>
+            <input value={form.carrier} onChange={e => set('carrier', e.target.value)} placeholder="AAA Cooper, FedEx, UPS…"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Tracking #</label>
+            <input value={form.trackingNumber} onChange={e => set('trackingNumber', e.target.value)} placeholder="Optional"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Notes</label>
+            <input value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Condition, partial delivery note, etc."
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+          </div>
+          {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose} className="flex-1 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
+            <button type="submit" disabled={saving} className="flex-1 py-2 bg-blue-600 text-white font-semibold rounded-lg text-sm hover:bg-blue-700 disabled:opacity-60">
+              {saving ? 'Logging…' : 'Log Delivery'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function PushBanner({ projectId, onPushed }) {
   const [pushing, setPushing] = useState(false);
   const [result,  setResult]  = useState(null);
@@ -282,8 +357,19 @@ export default function ShipScheduleTab({ projectId }) {
   const [releaseTotals, setReleaseTotals] = useState({});
   const [showPush,      setShowPush]      = useState(false);
   const [showEmail,     setShowEmail]     = useState(false);
-  const [sortCol,       setSortCol]       = useState(null);  // column key
-  const [sortDir,       setSortDir]       = useState('asc'); // 'asc' | 'desc'
+  const [sortCol,       setSortCol]       = useState(null);
+  const [sortDir,       setSortDir]       = useState('asc');
+  const [expandedRows,  setExpandedRows]  = useState(new Set());
+  const [logDeliveryFor,setLogDeliveryFor]= useState(null); // lineItemId
+  const [approvingId,   setApprovingId]   = useState(null); // releaseId being approved
+
+  function toggleExpand(id) {
+    setExpandedRows(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
 
   function toggleSort(key) {
     if (sortCol === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -336,27 +422,27 @@ export default function ShipScheduleTab({ projectId }) {
     URL.revokeObjectURL(url);
   }
 
-  // Load all line items across all shipments, sorted by sortOrder
+  // Load all line items — now includes deliveryEvents, releases, and derived qty fields
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/projects/${projectId}/shipments`);
+      const res  = await fetch(`/api/projects/${projectId}/shipments`);
       const data = await res.json();
       const shipments = Array.isArray(data) ? data : [];
-      // Flatten and sort
       const allItems = shipments.flatMap(s =>
-        (s.lineItems || []).map(li => ({ ...li, shipmentId: s.id, shipmentLabel: s.manufacturer }))
+        (s.lineItems || []).map(li => ({
+          ...li,
+          shipmentId:    s.id,
+          shipmentLabel: s.manufacturer,
+          esdDate:       li.esdDate || s.esdDate,           // fall back to shipment-level ESD
+          leadTimeWeeks: li.leadTimeWeeks || s.leadTimeWeeks,
+          trackingNumber:s.trackingNumber,
+        }))
       ).sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999) || a.fixtureType.localeCompare(b.fixtureType));
       setItems(allItems);
-      // Load release totals
+      // Build release totals from enriched data (no extra fetches needed)
       const totals = {};
-      await Promise.all(allItems.map(async li => {
-        try {
-          const r = await fetch(`/api/projects/${projectId}/ship-schedule/items/${li.id}/release`);
-          const d = await r.json();
-          totals[li.id] = d.totalReleased || 0;
-        } catch {}
-      }));
+      allItems.forEach(li => { totals[li.id] = li.qtyOnSite ?? 0; });
       setReleaseTotals(totals);
     } catch {}
     setLoading(false);
@@ -387,7 +473,7 @@ export default function ShipScheduleTab({ projectId }) {
     }
     if (!ship) return;
     const maxOrder = items.length > 0 ? Math.max(...items.map(i => i.sortOrder ?? 0)) : -1;
-    const res = await fetch(`/api/projects/${projectId}/shipments/${ship}/items`, {
+    const res = await fetch(`/api/projects/${projectId}/shipments/${ship}/line-items`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fixtureType: '', description: '', qty: 0, sortOrder: maxOrder + 1 }),
     });
@@ -415,7 +501,34 @@ export default function ShipScheduleTab({ projectId }) {
   }
 
   const activeItems  = applySortCol(items.filter(i => !i.isRemoved));
-  const removedItems = items.filter(i => i.isRemoved); // removed always at bottom, unsorted
+  const removedItems = items.filter(i => i.isRemoved);
+
+  // Pending releases across all items
+  const pendingReleases = items.flatMap(li =>
+    (li.releases || []).filter(r => r.status === 'PENDING').map(r => ({ ...r, lineItem: li }))
+  );
+
+  async function approveRelease(releaseId, qtyReleased) {
+    setApprovingId(releaseId);
+    try {
+      await fetch(`/api/projects/${projectId}/shipments/release-requests/${releaseId}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'APPROVE', qtyReleased }),
+      });
+      await load();
+    } finally { setApprovingId(null); }
+  }
+
+  async function declineRelease(releaseId) {
+    setApprovingId(releaseId);
+    try {
+      await fetch(`/api/projects/${projectId}/shipments/release-requests/${releaseId}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'DECLINE' }),
+      });
+      await load();
+    } finally { setApprovingId(null); }
+  }
 
   const COLS = [
     { key: 'fixtureType',      label: 'Type',           w: 'w-16'  },
@@ -435,14 +548,27 @@ export default function ShipScheduleTab({ projectId }) {
   ];
 
   function renderRow(item, isRemoved = false) {
-    const released  = releaseTotals[item.id] || 0;
-    const remaining = Math.max(0, (item.qty || 0) - released);
-    const rowCls    = isRemoved ? 'opacity-40 bg-slate-50' : '';
+    const released   = item.qtyOnSite ?? releaseTotals[item.id] ?? 0;
+    const remaining  = Math.max(0, (item.qty || 0) - released);
+    const rowCls     = isRemoved ? 'opacity-40 bg-slate-50' : '';
+    const isExpanded = expandedRows.has(item.id);
+    const hasPending = (item.releases || []).some(r => r.status === 'PENDING');
+    const colCount   = COLS.length + 1;
 
     return (
-      <tr key={item.id} className={`border-b last:border-0 align-top group hover:bg-slate-50/40 transition-colors ${rowCls}`}>
-        {/* Release button */}
+      <>
+      <tr key={item.id} className={`border-b align-top group hover:bg-slate-50/40 transition-colors ${rowCls} ${hasPending ? 'bg-amber-50/30' : ''}`}>
+        {/* Expander toggle */}
         <td className="px-1 py-1 w-8 shrink-0">
+          <button
+            onClick={() => toggleExpand(item.id)}
+            className={`w-6 h-6 flex items-center justify-center rounded transition-colors ${isExpanded ? 'text-blue-500 bg-blue-50' : 'text-slate-300 hover:text-slate-500 hover:bg-slate-100'}`}
+            title="Show deliveries & releases"
+          >
+            <svg className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
           {!isRemoved && (
             <button
               onClick={() => setReleasing(item)}
@@ -508,6 +634,101 @@ export default function ShipScheduleTab({ projectId }) {
           );
         })}
       </tr>
+
+      {/* Expander row — deliveries + releases */}
+      {isExpanded && (
+        <tr key={`${item.id}-expand`} className="border-b border-slate-100 bg-slate-50/60">
+          <td colSpan={colCount} className="px-4 py-3">
+            <div className="grid grid-cols-2 gap-4 text-xs">
+
+              {/* Deliveries to warehouse */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Deliveries to Warehouse</span>
+                  <button
+                    onClick={() => setLogDeliveryFor(item.id)}
+                    className="text-[10px] font-semibold text-blue-600 hover:text-blue-700 border border-dashed border-blue-300 px-2 py-0.5 rounded"
+                  >
+                    + Log Delivery
+                  </button>
+                </div>
+                {(item.deliveryEvents || []).length === 0 ? (
+                  <p className="text-slate-400 italic text-[11px]">No deliveries recorded yet</p>
+                ) : (
+                  <table className="w-full text-[11px]">
+                    <thead>
+                      <tr className="text-slate-400 border-b border-slate-200">
+                        <th className="text-left pb-1 font-medium">Date</th>
+                        <th className="text-left pb-1 font-medium">Carrier</th>
+                        <th className="text-left pb-1 font-medium">Tracking</th>
+                        <th className="text-right pb-1 font-medium">Qty</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(item.deliveryEvents || []).map(ev => (
+                        <tr key={ev.id} className="border-b border-slate-100 last:border-0">
+                          <td className="py-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block mr-1.5" />
+                            {ev.deliveryDate ? new Date(ev.deliveryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                          </td>
+                          <td className="py-1 text-slate-500">{ev.carrier || '—'}</td>
+                          <td className="py-1 text-slate-500 font-mono">{ev.trackingNumber || '—'}</td>
+                          <td className="py-1 text-right font-semibold text-blue-700">+{ev.qtyReceived}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              {/* Releases to site */}
+              <div>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Releases to Site</span>
+                {(item.releases || []).length === 0 ? (
+                  <p className="text-slate-400 italic text-[11px]">No releases yet</p>
+                ) : (
+                  <table className="w-full text-[11px]">
+                    <thead>
+                      <tr className="text-slate-400 border-b border-slate-200">
+                        <th className="text-left pb-1 font-medium">Date</th>
+                        <th className="text-left pb-1 font-medium">Requested By</th>
+                        <th className="text-left pb-1 font-medium">Approved By</th>
+                        <th className="text-right pb-1 font-medium">Qty</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(item.releases || []).map(rel => (
+                        <tr key={rel.id} className={`border-b border-slate-100 last:border-0 ${rel.status === 'PENDING' ? 'bg-amber-50' : ''}`}>
+                          <td className="py-1">
+                            <span className={`w-1.5 h-1.5 rounded-full inline-block mr-1.5 ${rel.status === 'APPROVED' ? 'bg-green-400' : rel.status === 'PENDING' ? 'bg-amber-400' : 'bg-slate-300'}`} />
+                            {new Date(rel.requestedAt || rel.releasedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </td>
+                          <td className="py-1 text-slate-500">{rel.requestedByPortalUser?.name || '—'}</td>
+                          <td className="py-1">
+                            {rel.status === 'APPROVED'
+                              ? <span className="text-green-700">{rel.approvedBy?.name || 'ILC'}</span>
+                              : rel.status === 'PENDING'
+                                ? <span className="text-amber-700 font-semibold">PENDING</span>
+                                : <span className="text-slate-400">Declined</span>
+                            }
+                          </td>
+                          <td className="py-1 text-right font-semibold text-green-700">
+                            {rel.status === 'PENDING'
+                              ? <span className="text-amber-600">{rel.qty} req.</span>
+                              : `−${rel.qtyReleased ?? rel.qty}`
+                            }
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+      </>
     );
   }
 
@@ -590,6 +811,53 @@ export default function ShipScheduleTab({ projectId }) {
 
       {/* Push banner */}
       {showPush && <PushBanner projectId={projectId} onPushed={load} />}
+
+      {/* Pending warehouse release approvals banner */}
+      {pendingReleases.length > 0 && (
+        <div className="border border-amber-400 bg-amber-50 rounded-xl px-4 py-3 space-y-2">
+          <div className="flex items-center gap-2 mb-1">
+            <svg className="w-4 h-4 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+            <span className="text-sm font-bold text-amber-800">Pending Warehouse Release Requests ({pendingReleases.length})</span>
+          </div>
+          {pendingReleases.map(rel => (
+            <div key={rel.id} className="flex items-center gap-3 bg-white border border-amber-200 rounded-lg px-3 py-2 text-xs">
+              <span className="font-bold text-slate-700 font-mono">{rel.lineItem.fixtureType}</span>
+              <span className="text-slate-500 flex-1 truncate">{rel.lineItem.description}</span>
+              <span className="text-amber-700 font-semibold">{rel.qty} units requested</span>
+              {rel.requestedByPortalUser && (
+                <span className="text-slate-400">by {rel.requestedByPortalUser.name || rel.requestedByPortalUser.email}</span>
+              )}
+              <button
+                onClick={() => approveRelease(rel.id, rel.qty)}
+                disabled={approvingId === rel.id}
+                className="px-3 py-1 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 disabled:opacity-50 transition-colors"
+              >
+                ✓ Approve
+              </button>
+              <button
+                onClick={() => declineRelease(rel.id)}
+                disabled={approvingId === rel.id}
+                className="px-3 py-1 rounded-lg border border-red-200 text-red-600 font-semibold hover:bg-red-50 disabled:opacity-50 transition-colors"
+              >
+                Decline
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Log Delivery modal */}
+      {logDeliveryFor && (
+        <LogDeliveryModal
+          projectId={projectId}
+          lineItemId={logDeliveryFor}
+          item={items.find(i => i.id === logDeliveryFor)}
+          onLogged={() => { setLogDeliveryFor(null); load(); }}
+          onClose={() => setLogDeliveryFor(null)}
+        />
+      )}
 
       {/* Table */}
       {loading ? (

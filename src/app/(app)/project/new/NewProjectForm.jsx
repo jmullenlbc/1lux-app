@@ -319,11 +319,6 @@ export default function NewProjectForm({ existingProjects = [], clients: initial
               {SERVICE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </Select>
 
-            {/* Budget Type */}
-            <Select label="Budget Type" value={form.budgetType} onChange={set('budgetType')}>
-              {BUDGET_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </Select>
-
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 text-sm text-red-600">{error}</div>
             )}

@@ -11,6 +11,7 @@ export async function GET(request) {
   const signalType   = searchParams.get('signalType');
   const reviewStatus = searchParams.get('reviewStatus');
   const clientId     = searchParams.get('clientId');
+  const search       = searchParams.get('search')?.trim();
   const page         = Math.max(1, parseInt(searchParams.get('page') || '1'));
   const limit        = 50;
 
@@ -19,6 +20,13 @@ export async function GET(request) {
   if (signalType)   where.signalType   = signalType;
   if (reviewStatus) where.reviewStatus = reviewStatus;
   if (clientId)     where.linkedClientId = clientId;
+  if (search) {
+    where.OR = [
+      { title:          { contains: search } },
+      { summary:        { contains: search } },
+      { developerNames: { contains: search } },
+    ];
+  }
 
   const [signals, total] = await Promise.all([
     prisma.marketSignal.findMany({

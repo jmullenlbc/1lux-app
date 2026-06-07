@@ -1,7 +1,8 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
-const { seedMasterTypes } = require('./seeds/masterTypes');
-const { seedILCSpecs }    = require('./seeds/ilcSpecs');
+const { seedMasterTypes }      = require('./seeds/masterTypes');
+const { seedILCSpecs }         = require('./seeds/ilcSpecs');
+const { seedProposalDefaults } = require('./seeds/proposalDefaults');
 
 const prisma = new PrismaClient();
 
@@ -208,6 +209,9 @@ async function main() {
   } else {
     console.log('⚠ ILC specs: prisma.iLCSpec not in schema — skipping');
   }
+
+  // ── Proposal Rates + Default Templates ───────────────────────────────────────
+  await seedProposalDefaults(prisma, adminUser.id);
 }
 
 main()

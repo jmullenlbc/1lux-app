@@ -7,6 +7,8 @@ async function nextNoteNumber() {
   return (max._max.noteNumber ?? 0) + 1;
 }
 
+const IN_PERSON_ACTIVITY_TYPES = new Set(['COFFEE', 'LUNCH', 'HAPPY_HOUR', 'GOLF', 'SITE_VISIT']);
+
 const NOTE_INCLUDE = {
   createdBy: { select: { id: true, name: true } },
   clients: {
@@ -19,6 +21,10 @@ const NOTE_INCLUDE = {
         select: { id: true, dealNumber: true, title: true, pipeline: true, stage: true, dealStatus: true },
       },
     },
+    orderBy: { createdAt: 'asc' },
+  },
+  contacts: {
+    include: { contact: { select: { id: true, name: true, title: true } } },
     orderBy: { createdAt: 'asc' },
   },
 };
@@ -60,26 +66,32 @@ export async function POST(request) {
 
   const body = await request.json();
   const {
-    title = '',
-    noteBody = '',
+    title        = '',
+    noteBody     = '',
     meetingDate,
-    attendees = '[]',
+    attendees    = '[]',
     calendarRef,
-    clientIds = [],
-    dealIds   = [],
+    clientIds    = [],
+    dealIds      = [],
+    activityType,
+    contactIds   = [],
   } = body;
+
+  const isInPerson = activityType ? IN_PERSON_ACTIVITY_TYPES.has(activityType) : false;
 
   const noteNumber = await nextNoteNumber();
 
   const note = await prisma.salesNote.create({
     data: {
       noteNumber,
-      title:       title.trim(),
-      body:        noteBody,
-      meetingDate: meetingDate ? new Date(meetingDate) : null,
-      attendees:   typeof attendees === 'string' ? attendees : JSON.stringify(attendees),
-      calendarRef: calendarRef || null,
-      createdById: user.id,
+      title:        title.trim(),
+      body:         noteBody,
+      meetingDate:  meetingDate ? new Date(meetingDate) : null,
+      attendees:    typeof attendees === 'string' ? attendees : JSON.stringify(attendees),
+      calendarRef:  calendarRef  || null,
+      activityType: activityType || null,
+      isInPerson,
+      createdById:  user.id,
     },
   });
 
@@ -94,6 +106,37 @@ export async function POST(request) {
       data: dealIds.map(did => ({ salesNoteId: note.id, dealId: did })),
       skipDuplicates: true,
     });
+  }
+  if (contactIds.length > 0) {
+    await prisma.salesNoteContact.createMany({
+      data: contactIds.map(cid => ({ salesNoteId: note.id, contactId: cid })),
+      skipDuplicates: true,
+    });
+
+    // If in-person, update lastInPersonAt + lastTouchpointAt for each linked contact
+    if (isInPerson && meetingDate) {
+      const noteDate = new Date(meetingDate);
+      await Promise.all(
+        contactIds.map(async (contactId) => {
+          const contact = await prisma.contact.findUnique({
+            where:  { id: contactId },
+            select: { id: true, lastInPersonAt: true, lastTouchpointAt: true },
+          });
+          if (!contact) return;
+
+          const data = {};
+          if (!contact.lastInPersonAt || noteDate > contact.lastInPersonAt) {
+            data.lastInPersonAt = noteDate;
+          }
+          if (!contact.lastTouchpointAt || noteDate > contact.lastTouchpointAt) {
+            data.lastTouchpointAt = noteDate;
+          }
+          if (Object.keys(data).length > 0) {
+            await prisma.contact.update({ where: { id: contactId }, data });
+          }
+        })
+      );
+    }
   }
 
   const full = await prisma.salesNote.findUnique({ where: { id: note.id }, include: NOTE_INCLUDE });

@@ -107,15 +107,22 @@ function ExpandedRow({ item, colSpan, onViewFull }) {
           {latest.reviews.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {latest.reviews.map(rev => (
-                <div key={rev.id} className="flex items-start gap-2 bg-white border border-slate-100 rounded-lg px-3 py-2 min-w-[180px] max-w-[280px]">
+                <div key={rev.id} className={`flex items-start gap-2 border rounded-lg px-3 py-2 min-w-[180px] max-w-[300px] ${rev.isExtracted ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-100'}`}>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 mb-0.5">
+                    <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
                       <span className="text-[11px] font-semibold text-slate-600">{ROLE_LABELS[rev.reviewerRole] || rev.reviewerRole}</span>
                       {rev.reviewerName && <span className="text-[10px] text-slate-400">· {rev.reviewerName}</span>}
+                      {rev.isExtracted && <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-amber-200 text-amber-800">AI</span>}
                     </div>
                     <StatusBadge status={rev.status} small />
+                    {rev.noteCategory && rev.noteCategory !== 'OTHER' && rev.noteCategory !== 'BOILERPLATE' && (
+                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wide ml-1">{rev.noteCategory.replace('_',' ')}</span>
+                    )}
                     {rev.notes && (
-                      <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">{rev.notes}</p>
+                      <p className="text-[11px] text-slate-600 mt-1 line-clamp-3">{rev.notes}</p>
+                    )}
+                    {rev.pageNumber && (
+                      <p className="text-[10px] text-slate-400 mt-0.5">p.{rev.pageNumber}</p>
                     )}
                   </div>
                 </div>
@@ -267,9 +274,36 @@ export default function TrackerTable({ tracker, roles, activeItemId, onSelectIte
                   </button>
                 </td>
 
-                {/* Type + description */}
+                {/* Type + description + AI flags */}
                 <td className="px-5 py-3.5">
-                  <p className="font-semibold text-slate-800">{item.typeCode}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-slate-800">{item.typeCode}</p>
+                    {/* Flags from extracted notes */}
+                    {item.versions?.some(v => v.wetLocationRequired) && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200" title="Wet location required">💧 WET</span>
+                    )}
+                    {item.versions?.some(v => v.isDiscontinued) && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-red-50 text-red-700 border border-red-200" title="Discontinued product flagged">⚠ DISC</span>
+                    )}
+                    {(() => {
+                      const allReviews = item.versions?.flatMap(v => v.reviews || []) || [];
+                      const flags = [...new Set(allReviews
+                        .filter(r => r.isExtracted && r.noteCategory && !['BOILERPLATE','OTHER'].includes(r.noteCategory))
+                        .map(r => r.noteCategory))];
+                      if (!flags.length) return null;
+                      const FLAG_COLORS = {
+                        FINISH:'bg-amber-50 text-amber-700 border-amber-200',
+                        MODEL:'bg-slate-100 text-slate-600 border-slate-300',
+                        VOLTAGE:'bg-purple-50 text-purple-700 border-purple-200',
+                        LUMEN:'bg-cyan-50 text-cyan-700 border-cyan-200',
+                        ACCESSORY:'bg-orange-50 text-orange-700 border-orange-200',
+                        DRAWING_SYNC:'bg-red-50 text-red-700 border-red-200',
+                      };
+                      return flags.slice(0,3).map(f => (
+                        <span key={f} className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${FLAG_COLORS[f] || 'bg-slate-100 text-slate-500 border-slate-200'}`}>{f.replace('_',' ')}</span>
+                      ));
+                    })()}
+                  </div>
                   {item.description && (
                     <p className="text-xs text-slate-400 mt-0.5 max-w-[260px] truncate">{item.description}</p>
                   )}

@@ -14,3 +14,4 @@ public/pdf.worker.min.mjs
 # as proper regression tests.
 _tests/
 PLANNING/
+.tmp-proposals/

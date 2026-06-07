@@ -30,6 +30,7 @@ const SEED_SOURCES = [
   { name: 'NIC Blog',                   feedUrl: 'https://www.nic.org/feed/',                                           siteUrl: 'https://www.nic.org',                       projectTypes: ['SENIOR_LIVING'],                                             pollingFrequency: 'WEEKLY' },
   { name: 'LeadingAge',                 feedUrl: 'https://www.leadingage.org/feed/',                                    siteUrl: 'https://www.leadingage.org',                projectTypes: ['SENIOR_LIVING','AFFORDABLE'],                                pollingFrequency: 'WEEKLY' },
   { name: 'REBusinessOnline',           feedUrl: 'https://rebusinessonline.com/feed/',                                  siteUrl: 'https://rebusinessonline.com',              projectTypes: ['STUDENT_HOUSING','MARKET_RATE'],                             pollingFrequency: 'DAILY'  },
+  { name: 'Mile High CRE',             feedUrl: 'https://milehighcre.com/feed/',                                       siteUrl: 'https://milehighcre.com',                   projectTypes: ['MARKET_RATE'],                                               pollingFrequency: 'DAILY'  },
 ];
 
 export default function MarketSourcesPage() {

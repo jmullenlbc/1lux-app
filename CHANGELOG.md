@@ -5,6 +5,680 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Session 32 — Tone Profile + Template Direction] · June 5, 2026
+
+### Added
+
+**Per-User Email Tone Profile:**
+- `User.toneProfile`, `toneProfileBuiltAt`, `toneProfileSource` — stores Claude Sonnet analysis of user's writing voice
+- `POST /api/users/tone-profile` — upload a `.mbox` file (from Google Takeout Sent folder), parses up to 200 emails, runs Sonnet analysis, stores JSON profile: summary, formality, tone adjectives, openers, closers, characteristic phrases, what to avoid, structural patterns
+- `GET /api/users/tone-profile` — returns current user's profile
+- `DELETE /api/users/tone-profile` — clears profile
+- **Profile page UI** (Settings → Profile) — "Email Tone Profile" section with upload button, profile preview (summary, tone tags, avoid tags, example opener), re-upload option
+- Each user has their own profile — not shared across the team
+
+**Template AI Direction field:**
+- `MessageTemplate.direction String?` — plain-English instructions the AI reads before drafting
+- Shown in template form as an amber "AI Direction" section below Body
+- Example: "If we had an in-person meeting in the last 30 days, open with a warm reference. End with a specific ask. Never say 'I hope this finds you well.'"
+- The Body is the starting point / goal; Direction is how to personalize it
+
+**Migration 0021:** `toneProfile`, `toneProfileBuiltAt`, `toneProfileSource` on User; `direction` on MessageTemplate
+
+### Next: Upgraded followUpDrafter.js
+When the `.mbox` file arrives and is uploaded, the drafter will be upgraded to:
+- Claude Sonnet (instead of Haiku) for prose quality
+- Inject tone profile into every draft
+- Use template Direction as system prompt
+- Include full relationship context (last in-person activity, recent note content)
+
+---
+
+## [Session 31 — Activity Classification Intelligence] · June 4, 2026
+
+### Added
+
+**`ActivityClassificationRule` model (migration 0020):**
+Ordered priority rules for classifying calendar events into activity types. Highest priority wins; first match is final. If no rule matches, Claude Haiku classifies the event.
+
+**9 condition types:**
+- `TITLE_CONTAINS` — keyword in event title
+- `LOCATION_CONTAINS` — keyword in event location
+- `LOCATION_TYPE` — "virtual" (Zoom/Teams URL) or "in_person"
+- `ATTENDEE_MIN` / `ATTENDEE_MAX` — attendee count thresholds
+- `ORGANIZER_DOMAIN` — organizer email domain
+- `DURATION_MIN` / `DURATION_MAX` — meeting duration in minutes
+- `BODY_CONTAINS` — keyword in event description
+
+**15 default rules seeded:** Virtual meetings → Skip, Large groups → Skip, Location "golf" → Golf, plus all keyword title rules (coffee, lunch, dinner, golf, happy hour, site visit, etc.)
+
+**`src/lib/bot/activityClassifier.js`** — Three-layer classifier:
+1. User-defined rules (checked priority-descending, first match wins)
+2. Claude Haiku AI fallback — uses title, location, attendee count, duration, organizer, body to determine type + confidence score
+3. Returns null (unclassified) if Haiku is uncertain
+
+**`SalesNote` additions:**
+- `classificationSource String?` — 'keyword' | 'rule' | 'ai' | 'manual'
+- `classificationConfidence Int?` — AI confidence 0-100
+
+**New API routes:**
+- `GET/POST /api/automation/classification-rules` (+ seed endpoint with 15 defaults)
+- `PATCH/DELETE /api/automation/classification-rules/[id]`
+
+**Scheduling Rules UI — new section:**
+Activity Classification Rules table: priority, rule name, condition type + value (color-coded), result pill (color by type), active toggle, edit/delete on hover, + Add Rule button, Seed Defaults button when empty.
+
+**`invalidateRulesCache()`** — called on every create/update/delete to ensure next classification uses fresh rules.
+
+**Ready for M365 Phase D:** When calendar sync goes live, `classifyEvent()` is called on each incoming event. Rules run first (instant, no API cost), Haiku only for unmatched events (~$0.001 each).
+
+---
+
+## [Session 30 — Calendar Import Fix: PARTSTAT Filter] · June 4, 2026
+
+### Fixed — Calendar Import Quality
+
+**Problem:** Initial import included 63 events Mike didn't actually attend:
+- `PARTSTAT=NEEDS-ACTION` (391 total) — invites never responded to (e.g. "North Texas BUILT: Uchiba Dinner", "South FL BUILT Happy Hour!")
+- `PARTSTAT=DECLINED` (403 total) — invites Mike rejected
+- `PARTSTAT=TENTATIVE` (143 total) — uncertain attendance
+
+**Fix:** Re-parsed the .ics file filtering to only `PARTSTAT=ACCEPTED` (Mike explicitly accepted) or `PARTSTAT=NONE` (Mike was the organizer = attended by definition).
+
+**Result:** Re-imported 669 clean events (was 732). All 2022+ events now represent meetings Mike actually attended.
+
+**Note:** "Lunch: Mike (ILC) / Mark+Mark+Duke (Swinerton)" still appears — it was `PARTSTAT=ACCEPTED` at export time but was later deleted from the calendar. Manually delete from Sales Notes.
+
+**Remaining known noise:** Catalina Golf Mixer recurring weekly entries are correct (ACCEPTED) — use Sales Automation → Scheduling Rules → Activity Exclusion Rules → "Weekly recurring meetings" to filter these from relationship tracking.
+
+---
+
+## [Session 29 — Market Intel: Fuzzy Match Quality + Manual Rejection] · June 4, 2026
+
+### Fixed — Fuzzy Matching False Positives
+
+**Root cause:** Normalizer was stripping "property" as a noise word, collapsing "Lincoln Property" → "lincoln" — a single generic token that Fuse.js then matched to "Lincoln Avenue Communities" with high confidence.
+
+**Fix 1 — Normalizer (`src/lib/market-intel/normalizer.js`):**
+- Guard: if stripping noise words leaves a single token of ≤ 7 characters, keep the pre-noise version
+- "Lincoln Property" → stays "lincoln property" (not "lincoln")
+- "Riverfront Properties" → still becomes "riverfront" (10 chars > 7, safe to strip)
+- Multi-token results still strip normally: "Mill Creek Residential Trust" → "mill creek"
+
+**Fix 2 — Fuzzy matcher (`src/lib/market-intel/fuzzy-matcher.js`):**
+- Tightened Fuse.js threshold from 0.35 → 0.28 (stricter initial filter)
+- Raised `minMatchCharLength` from 4 → 5
+- Single-token normalized names now require much higher confidence: AUTO_LINKED needs 0.97 (was 0.92), SUGGESTED needs 0.90 (was 0.72)
+- Added feedback loop: loads previously REJECTED pairs from `FuzzyMatchFeedback` and skips them on future polls
+- Added `recordMatchFeedback()` export called when user confirms or rejects a match
+
+**Fix 3 — Manual rejection UI (`src/app/(app)/market-intel/page.jsx`):**
+- AUTO_LINKED cards now have a ✗ button (appears on hover) to reject wrong matches
+- REJECTED signals show "No match" label instead of ghost developer name
+- Rejection PATCH now records feedback in `FuzzyMatchFeedback` so the false positive is never suggested again
+- `src/app/api/market-intel/signals/[id]/route.js` updated to call `recordMatchFeedback()` on confirm/reject
+
+### How the system now learns
+1. User clicks ✗ on a wrong AUTO_LINKED or SUGGESTED match
+2. Signal marked REJECTED + feedback recorded: "Lincoln Property" → NOT Lincoln Avenue Communities
+3. `invalidateClientCache()` called — next poll rebuilds the rejection set
+4. "Lincoln Property" in any future article is skipped for Lincoln Avenue Communities forever
+
+---
+
+## [Session 28 — Market Intelligence: Search, Client Filter, Mile High CRE] · June 4, 2026
+
+### Added
+
+**Market Intelligence — Search bar**
+- "Search signals…" input in top-right header, below Manage Sources button
+- Debounced 350ms — searches title, summary, and developer names
+- X button to clear; clears filter counter
+
+**Market Intelligence — Client filter**
+- "All clients" dropdown appears automatically when any signals are matched to clients
+- Populated from `/api/market-intel/clients` — only shows clients that have at least one linked signal
+- Filters signals by `linkedClientId` — shows all articles fuzzy-matched to that client
+- Example: filter to "Ryan Companies" → shows every article where Ryan Companies was detected as the developer
+
+**New API route:** `GET /api/market-intel/clients` — returns distinct clients with linked signals, sorted alphabetically
+
+**New source: Mile High CRE** (`milehighcre.com/feed/`)
+- Colorado-focused CRE publication — relevant for ILC's Denver market
+- Added to both the DB seed and the Manage Sources page default list
+- Poll run: 114 new signals inserted (190 total), including Mile High CRE Colorado transaction reports
+- First Mile High CRE article matched Ryan Companies immediately on first poll
+
+### Files Modified
+- `src/app/(app)/market-intel/page.jsx` — search bar, client filter dropdown, debounce
+- `src/app/(app)/market-intel/sources/page.jsx` — added Mile High CRE to seed list
+- `src/app/api/market-intel/signals/route.js` — added `search` param (title/summary/developerNames contains)
+- `src/app/api/market-intel/clients/route.js` — new
+
+---
+
+## [Session 27 — Relationship Intelligence] · June 4, 2026
+
+### Added
+
+**New Prisma Models (migration 0019):**
+- `RelationshipCadenceRule` — per-tier default cadence (VIP Client / Active Deal / Warm Prospect / Past Client / Cold Prospect). Unique by tier.
+- `ActivityExclusionRule` — filter rules for mass emails and project coordination meetings (RECURRING_WEEKLY, KEYWORD_SUBJECT, MIN_RECIPIENTS, etc.)
+- `SalesNoteContact` — join table linking Sales Notes to specific Contact records (replaces JSON attendees string)
+
+**New Contact fields:** `cadenceTier`, `cadenceDays`, `lastInPersonAt`, `lastTouchpointAt`, `nextCheckInAt`
+**New Client field:** `cadenceDays` (company-level override)
+**New SalesNote fields:** `activityType` (COFFEE|LUNCH|HAPPY_HOUR|GOLF|SITE_VISIT|CALL|EMAIL|EVENT|OTHER), `isInPerson` (auto-computed)
+
+**New pages:**
+- `/sales/check-ins` — Check-ins queue: contacts grouped by OVERDUE / DUE THIS WEEK / UPCOMING. Each card shows last in-person activity with emoji, deal context, Log Activity / Snooze / Edit Cadence buttons. Quick-log form expands inline to create a Sales Note and update lastInPersonAt.
+- `/sales/activity` — Sales Activity dashboard: per-rep in-person count, unique contacts touched, activity type breakdown, recent activity feed.
+
+**Sales Automation → Scheduling Rules additions:**
+- **Relationship Cadence** section: tier table with editable cadenceDays + active toggle. "Seed Defaults" button creates 5 default tiers.
+- **Activity Exclusion Rules** section: table + drawer to add/edit rules that filter project coordination meetings, mass emails, and recurring meetings from relationship tracking.
+
+**Sales Notes improvements:**
+- Activity type pill picker (Coffee/Lunch/Golf/etc.) with in-person types highlighted orange
+- Contact attendee picker (links real Contact records via SalesNoteContact)
+- Saving a note with in-person activity type auto-updates Contact.lastInPersonAt
+
+**Navigation:** Check-ins and Sales Activity added to Sales section in sidebar.
+
+**New API routes:**
+- `GET/POST /api/crm/cadence-rules` (+ seed endpoint)
+- `PATCH/DELETE /api/crm/cadence-rules/[id]`
+- `GET/POST /api/automation/exclusion-rules`
+- `PATCH/DELETE /api/automation/exclusion-rules/[id]`
+- `GET /api/crm/contacts/check-ins-due` — contacts past cadence with effectiveCadenceDays fallback
+- `PATCH /api/crm/contacts/[id]/cadence` — update per-contact cadence fields
+
+**How the cadence hierarchy works:**
+1. Contact.cadenceDays (person-level override, set from alert)
+2. Client.cadenceDays (company-level override)
+3. RelationshipCadenceRule matching contact.cadenceTier (Sales Automation defaults)
+4. Fallback: 90 days
+
+---
+
+## [Session 26 — CRM People / Contacts Redesign] · June 4, 2026
+
+### Added
+
+**New schema fields — migration 0018:**
+- `DealContact.isPrimary Boolean` — star this person; bot emails primary contact first
+- `DealContact.dealRole String?` — free-form role on this deal (Decision Maker, Day-to-Day, etc.)
+- `DealContact.dealNotes String?` — one-line note specific to this person's involvement
+- `Contact.linkedInUrl String?` — for Phase C LinkedIn automation
+- `Contact.preferredName String?` — "Ryan" instead of "Ryan Johnson" — used in bot email salutation
+- `Contact.company String?` — employer as typed (independent of clientId)
+
+**DealDrawer Contacts tab — full redesign:**
+- **Contact cards** with colored avatar, name, title, company, email/phone/LinkedIn links
+- **⭐ Primary star** — click any contact to set as primary; only one per deal; bot uses this person
+- **"Primary" badge** on the starred contact card
+- **Inline deal role** — click "+ Add role" → editable text field, saves on blur
+- **Inline deal notes** — click "+ Add note" → editable text field, saves on blur
+- **Two add modes:**
+  - **Search existing** — search by name/email across all Contact records, link to deal
+  - **+ New person** — inline form (Name, Preferred name, Title, Company, Email, Phone, LinkedIn) → creates Contact + links to deal in one step
+- Primary contact always sorted first; others in creation order
+
+**Bot automation fix:**
+- `followUpDrafter.js` now selects `isPrimary` contact first (not just `contacts[0]`)
+- Email salutation uses `preferredName || firstName` — "Hi Ryan" instead of "Hi Ryan Johnson"
+
+### Fixed
+- `skipDuplicates` not supported in Prisma `createMany` inside transactions for SQLite — replaced with explicit pre-filter query
+- Contacts POST returns contact object directly; UI was destructuring `{ contact }` — fixed to `const contact = await res.json()`
+
+### Files Modified
+- `prisma/schema.prisma` — DealContact + Contact new fields
+- `prisma/migrations/0018_contact_model_improvements/migration.sql` — new
+- `src/app/api/crm/deals/[id]/route.js` — updated include (isPrimary sort, new fields), addContacts handler, new updateContact handler
+- `src/app/api/crm/contacts/route.js` — POST accepts linkedInUrl, preferredName, company
+- `src/app/(app)/crm/DealDrawer.jsx` — full ContactsTab rewrite + ContactCard component + avatarColor helper
+- `src/lib/bot/followUpDrafter.js` — isPrimary contact selection + preferredName salutation
+
+---
+
+## [Session 25 — Sales Automation Phase B: Live Follow-Up Drafting] · June 4, 2026
+
+### Added
+
+**Phase B — Bot Follow-Up Drafting (live, no M365 required)**
+
+- **`src/lib/bot/followUpDrafter.js`** — core drafter: finds last activity date from DealActivity records, selects best matching email template (follow_up scenario, stage-specific or catch-all), loads relevant BotKnowledgeEntry records, calls Claude Haiku to generate a natural contextual follow-up email, returns `{ toEmail, toName, subject, body }`
+- **`/api/bot/check-followup`** — upgraded from stub to real implementation: loads active DEAL_STALE BotRules, finds matching open stale deals (pipeline + stage + staleDays), skips deals with existing PENDING_REVIEW drafts, generates draft per deal, creates BotDraft + UserAlert, returns `{ ok, log: { checked, stale, drafted, skipped, errors } }`
+- **`/api/bot/draft-follow-up`** — manual trigger: POST `{ dealId }` → generates draft immediately for a specific deal, useful for "Draft Follow-Up" button on deal cards
+- **Bot Queue Follow-Ups tab** — upgraded from empty state to real draft cards with:
+  - Deal name, pipeline, "N days stale" label, recipient name + email
+  - Full subject + body preview with "Edit & Review" expand
+  - **Edit panel**: editable subject + body textarea (monospace), Save edits button, Copy to clipboard button
+  - "Email sending via M365 coming in Phase E" note (honest UX)
+  - Dismiss button → cancels draft
+
+**Sales Automation UX fix:**
+- Added `AutomationNav` tab bar (Bot Rules | Templates | Bot Knowledge | Scheduling Rules) to all 4 Sales Automation pages — previously no way to navigate between them
+- Bot Rules stages field changed from text input to pill-toggle multi-select (Qualified, Pre-Construction, Construction, Completed — swaps to Design stages when Design pipeline selected)
+
+### Files Modified
+- `src/lib/bot/followUpDrafter.js` — new
+- `src/app/api/bot/check-followup/route.js` — full implementation replacing stub
+- `src/app/api/bot/draft-follow-up/route.js` — new
+- `src/app/(app)/sales/bot-queue/page.jsx` — real draft cards with edit panel, onUpdate handler
+- `src/components/salesAutomation/AutomationNav.jsx` — new shared tab nav
+- `src/app/(app)/sales/automation/rules/page.jsx` — AutomationNav + stages pill-select
+- `src/app/(app)/sales/automation/templates/page.jsx` — AutomationNav
+- `src/app/(app)/sales/automation/knowledge/page.jsx` — AutomationNav
+- `src/app/(app)/sales/automation/scheduling/page.jsx` — AutomationNav
+
+---
+
+## [Session 24 — Submittal Review Intelligence QA + Phase 6 Response Drafting] · June 4, 2026
+
+### Fixed — TrackerPanel QA
+- **Category badges missing from review cards** — added `CategoryBadge` component with color-coded chips for all 13 categories (FINISH/MODEL/VOLTAGE/LUMEN/WET_LOCATION/DRAWING_SYNC/DISCONTINUED/LED_TAPE/CODE/CRI/ACCESSORY) — now visible per review note in the detail panel
+- **AI badge missing from review cards** — added ✦ AI indicator (yellow chip) when `isExtracted=true`
+- **Page numbers missing** — now shows `p.{n}` on extracted reviews
+
+### Added — Phase 6: ILC Response Drafting
+
+**New Prisma Model (migration 0017):**
+- `SubmittalResponse` — one per `SubmittalReview`; fields: `body`, `status` (DRAFT/APPROVED/SENT), `generatedBy` (AI/userId), `editedAt`, `approvedAt`; backrelation on `SubmittalReview.response`
+
+**New API Route:**
+- `POST /api/projects/[id]/tracker/reviews/[reviewId]/respond` — calls Claude Haiku (`claude-haiku-4-5`) with full project/fixture/reviewer context; upserts SubmittalResponse; skips BOILERPLATE notes
+- `PATCH /api/projects/[id]/tracker/reviews/[reviewId]/respond` — update response body or approve/revert status
+
+**TrackerPanel UI additions:**
+- **`ResponseBlock` component** per review note:
+  - "✦ Draft ILC Response" button → calls Haiku → draft appears inline in amber box
+  - Edit: inline textarea, Save/Cancel
+  - Approve: turns green "✓ ILC Response" with "Revert to draft" option
+  - ↺ regenerate button always visible
+  - Response persists across page reloads (DB-backed)
+- Responses not shown for BOILERPLATE notes (no text to respond to)
+
+**Tracker GET updated** to include `response` in each review's include chain
+
+**Prompt engineering:**
+- Haiku instructed to use specific fixture type code, manufacturer, category context
+- Authoritative but collaborative tone ("Acknowledged.", "ILC will coordinate...")
+- Not generic — references actual reviewer comment content
+
+### Files Modified
+- `prisma/schema.prisma` — SubmittalResponse model, backrelation on SubmittalReview + User
+- `prisma/migrations/0017_submittal_response/migration.sql` — new
+- `src/components/tracker/TrackerPanel.jsx` — CategoryBadge, AI badge, page number, ResponseBlock
+- `src/app/api/projects/[id]/tracker/route.js` — include response in reviews
+- `src/app/api/projects/[id]/tracker/reviews/[reviewId]/respond/route.js` — new
+
+---
+
+## [Session 23 — Sales Automation + Bot Queue Phase A] · June 4, 2026
+
+### Added
+
+**New Prisma Models (migration 0016):**
+- `BotConfig` — per-user bot settings (scheduling enabled, follow-up enabled, review window, proposal count)
+- `SchedulingRule` — per-user or company-default (userId=null) meeting scheduling rules
+- `BotDraft` — AI-generated draft emails waiting for review or auto-send
+- `BotRule` — automation rules engine (trigger + action config as JSON; replaces separate FollowUpRule + BotDefaultRule models from spec)
+- `MessageTemplate` — email / LinkedIn / meeting agenda templates with `{variable}` placeholders
+- `BotKnowledgeEntry` — searchable FAQ knowledge base the bot draws from when drafting
+- `UserLocationState` — travel detection state (one row per day outside home base)
+- `User.homeBaseCity` / `User.homeBaseAddress` — added for bot travel detection
+
+**Navigation:**
+- "Bot Queue" (robot icon) and "Sales Automation" (sparkles icon) added to Sales nav section
+- Both pages keep the Sales section open (`startsWith('/sales/')` added to `crmRelated`)
+
+**Bot Queue** (`/sales/bot-queue`):
+- Two tabs: Scheduling | Follow-Ups (URL-driven via `?tab=`)
+- Draft cards: deal name, to email, subject preview, status pill, countdown timer (amber <10min, red <5min)
+- Edit & Send (disabled, Phase B) and Cancel buttons per pending draft
+- Clean empty state with Phase A info banner
+
+**Sales Automation** (`/sales/automation` → redirects to `/rules`):
+- **Templates** (`/sales/automation/templates`): Email / LinkedIn / Meeting Agendas sub-tabs; table with Name, Scenario, Client Type, Stage, Default, Active columns; drawer editor with variable hints; one-click seed of 7 email + 4 LinkedIn stub templates
+- **Bot Knowledge** (`/sales/automation/knowledge`): Grouped accordion by category; search + category filter; Add Entry drawer; CSV import modal with client-side parsing and preview
+- **Bot Rules** (`/sales/automation/rules`): Rules table with trigger/action pills and active toggle; two-panel WHEN/THEN rule editor drawer with dynamic config fields per trigger/action type
+- **Scheduling Rules** (`/sales/automation/scheduling`): Review window (manual/auto/immediate); scheduling rules table + Add Rule drawer; follow-up thresholds derived from BotRule DEAL_STALE records; Location & Travel section (Phase D placeholder)
+
+**API Routes (17 total):**
+- `GET/POST /api/automation/templates`, `PATCH/DELETE /api/automation/templates/[id]`, `POST /api/automation/templates/seed`
+- `GET/POST /api/automation/knowledge`, `PATCH/DELETE /api/automation/knowledge/[id]`, `POST /api/automation/knowledge/import`
+- `GET/POST /api/automation/bot-rules`, `PATCH/DELETE /api/automation/bot-rules/[id]`
+- `GET/PUT /api/bot/config`, `GET/POST /api/bot/rules/scheduling`, `PATCH/DELETE /api/bot/rules/scheduling/[id]`
+- `GET /api/bot/queue`, `GET/PATCH /api/bot/drafts/[id]`, `POST /api/bot/drafts/[id]/send` (501 stub), `POST /api/bot/drafts/[id]/cancel`
+- `POST /api/bot/process-queue` (cron stub, x-cron-secret protected)
+- `POST /api/bot/check-followup` (cron stub, x-cron-secret protected)
+
+**Environment:**
+- `CRON_SECRET` in `.env` set to strong random value (add to Amplify console before Phase B)
+
+### Fixed
+- `BotRule` create 500 — Prisma required `connect` syntax for named relation `BotRuleCreator`; fixed route to use `createdBy: { connect: { id: user.id } }`
+- `triggerConfig`/`actionConfig` double-stringification — page pre-stringifies before send; route now checks `typeof` before stringifying again
+- Prisma client stale after schema changes — force-regenerated with `prisma generate` after killing server
+
+### Files Modified
+- `prisma/schema.prisma` — 7 new models + User fields + Deal backrelation
+- `prisma/migrations/0016_sales_bot_phase_a/migration.sql` — new
+- `src/components/layout/Sidebar.jsx` — new icons + nav items + crmRelated path
+- `src/app/(app)/sales/bot-queue/page.jsx` — new
+- `src/app/(app)/sales/automation/page.jsx` — redirect to rules
+- `src/app/(app)/sales/automation/templates/page.jsx` — new
+- `src/app/(app)/sales/automation/knowledge/page.jsx` — new
+- `src/app/(app)/sales/automation/rules/page.jsx` — new
+- `src/app/(app)/sales/automation/scheduling/page.jsx` — new
+- All 17 API routes under `src/app/api/automation/` and `src/app/api/bot/` — new
+- `.env` — CRON_SECRET updated to strong random value
+
+---
+
+## [Session 22 — Ship Schedule v2 QA + Bug Fixes (ILC Internal + Portal)] · June 4, 2026
+
+### Fixed — ILC Internal
+- **`+ Add Row` endpoint mismatch** — `addRow()` was calling `/shipments/${ship}/items` (404); corrected to `/shipments/${ship}/line-items` ✅
+- **ESD / Lead Time / Tracking not persisting** — `esdDate`, `leadTimeWeeks`, `trackingNumber` were missing from `ShipmentLineItem` schema; added via migration 0014 so inline edits now save correctly per line item (fall back to shipment-level when null)
+
+### Fixed — Portal
+- **`ReferenceError: pending is not defined`** — Stale `{pending && <ReleaseModal ...>}` line from old shipment-level release design was left in the portal page JSX; removed (new per-item modal at line 224 was already wired correctly)
+- **Release request POST → 500 FK violation** — `WarehouseRelease.releasedById` was non-nullable `String` (FK to User), but PENDING releases have no approving ILC user yet; made nullable via migration 0015; removed `releasedById` from the portal release-requests route create call
+- **`NOT_ORDERED` showing raw text** — Added `NOT_ORDERED: ['bg-slate-100 text-slate-400', 'Not ordered']` to portal `StatusPill` map
+
+### New Migrations
+- **`0014_shipment_line_item_esd_fields`** — adds `leadTimeWeeks`, `esdDate`, `trackingNumber` to `ShipmentLineItem`
+- **`0015_warehouse_release_nullable_releasedby`** — makes `WarehouseRelease.releasedById` nullable
+
+### QA Results — ILC Internal (all ✅)
+- Expander row (▶ toggle) — opens/closes delivery + release sections
+- Log Delivery modal — fields (date, carrier, tracking, qty, notes), submit appends row instantly
+- Status dropdown — all 9 options present, color badge updates, saves on change
+- Inline cell edit — description, type, manufacturer, etc. open input on click, save on blur
+- ESD date input — native date picker, saves on blur, persists on reload (after migration 0014)
+- `+ Add Row` (top-right button) — creates blank row in DB, appends to table (after URL fix)
+
+### QA Results — Portal (all ✅)
+- Table renders with correct columns (Type, Description, Manufacturer, ESD, Status, Ordered, At Warehouse, On Site)
+- D1 row: "In warehouse" status pill, ESD Aug 31 2026, 30 at warehouse shown in blue
+- Row 2 (empty): disabled checkbox, "Not ordered" pill (after StatusPill fix)
+- Clicking D1 row checks checkbox, "1 fixture type selected" bar appears, Request Release button enables
+- Request Release modal: shows D1 / Test downlight / 30 available / qty pre-filled to 30
+- Submit → modal closes, success toast appears, selection resets (after migration 0015 fix)
+- Stats now accurate: "In warehouse: 1", "On order: 1" (after stats fix)
+
+### QA Results — Approve/Decline Flow (all ✅)
+- Amber "Pending Warehouse Release Requests (2)" banner appears on ILC side after portal submissions
+- Approve: banner drops from 2→1, Released count +5, Remaining −5 instantly in table
+- Decline: banner disappears, counts unchanged (declined request has no effect)
+- Expander release history shows both entries: Jun 4 / Mike Test / ILC Admin / −5 and Jun 4 / Mike Test / Declined / −30
+
+### Files Modified
+- `prisma/schema.prisma` — `ShipmentLineItem` gets `leadTimeWeeks`/`esdDate`/`trackingNumber`; `WarehouseRelease.releasedById` made nullable
+- `prisma/migrations/0014_shipment_line_item_esd_fields/migration.sql` — new
+- `prisma/migrations/0015_warehouse_release_nullable_releasedby/migration.sql` — new
+- `src/components/shipSchedule/ShipScheduleTab.jsx` — fixed `addRow()` endpoint URL
+- `src/app/portal/projects/[id]/page.jsx` — removed stale `pending` reference, added `NOT_ORDERED` to StatusPill, removed invalid `releasedById` from release-request create
+- `src/app/api/portal/projects/[id]/release-requests/route.js` — removed `releasedById` from PENDING create
+- `src/app/api/portal/projects/[id]/shipments/route.js` — stats now count line items by `fixtureStatus` instead of shipments by `status`
+
+---
+
+## [Session 21 — Ship Schedule v2: Delivery Events, Release Approval Workflow, Portal Release Request] · June 3, 2026
+
+### Added
+
+- **`ManufacturerDeliveryEvent` model** (migration 0013) — records each physical delivery batch from manufacturer → ILC warehouse with carrier, tracking #, qty received, date, notes
+- **`WarehouseRelease` extended** — added `status` (PENDING/APPROVED/DECLINED), `requestedByPortalUserId`, `approvedAt`, `approvedById`, `qtyReleased`, `requestedAt` for full approval workflow
+- **`destinationType` on `Shipment`** — WAREHOUSE | DIRECT_TO_SITE
+- **`shipScheduleHelpers.js`** — shared `enrichLineItem()` + `LINE_ITEM_INCLUDE` + `deriveShipmentStatus()` used by all ship schedule routes
+
+- **ILC Internal — Pending Release Approvals Banner**: amber banner at top of Ship Schedule tab when any PENDING `WarehouseRelease` records exist; one row per pending request with Approve/Decline buttons; approve calls PATCH, updates optimistically
+- **ILC Internal — Expander rows**: click `▶` on any line item row to expand delivery history + release history; amber highlight on rows with pending releases
+- **ILC Internal — Log Delivery modal**: "+ Log Delivery" button in expander → modal with date, carrier, tracking, qty, notes → `POST .../deliveries`
+- **Portal — Flat line-item table**: replaced shipment-level table with per-fixture-type flat table; checkboxes on rows where `qtyAtWarehouse > 0`
+- **Portal — Release request bar**: sticky bar showing selected count + "Request Release" button; disabled until items selected
+- **Portal — Release request modal**: table of selected items with editable qty inputs, submit → `POST /api/portal/projects/[id]/release-requests`; success toast on submit
+- **`enrichLineItem()`** now used in portal shipments GET — `qtyAtWarehouse`, `qtyOnSite`, `qtyBackordered` derived on read, never stored
+
+### New API Routes
+- `POST /api/projects/[id]/shipments/line-items/[itemId]/deliveries` — log delivery event
+- `POST /api/projects/[id]/shipments/release-requests/[releaseId]` — approve or decline (ILC only)
+- `POST /api/portal/projects/[id]/release-requests` — contractor submits release request
+
+### Files Modified
+- `prisma/schema.prisma` — new fields on Shipment, WarehouseRelease; new ManufacturerDeliveryEvent model; backrelations on User, PortalUser, ShipmentLineItem
+- `src/components/shipSchedule/ShipScheduleTab.jsx` — pending banner, expander rows, Log Delivery modal, enriched load
+- `src/app/portal/projects/[id]/page.jsx` — ShipScheduleView rewritten with flat item table, checkboxes, release request modal
+- `src/app/api/projects/[id]/shipments/route.js` — includes deliveryEvents + releases in GET
+- `src/app/api/portal/projects/[id]/shipments/route.js` — includes enriched qty fields
+
+---
+
+## [Session 20 — Submittal Review Intelligence (Phases 1–4)] · June 3, 2026
+
+### Added
+
+- **Submittal Review Intelligence — Phases 1–4** — AI extraction of reviewer notes from submitted PDFs
+  - **Phase 1 — PDF Extraction**: `POST /api/projects/[id]/tracker/extract` — accepts a submitted PDF, runs pdfjs text extraction, scans for 25+ reviewer prefix patterns (ILC, BOKA POWELL, MEPDD, KTGY, OZ, RJA, TRIO, SDDS, etc.), links notes to fixture type codes, auto-creates `SubmittalSubmission` + `SubmittalItemVersion` + `SubmittalReview` records in one transaction
+  - **Phase 2 — Claude Haiku Classification**: After rule-based extraction, any note in the `OTHER` category is sent to `claude-haiku-4-5` for classification into 12 categories: FINISH, MODEL, ACCESSORY, VOLTAGE, LUMEN, WET_LOCATION, DRAWING_SYNC, DISCONTINUED, LED_TAPE, CODE, CRI, BOILERPLATE. Estimated <$0.05/package.
+  - **Phase 3 — Review UI**: `⚡ Extract Notes` button in submittal tracker toolbar; green result banner showing notes extracted + new types added; AI-tagged review cards (amber "AI" badge, category label, page number); flag chips on tracker rows (FINISH / VOLTAGE / ACCESSORY / DISC / WET)
+  - **Phase 4 — Open Items + Repeat Detection**: `SubmittalOpenItem` model tracks unresolved notes across rounds; repeat detection (same type + category, prior round still open); `GET /api/projects/[id]/tracker/open-items` grouped by responsible party; open items panel in tracker with 🔄 repeat badge
+
+- **`src/lib/submittalExtractor.js`** — extraction library
+  - `extractPdfPages()` — pdfjs text extraction per page
+  - `extractNotesFromPages()` — prefix scanner + fixture type attribution
+  - `categorizeNote()` — 12-category rule engine (no Claude call)
+  - `inferResponsibleParty()` — derives ARCH/EE/ID/CONTRACTOR/ILC from note text + category
+  - `detectRepeats()` — compares new notes against existing open items
+
+### Schema Changes (migration 0012)
+- `SubmittalItemVersion` — added `isDiscontinued Boolean?`, `wetLocationRequired Boolean?`
+- `SubmittalReview` — added `noteCategory String?`, `isExtracted Boolean @default(false)`, `pageNumber Int?`
+- New model: `SubmittalOpenItem` — cross-round open item tracker with repeat detection
+
+### Files Created
+- `prisma/migrations/0012_submittal_intelligence/migration.sql`
+- `src/lib/submittalExtractor.js`
+- `src/app/api/projects/[id]/tracker/extract/route.js`
+- `src/app/api/projects/[id]/tracker/open-items/route.js`
+
+### Files Modified
+- `prisma/schema.prisma` — schema changes above
+- `src/components/tracker/SubmittalTrackerClient.jsx` — Extract Notes button, open items panel, result banner
+- `src/components/tracker/TrackerTable.jsx` — flag chips on rows, AI badge on extracted reviews
+
+---
+
+## [Session 19 — RFI Module (Sprints 1–3): AI Pre-Write Draft Engine] · June 3, 2026
+
+### Added
+
+- **RFI Module — Sprints 1–3** — full AI-assisted RFI management system
+  - **Data model** (migration 0011): `RFI`, `RFIActivity`, `RFIAttachment`, `RFIImpactItem`, `DrawingRevisionFlag` models
+  - `rfiRoutingMode` added to `Project`; `rfiId @unique` added to `ChangeOrder`; `drawingSheetReference` added to `FixtureScheduleItem`
+  - **RFI list** — sortable work queue: ⚡ Draft Ready first, then OPEN by due date; columns: RFI#, Subject, Type, From, Due, Status, Draft Status
+  - **Intake drawer** — log inbound RFI with RFI#, subject, received from, type, due date, assignee, full question text; `shipFlag` auto-set by scanning subject against active `ShipmentLineItem` records
+  - **RFI detail** — two-column layout: left=thread (INBOUND gray / OUTBOUND dark), right=context panel (details, impact items, linked CO)
+  - **Draft Zone** — 6 states: NONE → auto-generates on open → GENERATING (spinner + 2s poll) → READY (amber banner + editable text) → REVIEWED (edited) → SENT (recorded in thread)
+  - **AI draft engine** — `claude-haiku-4-5` with ILC voice prompt (ALL CAPS, directive, no hedging, always signed); context assembly pulls fixture type, mounting height, catalog#, drawing sheet ref, ship status; confidence scoring: HIGH/MEDIUM/LOW/SUBSTITUTION
+  - **MULTI_QUESTION** — numbered items parsed from AI response → per-item `RFIImpactItem` records with itemConfidence (HIGH/MEDIUM/LOW); overall = worst item
+  - **Routing modes** — DIRECT (uppercase directive), THROUGH_ARCHITECT (same text + routing note), REVIEW_ONLY (sentence-case review comment, no send button)
+  - **LOW confidence fast-path** — no Claude call; draft zone shows blank + manual compose area
+  - **Approve & Send** — atomic: OUTBOUND RFIActivity created + RFI status → RESPONDED + draftStatus → SENT
+  - **Ship flag gate** — SUBSTITUTION RFIs with active shipment require confirmation modal before approve
+  - **Regenerate** button — re-runs draft generation, overwrites current draft
+  - `GET /api/projects/[id]/rfis/summary` — 4-number widget: Open, Overdue, Draft Ready, Closed This Month
+
+- **`extractFixtureTypes` utility** (`src/lib/extractFixtureTypes.js`) — parses free text for fixture type codes matching the project's actual schedule; normalizes to uppercase; used by shipFlag auto-set and draft engine
+
+- **RFIs moved to Construction section** in project nav for all service types (was in Design / Pre-Construction)
+
+### Fixed
+- Old `RFITab` (file-upload-based) replaced entirely by new `RFIModule`
+
+### Files Created
+- `prisma/migrations/0011_rfi_module/migration.sql`
+- `src/lib/extractFixtureTypes.js`
+- `src/components/rfi/RFIModule.jsx`
+- `src/app/api/projects/[id]/rfis/route.js` (GET list + POST create)
+- `src/app/api/projects/[id]/rfis/[rfiId]/route.js` (GET detail + PATCH)
+- `src/app/api/projects/[id]/rfis/[rfiId]/generate-draft/route.js`
+- `src/app/api/projects/[id]/rfis/[rfiId]/approve-draft/route.js`
+- `src/app/api/projects/[id]/rfis/summary/route.js`
+
+### Files Modified
+- `prisma/schema.prisma` — 5 new models + fields on Project, ChangeOrder, FixtureScheduleItem, User, ProjectFile
+- `src/lib/projectNavConfig.js` — RFIs moved to Construction section, removed from Design/Pre-Construction
+- `src/app/(app)/project/[id]/ProjectHubClient.jsx` — RFIModule replaces old RFITab
+
+---
+
+## [Session 18 — Correspondence Tab, Budget QC, Pricing Intelligence, Portal v2, Sidebar, Many More] · June 2–3, 2026
+
+### Added
+
+- **Correspondence Tab (Phase A)** — Gmail-style email view under Communications → Correspondence
+  - `EmailAccount`, `EmailMessage`, `EmailAttachment` Prisma models (migration 0007)
+  - Thread list: search, filter pills (per-tag, multi-select AND logic), unread dots, avatar hash colors, relative time
+  - Thread detail: collapsed/expanded messages, DOMPurify HTML sanitization, attachment rows ("Download coming soon")
+  - Mark-as-read on open (optimistic), reply bar placeholder
+  - Empty state, loading skeleton, no-results state
+  - Seed script: `prisma/seed-correspondence.js` — accepts project ID or name arg, seeds 6 mock threads
+  - Special seed: `prisma/seed-candelas-emails.js` — real Candelas email threads from exported PDFs
+  - 3 API routes: `GET /api/projects/[id]/correspondence/threads`, thread detail, PATCH mark-as-read
+
+- **Project Sidebar — Collapse/Pin** — second project sidebar now collapses to 44px icon rail
+  - Pin button (amber) in header; collapses to icon-only rail with tooltips; unpin re-expands
+  - localStorage persistence per user (`sidebar_collapsed_[userId]`), SSR-safe useEffect pattern
+  - Lucide icons added to all 14 nav items in `projectNavConfig.js`
+
+- **Client Portal v2** — full rewrite from card-grid to sidebar + bottom-tab nav
+  - Ship Schedule: stats bar, description column, release confirmation modal, ESD on mobile
+  - Budget: live data from `DesignBidMatrix` (CN pricing only — DN never shown), CO summary bar, PDF download
+  - Change Orders: live data from `ChangeOrder` model, per-CO PDF download, "Contact rep" button per pending CO
+  - Meeting Notes: expand/collapse, mobile layout
+  - Construction Schedule: phases (Pre-Construction/Procurement/Installation/Closeout), progress bar, first delivery callout, overdue states
+  - Contracts/Submittals: PDF download on every file
+  - New API routes: `/api/portal/projects/[id]/budget`, `/api/portal/projects/[id]/change-orders`
+  - Upgraded: shipments (stats + first delivery), construction (first delivery from shipments)
+  - Portal layout updated to `h-screen flex-col` for full-height nav
+
+- **Budget QC Checklist** — persistent pre-flight checklist tied to each project's budget
+  - `BudgetQCChecklist` + `BudgetQCItem` Prisma models (migration 0009)
+  - 13 checklist items: 4 system auto-checks (emergency fixtures, controls, qty drift, price drift), 5 fixture QC, 4 pricing/commercial
+  - QC strip bar docked below topbar: stage dots (DD→GMP→IFC), progress fill, reviewer avatar, "View Checklist →"
+  - Right-side drawer: per-item checkboxes with checked-by stamps, auto-check results, reviewer assignment (admin only)
+  - Small `QC · 4/13` badge on Budget tab main screen
+  - Send gate: soft confirm dialog on DD/GMP, hard block (cannot send) on IFC until all items checked
+  - 3 API routes: GET (auto-creates on first load), PATCH item, PATCH assign reviewer
+
+- **Pricing Intelligence — Feature 1: Cross-project price increase alerts**
+  - `ProductPriceHistory` model (migration 0010) — records price on every Email Bid send
+  - `GET /api/pricing/price-check` — reads threshold/window from `SystemConfig`, compares vs. history
+  - Amber `⚠ +23%` badge on budget unit price cells with hover tooltip (prior price, prior project, date)
+  - Write trigger: fire-and-forget in `openMailto()` in `EmailBidPopup`
+  - Divide-by-zero guard, normalized manufacturer/partNumber keys
+
+- **Pricing Intelligence — Feature 2: Retail price check (Amenity fixtures)**
+  - `ProductPriceCache` model — permanent until manual refresh, normalized keys
+  - `POST /api/pricing/retail-lookup` — SerpAPI integration, merged with refresh (forceRefresh flag), graceful no-op if `SERPAPI_KEY` missing
+  - `GET /api/pricing/retail-cache` — batched, background fetch after items load (not blocking)
+  - Colored dot on Amenity line items: green (>10% below retail) / amber (within 10%) / red (at or above retail)
+  - Hover tooltip: per-retailer prices with links, % vs retail, "Refresh ↻" button
+  - Retail cache fires as background `useEffect` after items load — never blocks render
+
+- **Pricing Intelligence — Admin Config** — Settings → Master Pricing → "Pricing Intelligence" card
+  - Two configurable fields: alert threshold % and lookback window months
+  - Backed by `SystemConfig` table (key-value), falls back to 10%/12mo defaults
+  - `GET/PATCH /api/system-config` — generic system config upsert (ILC_ADMIN only)
+
+- **User Department Roles** — multi-select role assignment on Users admin page
+  - 6 roles: Operations, Finance, Design, Pre-construction, Construction, Sales
+  - Stored as JSON array on `User.deptRoles` (migration 0008)
+  - Shown as color-coded pills in the user list table; multi-select pill UI in edit modal
+  - Edit User modal redesigned as 2-column layout with scrollable body + sticky footer buttons
+
+- **Drawing Phase Auto-Update** — uploading a drawing set auto-advances project phase
+  - SD/DD/CD/IFC tags → advance to matching phase; ASI/RFI → advance to Construction
+  - Only advances (never goes backward); green toast banner confirms phase change
+  - `PERMIT` tag removed from drawing tags
+  - Date prefix (`YY.MM.DD`) auto-prepended to filenames for drawings, CA, and design schedule uploads
+
+- **Fixture Schedule — Delete/Rename Versions** — on published versions (v1, v2, etc.)
+  - Pencil icon → inline rename (submissionTag), save on Enter
+  - Trash icon → "Delete version?" confirm modal with red warning; removes all items in that version
+  - API routes: `PATCH/DELETE /api/projects/[id]/fixture-schedule/versions/[versionId]`
+
+- **Budget Matrix — Delete/Rename Versions** — same pattern as fixture schedule
+  - API routes: `PATCH/DELETE /api/projects/[id]/design-bid-matrix/[matrixId]`
+
+- **Project Rename** — inline rename on project header
+  - Hover over project title → pencil icon fades in; click → inline input at same font size
+  - Saves to DB via existing `PATCH /api/projects/[id]`
+
+- **Budget Type field removed** from new project form (`/project/new`)
+
+### Fixed
+
+- **Fixture Schedule PDF parse — multiple fixes**
+  - Missing `import { getAnthropicKey }` in parse route → silent crash, empty 500 response
+  - Wrong model name `claude-opus-4-5` → corrected to `claude-haiku-4-5`
+  - `max_tokens: 4096` too low for large schedules → raised to `8192`
+  - `mkdir`/`writeFile` outside try/catch → crashes before response → wrapped with graceful skip
+  - Missing `source`/`sourceFileUrl` fields on `FixtureSchedule` model → removed from update
+  - Added top-level try/catch to always return JSON, never empty 500
+  - Added truncation recovery: salvages complete rows from truncated AI responses
+  - PDF parse drag/drop missing `onDragOver`/`onDragLeave`/`onDrop` handlers in `ParseFromPdfModal`
+  - **AI parsing quality:** added post-processing type-code validation (catches `WM_WALL PACK` → `WM`)
+  - **AI prompt:** multi-manufacturer or-equal rows now split into separate lines; leftmost-column rule for type codes
+
+- **TYPE column in fixture schedule** — widened from 3% → 6%, `whitespace-nowrap font-mono` — `LT-400` no longer wraps
+
+- **getAnthropicKey missing** from 6 additional API routes (`analyze-contract`, `chat`, `code-check`, `fixture-schedule/parse`, `peer-review/parse-pdf`, `tracker/import-toc`)
+
+- **Portal layout** — updated to `h-screen flex-col` so sidebar nav fills viewport; projects list page got `max-w-2xl mx-auto px-4 py-8` padding
+
+### Files Created
+- `prisma/migrations/0007_correspondence_models/`, `0008_user_dept_roles/`, `0009_budget_qc_checklist/`, `0010_pricing_intelligence/`
+- `prisma/seed-correspondence.js`, `prisma/seed-candelas-emails.js`
+- `src/components/correspondence/CorrespondenceTab.jsx`
+- `src/components/budgetQC/BudgetQCStrip.jsx`, `BudgetQCDrawer.jsx`, `BudgetQCBadge.jsx`
+- `src/components/pricing/PriceAlertBadge.jsx`, `RetailPriceDot.jsx`
+- `src/lib/budgetQCItems.js`, `src/lib/budgetQCAutoChecks.js`, `src/lib/pricingIntelligence.js`
+- `src/app/api/projects/[id]/correspondence/threads/route.js` + detail + read
+- `src/app/api/projects/[id]/budget-qc/route.js` + items/[itemKey] + assign
+- `src/app/api/projects/[id]/fixture-schedule/versions/[versionId]/route.js`
+- `src/app/api/projects/[id]/design-bid-matrix/[matrixId]/route.js`
+- `src/app/api/pricing/price-history/`, `price-check/`, `retail-lookup/`, `retail-cache/`
+- `src/app/api/system-config/route.js`
+- `src/app/api/portal/projects/[id]/budget/route.js`, `change-orders/route.js`
+
+### Files Modified
+- `prisma/schema.prisma` — added EmailAccount, EmailMessage, EmailAttachment, BudgetQCChecklist, BudgetQCItem, ProductPriceHistory, ProductPriceCache models; `deptRoles` on User; `defaultDiscountPct` on Manufacturer
+- `src/lib/projectNavConfig.js` — icons added to all nav items
+- `src/components/project/ProjectSidebar.jsx` — full rewrite with collapse/pin + icon rail
+- `src/app/(app)/project/[id]/ProjectHubClient.jsx` — userId prop, sidebar collapse, correspondence tab, budget QC badge, budget rename/delete
+- `src/app/(app)/project/[id]/PeerReviewClient.jsx` — budget QC strip + send gate, pricing badges, budget rename/delete, dept roles
+- `src/app/(app)/project/[id]/FixtureScheduleEditor.jsx` — delete/rename version UI, type column fix, drag/drop fix, parse improvements
+- `src/app/(app)/project/[id]/DrawingsTab.jsx` — remove PERMIT, phase auto-update toast
+- `src/app/(app)/project/[id]/wizard/page.jsx` — pass currentUser + allUsers to PeerReviewClient
+- `src/app/(app)/admin/AdminClient.jsx` — 2-column edit modal, department roles multi-select + display
+- `src/app/(app)/admin/pricing/PricingEditor.jsx` — Pricing Intelligence config card
+- `src/app/(app)/admin/pricing/page.jsx` — load SystemConfig pricing intel values
+- `src/app/(app)/project/new/NewProjectForm.jsx` — remove Budget Type field
+- `src/app/api/projects/[id]/drawing-submissions/route.js` — date prefix, phase auto-update
+- `src/app/api/projects/[id]/files/route.js` — date prefix for drawing/CA/designInfo tabs
+- `src/app/api/admin/users/[id]/route.js` — deptRoles PATCH + response
+- `src/app/portal/layout.jsx` — h-screen flex-col layout
+- `src/app/portal/projects/[id]/page.jsx` — full v2 rewrite
+- `src/app/portal/projects/page.jsx` — padding fix
+
+---
+
 ## [Session 17 — CRM Dashboards, Tasks Enhancements, Sidebar Restructure, Rich Text Editor] · May 21, 2026
 
 ### Added

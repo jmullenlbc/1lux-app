@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
+import { getAnthropicKey } from '@/lib/anthropicKey';
 
 export const maxDuration = 120;
 
@@ -13,7 +14,11 @@ Respond ONLY with a valid JSON array. No prose, no markdown, no code fences.
 Each element in the array is one fixture type row.
 
 Required fields (use null if not found):
-- type_code: string — the fixture type identifier (e.g. "D1", "C2", "SA-6", "P3 (ALT)")
+- type_code: string — the fixture type identifier. This is ALWAYS the short code in the
+  FIRST (leftmost) column of the schedule — typically 1–6 characters (e.g. "D1", "GBM",
+  "C2", "SA-6", "P3 (ALT)", "WM"). Never use a longer label or description from a secondary
+  column as the type_code, even if it looks like a code (e.g. "WM_WALL PACK" is NOT a
+  type_code — the real type_code would be the short identifier to its left, like "WM" or "GBM").
 - location: string — the space or area tag
 - description: string — fixture description
 - manufacturer: string — manufacturer name. Use "TBD" if the schedule shows TBD. Null if not present.
@@ -44,6 +49,16 @@ Special handling rules:
   split them and set confidence to 0.5 or below.
 - Alternate fixtures (e.g. "P3 (ALT)", "D1-ALT") are separate rows.
   Set type_code exactly as it appears. Do not merge alternates with their primary fixture.
+- OR-EQUAL / MULTI-MANUFACTURER rows: When a single fixture type lists multiple manufacturers
+  as acceptable alternates (separated by semicolons, slashes, "or", line breaks, or similar
+  delimiters), split them into SEPARATE rows — one row per manufacturer.
+  The first manufacturer listed is the basis of design (isAlternate omitted or false).
+  Each subsequent manufacturer becomes its own row with the SAME type_code and confidence 0.6.
+  Example: "W1" with "AXIS LIGHTING: ARLED SERIES; PRUDENTIAL: P23 SERIES; FOCAL POINT" becomes:
+    Row 1: type_code "W1",  manufacturer "AXIS LIGHTING",  catalog_number "ARLED SERIES", confidence 0.9
+    Row 2: type_code "W1",  manufacturer "PRUDENTIAL",     catalog_number "P23 SERIES",   confidence 0.6
+    Row 3: type_code "W1",  manufacturer "FOCAL POINT",    catalog_number null,           confidence 0.6
+  Set confidence to 0.6 or below on the split rows since catalog numbers may be incomplete.
 - If a row is clearly a note, header, or non-fixture content, skip it.
 - Preserve multi-part catalog numbers exactly as written with ' + ' delimiter.
   Example: "NHIOICD-48-LE4 + NIO-4RD30X-HW + NIO-REFLTIR25" stays as-is.
@@ -97,6 +112,7 @@ async function getOrCreateDraft(projectId) {
 // POST /api/projects/[id]/fixture-schedule/parse
 // multipart/form-data: file (PDF, 1–3 pages)
 export async function POST(request, { params }) {
+  try {
   const { user, error } = await requireAuth();
   if (error) return error;
 
@@ -133,22 +149,26 @@ export async function POST(request, { params }) {
     }, { status: 400 });
   }
 
-  // Store the source PDF
-  const uploadDir = path.join(process.cwd(), 'uploads', params.id, 'fixture-schedule-parse');
-  await mkdir(uploadDir, { recursive: true });
-  const stored     = `${Date.now()}-${Math.random().toString(36).slice(2)}.pdf`;
-  const storedPath = path.join(params.id, 'fixture-schedule-parse', stored);
-  await writeFile(path.join(uploadDir, stored), buffer);
+  // Store the source PDF (non-critical — parse continues even if storage fails)
+  let storedPath = null;
+  try {
+    const uploadDir = path.join(process.cwd(), 'uploads', params.id, 'fixture-schedule-parse');
+    await mkdir(uploadDir, { recursive: true });
+    const stored = `${Date.now()}-${Math.random().toString(36).slice(2)}.pdf`;
+    storedPath   = path.join(params.id, 'fixture-schedule-parse', stored);
+    await writeFile(path.join(uploadDir, stored), buffer);
+  } catch (e) {
+    console.warn('PDF storage skipped:', e.message);
+  }
 
   // Call Claude
-  const Anthropic = (await import('@anthropic-ai/sdk')).default;
-  const anthropic  = new Anthropic({ apiKey: getAnthropicKey() });
-
   let rows = [];
   try {
+    const Anthropic = (await import('@anthropic-ai/sdk')).default;
+    const anthropic  = new Anthropic({ apiKey: getAnthropicKey() });
     const msg = await anthropic.messages.create({
-      model:      'claude-opus-4-5',
-      max_tokens: 4096,
+      model:      'claude-haiku-4-5',
+      max_tokens: 8192,
       messages:   [{
         role:    'user',
         content: `${AI_PARSE_PROMPT}\n\nFile: ${file.name}\n\n---\n\n${extractedText.slice(0, 40000)}`,
@@ -161,20 +181,64 @@ export async function POST(request, { params }) {
     // Strip markdown fences if present
     clean = clean.replace(/^```[\w]*\n?/, '').replace(/\n?```$/, '').trim();
 
-    // Extract array if wrapped in something else
+    // Extract array portion
     const firstBracket = clean.indexOf('[');
-    const lastBracket  = clean.lastIndexOf(']');
-    if (firstBracket !== -1 && lastBracket > firstBracket) {
-      clean = clean.slice(firstBracket, lastBracket + 1);
+    if (firstBracket !== -1) {
+      clean = clean.slice(firstBracket);
     }
 
-    rows = JSON.parse(clean);
+    // Attempt full parse first
+    try {
+      rows = JSON.parse(clean);
+    } catch {
+      // Truncated response — recover all complete objects before the cutoff
+      const lastClose = clean.lastIndexOf('},');
+      const lastCloseAlt = clean.lastIndexOf('}]');
+      const cutAt = Math.max(lastClose, lastCloseAlt);
+      if (cutAt > 0) {
+        const partial = clean.slice(0, lastClose !== -1 ? lastClose + 1 : cutAt + 1) + ']';
+        try {
+          rows = JSON.parse(partial);
+          console.warn(`PDF parse: response was truncated — recovered ${rows.length} rows`);
+        } catch {
+          throw new Error('AI response was truncated and could not be recovered. Try a PDF with fewer fixture types or split across multiple uploads.');
+        }
+      } else {
+        throw new Error('AI response was not valid JSON.');
+      }
+    }
+
     if (!Array.isArray(rows)) rows = [];
+
+    // ── Post-processing: fix malformed type codes ─────────────────────────────
+    // Edge case: AI grabs a label like "WM_WALL PACK" instead of the short code
+    // "WM" or "GBM" when the catalog number also contains the type code string.
+    // Rule: a valid type code is 1–8 alphanumeric chars with at most one hyphen.
+    // If type_code contains spaces or underscores, it grabbed the wrong column.
+    const VALID_TYPE_CODE = /^[A-Z0-9]{1,8}(-[A-Z0-9]+)?(\s*\(ALT\))?$/i;
+    rows = rows.map(r => {
+      if (!r.type_code) return r;
+      const tc = r.type_code.trim();
+      if (/[\s_]/.test(tc) && !VALID_TYPE_CODE.test(tc)) {
+        // Split on space or underscore, take the first token if it looks like a valid code
+        const firstToken = tc.split(/[\s_]+/)[0];
+        if (firstToken && VALID_TYPE_CODE.test(firstToken)) {
+          console.warn(`PDF parse: corrected type_code "${tc}" → "${firstToken}"`);
+          return {
+            ...r,
+            type_code:  firstToken,
+            confidence: Math.min(typeof r.confidence === 'number' ? r.confidence : 1, 0.5),
+          };
+        }
+      }
+      return r;
+    });
+    // ─────────────────────────────────────────────────────────────────────────
+
   } catch (e) {
-    console.error('AI parse error:', e.message);
-    // Return error but leave table open for manual entry
+    console.error('AI parse error:', e.message, e.status ?? '');
     return NextResponse.json({
-      error: 'Parse unavailable — add fixtures manually.',
+      error: `AI parse failed: ${e.message}`,
       importedCount: 0,
       flaggedCount:  0,
     }, { status: 200 });
@@ -188,12 +252,8 @@ export async function POST(request, { params }) {
     }, { status: 200 });
   }
 
-  // Get or create draft, update source metadata
+  // Get or create draft
   const draft = await getOrCreateDraft(params.id);
-  await prisma.fixtureSchedule.update({
-    where: { id: draft.id },
-    data:  { source: 'AI_PARSE', sourceFileUrl: storedPath },
-  });
 
   // Clear existing DRAFT items (replacing with fresh parse)
   await prisma.fixtureScheduleItem.deleteMany({ where: { scheduleId: draft.id } });
@@ -245,4 +305,14 @@ export async function POST(request, { params }) {
     flaggedCount,
     scheduleId:    draft.id,
   });
+
+  } catch (e) {
+    // Top-level safety net — always return JSON so the client never gets an empty 500
+    console.error('fixture-schedule/parse unhandled error:', e.message);
+    return NextResponse.json({
+      error: `Server error: ${e.message}`,
+      importedCount: 0,
+      flaggedCount: 0,
+    }, { status: 500 });
+  }
 }

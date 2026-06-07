@@ -3,6 +3,17 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Badge from '@/components/ui/Badge';
 
+const DEPT_ROLES = ['Operations', 'Finance', 'Design', 'Pre-construction', 'Construction', 'Sales'];
+
+const DEPT_ROLE_COLORS = {
+  Operations:       'bg-slate-100 text-slate-700 border-slate-300',
+  Finance:          'bg-green-50 text-green-700 border-green-300',
+  Design:           'bg-violet-50 text-violet-700 border-violet-300',
+  'Pre-construction': 'bg-blue-50 text-blue-700 border-blue-300',
+  Construction:     'bg-amber-50 text-amber-700 border-amber-300',
+  Sales:            'bg-pink-50 text-pink-700 border-pink-300',
+};
+
 const ROLE_OPTIONS = [
   { value: 'SUPER_ADMIN',   label: 'Super Admin',   desc: 'Full access — ILC Studios team only'        },
   { value: 'COMPANY_ADMIN', label: 'Company Admin',  desc: 'Can manage users and see all projects'      },
@@ -135,15 +146,27 @@ function CreateUserForm({ currentUserRole, onCreated }) {
 
 function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
   const parsedPerms = (() => { try { return JSON.parse(user.permissions || '{}'); } catch { return {}; } })();
+  const parsedDeptRoles = (() => { try { return JSON.parse(user.deptRoles || '[]'); } catch { return []; } })();
+
   const [form, setForm] = useState({
     name:              user.name || '',
     role:              user.role,
+    deptRoles:         parsedDeptRoles,
     mustChangePassword: user.mustChangePassword,
     isActive:          user.isActive !== false,
     newPassword:       '',
     permKnowledgeBase:    parsedPerms.knowledgeBase    === true,
     permClientStandards:  parsedPerms.clientStandards  === true,
   });
+
+  function toggleDeptRole(dr) {
+    setForm(f => ({
+      ...f,
+      deptRoles: f.deptRoles.includes(dr)
+        ? f.deptRoles.filter(r => r !== dr)
+        : [...f.deptRoles, dr],
+    }));
+  }
   const [saving, setSaving]   = useState(false);
   const [error,  setError]    = useState('');
   const [success, setSuccess] = useState('');
@@ -162,6 +185,7 @@ function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
       const body = {
         name:              form.name,
         role:              form.role,
+        deptRoles:         form.deptRoles,
         mustChangePassword: form.mustChangePassword,
         isActive:          form.isActive,
         permissions:       { knowledgeBase: form.permKnowledgeBase, clientStandards: form.permClientStandards },
@@ -184,8 +208,10 @@ function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xl w-full max-w-md">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-xl w-full max-w-3xl flex flex-col max-h-[90vh]">
+
+        {/* Header — fixed */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
           <div>
             <h3 className="font-semibold text-slate-900">Edit User</h3>
             <p className="text-xs text-slate-500 mt-0.5">{user.email}</p>
@@ -195,90 +221,124 @@ function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
           </button>
         </div>
 
-        <form onSubmit={handleSave} className="p-6 space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Full Name</label>
-            <input type="text" value={form.name} onChange={e => set('name', e.target.value)}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-          </div>
+        {/* Body — scrollable, 2-column grid */}
+        <form onSubmit={handleSave} className="flex flex-col flex-1 min-h-0">
+          <div className="overflow-y-auto flex-1 p-6">
+            <div className="grid grid-cols-2 gap-6">
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-2">Role</label>
-            <div className="space-y-2">
-              {availableRoles.map(r => (
-                <label key={r.value} className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                  form.role === r.value ? 'border-amber-400 bg-amber-50' : 'border-slate-200 hover:border-slate-300'
-                }`}>
-                  <input type="radio" name="edit-role" value={r.value} checked={form.role === r.value}
-                    onChange={() => set('role', r.value)} className="mt-0.5 accent-amber-500" />
-                  <div>
-                    <div className="text-sm font-semibold text-slate-800">{r.label}</div>
-                    <div className="text-xs text-slate-500">{r.desc}</div>
+              {/* ── LEFT COLUMN ── */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Full Name</label>
+                  <input type="text" value={form.name} onChange={e => set('name', e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-2">System Role</label>
+                  <div className="space-y-1.5">
+                    {availableRoles.map(r => (
+                      <label key={r.value} className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors ${
+                        form.role === r.value ? 'border-amber-400 bg-amber-50' : 'border-slate-200 hover:border-slate-300'
+                      }`}>
+                        <input type="radio" name="edit-role" value={r.value} checked={form.role === r.value}
+                          onChange={() => set('role', r.value)} className="mt-0.5 accent-amber-500" />
+                        <div>
+                          <div className="text-sm font-semibold text-slate-800">{r.label}</div>
+                          <div className="text-xs text-slate-400">{r.desc}</div>
+                        </div>
+                      </label>
+                    ))}
                   </div>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Reset Password <span className="text-slate-400 font-normal">(leave blank to keep current)</span></label>
-            <input type="text" value={form.newPassword} onChange={e => set('newPassword', e.target.value)}
-              placeholder="New temporary password"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-500" />
-          </div>
-
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input type="checkbox" checked={form.mustChangePassword} onChange={e => set('mustChangePassword', e.target.checked)}
-              className="accent-amber-500" />
-            <span className="text-sm text-slate-700">Require password change on next login</span>
-          </label>
-
-          {/* Permissions */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-2">Extra Permissions</label>
-            <div className="space-y-2">
-              <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors">
-                <input type="checkbox" checked={form.permKnowledgeBase}
-                  onChange={e => set('permKnowledgeBase', e.target.checked)}
-                  className="accent-amber-500 mt-0.5" />
-                <div>
-                  <div className="text-sm font-medium text-slate-800">Knowledge Base Editor</div>
-                  <div className="text-xs text-slate-500">Can add, edit, and delete design standards in the Knowledge Base</div>
                 </div>
-              </label>
-              <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors">
-                <input type="checkbox" checked={form.permClientStandards}
-                  onChange={e => set('permClientStandards', e.target.checked)}
-                  className="accent-amber-500 mt-0.5" />
+              </div>
+
+              {/* ── RIGHT COLUMN ── */}
+              <div className="space-y-4">
+
+                {/* Department Roles */}
                 <div>
-                  <div className="text-sm font-medium text-slate-800">Client Standards Editor</div>
-                  <div className="text-xs text-slate-500">Can view and fill out national lighting standards for clients</div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-2">
+                    Department Roles
+                    <span className="text-slate-400 font-normal ml-1">— select all that apply</span>
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {DEPT_ROLES.map(dr => {
+                      const active = form.deptRoles.includes(dr);
+                      return (
+                        <button key={dr} type="button" onClick={() => toggleDeptRole(dr)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                            active
+                              ? `${DEPT_ROLE_COLORS[dr]} ring-2 ring-offset-1 ring-current`
+                              : 'bg-white text-slate-400 border-slate-200 hover:border-slate-400 hover:text-slate-600'
+                          }`}>
+                          {active && <span className="mr-1">✓</span>}{dr}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </label>
-            </div>
+
+                {/* Reset Password */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    Reset Password <span className="text-slate-400 font-normal">(leave blank to keep current)</span>
+                  </label>
+                  <input type="text" value={form.newPassword} onChange={e => set('newPassword', e.target.value)}
+                    placeholder="New temporary password"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                  <label className="flex items-center gap-2 cursor-pointer mt-2">
+                    <input type="checkbox" checked={form.mustChangePassword} onChange={e => set('mustChangePassword', e.target.checked)} className="accent-amber-500" />
+                    <span className="text-xs text-slate-600">Require password change on next login</span>
+                  </label>
+                </div>
+
+                {/* Extra Permissions */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-2">Extra Permissions</label>
+                  <div className="space-y-1.5">
+                    <label className="flex items-start gap-3 p-2.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors">
+                      <input type="checkbox" checked={form.permKnowledgeBase} onChange={e => set('permKnowledgeBase', e.target.checked)} className="accent-amber-500 mt-0.5" />
+                      <div>
+                        <div className="text-sm font-medium text-slate-800">Knowledge Base Editor</div>
+                        <div className="text-xs text-slate-400">Can add, edit, and delete design standards</div>
+                      </div>
+                    </label>
+                    <label className="flex items-start gap-3 p-2.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors">
+                      <input type="checkbox" checked={form.permClientStandards} onChange={e => set('permClientStandards', e.target.checked)} className="accent-amber-500 mt-0.5" />
+                      <div>
+                        <div className="text-sm font-medium text-slate-800">Client Standards Editor</div>
+                        <div className="text-xs text-slate-400">Can view and fill out national lighting standards</div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Account active */}
+                <div className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors ${
+                  form.isActive ? 'border-slate-200 hover:border-slate-300' : 'border-red-200 bg-red-50'
+                }`} onClick={() => set('isActive', !form.isActive)}>
+                  <input type="checkbox" checked={form.isActive} onChange={e => set('isActive', e.target.checked)}
+                    className="accent-amber-500 mt-0.5" onClick={e => e.stopPropagation()} />
+                  <div>
+                    <div className={`text-sm font-medium ${form.isActive ? 'text-slate-800' : 'text-red-700'}`}>
+                      {form.isActive ? 'Account is active' : 'Account is inactive'}
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      {form.isActive ? 'User can sign in normally' : 'User cannot sign in — data is preserved'}
+                    </div>
+                  </div>
+                </div>
+
+              </div>{/* end right column */}
+            </div>{/* end grid */}
+
+            {error   && <div className="mt-4 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 text-sm text-red-600">{error}</div>}
+            {success && <div className="mt-4 bg-green-50 border border-green-200 rounded-lg px-4 py-2.5 text-sm text-green-700">{success}</div>}
           </div>
 
-          <div className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-            form.isActive ? 'border-slate-200 hover:border-slate-300' : 'border-red-200 bg-red-50'
-          }`} onClick={() => set('isActive', !form.isActive)}>
-            <input type="checkbox" checked={form.isActive} onChange={e => set('isActive', e.target.checked)}
-              className="accent-amber-500 mt-0.5" onClick={e => e.stopPropagation()} />
-            <div>
-              <div className={`text-sm font-medium ${form.isActive ? 'text-slate-800' : 'text-red-700'}`}>
-                {form.isActive ? 'Account is active' : 'Account is inactive'}
-              </div>
-              <div className="text-xs text-slate-500">
-                {form.isActive
-                  ? 'User can sign in normally'
-                  : 'User cannot sign in — their data is preserved'}
-              </div>
-            </div>
-          </div>
-
-          {error   && <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 text-sm text-red-600">{error}</div>}
-          {success && <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2.5 text-sm text-green-700">{success}</div>}
-
-          <div className="flex gap-3 pt-1">
+          {/* Footer buttons — always visible */}
+          <div className="flex gap-3 px-6 py-4 border-t border-slate-100 shrink-0">
             <button type="button" onClick={onClose}
               className="flex-1 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
               Close
@@ -289,6 +349,7 @@ function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
             </button>
           </div>
         </form>
+
       </div>
     </div>
   );
@@ -361,6 +422,7 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
                 <tr className="border-b border-slate-100">
                   <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">User</th>
                   <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Role</th>
+                  <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Departments</th>
                   <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
                   <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Projects</th>
                   <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Joined</th>
@@ -389,6 +451,20 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
                       </td>
                       <td className="px-6 py-4">
                         <Badge variant={badge.variant}>{badge.label}</Badge>
+                      </td>
+                      <td className="px-6 py-4">
+                        {(() => {
+                          const depts = (() => { try { return JSON.parse(u.deptRoles || '[]'); } catch { return []; } })();
+                          return depts.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {depts.map(dr => (
+                                <span key={dr} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${DEPT_ROLE_COLORS[dr] || 'bg-slate-100 text-slate-600 border-slate-300'}`}>
+                                  {dr}
+                                </span>
+                              ))}
+                            </div>
+                          ) : <span className="text-xs text-slate-300">—</span>;
+                        })()}
                       </td>
                       <td className="px-6 py-4">
                         {u.isActive === false

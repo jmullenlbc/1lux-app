@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { deriveShipmentStatus } from '@/lib/shipmentStatus';
+import { enrichLineItem, LINE_ITEM_INCLUDE } from '@/lib/shipScheduleHelpers';
 
 async function canAccess(projectId, user) {
   const p = await prisma.project.findUnique({ where: { id: projectId } });
@@ -16,12 +17,22 @@ export async function GET(req, { params }) {
   if (!await canAccess(params.id, user)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const shipments = await prisma.shipment.findMany({
-    where: { project_id: params.id },
-    include: { lineItems: { orderBy: { createdAt: 'asc' } } },
+    where:   { project_id: params.id },
+    include: {
+      lineItems: {
+        include:  LINE_ITEM_INCLUDE,
+        orderBy:  { sortOrder: 'asc' },
+      },
+    },
     orderBy: { createdAt: 'asc' },
   });
 
-  return NextResponse.json(shipments);
+  const enriched = shipments.map(s => ({
+    ...s,
+    lineItems: s.lineItems.map(enrichLineItem),
+  }));
+
+  return NextResponse.json(enriched);
 }
 
 // POST /api/projects/[id]/shipments

@@ -11,11 +11,12 @@ const DEAL_INCLUDE = {
   contacts: {
     include: {
       contact: {
-        select: { id: true, contactNumber: true, name: true, title: true, email: true, phone: true, clientId: true,
+        select: { id: true, contactNumber: true, name: true, title: true, email: true, phone: true,
+                  linkedInUrl: true, preferredName: true, company: true, clientId: true,
                   client: { select: { id: true, clientNumber: true, name: true } } },
       },
     },
-    orderBy: { createdAt: 'asc' },
+    orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
   },
   activities: {
     orderBy: { createdAt: 'desc' },
@@ -56,8 +57,9 @@ export async function PATCH(request, { params }) {
     // Project-identity fields
     city, state, buildingType, numberOfUnits,
     // Contact management
-    addContacts = [],    // [{ contactId, role }]
+    addContacts = [],    // [{ contactId, role, dealRole, dealNotes, isPrimary }]
     removeContacts = [], // [contactId]
+    updateContact,       // { contactId, isPrimary?, dealRole?, dealNotes? }
   } = body;
 
   // Validate FK IDs — nothing connected by text
@@ -184,15 +186,49 @@ export async function PATCH(request, { params }) {
       }
       // Add contacts
       if (addContacts.length > 0) {
-        await tx.dealContact.createMany({
-          data: addContacts.map(c => ({ dealId: deal.id, contactId: c.contactId, role: c.role || 'OTHER' })),
-          skipDuplicates: true,
+        // If any new contact is primary, clear existing primary first
+        if (addContacts.some(c => c.isPrimary)) {
+          await tx.dealContact.updateMany({ where: { dealId: deal.id }, data: { isPrimary: false } });
+        }
+        // Filter out any contactIds already linked (avoids unique constraint violation)
+        const existingLinks = await tx.dealContact.findMany({
+          where: { dealId: deal.id, contactId: { in: addContacts.map(c => c.contactId) } },
+          select: { contactId: true },
         });
+        const existingIds = new Set(existingLinks.map(e => e.contactId));
+        const newContacts  = addContacts.filter(c => !existingIds.has(c.contactId));
+        if (newContacts.length > 0) {
+          await tx.dealContact.createMany({
+            data: newContacts.map(c => ({
+              dealId:    deal.id,
+              contactId: c.contactId,
+              role:      c.role      || 'OTHER',
+              dealRole:  c.dealRole  || null,
+              dealNotes: c.dealNotes || null,
+              isPrimary: !!c.isPrimary,
+            })),
+          });
+        }
       }
       // Remove contacts
       if (removeContacts.length > 0) {
         await tx.dealContact.deleteMany({
           where: { dealId: deal.id, contactId: { in: removeContacts } },
+        });
+      }
+      // Update a contact link (isPrimary, dealRole, dealNotes)
+      if (updateContact?.contactId) {
+        if (updateContact.isPrimary) {
+          // Enforce single primary: clear all first, then set this one
+          await tx.dealContact.updateMany({ where: { dealId: deal.id }, data: { isPrimary: false } });
+        }
+        await tx.dealContact.updateMany({
+          where: { dealId: deal.id, contactId: updateContact.contactId },
+          data: {
+            ...(updateContact.isPrimary  !== undefined && { isPrimary:  updateContact.isPrimary }),
+            ...(updateContact.dealRole   !== undefined && { dealRole:   updateContact.dealRole   || null }),
+            ...(updateContact.dealNotes  !== undefined && { dealNotes:  updateContact.dealNotes  || null }),
+          },
         });
       }
     });

@@ -13,6 +13,7 @@ model User {
   name               String?
   passwordHash       String?
   role               String                     @default("USER")
+  deptRoles          String                     @default("[]") // JSON: ["Operations","Design",...]
   // Roles: SUPER_ADMIN | COMPANY_ADMIN | USER | CLIENT_VIEWER
   // Legacy roles still supported: ILC_ADMIN (=SUPER_ADMIN), ADMIN (=COMPANY_ADMIN)
   permissions        String                     @default("{}") // JSON: { projects, clients, preCon, manufacturers, admin, knowledgeBase }
@@ -48,10 +49,37 @@ model User {
   changeOrderSends   ChangeOrderSend[]          @relation("COSender")
   changeOrderShares  ChangeOrderShare[]         @relation("COShareCreator")
   parsedEmails       EmailMessage[]             @relation("EmailParser")
+  qcAssignments      BudgetQCChecklist[]        @relation("QCAssignee")
+  qcItemsChecked     BudgetQCItem[]             @relation("QCItemChecker")
+  assignedRFIs       RFI[]                      @relation("RFIAssignee")
   warehouseReleases  WarehouseRelease[]         @relation("WarehouseReleaser")
+  approvedReleases   WarehouseRelease[]         @relation("ReleaseApprover")
+  deliveryEventsCreated ManufacturerDeliveryEvent[] @relation("DeliveryEventCreator")
   shipSchedulePushes ShipSchedulePush[]         @relation("ShipPusher")
   ownedClients       Client[]                   @relation("ClientOwner")
   alerts             UserAlert[]
+  // Sales Bot
+  homeBaseCity       String?
+  homeBaseAddress    String?
+  // Email tone profile — extracted from sent email history (mbox upload)
+  toneProfile        String?   // JSON: { summary, phrases[], openers[], closers[], formality, examples[] }
+  toneProfileBuiltAt DateTime? // when the profile was last generated
+  toneProfileSource  String?   // "gmail_mbox" | "outlook_mbox" | "manual"
+  botConfig          BotConfig?
+  botDrafts          BotDraft[]                 @relation("BotDraftOwner")
+  schedulingRules    SchedulingRule[]           @relation("SchedulingRuleCreator")
+  messageTemplates   MessageTemplate[]          @relation("TemplateCreator")
+  botKnowledgeEntries BotKnowledgeEntry[]       @relation("KnowledgeCreator")
+  userLocationStates  UserLocationState[]       @relation("LocationStateOwner")
+  botRulesCreated    BotRule[]                  @relation("BotRuleCreator")
+  submittalResponses SubmittalResponse[]        @relation("SubmittalResponseCreator")
+  cadenceRulesCreated       RelationshipCadenceRule[]       @relation("CadenceRuleCreator")
+  exclusionRulesCreated     ActivityExclusionRule[]         @relation("ExclusionRuleCreator")
+  classificationRulesCreated ActivityClassificationRule[]   @relation("ClassificationRuleCreator")
+  proposalsCreated          Proposal[]                      @relation("UserProposals")
+  proposalSends             ProposalSend[]                  @relation("UserProposalSends")
+  proposalTemplatesCreated  ProposalTemplate[]              @relation("UserProposalTemplates")
+  proposalRatesUpdated      ProposalRate[]                  @relation("ProposalRateUpdater")
 }
 
 model UserAlert {
@@ -168,6 +196,7 @@ model Client {
   playbook         ClientPlaybook?
   signals          MarketSignal[]
   aliases          ClientAlias[]
+  cadenceDays      Int?    // company-level cadence override; null = use individual tier defaults
 }
 
 model ClientPlaybook {
@@ -278,6 +307,8 @@ model Project {
   clientId                 String?
   client                   Client?   @relation(fields: [clientId], references: [id])
 
+  lifecycleStatus     String              @default("ACTIVE") // PROSPECT | ACTIVE | COMPLETED | LOST
+
   projectData         ProjectData?
   responses           QuestionnaireResponse[]
   shares              ProjectShare[]
@@ -302,8 +333,15 @@ model Project {
   drawingSubmissions  DrawingSubmission[]
   fixtureShares       FixtureScheduleShare[]
   changeOrders        ChangeOrder[]
+  budgetQC            BudgetQCChecklist?         @relation("ProjectBudgetQC")
+  priceHistory        ProductPriceHistory[]      @relation("PriceHistory")
   emails              EmailMessage[]
   shipSchedulePushes  ShipSchedulePush[]
+  rfis                RFI[]
+  rfiRoutingMode      String?            @default("DIRECT")
+  submittalOpenItems  SubmittalOpenItem[] @relation("SubmittalOpenItems") // DIRECT|THROUGH_ARCHITECT|REVIEW_ONLY
+  proposals           Proposal[]         @relation("ProjectProposals")
+  unitTypes           ProjectUnitType[]
 }
 
 model ProjectFile {
@@ -323,8 +361,10 @@ model ProjectFile {
   analysisData   String?
   uploadedById   String
   uploadedBy     User            @relation(fields: [uploadedById], references: [id])
-  createdAt      DateTime        @default(now())
-  placedFixtures PlacedFixture[]
+  createdAt         DateTime              @default(now())
+  placedFixtures    PlacedFixture[]
+  rfiAttachments    RFIAttachment[]       @relation("RFIDrawing")
+  drawingRevisions  DrawingRevisionFlag[] @relation("DrawingRevisionFlags")
 }
 
 model ProjectAssignee {
@@ -490,28 +530,71 @@ model SubmittalSubmission {
 }
 
 model SubmittalItemVersion {
-  id           String              @id @default(cuid())
-  itemId       String
-  item         SubmittalItem       @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  submissionId String
-  submission   SubmittalSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  manufacturer String?
-  modelNumber  String?
-  createdAt    DateTime            @default(now())
-  reviews      SubmittalReview[]
+  id                  String              @id @default(cuid())
+  itemId              String
+  item                SubmittalItem       @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  submissionId        String
+  submission          SubmittalSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  manufacturer        String?
+  modelNumber         String?
+  isDiscontinued      Boolean?            // auto-flagged by extraction
+  wetLocationRequired Boolean?            // auto-flagged by extraction
+  createdAt           DateTime            @default(now())
+  reviews             SubmittalReview[]
 }
 
 model SubmittalReview {
-  id           String               @id @default(cuid())
-  versionId    String
-  version      SubmittalItemVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
-  reviewerRole String
-  reviewerName String?
-  status       String
-  dateNoted    String?
-  notes        String?
-  createdAt    DateTime             @default(now())
+  id             String               @id @default(cuid())
+  versionId      String
+  version        SubmittalItemVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  reviewerRole   String
+  reviewerName   String?
+  status         String
+  dateNoted      String?
+  notes          String?
+  noteCategory   String?              // FINISH|MODEL|ACCESSORY|VOLTAGE|LUMEN|WET_LOCATION|DRAWING_SYNC|DISCONTINUED|LED_TAPE|REPEAT|CODE|BOILERPLATE|OTHER
+  isExtracted    Boolean              @default(false)  // true = auto-populated from PDF
+  pageNumber     Int?                 // page in source PDF where note was found
+  createdAt      DateTime             @default(now())
+  createdById    String?
+  response       SubmittalResponse?
+}
+
+// ILC's drafted response to a reviewer note
+model SubmittalResponse {
+  id           String          @id @default(cuid())
+  reviewId     String          @unique
+  review       SubmittalReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  body         String          // ILC's response text
+  status       String          @default("DRAFT")  // DRAFT | APPROVED | SENT
+  generatedBy  String          @default("AI")     // "AI" | userId
+  editedAt     DateTime?
+  approvedAt   DateTime?
   createdById  String?
+  createdBy    User?           @relation("SubmittalResponseCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([reviewId])
+}
+
+model SubmittalOpenItem {
+  id                String           @id @default(cuid())
+  projectId         String
+  project           Project          @relation("SubmittalOpenItems", fields: [projectId], references: [id], onDelete: Cascade)
+  typeCode          String           // fixture type code (D4, EL2, etc.)
+  noteCategory      String           // from REVIEW_CATEGORIES
+  responsibleParty  String           // ARCH|EE|ID|CONTRACTOR|ILC|OWNERSHIP
+  noteText          String           // latest note text
+  openedRound       Int              @default(1)
+  closedRound       Int?             // null = still open
+  isRepeat          Boolean          @default(false)  // open 2+ rounds
+  previousItemId    String?          // self-ref to prior round's open item
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([projectId])
+  @@index([projectId, typeCode])
 }
 
 model ProjectActivity {
@@ -563,8 +646,9 @@ model Manufacturer {
   id              String                @id @default(cuid())
   numericId       Int                   @unique
   name            String
-  acctLastUpdated String?
-  setupToSell     Boolean               @default(false)
+  acctLastUpdated    String?
+  setupToSell        Boolean               @default(false)
+  defaultDiscountPct Float?                // e.g. 0.50 = 50% off MSRP. Used in Settings → Master Pricing.
   terms           String?
   credit          Float?
   notes           String?
@@ -650,6 +734,8 @@ model Deal {
   activities DealActivity[]
   salesNotes SalesNoteDeal[]
   signalTags MarketSignalDeal[]
+  botDrafts  BotDraft[]         @relation("DealBotDrafts")
+  proposals  Proposal[]         @relation("ProposalDeal")
 }
 
 model DealContact {
@@ -658,41 +744,72 @@ model DealContact {
   deal      Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
   contactId String
   contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  role      String
+  role      String                          // legacy company-type (DEVELOPER, ARCHITECT, etc.)
+  dealRole  String?                         // free-form personal role on this deal
+  dealNotes String?                         // e.g. "Handles approvals", "CC only"
+  isPrimary Boolean  @default(false)        // bot emails this person; only one per deal
   createdAt DateTime @default(now())
 
   @@unique([dealId, contactId])
 }
 
 model Contact {
-  id            String        @id @default(cuid())
-  contactNumber Int           @unique
-  clientId      String?
-  client        Client?       @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  name          String
-  title         String?
-  email         String?
-  phone         String?
-  notes         String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  dealContacts  DealContact[]
+  id               String              @id @default(cuid())
+  contactNumber    Int                 @unique
+  clientId         String?
+  client           Client?             @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  name             String
+  title            String?
+  email            String?
+  phone            String?
+  notes            String?
+  linkedInUrl      String?                       // for LinkedIn automation (Phase C)
+  preferredName    String?                       // "Ryan" — used in email salutation
+  company          String?                       // employer as typed (independent of clientId)
+  // Relationship intelligence
+  cadenceTier      String?                       // VIP_CLIENT | ACTIVE_DEAL | WARM_PROSPECT | PAST_CLIENT | COLD_PROSPECT
+  cadenceDays      Int?                          // null = use tier default from RelationshipCadenceRule
+  lastInPersonAt   DateTime?                     // most recent in-person activity (Coffee/Lunch/Golf/etc.)
+  lastTouchpointAt DateTime?                     // most recent ANY touchpoint
+  nextCheckInAt    DateTime?                     // snoozed until this date (overrides cadence clock temporarily)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  dealContacts     DealContact[]
+  noteContacts     SalesNoteContact[]
 }
 
 model SalesNote {
-  id          String            @id @default(cuid())
-  noteNumber  Int               @unique
-  title       String            @default("")
-  body        String            @default("")
-  meetingDate DateTime?
-  attendees   String            @default("[]")
-  calendarRef String?
-  createdById String
-  createdBy   User              @relation("SalesNoteCreator", fields: [createdById], references: [id])
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  clients     SalesNoteClient[]
-  deals       SalesNoteDeal[]
+  id           String              @id @default(cuid())
+  noteNumber   Int                 @unique
+  title        String              @default("")
+  body         String              @default("")
+  meetingDate  DateTime?
+  attendees    String              @default("[]")    // legacy JSON string for free-text names
+  calendarRef  String?
+  activityType           String?   // COFFEE | LUNCH | HAPPY_HOUR | GOLF | SITE_VISIT | CALL | EMAIL | EVENT | OTHER
+  isInPerson             Boolean   @default(false)   // auto-set true for Coffee/Lunch/HappyHour/Golf/SiteVisit
+  classificationSource   String?   // keyword | rule | ai | manual — how activityType was determined
+  classificationConfidence Int?    // 0-100 — AI confidence score when source=ai
+  isPublished            Boolean   @default(false)   // false = draft (no automations); true = complete, bot can use
+  publishedAt            DateTime? // when note was published
+  createdById  String
+  createdBy    User                @relation("SalesNoteCreator", fields: [createdById], references: [id])
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  clients      SalesNoteClient[]
+  deals        SalesNoteDeal[]
+  contacts     SalesNoteContact[]
+}
+
+model SalesNoteContact {
+  id          String    @id @default(cuid())
+  salesNoteId String
+  salesNote   SalesNote @relation(fields: [salesNoteId], references: [id], onDelete: Cascade)
+  contactId   String
+  contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@unique([salesNoteId, contactId])
 }
 
 model SalesNoteClient {
@@ -767,10 +884,11 @@ model FixtureScheduleItem {
   isAlternate    Boolean               @default(false)
   alternateOf    String?
   aiFlagged      Boolean               @default(false)
-  aiConfidence   Float?
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
-  designBidItems DesignBidMatrixItem[]
+  aiConfidence          Float?
+  drawingSheetReference String?          // e.g. 'EL-101 — Level 1 Lighting Plan'
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  designBidItems        DesignBidMatrixItem[]
 }
 
 model DesignBidMatrix {
@@ -956,17 +1074,18 @@ model Shipment {
   id             String             @id @default(cuid())
   project_id     String
   project        Project            @relation(fields: [project_id], references: [id], onDelete: Cascade)
-  manufacturer   String
-  poDate         DateTime?
-  leadTimeWeeks  String?
-  esdDate        DateTime?
-  trackingNumber String?
-  deliveredDate  DateTime?
-  status         String             @default("PO_PLACED")
-  notes          String?
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
-  lineItems      ShipmentLineItem[]
+  manufacturer      String
+  poDate            DateTime?
+  leadTimeWeeks     String?
+  esdDate           DateTime?
+  trackingNumber    String?
+  deliveredDate     DateTime?
+  status            String             @default("PO_PLACED")
+  destinationType   String             @default("WAREHOUSE")  // WAREHOUSE | DIRECT_TO_SITE
+  notes             String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  lineItems         ShipmentLineItem[]
 }
 
 model ShipmentLineItem {
@@ -989,21 +1108,50 @@ model ShipmentLineItem {
   sourceBatchLabel String?            // "Initial Order", "CO-00003 Supplemental", etc.
   propManufacturer String?            // proposed mfr from bid (display only, no pricing)
   propModel        String?            // proposed part # from bid
-  isRemoved        Boolean            @default(false)  // greyed out when type removed from bid
+  leadTimeWeeks    String?            // per-item lead time override (falls back to shipment-level)
+  esdDate          DateTime?          // per-item ESD override (falls back to shipment-level)
+  trackingNumber   String?            // per-item tracking number
+  isRemoved        Boolean                    @default(false)
   releases         WarehouseRelease[]
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  deliveryEvents   ManufacturerDeliveryEvent[]
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
 }
 
 model WarehouseRelease {
-  id           String          @id @default(cuid())
-  lineItemId   String
-  lineItem     ShipmentLineItem @relation(fields: [lineItemId], references: [id], onDelete: Cascade)
-  qty          Int
-  releasedById String
-  releasedBy   User            @relation("WarehouseReleaser", fields: [releasedById], references: [id])
-  notes        String?
-  releasedAt   DateTime        @default(now())
+  id                      String       @id @default(cuid())
+  lineItemId              String
+  lineItem                ShipmentLineItem @relation(fields: [lineItemId], references: [id], onDelete: Cascade)
+  qty                     Int          // qty requested (legacy: qty released)
+  releasedById            String?      // null when PENDING; set to approving User on APPROVED
+  releasedBy              User?        @relation("WarehouseReleaser", fields: [releasedById], references: [id])
+  notes                   String?
+  releasedAt              DateTime     @default(now())
+  // Approval workflow fields (added for portal release request flow)
+  status                  String       @default("APPROVED")  // PENDING | APPROVED | DECLINED
+  requestedAt             DateTime     @default(now())
+  requestedByPortalUserId String?
+  requestedByPortalUser   PortalUser?  @relation("PortalReleaseRequests", fields: [requestedByPortalUserId], references: [id])
+  approvedAt              DateTime?
+  approvedById            String?
+  approvedBy              User?        @relation("ReleaseApprover", fields: [approvedById], references: [id])
+  qtyReleased             Int?         // set on approval; may differ from qty if ILC adjusts
+
+  @@index([lineItemId])
+}
+
+model ManufacturerDeliveryEvent {
+  id             String           @id @default(cuid())
+  lineItemId     String
+  lineItem       ShipmentLineItem @relation(fields: [lineItemId], references: [id], onDelete: Cascade)
+  deliveryDate   DateTime
+  carrier        String?
+  trackingNumber String?
+  qtyReceived    Int
+  notes          String?
+  createdById    String
+  createdBy      User             @relation("DeliveryEventCreator", fields: [createdById], references: [id])
+  createdAt      DateTime         @default(now())
 
   @@index([lineItemId])
 }
@@ -1072,7 +1220,8 @@ model PortalUser {
   role          String                   @default("EXTERNAL")
   createdAt     DateTime                 @default(now())
   updatedAt     DateTime                 @updatedAt
-  projectAccess ProjectExternalContact[]
+  projectAccess    ProjectExternalContact[]
+  releaseRequests  WarehouseRelease[]       @relation("PortalReleaseRequests")
 }
 
 model ProjectExternalContact {
@@ -1232,6 +1381,8 @@ model ChangeOrder {
   optionGroups ChangeOrderOptionGroup[]
   sends        ChangeOrderSend[]
   shares       ChangeOrderShare[]
+  rfi          RFI?               @relation("COFromRFI", fields: [rfiId], references: [id])
+  rfiId        String?            @unique  // set when CO is generated from an RFI substitution
 
   @@index([projectId])
 }
@@ -1371,4 +1522,513 @@ model EmailAttachment {
   createdAt DateTime     @default(now())
 
   @@index([messageId])
+}
+
+// ── Budget QC Checklist ───────────────────────────────────────────────────────
+
+model BudgetQCChecklist {
+  id            String        @id @default(cuid())
+  projectId     String        @unique
+  project       Project       @relation("ProjectBudgetQC", fields: [projectId], references: [id], onDelete: Cascade)
+  assignedToId  String?
+  assignedTo    User?         @relation("QCAssignee", fields: [assignedToId], references: [id])
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  items         BudgetQCItem[]
+}
+
+model BudgetQCItem {
+  id            String            @id @default(cuid())
+  checklistId   String
+  checklist     BudgetQCChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  itemKey       String
+  checked       Boolean           @default(false)
+  checkedById   String?
+  checkedBy     User?             @relation("QCItemChecker", fields: [checkedById], references: [id])
+  checkedAt     DateTime?
+  note          String?           // acknowledgment note for auto-warn items
+  createdAt     DateTime          @default(now())
+
+  @@unique([checklistId, itemKey])
+  @@index([checklistId])
+}
+
+// ── Pricing Intelligence ──────────────────────────────────────────────────────
+
+model ProductPriceHistory {
+  id            String   @id @default(cuid())
+  manufacturer  String   // normalized lowercase
+  partNumber    String   // normalized lowercase
+  unitPrice     Float
+  projectId     String
+  project       Project  @relation("PriceHistory", fields: [projectId], references: [id], onDelete: Cascade)
+  budgetVersion Int?
+  recordedAt    DateTime @default(now())
+
+  @@index([manufacturer, partNumber, recordedAt])
+}
+
+model ProductPriceCache {
+  id            String   @id @default(cuid())
+  manufacturer  String   // normalized lowercase
+  partNumber    String   // normalized lowercase
+  retailResults String   // JSON: [{ source, price, link }] — max 5 results
+  lowestRetail  Float
+  lastChecked   DateTime @default(now())
+  lastCheckedBy String?  // userId — on manual refresh
+
+  @@unique([manufacturer, partNumber])
+}
+
+// ── RFI Module ────────────────────────────────────────────────────────────────
+
+model RFI {
+  id                  String        @id @default(cuid())
+  projectId           String
+  project             Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  rfiNumber           String
+  subject             String
+  receivedFrom        String        // GC, EC, or 'ILC' if self-initiated
+  rfiType             String        // DIMENSION|CLASH_RELOCATION|CONTROLS|DRAWING_CLARIFICATION|SUBSTITUTION|MULTI_QUESTION|ILC_INITIATED|OTHER
+  routingMode         String        @default("DIRECT")   // DIRECT|THROUGH_ARCHITECT|REVIEW_ONLY
+  status              String        @default("OPEN")     // OPEN|IN_REVIEW|RESPONDED|CLOSED
+  assignedToId        String?
+  assignedTo          User?         @relation("RFIAssignee", fields: [assignedToId], references: [id])
+  procoreRfiId        String?       @unique
+  procoreProjectId    String?
+  dateReceived        DateTime      @default(now())
+  dateDue             DateTime?
+  shipFlag            Boolean       @default(false)
+  shipFlagAcknowledged Boolean      @default(false)
+  changeOrder         ChangeOrder?  @relation("COFromRFI") // backrelation — FK lives on ChangeOrder.rfiId
+  // Pre-write draft fields
+  draftText           String?
+  draftStatus         String        @default("NONE")  // NONE|GENERATING|READY|REVIEWED|SENT
+  draftConfidence     String?       // HIGH|MEDIUM|LOW|SUBSTITUTION
+  draftGeneratedAt    DateTime?
+  draftReviewedBy     String?
+  draftReviewedAt     DateTime?
+  closedAt            DateTime?
+  closedBy            String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  activities          RFIActivity[]
+  impactItems         RFIImpactItem[]
+  drawingFlags        DrawingRevisionFlag[]
+
+  @@index([projectId])
+}
+
+model RFIActivity {
+  id          String          @id @default(cuid())
+  rfiId       String
+  rfi         RFI             @relation(fields: [rfiId], references: [id], onDelete: Cascade)
+  direction   String          // INBOUND|OUTBOUND
+  authoredBy  String
+  bodyText    String
+  sentAt      DateTime        @default(now())
+  createdAt   DateTime        @default(now())
+  attachments RFIAttachment[]
+
+  @@index([rfiId])
+}
+
+model RFIAttachment {
+  id             String       @id @default(cuid())
+  activityId     String
+  activity       RFIActivity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  fileUrl        String
+  fileName       String
+  attachmentType String       // ORIGINAL_RFI|ILC_MARKUP|ASI|GC_PHOTO|PRICING_DOC|OTHER
+  drawingId      String?
+  drawing        ProjectFile? @relation("RFIDrawing", fields: [drawingId], references: [id])
+  createdAt      DateTime     @default(now())
+
+  @@index([activityId])
+}
+
+model RFIImpactItem {
+  id              String   @id @default(cuid())
+  rfiId           String
+  rfi             RFI      @relation(fields: [rfiId], references: [id], onDelete: Cascade)
+  fixtureTypeFrom String?
+  fixtureTypeTo   String?
+  qtyDelta        Int      @default(0)
+  itemNumber      Int?
+  itemConfidence  String?  // HIGH|MEDIUM|LOW
+  itemDraftText   String?
+  impactStatus    String   @default("PENDING")  // PENDING|SCHEDULE_UPDATED|CO_GENERATED|SHIP_REVIEWED
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  @@index([rfiId])
+}
+
+model DrawingRevisionFlag {
+  id         String      @id @default(cuid())
+  drawingId  String
+  drawing    ProjectFile @relation("DrawingRevisionFlags", fields: [drawingId], references: [id], onDelete: Cascade)
+  rfiId      String
+  rfi        RFI         @relation(fields: [rfiId], references: [id], onDelete: Cascade)
+  flaggedAt  DateTime    @default(now())
+  resolvedAt DateTime?
+  resolvedBy String?
+
+  @@index([drawingId])
+  @@index([rfiId])
+}
+
+// ─────────────────────────────────────────────
+// SALES BOT + AUTOMATION (Phase A)
+// ─────────────────────────────────────────────
+
+// Per-user bot settings
+model BotConfig {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schedulingEnabled    Boolean  @default(false)
+  followUpEnabled      Boolean  @default(false)
+  reviewWindowMinutes  Int      @default(30)   // 0 = immediate, -1 = always manual
+  proposalCount        Int      @default(3)
+  confirmationMessage  String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+// Per-user or company-default scheduling rules (userId null = company default)
+model SchedulingRule {
+  id                   String   @id @default(cuid())
+  userId               String?
+  user                 User?    @relation("SchedulingRuleCreator", fields: [userId], references: [id], onDelete: Cascade)
+  meetingType          String   // COFFEE | SITE_VISIT | OFFICE_MEETING | CALL
+  dealStage            String?  // null = applies to all stages
+  preferredDaysOfWeek  String   @default("[\"MON\",\"TUE\",\"WED\",\"THU\",\"FRI\"]") // JSON array
+  preferredStartTime   String   @default("09:00")
+  preferredEndTime     String   @default("17:00")
+  bufferBeforeMinutes  Int      @default(15)
+  bufferAfterMinutes   Int      @default(15)
+  durationMinutes      Int      @default(60)
+  locationType         String   @default("IN_OFFICE") // IN_OFFICE | CLIENT_SITE | COFFEE_SHOP | VIRTUAL
+  homeBase             String?
+  travelCity           String?
+  travelBufferMinutes  Int      @default(45)
+  priority             Int      @default(0)
+  isActive             Boolean  @default(true)  // soft disable instead of delete
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// Bot-generated draft waiting for review or auto-send
+model BotDraft {
+  id                   String    @id @default(cuid())
+  userId               String
+  user                 User      @relation("BotDraftOwner", fields: [userId], references: [id], onDelete: Cascade)
+  dealId               String?
+  deal                 Deal?     @relation("DealBotDrafts", fields: [dealId], references: [id], onDelete: SetNull)
+  emailThreadId        String?   // loose ref to EmailThread.id (no FK yet — email pipeline Phase E)
+  type                 String    // SCHEDULING_REPLY | FOLLOW_UP
+  status               String    @default("PENDING_REVIEW") // PENDING_REVIEW | SENT | MANUALLY_SENT | CANCELLED | CONFIRMED | AWAITING_CONFIRM
+  toEmail              String
+  toName               String?
+  subject              String
+  body                 String
+  proposedSlots        String?   // JSON: [{start, end, locationNote}]
+  confirmedSlot        String?   // JSON: {start, end}
+  calendarEventId      String?
+  reviewWindowMinutes  Int       @default(30)
+  reviewExpiresAt      DateTime?
+  sentAt               DateTime?
+  cancelledAt          DateTime?
+  editedByUserId       String?
+  intentConfidence     Float?
+  draftModel           String?
+  classificationReason String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([dealId])
+  @@index([status])
+}
+
+// Automation rules: what triggers the bot and what it does
+model BotRule {
+  id              String    @id @default(cuid())
+  name            String
+  isActive        Boolean   @default(true)
+  triggerType     String    // INBOUND_EMAIL_INTENT | DEAL_STALE | MARKET_SIGNAL | DEAL_STAGE_CHANGE | MANUAL
+  triggerConfig   String    @default("{}") // JSON — varies by triggerType
+  actionType      String    // DRAFT_SCHEDULING_REPLY | DRAFT_FOLLOW_UP_EMAIL | DRAFT_LINKEDIN_MESSAGE | NOTIFY_ONLY
+  actionConfig    String    @default("{}") // JSON — templateId, reviewWindowMinutes, channel, etc.
+  appliesTo       String    @default("ALL_SALES") // "ALL_SALES" | specific userId (Phase B+)
+  executionOrder  Int       @default(0)
+  parentRuleId    String?   // null = standalone; set = step in a sequence (Phase B+)
+  parentRule      BotRule?  @relation("RuleChain", fields: [parentRuleId], references: [id])
+  childRules      BotRule[] @relation("RuleChain")
+  createdById     String
+  createdBy       User      @relation("BotRuleCreator", fields: [createdById], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([triggerType])
+  @@index([isActive])
+}
+
+// Email / LinkedIn / Meeting Agenda templates
+model MessageTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  channel     String   // EMAIL | LINKEDIN | MEETING_AGENDA
+  scenario    String   // new_intro | proposal_sent | follow_up | peer_review_sent | golf_invite | linkedin_connect | linkedin_move_to_email | meeting_recap | kick_off_agenda | custom
+  dealStage   String?  // null = all stages
+  clientType  String?  // null = all; DEVELOPER | ARCHITECT | GC | EC
+  subject     String?  // email only
+  body        String
+  direction   String?  // AI instructions: rules, tone guidance, activity references, personalization hints
+  variables   String   @default("[]") // JSON: ["clientName","projectName",...]
+  isDefault   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdById String
+  createdBy   User     @relation("TemplateCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([channel])
+  @@index([scenario])
+}
+
+// Searchable knowledge base for bot context
+model BotKnowledgeEntry {
+  id          String   @id @default(cuid())
+  category    String   // GENERAL | DEVELOPERS | ARCHITECTS | ENGINEERS | CONTRACTORS
+  keywords    String   // comma-separated
+  question    String
+  answer      String
+  isActive    Boolean  @default(true)
+  source      String?  // FAQ_IMPORT | MANUAL
+  createdById String?
+  createdBy   User?    @relation("KnowledgeCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+}
+
+// Travel detection state — one row per day outside home base
+model UserLocationState {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation("LocationStateOwner", fields: [userId], references: [id], onDelete: Cascade)
+  date             String   // "2026-06-10"
+  city             String
+  detectedFrom     String   // calendar_location | title_extraction | client_match | manual
+  calendarEventId  String?
+  confidence       Float?
+  overriddenByUser Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// RELATIONSHIP INTELLIGENCE
+// ─────────────────────────────────────────────
+
+// Default cadence per relationship tier — managed in Sales Automation → Scheduling Rules
+model RelationshipCadenceRule {
+  id          String   @id @default(cuid())
+  tier        String   // VIP_CLIENT | ACTIVE_DEAL | WARM_PROSPECT | PAST_CLIENT | COLD_PROSPECT
+  label       String   // "VIP Client", "Active Deal", etc.
+  cadenceDays Int      // days between required in-person touchpoints
+  isActive    Boolean  @default(true)
+  createdById String
+  createdBy   User     @relation("CadenceRuleCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tier])
+}
+
+// Rules for filtering out mass emails and recurring project meetings from relationship signal
+model ActivityExclusionRule {
+  id          String   @id @default(cuid())
+  name        String   // "Weekly OAC meetings", "Golf league blasts"
+  ruleType    String   // RECURRING_WEEKLY | RECURRING_BIWEEKLY | KEYWORD_SUBJECT | MIN_RECIPIENTS | SENDER_DOMAIN
+  config      String   @default("{}") // JSON: { keywords: ["OAC"], minRecipients: 10, domain: "noreply.com" }
+  isActive    Boolean  @default(true)
+  createdById String
+  createdBy   User     @relation("ExclusionRuleCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([ruleType])
+}
+
+// Ordered rules for classifying calendar events into activity types.
+// Rules are checked highest-priority-first; first match wins.
+// If no rule matches, Claude Haiku classifies the event.
+model ActivityClassificationRule {
+  id             String   @id @default(cuid())
+  name           String
+  conditionType  String   // TITLE_CONTAINS | LOCATION_CONTAINS | LOCATION_TYPE | ATTENDEE_MAX | ATTENDEE_MIN | ORGANIZER_DOMAIN | DURATION_MIN | DURATION_MAX | BODY_CONTAINS
+  conditionValue String   // the value to test (e.g. "golf", "virtual", "15")
+  resultType     String   // COFFEE | LUNCH | GOLF | HAPPY_HOUR | SITE_VISIT | CALL | EVENT | OTHER | SKIP
+  priority       Int      @default(0)   // higher = checked first
+  isActive       Boolean  @default(true)
+  createdById    String
+  createdBy      User     @relation("ClassificationRuleCreator", fields: [createdById], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([priority])
+}
+
+// ── Proposals Module ──────────────────────────────────────────────────────────
+
+model Proposal {
+  id            String   @id @default(cuid())
+  projectId     String
+  project       Project  @relation("ProjectProposals", fields: [projectId], references: [id], onDelete: Cascade)
+  templateId    String?
+  template      ProposalTemplate? @relation("TemplateProposals", fields: [templateId], references: [id])
+  dealId        String?           // linked DESIGN deal; advanced to PROPOSAL_SENT on send
+  deal          Deal?             @relation("ProposalDeal", fields: [dealId], references: [id])
+
+  type          String            // FULL_DESIGN | DESIGN_ASSIST | PEER_REVIEW
+  status        String   @default("DRAFT") // DRAFT | SENT | ACCEPTED | DECLINED | EXPIRED
+  title         String
+
+  // merge-field values for live tokens in docBody
+  clientName      String?
+  clientLegalName String?
+  location        String?
+  effectiveDate   DateTime?
+
+  docBody       String   @default("")   // HTML — seeded from template, then freely editable
+
+  // fee
+  calculatedFee  Float    @default(0)   // snapshot updated on every line-item autosave
+  overrideFee    Float?
+  overrideActive Boolean  @default(false)
+  adderPct       Float    @default(10)
+  milestoneSplit String?               // JSON [{label,pct}] — FULL_DESIGN only
+
+  // rate snapshot — copied from ProposalRate at creation; never changes after
+  rateSnapshot   String   @default("{}") // JSON { SR_DESIGNER, DESIGNER, SALES, OUTSOURCE }
+
+  sentAt     DateTime?
+  acceptedAt DateTime?
+  declinedAt DateTime?
+
+  createdById String
+  createdBy   User     @relation("UserProposals", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  lineItems ProposalLineItem[] @relation("ProposalLineItems")
+  sends     ProposalSend[]     @relation("ProposalSends")
+}
+
+model ProposalLineItem {
+  id         String   @id @default(cuid())
+  proposalId String
+  proposal   Proposal @relation("ProposalLineItems", fields: [proposalId], references: [id], onDelete: Cascade)
+
+  area           String
+  task           String
+  sortOrder      Int    @default(0)
+  srHours        Float  @default(0)
+  designerHours  Float  @default(0)
+  salesHours     Float  @default(0)
+  outsourceHours Float  @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProposalTemplate {
+  id          String  @id @default(cuid())
+  name        String
+  type        String              // FULL_DESIGN | DESIGN_ASSIST | PEER_REVIEW
+  projectType String?             // MARKET_RATE | AFFORDABLE | STUDENT | SENIOR | null = any
+  clientType  String?             // DEVELOPER | GC | EC | null = any
+
+  docBody         String  @default("")
+  milestoneSplit  String?          // JSON default for FULL_DESIGN
+  defaultAdderPct Float   @default(10)
+  exclusions      String?          // rich text — scope notes / exclusions
+  scopeMatrixRef  String?          // optional file reference for RACI addendum
+
+  isDefault Boolean @default(false)
+  isActive  Boolean @default(true)
+
+  createdById String
+  createdBy   User   @relation("UserProposalTemplates", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tasks     ProposalTemplateTask[] @relation("TemplateTasks")
+  proposals Proposal[]             @relation("TemplateProposals")
+}
+
+model ProposalTemplateTask {
+  id         String           @id @default(cuid())
+  templateId String
+  template   ProposalTemplate @relation("TemplateTasks", fields: [templateId], references: [id], onDelete: Cascade)
+
+  area           String
+  task           String
+  sortOrder      Int   @default(0)
+  srHours        Float @default(0)
+  designerHours  Float @default(0)
+  salesHours     Float @default(0)
+  outsourceHours Float @default(0)
+}
+
+model ProposalRate {
+  id         String   @id @default(cuid())
+  role       String   @unique // SR_DESIGNER | DESIGNER | SALES | OUTSOURCE
+  hourlyRate Float
+  updatedAt  DateTime @updatedAt
+  updatedById String?
+  updatedBy   User?   @relation("ProposalRateUpdater", fields: [updatedById], references: [id])
+}
+
+model ProposalSend {
+  id           String   @id @default(cuid())
+  proposalId   String
+  proposal     Proposal @relation("ProposalSends", fields: [proposalId], references: [id], onDelete: Cascade)
+
+  sentToEmails  String           // comma-separated
+  note          String?
+  docBodySnapshot String?        // serialised docBody at time of send — immutable paper trail
+
+  sentById String
+  sentBy   User     @relation("UserProposalSends", fields: [sentById], references: [id])
+  sentAt   DateTime @default(now())
+}
+
+model ProjectUnitType {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  code      String           // "2BR-K"
+  label     String?          // "2 Bed Corner K"
+  qty       Int
+  unitSf    Float?           // per-unit rentable SF
+  bedrooms  Int?
+  bathrooms Int?
+  balconies Int?
+  sortOrder Int     @default(0)
+
+  source     String  @default("EXTRACTED") // EXTRACTED | MANUAL
+  confidence Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

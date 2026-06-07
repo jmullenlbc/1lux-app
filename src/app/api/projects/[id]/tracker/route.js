@@ -25,7 +25,7 @@ export async function GET(request, { params }) {
             orderBy: { createdAt: 'asc' },
             include: {
               submission: true,
-              reviews: { orderBy: { createdAt: 'asc' } },
+              reviews: { orderBy: { createdAt: 'asc' }, include: { response: true } },
             },
           },
         },

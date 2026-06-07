@@ -10,7 +10,7 @@ import { getAnthropicKey } from '@/lib/anthropicKey';
 
 // Anthropic client created per-request inside the POST handler so env vars are available
 
-const VALID_TABS = ['drawings', 'correspondence', 'submittals', 'ca', 'contracts', 'meetings', 'designInfo', 'takeoffs', 'budgets', 'fixture-schedule'];
+const VALID_TABS = ['drawings', 'correspondence', 'submittals', 'ca', 'contracts', 'meetings', 'designInfo', 'takeoffs', 'budgets', 'fixture-schedule', 'unit-matrix'];
 
 async function canAccess(projectId, user) {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
@@ -294,11 +294,23 @@ export async function POST(request, { params }) {
     } catch {}
   }
 
+  // Prepend YY.MM.DD date prefix for drawing and fixture-schedule uploads
+  const DATE_PREFIX_TABS = new Set(['drawings', 'ca', 'fixture-schedule', 'designInfo']);
+  function withDatePrefix(name) {
+    if (/^\d\d\.\d\d\.\d\d/.test(name)) return name;
+    const now = new Date();
+    const yy = String(now.getFullYear()).slice(2);
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    return `${yy}.${mm}.${dd} ${name}`;
+  }
+  const displayName = DATE_PREFIX_TABS.has(tab) ? withDatePrefix(file.name) : file.name;
+
   const record = await prisma.projectFile.create({
     data: {
       projectId:    params.id,
       tab,
-      originalName: file.name,
+      originalName: displayName,
       storedPath:   path.join(params.id, tab, stored),
       size:         buffer.length,
       mimeType:     file.type || null,

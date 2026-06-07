@@ -18,6 +18,7 @@ export const NAV_CONFIG = {
       section: 'Pre-Construction',
       icon: '◈',
       items: [
+        { id: 'proposal',        label: 'Proposal',        icon: 'FileSignature' },
         { id: 'budgets',         label: 'Budgets',         icon: 'Calculator' },
         { id: 'takeoffs',        label: 'Takeoffs',        icon: 'Ruler' },
       ],
@@ -30,7 +31,6 @@ export const NAV_CONFIG = {
         { id: 'fixture-schedule',label: 'Fixture Schedule',icon: 'ListChecks' },
         { id: 'code',            label: 'Code',            icon: 'Code2' },
         { id: 'design-schedule', label: 'Design Schedule', icon: 'CalendarDays' },
-        { id: 'rfis',            label: 'RFIs',            icon: 'HelpCircle' },
         { id: 'design-contracts',label: 'Contracts',       icon: 'Receipt' },
       ],
     },
@@ -38,6 +38,7 @@ export const NAV_CONFIG = {
       section: 'Construction',
       icon: '◉',
       items: [
+        { id: 'rfis',                  label: 'RFIs',                 icon: 'HelpCircle' },
         { id: 'submittals',            label: 'Submittals',           icon: 'ClipboardCheck' },
         { id: 'ship-schedule',         label: 'Ship Schedule',        icon: 'Truck' },
         { id: 'change-orders',         label: 'Change Orders',        icon: 'FileDiff' },
@@ -70,17 +71,18 @@ export const NAV_CONFIG = {
       section: 'Pre-Construction',
       icon: '◈',
       items: [
+        { id: 'proposal',        label: 'Proposal',        icon: 'FileSignature' },
         { id: 'budgets',         label: 'Budgets',         icon: 'Calculator' },
         { id: 'drawings',        label: 'Drawings',        icon: 'FileText' },
         { id: 'fixture-schedule',label: 'Fixture Schedule',icon: 'ListChecks' },
         { id: 'takeoffs',        label: 'Takeoffs',        icon: 'Ruler' },
-        { id: 'rfis',            label: 'RFIs',            icon: 'HelpCircle' },
       ],
     },
     {
       section: 'Construction',
       icon: '◉',
       items: [
+        { id: 'rfis',                  label: 'RFIs',                 icon: 'HelpCircle' },
         { id: 'submittals',            label: 'Submittals',           icon: 'ClipboardCheck' },
         { id: 'ship-schedule',         label: 'Ship Schedule',        icon: 'Truck' },
         { id: 'construction-schedule', label: 'Construction Schedule',icon: 'CalendarClock' },

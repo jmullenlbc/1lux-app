@@ -20,11 +20,12 @@ export async function PATCH(request, { params }) {
     return NextResponse.json({ error: 'Use account settings to modify your own account' }, { status: 400 });
   }
 
-  const { name, role, permissions, mustChangePassword, isActive, newPassword } = await request.json();
+  const { name, role, deptRoles, permissions, mustChangePassword, isActive, newPassword } = await request.json();
 
   const data = {};
   if (name !== undefined)              data.name              = name;
   if (role !== undefined)              data.role              = role;
+  if (deptRoles !== undefined)         data.deptRoles         = JSON.stringify(Array.isArray(deptRoles) ? deptRoles : []);
   if (permissions !== undefined)       data.permissions       = JSON.stringify(permissions);
   if (mustChangePassword !== undefined) data.mustChangePassword = mustChangePassword;
   if (isActive !== undefined)          data.isActive          = isActive;
@@ -42,6 +43,7 @@ export async function PATCH(request, { params }) {
     email:             updated.email,
     name:              updated.name,
     role:              updated.role,
+    deptRoles:         updated.deptRoles,
     permissions:       updated.permissions,
     mustChangePassword: updated.mustChangePassword,
     isActive:          updated.isActive,

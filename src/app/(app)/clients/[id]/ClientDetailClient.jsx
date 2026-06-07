@@ -102,6 +102,97 @@ function MultiSelect({ options, selected, onChange, label, className = '' }) {
   );
 }
 
+// ── CreatableSelect ───────────────────────────────────────────────────────────
+function CreatableSelect({ value, onChange, options, placeholder = 'Select or create…' }) {
+  const [open,  setOpen]  = useState(false);
+  const [query, setQuery] = useState('');
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const selectedLabel = options.find(o => o.value === value)?.label || value;
+  const filtered = options.filter(o => o.label.toLowerCase().includes(query.toLowerCase()));
+  const canCreate = query.trim() && !options.some(
+    o => o.value.toLowerCase() === query.trim().toLowerCase() ||
+         o.label.toLowerCase() === query.trim().toLowerCase()
+  );
+
+  function select(val) { onChange(val); setOpen(false); setQuery(''); }
+  function create()    {
+    if (!query.trim()) return;
+    onChange(query.trim()); setOpen(false); setQuery('');
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => { setOpen(v => !v); setQuery(''); }}
+        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-amber-500"
+      >
+        <span className={value ? 'text-slate-900' : 'text-slate-400'}>
+          {value ? selectedLabel : placeholder}
+        </span>
+        <svg className="w-4 h-4 text-slate-400 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute z-50 top-full mt-1 left-0 right-0 rounded-lg shadow-lg border border-slate-200 bg-white overflow-hidden">
+          <div className="p-2 border-b border-slate-100">
+            <input
+              autoFocus
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (canCreate) create();
+                  else if (filtered[0]) select(filtered[0].value);
+                }
+                if (e.key === 'Escape') setOpen(false);
+              }}
+              placeholder="Search or type to create…"
+              className="w-full text-sm rounded px-2 py-1.5 bg-slate-50 border border-slate-200 outline-none focus:border-amber-500"
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto">
+            {filtered.map(o => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => select(o.value)}
+                className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 transition-colors ${value === o.value ? 'text-amber-600 font-medium' : 'text-slate-700'}`}
+              >
+                {o.label}
+              </button>
+            ))}
+            {canCreate && (
+              <button
+                type="button"
+                onClick={create}
+                className="w-full text-left px-3 py-2 text-sm text-amber-600 hover:bg-amber-50 transition-colors flex items-center gap-1.5"
+              >
+                <span className="font-medium">Create</span>
+                <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded text-xs">"{query.trim()}"</span>
+              </button>
+            )}
+            {filtered.length === 0 && !canCreate && (
+              <div className="px-3 py-3 text-xs text-slate-400 text-center">No options</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Edit Client Modal ─────────────────────────────────────────────────────────
 function EditModal({ client, onClose, onSave }) {
   const [form, setForm] = useState({
@@ -183,11 +274,12 @@ function EditModal({ client, onClose, onSave }) {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Location Type</label>
-                <select value={form.locationType} onChange={e => set('locationType', e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500">
-                  <option value="">Select…</option>
-                  {LOCATION_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                </select>
+                <CreatableSelect
+                  value={form.locationType}
+                  onChange={v => set('locationType', v)}
+                  options={LOCATION_TYPES}
+                  placeholder="Select or create…"
+                />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Tier</label>

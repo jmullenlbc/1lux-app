@@ -1,7 +1,144 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { NOTIFICATION_TYPES, NOTIFICATION_MODULES } from '@/lib/notify';
+
+// ── Tone Profile Section ──────────────────────────────────────────────────────
+function ToneProfileSection() {
+  const [profile,    setProfile]    = useState(null);
+  const [loading,    setLoading]    = useState(true);
+  const [uploading,  setUploading]  = useState(false);
+  const [msg,        setMsg]        = useState(null); // { type: 'success'|'error', text }
+  const fileRef = useRef(null);
+
+  useEffect(() => {
+    fetch('/api/users/tone-profile')
+      .then(r => r.json())
+      .then(d => { setProfile(d.profile || null); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  async function handleUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setMsg(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/users/tone-profile', { method: 'POST', body: fd });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || `Error ${res.status}`);
+      setProfile(d.profile);
+      setMsg({ type: 'success', text: `Tone profile built from ${d.emailsAnalyzed} emails.` });
+    } catch (err) {
+      setMsg({ type: 'error', text: err.message });
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  }
+
+  async function handleDelete() {
+    if (!confirm('Delete your tone profile? Bot drafts will use a default voice until you upload again.')) return;
+    await fetch('/api/users/tone-profile', { method: 'DELETE' });
+    setProfile(null);
+    setMsg({ type: 'success', text: 'Tone profile deleted.' });
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 p-6 mt-5">
+      <div className="flex items-start justify-between gap-4 mb-4">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-700">Email Tone Profile</h2>
+          <p className="text-xs text-slate-400 mt-1">
+            Upload your sent email export so the bot learns to write in your voice.
+            Each person has their own profile — your style stays yours.
+          </p>
+        </div>
+        {profile && (
+          <button onClick={handleDelete}
+            className="text-xs text-slate-400 hover:text-red-500 transition-colors shrink-0">
+            Delete profile
+          </button>
+        )}
+      </div>
+
+      {loading ? (
+        <p className="text-xs text-slate-400">Loading…</p>
+      ) : profile ? (
+        <div className="space-y-3">
+          {/* Profile summary */}
+          <div className="bg-slate-50 rounded-xl p-4 text-xs text-slate-700 leading-relaxed">
+            <p className="font-semibold text-slate-800 mb-1">Your writing voice:</p>
+            <p>{profile.summary}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-slate-50 rounded-xl p-3">
+              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Tone</p>
+              <div className="flex flex-wrap gap-1">
+                {(profile.tone || []).map(t => (
+                  <span key={t} className="text-[11px] bg-orange-50 text-orange-700 border border-orange-200 px-2 py-0.5 rounded-full">{t}</span>
+                ))}
+              </div>
+            </div>
+            <div className="bg-slate-50 rounded-xl p-3">
+              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Avoids</p>
+              <div className="flex flex-wrap gap-1">
+                {(profile.avoids || []).map(a => (
+                  <span key={a} className="text-[11px] bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded-full">{a}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+          {profile.exampleOpener && (
+            <div className="border border-slate-200 rounded-xl p-3">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Example opener (your voice)</p>
+              <p className="text-xs text-slate-700 italic">"{profile.exampleOpener}"</p>
+            </div>
+          )}
+          <div className="flex items-center justify-between pt-1">
+            <p className="text-[10px] text-slate-400">Re-upload anytime to refresh your profile</p>
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              className="text-xs font-semibold text-orange-600 hover:text-orange-700 disabled:opacity-50 transition-colors"
+            >
+              {uploading ? 'Analyzing…' : 'Re-upload .mbox'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center">
+          <svg className="w-8 h-8 text-slate-300 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+          </svg>
+          <p className="text-sm font-medium text-slate-600 mb-1">No tone profile yet</p>
+          <p className="text-xs text-slate-400 mb-4 max-w-xs mx-auto">
+            Download your Gmail Sent folder via Google Takeout → unzip → upload <strong>Sent.mbox</strong> here.
+            Claude Sonnet will analyze your writing style and build a personal voice profile.
+          </p>
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-50 transition-colors"
+          >
+            {uploading ? 'Analyzing emails…' : 'Upload Sent.mbox'}
+          </button>
+          <p className="text-[10px] text-slate-400 mt-2">Analyzed locally — emails are not stored</p>
+        </div>
+      )}
+
+      {msg && (
+        <p className={`mt-3 text-xs rounded-lg px-3 py-2 ${msg.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-600 border border-red-200'}`}>
+          {msg.text}
+        </p>
+      )}
+
+      <input ref={fileRef} type="file" accept=".mbox" className="hidden" onChange={handleUpload} />
+    </div>
+  );
+}
 
 // Internal-only notification types and modules for the profile page
 const INTERNAL_MODULES = NOTIFICATION_MODULES
@@ -258,6 +395,7 @@ export default function ProfileClient({ user }) {
       </div>
 
       <InternalNotificationsSection />
+      <ToneProfileSection />
     </div>
   );
 }

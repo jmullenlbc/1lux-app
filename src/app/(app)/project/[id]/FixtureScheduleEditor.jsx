@@ -35,9 +35,9 @@ function resolveLocationTag(value) {
 
 // pct = percentage of total table width (must sum to ~100 for the visible set)
 const COLUMNS = [
-  { key: 'type',          label: 'Type',        pct: 3  },
+  { key: 'type',          label: 'Type',        pct: 6  },
   { key: 'location',      label: 'Location',    pct: 7  },
-  { key: 'description',   label: 'Description', pct: 22 }, // ~30% of non-utility cols
+  { key: 'description',   label: 'Description', pct: 19 }, // ~30% of non-utility cols
   { key: 'manufacturer',  label: 'Mfr',         pct: 7  },
   { key: 'catalogNumber', label: 'Catalog #',   pct: 14 }, // ~75% of description
   { key: 'finish',        label: 'Finish',      pct: 7  }, // ~50% of catalog
@@ -109,8 +109,20 @@ function Cell({ value, colKey, readOnly, isAlternate, onSave }) {
         className={`px-1.5 py-1 text-xs flex items-start gap-1.5 min-h-[28px] ${readOnly ? '' : 'cursor-text hover:bg-slate-50'}`}
         onClick={startEdit}
       >
-        <span className="ml-3 text-slate-500 whitespace-normal break-words">{local || <span className="italic text-slate-300">—</span>}</span>
+        <span className="ml-3 text-slate-500 whitespace-nowrap font-mono font-semibold">{local || <span className="italic text-slate-300">—</span>}</span>
         <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-400 uppercase tracking-wide shrink-0 mt-0.5">ALT</span>
+      </div>
+    );
+  }
+
+  // Type column: monospace, no-wrap, always fits on one line
+  if (colKey === 'type') {
+    return (
+      <div
+        className={`px-1.5 py-1.5 text-xs rounded min-h-[28px] whitespace-nowrap font-mono font-semibold leading-snug ${readOnly ? 'text-slate-600' : 'cursor-text hover:bg-slate-50 text-slate-700'} ${!local ? 'text-slate-300' : ''}`}
+        onClick={startEdit}
+      >
+        {local || (readOnly ? '—' : <span className="italic font-normal text-slate-300">—</span>)}
       </div>
     );
   }
@@ -681,6 +693,9 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
   const [showParse,     setShowParse]     = useState(false);
   const [showShare,     setShowShare]     = useState(false);
   const [parseBanner,   setParseBanner]   = useState(null); // { importedCount, flaggedCount }
+  const [renamingVerId, setRenamingVerId] = useState(null); // versionId being renamed
+  const [renameInput,   setRenameInput]   = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // { id, label }
   const [dragOverId,    setDragOverId]    = useState(null);
   const [sortCol,       setSortCol]       = useState(null);
   const [sortDir,       setSortDir]       = useState('asc');
@@ -756,6 +771,24 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
     load();
     fetch('/api/manufacturers').then(r => r.json()).then(d => setManufacturers(d.manufacturers || []));
   }, [projectId]);
+
+  async function renameVersion(versionId) {
+    await fetch(`/api/projects/${projectId}/fixture-schedule/versions/${versionId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ submissionTag: renameInput }),
+    });
+    setPublished(prev => prev.map(p => p.id === versionId ? { ...p, submissionTag: renameInput.trim() || null } : p));
+    setRenamingVerId(null);
+    setRenameInput('');
+  }
+
+  async function deleteVersion(versionId) {
+    await fetch(`/api/projects/${projectId}/fixture-schedule/versions/${versionId}`, { method: 'DELETE' });
+    setPublished(prev => prev.filter(p => p.id !== versionId));
+    if (selectedId === versionId) setSelectedId('draft');
+    setDeleteConfirm(null);
+  }
 
   // afterId: insert after this item ID (or null to append at end)
   async function addRow(afterId = null) {
@@ -963,6 +996,7 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
       {/* ── Header bar ─────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Version selector */}
           <select
             className="text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
             value={selectedId}
@@ -976,6 +1010,45 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
               </option>
             ))}
           </select>
+
+          {/* Rename / delete controls for the selected published version */}
+          {isReadOnly && activeSchedule && (
+            renamingVerId === activeSchedule.id ? (
+              <div className="flex items-center gap-1.5">
+                <input
+                  autoFocus
+                  value={renameInput}
+                  onChange={e => setRenameInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') renameVersion(activeSchedule.id); if (e.key === 'Escape') { setRenamingVerId(null); setRenameInput(''); } }}
+                  placeholder="Label (optional)"
+                  className="text-xs border border-blue-300 rounded-md px-2 py-1 w-32 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                />
+                <button onClick={() => renameVersion(activeSchedule.id)} className="text-xs px-2 py-1 rounded-md bg-blue-600 text-white hover:bg-blue-700">Save</button>
+                <button onClick={() => { setRenamingVerId(null); setRenameInput(''); }} className="text-xs px-2 py-1 rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50">Cancel</button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => { setRenamingVerId(activeSchedule.id); setRenameInput(activeSchedule.submissionTag || ''); }}
+                  title="Rename this version"
+                  className="p-1.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setDeleteConfirm({ id: activeSchedule.id, label: `v${activeSchedule.version}${activeSchedule.submissionTag ? ` · ${activeSchedule.submissionTag}` : ''}` })}
+                  title="Delete this version"
+                  className="p-1.5 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
+            )
+          )}
 
           {activeSchedule && (
             <VersionBadge
@@ -1367,6 +1440,27 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
             Add row at end
           </button>
+        </div>
+      )}
+
+      {/* ── Delete version confirm modal ───────────────────────────────────── */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <h3 className="text-base font-bold text-slate-800 mb-2">Delete version?</h3>
+            <p className="text-sm text-slate-500 mb-1">
+              You're about to permanently delete <strong className="text-slate-700">{deleteConfirm.label}</strong> of the fixture schedule.
+            </p>
+            <p className="text-sm text-red-600 mb-6">This cannot be undone. All fixture rows in this version will be deleted.</p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">
+                Cancel
+              </button>
+              <button onClick={() => deleteVersion(deleteConfirm.id)} className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700">
+                Delete version
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -131,11 +131,39 @@ function setNestedValue(obj, key, value) {
   return clone;
 }
 
-export default function PricingEditor({ initialPricing }) {
+export default function PricingEditor({ initialPricing, initialPricingIntel }) {
   const [pricing, setPricing] = useState(initialPricing);
   const [saving,  setSaving]  = useState(false);
   const [saved,   setSaved]   = useState(false);
   const [error,   setError]   = useState('');
+
+  // ── Pricing Intelligence config ──────────────────────────────────────────
+  const [piThreshold, setPiThreshold] = useState(
+    initialPricingIntel?.pricing_alert_threshold ?? '10'
+  );
+  const [piWindow, setPiWindow] = useState(
+    initialPricingIntel?.pricing_alert_window_months ?? '12'
+  );
+  const [piSaving, setPiSaving] = useState(false);
+  const [piSaved,  setPiSaved]  = useState(false);
+
+  async function savePricingIntel() {
+    setPiSaving(true); setPiSaved(false);
+    try {
+      await fetch('/api/system-config', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pricing_alert_threshold:      String(piThreshold),
+          pricing_alert_window_months:  String(piWindow),
+        }),
+      });
+      setPiSaved(true);
+      setTimeout(() => setPiSaved(false), 2500);
+    } finally {
+      setPiSaving(false);
+    }
+  }
 
   function handleChange(key, rawValue) {
     const num = parseFloat(rawValue);
@@ -248,6 +276,59 @@ export default function PricingEditor({ initialPricing }) {
       <div className="px-6 py-4 text-xs text-slate-400 border-t border-slate-100">
         Decimal rates: enter as decimal (e.g. 0.06 = 6%, 0.38 = $0.38/SF). Dollar amounts: enter as whole number (e.g. 125 = $125).
       </div>
+
+      {/* ── Pricing Intelligence config ──────────────────────────────────── */}
+      <div className="border-t border-slate-100 px-6 py-5">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-800">Pricing Intelligence</h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Controls when price increase alerts appear on budget line items.
+              Alerts fire when a product's price has increased more than this % vs. any prior budget sent in the last N months.
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4 max-w-lg">
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Price increase alert threshold</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number" min="1" max="100" step="1"
+                value={piThreshold}
+                onChange={e => { setPiThreshold(e.target.value); setPiSaved(false); }}
+                className="w-20 rounded-lg border border-slate-200 px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-400"
+              />
+              <span className="text-sm text-slate-500">%</span>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Price history lookback window</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number" min="1" max="60" step="1"
+                value={piWindow}
+                onChange={e => { setPiWindow(e.target.value); setPiSaved(false); }}
+                className="w-20 rounded-lg border border-slate-200 px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-400"
+              />
+              <span className="text-sm text-slate-500">months</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 mt-4">
+          <button
+            onClick={savePricingIntel}
+            disabled={piSaving}
+            className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-colors disabled:opacity-60"
+          >
+            {piSaving ? 'Saving…' : 'Save'}
+          </button>
+          {piSaved && <span className="text-xs text-green-600 font-medium">✓ Saved</span>}
+        </div>
+        <p className="text-[11px] text-slate-400 mt-2">
+          When dept roles have behavioral meaning, this section will also require the Pre-construction dept role.
+        </p>
+      </div>
+
     </div>
   );
 }

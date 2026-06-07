@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth';
 import { loadPricing } from '@/lib/pricingLoader';
+import { prisma } from '@/lib/db';
 import PricingEditor from './PricingEditor';
 
 export default async function AdminPricingPage() {
@@ -10,7 +11,13 @@ export default async function AdminPricingPage() {
   if (!session) redirect('/login');
   if (session.role !== 'ILC_ADMIN') redirect('/dashboard');
 
-  const pricing = await loadPricing();
+  const [pricing, piConfigs] = await Promise.all([
+    loadPricing(),
+    prisma.systemConfig.findMany({
+      where: { key: { in: ['pricing_alert_threshold', 'pricing_alert_window_months'] } },
+    }),
+  ]);
+  const pricingIntel = Object.fromEntries(piConfigs.map(r => [r.key, r.value]));
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -34,7 +41,7 @@ export default async function AdminPricingPage() {
         </div>
       </div>
 
-      <PricingEditor initialPricing={pricing} />
+      <PricingEditor initialPricing={pricing} initialPricingIntel={pricingIntel} />
     </div>
   );
 }

@@ -39,19 +39,56 @@ export async function PATCH(request, { params }) {
   const body = await request.json();
   const {
     title, noteBody, meetingDate, attendees, calendarRef,
+    activityType,
+    publish,          // true = mark complete (enable automations); false = revert to draft
     addClientIds    = [],
     removeClientIds = [],
     addDealIds      = [],
     removeDealIds   = [],
   } = body;
 
+  const IN_PERSON_TYPES = new Set(['COFFEE','LUNCH','HAPPY_HOUR','GOLF','SITE_VISIT']);
+
   const data = {};
-  if (title       !== undefined) data.title       = title.trim();
-  if (noteBody    !== undefined) data.body         = noteBody;
-  if (calendarRef !== undefined) data.calendarRef  = calendarRef || null;
-  if (meetingDate !== undefined) data.meetingDate  = meetingDate ? new Date(meetingDate) : null;
-  if (attendees   !== undefined) {
+  if (title        !== undefined) data.title       = title.trim();
+  if (noteBody     !== undefined) data.body         = noteBody;
+  if (calendarRef  !== undefined) data.calendarRef  = calendarRef || null;
+  if (meetingDate  !== undefined) data.meetingDate  = meetingDate ? new Date(meetingDate) : null;
+  if (attendees    !== undefined) {
     data.attendees = typeof attendees === 'string' ? attendees : JSON.stringify(attendees);
+  }
+  if (activityType !== undefined) {
+    data.activityType = activityType;
+    data.isInPerson   = IN_PERSON_TYPES.has(activityType);
+  }
+
+  // Publish: mark note complete → unlocks automations + updates Contact.lastInPersonAt
+  if (publish === true && !note.isPublished) {
+    data.isPublished = true;
+    data.publishedAt = new Date();
+    // Update Contact.lastInPersonAt for linked contacts if in-person
+    const noteIsInPerson = data.isInPerson ?? note.isInPerson;
+    const noteMeetingDate = data.meetingDate ?? note.meetingDate;
+    if (noteIsInPerson && noteMeetingDate) {
+      const linkedContacts = await prisma.salesNoteContact.findMany({
+        where:  { salesNoteId: params.id },
+        select: { contactId: true },
+      });
+      for (const { contactId } of linkedContacts) {
+        const c = await prisma.contact.findUnique({ where: { id: contactId }, select: { lastInPersonAt: true } });
+        if (!c?.lastInPersonAt || c.lastInPersonAt < new Date(noteMeetingDate)) {
+          await prisma.contact.update({
+            where: { id: contactId },
+            data:  { lastInPersonAt: new Date(noteMeetingDate), lastTouchpointAt: new Date(noteMeetingDate) },
+          });
+        }
+      }
+    }
+  }
+  // Unpublish: revert to draft
+  if (publish === false && note.isPublished) {
+    data.isPublished = false;
+    data.publishedAt = null;
   }
 
   try {

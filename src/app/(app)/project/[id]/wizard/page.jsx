@@ -46,7 +46,19 @@ export default async function ProjectWizardPage({ params }) {
   };
 
   if (project.budgetType === 'peer_review') {
-    return <PeerReviewClient project={{ ...project, peerReviewItems: undefined }} initialItems={project.peerReviewItems} />;
+    const allUsers = await prisma.user.findMany({
+      select:  { id: true, name: true, email: true },
+      where:   { isActive: true },
+      orderBy: { name: 'asc' },
+    });
+    return (
+      <PeerReviewClient
+        project={{ ...project, peerReviewItems: undefined }}
+        initialItems={project.peerReviewItems}
+        currentUser={{ id: session.id, role: session.role }}
+        allUsers={allUsers}
+      />
+    );
   }
 
   if (project.budgetType === 'design') {

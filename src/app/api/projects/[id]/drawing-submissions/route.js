@@ -31,6 +31,29 @@ export async function GET(request, { params }) {
   return NextResponse.json({ submissions });
 }
 
+// Phase order for "only advance" check
+const PHASE_ORDER = ['sd', 'dd', 'cd', 'ifc', 'construction', 'closeout'];
+
+// Drawing tag → project phase
+const TAG_TO_PHASE = {
+  SD:  'sd',
+  DD:  'dd',
+  CD:  'cd',
+  IFC: 'ifc',
+  ASI: 'construction',
+  RFI: 'construction',
+};
+
+// Prepend YY.MM.DD to a filename if not already present
+function withDatePrefix(name) {
+  if (/^\d\d\.\d\d\.\d\d/.test(name)) return name; // already has date prefix
+  const now = new Date();
+  const yy  = String(now.getFullYear()).slice(2);
+  const mm  = String(now.getMonth() + 1).padStart(2, '0');
+  const dd  = String(now.getDate()).padStart(2, '0');
+  return `${yy}.${mm}.${dd} ${name}`;
+}
+
 // POST /api/projects/[id]/drawing-submissions
 // multipart/form-data: files[], source, phaseTag?, notes?
 export async function POST(request, { params }) {
@@ -61,17 +84,19 @@ export async function POST(request, { params }) {
     },
   });
 
-  // Store each file
+  // Store each file — prepend date prefix to displayed name
   const uploadDir = path.join(process.cwd(), 'uploads', params.id, 'drawings');
-  await mkdir(uploadDir, { recursive: true });
+  try { await mkdir(uploadDir, { recursive: true }); } catch {}
 
   const createdFiles = [];
   for (const file of files) {
     if (!file || typeof file === 'string') continue;
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const ext    = path.extname(file.name) || '.pdf';
-    const stored = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
-    await writeFile(path.join(uploadDir, stored), buffer);
+    const buffer   = Buffer.from(await file.arrayBuffer());
+    const ext      = path.extname(file.name) || '.pdf';
+    const stored   = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
+    const fileName = withDatePrefix(file.name); // ← YY.MM.DD prefix
+
+    try { await writeFile(path.join(uploadDir, stored), buffer); } catch {}
 
     // Try to get page count via pdfjs
     let pageCount = null;
@@ -84,7 +109,7 @@ export async function POST(request, { params }) {
     const drawingFile = await prisma.drawingFile.create({
       data: {
         submissionId: submission.id,
-        fileName:     file.name,
+        fileName,
         storedPath:   path.join(params.id, 'drawings', stored),
         pageCount,
         size:         buffer.length,
@@ -94,10 +119,32 @@ export async function POST(request, { params }) {
     createdFiles.push(drawingFile);
   }
 
+  // ── Auto-advance project phase based on drawing tag ──────────────────────
+  let phaseAdvanced = null;
+  const newPhase = phaseTag ? TAG_TO_PHASE[phaseTag] : null;
+  if (newPhase) {
+    try {
+      const project = await prisma.project.findUnique({
+        where:  { id: params.id },
+        select: { phase: true },
+      });
+      const currentIdx = PHASE_ORDER.indexOf(project?.phase ?? '');
+      const newIdx     = PHASE_ORDER.indexOf(newPhase);
+      // Only advance — never go backward
+      if (newIdx > currentIdx) {
+        await prisma.project.update({
+          where: { id: params.id },
+          data:  { phase: newPhase },
+        });
+        phaseAdvanced = newPhase;
+      }
+    } catch {}
+  }
+
   const result = await prisma.drawingSubmission.findUnique({
     where: { id: submission.id },
     include: SUBMISSION_INCLUDE,
   });
 
-  return NextResponse.json({ submission: result }, { status: 201 });
+  return NextResponse.json({ submission: result, phaseAdvanced }, { status: 201 });
 }

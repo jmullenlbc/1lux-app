@@ -9,6 +9,7 @@ import { buildingTypeLabel, phaseLabel, serviceTypeLabel, clientTypeLabel, locat
 import FileDropZone from '@/components/files/FileDropZone';
 import ProjectChat from '@/components/ProjectChat';
 import TakeoffDashboard from '@/components/TakeoffDashboard';
+import UnitMatrixUpload from '@/components/unitMatrix/UnitMatrixUpload';
 import ContractWidgets from '@/components/ContractWidgets';
 import CAScheduleWidgets from '@/components/CAScheduleWidgets';
 import CAScheduleCard from '@/components/CAScheduleCard';
@@ -18,8 +19,10 @@ import ProjectDashboard from '@/components/ProjectDashboard';
 import ContractsPanel from '@/components/contracts/ContractsPanel';
 import ProjectActivityFeed from '@/components/ProjectActivityFeed';
 import BudgetLineItemWidget from '@/components/BudgetLineItemWidget';
+import BudgetQCBadge from '@/components/budgetQC/BudgetQCBadge';
 import CorrespondenceTab from '@/components/correspondence/CorrespondenceTab';
 import DesignScheduleCard from '@/components/DesignScheduleCard';
+import RFIModule from '@/components/rfi/RFIModule';
 import FixtureScheduleEditor from './FixtureScheduleEditor';
 import DrawingsTab from './DrawingsTab';
 import PdfViewerModal from '@/components/ui/PdfViewerModal';
@@ -33,6 +36,7 @@ import LPDCalculator from '@/components/LPDCalculator';
 import CodeCheckPanel from '@/components/CodeCheckPanel';
 import HumanErrorRadar from '@/components/HumanErrorRadar';
 import ChangeOrdersTab from '@/components/changeOrders/ChangeOrdersTab';
+import ProposalTab from '@/components/proposals/ProposalTab';
 
 const BUDGET_TYPE_META = {
   conceptual:  { label: 'Conceptual Budget',    color: 'bg-slate-100 text-slate-600' },
@@ -189,281 +193,7 @@ function initials(user) {
 // ── Auto-tagged file tab (RFIs, Change Orders) ────────────────────────────────
 // Uploads files with a fixed tag (no modal). Shows flat list with view/download/delete.
 // ── RFI Tab ───────────────────────────────────────────────────────────────────
-// Full RFI management: email import, PDF upload, AI question extraction
-function RFITab({ projectId, files, onFileAdded, onFileDeleted }) {
-  const [viewingFile,   setViewingFile]   = useState(null);
-  const [dragging,      setDragging]      = useState(false);
-  const [uploading,     setUploading]     = useState([]);
-  const [questions,     setQuestions]     = useState({}); // { fileId: string }
-  const [extracting,    setExtracting]    = useState({}); // { fileId: true }
-  // Email import state
-  const [emailPaste,    setEmailPaste]    = useState('');
-  const [emailParsing,  setEmailParsing]  = useState(false);
-  const [emailError,    setEmailError]    = useState('');
-  const fileRef = useRef(null);
 
-  const fmtDate = d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-
-  // Pre-load cached questions from analysisData
-  useEffect(() => {
-    const cached = {};
-    files.forEach(f => {
-      try {
-        const a = JSON.parse(f.analysisData || '{}');
-        if (a.rfiQuestion) cached[f.id] = a.rfiQuestion;
-      } catch {}
-    });
-    setQuestions(prev => ({ ...prev, ...cached }));
-  }, [files]);
-
-  // Auto-extract question for files that have textContent but no cached question
-  useEffect(() => {
-    files.forEach(f => {
-      if (f.textContent && !questions[f.id] && !extracting[f.id]) {
-        extractQuestion(f.id);
-      }
-    });
-  }, [files.length]); // eslint-disable-line
-
-  async function extractQuestion(fileId) {
-    setExtracting(prev => ({ ...prev, [fileId]: true }));
-    try {
-      const res  = await fetch(`/api/projects/${projectId}/rfi-extract`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileId }),
-      });
-      const data = await res.json();
-      if (data.question) setQuestions(prev => ({ ...prev, [fileId]: data.question }));
-    } catch {}
-    setExtracting(prev => { const n = { ...prev }; delete n[fileId]; return n; });
-  }
-
-  async function upload(fileList) {
-    const arr = Array.from(fileList).filter(f => f.type === 'application/pdf' || f.name.endsWith('.pdf'));
-    if (!arr.length) return;
-    setUploading(prev => [...prev, ...arr.map(f => f.name)]);
-    for (const file of arr) {
-      try {
-        const form = new FormData();
-        form.append('file', file);
-        form.append('tab',  'ca');
-        form.append('tags', JSON.stringify(['RFI']));
-        const res  = await fetch(`/api/projects/${projectId}/files`, { method: 'POST', body: form });
-        if (res.ok) {
-          const data = await res.json();
-          onFileAdded?.(data.file, data.contractUpdate ?? null, data.scheduleUpdate ?? null, data.designScheduleUpdate ?? null);
-        }
-      } catch {}
-    }
-    setUploading(prev => prev.filter(n => !arr.map(f => f.name).includes(n)));
-  }
-
-  async function deleteFile(id) {
-    if (!confirm('Delete this RFI?')) return;
-    await fetch(`/api/projects/${projectId}/files/${id}`, { method: 'DELETE' });
-    onFileDeleted?.(id);
-  }
-
-  async function importEmail() {
-    if (!emailPaste.trim()) { setEmailError('Paste email content first'); return; }
-    setEmailParsing(true);
-    setEmailError('');
-    try {
-      const res  = await fetch(`/api/projects/${projectId}/rfi-extract`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ emailContent: emailPaste.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setEmailError(data.error || 'Parse failed'); return; }
-      onFileAdded?.(data.file);
-      if (data.parsed?.question) setQuestions(prev => ({ ...prev, [data.file.id]: data.parsed.question }));
-      setEmailPaste('');
-    } catch (e) {
-      setEmailError('Failed to parse email');
-    } finally {
-      setEmailParsing(false);
-    }
-  }
-
-  return (
-    <div className="space-y-6">
-      {viewingFile && <PdfViewerModal file={viewingFile} projectId={projectId} onClose={() => setViewingFile(null)} />}
-
-      {/* Header */}
-      <div>
-        <h2 className="text-lg font-semibold text-slate-800">RFIs</h2>
-        <p className="text-sm text-slate-400 mt-0.5">Requests for Information — {files.length} filed</p>
-      </div>
-
-      {/* ── Email import section ── */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100">
-          <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-            <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-            </svg>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-slate-800">Import RFI from Email</p>
-            <p className="text-xs text-slate-400 mt-0.5">Paste the email content below — Claude will extract the request and add it to your RFI log</p>
-          </div>
-        </div>
-        <div className="px-5 py-4 space-y-3">
-          <textarea
-            value={emailPaste}
-            onChange={e => setEmailPaste(e.target.value)}
-            placeholder="Paste the full email here (body, subject, any RFI attachments' text)…"
-            rows={4}
-            className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none text-slate-700 placeholder:text-slate-300"
-          />
-          {emailError && <p className="text-xs text-red-600">{emailError}</p>}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={importEmail}
-              disabled={emailParsing || !emailPaste.trim()}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
-            >
-              {emailParsing ? (
-                <>
-                  <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-                  </svg>
-                  Parsing with AI…
-                </>
-              ) : (
-                <>
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                  </svg>
-                  Import & Parse RFI
-                </>
-              )}
-            </button>
-            <p className="text-[11px] text-slate-400">Claude extracts the request — no boilerplate</p>
-          </div>
-        </div>
-      </div>
-
-      {/* ── PDF upload zone ── */}
-      <div
-        onDragOver={e => { e.preventDefault(); setDragging(true); }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={e => { e.preventDefault(); setDragging(false); upload(e.dataTransfer.files); }}
-        onClick={() => fileRef.current?.click()}
-        className={`border-2 border-dashed rounded-xl py-7 flex flex-col items-center gap-2 cursor-pointer transition-colors ${dragging ? 'border-blue-400 bg-blue-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'}`}
-      >
-        <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-        </svg>
-        <p className="text-sm text-slate-600">Drop RFI PDFs here or click to browse</p>
-        <p className="text-xs text-slate-400">PDF only · automatically tagged as RFI · AI extracts the request</p>
-        <input ref={fileRef} type="file" accept=".pdf,application/pdf" multiple className="hidden"
-          onChange={e => { upload(e.target.files); e.target.value = ''; }} />
-      </div>
-
-      {/* Upload progress */}
-      {uploading.map((name, i) => (
-        <div key={i} className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
-          <svg className="animate-spin w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-          </svg>
-          <span className="truncate">Uploading {name}…</span>
-        </div>
-      ))}
-
-      {/* ── RFI file list ── */}
-      {files.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-          <div className="px-5 py-3 border-b border-slate-100 bg-slate-50">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              {files.length} RFI{files.length !== 1 ? 's' : ''} Filed
-            </p>
-          </div>
-          <div className="divide-y divide-slate-50">
-            {files.map(f => {
-              const question = questions[f.id];
-              const isExtracting = extracting[f.id];
-              const isPdf = f.originalName?.toLowerCase().endsWith('.pdf');
-              const fileUrl = `/api/uploads/${f.storedPath?.replace(/\\/g, '/')}`;
-
-              return (
-                <div key={f.id} className="flex items-start gap-3 px-5 py-4 hover:bg-slate-50/50 transition-colors">
-                  {/* PDF icon */}
-                  <svg className="w-6 h-7 text-red-400 shrink-0 mt-0.5" viewBox="0 0 24 28" fill="none">
-                    <rect width="24" height="28" rx="2" fill="currentColor" fillOpacity="0.12"/>
-                    <text x="12" y="18" textAnchor="middle" fill="currentColor" fontSize="6" fontWeight="bold">PDF</text>
-                  </svg>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    {/* Filename */}
-                    <button
-                      onClick={() => isPdf && setViewingFile(f)}
-                      className="text-sm font-semibold text-slate-800 hover:text-amber-600 transition-colors text-left block w-full truncate"
-                    >
-                      {f.originalName}
-                    </button>
-
-                    {/* AI-extracted request — the actual question */}
-                    <div className="mt-1.5">
-                      {isExtracting ? (
-                        <p className="text-[11px] text-slate-300 italic flex items-center gap-1.5">
-                          <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-                          </svg>
-                          Reading request…
-                        </p>
-                      ) : question ? (
-                        <p className="text-xs text-slate-600 leading-relaxed">{question}</p>
-                      ) : f.textContent ? (
-                        <button onClick={() => extractQuestion(f.id)} className="text-[11px] text-blue-500 hover:text-blue-700 transition-colors">
-                          ⚡ Extract request
-                        </button>
-                      ) : (
-                        <p className="text-[11px] text-slate-300 italic">Scanned PDF — not readable by AI</p>
-                      )}
-                    </div>
-
-                    {/* Meta */}
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <span className="text-[10px] text-slate-400">{fmtDate(f.createdAt)}</span>
-                      {f.uploadedBy && <span className="text-[10px] text-slate-400">· {f.uploadedBy.name || f.uploadedBy.email}</span>}
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-1 shrink-0">
-                    <a href={fileUrl} download={f.originalName}
-                      className="p-1.5 rounded-lg text-slate-300 hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Download">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                      </svg>
-                    </a>
-                    <button onClick={() => deleteFile(f.id)}
-                      className="p-1.5 rounded-lg text-slate-300 hover:text-red-400 hover:bg-red-50 transition-colors" title="Delete">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {files.length === 0 && uploading.length === 0 && (
-        <p className="text-center text-xs text-slate-400 py-4">
-          No RFIs yet — import from email above or upload a PDF
-        </p>
-      )}
-    </div>
-  );
-}
 
 // Extract up to 3 short sentences from raw text content for a quick summary
 function extractSummary(textContent, maxChars = 280) {
@@ -667,6 +397,9 @@ export default function ProjectHubClient({ userId, project, budget, peerReviewTo
   const [savingSvc,      setSavingSvc]      = useState(false);
   const [flagged,        setFlagged]        = useState(project.flagged || false);
   const [flagNote,       setFlagNote]       = useState(project.flagNote || '');
+  const [projectName,    setProjectName]    = useState(project.name || '');
+  const [editingName,    setEditingName]    = useState(false);
+  const [nameInput,      setNameInput]      = useState('');
   const [savingFlag,     setSavingFlag]     = useState(false);
   const [showFlagNote,   setShowFlagNote]   = useState(false);
   const [assignees,      setAssignees]      = useState(project.assignees || []);
@@ -729,6 +462,18 @@ export default function ProjectHubClient({ userId, project, budget, peerReviewTo
       body: JSON.stringify({ serviceType: val || null }),
     });
     setSavingSvc(false);
+  }
+
+  async function saveProjectName() {
+    const trimmed = nameInput.trim();
+    if (!trimmed || trimmed === projectName) { setEditingName(false); return; }
+    setProjectName(trimmed);
+    setEditingName(false);
+    await fetch(`/api/projects/${project.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: trimmed }),
+    });
   }
 
   async function toggleFlag() {
@@ -898,7 +643,33 @@ export default function ProjectHubClient({ userId, project, budget, peerReviewTo
                     PRJ-{String(project.projectNumber).padStart(4, '0')}
                   </span>
                 )}
-                <h1 className="text-2xl font-bold text-slate-900 leading-tight">{project.name}</h1>
+                {/* Project name — click pencil to rename */}
+                {editingName ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      autoFocus
+                      value={nameInput}
+                      onChange={e => setNameInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') saveProjectName(); if (e.key === 'Escape') setEditingName(false); }}
+                      className="text-2xl font-bold text-slate-900 border-b-2 border-blue-400 bg-transparent outline-none leading-tight w-72"
+                    />
+                    <button onClick={saveProjectName} className="text-xs px-2.5 py-1 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700">Save</button>
+                    <button onClick={() => setEditingName(false)} className="text-xs px-2.5 py-1 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">Cancel</button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 group">
+                    <h1 className="text-2xl font-bold text-slate-900 leading-tight">{projectName}</h1>
+                    <button
+                      onClick={() => { setNameInput(projectName); setEditingName(true); }}
+                      title="Rename project"
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded text-slate-300 hover:text-slate-600 hover:bg-slate-100 transition-all"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
                 {/* Flag toggle */}
                 <button
                   onClick={toggleFlag}
@@ -1172,13 +943,21 @@ export default function ProjectHubClient({ userId, project, budget, peerReviewTo
           </div>
         )}
 
+        {/* ── PROPOSAL ─────────────────────────────────────────────────── */}
+        {activeTab === 'proposal' && (
+          <ProposalTab projectId={project.id} />
+        )}
+
         {/* ── BUDGETS ──────────────────────────────────────────────────── */}
         {activeTab === 'budgets' && (
           <div className="space-y-6">
 
             {/* ── Create / Open Budget type cards ────────────────────────── */}
             <div>
-              <h2 className="text-lg font-semibold text-slate-800 mb-4">Budgets</h2>
+              <div className="flex items-center gap-3 mb-4">
+                <h2 className="text-lg font-semibold text-slate-800">Budgets</h2>
+                <BudgetQCBadge projectId={project.id} />
+              </div>
 
                 {/* Budget type cards — click any to navigate directly, no confirmation */}
               {convertLoading && (
@@ -1483,13 +1262,10 @@ export default function ProjectHubClient({ userId, project, budget, peerReviewTo
 
         {/* ── RFIs ─────────────────────────────────────────────────────── */}
         {activeTab === 'rfis' && (
-          <RFITab
+          <RFIModule
             projectId={project.id}
-            files={filesByTab('ca').filter(f => {
-              try { return (typeof f.tags === 'string' ? JSON.parse(f.tags) : f.tags ?? []).includes('RFI'); } catch { return false; }
-            })}
-            onFileAdded={onFileAdded}
-            onFileDeleted={onFileDeleted}
+            allUsers={allUsers}
+            currentUserName={project.createdBy?.name ?? 'ILC Designer'}
           />
         )}
 
@@ -1736,6 +1512,8 @@ export default function ProjectHubClient({ userId, project, budget, peerReviewTo
                 <p className="text-sm text-slate-400 mt-0.5">Fixture counts across submissions — tag each upload with its phase (SD, DD, CD, IFC…)</p>
               </div>
             </div>
+            <UnitMatrixUpload projectId={project.id} />
+            <div className="text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-2">Fixture Takeoffs</div>
             <FileDropZone projectId={project.id} tab="takeoffs" initialFiles={filesByTab('takeoffs')} onFileAdded={onFileAdded} onFileDeleted={onFileDeleted} />
             <TakeoffDashboard files={filesByTab('takeoffs')} />
           </div>

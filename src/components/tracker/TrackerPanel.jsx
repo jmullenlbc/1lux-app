@@ -2,6 +2,183 @@
 import { useState } from 'react';
 import { statusMeta } from './SubmittalTrackerClient';
 
+// Category badge colors + labels
+const CATEGORY_META = {
+  FINISH:       { bg: 'bg-orange-50 text-orange-700 border-orange-200',   label: 'Finish' },
+  MODEL:        { bg: 'bg-purple-50 text-purple-700 border-purple-200',   label: 'Model' },
+  ACCESSORY:    { bg: 'bg-blue-50 text-blue-700 border-blue-200',         label: 'Accessory' },
+  VOLTAGE:      { bg: 'bg-red-50 text-red-700 border-red-200',            label: 'Voltage' },
+  LUMEN:        { bg: 'bg-yellow-50 text-yellow-700 border-yellow-200',   label: 'Lumen' },
+  WET_LOCATION: { bg: 'bg-cyan-50 text-cyan-700 border-cyan-200',         label: 'Wet Location' },
+  DRAWING_SYNC: { bg: 'bg-indigo-50 text-indigo-700 border-indigo-200',   label: 'Drawing Sync' },
+  DISCONTINUED: { bg: 'bg-slate-100 text-slate-600 border-slate-300',     label: 'Discontinued' },
+  LED_TAPE:     { bg: 'bg-pink-50 text-pink-700 border-pink-200',         label: 'LED Tape' },
+  CODE:         { bg: 'bg-rose-50 text-rose-700 border-rose-200',         label: 'Code' },
+  CRI:          { bg: 'bg-teal-50 text-teal-700 border-teal-200',         label: 'CRI' },
+};
+
+function CategoryBadge({ category }) {
+  if (!category || category === 'BOILERPLATE' || category === 'OTHER') return null;
+  const meta = CATEGORY_META[category];
+  if (!meta) return null;
+  return (
+    <span className={`inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded border ${meta.bg}`}>
+      {meta.label}
+    </span>
+  );
+}
+
+// ILC Response block — shows draft, allows editing + approving
+function ResponseBlock({ review, projectId }) {
+  const [resp,      setResp]      = useState(review.response || null);
+  const [editing,   setEditing]   = useState(false);
+  const [editBody,  setEditBody]  = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [saving,    setSaving]    = useState(false);
+  const [err,       setErr]       = useState('');
+
+  // Don't show response block for BOILERPLATE notes
+  if (review.noteCategory === 'BOILERPLATE') return null;
+  // Don't show if no notes text (nothing to respond to)
+  if (!review.notes) return null;
+
+  async function generate() {
+    setGenerating(true);
+    setErr('');
+    try {
+      const res = await fetch(`/api/projects/${projectId}/tracker/reviews/${review.id}/respond`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || 'Generation failed');
+      setResp(d.response);
+    } catch (e) { setErr(e.message); }
+    finally { setGenerating(false); }
+  }
+
+  async function saveEdit() {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/tracker/reviews/${review.id}/respond`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ responseBody: editBody }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || 'Save failed');
+      setResp(d.response);
+      setEditing(false);
+    } catch (e) { setErr(e.message); }
+    finally { setSaving(false); }
+  }
+
+  async function approve() {
+    const res = await fetch(`/api/projects/${projectId}/tracker/reviews/${review.id}/respond`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'APPROVED' }),
+    });
+    const d = await res.json();
+    if (res.ok) setResp(d.response);
+  }
+
+  async function unapprove() {
+    const res = await fetch(`/api/projects/${projectId}/tracker/reviews/${review.id}/respond`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'DRAFT' }),
+    });
+    const d = await res.json();
+    if (res.ok) setResp(d.response);
+  }
+
+  if (!resp) {
+    return (
+      <div className="mt-2">
+        {err && <p className="text-[10px] text-red-500 mb-1">{err}</p>}
+        <button
+          onClick={generate}
+          disabled={generating}
+          className="flex items-center gap-1 text-[10px] font-semibold text-amber-600 hover:text-amber-700 transition-colors disabled:opacity-50"
+        >
+          {generating ? (
+            <>
+              <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+              </svg>
+              Drafting response…
+            </>
+          ) : (
+            <>
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+              </svg>
+              Draft ILC Response
+            </>
+          )}
+        </button>
+      </div>
+    );
+  }
+
+  const isApproved = resp.status === 'APPROVED';
+
+  return (
+    <div className={`mt-2 rounded-lg border px-2.5 py-2 ${isApproved ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+      <div className="flex items-center justify-between mb-1">
+        <span className={`text-[10px] font-bold uppercase tracking-wide ${isApproved ? 'text-green-700' : 'text-amber-700'}`}>
+          {isApproved ? '✓ ILC Response' : 'Draft ILC Response'}
+        </span>
+        <div className="flex items-center gap-2">
+          {!editing && !isApproved && (
+            <>
+              <button onClick={() => { setEditBody(resp.body); setEditing(true); }}
+                className="text-[10px] text-slate-400 hover:text-slate-600 transition-colors">Edit</button>
+              <button onClick={approve}
+                className="text-[10px] font-semibold text-green-700 hover:text-green-800 transition-colors">Approve</button>
+            </>
+          )}
+          {isApproved && (
+            <button onClick={unapprove}
+              className="text-[10px] text-slate-400 hover:text-slate-600 transition-colors">Revert to draft</button>
+          )}
+          <button onClick={generate} disabled={generating}
+            className="text-[10px] text-slate-300 hover:text-amber-600 transition-colors disabled:opacity-50"
+            title="Regenerate with AI">
+            {generating ? '…' : '↺'}
+          </button>
+        </div>
+      </div>
+
+      {editing ? (
+        <div>
+          <textarea
+            value={editBody}
+            onChange={e => setEditBody(e.target.value)}
+            rows={3}
+            className="w-full text-[11px] text-slate-700 border border-amber-300 rounded px-2 py-1 bg-white outline-none resize-none focus:border-amber-400"
+          />
+          <div className="flex gap-2 mt-1">
+            <button onClick={saveEdit} disabled={saving}
+              className="text-[10px] font-semibold text-amber-700 hover:text-amber-800 disabled:opacity-50">
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+            <button onClick={() => setEditing(false)}
+              className="text-[10px] text-slate-400 hover:text-slate-600">Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <p className={`text-[11px] leading-relaxed ${isApproved ? 'text-green-800' : 'text-amber-800'}`}>
+          {resp.body}
+        </p>
+      )}
+      {err && <p className="text-[10px] text-red-500 mt-1">{err}</p>}
+    </div>
+  );
+}
+
 const ROLE_LABELS = {
   ILC: 'ILC Studios', Developer: 'Developer', Architect: 'Architect',
   LA: 'Landscape Architect', ID: 'Interior Designer', EE: 'Electrical Engineer',
@@ -186,37 +363,53 @@ export default function TrackerPanel({ item, submissions, roles, projectId, onCl
                       {[...ver.reviews]
                         .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
                         .map(rev => (
-                          <div key={rev.id} className="flex items-start gap-2 group">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-xs font-semibold text-slate-600">
-                                  {ROLE_LABELS[rev.reviewerRole] || rev.reviewerRole}
-                                </span>
-                                {rev.reviewerName && (
-                                  <span className="text-xs text-slate-400">· {rev.reviewerName}</span>
+                          <div key={rev.id} className="group">
+                            <div className="flex items-start gap-2">
+                              <div className="flex-1 min-w-0">
+                                {/* Reviewer + date header */}
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-xs font-semibold text-slate-600">
+                                    {ROLE_LABELS[rev.reviewerRole] || rev.reviewerRole}
+                                  </span>
+                                  {rev.reviewerName && (
+                                    <span className="text-xs text-slate-400">· {rev.reviewerName}</span>
+                                  )}
+                                  {rev.dateNoted && (
+                                    <span className="text-xs text-slate-300">· {fmtDate(rev.dateNoted)}</span>
+                                  )}
+                                  {rev.pageNumber && (
+                                    <span className="text-[10px] text-slate-300">p.{rev.pageNumber}</span>
+                                  )}
+                                </div>
+                                {/* Status + category + AI badges */}
+                                <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                                  <StatusPill status={rev.status} />
+                                  <CategoryBadge category={rev.noteCategory} />
+                                  {rev.isExtracted && (
+                                    <span className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded border bg-yellow-50 text-yellow-700 border-yellow-200">
+                                      ✦ AI
+                                    </span>
+                                  )}
+                                </div>
+                                {/* Review note text */}
+                                {rev.notes && (
+                                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                                    "{rev.notes}"
+                                  </p>
                                 )}
-                                {rev.dateNoted && (
-                                  <span className="text-xs text-slate-300">· {fmtDate(rev.dateNoted)}</span>
-                                )}
+                                {/* ILC Response block */}
+                                <ResponseBlock review={rev} projectId={projectId} />
                               </div>
-                              <div className="mt-0.5">
-                                <StatusPill status={rev.status} />
-                              </div>
-                              {rev.notes && (
-                                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                                  "{rev.notes}"
-                                </p>
-                              )}
+                              <button
+                                onClick={() => { if (confirm('Delete this review entry?')) onDeleteReview(rev.id); }}
+                                className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400 transition-all shrink-0 mt-0.5"
+                                title="Delete review"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
                             </div>
-                            <button
-                              onClick={() => { if (confirm('Delete this review entry?')) onDeleteReview(rev.id); }}
-                              className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400 transition-all shrink-0 mt-0.5"
-                              title="Delete review"
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
                           </div>
                         ))}
                     </div>

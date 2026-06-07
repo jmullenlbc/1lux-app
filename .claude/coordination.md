@@ -25,6 +25,10 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Log
 
+### 2026-06-06 — Mike's Claude
+- **Proposals module fully built.** Schema (0023_proposals migration), 11 API routes (proposals CRUD, line-items, send, accept, decline, PDF, templates, rates), `/sales/proposals` list page with "Add Project" button, `/sales/proposals/templates` editor, `ProposalTab` in project hub. Sidebar Proposals link enabled; 'proposal' tab added to projectNavConfig. Build passes clean. ~42 files uncommitted (batches 1+2+proposals).
+- Meetings editor confirmed: uses native `contentEditable` + `document.execCommand()` (NOT tiptap) — proposals editor follows same pattern.
+
 ### 2026-05-29 (end of day, +Broadstone entry fix) — Sean's Claude
 - **Broadstone entry-side correction applied.** Was $856K (−8.3% vs sheet $935K); now ~$896K (−4.2%). Single fix: `amenities.interiorLevel: "low" ($6/SF) → "8"` ($8/SF custom). Sheet's questionnaire answers all line-by-line verified; the interior amenity rate was the ONLY entry-side correction available. Added $40K.
 - Remaining ~$39K traces to Q6 (vanity gross-vs-net = ~$23K alone on 519 vanities × $45) + smaller fan/pricing items in the same family. Same engine/policy ask as Link+Pin.
