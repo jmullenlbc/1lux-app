@@ -18,6 +18,57 @@ export const NAV_CONFIG = {
       section: 'Pre-Construction',
       icon: '◈',
       items: [
+        { id: 'budgets',         label: 'Budgets',         icon: 'Calculator' },
+        { id: 'takeoffs',        label: 'Takeoffs',        icon: 'Ruler' },
+      ],
+    },
+    {
+      section: 'Design',
+      icon: '✦',
+      items: [
+        { id: 'proposal',        label: 'Proposal',        icon: 'FileSignature' },
+        { id: 'drawings',        label: 'Drawings',        icon: 'FileText' },
+        { id: 'fixture-schedule',label: 'Fixture Schedule',icon: 'ListChecks' },
+        { id: 'code',            label: 'Code',            icon: 'Code2' },
+        { id: 'design-schedule', label: 'Design Schedule', icon: 'CalendarDays' },
+        { id: 'design-contracts',label: 'Contracts',       icon: 'Receipt' },
+      ],
+    },
+    {
+      section: 'Construction',
+      icon: '◉',
+      items: [
+        { id: 'rfis',                  label: 'RFIs',                 icon: 'HelpCircle' },
+        { id: 'submittals',            label: 'Submittals',           icon: 'ClipboardCheck' },
+        { id: 'ship-schedule',         label: 'Ship Schedule',        icon: 'Truck' },
+        { id: 'change-orders',         label: 'Change Orders',        icon: 'FileDiff' },
+        { id: 'construction-schedule', label: 'Construction Schedule',icon: 'CalendarClock' },
+        { id: 'contracts',             label: 'Contracts',            icon: 'Receipt' },
+        { id: 'notifications',         label: 'Client Portal Access', icon: 'Users' },
+      ],
+    },
+    {
+      section: 'Communications',
+      icon: '◎',
+      items: [
+        { id: 'meetings',        label: 'Meetings',        icon: 'Calendar' },
+        { id: 'correspondence',  label: 'Correspondence',  icon: 'Mail' },
+      ],
+    },
+  ],
+
+  designAssist: [
+    {
+      section: 'Overview',
+      icon: '⊡',
+      items: [
+        { id: 'dashboard',       label: 'Dashboard',       icon: 'LayoutDashboard' },
+      ],
+    },
+    {
+      section: 'Pre-Construction',
+      icon: '◈',
+      items: [
         { id: 'proposal',        label: 'Proposal',        icon: 'FileSignature' },
         { id: 'budgets',         label: 'Budgets',         icon: 'Calculator' },
         { id: 'takeoffs',        label: 'Takeoffs',        icon: 'Ruler' },
@@ -56,8 +107,6 @@ export const NAV_CONFIG = {
       ],
     },
   ],
-
-  designAssist: null, // assigned below — same as fullDesign
 
   peerReview: [
     {
@@ -105,7 +154,6 @@ export const NAV_CONFIG = {
   other:   null, // assigned below — same as peerReview
 };
 
-NAV_CONFIG.designAssist = NAV_CONFIG.fullDesign;
 NAV_CONFIG.bidOnly      = NAV_CONFIG.peerReview;
 NAV_CONFIG.other        = NAV_CONFIG.peerReview;
 
