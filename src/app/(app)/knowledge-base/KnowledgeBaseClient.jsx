@@ -291,14 +291,15 @@ function CategoryModal({ categories: initial, onClose, onUpdate }) {
 }
 
 // ── StandardModal ─────────────────────────────────────────────────────────────
-export function StandardModal({ standard, categories, onClose, onSave }) {
+export function StandardModal({ standard, categories, onClose, onSave, isSuperAdmin }) {
   const [form, setForm] = useState({
-    category:  standard?.category  || '',
-    title:     standard?.title     || '',
-    content:   standard?.content   || '',
-    severity:  standard?.severity  || 'REQUIRED',
-    tags:      standard ? (JSON.parse(standard.tags || '[]')).join(', ') : '',
-    sourceUrl: standard?.sourceUrl || '',
+    category:       standard?.category       || '',
+    title:          standard?.title          || '',
+    content:        standard?.content        || '',
+    severity:       standard?.severity       || 'REQUIRED',
+    tags:           standard ? (JSON.parse(standard.tags || '[]')).join(', ') : '',
+    sourceUrl:      standard?.sourceUrl      || '',
+    superAdminOnly: standard?.superAdminOnly || false,
   });
   const [saving, setSaving] = useState(false);
 
@@ -379,6 +380,18 @@ export function StandardModal({ standard, categories, onClose, onSave }) {
                 className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
           </div>
+
+          {isSuperAdmin && (
+            <label className="flex items-center gap-2.5 cursor-pointer select-none p-3 rounded-lg border border-orange-200 bg-orange-50">
+              <input type="checkbox" checked={form.superAdminOnly}
+                onChange={e => setForm(f => ({ ...f, superAdminOnly: e.target.checked }))}
+                className="w-4 h-4 accent-orange-500 rounded" />
+              <div>
+                <div className="text-xs font-bold text-orange-700">Super Admin Only</div>
+                <div className="text-[11px] text-orange-500">Hidden from all non-Super Admin users</div>
+              </div>
+            </label>
+          )}
         </div>
 
         <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
@@ -396,7 +409,7 @@ export function StandardModal({ standard, categories, onClose, onSave }) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function KnowledgeBaseClient({ standards: initial, categories: initialCats, isEditor, isAdmin }) {
+export default function KnowledgeBaseClient({ standards: initial, categories: initialCats, isEditor, isAdmin, isSuperAdmin }) {
   const [standards,   setStandards]   = useState(initial);
   const [categories,  setCategories]  = useState(initialCats || []);
   const [search,      setSearch]      = useState('');
@@ -426,7 +439,7 @@ export default function KnowledgeBaseClient({ standards: initial, categories: in
   if (search.trim() && filtered.length > 0) {
     return (
       <div className="min-h-screen bg-slate-50">
-        {modal && <StandardModal standard={modal === 'add' ? null : modal} categories={categories} onClose={() => setModal(null)} onSave={handleSave} />}
+        {modal && <StandardModal standard={modal === 'add' ? null : modal} categories={categories} onClose={() => setModal(null)} onSave={handleSave} isSuperAdmin={isSuperAdmin} />}
         {showCatMgr && <CategoryModal categories={categories} onClose={() => setShowCatMgr(false)} onUpdate={setCategories} />}
         <Header search={search} setSearch={setSearch} total={total} isEditor={isEditor} isAdmin={isAdmin}
           onAdd={() => setModal('add')} onManageCats={() => setShowCatMgr(true)} categories={categories} />
@@ -447,7 +460,7 @@ export default function KnowledgeBaseClient({ standards: initial, categories: in
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {modal && <StandardModal standard={modal === 'add' ? null : modal} categories={categories} onClose={() => setModal(null)} onSave={handleSave} />}
+      {modal && <StandardModal standard={modal === 'add' ? null : modal} categories={categories} onClose={() => setModal(null)} onSave={handleSave} isSuperAdmin={isSuperAdmin} />}
       {showCatMgr && <CategoryModal categories={categories} onClose={() => setShowCatMgr(false)} onUpdate={setCategories} />}
       <Header search={search} setSearch={setSearch} total={total} isEditor={isEditor} isAdmin={isAdmin}
         onAdd={() => setModal('add')} onManageCats={() => setShowCatMgr(true)} categories={categories} />
@@ -568,7 +581,12 @@ export function StandardCard({ standard, categories, isEditor, onEdit, onDelete 
           <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${sev.dot}`} />
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2">
-              <h3 className="text-sm font-semibold text-slate-900 leading-snug">{standard.title}</h3>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-sm font-semibold text-slate-900 leading-snug">{standard.title}</h3>
+                {standard.superAdminOnly && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 border border-orange-200 shrink-0">🔒 Super Admin</span>
+                )}
+              </div>
               <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                 {isEditor && !confirming && (
                   <>

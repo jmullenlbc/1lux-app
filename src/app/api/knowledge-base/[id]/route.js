@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
+function isSuperAdmin(user) {
+  return ['SUPER_ADMIN', 'ILC_ADMIN'].includes(user.role);
+}
+
 function canEdit(user) {
   if (['SUPER_ADMIN', 'ILC_ADMIN', 'COMPANY_ADMIN'].includes(user.role)) return true;
   try { return JSON.parse(user.permissions || '{}').knowledgeBase === true; } catch { return false; }
@@ -9,20 +13,21 @@ function canEdit(user) {
 
 // PATCH /api/knowledge-base/[id]
 export async function PATCH(request, { params }) {
-  const { user, error } = await requireAuth();
+  const { user, error } = await requireAuth(request);
   if (error) return error;
   if (!canEdit(user)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await request.json();
-  const { category, title, content, severity, tags, sourceUrl } = body;
+  const { category, title, content, severity, tags, sourceUrl, superAdminOnly } = body;
 
   const data = { updatedById: user.id };
-  if (category  !== undefined) data.category  = category.toUpperCase();
-  if (title     !== undefined) data.title      = title.trim();
-  if (content   !== undefined) data.content    = content.trim();
-  if (severity  !== undefined) data.severity   = severity.toUpperCase();
-  if (tags      !== undefined) data.tags       = JSON.stringify(Array.isArray(tags) ? tags : []);
-  if (sourceUrl !== undefined) data.sourceUrl  = sourceUrl || null;
+  if (category       !== undefined) data.category       = category.toUpperCase();
+  if (title          !== undefined) data.title           = title.trim();
+  if (content        !== undefined) data.content         = content.trim();
+  if (severity       !== undefined) data.severity        = severity.toUpperCase();
+  if (tags           !== undefined) data.tags            = JSON.stringify(Array.isArray(tags) ? tags : []);
+  if (sourceUrl      !== undefined) data.sourceUrl       = sourceUrl || null;
+  if (superAdminOnly !== undefined && isSuperAdmin(user)) data.superAdminOnly = superAdminOnly;
 
   const standard = await prisma.designStandard.update({
     where: { id: params.id },

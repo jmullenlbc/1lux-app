@@ -14,14 +14,20 @@ function canManageCategories(user) {
   return ['SUPER_ADMIN', 'ILC_ADMIN'].includes(user.role);
 }
 
+function isSuperAdmin(user) {
+  return ['SUPER_ADMIN', 'ILC_ADMIN'].includes(user.role);
+}
+
 export default async function KnowledgeBasePage() {
   const { user, error } = await requireAuth();
   if (error) redirect('/login');
 
+  const superAdmin = isSuperAdmin(user);
+
   const [standards, categories] = await Promise.all([
     prisma.designStandard
       ? prisma.designStandard.findMany({
-          where: { isActive: true },
+          where: { isActive: true, ...(superAdmin ? {} : { superAdminOnly: false }) },
           orderBy: [{ category: 'asc' }, { severity: 'asc' }, { createdAt: 'asc' }],
           include: {
             createdBy: { select: { id: true, name: true } },
@@ -41,6 +47,7 @@ export default async function KnowledgeBasePage() {
       categories={categories}
       isEditor={canEdit(user)}
       isAdmin={canManageCategories(user)}
+      isSuperAdmin={superAdmin}
     />
   );
 }

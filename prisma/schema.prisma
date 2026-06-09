@@ -144,13 +144,14 @@ model DesignStandard {
   severity    String   @default("REQUIRED") // REQUIRED | RECOMMENDED | NOTE
   tags        String   @default("[]")
   sourceUrl   String?
-  isActive    Boolean  @default(true)
-  createdById String
-  updatedById String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  createdBy   User     @relation("KBCreator", fields: [createdById], references: [id])
-  updatedBy   User?    @relation("KBUpdater", fields: [updatedById], references: [id])
+  isActive       Boolean  @default(true)
+  superAdminOnly Boolean  @default(false)
+  createdById    String
+  updatedById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  createdBy      User     @relation("KBCreator", fields: [createdById], references: [id])
+  updatedBy      User?    @relation("KBUpdater", fields: [updatedById], references: [id])
 }
 
 model Client {
