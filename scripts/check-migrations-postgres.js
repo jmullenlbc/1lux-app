@@ -72,7 +72,53 @@ function getMigrationFiles(dir) {
 }
 
 const files = getMigrationFiles(MIGRATIONS_DIR);
-const findings = []; // [{ file, pattern, line, snippet }]
+const findings = []; // [{ file, pattern, line, snippet, fix }]
+
+// Forward-FK detector: within a single migration file, scans CREATE TABLE
+// declarations in source order. If a table's body contains REFERENCES "X"
+// where X is also CREATE TABLE'd in the same file but later than the
+// current table, flag it. PostgreSQL won't allow this; SQLite will.
+// Tables referenced that aren't in this file are assumed to come from a
+// prior migration and are fine. Self-references are allowed.
+function checkForwardForeignKeys(file, src) {
+  const declaredAtLine = new Map(); // tableName -> line where its CREATE TABLE starts
+  const refs = []; // [{ fromTable, fromLine, toTable, snippet }]
+  const lines = src.split(/\r?\n/);
+  let currentTable = null;
+  let currentTableLine = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (/^\s*--/.test(lines[i])) continue; // skip pure comment lines
+    const m = lines[i].match(/^\s*CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?"([A-Za-z_][\w]*)"/);
+    if (m) {
+      currentTable = m[1];
+      currentTableLine = i + 1;
+      if (!declaredAtLine.has(currentTable)) declaredAtLine.set(currentTable, currentTableLine);
+      continue;
+    }
+    if (!currentTable) continue;
+    // Capture every REFERENCES "X" inside this table's body (until next CREATE TABLE).
+    const refRe = /REFERENCES\s+"([A-Za-z_][\w]*)"/g;
+    let r;
+    while ((r = refRe.exec(lines[i])) != null) {
+      refs.push({ fromTable: currentTable, fromLine: i + 1, toTable: r[1], snippet: lines[i].trim().slice(0, 100) });
+    }
+  }
+  const out = [];
+  for (const { fromTable, fromLine, toTable, snippet } of refs) {
+    if (fromTable === toTable) continue; // self-ref OK
+    if (!declaredAtLine.has(toTable)) continue; // ref to a table from a previous migration is fine
+    if (declaredAtLine.get(toTable) > declaredAtLine.get(fromTable)) {
+      out.push({
+        file:    file.replace(path.join(__dirname, '..'), '').replace(/\\/g, '/'),
+        pattern: `forward FK: ${fromTable} -> ${toTable} (declared later in this file)`,
+        fix:     `move "CREATE TABLE \\"${toTable}\\"" before "CREATE TABLE \\"${fromTable}\\""`,
+        line:    fromLine,
+        snippet,
+      });
+    }
+  }
+  return out;
+}
 
 for (const file of files) {
   const src = fs.readFileSync(file, 'utf8');
@@ -95,6 +141,8 @@ for (const file of files) {
       }
     }
   }
+  // Forward-FK pass on the same file
+  findings.push(...checkForwardForeignKeys(file, src));
 }
 
 if (findings.length > 0) {

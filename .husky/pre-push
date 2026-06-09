@@ -1,0 +1,36 @@
+#!/usr/bin/env sh
+# Pre-push checkpoint — see CLAUDE.md for the rationale.
+#
+# Catches the Sunday-style cascade of bugs (missing force-dynamic,
+# SQLite-flavored migrations, forward FK refs, secrets, math regressions)
+# locally BEFORE they reach Amplify. Total wall-clock: ~20-30 seconds.
+#
+# If you need to skip this for a legitimate emergency (rare!), use:
+#   git push --no-verify
+# But know that any of the checks below firing means production is at
+# risk if you push anyway. They're loud for a reason.
+
+set -e
+
+echo "── Pre-push checks ────────────────────────────────"
+
+# 1. Every (app)/ page must export force-dynamic. Catches Sunday's layer 1.
+node scripts/check-dynamic-pages.js
+
+# 2. Every Prisma migration must be PostgreSQL-compatible (no DATETIME,
+#    no BOOLEAN DEFAULT 0/1, no AUTOINCREMENT, no forward FK refs).
+#    Catches Sunday's layers 2 and 3.
+node scripts/check-migrations-postgres.js
+
+# 3. Math regression suite — budget math + fuzz + bid matrix logic.
+#    ~15-20s. Catches engine regressions before they hit prod.
+npm test --silent
+
+# 4. Secrets scan over the diff between HEAD and origin/main.
+#    Catches the API-key-in-tracked-file class of accident.
+node scripts/check-secrets.js
+
+# 5. Mega-commit warning (non-blocking heads-up if > 50 files).
+node scripts/check-push-size.js
+
+echo "── ✓ All pre-push checks passed ───────────────────"

@@ -79,7 +79,42 @@ Roles: `ILC_ADMIN` / `SUPER_ADMIN` (same), `ADMIN` / `COMPANY_ADMIN` (same), `US
 export const dynamic = 'force-dynamic'; // ← REQUIRED on every page under (app)/
 ```
 
-Without it, Next.js 14 attempts static rendering at build time. `cookies()` (called inside `requireAuth`/`getSession`) throws "called outside a request scope", crashing the page in production with Application Error. The build script `scripts/check-dynamic-pages.js` runs in Amplify preBuild and **fails the entire build** if any page is missing this — so you'll catch it before it ever deploys.
+Without it, Next.js 14 attempts static rendering at build time. `cookies()` (called inside `requireAuth`/`getSession`) throws "called outside a request scope", crashing the page in production with Application Error. The build script `scripts/check-dynamic-pages.js` runs in Amplify preBuild and **fails the entire build** if any page is missing this — so you'll catch it before it ever deploys. It also runs in the local pre-push hook (see below) so you catch it before it ever leaves your machine.
+
+### Rule: New Prisma migrations must be PostgreSQL-compatible
+
+`schema.prisma` is committed with `provider = "sqlite"` so local dev works without Docker. Running `npx prisma migrate dev` against that schema emits **SQLite-flavored SQL** (e.g. `DATETIME`, `BOOLEAN NOT NULL DEFAULT 0`, forward foreign-key references) — which Postgres rejects when Amplify runs `prisma migrate deploy` against the real production database.
+
+**To generate a new migration safely:**
+
+```bash
+# Option A — temporarily flip the schema to postgres, generate, flip back:
+sed -i 's/provider = "sqlite"/provider = "postgresql"/' prisma/schema.prisma
+npx prisma migrate dev --name your_migration_name
+sed -i 's/provider = "postgresql"/provider = "sqlite"/' prisma/schema.prisma
+git diff prisma/schema.prisma   # should be empty — confirm provider is back to sqlite
+
+# Option B — use the npm hint script that documents the same idea:
+npm run db:migrate:new
+```
+
+`scripts/check-migrations-postgres.js` runs in both Amplify preBuild and the local pre-push hook and **blocks the build/push** if any migration uses SQLite-only patterns (`DATETIME`, `BOOLEAN DEFAULT 0/1`, `AUTOINCREMENT`, `PRAGMA`) or contains a forward FK reference within the same file. Clear `file:line:fix` output when it fires.
+
+### Rule: Pre-push hook (Husky) enforces local sanity checks
+
+A Husky pre-push hook (`.husky/pre-push`) runs on every `git push`. It executes:
+
+1. `check-dynamic-pages.js` — every `(app)/` page has `force-dynamic`
+2. `check-migrations-postgres.js` — every migration is Postgres-compatible (including forward-FK ordering)
+3. `npm test` — math regression suite (38 scenario + ~112K fuzz + 12 bid-matrix checks)
+4. `check-secrets.js` — scans the diff for accidentally committed API keys / tokens
+5. `check-push-size.js` — non-blocking heads-up if pushing > 50 files
+
+Total wall-clock: ~20-30 seconds. Catches almost every class of bug that's bitten this project's deploys.
+
+**Setup is automatic on `npm install`** — Husky's `prepare` script wires the hook into `.git/hooks/` for your local repo. After pulling a change that touches `package.json` or `.husky/`, run `npm install` once to ensure the hook is current.
+
+**Emergency bypass:** `git push --no-verify` skips the hook. Use only for true emergencies — the checks fire for a reason.
 
 ### Page Pattern (App Router)
 

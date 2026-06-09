@@ -15,7 +15,8 @@
     "db:migrate:new": "echo 'Run against Supabase: cross-env DATABASE_URL=<supabase_url> prisma migrate dev --name'",
     "test": "tsx tests/budget-math.mjs && tsx tests/fuzz-budget.mjs && tsx tests/bid-matrix-logic.mjs",
     "postinstall": "node -e \"try{const fs=require('fs');fs.copyFileSync(require.resolve('pdfjs-dist/build/pdf.worker.min.mjs'),'public/pdf.worker.min.mjs');console.log('✓ pdf.worker.min.mjs copied to public/')}catch(e){console.warn('pdf worker copy failed:',e.message)}\"",
-    "prebuild": "node -e \"try{const fs=require('fs');fs.copyFileSync(require.resolve('pdfjs-dist/build/pdf.worker.min.mjs'),'public/pdf.worker.min.mjs');console.log('✓ pdf.worker.min.mjs copied to public/')}catch(e){console.warn('pdf worker copy failed:',e.message)}\" && node scripts/check-dynamic-pages.js && node scripts/check-migrations-postgres.js"
+    "prebuild": "node -e \"try{const fs=require('fs');fs.copyFileSync(require.resolve('pdfjs-dist/build/pdf.worker.min.mjs'),'public/pdf.worker.min.mjs');console.log('✓ pdf.worker.min.mjs copied to public/')}catch(e){console.warn('pdf worker copy failed:',e.message)}\" && node scripts/check-dynamic-pages.js && node scripts/check-migrations-postgres.js",
+    "prepare": "husky"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",
@@ -58,6 +59,7 @@
     "autoprefixer": "^10.0.1",
     "eslint": "^8",
     "eslint-config-next": "14.2.3",
+    "husky": "^9.1.7",
     "postcss": "^8",
     "prisma": "^5.22.0",
     "tailwindcss": "^3.3.0",

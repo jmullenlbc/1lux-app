@@ -15,3 +15,12 @@ public/pdf.worker.min.mjs
 _tests/
 PLANNING/
 .tmp-proposals/
+
+# Stray local debug files that have accidentally been committed before.
+# These patterns catch the common Windows-path-as-filename mistakes and
+# generic temp logs without being so broad they hide intentional files.
+C\:*
+*tempdevserver*
+*temp-devserver*
+devserver.log
+dev-server.log
