@@ -12,8 +12,8 @@ CREATE TABLE "ProjectUnitType" (
     "sortOrder"  INTEGER NOT NULL DEFAULT 0,
     "source"     TEXT    NOT NULL DEFAULT 'EXTRACTED',
     "confidence" REAL,
-    "createdAt"  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt"  DATETIME NOT NULL,
+    "createdAt"  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt"  TIMESTAMP(3) NOT NULL,
     CONSTRAINT "ProjectUnitType_projectId_fkey"
         FOREIGN KEY ("projectId") REFERENCES "Project" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );

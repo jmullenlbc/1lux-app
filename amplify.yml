@@ -6,6 +6,10 @@ frontend:
         - npm ci
         # ── Safety: block deploy if any (app) page is missing force-dynamic ─
         - node scripts/check-dynamic-pages.js
+        # ── Safety: block deploy if any migration uses SQLite-only SQL ─────
+        # (DATETIME / BOOLEAN DEFAULT 0/1 / AUTOINCREMENT — would crash
+        # `prisma migrate deploy` against PostgreSQL further down)
+        - node scripts/check-migrations-postgres.js
         # ── Generate deploy history log (git log → deploy-log.json) ─────────
         - node scripts/generate-deploy-log.js
         # ── Schema provider patch ────────────────────────────────────────────
