@@ -25,6 +25,19 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Log
 
+### 2026-06-09 (later) — Sean's Claude (pre-push checkpoint + handoff to Mike)
+- **Husky pre-push hook installed (`1ae26f3`).** Runs ~25s of checks on every push, on both Sean's and Mike's machines:
+  1. `check-dynamic-pages.js` — every (app)/ page has force-dynamic
+  2. `check-migrations-postgres.js` — SQLite-only patterns AND forward-FK refs (the layer-3 catcher; Sunday's `Proposal → ProposalTemplate` forward ref would have been caught locally)
+  3. `npm test` — math regression suite (38 + 112K fuzz + 12 bid-matrix)
+  4. `check-secrets.js` — diff scan for AWS/GitHub/Anthropic/OpenAI/Stripe keys + generic API_KEY=... patterns
+  5. `check-push-size.js` — non-blocking warning if > 50 files (Sunday was 160)
+- **Mike's one-time setup:** `git pull && npm install`. After that, automatic forever on his machine. Memo PDF at `~/Downloads/ILC - Pre-Push Safety Net - Setup.pdf` ready to send.
+- **`start-dev.ps1` self-heals:** auto-runs `npm install --silent` if package.json changed or `.husky/_/pre-push` isn't wired, so the hook stays current without Mike thinking about it.
+- **CLAUDE.md updated** with the migration-generation workflow (sed schema → postgres, generate, sed back) and the pre-push hook as documented project rules.
+- **`.gitignore` tightened** with patterns for Windows-path-as-filename stray logs (the `C:tempdevserver.log` Mike accidentally committed Sunday).
+- **Heads-up for Mike's Claude:** the hook fires on every push. If you hit a blocker, read the `file:line:fix` output — it'll tell you exactly what to change. For genuine emergencies, `git push --no-verify` bypasses; use sparingly. The CLAUDE.md doc has full details.
+
 ### 2026-06-09 — Sean's Claude (unblock Mike's Sunday deploy + permanent prevention)
 - **Root cause of Mike's Sunday-not-deploying:** migrations 0023_proposals and 0024_project_unit_types used SQLite types (`DATETIME`, `BOOLEAN NOT NULL DEFAULT 0/1`) instead of Postgres (`TIMESTAMP(3)`, `DEFAULT false/true`). `prisma migrate deploy` ran on Amplify, hit "syntax error at or near DATETIME" on the first new table, aborted — seed never ran, build never ran. The full Proposals module was blocked by ~15 type tokens. This is exactly what happens when `npx prisma migrate dev` runs against the locally-pinned sqlite schema.
 - **Permanent fix shipped (`7fa5d3b`):** new `scripts/check-migrations-postgres.js` runs in Amplify preBuild alongside `check-dynamic-pages.js`. Scans every migration for SQLite-only patterns (DATETIME, BOOLEAN DEFAULT 0/1, AUTOINCREMENT, PRAGMA) and fails the build with file:line:fix output BEFORE prisma migrate deploy runs. Same defensive pattern as the existing dynamic-pages check. Local: `node scripts/check-migrations-postgres.js`.
