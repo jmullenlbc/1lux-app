@@ -25,6 +25,12 @@ frontend:
         # run (tables were created by db push — no need to re-run the DDL).
         # Silently ignored on every subsequent deploy when it's already recorded.
         - npx prisma migrate resolve --applied "0001_baseline" 2>/dev/null || true
+        # Recovery: 0023_proposals failed mid-apply on 2026-06-09 (forward
+        # foreign-key reference to ProposalTemplate, fixed in commit 9c968a2 by
+        # reordering). Mark the failed attempt as rolled back so migrate deploy
+        # will try the corrected migration. Silently no-ops once 0023 is
+        # successfully applied (Prisma rejects resolve on a clean migration).
+        - npx prisma migrate resolve --rolled-back "0023_proposals" 2>/dev/null || true
         # Apply any new migrations committed since the last deploy.
         # Safe: never drops data, never touches already-applied migrations.
         - npx prisma migrate deploy
