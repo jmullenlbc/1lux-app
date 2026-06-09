@@ -25,6 +25,16 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Log
 
+### 2026-06-09 — Mike's Claude
+- **QC Bug Tracker built (v1).** Full internal bug-reporting system: floating "Report a bug" button on every authenticated page, modal with screenshot (html-to-image), auto-captured console errors + failed network requests, browser/viewport. Kanban board at `/admin/qc` (super admin only) with New/In Progress/Fixed columns, detail drawer, status buttons, and assignee dropdown. Blocker reports fire in-app UserAlert to all super admins. Screen recording toggle stubbed as "Coming soon" (v1.1). Local filesystem storage for screenshots; S3 setup instructions written to G Drive for production deploy.
+- **Prisma schema:** Added `BugReport` model + two User relations (`bugReportsCreated`, `bugReportsAssigned`). `db:push` applied locally.
+- **New files:** `src/lib/qcStorage.js`, `src/components/qc/qcRecorder.js`, `src/components/qc/QcCapture.jsx`, `src/app/api/qc/reports/route.js`, `src/app/api/qc/reports/[id]/route.js`, `src/app/api/qc/media/route.js`, `src/app/(app)/admin/qc/page.jsx`, `src/app/(app)/admin/qc/QcBoardClient.jsx`.
+- **Tech Stack page** (`/admin/tech-stack`) built with 5 tabs — auto-updates from `deploy-log.json` and `package.json`. Sidebar entry added under Software.
+- **KB super-admin-only** entries: `superAdminOnly` field added to `DesignStandard`, filtered at API + page level, toggle in edit modal (orange, super-admin-visible only).
+- **Proposals nav fix:** `fullDesign` now shows Proposal under Design section; `designAssist` keeps it under Pre-Construction (separate nav configs, no longer aliased).
+- **G Drive:** Tech Stack HTML guide + S3 setup .md written to `G:\Shared drives\SOFTWARE\_MIKE's APP\Software engineering\`.
+- **Open:** Sean needs to be made a SUPER_ADMIN in prod to access QC board + triage. Screenshots need S3 swap before live deploy (see S3 setup doc).
+
 ### 2026-06-09 (later) — Sean's Claude (pre-push checkpoint + handoff to Mike)
 - **Husky pre-push hook installed (`1ae26f3`).** Runs ~25s of checks on every push, on both Sean's and Mike's machines:
   1. `check-dynamic-pages.js` — every (app)/ page has force-dynamic
@@ -32,11 +42,10 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
   3. `npm test` — math regression suite (38 + 112K fuzz + 12 bid-matrix)
   4. `check-secrets.js` — diff scan for AWS/GitHub/Anthropic/OpenAI/Stripe keys + generic API_KEY=... patterns
   5. `check-push-size.js` — non-blocking warning if > 50 files (Sunday was 160)
-- **Mike's one-time setup:** `git pull && npm install`. After that, automatic forever on his machine. Memo PDF at `~/Downloads/ILC - Pre-Push Safety Net - Setup.pdf` ready to send.
-- **`start-dev.ps1` self-heals:** auto-runs `npm install --silent` if package.json changed or `.husky/_/pre-push` isn't wired, so the hook stays current without Mike thinking about it.
-- **CLAUDE.md updated** with the migration-generation workflow (sed schema → postgres, generate, sed back) and the pre-push hook as documented project rules.
-- **`.gitignore` tightened** with patterns for Windows-path-as-filename stray logs (the `C:tempdevserver.log` Mike accidentally committed Sunday).
-- **Heads-up for Mike's Claude:** the hook fires on every push. If you hit a blocker, read the `file:line:fix` output — it'll tell you exactly what to change. For genuine emergencies, `git push --no-verify` bypasses; use sparingly. The CLAUDE.md doc has full details.
+- **Mike's one-time setup:** `git pull && npm install`. After that, automatic forever on his machine.
+- **`start-dev.ps1` self-heals:** auto-runs `npm install --silent` if package.json changed or `.husky/_/pre-push` isn't wired.
+- **CLAUDE.md updated** with the migration-generation workflow and the pre-push hook as documented project rules.
+- **Heads-up for Mike's Claude:** the hook fires on every push. If you hit a blocker, read the `file:line:fix` output. For genuine emergencies, `git push --no-verify` bypasses; use sparingly.
 
 ### 2026-06-09 — Sean's Claude (unblock Mike's Sunday deploy + permanent prevention)
 - **Root cause of Mike's Sunday-not-deploying:** migrations 0023_proposals and 0024_project_unit_types used SQLite types (`DATETIME`, `BOOLEAN NOT NULL DEFAULT 0/1`) instead of Postgres (`TIMESTAMP(3)`, `DEFAULT false/true`). `prisma migrate deploy` ran on Amplify, hit "syntax error at or near DATETIME" on the first new table, aborted — seed never ran, build never ran. The full Proposals module was blocked by ~15 type tokens. This is exactly what happens when `npx prisma migrate dev` runs against the locally-pinned sqlite schema.

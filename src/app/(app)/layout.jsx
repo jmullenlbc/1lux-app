@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth';
 import Sidebar from '@/components/layout/Sidebar';
 import AppBreadcrumb from '@/components/layout/AppBreadcrumb';
+import QcCapture from '@/components/qc/QcCapture';
 
 export default async function AppLayout({ children }) {
   const session = await getSession();
@@ -18,6 +19,7 @@ export default async function AppLayout({ children }) {
         <div className="flex-1 pb-28">
           {children}
         </div>
+        <QcCapture />
       </main>
     </div>
   );

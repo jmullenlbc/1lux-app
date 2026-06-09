@@ -80,6 +80,8 @@ model User {
   proposalSends             ProposalSend[]                  @relation("UserProposalSends")
   proposalTemplatesCreated  ProposalTemplate[]              @relation("UserProposalTemplates")
   proposalRatesUpdated      ProposalRate[]                  @relation("ProposalRateUpdater")
+  bugReportsCreated  BugReport[] @relation("BugReportReporter")
+  bugReportsAssigned BugReport[] @relation("BugReportAssignee")
 }
 
 model UserAlert {
@@ -93,6 +95,32 @@ model UserAlert {
   isRead    Boolean  @default(false)
   dedupeKey String?  @unique
   createdAt DateTime @default(now())
+}
+
+model BugReport {
+  id            String   @id @default(cuid())
+  title         String
+  description   String   @default("")
+  status        String   @default("NEW")        // NEW | IN_PROGRESS | FIXED
+  severity      String   @default("MAJOR")      // BLOCKER | MAJOR | MINOR | COSMETIC
+  module        String?
+  pageUrl       String?
+  projectId     String?
+  expectedText  String?
+  actualText    String?
+  screenshotKey String?
+  recordingKey  String?
+  consoleJson   String   @default("[]")         // JSON string: [{level,msg,ts}]
+  networkJson   String   @default("[]")         // JSON string: [{method,url,status,ts}]
+  pageStateJson String?
+  browserInfo   String?
+  viewport      String?
+  reporterId    String
+  reporter      User     @relation("BugReportReporter", fields: [reporterId], references: [id])
+  assigneeId    String?
+  assignee      User?    @relation("BugReportAssignee", fields: [assigneeId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model Task {

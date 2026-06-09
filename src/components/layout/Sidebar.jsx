@@ -224,6 +224,9 @@ function IconTask() {
 function IconTechStack() {
   return <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" /></svg>;
 }
+function IconBug() {
+  return <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a5.25 5.25 0 015.25 5.25v3.75a5.25 5.25 0 01-10.5 0V12A5.25 5.25 0 0112 6.75z"/><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75V3.75M4.5 9.75l-2.25-1.5M19.5 9.75l2.25-1.5M4.5 15.75H2.25M21.75 15.75H19.5M6 20.25l-1.5 1.5M18 20.25l1.5 1.5"/></svg>;
+}
 function IconClientUsers() {
   return <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>;
 }
@@ -353,7 +356,7 @@ export default function Sidebar({ user }) {
                           startsWith('/sales-reps') || startsWith('/products');
   const softwareRelated = startsWith('/admin/changelog') || startsWith('/admin/roadmap') ||
                           startsWith('/admin/tasks') || startsWith('/fixture-library') ||
-                          startsWith('/admin/tech-stack');
+                          startsWith('/admin/tech-stack') || startsWith('/admin/qc');
 
   // ── Collapsible open states ───────────────────────────────────────────────────
   const [homeOpen,     setHomeOpen]     = useState(true);
@@ -505,6 +508,7 @@ export default function Sidebar({ user }) {
                 <SubNavItem href="/admin/roadmap"    icon={<IconRoadmap />}    label="Roadmap"         expanded={expanded} active={startsWith('/admin/roadmap')} />
                 <SubNavItem href="/admin/tasks"      icon={<IconTask />}       label="Tasks"           expanded={expanded} active={startsWith('/admin/tasks')} />
                 <SubNavItem href="/admin/tech-stack" icon={<IconTechStack />}  label="Tech Stack"      expanded={expanded} active={startsWith('/admin/tech-stack')} />
+                <SubNavItem href="/admin/qc"          icon={<IconBug />}        label="QC Tracker"      expanded={expanded} active={startsWith('/admin/qc')} />
                 <SubNavItem href="/fixture-library"  icon={<IconFixture />}    label="Fixture Library" expanded={expanded} active={startsWith('/fixture-library')} />
               </div>
             )}
