@@ -1,9 +1,36 @@
 -- Migration 0023: Proposals module
 -- Adds Proposal, ProposalLineItem, ProposalTemplate, ProposalTemplateTask,
 -- ProposalRate, ProposalSend; adds lifecycleStatus to Project.
+--
+-- Note on table ordering: PostgreSQL requires referenced tables to exist before
+-- they're referenced in a foreign-key constraint. SQLite is more permissive and
+-- allows forward references, which is why this migration's original order
+-- (generated locally against sqlite) deployed fine in dev but failed in prod.
+-- Below: ProposalTemplate is declared before Proposal because Proposal has
+-- a FK pointing at ProposalTemplate.
 
 -- Project: lifecycle status (default ACTIVE so existing rows stay active)
 ALTER TABLE "Project" ADD COLUMN "lifecycleStatus" TEXT NOT NULL DEFAULT 'ACTIVE';
+
+-- ProposalTemplate (must come before Proposal — Proposal.templateId references it)
+CREATE TABLE "ProposalTemplate" (
+  "id"             TEXT NOT NULL PRIMARY KEY,
+  "name"           TEXT NOT NULL,
+  "type"           TEXT NOT NULL,
+  "projectType"    TEXT,
+  "clientType"     TEXT,
+  "docBody"        TEXT NOT NULL DEFAULT '',
+  "milestoneSplit" TEXT,
+  "defaultAdderPct" REAL NOT NULL DEFAULT 10,
+  "exclusions"     TEXT,
+  "scopeMatrixRef" TEXT,
+  "isDefault"      BOOLEAN NOT NULL DEFAULT false,
+  "isActive"       BOOLEAN NOT NULL DEFAULT true,
+  "createdById"    TEXT NOT NULL,
+  "createdAt"      TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt"      TIMESTAMP(3) NOT NULL,
+  CONSTRAINT "ProposalTemplate_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id")
+);
 
 -- Proposal
 CREATE TABLE "Proposal" (
@@ -51,26 +78,6 @@ CREATE TABLE "ProposalLineItem" (
   "createdAt"      TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt"      TIMESTAMP(3) NOT NULL,
   CONSTRAINT "ProposalLineItem_proposalId_fkey" FOREIGN KEY ("proposalId") REFERENCES "Proposal"("id") ON DELETE CASCADE
-);
-
--- ProposalTemplate
-CREATE TABLE "ProposalTemplate" (
-  "id"             TEXT NOT NULL PRIMARY KEY,
-  "name"           TEXT NOT NULL,
-  "type"           TEXT NOT NULL,
-  "projectType"    TEXT,
-  "clientType"     TEXT,
-  "docBody"        TEXT NOT NULL DEFAULT '',
-  "milestoneSplit" TEXT,
-  "defaultAdderPct" REAL NOT NULL DEFAULT 10,
-  "exclusions"     TEXT,
-  "scopeMatrixRef" TEXT,
-  "isDefault"      BOOLEAN NOT NULL DEFAULT false,
-  "isActive"       BOOLEAN NOT NULL DEFAULT true,
-  "createdById"    TEXT NOT NULL,
-  "createdAt"      TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  "updatedAt"      TIMESTAMP(3) NOT NULL,
-  CONSTRAINT "ProposalTemplate_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id")
 );
 
 -- ProposalTemplateTask
