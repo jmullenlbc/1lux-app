@@ -25,6 +25,12 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Log
 
+### 2026-06-09 — Sean's Claude (unblock Mike's Sunday deploy + permanent prevention)
+- **Root cause of Mike's Sunday-not-deploying:** migrations 0023_proposals and 0024_project_unit_types used SQLite types (`DATETIME`, `BOOLEAN NOT NULL DEFAULT 0/1`) instead of Postgres (`TIMESTAMP(3)`, `DEFAULT false/true`). `prisma migrate deploy` ran on Amplify, hit "syntax error at or near DATETIME" on the first new table, aborted — seed never ran, build never ran. The full Proposals module was blocked by ~15 type tokens. This is exactly what happens when `npx prisma migrate dev` runs against the locally-pinned sqlite schema.
+- **Permanent fix shipped (`7fa5d3b`):** new `scripts/check-migrations-postgres.js` runs in Amplify preBuild alongside `check-dynamic-pages.js`. Scans every migration for SQLite-only patterns (DATETIME, BOOLEAN DEFAULT 0/1, AUTOINCREMENT, PRAGMA) and fails the build with file:line:fix output BEFORE prisma migrate deploy runs. Same defensive pattern as the existing dynamic-pages check. Local: `node scripts/check-migrations-postgres.js`.
+- **Immediate unblock:** 0023 + 0024 patched in place (15 DATETIME → TIMESTAMP(3), 3 BOOLEAN-default replacements). Mike's Proposals module ships on next Amplify build. `npm test` green throughout.
+- **Side note:** Mike now has IAM user `mike@ilcstudios.com` with AdministratorAccess on AWS (resolved his root-MFA lockout). Future deploy-debugging shouldn't require Sean's MFA.
+
 ### 2026-06-06 — Mike's Claude
 - **Proposals module fully built.** Schema (0023_proposals migration), 11 API routes (proposals CRUD, line-items, send, accept, decline, PDF, templates, rates), `/sales/proposals` list page with "Add Project" button, `/sales/proposals/templates` editor, `ProposalTab` in project hub. Sidebar Proposals link enabled; 'proposal' tab added to projectNavConfig. Build passes clean. ~42 files uncommitted (batches 1+2+proposals).
 - Meetings editor confirmed: uses native `contentEditable` + `document.execCommand()` (NOT tiptap) — proposals editor follows same pattern.
