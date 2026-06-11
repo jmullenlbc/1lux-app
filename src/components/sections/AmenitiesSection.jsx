@@ -14,6 +14,9 @@ export default function AmenitiesSection({ responses, projectData, onSaveRespons
 
   const intSf    = Number(projectData?.interiorAmenitySf) || 0;
   const selected = answers.interiorLevel;
+  // Map legacy named levels to their $/SF rate (matches the engine: low 6 / medium 10 / high 15).
+  const NAMED_RATES = { low: 6, medium: 10, high: 15 };
+  const selectedRate = NAMED_RATES[selected] ?? (Number(selected) || 0);
 
   async function handleNext() {
     setSaving(true);
@@ -35,8 +38,8 @@ export default function AmenitiesSection({ responses, projectData, onSaveRespons
       {intSf > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
           Interior amenity area: <strong>{intSf.toLocaleString()} SF</strong> ·
-          Selected rate: <strong>${selected}/SF</strong> ·
-          Estimate: <strong>{formatCurrency(intSf * Number(selected))}</strong>
+          Selected rate: <strong>${selectedRate}/SF</strong> ·
+          Estimate: <strong>{formatCurrency(intSf * selectedRate)}</strong>
         </div>
       )}
 
@@ -51,7 +54,7 @@ export default function AmenitiesSection({ responses, projectData, onSaveRespons
         {/* Rate selector grid */}
         <div className="grid grid-cols-5 gap-2 mb-4">
           {INT_RATES.map(rate => {
-            const isSelected = selected === String(rate);
+            const isSelected = String(selectedRate) === String(rate);
             let finish = '';
             if (rate <= 7)       finish = 'Low';
             else if (rate <= 10) finish = 'Medium';

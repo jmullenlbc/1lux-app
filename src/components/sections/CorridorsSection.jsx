@@ -38,16 +38,22 @@ export default function CorridorsSection({ responses, projectData, onSaveRespons
   const diskCount = corridorSf > 0 ? Math.round(corridorSf / 50) : null;
 
   // Design: live corridor product
+  // Match the engine: with no fixture-spacing answer, corridors use the flat
+  // $0.27/SF default; once a spacing is chosen, use the spacing-rate table.
+  const DEFAULT_DISK_RATE = 0.27;
+  const hasSpacing    = !!ans.fixtureSpacing;
   const spacing       = parseInt(ans.fixtureSpacing) || 10;
-  const diskRate      = DISK_RATES[spacing]     ?? 0.25;
-  const recessedRate  = RECESSED_RATES[spacing] ?? 1.875;
-  const fixtureRate   = ans.fixtureType === 'recessed' ? recessedRate : diskRate;
+  const fixtureRate   = !hasSpacing
+    ? DEFAULT_DISK_RATE
+    : (ans.fixtureType === 'recessed'
+        ? (RECESSED_RATES[spacing] ?? DEFAULT_DISK_RATE)
+        : (DISK_RATES[spacing]     ?? DEFAULT_DISK_RATE));
   const corridorProd  = corridorSf * fixtureRate;
   const stairwellProd = stairwells * 175;
   const stairElevated = ans.stairwellDesign === 'elevated' ? stairwells * 50 : 0;
   const sconceRates   = { none: 0, low: 55, medium: 125, high: 300, integrated: 200 };
   const sconceProd    = numUnits * (sconceRates[ans.unitSconce] ?? 0);
-  const accentProd    = numAccents * 160;
+  const accentProd    = numAccents * 120; // matches engine designCorridors.accentDownlightEach
   const liveTotal     = corridorProd + stairwellProd + stairElevated + sconceProd + accentProd;
 
   const spacingOptions = [6, 7, 8, 9, 10, 11, 12].map(s => ({
@@ -285,7 +291,7 @@ export default function CorridorsSection({ responses, projectData, onSaveRespons
       {isDesign && numAccents > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-900">
           <p className="font-semibold mb-1">Recessed Accent Downlights</p>
-          <p>{numAccents} adjustable recessed accent downlights entered in Project Data × $160 ea (1-hr fire-rated) = {formatCurrency(numAccents * 160)} included in budget.</p>
+          <p>{numAccents} adjustable recessed accent downlights entered in Project Data × $120 ea (1-hr fire-rated) = {formatCurrency(numAccents * 120)} included in budget.</p>
         </div>
       )}
 

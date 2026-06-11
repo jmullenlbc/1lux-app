@@ -208,7 +208,7 @@ export default function UnitsSection({ responses, projectData, onSaveResponses, 
             note='Both options require a 1.5" valance on upper cabinets. Line voltage has an integral power supply. Low voltage is slimmer but needs a remote driver hidden in a cabinet.'
             options={[
               { value: 'none',        label: 'None',                     cost: 0   },
-              { value: 'lineVoltage', label: '120V Line Voltage',         sub: 'Integral power supply — +$90/unit',      cost: 90  },
+              { value: 'lineVoltage', label: '120V Line Voltage',         sub: 'Integral power supply — +$125/unit',     cost: 125 },
               { value: 'lowVoltage',  label: 'Low Voltage LED Tape',      sub: 'Slim tape + remote driver — +$220/unit', cost: 220 },
             ]}
             value={ans.undercabinet}
@@ -234,7 +234,7 @@ export default function UnitsSection({ responses, projectData, onSaveResponses, 
             note="Cost is the delta vs. using a standard ceiling disk over the island."
             options={[
               { value: 'none',             label: 'None — standard ceiling disk',           cost: 0   },
-              { value: 'threeSmallLow',    label: '(3) Small Pendants — Low Finish',        sub: '$40 ea',  cost: 120 },
+              { value: 'threeSmallLow',    label: '(3) Small Pendants — Low Finish',        sub: '$50 ea',  cost: 150 },
               { value: 'threeSmallMedium', label: '(3) Small Pendants — Medium Finish',     sub: '$100 ea', cost: 300 },
               { value: 'twoMediumLow',     label: '(2) Medium Pendants — Low Finish',       sub: '$88 ea',  cost: 176 },
               { value: 'twoMediumMedium',  label: '(2) Medium Pendants — Medium Finish',    sub: '$165 ea', cost: 330 },
