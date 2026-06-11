@@ -58,8 +58,9 @@ export default function ExteriorSection({ responses, projectData, onSaveResponse
   const parkingProduct  = parkingFixtures * 1325;
   const carportProduct  = Math.floor(carports / 2) * 30;
   const garageProduct   = numGarages * 80;
-  const halfDoors       = Math.ceil(extDoors / 2);
-  const doorProduct     = halfDoors * 350 + (extDoors - halfDoors) * 75;
+  // Every door averages one primary ($350) + one secondary ($75) sconce — matches
+  // the engine (avgDoorCost × doors) and the spreadsheet (doors/2 × $350 + doors/2 × $75).
+  const doorProduct     = extDoors * (350 + 75) / 2;
   const landscapeAdder  = parseFloat(answers.landscapeBudget) > 0 ? parseFloat(answers.landscapeBudget) : 0;
   const landscapeTotal  = autoLandscape + landscapeAdder;
   const subBeforeMisc   = amenityProduct + parkingProduct + carportProduct + garageProduct + doorProduct + landscapeTotal;
@@ -73,7 +74,7 @@ export default function ExteriorSection({ responses, projectData, onSaveResponse
     { label: 'Surface parking',       math: `${parking} stalls ÷ 9 = ${parkingFixtures} fixture${parkingFixtures === 1 ? '' : 's'} × $1,325`, value: parkingProduct },
     { label: 'Carports',              math: `${carports} ÷ 2 = ${Math.floor(carports / 2)} disk${Math.floor(carports / 2) === 1 ? '' : 's'} × $30`, value: carportProduct },
     { label: 'Detached garages',      math: `${numGarages} × $80/door`, value: garageProduct },
-    { label: 'Exterior door sconces', math: `${halfDoors}×$350 + ${extDoors - halfDoors}×$75`, value: doorProduct },
+    { label: 'Exterior door sconces', math: `${extDoors} × ($350 + $75) ÷ 2`, value: doorProduct },
     { label: 'Landscape',             math: `${lotSf.toLocaleString()} SF lot × 2%`, value: landscapeTotal },
     { label: 'Miscellaneous',         math: '5% buffer of full exterior (incl. amenities)', value: miscBuffer },
   ];
