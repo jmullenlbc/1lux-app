@@ -42,7 +42,7 @@ export const PRICING = {
   // except bathBarLow which is already included in base)
   vanity: {
     bathBarLow:              { product: 0,   labor: 0 }, // included in base
-    illuminatedMirrorLow:    { product: 0,   labor: 0 }, // cost-neutral
+    illuminatedMirrorLow:    { product: 130, labor: 0 }, // $175 product - $45 base credit
     illuminatedMirrorMedium: { product: 155, labor: 0 }, // $200 product - $45 base credit
     illuminatedMirrorHigh:   { product: 205, labor: 0 }, // $250 product - $45 base credit
     bathBarMedium:           { product: 80,  labor: 0 }, // $125 product - $45 base credit
