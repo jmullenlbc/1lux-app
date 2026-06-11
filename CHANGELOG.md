@@ -5,6 +5,75 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Session 35 — Conceptual Budget Fixes (Broadstone reconciliation)] · June 11, 2026
+
+### Changed
+- **Kitchen pendants `threeSmallLow` → $150/unit** (3 × $50, was 3 × $40). Updated static `pricing.js` (product + label) and synced the local DB master-pricing record (`SystemConfig`). Mike had already updated the production master pricing. Verified: Broadstone 359 units × $150 = $53,850 (matches sheet). `npm test` 38/38 + fuzz green.
+
+### Added
+- **Exterior section restructured into two parts:**
+  - **Exterior Formula Breakdown (frozen / read-only):** the lines the formula auto-calculates — Surface parking, Carports, Detached garages, Exterior door sconces, Miscellaneous (5% buffer). Each shows the underlying **math in parentheses** (e.g. "54 stalls ÷ 9 = 6 fixtures × $1,325"). Updates live from project data; not editable. **Exterior amenities are NOT listed here** — they're configured + shown by the amenity question cards above (now with their own total line), so the breakdown excludes them to avoid double-display. Breakdown subtotal = formula total − amenities; amenities + breakdown = formula total (budget unchanged).
+  - **Exterior Lighting Manual Adder (editable):** the 3 items the formula does NOT compute — Pathway lighting, Parking entrances, Manual exterior adder. Stored as JSON in `exterior.exteriorManualItems`. These **ADD** on top of the formula subtotal (no double-counting). Exterior amenities removed from this section (it lives in the frozen breakdown).
+  - **Exterior Total = Formula Subtotal + Manual Adder Total** (or the lump override, which still replaces everything when set). Engine returns `manualAdderTotal`. Verified end-to-end (formula + manual = total, override precedence, suite 38/38 + fuzz green). Replaces the earlier "itemized build / pre-populate" approach.
+
+### Fixed
+- **Exterior UI/engine divergence (landscape).** The Exterior section's local preview hard-coded `autoLandscape = 0`, but the engine computes Landscape = 2% of lot SF. On projects with `lotSf` (e.g. Modera Town Lake, lot 117,612) this made the in-section "Exterior Total" ($48,456.45) disagree with the sidebar "Exterior & Site" ($50,926.30) by $2,469.85 (= $2,352.24 landscape × 1.05 buffer). Fixed the UI to compute landscape from `projectData.lotSf` and show a "Landscape (lot SF × 2%)" line in the frozen breakdown. Engine unchanged — budget/calibration untouched; the two now agree.
+
+### Confirmed correct (no change)
+- **Exit signs:** app uses `perSf 0.025` and halves above 300K SF. Mike confirmed this is correct as-is — leaving the 300K halving rule and Sean's regression test in place.
+
+---
+
+## [Session 34 — CRM Batch 2: Sales Dashboards + Disabled Sections] · June 11, 2026
+
+### Added
+
+**Sales-activity dashboard widgets** (`src/lib/dashboardEngine.js` + `DashboardsClient.jsx`):
+- New **Sales Activity** category — queries `SalesNote`. Metrics: Activities, In-Person Meetings, Unique Clients. View by month/quarter/rep/activity type/organization.
+- New **Proposals** category — queries `Proposal`. Metrics: Sent, Accepted, Accepted Value ($), Acceptance Rate (%). View by month/quarter/rep/organization/status/type.
+- Category-aware view-by options (`viewByOptionsFor`), per-category stat strips, and $/% Y-axis formatting.
+- Both run through the existing `runWidget` engine — no new API routes. Verified against live data (643 activities, proposals sent/accepted).
+
+**Location Type → CreatableSelect** on Scheduling Rules — admins can type-to-add new location types (mirrors the meeting-type pattern); seeds from defaults + existing rules.
+
+**Collapsible "Disabled" sections** (`components/salesAutomation/DisabledSection.jsx`):
+- Bot Rules, Templates, and Bot Knowledge now move soft-disabled items into a collapsed "Disabled" section, keeping the active list clean. Re-enable via the toggle (Bot Rules) or edit drawer (Templates/Knowledge). Knowledge "Archived" entries moved out of the inline category lists into this section.
+
+### Verification
+- All edited files pass esbuild syntax checks; `/sales/automation/{rules,templates,knowledge}` and `/crm/dashboards` compile and respond. New dashboard runners smoke-tested against the real DB (7 metric/view-by combos, no query errors).
+
+---
+
+## [Session 33 — CRM Batch 1: Tab Consolidation + Publish Gating] · June 11, 2026
+
+### Added / Changed
+
+**Sales Note publish-gating (no automations until published):**
+- `SalesNote.isPublished` / `publishedAt` (migration 0022). Notes are drafts by default — the bot does not act on a deal while any of its contacts has an unpublished note.
+- `hasDraftNote(contactIds)` in `followUpDrafter.js`; `check-followup` skips and logs deals waiting on a human to publish.
+- Calendar-imported notes (have `calendarRef`) are auto-published — they came from accepted events.
+
+**Unified Rules tab (Bot Rules + Scheduling merged):**
+- `/sales/automation/rules` is now the single home: **Bot Rules on top**, then a "Scheduling & Relationship" group (Review Window, Scheduling Rules, Exclusion Rules, Classification Rules, Relationship Cadence).
+- Bot Rules extracted into `components/salesAutomation/BotRulesPanel.jsx` (reusable panel).
+- **Follow-Up Thresholds section removed** — it was a redundant view of Bot Rules where trigger = Deal Stale. Manage those in Bot Rules now.
+- Old `/sales/automation/scheduling` route redirects to `/sales/automation/rules`.
+
+**Check-ins merged into Bot Queue** — Bot Queue now has Scheduling / Follow-Ups / Check-ins tabs.
+
+**Other Batch 1 items:**
+- Soft-disable via `isActive` instead of hard delete on Scheduling Rules (migration 0022); disabled rules stop affecting automations but are kept for history.
+- Days-of-week as checkboxes on Scheduling Rules.
+- User picker on Sales Activity (view any sales user's activity, not just your own).
+- "+ Add Tier" on Relationship Cadence.
+
+**Migration 0022:** `SalesNote.isPublished` + `publishedAt`; `SchedulingRule.isActive`.
+
+### Verification
+- All automation routes (rules, scheduling-redirect, templates, knowledge), bot-queue, and activity compile and respond cleanly. Edited files pass esbuild syntax checks.
+
+---
+
 ## [Session 32 — Tone Profile + Template Direction] · June 5, 2026
 
 ### Added

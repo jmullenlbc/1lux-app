@@ -94,8 +94,9 @@ function WidgetChart({ data }) {
   );
 
   const { category, metric, segmentBy, segments, series } = data;
-  const isRevenue  = category === 'REVENUE' || category === 'FORECAST';
+  const isRevenue  = category === 'REVENUE' || category === 'FORECAST' || (category === 'PROPOSALS' && metric === 'value');
   const isDuration = category === 'DURATION';
+  const isPercent  = category === 'PROPOSALS' && metric === 'acceptance_rate';
 
   // CONVERSION — horizontal bar showing win rate %
   if (category === 'CONVERSION') {
@@ -131,7 +132,7 @@ function WidgetChart({ data }) {
         <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false}
           angle={series.length > 6 ? -35 : 0} textAnchor={series.length > 6 ? 'end' : 'middle'}
           interval={0} height={series.length > 6 ? 48 : 20} />
-        <YAxis tickFormatter={isRevenue ? fmtDollar : isDuration ? v => `${v}d` : undefined}
+        <YAxis tickFormatter={isRevenue ? fmtDollar : isDuration ? v => `${v}d` : isPercent ? v => `${v}%` : undefined}
           tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={48} />
         <Tooltip content={<CustomTooltip isRevenue={isRevenue} isDuration={isDuration} />} />
         {(showSingle ? ['_total'] : segList).length > 1 && (
@@ -190,6 +191,25 @@ function WidgetStats({ data, widget }) {
     return (
       <div className="flex gap-3 flex-wrap mb-3">
         <StatCard label="Deals Closed" value={meta.dealCount} color="purple" />
+      </div>
+    );
+  }
+  if (category === 'SALES_ACTIVITY') {
+    return (
+      <div className="flex gap-3 flex-wrap mb-3">
+        <StatCard label="Activities"     value={meta.totalActivities} color="blue" />
+        <StatCard label="In-Person"      value={meta.inPerson}        color="green" />
+        <StatCard label="Unique Clients" value={meta.uniqueClients}   color="purple" />
+      </div>
+    );
+  }
+  if (category === 'PROPOSALS') {
+    return (
+      <div className="flex gap-3 flex-wrap mb-3">
+        <StatCard label="Sent"      value={meta.sentCount}            color="blue" />
+        <StatCard label="Accepted"  value={meta.acceptedCount}        color="green" />
+        <StatCard label="Win Rate"  value={`${meta.rate}%`}           color="purple" />
+        <StatCard label="Value"     value={fmtDollar(meta.acceptedValue)} color="green" />
       </div>
     );
   }
@@ -326,12 +346,38 @@ const VIEW_BY_OPTIONS = [
 const SEGMENT_OPTIONS = [null, 'pipeline', 'serviceType', 'dealStatus', 'projectType', 'owner'];
 
 const CATEGORY_OPTIONS = [
-  { key: 'REVENUE',    label: 'Revenue',    desc: 'Total revenue by period or dimension' },
-  { key: 'DEAL_COUNT', label: 'Deal Count', desc: 'Number of deals' },
-  { key: 'CONVERSION', label: 'Conversion', desc: 'Win / loss rate' },
-  { key: 'FORECAST',   label: 'Forecast',   desc: 'Weighted revenue forecast' },
-  { key: 'DURATION',   label: 'Duration',   desc: 'Sales cycle length in days' },
+  { key: 'REVENUE',        label: 'Revenue',        desc: 'Total revenue by period or dimension' },
+  { key: 'DEAL_COUNT',     label: 'Deal Count',     desc: 'Number of deals' },
+  { key: 'CONVERSION',     label: 'Conversion',     desc: 'Win / loss rate' },
+  { key: 'FORECAST',       label: 'Forecast',       desc: 'Weighted revenue forecast' },
+  { key: 'DURATION',       label: 'Duration',       desc: 'Sales cycle length in days' },
+  { key: 'SALES_ACTIVITY', label: 'Sales Activity', desc: 'Meetings, in-person visits, clients touched' },
+  { key: 'PROPOSALS',      label: 'Proposals',      desc: 'Sent, accepted, value, acceptance rate' },
 ];
+
+// View-by options that apply to the sales-activity categories (their dimensions
+// differ from deal dimensions). Deal categories fall back to VIEW_BY_OPTIONS.
+const SALES_ACTIVITY_VIEW_BY = [
+  { key: 'month',        label: 'Month' },
+  { key: 'quarter',      label: 'Quarter' },
+  { key: 'rep',          label: 'Sales Rep' },
+  { key: 'activityType', label: 'Activity Type' },
+  { key: 'organization', label: 'Organization' },
+];
+const PROPOSAL_VIEW_BY = [
+  { key: 'month',        label: 'Month' },
+  { key: 'quarter',      label: 'Quarter' },
+  { key: 'rep',          label: 'Sales Rep' },
+  { key: 'organization', label: 'Organization' },
+  { key: 'status',       label: 'Status' },
+  { key: 'type',         label: 'Proposal Type' },
+];
+
+function viewByOptionsFor(category) {
+  if (category === 'SALES_ACTIVITY') return SALES_ACTIVITY_VIEW_BY;
+  if (category === 'PROPOSALS')      return PROPOSAL_VIEW_BY;
+  return VIEW_BY_OPTIONS;
+}
 
 function FilterRow({ rule, onChange, onRemove }) {
   const fieldDef = FILTER_FIELDS.find(f => f.key === rule.field);
@@ -427,6 +473,8 @@ function WidgetEditModal({ widget, dashboardId, onSave, onClose }) {
     CONVERSION: [{ key:'rate',label:'Win Rate (%)' }],
     FORECAST:   [{ key:'value',label:'Revenue ($)' },{ key:'weighted_value',label:'Weighted Revenue' }],
     DURATION:   [{ key:'days',label:'Days to Close' }],
+    SALES_ACTIVITY: [{ key:'count',label:'Activities' },{ key:'in_person',label:'In-Person Meetings' },{ key:'unique_clients',label:'Unique Clients' }],
+    PROPOSALS:  [{ key:'sent',label:'Sent' },{ key:'accepted',label:'Accepted' },{ key:'value',label:'Accepted Value ($)' },{ key:'acceptance_rate',label:'Acceptance Rate (%)' }],
   };
 
   return (
@@ -454,7 +502,7 @@ function WidgetEditModal({ widget, dashboardId, onSave, onClose }) {
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">Category</label>
             <div className="grid grid-cols-2 gap-2">
               {CATEGORY_OPTIONS.map(c => (
-                <button key={c.key} onClick={() => setForm(f => ({ ...f, category: c.key, metric: metricOptions[c.key][0].key }))}
+                <button key={c.key} onClick={() => setForm(f => ({ ...f, category: c.key, metric: metricOptions[c.key][0].key, viewBy: viewByOptionsFor(c.key)[0].key, segmentBy: null }))}
                   className={`text-left px-3 py-2 rounded-lg border text-xs transition-colors ${form.category === c.key ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}>
                   <div className="font-semibold">{c.label}</div>
                   <div className="text-[10px] opacity-70 mt-0.5">{c.desc}</div>
@@ -478,7 +526,7 @@ function WidgetEditModal({ widget, dashboardId, onSave, onClose }) {
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">View by (X-axis)</label>
               <select value={form.viewBy} onChange={e => setForm(f => ({ ...f, viewBy: e.target.value }))}
                 className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white">
-                {VIEW_BY_OPTIONS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+                {viewByOptionsFor(form.category).map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
               </select>
             </div>
             <div>

@@ -210,6 +210,10 @@ export async function runWidget(widget, db) {
     ? JSON.parse(widget.filters)
     : (widget.filters || []);
 
+  // Sales-activity categories query their own models, not Deal.
+  if (widget.category === 'SALES_ACTIVITY') return runSalesActivity(widget, db, filters);
+  if (widget.category === 'PROPOSALS')      return runProposals(widget, db, filters);
+
   const where = filtersToWhere(filters);
 
   const deals = await db.deal.findMany({
@@ -338,4 +342,167 @@ export async function runWidget(widget, db) {
   }
 
   return { category, metric, viewBy, segmentBy, segments:[], series:[], meta:{ dealCount:0 } };
+}
+
+// ── Sales-activity helpers ─────────────────────────────────────────────────
+
+function relDateFromFilters(filters, fields) {
+  const f = (filters || []).find(x => fields.includes(x.field));
+  if (!f) return null;
+  if (typeof f.value === 'string') return resolveRelativeDate(f.value);
+  if (f.value && f.value.gte) return { gte: new Date(f.value.gte), lte: new Date(f.value.lte) };
+  return null;
+}
+
+function timeLabelsFromDates(dates, viewBy) {
+  if (!dates.length) return [];
+  const min = new Date(Math.min(...dates));
+  const max = new Date(Math.max(...dates));
+  if (viewBy === 'quarter') return eachQuarter(min, max).map(quarter);
+  return eachMonth(min, max).map(fmtMonthYear);
+}
+
+// ── SALES_ACTIVITY — counts SalesNote rows (meetings, in-person, unique clients) ──
+
+async function runSalesActivity(widget, db, filters) {
+  const { metric, viewBy } = widget;
+  const range = relDateFromFilters(filters, ['meetingDate', 'createdAt', 'date']);
+
+  let notes = await db.salesNote.findMany({
+    include: {
+      createdBy: { select: { id: true, name: true } },
+      clients:   { include: { client: { select: { id: true, name: true } } } },
+    },
+  });
+
+  const effDate = n => (n.meetingDate ? new Date(n.meetingDate) : new Date(n.createdAt));
+  if (range) notes = notes.filter(n => { const d = effDate(n); return d >= range.gte && d <= range.lte; });
+  if (metric === 'in_person') notes = notes.filter(n => n.isInPerson);
+
+  const bucketKeysFor = (n) => {
+    const d = effDate(n);
+    switch (viewBy) {
+      case 'month':        return [fmtMonthYear(d)];
+      case 'quarter':      return [quarter(d)];
+      case 'rep':          return [n.createdBy?.name || 'Unassigned'];
+      case 'activityType': return [n.activityType || 'Untagged'];
+      case 'organization': {
+        const orgs = (n.clients || []).map(c => c.client?.name).filter(Boolean);
+        return orgs.length ? orgs : ['Unlinked'];
+      }
+      default:             return ['All'];
+    }
+  };
+
+  const map = {};          // key -> count
+  const clientSets = {};   // key -> Set of client ids (unique_clients metric)
+  for (const n of notes) {
+    for (const key of bucketKeysFor(n)) {
+      if (metric === 'unique_clients') {
+        if (!clientSets[key]) clientSets[key] = new Set();
+        (n.clients || []).forEach(c => c.client?.id && clientSets[key].add(c.client.id));
+      } else {
+        map[key] = (map[key] || 0) + 1;
+      }
+    }
+  }
+
+  const valOf = label => metric === 'unique_clients' ? (clientSets[label]?.size || 0) : (map[label] || 0);
+
+  let labels;
+  if (viewBy === 'month' || viewBy === 'quarter') {
+    labels = timeLabelsFromDates(notes.map(effDate), viewBy);
+  } else {
+    labels = Object.keys(metric === 'unique_clients' ? clientSets : map).sort((a, b) => valOf(b) - valOf(a));
+  }
+
+  const series = labels.map(label => ({ label, _total: valOf(label) }));
+
+  const inPerson = notes.filter(n => n.isInPerson).length;
+  const uniqueClients = new Set(
+    notes.flatMap(n => (n.clients || []).map(c => c.client?.id).filter(Boolean))
+  ).size;
+
+  return {
+    category: 'SALES_ACTIVITY', metric, viewBy, segmentBy: null,
+    segments: ['_total'], series,
+    meta: { totalActivities: notes.length, inPerson, uniqueClients },
+  };
+}
+
+// ── PROPOSALS — counts/sums Proposal rows (sent, accepted, value, acceptance rate) ──
+
+async function runProposals(widget, db, filters) {
+  const { metric, viewBy } = widget;
+  const range = relDateFromFilters(filters, ['createdAt', 'sentAt', 'date']);
+
+  let proposals = await db.proposal.findMany({
+    include: { createdBy: { select: { id: true, name: true } } },
+  });
+
+  const refDate = p => {
+    if (metric === 'accepted') return p.acceptedAt ? new Date(p.acceptedAt) : new Date(p.createdAt);
+    if (metric === 'sent')     return p.sentAt     ? new Date(p.sentAt)     : new Date(p.createdAt);
+    return new Date(p.createdAt);
+  };
+
+  if (range) proposals = proposals.filter(p => { const d = refDate(p); return d >= range.gte && d <= range.lte; });
+
+  const isSent     = p => !!p.sentAt || ['SENT', 'ACCEPTED', 'DECLINED', 'EXPIRED'].includes(p.status);
+  const isAccepted = p => p.status === 'ACCEPTED' || !!p.acceptedAt;
+  const feeOf      = p => (p.overrideActive && p.overrideFee != null ? p.overrideFee : (p.calculatedFee || 0));
+
+  const keyFor = p => {
+    const d = refDate(p);
+    switch (viewBy) {
+      case 'month':        return fmtMonthYear(d);
+      case 'quarter':      return quarter(d);
+      case 'rep':          return p.createdBy?.name || 'Unassigned';
+      case 'organization': return p.clientName || 'Unknown';
+      case 'status':       return p.status || 'DRAFT';
+      case 'type':         return p.type || 'Unknown';
+      default:             return 'All';
+    }
+  };
+
+  const map = {};
+  let pool = proposals;
+
+  if (metric === 'acceptance_rate') {
+    const acc = {}, sent = {};
+    for (const p of proposals) {
+      const k = keyFor(p);
+      if (isSent(p))     sent[k] = (sent[k] || 0) + 1;
+      if (isAccepted(p)) acc[k]  = (acc[k]  || 0) + 1;
+    }
+    for (const k of Object.keys(sent)) map[k] = sent[k] ? Math.round(((acc[k] || 0) / sent[k]) * 100) : 0;
+  } else {
+    if (metric === 'sent')     pool = proposals.filter(isSent);
+    if (metric === 'accepted' || metric === 'value') pool = proposals.filter(isAccepted);
+    for (const p of pool) {
+      const k = keyFor(p);
+      map[k] = (map[k] || 0) + (metric === 'value' ? feeOf(p) : 1);
+    }
+  }
+
+  let labels;
+  if (viewBy === 'month' || viewBy === 'quarter') {
+    const dates = (metric === 'acceptance_rate' ? proposals : pool).map(refDate);
+    labels = dates.length ? timeLabelsFromDates(dates, viewBy) : Object.keys(map);
+  } else {
+    labels = Object.keys(map).sort((a, b) => (map[b] || 0) - (map[a] || 0));
+  }
+
+  const series = labels.map(label => ({ label, _total: map[label] || 0 }));
+
+  const sentCount     = proposals.filter(isSent).length;
+  const acceptedCount = proposals.filter(isAccepted).length;
+  const acceptedValue = proposals.filter(isAccepted).reduce((s, p) => s + feeOf(p), 0);
+  const rate          = sentCount ? Math.round((acceptedCount / sentCount) * 100) : 0;
+
+  return {
+    category: 'PROPOSALS', metric, viewBy, segmentBy: null,
+    segments: ['_total'], series,
+    meta: { sentCount, acceptedCount, acceptedValue, rate },
+  };
 }

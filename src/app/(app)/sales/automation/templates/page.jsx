@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import AutomationNav from '@/components/salesAutomation/AutomationNav';
+import DisabledSection from '@/components/salesAutomation/DisabledSection';
 
 // ── CreatableSelect ───────────────────────────────────────────────────────────
 // A combo-box that lets admins pick an existing option OR type a new one.
@@ -418,7 +419,9 @@ function TemplatesTable({ templates, onEdit }) {
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-50">
-          {templates.map(t => (
+          {templates.filter(t => t.isActive).length === 0 ? (
+            <tr><td colSpan={7} className="py-6 text-center text-xs text-slate-400">No active templates — all are disabled below.</td></tr>
+          ) : templates.filter(t => t.isActive).map(t => (
             <tr
               key={t.id}
               onClick={() => onEdit(t)}
@@ -448,6 +451,18 @@ function TemplatesTable({ templates, onEdit }) {
           ))}
         </tbody>
       </table>
+
+      <DisabledSection count={templates.filter(t => !t.isActive).length} label="Disabled templates">
+        <div className="divide-y divide-slate-100">
+          {templates.filter(t => !t.isActive).map(t => (
+            <button key={t.id} onClick={() => onEdit(t)} className="w-full flex items-center gap-2 py-2 text-left">
+              <span className="text-xs font-semibold text-slate-600">{t.name}</span>
+              <span className="text-[10px] text-slate-400 capitalize">{t.scenario?.replace(/_/g, ' ')}</span>
+              <span className="ml-auto text-[10px] text-orange-600 font-semibold">Edit to re-enable</span>
+            </button>
+          ))}
+        </div>
+      </DisabledSection>
     </div>
   );
 }

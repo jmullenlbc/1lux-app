@@ -6,6 +6,14 @@ import QuestionCard from './QuestionCard';
 import { formatCurrency } from '@/lib/calculations';
 import StandardsHint from '@/components/wizard/StandardsHint';
 
+// Manual adder line items — the things the formula does NOT compute. These ADD
+// on top of the frozen formula breakdown.
+const EXT_MANUAL_ITEMS = [
+  ['pathwayLighting',     'Pathway lighting'],
+  ['parkingEntrances',    'Parking entrances'],
+  ['manualExteriorAdder', 'Manual exterior adder'],
+];
+
 export default function ExteriorSection({ responses, projectData, onSaveResponses, onSaveData, onNext, onPrev, isDesign = false }) {
   const [answers, setAnswers] = useState({
     amenityLevel:      responses.amenityLevel      || 'medium',
@@ -18,6 +26,16 @@ export default function ExteriorSection({ responses, projectData, onSaveResponse
     siteType:          responses.siteType          || 'pedestrian',
     roadwayLighting:   responses.roadwayLighting   || 'no',
   });
+
+  // Manual adder items (pathway, parking entrances, catch-all). These ADD on top
+  // of the frozen formula breakdown.
+  const [manualItems, setManualItems] = useState(() => {
+    try { return JSON.parse(responses.exteriorManualItems || '{}') || {}; }
+    catch { return {}; }
+  });
+  const setManualItem = (key, val) => setManualItems(m => ({ ...m, [key]: val }));
+  const manualTotal = EXT_MANUAL_ITEMS.reduce((s, [key]) => s + (parseFloat(manualItems[key]) || 0), 0);
+
   const [saving, setSaving] = useState(false);
 
   const extSf       = Number(projectData?.exteriorAmenitySf)    || 0;
@@ -25,8 +43,9 @@ export default function ExteriorSection({ responses, projectData, onSaveResponse
   const carports    = Number(projectData?.numCarports)           || 0;
   const numGarages  = Number(projectData?.numGarages)            || 0;
   const extDoors    = Number(projectData?.numExteriorDoors)      || 0;
-  // Landscape is manual-only (lot SF fields removed from project data)
-  const autoLandscape = 0;
+  const lotSf       = Number(projectData?.lotSf)                 || 0;
+  // Landscape = 2% of total lot SF (Excel-verified formula, matches the engine).
+  const autoLandscape = lotSf > 0 ? lotSf * 0.02 : 0;
 
   const rateMap  = { low: 1, lowMedium: 2, medium: 3, high: 5 };
   const baseRate = rateMap[answers.amenityLevel] ?? 3;
@@ -47,14 +66,29 @@ export default function ExteriorSection({ responses, projectData, onSaveResponse
   const miscBuffer      = subBeforeMisc * 0.05;
   const exteriorFormulaTotal = subBeforeMisc + miscBuffer;
 
-  // Manual override replaces the formula total when a positive value is entered.
+  // Frozen formula breakdown lines (read-only, auto-calculated, math shown in text).
+  // Exterior amenities are NOT listed here — they're configured + shown by the
+  // amenity question cards above. They stay in the exterior total via the engine.
+  const frozenLines = [
+    { label: 'Surface parking',       math: `${parking} stalls ÷ 9 = ${parkingFixtures} fixture${parkingFixtures === 1 ? '' : 's'} × $1,325`, value: parkingProduct },
+    { label: 'Carports',              math: `${carports} ÷ 2 = ${Math.floor(carports / 2)} disk${Math.floor(carports / 2) === 1 ? '' : 's'} × $30`, value: carportProduct },
+    { label: 'Detached garages',      math: `${numGarages} × $80/door`, value: garageProduct },
+    { label: 'Exterior door sconces', math: `${halfDoors}×$350 + ${extDoors - halfDoors}×$75`, value: doorProduct },
+    { label: 'Landscape',             math: `${lotSf.toLocaleString()} SF lot × 2%`, value: landscapeTotal },
+    { label: 'Miscellaneous',         math: '5% buffer of full exterior (incl. amenities)', value: miscBuffer },
+  ];
+  // Subtotal of the breakdown box = everything in the formula EXCEPT amenities
+  // (amenities are shown separately above). Lines above sum to this.
+  const formulaBreakdownSubtotal = exteriorFormulaTotal - amenityProduct;
+
+  // Manual override replaces everything when set; otherwise frozen formula + manual adder.
   const overrideVal     = parseFloat(answers.exteriorOverride) > 0 ? parseFloat(answers.exteriorOverride) : 0;
   const overrideActive  = overrideVal > 0;
-  const exteriorTotal   = overrideActive ? overrideVal : exteriorFormulaTotal;
+  const exteriorTotal   = overrideActive ? overrideVal : exteriorFormulaTotal + manualTotal;
 
   async function handleNext() {
     setSaving(true);
-    const payload = { ...answers };
+    const payload = { ...answers, exteriorManualItems: JSON.stringify(manualItems) };
     if (!isDesign) {
       payload.exteriorEmergency  = null;
       payload.exteriorPoleControl = null;
@@ -139,37 +173,102 @@ export default function ExteriorSection({ responses, projectData, onSaveResponse
         onChange={val => setAnswers(a => ({ ...a, amenityHours: val }))}
       />
 
-      {/* Landscape budget — manual dollar amount */}
-      <div className="bg-white rounded-xl border border-slate-200 p-5">
-        <p className="font-semibold text-slate-900 mb-1">Exterior Lighting Manual Adder</p>
-        <p className="text-xs text-slate-400 mb-4">
-          Enter a flat dollar amount for any additional exterior lighting (landscape path lights, uplighting, etc.). Leave blank to exclude.
-        </p>
-        <div className="max-w-xs">
-          <Input
-            label="Exterior Lighting Adder ($)"
-            type="number"
-            placeholder="0"
-            prefix="$"
-            value={answers.landscapeBudget}
-            onChange={e => setAnswers(a => ({ ...a, landscapeBudget: e.target.value }))}
-            min={0}
-          />
-        </div>
-        {landscapeAdder > 0 && (
-          <p className="mt-2 text-xs text-amber-700">
-            Landscape total: {formatCurrency(landscapeAdder)}
+      {/* Exterior amenities subtotal — calculated from the cards above (shown once, here) */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5 flex items-start justify-between gap-4">
+        <div>
+          <p className="text-lg font-bold text-slate-900">Exterior Amenities + Pool Area</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">
+            {extSf.toLocaleString()} SF × ${baseRate}/SF{nightMult === 2 ? ' × 2 (after sunset)' : ''}
           </p>
-        )}
+        </div>
+        <div className="text-right shrink-0">
+          <div className="text-[10px] uppercase tracking-widest text-slate-400">Subtotal</div>
+          <div className="text-xl font-bold text-slate-900 font-mono">{formatCurrency(amenityProduct)}</div>
+        </div>
       </div>
 
-      {/* Manual exterior override — replaces the formula total when set */}
+      {/* ── Section 1: Exterior Formula Breakdown (frozen / auto-calculated) ── */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <div className="flex items-start justify-between gap-4 mb-1">
+          <div>
+            <p className="font-semibold text-slate-900">Exterior Formula Breakdown</p>
+            <p className="text-[11px] text-slate-400">Auto-calculated · read-only · excludes amenities (shown above)</p>
+          </div>
+          <div className="text-right shrink-0">
+            <div className="text-[10px] uppercase tracking-widest text-slate-400">Subtotal</div>
+            <div className="text-lg font-bold text-slate-900 font-mono">{formatCurrency(formulaBreakdownSubtotal)}</div>
+          </div>
+        </div>
+        <p className="text-xs text-slate-400 mb-4">
+          Calculated live from your project data — these update automatically and can&apos;t be edited
+          here. The math behind each line is shown in parentheses.
+        </p>
+        <div className="space-y-1.5">
+          {frozenLines.map(row => (
+            <div key={row.label} className="flex justify-between items-baseline gap-3 text-slate-600">
+              <span className="text-sm">
+                {row.label} <span className="text-[11px] text-slate-400">({row.math})</span>
+              </span>
+              <span className="font-mono text-sm font-semibold text-slate-700 shrink-0">{formatCurrency(row.value)}</span>
+            </div>
+          ))}
+          <div className="flex justify-between border-t border-slate-200 pt-2 mt-2 font-bold text-slate-900">
+            <span className="text-sm">Breakdown Subtotal</span>
+            <span className="font-mono text-sm">{formatCurrency(formulaBreakdownSubtotal)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Section 2: Manual Adder (editable — items the formula doesn't cover) ── */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <div className="flex items-start justify-between gap-4 mb-1">
+          <p className="font-semibold text-slate-900">Exterior Lighting Manual Adder</p>
+          <div className="text-right shrink-0">
+            <div className="text-[10px] uppercase tracking-widest text-slate-400">Manual Total</div>
+            <div className="text-lg font-bold text-slate-900 font-mono">{formatCurrency(manualTotal)}</div>
+          </div>
+        </div>
+        <p className="text-xs text-slate-400 mb-4">
+          Items the formula doesn&apos;t compute. These <strong>add</strong> on top of the Formula
+          Subtotal above.
+        </p>
+        <div className="space-y-2">
+          {EXT_MANUAL_ITEMS.map(([key, label]) => (
+            <div key={key} className="flex items-center gap-3">
+              <span className="text-sm text-slate-600 flex-1">{label}</span>
+              <div className="w-40">
+                <Input
+                  type="number"
+                  placeholder="0"
+                  prefix="$"
+                  value={manualItems[key] ?? ''}
+                  onChange={e => setManualItem(key, e.target.value)}
+                  min={0}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center justify-between border-t border-slate-200 mt-3 pt-3">
+          <span className="text-sm font-bold text-slate-900">Manual Adder Total</span>
+          <span className="text-sm font-bold text-slate-900 font-mono">{formatCurrency(manualTotal)}</span>
+        </div>
+      </div>
+
+      {/* Combined exterior total */}
+      <div className="bg-slate-900 rounded-xl p-4 flex items-center justify-between">
+        <span className="text-sm font-semibold text-white">
+          Exterior Total {overrideActive ? '(override in use)' : '(formula + manual adder)'}
+        </span>
+        <span className="text-lg font-bold text-white font-mono">{formatCurrency(exteriorTotal)}</span>
+      </div>
+
+      {/* Manual exterior override — replaces everything when set */}
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <p className="font-semibold text-slate-900 mb-1">Manual Exterior Total (Override)</p>
         <p className="text-xs text-slate-400 mb-4">
-          If the exterior/site lighting was built out manually (outside this tool),
-          enter the total here. It <strong>replaces</strong> the calculated estimate below.
-          Leave blank to use the formula.
+          If the exterior was built out entirely by hand (outside this tool), enter the total here.
+          It <strong>replaces</strong> the Formula Subtotal + Manual Adder above. Leave blank to use them.
         </p>
         <div className="max-w-xs">
           <Input
@@ -184,45 +283,10 @@ export default function ExteriorSection({ responses, projectData, onSaveResponse
         </div>
         {overrideActive && (
           <p className="mt-2 text-xs text-amber-700">
-            Override in use: {formatCurrency(overrideVal)} — the calculated estimate below is shown for reference only.
+            Override in use: {formatCurrency(overrideVal)} — the formula + manual adder above are ignored.
           </p>
         )}
       </div>
-
-      {/* Live cost breakdown */}
-      {(exteriorFormulaTotal > 0 || overrideActive) && (
-        <div className={`rounded-xl border p-4 ${overrideActive ? 'bg-slate-50/60 border-slate-200 opacity-70' : 'bg-slate-50 border-slate-200'}`}>
-          <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">
-            Exterior Cost Breakdown {overrideActive ? '(Formula Estimate — overridden)' : '(Live Estimate)'}
-          </div>
-          <div className="space-y-1.5 text-sm">
-            {[
-              { label: `Exterior Amenities (${extSf.toLocaleString()} SF × $${baseRate}/SF${nightMult === 2 ? ' × 2 nighttime' : ''})`, value: amenityProduct, show: extSf > 0 },
-              { label: `Surface Parking (${parking} stalls ÷ 9 = ${parkingFixtures} fixtures × $1,325)`,                               value: parkingProduct,  show: parking > 0 },
-              { label: `Carports (${Math.floor(carports / 2)} disks × $30)`,                                                             value: carportProduct,  show: carports > 0 },
-              { label: `Detached Garages (${numGarages} × $80/door)`,                                                                    value: garageProduct,   show: numGarages > 0 },
-              { label: `Exterior Doors (${extDoors} doors)`,                                                                             value: doorProduct,     show: extDoors > 0 },
-              { label: 'Landscape (manual)', value: landscapeTotal, show: landscapeTotal > 0 },
-              { label: '5% Misc Buffer',                                                                                                  value: miscBuffer,      show: miscBuffer > 0 },
-            ].filter(r => r.show).map(row => (
-              <div key={row.label} className="flex justify-between text-slate-600">
-                <span className="text-xs">{row.label}</span>
-                <span className="font-mono text-xs font-semibold">{formatCurrency(row.value)}</span>
-              </div>
-            ))}
-            <div className="flex justify-between border-t border-slate-300 pt-2 mt-2 font-bold text-slate-900">
-              <span className="text-sm">Formula Total Exterior (product only)</span>
-              <span className="font-mono text-sm">{formatCurrency(exteriorFormulaTotal)}</span>
-            </div>
-            {overrideActive && (
-              <div className="flex justify-between pt-1 font-bold text-amber-700">
-                <span className="text-sm">→ Manual Override In Use</span>
-                <span className="font-mono text-sm">{formatCurrency(overrideVal)}</span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* ── DESIGN-ONLY questions ────────────────────────────────────────────── */}
       {isDesign && (

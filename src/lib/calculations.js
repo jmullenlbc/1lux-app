@@ -181,7 +181,24 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // breakdown is still returned for transparency (see sections.exterior.formulaTotal).
   const exteriorOverrideVal  = n(exterior.exteriorOverride);
   const exteriorOverrideUsed = exteriorOverrideVal > 0;
-  const exteriorProductTotal = exteriorOverrideUsed ? exteriorOverrideVal : exteriorFormulaTotal;
+
+  // Manual adder section: the 3 items the formula does NOT compute — pathway
+  // lighting, parking entrances, and a catch-all manual adder. These ADD on top
+  // of the formula breakdown (no double-counting, since they're not in the formula).
+  let exteriorManualItems = exterior.exteriorManualItems;
+  if (typeof exteriorManualItems === 'string') {
+    try { exteriorManualItems = JSON.parse(exteriorManualItems); } catch { exteriorManualItems = null; }
+  }
+  exteriorManualItems = exteriorManualItems || {};
+  const exteriorManualTotal =
+      n(exteriorManualItems.pathwayLighting)
+    + n(exteriorManualItems.parkingEntrances)
+    + n(exteriorManualItems.manualExteriorAdder);
+
+  // Override replaces everything; otherwise formula breakdown + manual adder.
+  const exteriorProductTotal = exteriorOverrideUsed
+    ? exteriorOverrideVal
+    : exteriorFormulaTotal + exteriorManualTotal;
 
   // ─── EMERGENCY LIGHTING ───────────────────────────────────────────────────
   const strategyKey = emergency.strategy || 'integrated_inverters';
@@ -364,8 +381,9 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
         doors:     { product: extDoorProduct       },
         landscape: { product: landscapeFlat        },
         misc:      { product: extMiscBuffer        },
-        formulaTotal:    exteriorFormulaTotal,
-        overrideApplied: exteriorOverrideUsed,
+        formulaTotal:     exteriorFormulaTotal,
+        overrideApplied:  exteriorOverrideUsed,
+        manualAdderTotal: exteriorManualTotal,
         total:     { product: exteriorProductTotal },
       },
       emergency:   { product: emergencyProduct  },

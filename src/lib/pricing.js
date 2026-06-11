@@ -21,7 +21,7 @@ export const PRICING = {
   // Per unit, cost delta vs. standard ceiling disk
   kitchenPendants: {
     none:             { product: 0,   labor: 0 },
-    threeSmallLow:    { product: 120, labor: 0 }, // 3 × $40
+    threeSmallLow:    { product: 150, labor: 0 }, // 3 × $50
     threeSmallMedium: { product: 300, labor: 0 }, // 3 × $100
     twoMediumLow:     { product: 176, labor: 0 }, // 2 × $88
     twoMediumMedium:  { product: 330, labor: 0 }, // 2 × $165
@@ -255,7 +255,7 @@ export const OPTION_LABELS = {
   },
   kitchenPendants: {
     none:             'None',
-    threeSmallLow:    '(3) Small Pendants — Low Finish ($40 ea)',
+    threeSmallLow:    '(3) Small Pendants — Low Finish ($50 ea)',
     threeSmallMedium: '(3) Small Pendants — Medium Finish ($100 ea)',
     twoMediumLow:     '(2) Medium Pendants — Low Finish ($88 ea)',
     twoMediumMedium:  '(2) Medium Pendants — Medium Finish ($165 ea)',

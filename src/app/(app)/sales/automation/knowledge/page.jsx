@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import AutomationNav from '@/components/salesAutomation/AutomationNav';
+import DisabledSection from '@/components/salesAutomation/DisabledSection';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -560,14 +561,14 @@ export default function KnowledgePage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {groupKeys.map(cat => (
+          {groupKeys.filter(cat => grouped[cat].some(e => e.isActive)).map(cat => (
             <div key={cat} className="bg-white border border-slate-200 rounded-xl p-5">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">{cat}</span>
-                <span className="text-[10px] text-slate-400 bg-slate-100 rounded-full px-2 py-0.5">{grouped[cat].length}</span>
+                <span className="text-[10px] text-slate-400 bg-slate-100 rounded-full px-2 py-0.5">{grouped[cat].filter(e => e.isActive).length}</span>
               </div>
               <div className="divide-y divide-slate-50">
-                {grouped[cat].map(entry => (
+                {grouped[cat].filter(e => e.isActive).map(entry => (
                   <div
                     key={entry.id}
                     className={`py-3 flex items-start justify-between gap-3 ${!entry.isActive ? 'opacity-50' : ''}`}
@@ -607,6 +608,18 @@ export default function KnowledgePage() {
               </div>
             </div>
           ))}
+
+          <DisabledSection count={entries.filter(e => !e.isActive).length} label="Archived entries">
+            <div className="divide-y divide-slate-100">
+              {entries.filter(e => !e.isActive).map(entry => (
+                <button key={entry.id} onClick={() => openEdit(entry)} className="w-full flex items-center gap-2 py-2 text-left">
+                  <span className="text-xs font-semibold text-slate-600 truncate">{entry.question}</span>
+                  <span className="text-[10px] text-slate-400 shrink-0">{entry.category}</span>
+                  <span className="ml-auto text-[10px] text-orange-600 font-semibold shrink-0">Edit to restore</span>
+                </button>
+              ))}
+            </div>
+          </DisabledSection>
         </div>
       )}
 
