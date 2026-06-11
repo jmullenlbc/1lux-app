@@ -828,6 +828,30 @@ function buildAnswerMap(answers) {
   return map;
 }
 
+// ── Text answer input — defined outside parent to preserve state across renders ──
+function TextAnswerInput({ question, sectionKey, currentValue: initVal, canEdit, isSav, onSave }) {
+  const [localVal, setLocalVal] = useState(initVal || '');
+  const timerRef = useRef(null);
+  useEffect(() => { setLocalVal(initVal || ''); }, [initVal]);
+  function handleChange(v) {
+    setLocalVal(v);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      onSave(question, v.trim() || null, sectionKey);
+    }, 800);
+  }
+  return (
+    <textarea
+      value={localVal}
+      onChange={e => handleChange(e.target.value)}
+      disabled={!canEdit || isSav}
+      placeholder={question.hint || 'Type here…'}
+      rows={2}
+      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 resize-none disabled:opacity-50"
+    />
+  );
+}
+
 function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
   const [answers,          setAnswers]          = useState(() => buildAnswerMap(initialAnswers));
   const [activeSection,    setActiveSection]    = useState(STANDARDS_SECTIONS[0].key);
@@ -1135,11 +1159,6 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
                         : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
                     } ${!canEdit ? 'pointer-events-none' : ''}`}>
                     {opt.label}
-                    {opt.price && (
-                      <span className={`text-[10px] font-normal ${isSelected ? 'text-amber-100' : 'text-slate-400'}`}>
-                        {opt.price}
-                      </span>
-                    )}
                   </button>
                 );
               })}
@@ -1162,10 +1181,56 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
                   currentValue === 'true' ? 'bg-amber-500' : 'bg-slate-200'
                 }`}>
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform mt-0.5 ${
-                  currentValue === 'true' ? 'translate-x-4.5' : 'translate-x-0.5'
+                  currentValue === 'true' ? 'translate-x-[18px]' : 'translate-x-0.5'
                 }`} />
               </button>
             </div>
+          )}
+
+          {question.inputType === 'MULTI_CHIPS' && (() => {
+            let selected = [];
+            try { selected = currentValue ? JSON.parse(currentValue) : []; } catch { selected = []; }
+            return (
+              <div className="flex flex-wrap gap-1.5">
+                {question.options?.map(opt => {
+                  const isSelected = selected.includes(opt.value);
+                  return (
+                    <button key={opt.value} type="button"
+                      onClick={() => {
+                        if (!canEdit || isSav) return;
+                        const next = isSelected
+                          ? selected.filter(v => v !== opt.value)
+                          : [...selected, opt.value];
+                        saveAnswer(question, next.length > 0 ? JSON.stringify(next) : null, sectionKey);
+                      }}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                        isSelected
+                          ? 'bg-amber-600 text-white border-amber-600'
+                          : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+                      } ${!canEdit ? 'pointer-events-none' : ''}`}>
+                      {opt.label}
+                    </button>
+                  );
+                })}
+                {overridden && canEdit && (
+                  <button type="button" onClick={() => clearOverride(question, sectionKey)}
+                    className="px-2.5 py-1 text-[10px] text-slate-400 hover:text-slate-600 border border-dashed border-slate-200 rounded-full transition-colors">
+                    Clear override
+                  </button>
+                )}
+              </div>
+            );
+          })()}
+
+          {question.inputType === 'TEXT' && (
+            <TextAnswerInput
+              question={question}
+              sectionKey={sectionKey}
+              currentValue={currentValue}
+              canEdit={canEdit}
+              isSav={isSav}
+              onSave={saveAnswer}
+            />
           )}
         </div>
       </div>
@@ -1297,11 +1362,23 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
 
         {/* Stub sections */}
         {!section?.isCCT && section?.questions?.length === 0 && (
-          <div className="py-16 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
-            <div className="text-3xl mb-2">🚧</div>
-            <p className="text-sm font-medium text-slate-500">Questions coming soon</p>
-            <p className="text-xs mt-1">This section is in the next build iteration.</p>
-          </div>
+          section?.subsections?.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-xs text-slate-400 mb-4">Questions coming in a future update — planned subsections:</p>
+              {section.subsections.map(sub => (
+                <div key={sub} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-slate-200 text-sm text-slate-500">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
+                  {sub}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="py-16 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
+              <div className="text-3xl mb-2">🚧</div>
+              <p className="text-sm font-medium text-slate-500">Questions coming soon</p>
+              <p className="text-xs mt-1">This section is in the next build iteration.</p>
+            </div>
+          )
         )}
 
         {/* Question cards */}

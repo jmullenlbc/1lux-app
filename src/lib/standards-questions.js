@@ -6,11 +6,10 @@
 // ── Project types ─────────────────────────────────────────────────────────────
 
 export const PROJECT_TYPES = [
-  { value: 'BTR',      label: 'BTR / Townhome'      },
-  { value: 'GARDEN',   label: 'Garden walk-up'       },
-  { value: 'PODIUM',   label: 'Podium / Wrap'        },
-  { value: 'HIGHRISE', label: 'High-rise'            },
-  { value: 'LIHTC',    label: 'Affordable (LIHTC)'   },
+  { value: 'BTR',      label: 'BTR / Townhome'  },
+  { value: 'GARDEN',   label: 'Garden walk-up'   },
+  { value: 'PODIUM',   label: 'Podium / Wrap'    },
+  { value: 'HIGHRISE', label: 'High-rise'        },
 ];
 
 // ── CCT options (used by CCT renderer) ────────────────────────────────────────
@@ -67,10 +66,9 @@ export const STANDARDS_SECTIONS = [
         tags:       ['REQUIRED', 'CASCADE'],
         inputType:  'CHIPS',
         options: [
-          { value: 'EDGE_5',    label: '5" Edge-lit',  price: '$9'     },
-          { value: 'EDGE_7',    label: '7" Edge-lit',  price: '$10.50' },
-          { value: 'EDGE_12',   label: '12" Edge-lit', price: '$26'    },
-          { value: 'BACKLIT_6', label: '6" Back-lit',  price: '$6.50'  },
+          { value: 'EDGE_5',    label: '5" Edge-lit'  },
+          { value: 'EDGE_7',    label: '7" Edge-lit'  },
+          { value: 'BACKLIT_6', label: '6" Back-lit'  },
         ],
         cascadeTargets: [
           'unit_bedroom_ceiling', 'unit_living_ceiling', 'unit_closet_ceiling',
@@ -84,9 +82,9 @@ export const STANDARDS_SECTIONS = [
         tags:      ['REQUIRED'],
         inputType: 'CHIPS',
         options: [
-          { value: 'SAME_AS_UNIT', label: 'Same disk as unit'        },
-          { value: 'DISK_12',      label: '12" edge-lit disk', price: '$26'    },
-          { value: 'DECORATIVE',   label: 'Decorative surface mount', price: 'Varies' },
+          { value: 'SAME_AS_UNIT', label: 'Same disk as unit'          },
+          { value: 'DISK_12',      label: '12" edge-lit disk'          },
+          { value: 'DECORATIVE',   label: 'Decorative surface mount'   },
         ],
       },
       {
@@ -96,8 +94,24 @@ export const STANDARDS_SECTIONS = [
         tags:      ['REQUIRED'],
         inputType: 'CHIPS',
         options: [
-          { value: 'BATH_BAR',   label: 'Round bath bar', price: '$27–$30'    },
-          { value: 'LIT_MIRROR', label: 'Lit mirror',     price: '$138–$305'  },
+          { value: 'BATH_BAR',          label: 'Round bath bar'               },
+          { value: 'LIT_MIRROR',        label: 'Lit mirror'                   },
+          { value: 'SQUARE_BATH_BAR',   label: 'Square bath bar'              },
+          { value: 'SHADED_2_3',        label: '2 or 3 Light Shaded Light'    },
+          { value: 'DOUBLE_TUBE',       label: 'Double Tube Bath Bar'         },
+          { value: 'CUSTOM',            label: 'Custom Per Project'           },
+        ],
+      },
+      {
+        key:       'unit_vanity_finish',
+        label:     'Vanity finish preferences',
+        inputType: 'MULTI_CHIPS',
+        options: [
+          { value: 'BLACK',          label: 'Black'            },
+          { value: 'CHROME',         label: 'Chrome'           },
+          { value: 'BRUSHED_NICKEL', label: 'Brushed Nickel'   },
+          { value: 'WHITE',          label: 'White'            },
+          { value: 'CUSTOM',         label: 'Custom Per Project' },
         ],
       },
       {
@@ -121,11 +135,47 @@ export const STANDARDS_SECTIONS = [
         ],
       },
       {
-        key:       'unit_undercab',
-        label:     'Undercabinet lighting',
-        hint:      'Typical in Class A and B+. $15–$19 per fixture, 2–3 per unit.',
+        key:       'unit_fan_light_kit',
+        label:     'Light kit included on fan?',
         tags:      ['ADDER'],
         inputType: 'BOOLEAN',
+        dependsOn: { key: 'unit_fan_include', value: 'true' },
+      },
+      {
+        key:       'unit_fan_finish',
+        label:     'Fan finish preferences',
+        inputType: 'MULTI_CHIPS',
+        dependsOn: { key: 'unit_fan_include', value: 'true' },
+        options: [
+          { value: 'WHITE',          label: 'White'          },
+          { value: 'BLACK',          label: 'Black'          },
+          { value: 'BRUSHED_NICKEL', label: 'Brushed Nickel' },
+          { value: 'WOOD',           label: 'Wood'           },
+        ],
+      },
+      {
+        key:       'unit_fan_wall_controller',
+        label:     'Wall controller?',
+        hint:      'Standard wall switch (not remote/app)',
+        inputType: 'BOOLEAN',
+        dependsOn: { key: 'unit_fan_include', value: 'true' },
+      },
+      {
+        key:       'unit_fan_dimming',
+        label:     'Fan dimming?',
+        inputType: 'BOOLEAN',
+        dependsOn: { key: 'unit_fan_include', value: 'true' },
+      },
+      {
+        key:       'unit_undercab',
+        label:     'Undercabinet lighting',
+        hint:      'Typical in Class A and B+. 2–3 per unit.',
+        tags:      ['ADDER'],
+        inputType: 'MULTI_CHIPS',
+        options: [
+          { value: '120V',        label: '120v'                       },
+          { value: 'LOW_VOLTAGE', label: 'Low-Voltage w/Remote Driver' },
+        ],
       },
       {
         key:       'unit_kitchen_pendants',
@@ -134,11 +184,17 @@ export const STANDARDS_SECTIONS = [
         tags:      ['ADDER'],
         inputType: 'CHIPS',
         options: [
-          { value: 'NONE',        label: 'No pendants'              },
-          { value: 'BUDGET',      label: 'Budget pendant',     price: '$40–$80'   },
-          { value: 'MID',         label: 'Mid-range pendant',  price: '$100–$200' },
-          { value: 'PER_PROJECT', label: 'Per project',        price: 'Varies'    },
+          { value: 'NONE',        label: 'No pendants'    },
+          { value: 'BUDGET',      label: 'Budget pendant' },
+          { value: 'MID',         label: 'Mid-range'      },
+          { value: 'PER_PROJECT', label: 'Per project'    },
         ],
+      },
+      {
+        key:       'unit_kitchen_pendants_styles',
+        label:     'Preferred pendant styles',
+        hint:      'Pick 5 styles',
+        inputType: 'TEXT',
       },
       {
         key:       'unit_balcony',
@@ -147,10 +203,16 @@ export const STANDARDS_SECTIONS = [
         tags:      ['REQUIRED'],
         inputType: 'CHIPS',
         options: [
-          { value: 'NONE',   label: 'Nothing'                              },
-          { value: 'DISK',   label: 'Ceiling disk (wet-listed)', price: '$9–$26' },
-          { value: 'SCONCE', label: 'Wall sconce',               price: 'Varies' },
+          { value: 'NONE',   label: 'Nothing'                    },
+          { value: 'DISK',   label: 'Ceiling disk (wet-listed)'  },
+          { value: 'SCONCE', label: 'Wall sconce'                },
         ],
+      },
+      {
+        key:       'unit_balcony_styles',
+        label:     'Preferred balcony fixture styles',
+        hint:      'Pick 3 styles',
+        inputType: 'TEXT',
       },
     ],
   },
@@ -168,9 +230,9 @@ export const STANDARDS_SECTIONS = [
         tags:      ['REQUIRED'],
         inputType: 'CHIPS',
         options: [
-          { value: 'FROGEYES',   label: 'EM Frog-eyes',                price: '$18 ea' },
-          { value: 'INVERTER',   label: 'Inverter on corridor circuit', price: 'Varies' },
-          { value: 'INTEGRATED', label: 'Integrated battery fixtures',  price: '+adder' },
+          { value: 'FROGEYES',   label: 'EM Frog-eyes'               },
+          { value: 'INVERTER',   label: 'Inverter on corridor circuit' },
+          { value: 'INTEGRATED', label: 'Integrated battery fixtures'  },
         ],
       },
       {
@@ -180,9 +242,9 @@ export const STANDARDS_SECTIONS = [
         tags:      ['REQUIRED'],
         inputType: 'CHIPS',
         options: [
-          { value: 'FROGEYES',   label: 'EM Frog-eyes',               price: '$18 ea' },
-          { value: 'INVERTER',   label: 'Inverter on amenity circuit', price: 'Varies' },
-          { value: 'INTEGRATED', label: 'Integrated battery fixtures', price: '+adder' },
+          { value: 'FROGEYES',   label: 'EM Frog-eyes'               },
+          { value: 'INVERTER',   label: 'Inverter on amenity circuit' },
+          { value: 'INTEGRATED', label: 'Integrated battery fixtures' },
         ],
       },
       {
@@ -192,10 +254,16 @@ export const STANDARDS_SECTIONS = [
         tags:      ['REQUIRED'],
         inputType: 'CHIPS',
         options: [
-          { value: 'INTEGRATED', label: 'Integrated battery on GL-R', price: '+adder' },
-          { value: 'FROGEYES',   label: 'Separate EM frog-eyes',      price: '$18 ea' },
-          { value: 'INVERTER',   label: 'Inverter circuit',           price: 'Varies' },
+          { value: 'INTEGRATED', label: 'Integrated battery on GL-R' },
+          { value: 'FROGEYES',   label: 'Separate EM frog-eyes'      },
+          { value: 'INVERTER',   label: 'Inverter circuit'           },
         ],
+      },
+      {
+        key:       'em_garage_motion',
+        label:     'Integrated motion sensor?',
+        hint:      'Garage fixtures with integrated motion sensing.',
+        inputType: 'BOOLEAN',
       },
       {
         key:       'em_boh',
@@ -204,9 +272,9 @@ export const STANDARDS_SECTIONS = [
         tags:      ['REQUIRED'],
         inputType: 'CHIPS',
         options: [
-          { value: 'FROGEYES',   label: 'EM Frog-eyes',             price: '$18 ea' },
-          { value: 'INTEGRATED', label: 'Integrated battery strip',  price: '+adder' },
-          { value: 'INVERTER',   label: 'Inverter circuit',         price: 'Varies' },
+          { value: 'FROGEYES',   label: 'EM Frog-eyes'            },
+          { value: 'INTEGRATED', label: 'Integrated battery strip' },
+          { value: 'INVERTER',   label: 'Inverter circuit'        },
         ],
       },
       {
@@ -216,9 +284,8 @@ export const STANDARDS_SECTIONS = [
         tags:      ['REQUIRED'],
         inputType: 'CHIPS',
         options: [
-          { value: 'INTEGRATED', label: 'Integrated battery (wet-listed)', price: '+adder' },
-          { value: 'FROGEYES',   label: 'NEMA-rated EM unit',              price: 'Varies' },
-          { value: 'INVERTER',   label: 'Inverter on exterior circuit',    price: 'Varies' },
+          { value: 'INTEGRATED', label: 'Utilitarian wallpack w/ Integrated Battery' },
+          { value: 'INVERTER',   label: 'Any wall sconce with remote inverter'       },
         ],
       },
     ],
@@ -237,8 +304,8 @@ export const STANDARDS_SECTIONS = [
         tags:      ['REQUIRED'],
         inputType: 'CHIPS',
         options: [
-          { value: 'THERMOPLASTIC', label: 'Thermoplastic',  price: '$19', series: 'EX'  },
-          { value: 'EDGE_LIT',      label: 'Edge-lit glass', price: '$88', series: 'EXU' },
+          { value: 'THERMOPLASTIC', label: 'Thermoplastic',  series: 'EX'  },
+          { value: 'EDGE_LIT',      label: 'Edge-lit glass', series: 'EXU' },
         ],
       },
       {
@@ -248,30 +315,147 @@ export const STANDARDS_SECTIONS = [
         tags:      ['REQUIRED'],
         inputType: 'CHIPS',
         options: [
-          { value: 'THERMOPLASTIC', label: 'Thermoplastic',  price: '$19' },
-          { value: 'EDGE_LIT',      label: 'Edge-lit glass', price: '$88' },
-        ],
-      },
-      {
-        key:       'exit_color',
-        label:     'Exit sign letter color',
-        hint:      'Some municipalities require red. Green is the modern default.',
-        tags:      ['REQUIRED'],
-        inputType: 'CHIPS',
-        options: [
-          { value: 'GREEN', label: 'Green' },
-          { value: 'RED',   label: 'Red'   },
+          { value: 'THERMOPLASTIC', label: 'Thermoplastic'  },
+          { value: 'EDGE_LIT',      label: 'Edge-lit glass' },
         ],
       },
     ],
   },
 
-  // Stub sections — questions added in next iteration
-  { key: 'CORRIDORS_STAIRWELLS', label: 'Corridors & Stairwells', icon: '🚶', color: 'violet',  questions: [] },
-  { key: 'INTERIOR_AMENITIES',   label: 'Interior Amenities',     icon: '🏛️', color: 'indigo', questions: [] },
-  { key: 'GARAGE',               label: 'Garage',                 icon: '🚗', color: 'orange', questions: [] },
-  { key: 'SITE_EXTERIOR',        label: 'Site & Exterior',        icon: '🌿', color: 'green',  questions: [] },
-  { key: 'CONTROLS',             label: 'Controls',               icon: '💡', color: 'amber',  questions: [] },
+  {
+    key:      'CORRIDORS_STAIRWELLS',
+    label:    'Corridors & Stairwells',
+    icon:     '🚶',
+    color:    'violet',
+    questions: [
+      {
+        key:       'corridor_general_lighting',
+        label:     'General lighting type',
+        tags:      ['REQUIRED'],
+        inputType: 'CHIPS',
+        options: [
+          { value: 'SURFACE_MOUNT', label: 'Surface mount 7" disks' },
+          { value: 'RECESSED',      label: 'Recessed downlights'    },
+        ],
+      },
+      {
+        key:       'corridor_spacing_surface',
+        label:     'Fixture spacing',
+        hint:      'Dynamic spacing for surface mount fixtures',
+        inputType: 'CHIPS',
+        dependsOn: { key: 'corridor_general_lighting', value: 'SURFACE_MOUNT' },
+        options: [
+          { value: '8FT',  label: '8 ft'  },
+          { value: '9FT',  label: '9 ft'  },
+          { value: '10FT', label: '10 ft' },
+          { value: '11FT', label: '11 ft' },
+          { value: '12FT', label: '12 ft' },
+        ],
+      },
+      {
+        key:       'corridor_spacing_recessed',
+        label:     'Fixture spacing',
+        hint:      'Dynamic spacing for recessed downlights',
+        inputType: 'CHIPS',
+        dependsOn: { key: 'corridor_general_lighting', value: 'RECESSED' },
+        options: [
+          { value: '6FT', label: '6 ft' },
+          { value: '7FT', label: '7 ft' },
+          { value: '8FT', label: '8 ft' },
+          { value: '9FT', label: '9 ft' },
+        ],
+      },
+      {
+        key:       'corridor_entry_sconce_styles',
+        label:     'Unit entry sconce — preferred styles',
+        hint:      'Pick 5 styles',
+        inputType: 'TEXT',
+      },
+      {
+        key:       'corridor_light_ends',
+        label:     'Light ends of corridors?',
+        hint:      'Additional fixture at dead-end walls',
+        inputType: 'BOOLEAN',
+      },
+    ],
+  },
+
+  {
+    key:      'INTERIOR_AMENITIES',
+    label:    'Interior Amenities',
+    icon:     '🏛️',
+    color:    'indigo',
+    questions: [
+      {
+        key:       'amenities_avg_per_sf',
+        label:     'Average $/SF lighting budget',
+        hint:      'Clubhouse, fitness, leasing, and other common areas',
+        tags:      ['REQUIRED'],
+        inputType: 'MULTI_CHIPS',
+        options: [
+          { value: '$5',  label: '$5'  },
+          { value: '$6',  label: '$6'  },
+          { value: '$7',  label: '$7'  },
+          { value: '$8',  label: '$8'  },
+          { value: '$9',  label: '$9'  },
+          { value: '$10', label: '$10' },
+          { value: '$11', label: '$11' },
+          { value: '$12', label: '$12' },
+          { value: '$13', label: '$13' },
+        ],
+      },
+    ],
+  },
+
+  {
+    key:      'GARAGE',
+    label:    'Garage',
+    icon:     '🚗',
+    color:    'orange',
+    questions: [
+      {
+        key:       'garage_typical_fixture',
+        label:     'Typical garage fixture',
+        hint:      'Paste product link or describe',
+        tags:      ['REQUIRED'],
+        inputType: 'TEXT',
+      },
+    ],
+  },
+
+  {
+    key:      'SITE_EXTERIOR',
+    label:    'Site & Exterior',
+    icon:     '🌿',
+    color:    'green',
+    questions: [],
+    subsections: [
+      'Solar powered lighting',
+      'Surface Parking',
+      'Courtyards',
+      'Exterior pool areas',
+      'Parks',
+      'Carports',
+      'Detached garages',
+      'Attached garages',
+    ],
+  },
+
+  {
+    key:      'CONTROLS',
+    label:    'Controls',
+    icon:     '💡',
+    color:    'amber',
+    questions: [],
+    subsections: [
+      'Corridors',
+      'Interior amenities',
+      'Garage',
+      'BOH',
+      'Exterior pool area',
+      'Site',
+    ],
+  },
 ];
 
 // ── Answer resolution ─────────────────────────────────────────────────────────

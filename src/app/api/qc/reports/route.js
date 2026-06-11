@@ -71,7 +71,7 @@ export async function POST(request) {
           type:      'BUG_BLOCKER',
           title:     `Blocker: ${title.trim()}`,
           message:   `${user.name || user.email} — ${bugModule || 'app'}`,
-          link:      `/admin/qc?focus=${report.id}`,
+          link:      `/admin/tasks?tab=bugs&focus=${report.id}`,
           dedupeKey: `bug-blocker-${report.id}-${a.id}`,
         },
       }).catch(() => {})

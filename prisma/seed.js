@@ -142,6 +142,33 @@ const KB_ENTRIES = [
   },
 ];
 
+// ── Roadmap priorities ────────────────────────────────────────────────────────
+// Stable slug IDs → re-seeding never clobbers Mike's reordering or status changes.
+
+const ROADMAP_PRIORITIES = [
+  { id: 'bid-matrix',    name: 'Bid Matrix',                          status: 'done', sortOrder: 0  },
+  { id: 'concept-q',     name: 'Conceptual questionnaire',            status: 'wip',  sortOrder: 1  },
+  { id: 'design-q',      name: 'Design questionnaire',                status: 'wip',  sortOrder: 2  },
+  { id: 'project-data',  name: 'Project data',                        status: 'done', sortOrder: 3  },
+  { id: 'client-data',   name: 'Client data',                         status: 'done', sortOrder: 4  },
+  { id: 'sales-pipe',    name: 'Sales pipeline',                      status: 'done', sortOrder: 5  },
+  { id: 'sales-dash',    name: 'Sales dashboard',                     status: 'wip',  sortOrder: 6  },
+  { id: 'sales-notes',   name: 'Sales notes',                         status: 'done', sortOrder: 7  },
+  { id: 'sales-auto',    name: 'Sales automation',                    status: 'wip',  sortOrder: 8  },
+  { id: 'sales-bot',     name: 'Sales bot queue',                     status: 'wip',  sortOrder: 9  },
+  { id: 'meeting-notes', name: 'Project meeting notes',               status: 'done', sortOrder: 10 },
+  { id: 'ai-chat',       name: 'Full platform AI chat bot',           status: 'todo', sortOrder: 11 },
+  { id: 'main-dash',     name: 'Main dashboard',                      status: 'todo', sortOrder: 12 },
+  { id: 'email-parse',   name: 'Email parsing & tagging',             status: 'todo', sortOrder: 13 },
+  { id: 'submittal',     name: 'Submittal parsing & tracker',         status: 'wip',  sortOrder: 14 },
+  { id: 'ship-sched',    name: 'Ship schedule',                       status: 'done', sortOrder: 15 },
+  { id: 'change-orders', name: 'Change orders',                       status: 'done', sortOrder: 16 },
+  { id: 'portal',        name: 'Client portal',                       status: 'done', sortOrder: 17 },
+  { id: 'alt-spec',      name: 'Fixture sched + alternate spec tool', status: 'todo', sortOrder: 18 },
+  { id: 'drawing',       name: 'Drawing markup tool',                 status: 'wip',  sortOrder: 19 },
+  { id: 'rfi',           name: 'RFI module',                          status: 'done', sortOrder: 20 },
+];
+
 async function main() {
   // ── Admin users ──────────────────────────────────────────────────────────────
   for (const admin of ADMINS) {
@@ -212,6 +239,20 @@ async function main() {
 
   // ── Proposal Rates + Default Templates ───────────────────────────────────────
   await seedProposalDefaults(prisma, adminUser.id);
+
+  // ── Roadmap priorities ───────────────────────────────────────────────────────
+  if (prisma.roadmapPriority) {
+    for (const p of ROADMAP_PRIORITIES) {
+      await prisma.roadmapPriority.upsert({
+        where:  { id: p.id },
+        update: {}, // never overwrite Mike's reordering or status changes
+        create: { id: p.id, name: p.name, status: p.status, sortOrder: p.sortOrder },
+      });
+    }
+    console.log(`✓ Roadmap priorities ready (${ROADMAP_PRIORITIES.length})`);
+  } else {
+    console.log('⚠ Roadmap priorities: prisma.roadmapPriority not in schema — skipping');
+  }
 }
 
 main()

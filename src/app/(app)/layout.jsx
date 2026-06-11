@@ -5,6 +5,7 @@ import { getSession } from '@/lib/auth';
 import Sidebar from '@/components/layout/Sidebar';
 import AppBreadcrumb from '@/components/layout/AppBreadcrumb';
 import QcCapture from '@/components/qc/QcCapture';
+import GlobalAIButton from '@/components/GlobalAIButton';
 
 export default async function AppLayout({ children }) {
   const session = await getSession();
@@ -20,6 +21,7 @@ export default async function AppLayout({ children }) {
           {children}
         </div>
         <QcCapture />
+        <GlobalAIButton />
       </main>
     </div>
   );

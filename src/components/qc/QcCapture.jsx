@@ -115,7 +115,7 @@ export default function QcCapture() {
       {/* Floating button */}
       <button
         onClick={handleOpen}
-        className="fixed bottom-6 right-6 z-30 flex items-center gap-2 px-4 py-2.5 rounded-full bg-slate-800 hover:bg-slate-700 text-white text-sm font-semibold shadow-lg transition-colors print:hidden"
+        className="fixed bottom-20 right-6 z-30 flex items-center gap-2 px-4 py-2.5 rounded-full bg-slate-800 hover:bg-slate-700 text-white text-sm font-semibold shadow-lg transition-colors print:hidden"
       >
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <rect x="8" y="6" width="8" height="14" rx="4"/>

@@ -21,8 +21,8 @@ export default function DesignCorridorsSection({
     elevatorLobby:     existing.elevatorLobby      || 'no',
     stairwellDesign:   existing.stairwellDesign    || 'code',
     unitSconce:        existing.unitSconce         || 'none',
-    exitSignType:      existing.exitSignType       || 'thermoplastic',
-    // Carry through garage keys so we don't wipe them
+    // Carry through keys so we don't wipe them on save
+    exitSignType:      existing.exitSignType       || undefined,
     garageDesignLevel: existing.garageDesignLevel  || undefined,
     garageControls:    existing.garageControls     || undefined,
   });
@@ -33,7 +33,6 @@ export default function DesignCorridorsSection({
   const corridorSf    = Number(projectData?.corridorSf)          || 0;
   const stairwells    = Number(projectData?.numEgressStairwells)  || 0;
   const numUnits      = Number(projectData?.numUnits)             || 0;
-  const grossSf       = Number(projectData?.grossSf)              || 0;
   const numAccents    = Number(projectData?.numAccentDownlights)  || 0;
 
   // Live corridor product calculation
@@ -53,11 +52,6 @@ export default function DesignCorridorsSection({
 
   // Accent downlights
   const accentProduct = numAccents * 160;
-
-  // Exit signs
-  const signCount = grossSf > 0 ? Math.max(1, Math.ceil(grossSf / 5000)) : 0;
-  const signRates = { thermoplastic: 22, mixed: 75, edgelit: 127 };
-  const exitSignProduct = signCount * (signRates[ans.exitSignType] ?? 22);
 
   const liveTotal = corridorProduct + stairwellProduct + elevatedStairAdder + sconceProduct + accentProduct;
 
@@ -218,50 +212,17 @@ export default function DesignCorridorsSection({
         </div>
       )}
 
-      {/* Exit signs */}
-      <div>
-        <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Exit Signs</div>
-        <QuestionCard
-          question="Exit sign type?"
-          note={`${grossSf > 0 ? `Approx. ${signCount} exit sign${signCount !== 1 ? 's' : ''} for this project (1 per 5,000 gross SF).` : ''} Thermoplastic is code-compliant at lowest cost. Edge-lit is low-profile and design-forward. Mixed is recommended for design buildings with a back-of-house garage.`}
-          costSuffix=" total"
-          options={[
-            {
-              value: 'thermoplastic',
-              label:  'Thermoplastic',
-              sub:    '~$22 ea — code-compliant, bulkier profile; use throughout',
-              cost:   signCount * 22,
-            },
-            {
-              value: 'mixed',
-              label:  'Mixed — Edge-lit FOH + Thermoplastic BOH/Garage',
-              sub:    '~$75 ea blended avg — design-forward in lobby/corridors, code-min in BOH',
-              cost:   signCount * 75,
-            },
-            {
-              value: 'edgelit',
-              label:  'Edge-lit everywhere',
-              sub:    '~$127 ea — cleanest appearance throughout; highest cost',
-              cost:   signCount * 127,
-            },
-          ]}
-          value={ans.exitSignType}
-          onChange={v => set('exitSignType', v)}
-        />
-      </div>
-
       {/* Live cost breakdown */}
       {(corridorSf > 0 || stairwells > 0 || numUnits > 0) && (
         <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
           <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Live Estimate</div>
           <div className="space-y-1.5 text-sm">
             {[
-              { label: `Corridor fixtures (${corridorSf.toLocaleString()} SF × $${fixtureRate.toFixed(3)}/SF)`, value: corridorProduct,       show: corridorSf > 0 },
-              { label: `Stairwells (${stairwells} landings × $175)`,                                             value: stairwellProduct,      show: stairwells > 0 },
-              { label: `Stairwell elevated adder (${stairwells} × $50)`,                                         value: elevatedStairAdder,    show: elevatedStairAdder > 0 },
-              { label: `Unit-entry sconces (${numUnits} × $${sconceRates[ans.unitSconce] ?? 0})`,               value: sconceProduct,         show: sconceProduct > 0 },
-              { label: `Recessed accents (${numAccents} × $160)`,                                                value: accentProduct,         show: accentProduct > 0 },
-              { label: `Exit signs (${signCount} × $${signRates[ans.exitSignType] ?? 22})`,                      value: exitSignProduct,       show: signCount > 0 },
+              { label: `Corridor fixtures (${corridorSf.toLocaleString()} SF × $${fixtureRate.toFixed(3)}/SF)`, value: corridorProduct,    show: corridorSf > 0 },
+              { label: `Stairwells (${stairwells} landings × $175)`,                                             value: stairwellProduct,   show: stairwells > 0 },
+              { label: `Stairwell elevated adder (${stairwells} × $50)`,                                         value: elevatedStairAdder, show: elevatedStairAdder > 0 },
+              { label: `Unit-entry sconces (${numUnits} × $${sconceRates[ans.unitSconce] ?? 0})`,               value: sconceProduct,      show: sconceProduct > 0 },
+              { label: `Recessed accents (${numAccents} × $160)`,                                                value: accentProduct,      show: accentProduct > 0 },
             ].filter(r => r.show).map(row => (
               <div key={row.label} className="flex justify-between text-slate-600">
                 <span className="text-xs">{row.label}</span>
@@ -269,7 +230,7 @@ export default function DesignCorridorsSection({
               </div>
             ))}
             <div className="flex justify-between border-t border-slate-300 pt-2 mt-2 font-bold text-slate-900">
-              <span className="text-sm">Corridor Total (excl. exit signs)</span>
+              <span className="text-sm">Corridor Total</span>
               <span className="font-mono text-sm">${liveTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
           </div>

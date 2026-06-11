@@ -25,6 +25,11 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Log
 
+### 2026-06-10 — Mike's Claude
+- **Client Playbook restructured.** Removed Timeframes section entirely; renamed General Process to "2 · General Process". Scope section: dropped Cost tier notes, Day-to-day PM, Final budget approver, architect/EE/GC relationship blocks; added single "Primary national contact" picker. Process section: removed engagement timing + submittal platform; added file drop zone (PDF/Excel) that appears when "Internal design standards team" toggle is on.
+- **Standards questions overhauled.** Removed LIHTC project type, 12" disk option, all price display. Added vanity options + finish multi-select, ceiling fan sub-questions (light kit, finish, wall controller, dimming), undercabinet changed to MULTI_CHIPS (120v / Low-Voltage). Added text-box style pickers under kitchen pendants and balcony. Corridors & Stairwells section now has real questions (lighting type, dynamic spacing, sconce styles, light ends). Interior Amenities has $/SF multi-select. Garage has typical fixture text. Exit Signs lost exit_color question. Emergency exterior options updated (NEMA removed, labels updated). Site & Exterior and Controls have named coming-soon subsections.
+- **ClientDetailClient.jsx:** Added MULTI_CHIPS and TEXT input renderers in QuestionCard; named subsection display for stub sections; TextAnswerInput defined outside parent to preserve state.
+
 ### 2026-06-09 — Mike's Claude
 - **QC Bug Tracker built (v1).** Full internal bug-reporting system: floating "Report a bug" button on every authenticated page, modal with screenshot (html-to-image), auto-captured console errors + failed network requests, browser/viewport. Kanban board at `/admin/qc` (super admin only) with New/In Progress/Fixed columns, detail drawer, status buttons, and assignee dropdown. Blocker reports fire in-app UserAlert to all super admins. Screen recording toggle stubbed as "Coming soon" (v1.1). Local filesystem storage for screenshots; S3 setup instructions written to G Drive for production deploy.
 - **Prisma schema:** Added `BugReport` model + two User relations (`bugReportsCreated`, `bugReportsAssigned`). `db:push` applied locally.

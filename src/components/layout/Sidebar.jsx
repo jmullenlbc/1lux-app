@@ -355,8 +355,7 @@ export default function Sidebar({ user }) {
   const preconRelated   = startsWith('/pre-con') || startsWith('/manufacturers') ||
                           startsWith('/sales-reps') || startsWith('/products');
   const softwareRelated = startsWith('/admin/changelog') || startsWith('/admin/roadmap') ||
-                          startsWith('/admin/tasks') || startsWith('/fixture-library') ||
-                          startsWith('/admin/tech-stack') || startsWith('/admin/qc');
+                          startsWith('/admin/tasks') || startsWith('/admin/tech-stack');
 
   // ── Collapsible open states ───────────────────────────────────────────────────
   const [homeOpen,     setHomeOpen]     = useState(true);
@@ -504,12 +503,10 @@ export default function Sidebar({ user }) {
             />
             {expanded && softwareOpen && (
               <div className="mt-0.5 space-y-0.5 ml-1">
-                <SubNavItem href="/admin/changelog"   icon={<IconChangelog />}  label="Changelog"       expanded={expanded} active={startsWith('/admin/changelog')} />
-                <SubNavItem href="/admin/roadmap"    icon={<IconRoadmap />}    label="Roadmap"         expanded={expanded} active={startsWith('/admin/roadmap')} />
-                <SubNavItem href="/admin/tasks"      icon={<IconTask />}       label="Tasks"           expanded={expanded} active={startsWith('/admin/tasks')} />
-                <SubNavItem href="/admin/tech-stack" icon={<IconTechStack />}  label="Tech Stack"      expanded={expanded} active={startsWith('/admin/tech-stack')} />
-                <SubNavItem href="/admin/qc"          icon={<IconBug />}        label="QC Tracker"      expanded={expanded} active={startsWith('/admin/qc')} />
-                <SubNavItem href="/fixture-library"  icon={<IconFixture />}    label="Fixture Library" expanded={expanded} active={startsWith('/fixture-library')} />
+                <SubNavItem href="/admin/changelog"   icon={<IconChangelog />}  label="Changelog"  expanded={expanded} active={startsWith('/admin/changelog')} />
+                <SubNavItem href="/admin/roadmap"    icon={<IconRoadmap />}    label="Roadmap"    expanded={expanded} active={startsWith('/admin/roadmap')} />
+                <SubNavItem href="/admin/tasks"      icon={<IconTask />}       label="Tasks & QC" expanded={expanded} active={startsWith('/admin/tasks')} />
+                <SubNavItem href="/admin/tech-stack" icon={<IconTechStack />}  label="Tech Stack" expanded={expanded} active={startsWith('/admin/tech-stack')} />
               </div>
             )}
           </div>
@@ -525,8 +522,9 @@ export default function Sidebar({ user }) {
         )}
 
         <SubNavItem href="/admin/profile"  icon={<IconUserCircle />} label="Profile"        expanded={expanded} active={startsWith('/admin/profile')} />
-        {isIlcAdmin && <SubNavItem href="/admin/pricing" icon={<IconTag />}       label="Master Pricing" expanded={expanded} active={startsWith('/admin/pricing')} />}
-        {isAdmin    && <SubNavItem href="/admin"         icon={<IconUsers />}     label="Users"          expanded={expanded} active={at('/admin')} />}
+        {isIlcAdmin && <SubNavItem href="/admin/pricing"  icon={<IconTag />}     label="Master Pricing"  expanded={expanded} active={startsWith('/admin/pricing')} />}
+        {isAdmin    && <SubNavItem href="/admin"           icon={<IconUsers />}   label="Users"           expanded={expanded} active={at('/admin')} />}
+        {isIlcAdmin && <SubNavItem href="/fixture-library" icon={<IconFixture />} label="Fixture Library" expanded={expanded} active={startsWith('/fixture-library')} />}
         <SubNavItem href="#" icon={<IconBuilding />} label="Company" disabled expanded={expanded} />
       </nav>
 

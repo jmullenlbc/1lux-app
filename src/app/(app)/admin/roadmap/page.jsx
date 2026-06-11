@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth';
 import fs from 'fs';
 import path from 'path';
+import { prisma } from '@/lib/db';
 import RoadmapClient from './RoadmapClient';
 
 const STATUS_META = {
@@ -71,6 +72,7 @@ export default async function RoadmapPage() {
   }
 
   const nodes = renderMarkdown(content);
+  const priorities = await prisma.roadmapPriority.findMany({ orderBy: { sortOrder: 'asc' } });
 
-  return <RoadmapClient nodes={nodes} statusMeta={STATUS_META} />;
+  return <RoadmapClient nodes={nodes} statusMeta={STATUS_META} priorities={priorities} />;
 }

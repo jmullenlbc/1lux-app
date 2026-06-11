@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import PriorityStack from '@/components/PriorityStack';
 
 function inlineHtml(text) {
   return text
@@ -79,7 +80,7 @@ function RequestFeatureButton() {
 
 // ── Roadmap content ───────────────────────────────────────────────────────────
 
-export default function RoadmapClient({ nodes, statusMeta }) {
+export default function RoadmapClient({ nodes, statusMeta, priorities = [] }) {
   const [search, setSearch] = useState('');
 
   // Group nodes into h2 sections for filtering
@@ -119,6 +120,11 @@ export default function RoadmapClient({ nodes, statusMeta }) {
           <p className="text-slate-500 text-sm mt-1">Planned features, future ideas, and items in progress.</p>
         </div>
         <RequestFeatureButton />
+      </div>
+
+      {/* Priority stack */}
+      <div className="mb-8">
+        <PriorityStack initialPriorities={priorities} />
       </div>
 
       {/* Stats + search bar — same layout as Changelog */}
