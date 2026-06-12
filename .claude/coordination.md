@@ -25,6 +25,69 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Log
 
+### 2026-06-11 — Sean's Claude (capturing yesterday's 2026-06-10 Mike/Jason/Sean planning meeting)
+
+Long planning meeting June 10. Logging here so Mike's Claude has the cross-Claude record.
+
+**Decisions aligned (no disagreement):**
+- App is source of truth over spreadsheets (5/28 policy reaffirmed; Madera Town Lake small-% differences acceptable during transition).
+- QC/QA folder established at `G:\Shared drives\SOFTWARE\_MIKE's APP\QC_QA\` for all module review docs.
+- Report naming convention: `YY.MM.DD description_with_underscores.pdf` (Mike's standard, applies going forward).
+- Multi-stage sandbox dev workflow REJECTED — Git is sufficient for rollback.
+- Custom-coded solutions (Claude Code) over low-code platforms.
+- Aiden onboarding: unpaid, knowledge-sharing; starts ~Monday 6/16.
+- Module ownership: **Aiden = Sales + CRM**; **Manny = Submittals + Ship Schedules + DB work**; **Sean = foundational software / QC / version control**; **Mike = high-velocity feature work + sales bot + conceptual budget**.
+- Aiden deploys INDIRECTLY — prepares changes for Sean to review and deploy.
+
+**Open disagreement:**
+- **Opus-exclusive for coding** — Sean's position; others raise token-cost concerns. Not settled.
+
+**Math discrepancy work (key outcomes):**
+- **Q6 (vanity/fan net-vs-gross) RESOLVED.** Mike clarified: adding a fan REMOVES a puck light, so apparent discrepancy was subtraction logic, not a math error. Engine handling is correct.
+- **Broadstone Southglenn 4.2% gap** traced to the same fan-removes-puck logic. Mike to do deep analysis to fully close.
+- **$11K kitchen pendants** discrepancy: subtractor math failing — specific fix item.
+- **Exit signs** still consistently off; needs sheet-vs-app decision.
+- **Garage + Corridor manual override fields needed** (mirror exterior override `e407334`). Sean: Link+Pin closes mostly with these; ~$7K remainder.
+- **"Fudge" field** proposed by Sean — designated manual-adjustment field for things standard logic can't derive. Not committed.
+- **Contingency button broken** — fails to apply 5%. Sean noted UI+math being built in parallel is the cause.
+
+**Action items:**
+
+*Sean:*
+1. List Discrepancies (itemized, specific)
+2. List Explanations (per discrepancy)
+3. Design Report — Link + Pin design questionnaire
+4. Analyze Link + Pin — full issue list
+5. QC Template — standardized for all modules
+6. Collaboration Plan — team coordination + AI interaction guide
+
+*Mike:*
+- Fix Conceptual Budget — Broadstone Southglenn deep dive
+- Merge Change Logs into one unified file
+- Finish conceptual budget portion → PDF
+- V1 Scope Plans for Aiden, Manny, Sean
+- Download 1 year of emails (Google Takeout) for AI training
+
+*Group:*
+- Log Claude commands across all team members; analyze to improve workflow consistency
+
+**AI strategy norms set:**
+- Natural conversational English with LLMs, not command-line shorthand
+- Iterative workflow: explain intent → request feedback/options → execute
+- Train Claude via exchanged command logs
+
+**Future features queued (not started):**
+- Sales bot trained on email + calendar Takeout
+- Submittals tracker replacing 300-page packet transcription (Manny's lane once Aiden onboards)
+- Ship schedules integrated into app
+- Sales dashboards, article tagging
+
+**Heads-up for Mike's Claude:**
+- The Q6 vanity/fan question can be removed from the open list (now resolved).
+- When working on garage or corridor sections of the engine, the team has explicitly requested manual-override fields mirroring the exterior pattern — likely high-priority feature work.
+- Aiden joins Monday under Sean-reviewed workflow; if you're touching Sales/CRM modules after 6/16, coordinate before changes.
+- Mike has 5 explicit action items above; if anything looks queued in his court, that list is the source.
+
 ### 2026-06-10 — Mike's Claude
 - **Client Playbook restructured.** Removed Timeframes section entirely; renamed General Process to "2 · General Process". Scope section: dropped Cost tier notes, Day-to-day PM, Final budget approver, architect/EE/GC relationship blocks; added single "Primary national contact" picker. Process section: removed engagement timing + submittal platform; added file drop zone (PDF/Excel) that appears when "Internal design standards team" toggle is on.
 - **Standards questions overhauled.** Removed LIHTC project type, 12" disk option, all price display. Added vanity options + finish multi-select, ceiling fan sub-questions (light kit, finish, wall controller, dimming), undercabinet changed to MULTI_CHIPS (120v / Low-Voltage). Added text-box style pickers under kitchen pendants and balcony. Corridors & Stairwells section now has real questions (lighting type, dynamic spacing, sconce styles, light ends). Interior Amenities has $/SF multi-select. Garage has typical fixture text. Exit Signs lost exit_color question. Emergency exterior options updated (NEMA removed, labels updated). Site & Exterior and Controls have named coming-soon subsections.
