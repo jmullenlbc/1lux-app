@@ -8,7 +8,8 @@ import { PRICING } from '@/lib/pricing';
 import { buildingTypeLabel } from '@/lib/utils';
 import StandardsHint from '@/components/wizard/StandardsHint';
 
-export default function ControlsSection({ responses, projectData, budget, onSaveResponses, onNext, onPrev, isLast, isDesign = false }) {
+export default function ControlsSection({ responses, projectData, budget, pricing, onSaveResponses, onNext, onPrev, isLast, isDesign = false }) {
+  const P = pricing || PRICING;
   const [answers, setAnswers] = useState({
     energyCredit:       responses.energyCredit       || 'no',
     controlsOverride:   responses.controlsOverride   || '',
@@ -24,11 +25,11 @@ export default function ControlsSection({ responses, projectData, budget, onSave
   const buildingType = projectData?.buildingTypeKey || 'midRise';
 
   const FALLBACK_RATE = { perSf: 0.45, cap: 175000 };
-  const selectedRate  = PRICING.controls?.rates?.[buildingType] || PRICING.controls?.rates?.midRise || FALLBACK_RATE;
+  const selectedRate  = P.controls?.rates?.[buildingType] || P.controls?.rates?.midRise || FALLBACK_RATE;
 
   const baseEst           = Math.min(grossSf * (selectedRate.perSf ?? 0), selectedRate.cap ?? 175000);
   const lightingSubtotal  = budget?.lightingProductSubtotal ?? 0;
-  const energyCreditAdder = lightingSubtotal * (PRICING.controls?.energyCreditAdderPct ?? 0.03);
+  const energyCreditAdder = lightingSubtotal * (P.controls?.energyCreditAdderPct ?? 0.03);
   const creditEst         = baseEst + energyCreditAdder;
   const isCapped          = grossSf * selectedRate.perSf >= selectedRate.cap;
 

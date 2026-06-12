@@ -149,6 +149,7 @@ export default function WizardClient({ project, projectData, initialSections, in
     projectData: localPD,
     allSections: sections,
     budget,
+    pricing,
     isDesign,
     onSaveData:       saveProjectData,
     onNext:           goToNext,

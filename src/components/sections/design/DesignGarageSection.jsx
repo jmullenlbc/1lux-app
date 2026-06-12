@@ -3,14 +3,17 @@ import { useState } from 'react';
 import Button from '@/components/ui/Button';
 import QuestionCard from '@/components/sections/QuestionCard';
 import StandardsHint from '@/components/wizard/StandardsHint';
+import { PRICING } from '@/lib/pricing';
 
 export default function DesignGarageSection({
   responses,
   projectData,
+  pricing,
   onSaveResponses,
   onNext,
   onPrev,
 }) {
+  const P = pricing || PRICING;
   const existing = responses || {};
   const [ans, setAns] = useState({
     garageDesignLevel: existing.garageDesignLevel || 'medium',
@@ -22,8 +25,11 @@ export default function DesignGarageSection({
 
   const garageSf = Number(projectData?.garageSf) || 0;
 
-  // Must match the engine (calculations.js → designGarage.baseMediumPerSf / baseHighPerSf)
-  const baseRate = ans.garageDesignLevel === 'high' ? 0.45 : 0.30;
+  // Base rate from master pricing (engine: designGarage.baseMediumPerSf / baseHighPerSf).
+  const GARAGE_MED  = P.designGarage?.baseMediumPerSf ?? 0.30;
+  const GARAGE_HIGH = P.designGarage?.baseHighPerSf   ?? 0.45;
+  const baseRate = ans.garageDesignLevel === 'high' ? GARAGE_HIGH : GARAGE_MED;
+  // Control adders are hardcoded in the engine — keep them hardcoded here to match.
   const ctrlAdder = { none: 0, occSensor: 0.02, battery: 0.05, batteryAndSensor: 0.06 }[ans.garageControls] ?? 0;
   const totalRate  = baseRate + ctrlAdder;
   const liveTotal  = garageSf * totalRate;
@@ -90,8 +96,8 @@ export default function DesignGarageSection({
         note={`Standard eLuma-spec linear LED troffer vs. premium spec. ${garageSf > 0 ? `(${garageSf.toLocaleString()} SF)` : ''}`}
         costSuffix="/SF"
         options={[
-          { value: 'medium', label: 'Medium — Standard spec',  sub: '$0.30/SF — eLuma linear LED or equivalent', cost: 0.30 },
-          { value: 'high',   label: 'High — Premium spec',     sub: '$0.45/SF — Higher-end linear LED', cost: 0.45 },
+          { value: 'medium', label: 'Medium — Standard spec',  sub: `$${GARAGE_MED}/SF — eLuma linear LED or equivalent`, cost: GARAGE_MED },
+          { value: 'high',   label: 'High — Premium spec',     sub: `$${GARAGE_HIGH}/SF — Higher-end linear LED`, cost: GARAGE_HIGH },
         ]}
         value={ans.garageDesignLevel}
         onChange={v => set('garageDesignLevel', v)}

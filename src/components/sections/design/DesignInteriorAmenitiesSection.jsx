@@ -2,14 +2,17 @@
 import { useState } from 'react';
 import Button from '@/components/ui/Button';
 import QuestionCard from '@/components/sections/QuestionCard';
+import { PRICING } from '@/lib/pricing';
 
 export default function DesignInteriorAmenitiesSection({
   responses,
   projectData,
+  pricing,
   onSaveResponses,
   onNext,
   onPrev,
 }) {
+  const P = pricing || PRICING;
   const existing = responses || {};
   const [ans, setAns] = useState({
     interiorLevel: existing.interiorLevel || 'medium',
@@ -17,8 +20,12 @@ export default function DesignInteriorAmenitiesSection({
   const [saving, setSaving] = useState(false);
 
   const intAmenitySf = Number(projectData?.interiorAmenitySf) || 0;
-  const rateMap = { low: 6, medium: 10, high: 15 };
-  const liveTotal = intAmenitySf * (rateMap[ans.interiorLevel] ?? 10);
+  const rateMap = {
+    low:    P.interiorAmenities?.low    ?? 6,
+    medium: P.interiorAmenities?.medium ?? 10,
+    high:   P.interiorAmenities?.high   ?? 15,
+  };
+  const liveTotal = intAmenitySf * (rateMap[ans.interiorLevel] ?? rateMap.medium);
 
   async function handleNext() {
     setSaving(true);
@@ -70,21 +77,21 @@ export default function DesignInteriorAmenitiesSection({
         options={[
           {
             value: 'low',
-            label:  '$6/SF — Low Finish',
+            label:  `$${rateMap.low}/SF — Low Finish`,
             sub:    'Garden walk-up, surface park — simple lobby and basic amenity lighting',
-            cost:   intAmenitySf * 6,
+            cost:   intAmenitySf * rateMap.low,
           },
           {
             value: 'medium',
-            label:  '$10/SF — Medium Finish',
+            label:  `$${rateMap.medium}/SF — Medium Finish`,
             sub:    'Standard mid-market multifamily — mix of decorative and functional lighting',
-            cost:   intAmenitySf * 10,
+            cost:   intAmenitySf * rateMap.medium,
           },
           {
             value: 'high',
-            label:  '$15/SF — High Finish',
+            label:  `$${rateMap.high}/SF — High Finish`,
             sub:    'High-end mid-rise or high-rise — significant decorative, accent, and architectural lighting',
-            cost:   intAmenitySf * 15,
+            cost:   intAmenitySf * rateMap.high,
           },
         ]}
         value={ans.interiorLevel}

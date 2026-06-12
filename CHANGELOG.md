@@ -16,6 +16,20 @@ Format: each session is a dated entry with features added, bugs fixed, and files
   - **Exterior Lighting Manual Adder (editable):** the 3 items the formula does NOT compute — Pathway lighting, Parking entrances, Manual exterior adder. Stored as JSON in `exterior.exteriorManualItems`. These **ADD** on top of the formula subtotal (no double-counting). Exterior amenities removed from this section (it lives in the frozen breakdown).
   - **Exterior Total = Formula Subtotal + Manual Adder Total** (or the lump override, which still replaces everything when set). Engine returns `manualAdderTotal`. Verified end-to-end (formula + manual = total, override precedence, suite 38/38 + fuzz green). Replaces the earlier "itemized build / pre-populate" approach.
 
+### Changed — wizard sections now read from Master Pricing (root-cause fix for drift)
+The repeated UI/engine drifts all had one cause: section previews **hardcoded** pricing constants while the engine read from Master Pricing (`/admin/pricing` → DB, via `loadPricing`). Fixed at the root: the wizard page already loads that pricing and passes it to `WizardClient`/`DesignWizardClient` — now added `pricing` to the shared section props, and each section reads its costs from it (with the static `pricing.js` as a safety fallback). The section previews and the engine now read **one source**, so they can't diverge, and editing Master Pricing updates both at once.
+- **Units:** base $/SF, undercabinet, kitchen pendants, vanity, balcony, entry-disk, boiler, 52" fan — all driven from `pricing`. (This also resolves the vanity conceptual/Q6 display split — the card now shows whatever Master Pricing says.)
+- **Corridors:** disk/recessed spacing tables, flat disk rate, stairwell, elevated adder, unit sconces, accent downlights, garage levels — all from `pricing`; stale "× $160" / "× $175" labels now dynamic.
+- **Exterior:** amenity $/SF rates, parking, carport, garage, door sconces, misc buffer — all from `pricing` (landscape 2% / door-averaging kept hardcoded to match the engine's own hardcodes).
+- **Amenities:** interior $/SF named-level rates from `pricing`.
+- **Emergency:** `calcEmergency` now takes the live pricing object.
+
+**Design Questionnaire** uses a separate set of components (`sections/design/Design*`) — these were ALSO hardcoded (and carried the same live divergences). Converted all of them to read from `pricing` too:
+- **DesignCorridors:** accent **$160→$120**, disk default 0.25→0.27, stairwell/sconce/elevated rates — all from master + stale "$160/$175" labels now dynamic.
+- **DesignUnits:** undercabinet line-voltage **$90→$125**, kitchen pendant **$40/$120→$50/$150**, vanity `illuminatedMirrorLow` **$0→$130** (and all vanity/pendant/entry/boiler costs) — from master.
+- **DesignInteriorAmenities** ($6/$10/$15), **DesignGarage** ($0.30/$0.45 base; control adders kept hardcoded to match engine), **DesignEmergency** (strategy rates + battery), and **Controls** (rate table + energy-credit %) — all from master.
+- Verified: build compiles (116 pages), suite 38/38 + fuzz, exterior UI matches engine on all 23 projects.
+
 ### Fixed (UI-vs-engine debugging sweep, all wizard sections)
 Systematically replicated every section's client-side preview math and compared to `calculateBudget` across all 23 real projects. Fixed each section-preview that had drifted from the engine (the engine/sidebar was always authoritative — these were display bugs):
 - **Corridors — accent downlights:** UI hardcoded $160/ea; engine uses $120 (`designCorridors.accentDownlightEach`). Fixed UI → $120.

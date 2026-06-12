@@ -2,14 +2,17 @@
 import { useState } from 'react';
 import Button from '@/components/ui/Button';
 import QuestionCard from '@/components/sections/QuestionCard';
+import { PRICING } from '@/lib/pricing';
 
 export default function DesignEmergencySection({
   responses,
   projectData,
+  pricing,
   onSaveResponses,
   onNext,
   onPrev,
 }) {
+  const P = pricing || PRICING;
   const existing = responses || {};
   const [ans, setAns] = useState({
     strategy: existing.strategy || 'integrated_inverters',
@@ -31,12 +34,15 @@ export default function DesignEmergencySection({
   };
 
   function calcCost(key) {
-    const s = STRATEGIES[key];
+    // Rates come from master pricing (engine: PRICING.emergency.strategies); the
+    // local STRATEGIES map only supplies labels/tags + a fallback.
+    const s = P.emergency?.strategies?.[key] || STRATEGIES[key];
     if (!s) return 0;
     let cost = corridorSf * s.corridorPerSf + intAmenitySf * s.amenityPerSf + garageSf * s.garagePerSf;
     if (s.batteryGarage && garageSf > 0) {
-      const battCount = Math.floor((garageSf / 625) / 2);
-      cost += battCount * 120;
+      const bg = P.emergency?.batteryGarage || { sfPerFixture: 625, fixtureEvery: 2, costPerFixture: 120 };
+      const battCount = Math.floor((garageSf / bg.sfPerFixture) / bg.fixtureEvery);
+      cost += battCount * bg.costPerFixture;
     }
     return Math.round(cost);
   }

@@ -3,12 +3,18 @@ import { useState } from 'react';
 import Button from '@/components/ui/Button';
 import QuestionCard from './QuestionCard';
 import { formatCurrency } from '@/lib/calculations';
+import { PRICING } from '@/lib/pricing';
 import StandardsHint from '@/components/wizard/StandardsHint';
 
+// Static fallbacks — live values come from the master pricing prop (see P below).
 const DISK_RATES     = { 6: 0.40, 7: 0.35, 8: 0.30, 9: 0.28, 10: 0.25, 11: 0.23, 12: 0.23 };
 const RECESSED_RATES = { 6: 3.00, 7: 2.625, 8: 2.25, 9: 2.10, 10: 1.875, 11: 1.725, 12: 1.725 };
 
-export default function CorridorsSection({ responses, projectData, onSaveResponses, onNext, onPrev, isDesign = false }) {
+export default function CorridorsSection({ responses, projectData, pricing, onSaveResponses, onNext, onPrev, isDesign = false }) {
+  // Single source of truth: read rates/costs from the live master pricing.
+  const P = pricing || PRICING;
+  const DISK_RATE_TABLE     = P.designCorridors?.diskSpacingRates     || DISK_RATES;
+  const RECESSED_RATE_TABLE = P.designCorridors?.recessedSpacingRates || RECESSED_RATES;
   const existing = responses || {};
   const [ans, setAns] = useState({
     unitSconce:        existing.unitSconce        || 'none',
@@ -40,30 +46,39 @@ export default function CorridorsSection({ responses, projectData, onSaveRespons
   // Design: live corridor product
   // Match the engine: with no fixture-spacing answer, corridors use the flat
   // $0.27/SF default; once a spacing is chosen, use the spacing-rate table.
-  const DEFAULT_DISK_RATE = 0.27;
+  const DEFAULT_DISK_RATE = P.corridors?.diskPerSf ?? 0.27;
   const hasSpacing    = !!ans.fixtureSpacing;
   const spacing       = parseInt(ans.fixtureSpacing) || 10;
   const fixtureRate   = !hasSpacing
     ? DEFAULT_DISK_RATE
     : (ans.fixtureType === 'recessed'
-        ? (RECESSED_RATES[spacing] ?? DEFAULT_DISK_RATE)
-        : (DISK_RATES[spacing]     ?? DEFAULT_DISK_RATE));
+        ? (RECESSED_RATE_TABLE[spacing] ?? DEFAULT_DISK_RATE)
+        : (DISK_RATE_TABLE[spacing]     ?? DEFAULT_DISK_RATE));
   const corridorProd  = corridorSf * fixtureRate;
-  const stairwellProd = stairwells * 175;
-  const stairElevated = ans.stairwellDesign === 'elevated' ? stairwells * 50 : 0;
-  const sconceRates   = { none: 0, low: 55, medium: 125, high: 300, integrated: 200 };
+  const STAIR_EACH    = P.corridors?.stairwellPerLanding?.product ?? 175;
+  const STAIR_ELEV    = P.designCorridors?.stairwellElevatedAdder ?? 50;
+  const ACCENT_EACH   = P.designCorridors?.accentDownlightEach ?? 120;
+  const stairwellProd = stairwells * STAIR_EACH;
+  const stairElevated = ans.stairwellDesign === 'elevated' ? stairwells * STAIR_ELEV : 0;
+  const sconceRates   = {
+    none:       P.corridorSconce?.none?.product       ?? 0,
+    low:        P.corridorSconce?.low?.product        ?? 55,
+    medium:     P.corridorSconce?.medium?.product     ?? 125,
+    high:       P.corridorSconce?.high?.product       ?? 300,
+    integrated: P.corridorSconce?.integrated?.product ?? 200,
+  };
   const sconceProd    = numUnits * (sconceRates[ans.unitSconce] ?? 0);
-  const accentProd    = numAccents * 120; // matches engine designCorridors.accentDownlightEach
+  const accentProd    = numAccents * ACCENT_EACH;
   const liveTotal     = corridorProd + stairwellProd + stairElevated + sconceProd + accentProd;
 
   const spacingOptions = [6, 7, 8, 9, 10, 11, 12].map(s => ({
     value: String(s),
     label: `${s} ft on center`,
     sub:   ans.fixtureType === 'recessed'
-      ? `$${RECESSED_RATES[s]?.toFixed(3)}/SF`
-      : `$${DISK_RATES[s]?.toFixed(2)}/SF`,
+      ? `$${RECESSED_RATE_TABLE[s]?.toFixed(3)}/SF`
+      : `$${DISK_RATE_TABLE[s]?.toFixed(2)}/SF`,
     cost: corridorSf > 0
-      ? (ans.fixtureType === 'recessed' ? RECESSED_RATES[s] : DISK_RATES[s]) * corridorSf
+      ? (ans.fixtureType === 'recessed' ? RECESSED_RATE_TABLE[s] : DISK_RATE_TABLE[s]) * corridorSf
       : undefined,
   }));
 
@@ -163,13 +178,13 @@ export default function CorridorsSection({ responses, projectData, onSaveRespons
               value: 'disk',
               label: 'Surface-mount disk (recommended)',
               sub:   'Cost-effective; no fire-rated housing required',
-              cost:  corridorSf > 0 ? corridorSf * (DISK_RATES[spacing] ?? 0.25) : undefined,
+              cost:  corridorSf > 0 ? corridorSf * (DISK_RATE_TABLE[spacing] ?? 0.25) : undefined,
             },
             {
               value: 'recessed',
               label: 'Recessed downlights',
               sub:   'Premium appearance; requires 1-hr fire-rated housing; higher cost',
-              cost:  corridorSf > 0 ? corridorSf * (RECESSED_RATES[spacing] ?? 1.875) : undefined,
+              cost:  corridorSf > 0 ? corridorSf * (RECESSED_RATE_TABLE[spacing] ?? 1.875) : undefined,
             },
           ]}
           value={ans.fixtureType}
@@ -345,10 +360,10 @@ export default function CorridorsSection({ responses, projectData, onSaveRespons
           <div className="space-y-1.5 text-sm">
             {[
               { label: `Corridor fixtures (${corridorSf.toLocaleString()} SF × $${fixtureRate.toFixed(3)}/SF)`, value: corridorProd,   show: corridorSf > 0 },
-              { label: `Stairwells (${stairwells} landings × $175)`,                                              value: stairwellProd,  show: stairwells > 0 },
-              { label: `Stairwell elevated adder (${stairwells} × $50)`,                                          value: stairElevated,  show: stairElevated > 0 },
+              { label: `Stairwells (${stairwells} landings × $${STAIR_EACH})`,                                              value: stairwellProd,  show: stairwells > 0 },
+              { label: `Stairwell elevated adder (${stairwells} × $${STAIR_ELEV})`,                                          value: stairElevated,  show: stairElevated > 0 },
               { label: `Unit-entry sconces (${numUnits} × $${sconceRates[ans.unitSconce] ?? 0})`,                value: sconceProd,     show: sconceProd > 0 },
-              { label: `Recessed accents (${numAccents} × $160)`,                                                 value: accentProd,     show: accentProd > 0 },
+              { label: `Recessed accents (${numAccents} × $${ACCENT_EACH})`,                                                 value: accentProd,     show: accentProd > 0 },
             ].filter(r => r.show).map(row => (
               <div key={row.label} className="flex justify-between text-slate-600">
                 <span className="text-xs">{row.label}</span>

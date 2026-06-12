@@ -12,7 +12,10 @@ const FAN_ROOMS = {
   masterSecondaryTertiary: 2.5, masterSecondaryTertiaryLiving: 2.75,
 };
 
-export default function UnitsSection({ responses, projectData, onSaveResponses, onNext, onPrev, isDesign = false }) {
+export default function UnitsSection({ responses, projectData, pricing, onSaveResponses, onNext, onPrev, isDesign = false }) {
+  // Single source of truth: read costs from the live master pricing (same object
+  // the engine uses), falling back to static defaults. Prevents UI/engine drift.
+  const P = pricing || PRICING;
   const [ans, setAns] = useState(() => ({
     // ── Conceptual questions (always shown) ──────────────────────────────
     undercabinet:       responses.undercabinet       || 'none',
@@ -47,7 +50,7 @@ export default function UnitsSection({ responses, projectData, onSaveResponses, 
   const unitsSf      = Number(projectData?.unitsSf)     || 0;
   const numVanities  = Number(projectData?.numVanities) || Number(projectData?.numBathrooms) || 0;
   const numBalconies = Number(projectData?.numBalconies)|| 0;
-  const baseProduct  = unitsSf * PRICING.base.perSf;
+  const baseProduct  = unitsSf * P.base.perSf;
 
   async function handleNext() {
     setSaving(true);
@@ -108,7 +111,7 @@ export default function UnitsSection({ responses, projectData, onSaveResponses, 
         </div>
         {unitsSf > 0 && (
           <p className="text-xs text-slate-400 mt-3">
-            Base unit budget: {formatCurrency(baseProduct)} ({unitsSf.toLocaleString()} SF × ${PRICING.base.perSf}/SF).
+            Base unit budget: {formatCurrency(baseProduct)} ({unitsSf.toLocaleString()} SF × ${P.base.perSf}/SF).
             Adders below are per unit or per fixture.
           </p>
         )}
@@ -148,8 +151,8 @@ export default function UnitsSection({ responses, projectData, onSaveResponses, 
               note='12" disk adds ~$25/unit. Decorative surface mount ~$30/unit. No additional labor cost.'
               options={[
                 { value: 'typical',    label: 'Typical — same disk as rest of unit', cost: 0 },
-                { value: '12inch',     label: '12" Statement Disk at entry',         sub: '+$25/unit', cost: 25 },
-                { value: 'decorative', label: 'Decorative Surface Mount at entry',   sub: '+$30/unit', cost: 30 },
+                { value: '12inch',     label: '12" Statement Disk at entry',         cost: P.designUpgrades?.entryway12inch ?? 25 },
+                { value: 'decorative', label: 'Decorative Surface Mount at entry',   cost: P.designUpgrades?.entryDecorative ?? 30 },
               ]}
               value={ans.entryDisk}
               onChange={v => set('entryDisk', v)}
@@ -188,7 +191,7 @@ export default function UnitsSection({ responses, projectData, onSaveResponses, 
               note='7" disk with integrated occupancy sensor. Code typically requires lighting in mechanical spaces.'
               options={[
                 { value: 'no',  label: 'No',                                          cost: 0  },
-                { value: 'yes', label: 'Yes — 7" disk w/ occupancy sensor', sub: '+$15/unit', cost: 15 },
+                { value: 'yes', label: 'Yes — 7" disk w/ occupancy sensor', cost: P.designUpgrades?.boilerRoomDisk ?? 15 },
               ]}
               value={ans.boilerRoom}
               onChange={v => set('boilerRoom', v)}
@@ -207,9 +210,9 @@ export default function UnitsSection({ responses, projectData, onSaveResponses, 
             question="Is undercabinet lighting desired?"
             note='Both options require a 1.5" valance on upper cabinets. Line voltage has an integral power supply. Low voltage is slimmer but needs a remote driver hidden in a cabinet.'
             options={[
-              { value: 'none',        label: 'None',                     cost: 0   },
-              { value: 'lineVoltage', label: '120V Line Voltage',         sub: 'Integral power supply — +$125/unit',     cost: 125 },
-              { value: 'lowVoltage',  label: 'Low Voltage LED Tape',      sub: 'Slim tape + remote driver — +$220/unit', cost: 220 },
+              { value: 'none',        label: 'None',                     cost: P.undercabinet.none.product },
+              { value: 'lineVoltage', label: '120V Line Voltage',         sub: 'Integral power supply',     cost: P.undercabinet.lineVoltage.product },
+              { value: 'lowVoltage',  label: 'Low Voltage LED Tape',      sub: 'Slim tape + remote driver', cost: P.undercabinet.lowVoltage.product },
             ]}
             value={ans.undercabinet}
             onChange={v => set('undercabinet', v)}
@@ -233,13 +236,13 @@ export default function UnitsSection({ responses, projectData, onSaveResponses, 
             question="Are kitchen island pendants desired?"
             note="Cost is the delta vs. using a standard ceiling disk over the island."
             options={[
-              { value: 'none',             label: 'None — standard ceiling disk',           cost: 0   },
-              { value: 'threeSmallLow',    label: '(3) Small Pendants — Low Finish',        sub: '$50 ea',  cost: 150 },
-              { value: 'threeSmallMedium', label: '(3) Small Pendants — Medium Finish',     sub: '$100 ea', cost: 300 },
-              { value: 'twoMediumLow',     label: '(2) Medium Pendants — Low Finish',       sub: '$88 ea',  cost: 176 },
-              { value: 'twoMediumMedium',  label: '(2) Medium Pendants — Medium Finish',    sub: '$165 ea', cost: 330 },
-              { value: 'oneLarge',         label: '(1) Large Statement Pendant',            sub: '$275',    cost: 275 },
-              { value: 'oneLinear',        label: '(1) Linear Pendant over island',         sub: '$242',    cost: 242 },
+              { value: 'none',             label: 'None — standard ceiling disk',        cost: P.kitchenPendants.none.product },
+              { value: 'threeSmallLow',    label: '(3) Small Pendants — Low Finish',     cost: P.kitchenPendants.threeSmallLow.product },
+              { value: 'threeSmallMedium', label: '(3) Small Pendants — Medium Finish',  cost: P.kitchenPendants.threeSmallMedium.product },
+              { value: 'twoMediumLow',     label: '(2) Medium Pendants — Low Finish',    cost: P.kitchenPendants.twoMediumLow.product },
+              { value: 'twoMediumMedium',  label: '(2) Medium Pendants — Medium Finish', cost: P.kitchenPendants.twoMediumMedium.product },
+              { value: 'oneLarge',         label: '(1) Large Statement Pendant',         cost: P.kitchenPendants.oneLarge.product },
+              { value: 'oneLinear',        label: '(1) Linear Pendant over island',      cost: P.kitchenPendants.oneLinear.product },
             ]}
             value={ans.kitchenPendants}
             onChange={v => set('kitchenPendants', v)}
@@ -291,7 +294,7 @@ export default function UnitsSection({ responses, projectData, onSaveResponses, 
                 costSuffix="/fan"
                 options={[
                   { value: 'no',  label: '48" Fan — standard size',      cost: 0  },
-                  { value: 'yes', label: '52" Fan — larger rooms/spaces', sub: '+$25/fan', cost: 25 },
+                  { value: 'yes', label: '52" Fan — larger rooms/spaces', cost: P.designUpgrades?.fanSize52Adder ?? 25 },
                 ]}
                 value={ans.fanSize52}
                 onChange={v => set('fanSize52', v)}
@@ -359,12 +362,12 @@ export default function UnitsSection({ responses, projectData, onSaveResponses, 
             note='"Mirror + Bath Bar (Low)" is included in the base $0.38/SF. Illuminated mirrors eliminate the need for a separate mirror allowance and are often cost-neutral.'
             costSuffix="/vanity"
             options={[
-              { value: 'bathBarLow',              label: 'Mirror + LED Bath Bar — Low',        sub: 'Included in base budget',                   cost: 0   },
-              { value: 'illuminatedMirrorLow',    label: 'Illuminated Mirror — Low Finish',    sub: 'Cost-neutral vs. bath bar + mirror',          cost: 0   },
-              { value: 'illuminatedMirrorMedium', label: 'Illuminated Mirror — Medium Finish', sub: isDesign ? '+$155/vanity' : '+$100/vanity',   cost: isDesign ? 155 : 100 },
-              { value: 'illuminatedMirrorHigh',   label: 'Illuminated Mirror — High Finish',   sub: isDesign ? '+$205/vanity' : '+$250/vanity',   cost: isDesign ? 205 : 250 },
-              { value: 'bathBarMedium',           label: 'Mirror + LED Bath Bar — Medium',     sub: isDesign ? '+$80/vanity'  : '+$75/vanity',    cost: isDesign ? 80  : 75  },
-              { value: 'bathBarHigh',             label: 'Mirror + LED Bath Bar — High',       sub: isDesign ? '+$205/vanity' : '+$175/vanity',   cost: isDesign ? 205 : 175 },
+              { value: 'bathBarLow',              label: 'Mirror + LED Bath Bar — Low',        sub: 'Included in base budget',            cost: P.vanity.bathBarLow.product   },
+              { value: 'illuminatedMirrorLow',    label: 'Illuminated Mirror — Low Finish',    sub: 'Net of bath-bar base credit',        cost: P.vanity.illuminatedMirrorLow.product },
+              { value: 'illuminatedMirrorMedium', label: 'Illuminated Mirror — Medium Finish', cost: P.vanity.illuminatedMirrorMedium.product },
+              { value: 'illuminatedMirrorHigh',   label: 'Illuminated Mirror — High Finish',   cost: P.vanity.illuminatedMirrorHigh.product },
+              { value: 'bathBarMedium',           label: 'Mirror + LED Bath Bar — Medium',     cost: P.vanity.bathBarMedium.product },
+              { value: 'bathBarHigh',             label: 'Mirror + LED Bath Bar — High',       cost: P.vanity.bathBarHigh.product },
             ]}
             value={ans.vanity}
             onChange={v => set('vanity', v)}
@@ -410,11 +413,11 @@ export default function UnitsSection({ responses, projectData, onSaveResponses, 
               }
               costSuffix="/balcony"
               options={[
-                { value: 'none',         label: 'Nothing — no balcony fixture',          cost: 0   },
-                { value: 'disk5inch',    label: '5" Ceiling Surface Mount Disk',         sub: 'Included in base', cost: 0   },
-                { value: 'sconcelow',    label: 'Exterior Wall Sconce — Low',            sub: '+$55/balcony — budget priority', cost: 55  },
-                { value: 'sconceMedium', label: 'Exterior Wall Sconce — Medium',         sub: '+$135/balcony — standard priority', cost: 135 },
-                { value: 'sconceHigh',   label: 'Exterior Wall Sconce — High',           sub: '+$240/balcony — premium priority', cost: 240 },
+                { value: 'none',         label: 'Nothing — no balcony fixture',  cost: P.balcony.none.product },
+                { value: 'disk5inch',    label: '5" Ceiling Surface Mount Disk', sub: 'Included in base', cost: P.balcony.disk5inch.product },
+                { value: 'sconcelow',    label: 'Exterior Wall Sconce — Low',    sub: 'budget priority',  cost: P.balcony.sconcelow.product },
+                { value: 'sconceMedium', label: 'Exterior Wall Sconce — Medium', sub: 'standard priority', cost: P.balcony.sconceMedium.product },
+                { value: 'sconceHigh',   label: 'Exterior Wall Sconce — High',   sub: 'premium priority', cost: P.balcony.sconceHigh.product },
               ]}
               value={ans.balcony}
               onChange={v => set('balcony', v)}

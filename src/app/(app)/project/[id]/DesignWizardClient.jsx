@@ -140,6 +140,7 @@ export default function DesignWizardClient({ project, projectData, initialSectio
     projectId:   project.id,
     projectData: localPD,
     budget,
+    pricing,
     isDesign: true,
     onNext: goToNext,
     onPrev: goToPrev,

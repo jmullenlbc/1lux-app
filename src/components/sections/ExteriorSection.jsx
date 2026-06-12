@@ -4,6 +4,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import QuestionCard from './QuestionCard';
 import { formatCurrency } from '@/lib/calculations';
+import { PRICING } from '@/lib/pricing';
 import StandardsHint from '@/components/wizard/StandardsHint';
 
 // Manual adder line items — the things the formula does NOT compute. These ADD
@@ -14,7 +15,10 @@ const EXT_MANUAL_ITEMS = [
   ['manualExteriorAdder', 'Manual exterior adder'],
 ];
 
-export default function ExteriorSection({ responses, projectData, onSaveResponses, onSaveData, onNext, onPrev, isDesign = false }) {
+export default function ExteriorSection({ responses, projectData, pricing, onSaveResponses, onSaveData, onNext, onPrev, isDesign = false }) {
+  // Single source of truth: read rates/costs from the live master pricing. (Landscape
+  // 2% and door averaging are hardcoded in the engine, so kept hardcoded here to match.)
+  const P = pricing || PRICING;
   const [answers, setAnswers] = useState({
     amenityLevel:      responses.amenityLevel      || 'medium',
     amenityHours:      responses.amenityHours      || 'beforeDusk',
@@ -47,36 +51,39 @@ export default function ExteriorSection({ responses, projectData, onSaveResponse
   // Landscape = 2% of total lot SF (Excel-verified formula, matches the engine).
   const autoLandscape = lotSf > 0 ? lotSf * 0.02 : 0;
 
-  const rateMap  = { low: 1, lowMedium: 2, medium: 3, high: 5 };
-  const baseRate = rateMap[answers.amenityLevel] ?? 3;
-  const nightMult = answers.amenityHours === 'afterSunset' ? 2 : 1;
+  const EA       = P.exteriorAmenities || {};
+  const rateMap  = { low: EA.low ?? 1, lowMedium: EA.lowMedium ?? 2, medium: EA.medium ?? 3, high: EA.high ?? 5 };
+  const baseRate = rateMap[answers.amenityLevel] ?? (rateMap.medium);
+  const nightMult = answers.amenityHours === 'afterSunset' ? (EA.nighttimeMultiplier ?? 2) : 1;
   const extraFromNight = extSf * baseRate; // the adder shown in the question card
 
-  // Live cost breakdown (mirrors calculations.js exterior block)
+  // Live cost breakdown (mirrors calculations.js exterior block — reads master pricing)
+  const sp = P.exterior?.surfaceParking || {};
   const amenityProduct  = extSf * baseRate * nightMult;
-  const parkingFixtures = Math.ceil(parking / 9);
-  const parkingProduct  = parkingFixtures * 1325;
-  const carportProduct  = Math.floor(carports / 2) * 30;
-  const garageProduct   = numGarages * 80;
-  // Every door averages one primary ($350) + one secondary ($75) sconce — matches
-  // the engine (avgDoorCost × doors) and the spreadsheet (doors/2 × $350 + doors/2 × $75).
-  const doorProduct     = extDoors * (350 + 75) / 2;
+  const parkingFixtures = Math.ceil(parking / (sp.stallsPerFixture ?? 9));
+  const parkingProduct  = parkingFixtures * (sp.perFixture ?? 1325);
+  const carportProduct  = Math.floor(carports / 2) * (P.exterior?.carport?.diskEveryOther ?? 30);
+  const garageProduct   = numGarages * (P.exterior?.detachedGarage?.sconcePerDoor ?? 80);
+  // Every door averages one primary + one secondary sconce — matches the engine
+  // (avgDoorCost × doors) and the spreadsheet (doors/2 × primary + doors/2 × secondary).
+  const door = P.exterior?.exteriorDoor || {};
+  const doorProduct     = extDoors * ((door.primarySconce ?? 350) + (door.secondarySconce ?? 75)) / 2;
   const landscapeAdder  = parseFloat(answers.landscapeBudget) > 0 ? parseFloat(answers.landscapeBudget) : 0;
   const landscapeTotal  = autoLandscape + landscapeAdder;
   const subBeforeMisc   = amenityProduct + parkingProduct + carportProduct + garageProduct + doorProduct + landscapeTotal;
-  const miscBuffer      = subBeforeMisc * 0.05;
+  const miscBuffer      = subBeforeMisc * (P.exterior?.miscBufferPct ?? 0.05);
   const exteriorFormulaTotal = subBeforeMisc + miscBuffer;
 
   // Frozen formula breakdown lines (read-only, auto-calculated, math shown in text).
   // Exterior amenities are NOT listed here — they're configured + shown by the
   // amenity question cards above. They stay in the exterior total via the engine.
   const frozenLines = [
-    { label: 'Surface parking',       math: `${parking} stalls ÷ 9 = ${parkingFixtures} fixture${parkingFixtures === 1 ? '' : 's'} × $1,325`, value: parkingProduct },
-    { label: 'Carports',              math: `${carports} ÷ 2 = ${Math.floor(carports / 2)} disk${Math.floor(carports / 2) === 1 ? '' : 's'} × $30`, value: carportProduct },
-    { label: 'Detached garages',      math: `${numGarages} × $80/door`, value: garageProduct },
-    { label: 'Exterior door sconces', math: `${extDoors} × ($350 + $75) ÷ 2`, value: doorProduct },
+    { label: 'Surface parking',       math: `${parking} stalls ÷ ${sp.stallsPerFixture ?? 9} = ${parkingFixtures} fixture${parkingFixtures === 1 ? '' : 's'} × $${(sp.perFixture ?? 1325).toLocaleString()}`, value: parkingProduct },
+    { label: 'Carports',              math: `${carports} ÷ 2 = ${Math.floor(carports / 2)} disk${Math.floor(carports / 2) === 1 ? '' : 's'} × $${P.exterior?.carport?.diskEveryOther ?? 30}`, value: carportProduct },
+    { label: 'Detached garages',      math: `${numGarages} × $${P.exterior?.detachedGarage?.sconcePerDoor ?? 80}/door`, value: garageProduct },
+    { label: 'Exterior door sconces', math: `${extDoors} × ($${door.primarySconce ?? 350} + $${door.secondarySconce ?? 75}) ÷ 2`, value: doorProduct },
     { label: 'Landscape',             math: `${lotSf.toLocaleString()} SF lot × 2%`, value: landscapeTotal },
-    { label: 'Miscellaneous',         math: '5% buffer of full exterior (incl. amenities)', value: miscBuffer },
+    { label: 'Miscellaneous',         math: `${((P.exterior?.miscBufferPct ?? 0.05) * 100).toFixed(0)}% buffer of full exterior (incl. amenities)`, value: miscBuffer },
   ];
   // Subtotal of the breakdown box = everything in the formula EXCEPT amenities
   // (amenities are shown separately above). Lines above sum to this.
@@ -142,10 +149,10 @@ export default function ExteriorSection({ responses, projectData, onSaveResponse
         note="Exterior amenities include pool deck, courtyards, and outdoor gathering areas. Range: $1/SF (minimal) to $5/SF (high-end, may include façade lighting)."
         costSuffix=" total"
         options={[
-          { value: 'low',       label: '$1/SF — Low',        sub: 'Garden walk-up; minimal exterior amenity lighting',                cost: extSf * 1 },
-          { value: 'lowMedium', label: '$2/SF — Low-Medium', sub: 'Simple mid-market exterior amenity package',                       cost: extSf * 2 },
-          { value: 'medium',    label: '$3/SF — Medium',     sub: 'Standard mid-market exterior amenity package',                     cost: extSf * 3 },
-          { value: 'high',      label: '$5/SF — High',       sub: 'High-end mid-rise / high-rise; may include façade accent lighting', cost: extSf * 5 },
+          { value: 'low',       label: `$${rateMap.low}/SF — Low`,             sub: 'Garden walk-up; minimal exterior amenity lighting',                cost: extSf * rateMap.low },
+          { value: 'lowMedium', label: `$${rateMap.lowMedium}/SF — Low-Medium`, sub: 'Simple mid-market exterior amenity package',                       cost: extSf * rateMap.lowMedium },
+          { value: 'medium',    label: `$${rateMap.medium}/SF — Medium`,        sub: 'Standard mid-market exterior amenity package',                     cost: extSf * rateMap.medium },
+          { value: 'high',      label: `$${rateMap.high}/SF — High`,            sub: 'High-end mid-rise / high-rise; may include façade accent lighting', cost: extSf * rateMap.high },
         ]}
         value={answers.amenityLevel}
         onChange={val => setAnswers(a => ({ ...a, amenityLevel: val }))}

@@ -5,12 +5,12 @@ import { PRICING } from '@/lib/pricing';
 import { formatCurrency } from '@/lib/calculations';
 import { cn } from '@/lib/utils';
 
-function calcEmergency(strategyKey, corridorSf, intAmenitySf, garageSf) {
-  const strat = PRICING.emergency.strategies[strategyKey];
+function calcEmergency(P, strategyKey, corridorSf, intAmenitySf, garageSf) {
+  const strat = P.emergency.strategies[strategyKey];
   if (!strat) return 0;
   let total = corridorSf * strat.corridorPerSf + intAmenitySf * strat.amenityPerSf + garageSf * strat.garagePerSf;
   if (strat.batteryGarage && garageSf > 0) {
-    const b = PRICING.emergency.batteryGarage;
+    const b = P.emergency.batteryGarage;
     const battCount = Math.floor((garageSf / b.sfPerFixture) / b.fixtureEvery);
     total += battCount * b.costPerFixture;
   }
@@ -50,7 +50,8 @@ const STRATEGIES = [
   },
 ];
 
-export default function EmergencySection({ responses, projectData, onSaveResponses, onNext, onPrev }) {
+export default function EmergencySection({ responses, projectData, pricing, onSaveResponses, onNext, onPrev }) {
+  const P = pricing || PRICING;
   const [answers, setAnswers] = useState({
     strategy: responses.strategy || 'integrated_inverters',
   });
@@ -118,7 +119,7 @@ export default function EmergencySection({ responses, projectData, onSaveRespons
         </p>
         <div className="space-y-2">
           {STRATEGIES.map(opt => {
-            const est        = calcEmergency(opt.value, corridorSf, intSf, garageSf);
+            const est        = calcEmergency(P, opt.value, corridorSf, intSf, garageSf);
             const isSelected = answers.strategy === opt.value;
             return (
               <label

@@ -3,10 +3,12 @@ import { useState } from 'react';
 import Button from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/calculations';
+import { PRICING } from '@/lib/pricing';
 
 const INT_RATES = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 
-export default function AmenitiesSection({ responses, projectData, onSaveResponses, onNext, onPrev }) {
+export default function AmenitiesSection({ responses, projectData, pricing, onSaveResponses, onNext, onPrev }) {
+  const P = pricing || PRICING;
   const [answers, setAnswers] = useState({
     interiorLevel: responses.interiorLevel || '10',
   });
@@ -14,8 +16,12 @@ export default function AmenitiesSection({ responses, projectData, onSaveRespons
 
   const intSf    = Number(projectData?.interiorAmenitySf) || 0;
   const selected = answers.interiorLevel;
-  // Map legacy named levels to their $/SF rate (matches the engine: low 6 / medium 10 / high 15).
-  const NAMED_RATES = { low: 6, medium: 10, high: 15 };
+  // Map legacy named levels to their $/SF rate from master pricing (matches the engine).
+  const NAMED_RATES = {
+    low:    P.interiorAmenities?.low    ?? 6,
+    medium: P.interiorAmenities?.medium ?? 10,
+    high:   P.interiorAmenities?.high   ?? 15,
+  };
   const selectedRate = NAMED_RATES[selected] ?? (Number(selected) || 0);
 
   async function handleNext() {
