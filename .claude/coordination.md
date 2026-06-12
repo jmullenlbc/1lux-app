@@ -8,7 +8,7 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 - **Notifications:** ACTIVE in production (NOTIFY_DRY_RUN=false).
 - **Coordination tooling:** four project-scoped slash commands available (`/sean`, `/mike`, `/coord`, `/log` — see `.claude/commands/`).
 - **Sean:** math test harness at `_tests/budget-math.mjs` + calibration script `_tests/calibrate-conceptual.mjs` (both gitignored). Calibration run against 4 real spreadsheets (2 conceptual, 2 Full Design) on 2026-05-27 AM with Mason's review — engine matches within 1-2% on conceptuals; explainable patterns on Full Design. Two math changes still queued (Q1 energy credit refactor, Q3 exit signs sum extension — Q3 needs stairwell-SF clarification).
-- **Mike:** Drawing-tool sprint live in production. Most recent work: defensive-guard sweep across pages and routes (commits `d4070a1` through `9e706e6`) to prevent crashes from missing schema models (KB, master types, client standards) — extends Sean's `0eda6d1` pattern.
+- **Mike:** Conceptual-budget + CRM sprint live. Most recent (2026-06-12): **all wizard sections (conceptual AND design) now read pricing from Master Pricing** (`/admin/pricing` → SystemConfig DB, the `pricing` prop) instead of hardcoded constants — engine + UI previews read one source and can no longer drift. Also: exterior section restructured, CRM Batch 1+2 (unified Rules tab, sales dashboards). Commits through `10cf3a1`.
 
 ## Open questions for Mike (when convenient)
 
@@ -24,6 +24,15 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 7. **`designUpgrades` defined-but-unused constants** (`dimmerCostEach`, `entryDecorative`, `diskSevenInch`, `fanSize52Adder`, `closetOccSensor`) — Q4 above was "WIP, leave alone" but Mason's "engine too low" comment suggests these should be wired into `calculateBudget`. ~$19K of expected charges per Link+Pin alone aren't being applied. **Mike: revise the Q4 answer — wire them up, or keep WIP?**
 
 ## Log
+
+### 2026-06-12 — Mike's Claude (Master Pricing wiring + conceptual budget debugging)
+
+**Heads-up for Sean — this touches the calibration/pricing area:**
+- **All wizard sections now read from Master Pricing — single source of truth.** Both conceptual sections (Units, Corridors, Amenities, Exterior, Emergency, Controls) and the separate design sections (`sections/design/Design*`) were hardcoding pricing constants while the engine read `loadPricing()`. Threaded the loaded `pricing` object (already used by `calculateBudget`) into every section via shared props; each now reads costs from it (static `pricing.js` kept as fallback). UI previews and the engine can no longer diverge — editing `/admin/pricing` updates both. Commits through `10cf3a1`.
+- **Fixed live UI/engine divergences found via a full UI-vs-engine sweep across all 23 projects** (the previews had drifted from the engine): door-sconce odd-count formula, corridor accent **$160→$120**, corridor disk default **0.25→0.27**, interior-amenity legacy named levels showing **$NaN** (8 projects), undercabinet **$90→$125**, kitchen pendant **$40/$120→$50/$150** (Mike updated this in Master Pricing), vanity `illuminatedMirrorLow` **$0→$130**. Exterior also had a UI-only hidden landscape line (engine computes lot-SF×2%) — UI now shows it.
+- **Re Q6 (vanity net/gross):** now a one-edit decision — both UI and engine read the vanity product values straight from Master Pricing, so whatever Mike sets there flows everywhere. No code change needed to switch net↔gross.
+- **Re Q7 (designUpgrades):** entry-disk / boiler / 52"-fan adders (which the engine DOES charge) now read from master. Dimmers + 7" disk left unwired per the Q4 "leave alone" answer — flagging that the UI still shows dimmer/disk7 cost hints the engine doesn't charge.
+- **Exit signs:** Mike confirmed the `0.025/SF` rate + 300K-SF halving is **correct as-is** — Sean's `f7a45e8` halving + its regression test stay. (Engine left untouched.)
 
 ### 2026-06-11 — Sean's Claude (capturing yesterday's 2026-06-10 Mike/Jason/Sean planning meeting)
 
