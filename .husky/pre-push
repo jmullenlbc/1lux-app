@@ -22,6 +22,12 @@ node scripts/check-dynamic-pages.js
 #    Catches Sunday's layers 2 and 3.
 node scripts/check-migrations-postgres.js
 
+# 2b. Every model in schema.prisma must have a migration that creates
+#     its table. Catches the "added the model, ran prisma db push
+#     locally, forgot to generate a migration" pattern that crashed
+#     deploys 134 → 143 with P2021 "table does not exist".
+node scripts/check-schema-migrations-sync.js
+
 # 3. Math regression suite — budget math + fuzz + bid matrix logic.
 #    ~15-20s. Catches engine regressions before they hit prod.
 npm test --silent

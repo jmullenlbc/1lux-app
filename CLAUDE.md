@@ -106,9 +106,10 @@ A Husky pre-push hook (`.husky/pre-push`) runs on every `git push`. It executes:
 
 1. `check-dynamic-pages.js` — every `(app)/` page has `force-dynamic`
 2. `check-migrations-postgres.js` — every migration is Postgres-compatible (including forward-FK ordering)
-3. `npm test` — math regression suite (38 scenario + ~112K fuzz + 12 bid-matrix checks)
-4. `check-secrets.js` — scans the diff for accidentally committed API keys / tokens
-5. `check-push-size.js` — non-blocking heads-up if pushing > 50 files
+3. `check-schema-migrations-sync.js` — every `model X` in `schema.prisma` has a matching `CREATE TABLE "X"` in some migration (catches the "ran prisma db push locally and forgot to generate a migration" pattern)
+4. `npm test` — math regression suite (38 scenario + ~112K fuzz + 12 bid-matrix checks)
+5. `check-secrets.js` — scans the diff for accidentally committed API keys / tokens
+6. `check-push-size.js` — non-blocking heads-up if pushing > 50 files
 
 Total wall-clock: ~20-30 seconds. Catches almost every class of bug that's bitten this project's deploys.
 

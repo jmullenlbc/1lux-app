@@ -10,6 +10,11 @@ frontend:
         # (DATETIME / BOOLEAN DEFAULT 0/1 / AUTOINCREMENT — would crash
         # `prisma migrate deploy` against PostgreSQL further down)
         - node scripts/check-migrations-postgres.js
+        # ── Safety: block deploy if any schema model has no migration ──────
+        # that creates its table. Without this, prisma.<model>.* calls in
+        # production crash with P2021 even though the Prisma client exposes
+        # the methods (Mike's June 9 BugReport + RoadmapPriority pattern).
+        - node scripts/check-schema-migrations-sync.js
         # ── Generate deploy history log (git log → deploy-log.json) ─────────
         - node scripts/generate-deploy-log.js
         # ── Schema provider patch ────────────────────────────────────────────
