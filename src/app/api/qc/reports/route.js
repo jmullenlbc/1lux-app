@@ -26,65 +26,92 @@ export async function POST(request) {
 
   if (!title?.trim()) return NextResponse.json({ error: 'Title required' }, { status: 400 });
 
-  let screenshotKey = null;
-  const screenshot = formData.get('screenshot');
-  if (screenshot && screenshot.size > 0) {
-    const buf = Buffer.from(await screenshot.arrayBuffer());
-    screenshotKey = await putQcObject(buf, { ext: 'png' });
-  }
+  // Big try/catch around the side-effectful steps so the modal client gets a
+  // useful error message instead of a bare 500. The S3 PutObject and the
+  // Prisma create are the two known failure points; surfacing the AWS / DB
+  // error verbatim is what unblocked the iteration loop the last time the
+  // S3 path silently broke. Internal admin tool — message leak is fine.
+  try {
+    let screenshotKey = null;
+    const screenshot = formData.get('screenshot');
+    if (screenshot && screenshot.size > 0) {
+      const buf = Buffer.from(await screenshot.arrayBuffer());
+      try {
+        screenshotKey = await putQcObject(buf, { ext: 'png' });
+      } catch (e) {
+        console.error('[api/qc/reports] putQcObject failed:', e?.name, e?.message, e?.$metadata);
+        return NextResponse.json({
+          error: 'Screenshot upload failed',
+          stage: 'putQcObject',
+          name:  e?.name ?? null,
+          message: e?.message ?? String(e),
+          httpStatusCode: e?.$metadata?.httpStatusCode ?? null,
+        }, { status: 500 });
+      }
+    }
 
-  const report = await prisma.bugReport.create({
-    data: {
-      title:         title.trim(),
-      description:   description?.trim() || '',
-      status:        'NEW',
-      severity:      (severity || 'MAJOR').toUpperCase(),
-      module:        bugModule || null,
-      pageUrl:       pageUrl || null,
-      projectId:     projectId || null,
-      expectedText:  expectedText?.trim() || null,
-      actualText:    actualText?.trim() || null,
-      screenshotKey,
-      consoleJson:   consoleJson  || '[]',
-      networkJson:   networkJson  || '[]',
-      pageStateJson: pageStateJson || null,
-      browserInfo:   browserInfo  || null,
-      viewport:      viewport     || null,
-      reporterId:    user.id,
-    },
-    include: {
-      reporter: { select: { id: true, name: true, email: true } },
-      assignee: { select: { id: true, name: true, email: true } },
-    },
-  });
-
-  // Blocker alert → notify all super admins
-  if (report.severity === 'BLOCKER') {
-    const admins = await prisma.user.findMany({
-      where: { role: { in: ['ILC_ADMIN', 'SUPER_ADMIN'] }, isActive: true },
-      select: { id: true },
+    const report = await prisma.bugReport.create({
+      data: {
+        title:         title.trim(),
+        description:   description?.trim() || '',
+        status:        'NEW',
+        severity:      (severity || 'MAJOR').toUpperCase(),
+        module:        bugModule || null,
+        pageUrl:       pageUrl || null,
+        projectId:     projectId || null,
+        expectedText:  expectedText?.trim() || null,
+        actualText:    actualText?.trim() || null,
+        screenshotKey,
+        consoleJson:   consoleJson  || '[]',
+        networkJson:   networkJson  || '[]',
+        pageStateJson: pageStateJson || null,
+        browserInfo:   browserInfo  || null,
+        viewport:      viewport     || null,
+        reporterId:    user.id,
+      },
+      include: {
+        reporter: { select: { id: true, name: true, email: true } },
+        assignee: { select: { id: true, name: true, email: true } },
+      },
     });
-    await Promise.all(admins.map(a =>
-      prisma.userAlert.create({
-        data: {
-          userId:    a.id,
-          type:      'BUG_BLOCKER',
-          title:     `Blocker: ${title.trim()}`,
-          message:   `${user.name || user.email} — ${bugModule || 'app'}`,
-          link:      `/admin/tasks?tab=bugs&focus=${report.id}`,
-          dedupeKey: `bug-blocker-${report.id}-${a.id}`,
-        },
-      }).catch(() => {})
-    ));
-  }
 
-  return NextResponse.json({
-    ...report,
-    consoleJson:   JSON.parse(report.consoleJson),
-    networkJson:   JSON.parse(report.networkJson),
-    pageStateJson: report.pageStateJson ? JSON.parse(report.pageStateJson) : null,
-    screenshotUrl: report.screenshotKey ? await getQcObjectUrl(report.screenshotKey) : null,
-  }, { status: 201 });
+    // Blocker alert → notify all super admins
+    if (report.severity === 'BLOCKER') {
+      const admins = await prisma.user.findMany({
+        where: { role: { in: ['ILC_ADMIN', 'SUPER_ADMIN'] }, isActive: true },
+        select: { id: true },
+      });
+      await Promise.all(admins.map(a =>
+        prisma.userAlert.create({
+          data: {
+            userId:    a.id,
+            type:      'BUG_BLOCKER',
+            title:     `Blocker: ${title.trim()}`,
+            message:   `${user.name || user.email} — ${bugModule || 'app'}`,
+            link:      `/admin/tasks?tab=bugs&focus=${report.id}`,
+            dedupeKey: `bug-blocker-${report.id}-${a.id}`,
+          },
+        }).catch(() => {})
+      ));
+    }
+
+    return NextResponse.json({
+      ...report,
+      consoleJson:   JSON.parse(report.consoleJson),
+      networkJson:   JSON.parse(report.networkJson),
+      pageStateJson: report.pageStateJson ? JSON.parse(report.pageStateJson) : null,
+      screenshotUrl: report.screenshotKey ? await getQcObjectUrl(report.screenshotKey) : null,
+    }, { status: 201 });
+  } catch (e) {
+    console.error('[api/qc/reports] POST failed:', e?.name, e?.message, e?.stack);
+    return NextResponse.json({
+      error:   'Bug report create failed',
+      stage:   'bugReport.create',
+      name:    e?.name ?? null,
+      message: e?.message ?? String(e),
+      code:    e?.code ?? null,
+    }, { status: 500 });
+  }
 }
 
 export async function GET(request) {
