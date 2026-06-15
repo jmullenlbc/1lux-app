@@ -20,6 +20,19 @@ const nextConfig = {
           // back to the ephemeral Lambda filesystem and disappear immediately.
           S3_BUCKET:           process.env.S3_BUCKET,
           S3_REGION:           process.env.S3_REGION,
+          // S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY: same trap, second layer.
+          // Amplify Hosting Gen 1 does NOT propagate console-set env vars to
+          // the SSR Lambda runtime — they're available at build time only.
+          // Confirmed empirically: with both set in the Amplify console but
+          // not in this env block, the Lambda saw process.env.S3_ACCESS_KEY_ID
+          // as undefined and the AWS SDK threw CredentialsProviderError. So we
+          // bake them in here. They end up in the server bundle (never sent to
+          // the browser), and the IAM user backing them is scoped to PutObject/
+          // GetObject/DeleteObject on the ilc-qc-media bucket only — minimal
+          // blast radius if the bundle is ever exposed. Swap to a proper SSR
+          // compute role during the security pass and delete this block.
+          S3_ACCESS_KEY_ID:     process.env.S3_ACCESS_KEY_ID,
+          S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY,
     },
     experimental: {
           serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs', 'xlsx', '@napi-rs/canvas', 'tesseract.js', 'pdfjs-dist', 'pdf-parse', '@anthropic-ai/sdk', '@aws-sdk/client-s3', '@aws-sdk/s3-request-presigner'],
