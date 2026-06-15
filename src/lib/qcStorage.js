@@ -52,10 +52,35 @@ function getLocalUrl(key) {
 
 // ── Prod: S3 ─────────────────────────────────────────────────────────────────
 
+// The Amplify SSR Lambda runs without a usable IAM identity (the SDK
+// returned CredentialsProviderError: "Could not load credentials from any
+// providers" on first attempt), so we pass an explicit access key from
+// env vars instead of relying on the default credential chain.
+//
+// S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY are deliberately NOT AWS_-
+// prefixed because AWS reserves the AWS_* env var namespace in Lambda
+// execution environments — setting AWS_ACCESS_KEY_ID there is blocked
+// or silently ignored.
+//
+// If both env vars are absent, we fall back to the default chain — that's
+// the path that works once a proper SSR compute role is set up (planned
+// for the security pass).
+function s3Client() {
+  const region = process.env.S3_REGION || 'us-east-2';
+  const id     = process.env.S3_ACCESS_KEY_ID;
+  const secret = process.env.S3_SECRET_ACCESS_KEY;
+  if (id && secret) {
+    return new S3Client({
+      region,
+      credentials: { accessKeyId: id, secretAccessKey: secret },
+    });
+  }
+  return new S3Client({ region });
+}
+
 async function putS3(buffer, { ext = 'png', contentType = 'image/png' } = {}) {
   const key = `qc/${createId()}.${ext}`;
-  const client = new S3Client({ region: process.env.S3_REGION || 'us-east-2' });
-  await client.send(new PutObjectCommand({
+  await s3Client().send(new PutObjectCommand({
     Bucket:      process.env.S3_BUCKET,
     Key:         key,
     Body:        buffer,
@@ -65,8 +90,7 @@ async function putS3(buffer, { ext = 'png', contentType = 'image/png' } = {}) {
 }
 
 async function getS3Url(key) {
-  const client = new S3Client({ region: process.env.S3_REGION || 'us-east-2' });
-  return getSignedUrl(client, new GetObjectCommand({
+  return getSignedUrl(s3Client(), new GetObjectCommand({
     Bucket: process.env.S3_BUCKET,
     Key:    key,
   }), { expiresIn: 900 }); // 15 minutes
