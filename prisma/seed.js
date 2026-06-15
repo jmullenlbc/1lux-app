@@ -7,8 +7,9 @@ const { seedProposalDefaults } = require('./seeds/proposalDefaults');
 const prisma = new PrismaClient();
 
 const ADMINS = [
-  { email: 'admin@ilcstudios.com', name: 'ILC Admin',    password: 'ILCadmin2024!'    },
-  { email: 'mike@ilcstudios.com',  name: 'Mike Kershner', password: 'ILCstudios2024!' },
+  { email: 'admin@ilcstudios.com',      name: 'ILC Admin',    password: 'ILCadmin2024!'    },
+  { email: 'mike@ilcstudios.com',       name: 'Mike Kershner', password: 'ILCstudios2024!' },
+  { email: 'operations@ilcstudios.com', name: 'Sean Bothe',    password: 'TempChangeMe2026!' },
 ];
 
 // ── Knowledge Base categories ─────────────────────────────────────────────────
