@@ -60,6 +60,10 @@ Production: PostgreSQL connection string set in Amplify environment variables.
 
 `ANTHROPIC_API_KEY` and `JWT_SECRET` are intentionally **not** in the `env` block — they stay server-only runtime secrets.
 
+**Bigger trap (learned the hard way on 2026-06-15):** Amplify Hosting Gen 1 does **not** propagate console-set environment variables to the SSR Lambda runtime. They're available during the build, and nowhere else. Any env var your server code needs at runtime — DB URLs, AWS credentials, third-party API keys you read inside `src/lib/*` modules — must be listed in `next.config.mjs`'s `env` block so webpack DefinePlugin bakes the value into the bundle. The S3 access key + secret for the QC bug tracker (commit `d0c8d8c`) are there for this reason. Empirically confirmed: with `S3_ACCESS_KEY_ID` set in the Amplify console but not in this env block, the running Lambda saw `process.env.S3_ACCESS_KEY_ID` as undefined.
+
+The trade-off is that the bundle carries the value; it's never sent to the browser, but it does live in the Amplify build artifact and in CloudWatch logs if errors leak it. For high-risk secrets, swap to a proper IAM role on the SSR compute (handled in the security pass) and the env-block lines can come out.
+
 ### Auth Pattern
 
 Every API route calls `requireAuth(request)` (or `requireAdmin`/`requireSuperAdmin`) at the top:

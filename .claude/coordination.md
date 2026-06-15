@@ -25,6 +25,21 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Log
 
+### 2026-06-15 — Sean's Claude (QC bug tracker S3 end-to-end working + new env-var trap documented)
+
+**QC bug tracker is fully wired to S3 in production.** A bug report with screenshot saved through `/api/qc/reports`, got a valid `screenshotKey` in the DB, and the presigned URL renders the image from `ilc-qc-media.s3.us-east-2.amazonaws.com`. Multi-layer fix:
+1. `cca63cc` — qcStorage prod/dev split, AWS SDK in `serverComponentsExternalPackages`
+2. `f1d40d8` — `S3_BUCKET` / `S3_REGION` added to `next.config.mjs` env block (Lambda was seeing them as undefined)
+3. `c6d7dfc` — static AWS SDK imports + `getQcObjectUrl` swallows errors (one bad screenshotKey was crashing the whole `/admin/tasks` page)
+4. `6074941` + `cf29dcd` — `/api/qc/reports` POST now returns the underlying AWS / Prisma error with an env-var presence `diag` block (made the iteration loop tight)
+5. `d0c8d8c` — `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` also baked into env block (see trap below)
+
+**New trap caught + documented in CLAUDE.md "Critical: Amplify Lambda + DATABASE_URL" section:** Amplify Hosting Gen 1 does NOT propagate console-set environment variables to the SSR Lambda runtime. They exist during the build, and nowhere else. Anything `src/lib/*` needs at runtime — DB URLs, AWS creds, third-party API keys — must be in `next.config.mjs`'s `env` block. Empirically confirmed via the diag block: with the S3 keys in the Amplify console but not in `next.config.mjs`, `process.env.S3_ACCESS_KEY_ID` was undefined inside the running Lambda.
+
+**Implication for the security pass on the existing parked items (`ANTHROPIC_API_KEY`, `JWT_SECRET`):** If those were ever set only in the Amplify console expecting runtime access, they may not actually be reaching the Lambda either — worth verifying before/during the security pass. (Not fixing now per Sean's "security later" stance.)
+
+**IAM identity backing the QC uploads:** new IAM user `ilc-amplify-s3` with policy `ilc-qc-media-rw` scoped to PutObject/GetObject/DeleteObject on the `ilc-qc-media` bucket only. Access key is rotated (first one had a paste glitch causing SignatureDoesNotMatch). During the security pass, swap to a proper SSR compute role: delete the two `S3_*KEY*` lines from `next.config.mjs`, delete the env vars from Amplify console, delete the IAM user. The `s3Client()` fallback in `src/lib/qcStorage.js` will pick up role-based creds via the default chain.
+
 ### 2026-06-12 — Mike's Claude (Master Pricing wiring + conceptual budget debugging)
 
 **Heads-up for Sean — this touches the calibration/pricing area:**
