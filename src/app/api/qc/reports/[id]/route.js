@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { getQcObjectUrl } from '@/lib/qcStorage';
+import { getQcObjectUrl, deleteQcObject } from '@/lib/qcStorage';
 
 function isSuperAdmin(user) {
   return ['SUPER_ADMIN', 'ILC_ADMIN'].includes(user.role);
@@ -49,4 +49,25 @@ export async function PATCH(request, { params }) {
   });
 
   return NextResponse.json(await serialize(report));
+}
+
+export async function DELETE(request, { params }) {
+  const { user, error } = await requireAuth(request);
+  if (error) return error;
+  if (!isSuperAdmin(user)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  const existing = await prisma.bugReport.findUnique({
+    where:  { id: params.id },
+    select: { id: true, screenshotKey: true, recordingKey: true },
+  });
+  if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  // Best-effort S3 cleanup before the DB delete. deleteQcObject never throws,
+  // so an orphan blob doesn't block removing the row from the board.
+  if (existing.screenshotKey) await deleteQcObject(existing.screenshotKey);
+  if (existing.recordingKey)  await deleteQcObject(existing.recordingKey);
+
+  await prisma.bugReport.delete({ where: { id: params.id } });
+
+  return NextResponse.json({ ok: true });
 }

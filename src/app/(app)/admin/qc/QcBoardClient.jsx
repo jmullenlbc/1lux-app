@@ -102,6 +102,23 @@ export default function QcBoardClient({ reports: initial, users, currentUser, fo
     }
   }
 
+  async function deleteReport(id, title) {
+    if (!window.confirm(`Delete "${title}"?\n\nThis removes the report and its screenshot permanently.`)) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/qc/reports/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        alert(body?.error || 'Delete failed');
+        return;
+      }
+      setReports(prev => prev.filter(r => r.id !== id));
+      closeDrawer();
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const byStatus = s => reports.filter(r => r.status === s);
   const counts   = Object.fromEntries(STATUSES.map(s => [s, byStatus(s).length]));
 
@@ -332,6 +349,17 @@ export default function QcBoardClient({ reports: initial, users, currentUser, fo
                 </div>
               </>
             )}
+
+            {/* Delete */}
+            <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end">
+              <button
+                onClick={() => deleteReport(active.id, active.title)}
+                disabled={saving}
+                className="text-xs text-slate-400 hover:text-red-600 hover:underline disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Delete report
+              </button>
+            </div>
 
           </div>
         )}

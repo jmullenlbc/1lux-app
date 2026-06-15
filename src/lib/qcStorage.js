@@ -23,7 +23,7 @@ import path from 'path';
 // via require() at runtime, not bundled — but importing them statically
 // at the top of this file is more reliable than dynamic await import(),
 // which has bitten us on Amplify SSR.
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 // Evaluated per call (not at module-load) so a stale bundler-inlined value
@@ -113,5 +113,29 @@ export async function getQcObjectUrl(key) {
   } catch (err) {
     console.error('[qcStorage] getQcObjectUrl failed for key', key, err?.message ?? err);
     return null;
+  }
+}
+
+// Best-effort delete — returns true on success, false on failure. We don't
+// throw because deleting the underlying DB row is the user-visible outcome;
+// an orphan blob in S3 is harmless and we'd rather not block the row delete
+// on an S3 hiccup.
+export async function deleteQcObject(key) {
+  if (!key) return true;
+  try {
+    if (isProd()) {
+      await s3Client().send(new DeleteObjectCommand({
+        Bucket: process.env.S3_BUCKET,
+        Key:    key,
+      }));
+    } else {
+      const filename = key.replace(/^qc\//, '');
+      const file = path.join(process.cwd(), 'uploads', 'qc', filename);
+      if (fs.existsSync(file)) fs.unlinkSync(file);
+    }
+    return true;
+  } catch (err) {
+    console.error('[qcStorage] deleteQcObject failed for key', key, err?.message ?? err);
+    return false;
   }
 }
