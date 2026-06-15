@@ -5,6 +5,18 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Session 36 — Notification management] · June 12, 2026
+
+### Added
+- **Delete individual notifications** — trash-can icon on each notification in the sidebar bell dropdown. New `DELETE /api/alerts` (body `{ ids: [...] }`), scoped to the current user (`userId`) so you can only delete your own. Optimistic UI with restore-on-failure.
+- **Mark individual as read** — already supported under the "Dismiss" label; relabeled to **"Mark read"** for clarity. ("Mark all read" unchanged.)
+- The in-app bell lives in `Sidebar.jsx`.
+
+### Removed
+- **Deleted `src/components/layout/Navbar.jsx`** — dead code. It held a duplicate (and already-drifted) copy of the notification bell but was imported nowhere; the app layout renders `Sidebar`. Verified no references before removing.
+
+---
+
 ## [Session 35 — Conceptual Budget Fixes (Broadstone reconciliation)] · June 11, 2026
 
 ### Changed

@@ -38,3 +38,20 @@ export async function PATCH(request) {
 
   return NextResponse.json({ ok: true });
 }
+
+// DELETE /api/alerts — permanently delete the user's alerts
+// Body: { ids: string[] } (only deletes alerts owned by the current user)
+export async function DELETE(request) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const body = await request.json().catch(() => ({}));
+
+  if (Array.isArray(body.ids) && body.ids.length > 0) {
+    await prisma.userAlert.deleteMany({
+      where: { userId: session.id, id: { in: body.ids } },
+    });
+  }
+
+  return NextResponse.json({ ok: true });
+}
