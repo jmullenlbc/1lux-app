@@ -46,6 +46,14 @@ export async function POST(request) {
           name:  e?.name ?? null,
           message: e?.message ?? String(e),
           httpStatusCode: e?.$metadata?.httpStatusCode ?? null,
+          // Diagnostic: which env vars does the Lambda actually see?
+          // Reports only presence, not values, so this is safe to ship.
+          diag: {
+            hasBucket:    !!process.env.S3_BUCKET,
+            hasRegion:    !!process.env.S3_REGION,
+            hasAccessKey: !!process.env.S3_ACCESS_KEY_ID,
+            hasSecret:    !!process.env.S3_SECRET_ACCESS_KEY,
+          },
         }, { status: 500 });
       }
     }
