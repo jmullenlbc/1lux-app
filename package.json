@@ -20,6 +20,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",
+    "@aws-sdk/client-s3": "^3.1069.0",
+    "@aws-sdk/s3-request-presigner": "^3.1069.0",
     "@napi-rs/canvas": "^0.1.100",
     "@paralleldrive/cuid2": "^3.3.0",
     "@prisma/client": "^5.22.0",
