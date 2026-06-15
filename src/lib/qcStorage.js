@@ -13,7 +13,11 @@ import { createId } from '@paralleldrive/cuid2';
 import fs from 'fs';
 import path from 'path';
 
-const IS_PROD = !!process.env.S3_BUCKET;
+// Evaluated per call (not at module-load) so a stale bundler-inlined value
+// can't pin us to the wrong branch for the lifetime of a Lambda warm pool.
+function isProd() {
+  return !!process.env.S3_BUCKET;
+}
 
 // ── Dev: local filesystem ────────────────────────────────────────────────────
 
@@ -61,9 +65,9 @@ async function getS3Url(key) {
 // ── Public API ───────────────────────────────────────────────────────────────
 
 export async function putQcObject(buffer, opts = {}) {
-  return IS_PROD ? putS3(buffer, opts) : putLocal(buffer, opts);
+  return isProd() ? putS3(buffer, opts) : putLocal(buffer, opts);
 }
 
 export async function getQcObjectUrl(key) {
-  return IS_PROD ? getS3Url(key) : getLocalUrl(key);
+  return isProd() ? getS3Url(key) : getLocalUrl(key);
 }

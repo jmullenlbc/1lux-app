@@ -11,8 +11,15 @@ const nextConfig = {
     // ANTHROPIC_API_KEY and JWT_SECRET are intentionally NOT here — those stay
     // server-only and are read from process.env at runtime by the Lambda.
     env: {
-          DATABASE_URL:       process.env.DATABASE_URL,
+          DATABASE_URL:        process.env.DATABASE_URL,
           NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+          // S3_BUCKET / S3_REGION must be baked in here for the same reason as
+          // DATABASE_URL: src/lib/qcStorage.js is webpack-bundled, so without
+          // these in the env block, process.env.S3_BUCKET inlines as undefined
+          // and the prod code path (putS3) never runs — uploads silently fall
+          // back to the ephemeral Lambda filesystem and disappear immediately.
+          S3_BUCKET:           process.env.S3_BUCKET,
+          S3_REGION:           process.env.S3_REGION,
     },
     experimental: {
           serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs', 'xlsx', '@napi-rs/canvas', 'tesseract.js', 'pdfjs-dist', 'pdf-parse', '@anthropic-ai/sdk', '@aws-sdk/client-s3', '@aws-sdk/s3-request-presigner'],
