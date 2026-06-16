@@ -294,9 +294,11 @@ const th = calculateBudget({ ...baselinePD, buildingTypeKey: 'townHouses'   }, {
 assert(sf.controls === 0, 'singleFamily produces $0 controls (rate is 0)');
 assert(th.controls === 0, 'townHouses produces $0 controls (rate is 0)');
 
-// Verify midRise cap is respected at very large grossSf
+// Verify the universal controls cap ($180K) is respected at very large grossSf.
+// (Per the Link+Pin sheet: "controls should never be over $180K". Replaced the old
+// per-building-type caps with a single $180K cap — coordinate with Sean.)
 const huge = calculateBudget({ ...baselinePD, grossSf: 5000000, buildingTypeKey: 'midRise' }, {});
-assert(huge.controls === 175000, 'midRise controls capped at $175,000 even at 5M SF');
+assert(huge.controls === 180000, 'controls capped at the universal $180,000 even at 5M SF');
 
 // ───────────────────────────────────────────────────────────────────────────
 // Scenario 8: Sales tax = 0 sanity
@@ -350,15 +352,15 @@ const stdGarage   = calculateBudget(baselinePD, { corridors: { garageDesignLevel
 const enhGarage   = calculateBudget(baselinePD, { corridors: { garageDesignLevel: 'enhanced'  } });
 
 const plainGarageVal = plainGarage.sections.garage.product;       // $0.27/SF
-const expectedStd    = 20000 * 0.30;                              // standard $0.30/SF
-const expectedEnh    = 20000 * 0.45;                              // enhanced $0.45/SF
+const expectedStd    = 20000 * 0.20;                              // standard $0.20/SF (Link+Pin sheet)
+const expectedEnh    = 20000 * 0.25;                              // enhanced $0.25/SF (Link+Pin sheet)
 const stdNetAdder    = stdGarage.sections.designAdder.product;
 const enhNetAdder    = enhGarage.sections.designAdder.product;
 
 console.log(`  garage SF: 20,000`);
 console.log(`  plain garage product (0.27/SF):       ${$(plainGarageVal)}`);
-console.log(`  expected standard (0.30/SF):          ${$(expectedStd)}`);
-console.log(`  expected enhanced (0.45/SF):          ${$(expectedEnh)}`);
+console.log(`  expected standard (0.20/SF):          ${$(expectedStd)}`);
+console.log(`  expected enhanced (0.25/SF):          ${$(expectedEnh)}`);
 console.log(`  standard design adder delta:          ${$(stdNetAdder)} (should be ${$(expectedStd - plainGarageVal)})`);
 console.log(`  enhanced design adder delta:          ${$(enhNetAdder)} (should be ${$(expectedEnh - plainGarageVal)})`);
 

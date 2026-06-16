@@ -1,17 +1,31 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { PROJECT_TYPES } from '@/lib/standards-questions';
+import { PROJECT_TYPES, SECTION_COLOR_MAP } from '@/lib/standards-questions';
+import { PLAYBOOK_CONTENT } from '@/lib/playbookContent';
+import PlaybookContent from '@/components/PlaybookContent';
 
 // ── Section config ─────────────────────────────────────────────────────────────
+// UI mirrors the Standards tab: icon + color chip per section (no numbering).
+// `shell: true` sections are placeholders we build out later.
 
 const SECTIONS = [
-  { id: 'scope',   label: '1 · Scope & Relationships', totalFields: 4 },
-  { id: 'process', label: '2 · General Process',       totalFields: 3 },
+  { id: 'scope',      label: 'Scope & Relationships', icon: '🤝', color: 'blue',   totalFields: 4 },
+  { id: 'approvals',  label: 'Approvals',             icon: '✅', color: 'green',  shell: true },
+  { id: 'process',    label: 'Process',               icon: '🔄', color: 'violet', totalFields: 3 },
+  { id: 'timeframes', label: 'Expected Timeframes',   icon: '⏱️', color: 'indigo', shell: true },
+  { id: 'precon',     label: 'Pre-con + Bidding',     icon: '📐', color: 'amber',  shell: true },
+  { id: 'buyout',     label: 'Buyout + Ordering',     icon: '📦', color: 'orange', shell: true },
+  { id: 'rfis',       label: "RFI's + Change Orders", icon: '📝', color: 'rose',   shell: true },
 ];
 
 const SECTION_DESCS = {
-  scope:   'Who the client is, what they build, and their primary contact.',
-  process: 'How this client operates day-to-day — procurement flow, tools, and working style.',
+  scope:      'Who the client is, what they build, and their primary contact.',
+  approvals:  'Who signs off, at which stages, and how approvals are documented.',
+  process:    'How this client operates day-to-day — procurement flow, tools, and working style.',
+  timeframes: 'Lead times, budget cadence, and turnaround expectations.',
+  precon:     'How we work through pre-construction and the bidding phase.',
+  buyout:     'Buyout, ordering, and procurement handoff expectations.',
+  rfis:       'How RFIs and change orders are submitted, tracked, and resolved.',
 };
 
 // ── Option sets ────────────────────────────────────────────────────────────────
@@ -339,7 +353,7 @@ function ProcessSection({ data, onChange }) {
 
 // ── Main PlaybookTab ──────────────────────────────────────────────────────────
 
-export default function PlaybookTab({ clientId, contacts = [], canEdit = false }) {
+export default function PlaybookTab({ clientId, clientName = '', contacts = [], canEdit = false }) {
   const [activeSection, setActiveSection] = useState('scope');
   const [saveState,     setSaveState]     = useState('idle');
   const debounceRef = useRef({});
@@ -422,20 +436,13 @@ export default function PlaybookTab({ clientId, contacts = [], canEdit = false }
   const filledProcess = countFilled(process, ['coTolerance', 'mgmtStructure', 'hasDesignTeam']);
 
   const completionMap = {
-    scope:   { filled: filledScope,   total: SECTIONS[0].totalFields },
-    process: { filled: filledProcess, total: SECTIONS[1].totalFields },
+    scope:   { filled: filledScope,   total: 4 },
+    process: { filled: filledProcess, total: 3 },
   };
 
   const totalFilled = filledScope + filledProcess;
-  const totalFields = SECTIONS.reduce((s, c) => s + c.totalFields, 0);
+  const totalFields = SECTIONS.reduce((s, c) => s + (c.totalFields || 0), 0);
   const pct         = totalFields > 0 ? Math.round((totalFilled / totalFields) * 100) : 0;
-
-  function badgeClasses(id) {
-    const { filled, total } = completionMap[id];
-    if (filled === 0) return 'bg-slate-100 text-slate-400';
-    if (filled >= total) return 'bg-green-100 text-green-700';
-    return 'bg-amber-100 text-amber-700';
-  }
 
   // ── Loading state ─────────────────────────────────────────────────────────
   if (!loaded) {
@@ -452,56 +459,87 @@ export default function PlaybookTab({ clientId, contacts = [], canEdit = false }
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="flex gap-0 min-h-[600px]">
+    <div className="flex gap-6 min-h-[600px]">
 
-      {/* Left section nav */}
-      <div className="w-56 shrink-0 border-r border-slate-100 pr-4 py-2">
-        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 px-1">Playbook sections</div>
+      {/* Left section nav — mirrors the Standards tab */}
+      <div className="w-56 shrink-0">
+        {/* Overall progress */}
+        <div className="mb-4 p-3 rounded-xl bg-white border border-slate-200">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Playbook</span>
+            <span className="text-xs font-bold text-slate-700">{pct}%</span>
+          </div>
+          <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
+            <div className="h-full rounded-full bg-amber-400 transition-all duration-300" style={{ width: `${pct}%` }} />
+          </div>
+          <p className="text-[10px] text-slate-400 mt-1.5">{totalFilled} of {totalFields} fields filled</p>
+        </div>
+
         <nav className="space-y-0.5">
           {SECTIONS.map(s => {
-            const { filled, total } = completionMap[s.id];
+            const c        = SECTION_COLOR_MAP[s.color] || SECTION_COLOR_MAP.slate;
             const isActive = activeSection === s.id;
+            const comp     = completionMap[s.id];
             return (
               <button key={s.id} type="button" onClick={() => setActiveSection(s.id)}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors text-left ${
-                  isActive ? 'bg-amber-50 text-amber-700' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                }`}>
-                <span className="truncate">{s.label}</span>
-                <span className={`ml-2 shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${badgeClasses(s.id)}`}>
-                  {filled}/{total}
-                </span>
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left text-xs font-medium transition-colors ${
+                  isActive ? `${c.bg} ${c.text} border ${c.border}` : 'text-slate-600 hover:bg-slate-100'
+                } ${s.shell ? 'opacity-50' : ''}`}>
+                <span className="text-sm shrink-0">{s.icon}</span>
+                <span className="flex-1 leading-snug">{s.label}</span>
+                {s.shell ? (
+                  <span className="text-[9px] text-slate-400 shrink-0">soon</span>
+                ) : (
+                  <span className={`shrink-0 text-[10px] font-bold tabular-nums ${comp.filled >= comp.total && comp.total > 0 ? 'text-green-600' : 'text-slate-400'}`}>
+                    {comp.filled}/{comp.total}
+                  </span>
+                )}
               </button>
             );
           })}
         </nav>
-
-        {/* Completion bar */}
-        <div className="mt-6 px-3 pt-4 border-t border-slate-100">
-          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Completion</div>
-          <div className="text-2xl font-bold text-slate-800">{pct}%</div>
-          <div className="text-[11px] text-slate-400 mt-0.5 mb-2">{totalFilled} of {totalFields} fields filled</div>
-          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-            <div className="h-full bg-amber-500 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
-          </div>
-        </div>
       </div>
 
       {/* Form area */}
-      <div className="flex-1 pl-8 py-2 overflow-y-auto">
+      <div className="flex-1 min-w-0">
 
-        {/* Section header */}
-        <div className="mb-6">
-          <h3 className="text-lg font-semibold text-slate-900">
-            {SECTIONS.find(s => s.id === activeSection)?.label.replace(/^\d+ · /, '')}
-          </h3>
-          <p className="text-sm text-slate-500 mt-0.5">{SECTION_DESCS[activeSection]}</p>
-        </div>
+        {/* Section header — colored chip box, matches Standards */}
+        {(() => {
+          const sec = SECTIONS.find(s => s.id === activeSection);
+          const c   = SECTION_COLOR_MAP[sec?.color] || SECTION_COLOR_MAP.slate;
+          return (
+            <div className={`flex items-center gap-3 mb-5 px-4 py-3 rounded-xl border ${c.bg} ${c.border}`}>
+              <span className="text-xl">{sec?.icon}</span>
+              <div>
+                <h2 className={`text-sm font-bold ${c.text}`}>{sec?.label}</h2>
+                <p className="text-[11px] text-slate-500">{SECTION_DESCS[activeSection]}</p>
+              </div>
+            </div>
+          );
+        })()}
 
-        {/* Section content */}
-        <div className={!canEdit ? 'pointer-events-none opacity-60' : ''}>
-          {activeSection === 'scope'   && <ScopeSection   data={scope}   onChange={handleScope}   contacts={contacts} />}
-          {activeSection === 'process' && <ProcessSection data={process} onChange={handleProcess} />}
-        </div>
+        {/* Reference content — always viewable, client-facing */}
+        {PLAYBOOK_CONTENT[activeSection] && (
+          <PlaybookContent content={PLAYBOOK_CONTENT[activeSection]} clientName={clientName} />
+        )}
+
+        {/* Structured form (scope / process) */}
+        {(activeSection === 'scope' || activeSection === 'process') && (
+          <div className={!canEdit ? 'pointer-events-none opacity-60' : ''}>
+            {PLAYBOOK_CONTENT[activeSection] && <div className="my-6 border-t border-slate-100" />}
+            {activeSection === 'scope'   && <ScopeSection   data={scope}   onChange={handleScope}   contacts={contacts} />}
+            {activeSection === 'process' && <ProcessSection data={process} onChange={handleProcess} />}
+          </div>
+        )}
+
+        {/* Shell placeholder — only when there's no content and no form yet */}
+        {SECTIONS.find(s => s.id === activeSection)?.shell && !PLAYBOOK_CONTENT[activeSection] && (
+          <div className="py-16 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
+            <div className="text-3xl mb-2">🚧</div>
+            <p className="text-sm font-medium text-slate-500">Content coming soon</p>
+            <p className="text-xs mt-1">This section will be built out next.</p>
+          </div>
+        )}
 
         {/* Footer: save status + navigation */}
         <div className="mt-8 pt-4 border-t border-slate-100 flex items-center justify-between">

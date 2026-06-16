@@ -43,6 +43,15 @@ export const CASCADE_MAP = {
 // ── Question sections ─────────────────────────────────────────────────────────
 
 export const STANDARDS_SECTIONS = [
+  // GENERAL_DESIGN_QUESTIONS — broad design preferences; first thing we cover
+  {
+    key:   'GENERAL_DESIGN_QUESTIONS',
+    label: 'General Design Questions',
+    icon:  '🎨',
+    color: 'green',
+    questions: [],
+  },
+
   // COLOR_TEMPERATURE — special section rendered by CCTRenderer, not question list
   {
     key:   'COLOR_TEMPERATURE',

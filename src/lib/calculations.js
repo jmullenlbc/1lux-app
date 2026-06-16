@@ -57,7 +57,8 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const exteriorDoors  = n(pd.numExteriorDoors);
   const lotSf          = n(pd.lotSf);
   const footprintSf    = n(pd.buildingFootprintSf);
-  const numAccents     = n(pd.numAccentDownlights);
+  // Accent qty: prefer the value entered in the Corridors section, else Project Data
+  const numAccents     = n(r.corridors?.accentQty) > 0 ? n(r.corridors.accentQty) : n(pd.numAccentDownlights);
 
   // ─── RESIDENTIAL UNITS ────────────────────────────────────────────────────
   // Base rate applies to gross SF in design mode.
@@ -77,15 +78,26 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // otherwise fall back to ROUND(numUnits × room multiplier)
   const fanMult  = FAN_ROOMS[units.fans || 'none'] ?? 0;
   const fanCount = n(pd.numFans) > 0 ? n(pd.numFans) : Math.round(numUnits * fanMult);
-  let fanPricePerFan = PRICING.fans.adderPerFan; // conceptual default
-  if (units.fanLevel && PRICING.designFanLevels) {
-    fanPricePerFan = PRICING.designFanLevels[units.fanLevel] ?? PRICING.fans.adderPerFan;
+  // Conceptual adderPerFan ($140) is already net of the disk credit. Design levels
+  // (142/190/270) are GROSS, so subtract the $35 disk credit (a 12" disk is removed
+  // from the base when a fan is added).
+  const fanDiskCredit = n(PRICING.fans?.diskCredit, 35);
+  // Default to the Medium design level the moment fans are chosen; picking a
+  // different finish level (low/high) overrides it.
+  const fanLevelKey  = (units.fanLevel && PRICING.designFanLevels?.[units.fanLevel]) ? units.fanLevel : 'medium';
+  let fanPricePerFan = PRICING.fans.adderPerFan; // fallback if no design levels defined
+  if (PRICING.designFanLevels?.[fanLevelKey]) {
+    fanPricePerFan = Math.max(0, PRICING.designFanLevels[fanLevelKey] - fanDiskCredit);
   }
   const fansProduct = fanCount * fanPricePerFan;
 
-  // Vanity lighting (product already net of bath bar credit)
+  // Vanity lighting: master holds GROSS; subtract the bath-bar credit per vanity
+  // (the base $0.38/SF already includes a bath bar). bathBarLow (gross 0) stays 0.
+  const vanityCredit   = n(PRICING.vanityBathBarCredit, 45);
   const vanityPricing  = PRICING.vanity[units.vanity || 'bathBarLow'] || PRICING.vanity.bathBarLow;
-  const vanityProduct  = n(vanityPricing.product) * numVanities;
+  const vanityGross    = n(vanityPricing.product);
+  const vanityNet      = vanityGross > 0 ? Math.max(0, vanityGross - vanityCredit) : 0;
+  const vanityProduct  = vanityNet * numVanities;
 
   // Balcony fixtures
   const balconyPricing = PRICING.balcony[units.balcony || 'none'] || PRICING.balcony.none;
@@ -204,10 +216,16 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const strategyKey = emergency.strategy || 'integrated_inverters';
   const strat = PRICING.emergency.strategies[strategyKey] || PRICING.emergency.strategies.frogeyes;
 
+  // Frogeyes uses a single flat $/SF across all zones (editable: emergency.frogeyesPerSf).
+  const frogeyesFlat = strategyKey === 'frogeyes' ? n(PRICING.emergency.frogeyesPerSf, 0.17) : null;
+  const cRate = frogeyesFlat ?? strat.corridorPerSf;
+  const aRate = frogeyesFlat ?? strat.amenityPerSf;
+  const gRate = frogeyesFlat ?? strat.garagePerSf;
+
   let emergencyProduct =
-    corridorSf   * strat.corridorPerSf +
-    intAmenitySf * strat.amenityPerSf  +
-    garageSf     * strat.garagePerSf;
+    corridorSf   * cRate +
+    intAmenitySf * aRate +
+    garageSf     * gRate;
 
   if (strat.batteryGarage && garageSf > 0) {
     const b = PRICING.emergency.batteryGarage;
@@ -326,7 +344,8 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // Controls apply to total gross SF (IECC 2021 — Excel-verified)
   const buildingType = pd.buildingTypeKey || controls.buildingType || controls.projectType || 'midRise';
   const ctrlRate     = PRICING.controls.rates[buildingType] || PRICING.controls.rates.midRise;
-  let controlsProduct = Math.min(grossSf * ctrlRate.perSf, ctrlRate.cap);
+  const controlsCap  = n(PRICING.controls.cap, ctrlRate.cap);
+  let controlsProduct = Math.min(grossSf * ctrlRate.perSf, controlsCap);
 
   // Manual override (the energy credit no longer touches controlsProduct)
   const controlsOverrideVal = n(controls.controlsOverride);

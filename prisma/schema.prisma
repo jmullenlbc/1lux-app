@@ -222,6 +222,7 @@ model Client {
   crmContacts      Contact[]
   salesNotes       SalesNoteClient[]
   standardsAnswers ClientStandardsAnswer[]
+  standardsShare   ClientStandardsShare?
   playbook         ClientPlaybook?
   signals          MarketSignal[]
   aliases          ClientAlias[]
@@ -463,6 +464,19 @@ model ProjectShare {
   message      String?
   sentAt       DateTime  @default(now())
   sentById     String
+  viewCount    Int       @default(0)
+  lastViewedAt DateTime?
+  viewLog      String    @default("[]")
+}
+
+// One persistent, live-updating share link per client for their lighting standards.
+model ClientStandardsShare {
+  id           String    @id @default(cuid())
+  clientId     String    @unique
+  client       Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  token        String    @unique @default(cuid())
+  createdById  String
+  createdAt    DateTime  @default(now())
   viewCount    Int       @default(0)
   lastViewedAt DateTime?
   viewLog      String    @default("[]")

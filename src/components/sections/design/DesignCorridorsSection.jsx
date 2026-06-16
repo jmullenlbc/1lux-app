@@ -27,6 +27,8 @@ export default function DesignCorridorsSection({
     elevatorLobby:     existing.elevatorLobby      || 'no',
     stairwellDesign:   existing.stairwellDesign    || 'code',
     unitSconce:        existing.unitSconce         || 'none',
+    // Manual accent qty entered right here; falls back to Project Data
+    accentQty:         existing.accentQty ?? (projectData?.numAccentDownlights ?? ''),
     // Carry through keys so we don't wipe them on save
     exitSignType:      existing.exitSignType       || undefined,
     garageDesignLevel: existing.garageDesignLevel  || undefined,
@@ -39,7 +41,7 @@ export default function DesignCorridorsSection({
   const corridorSf    = Number(projectData?.corridorSf)          || 0;
   const stairwells    = Number(projectData?.numEgressStairwells)  || 0;
   const numUnits      = Number(projectData?.numUnits)             || 0;
-  const numAccents    = Number(projectData?.numAccentDownlights)  || 0;
+  const numAccents    = Number(ans.accentQty) || 0;
 
   // Live corridor product calculation (reads master pricing)
   const DEFAULT_DISK_RATE = P.corridors?.diskPerSf ?? 0.27;
@@ -217,16 +219,27 @@ export default function DesignCorridorsSection({
         onChange={v => set('unitSconce', v)}
       />
 
-      {/* Recessed accents info */}
-      {numAccents > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-900">
-          <p className="font-semibold mb-1">Recessed Accent Downlights</p>
-          <p>
-            {numAccents} adjustable recessed accent downlights entered in Project Data ×
-            $${ACCENT_EACH} ea (1-hr fire-rated) = ${(numAccents * ACCENT_EACH).toLocaleString()} included in budget.
-          </p>
+      {/* Recessed accents — manual quantity entered right here */}
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+        <p className="text-xs font-semibold text-amber-900 mb-1">Recessed Accent Downlights</p>
+        <p className="text-xs text-amber-800 mb-3">
+          Adjustable, 1-hr fire-rated accent downlights (e.g. art / decal lit by an art light) — ${ACCENT_EACH}/ea.
+        </p>
+        <div className="flex items-center gap-3 flex-wrap">
+          <label className="text-xs font-medium text-amber-900">Quantity</label>
+          <input
+            type="number"
+            min={0}
+            value={ans.accentQty}
+            onChange={e => set('accentQty', e.target.value)}
+            placeholder="0"
+            className="w-28 border border-amber-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+          />
+          <span className="text-xs text-amber-800 font-medium">
+            × ${ACCENT_EACH} = ${(numAccents * ACCENT_EACH).toLocaleString()}
+          </span>
         </div>
-      )}
+      </div>
 
       {/* Live cost breakdown */}
       {(corridorSf > 0 || stairwells > 0 || numUnits > 0) && (

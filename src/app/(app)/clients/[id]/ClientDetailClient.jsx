@@ -8,6 +8,7 @@ import {
   PROJECT_TYPES, resolveAnswer,
 } from '@/lib/standards-questions';
 import PlaybookTab from './PlaybookTab';
+import ShareStandardsButton from './ShareStandardsButton';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -1257,6 +1258,8 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
 
       {/* ── Section sidebar ── */}
       <div className="w-56 shrink-0">
+        {/* Share link */}
+        {canEdit && <ShareStandardsButton clientId={clientId} />}
         {/* Overall progress */}
         <div className="mb-4 p-3 rounded-xl bg-white border border-slate-200">
           <div className="flex items-center justify-between mb-1.5">
@@ -1479,6 +1482,7 @@ export default function ClientDetailClient({ client: initial, availableProjects,
         {activeTab === 'playbook'  && (
           <PlaybookTab
             clientId={client.id}
+            clientName={client.name}
             contacts={client.contacts || []}
             canEdit={canEditPlaybook}
           />

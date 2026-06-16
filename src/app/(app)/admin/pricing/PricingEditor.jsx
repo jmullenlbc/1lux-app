@@ -26,10 +26,12 @@ const PRICING_FIELDS = [
   { group: 'Ceiling Fans', key: 'fans.totalPerFan', label: 'Gross Per Fan',     desc: 'Full product cost before credit', unit: '$/fan' },
 
   // ── VANITY LIGHTING ───────────────────────────────────────────────────
-  { group: 'Vanity Lighting (net adders)', key: 'vanity.illuminatedMirrorMedium.product', label: 'Illuminated Mirror — Medium', desc: 'Net adder over base bath bar', unit: '$/vanity' },
-  { group: 'Vanity Lighting (net adders)', key: 'vanity.illuminatedMirrorHigh.product',   label: 'Illuminated Mirror — High',   desc: 'Net adder over base bath bar', unit: '$/vanity' },
-  { group: 'Vanity Lighting (net adders)', key: 'vanity.bathBarMedium.product',           label: 'Bath Bar — Medium',           desc: 'Net adder over base bath bar', unit: '$/vanity' },
-  { group: 'Vanity Lighting (net adders)', key: 'vanity.bathBarHigh.product',             label: 'Bath Bar — High',             desc: 'Net adder over base bath bar', unit: '$/vanity' },
+  { group: 'Vanity Lighting (gross — credit applied by tool)', key: 'vanity.illuminatedMirrorLow.product',    label: 'Illuminated Mirror — Low',    desc: 'Gross product price', unit: '$/vanity' },
+  { group: 'Vanity Lighting (gross — credit applied by tool)', key: 'vanity.illuminatedMirrorMedium.product', label: 'Illuminated Mirror — Medium', desc: 'Gross product price', unit: '$/vanity' },
+  { group: 'Vanity Lighting (gross — credit applied by tool)', key: 'vanity.illuminatedMirrorHigh.product',   label: 'Illuminated Mirror — High',   desc: 'Gross product price', unit: '$/vanity' },
+  { group: 'Vanity Lighting (gross — credit applied by tool)', key: 'vanity.bathBarMedium.product',           label: 'Bath Bar — Medium',           desc: 'Gross product price', unit: '$/vanity' },
+  { group: 'Vanity Lighting (gross — credit applied by tool)', key: 'vanity.bathBarHigh.product',             label: 'Bath Bar — High',             desc: 'Gross product price', unit: '$/vanity' },
+  { group: 'Vanity Lighting (gross — credit applied by tool)', key: 'vanityBathBarCredit',                    label: 'Bath-Bar Credit (subtracted)', desc: 'Base $0.38/SF includes a bath bar — subtracted from every vanity upgrade', unit: '$/vanity' },
 
   // ── BALCONY ───────────────────────────────────────────────────────────
   { group: 'Balcony Fixtures (net adders)', key: 'balcony.sconcelow.product',    label: 'Sconce — Low',    desc: 'Upgrade adder over base disk', unit: '$/balcony' },
@@ -91,23 +93,39 @@ const PRICING_FIELDS = [
 
   // ── EXIT SIGNS ────────────────────────────────────────────────────────
   { group: 'Exit Signs', key: 'exitSigns.perSf', label: 'Rate', desc: '% of total gross SF (0.025 = 2.5%)', unit: 'decimal' },
+  { group: 'Exit Signs', key: 'exitSigns.largeProjectThreshold', label: 'Large-Project Threshold', desc: 'Above this SF, halve the exit-sign cost', unit: 'SF' },
 
-  // ── CONTROLS ──────────────────────────────────────────────────────────
-  { group: 'Controls — Rates', key: 'controls.rates.garden.perSf',       label: 'Garden $/SF',         unit: '$/SF' },
-  { group: 'Controls — Rates', key: 'controls.rates.garden.cap',         label: 'Garden Cap',          unit: '$' },
-  { group: 'Controls — Rates', key: 'controls.rates.gurban.perSf',       label: 'Gurban $/SF',         unit: '$/SF' },
-  { group: 'Controls — Rates', key: 'controls.rates.gurban.cap',         label: 'Gurban Cap',          unit: '$' },
-  { group: 'Controls — Rates', key: 'controls.rates.wrap.perSf',         label: 'Wrap $/SF',           unit: '$/SF' },
-  { group: 'Controls — Rates', key: 'controls.rates.wrap.cap',           label: 'Wrap Cap',            unit: '$' },
-  { group: 'Controls — Rates', key: 'controls.rates.podium.perSf',       label: 'Podium $/SF',         unit: '$/SF' },
-  { group: 'Controls — Rates', key: 'controls.rates.podium.cap',         label: 'Podium Cap',          unit: '$' },
-  { group: 'Controls — Rates', key: 'controls.rates.midRise.perSf',      label: 'Mid Rise $/SF',       unit: '$/SF' },
-  { group: 'Controls — Rates', key: 'controls.rates.midRise.cap',        label: 'Mid Rise Cap',        unit: '$' },
-  { group: 'Controls — Rates', key: 'controls.rates.highRise.perSf',     label: 'High Rise $/SF',      unit: '$/SF' },
-  { group: 'Controls — Rates', key: 'controls.rates.highRise.cap',       label: 'High Rise Cap',       unit: '$' },
-  { group: 'Controls — Rates', key: 'controls.rates.stackedFlats.perSf', label: 'Stacked Flats $/SF',  unit: '$/SF' },
-  { group: 'Controls — Rates', key: 'controls.rates.stackedFlats.cap',   label: 'Stacked Flats Cap',   unit: '$' },
-  { group: 'Controls — Rates', key: 'controls.energyCreditAdderPct',     label: 'Energy Credit Adder', desc: '% of lighting subtotal (0.03 = 3%)', unit: 'decimal' },
+  // ── EMERGENCY LIGHTING ────────────────────────────────────────────────
+  { group: 'Emergency Lighting', key: 'emergency.frogeyesPerSf', label: 'Frogeyes — Flat Rate', desc: '"Frogeyes everywhere" strategy: flat $/SF across corridors, amenities, and garage', unit: '$/SF' },
+
+  // ── CONTROLS (by building type — $/SF; single universal $ cap) ─────────
+  { group: 'Controls — Building Type Rates', key: 'controls.rates.singleFamily.perSf', label: 'Single Family (1–2 Lvl)', unit: '$/SF' },
+  { group: 'Controls — Building Type Rates', key: 'controls.rates.townHouses.perSf',   label: 'Town Houses (2–3 Lvl)',   unit: '$/SF' },
+  { group: 'Controls — Building Type Rates', key: 'controls.rates.stackedFlats.perSf', label: 'Stacked Flats (3 Lvl)',   unit: '$/SF' },
+  { group: 'Controls — Building Type Rates', key: 'controls.rates.garden.perSf',       label: 'Garden (3 Lvl)',          unit: '$/SF' },
+  { group: 'Controls — Building Type Rates', key: 'controls.rates.gurban.perSf',       label: 'Urban (4–5 Lvl)',         unit: '$/SF' },
+  { group: 'Controls — Building Type Rates', key: 'controls.rates.wrap.perSf',         label: 'Wrap (3–5 Lvl)',          unit: '$/SF' },
+  { group: 'Controls — Building Type Rates', key: 'controls.rates.podium.perSf',       label: 'Podium (3–8 Lvl)',        unit: '$/SF' },
+  { group: 'Controls — Building Type Rates', key: 'controls.rates.midRise.perSf',      label: 'Mid Rise (9–12 Lvl)',     unit: '$/SF' },
+  { group: 'Controls — Building Type Rates', key: 'controls.rates.highRise.perSf',     label: 'High Rise (12+ Lvl)',     unit: '$/SF' },
+  { group: 'Controls — Building Type Rates', key: 'controls.cap',                      label: 'Controls Cap (max $)',    desc: 'Controls never exceed this, regardless of SF', unit: '$' },
+  { group: 'Controls — Building Type Rates', key: 'controls.energyCreditAdderPct',     label: 'Energy Credit Adder',     desc: '% of lighting subtotal (0.03 = 3%)', unit: 'decimal' },
+
+  // ── DESIGN-LEVEL PRICING ──────────────────────────────────────────────
+  { group: 'Ceiling Fans — Design Levels (gross)', key: 'designFanLevels.low',    label: 'Fan (Low)',    desc: 'Gross, before disk credit', unit: '$/fan' },
+  { group: 'Ceiling Fans — Design Levels (gross)', key: 'designFanLevels.medium', label: 'Fan (Medium)', desc: 'Gross, before disk credit', unit: '$/fan' },
+  { group: 'Ceiling Fans — Design Levels (gross)', key: 'designFanLevels.high',   label: 'Fan (High)',   desc: 'Gross, before disk credit', unit: '$/fan' },
+
+  { group: 'Garage — Design Levels', key: 'designGarage.baseMediumPerSf', label: 'Base (Medium)', desc: 'eLuma garage fixture', unit: '$/SF' },
+  { group: 'Garage — Design Levels', key: 'designGarage.baseHighPerSf',   label: 'Base (High)',   desc: 'Higher-end linear LED', unit: '$/SF' },
+
+  { group: 'Corridors — Design', key: 'designCorridors.accentDownlightEach',    label: 'Recessed Accent Downlight', desc: '1-hr fire-rated, each', unit: '$/ea' },
+  { group: 'Corridors — Design', key: 'designCorridors.stairwellElevatedAdder', label: 'Stairwell Elevated Adder',  desc: 'Per landing above code', unit: '$/landing' },
+
+  { group: 'Unit Design Upgrades', key: 'designUpgrades.entryway12inch',  label: '12" Statement Entry Disk', desc: 'Per unit', unit: '$/unit' },
+  { group: 'Unit Design Upgrades', key: 'designUpgrades.entryDecorative', label: 'Decorative Entry Mount',   desc: 'Per unit', unit: '$/unit' },
+  { group: 'Unit Design Upgrades', key: 'designUpgrades.boilerRoomDisk',  label: 'Boiler Room Disk',         desc: 'Per unit', unit: '$/unit' },
+  { group: 'Unit Design Upgrades', key: 'designUpgrades.fanSize52Adder',  label: '52" Fan Upcharge',         desc: 'Over 48" (0 = no upcharge)', unit: '$/fan' },
 
   // ── FREIGHT / WAREHOUSING ─────────────────────────────────────────────
   { group: 'Freight & Warehousing', key: 'freight',     label: 'Freight Rate',     desc: '% of product subtotal (0.06 = 6%)', unit: 'decimal' },

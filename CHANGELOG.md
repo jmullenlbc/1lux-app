@@ -5,6 +5,29 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Session 37 — Standards/Playbook restructure, live share link, pricing] · June 15, 2026
+
+### Added
+- **Live share link for Client Standards** (`Share standards` button on the Standards tab → `ShareStandardsButton.jsx`). One persistent, get-or-create token per client; the public page always reflects current selections (`force-dynamic`).
+  - New `ClientStandardsShare` model + migration `0028_client_standards_share` (Postgres) / `db push` for local SQLite.
+  - API: `POST/GET/DELETE /api/clients/[id]/standards/share` (admin or client creator); `POST /api/share/standards/[token]` for view tracking.
+  - Public page `src/app/share/standards/[token]/page.jsx` (no auth) — branded, renders Color Temperature + answered Q&A sections; **Download PDF** via browser print (`PrintButton.jsx`), matching the budget-share pattern.
+- **General Design Questions** added to the Standards tab as the **first** section (above Color Temperature) in `src/lib/standards-questions.js`. (Note: the Standards tab reads `standards-questions.js`; `standardsSections.js` is dead/unused scaffold.)
+
+### Changed
+- **Playbook tab restructured** into 7 icon-based sections matching the Standards UI (icons + color chips, numbering removed): Scope & Relationships, Approvals, **Process** (renamed from "General Process", data preserved), Expected Timeframes, Pre-con + Bidding, Buyout + Ordering, RFI's + Change Orders. The 5 new sections are "coming soon" placeholders to be built out. Process/relationship topics live in the Playbook, not Standards.
+- **Master pricing reconciled to the sheet** (`src/lib/pricing.js`): kitchen pendant 3-small-Low **$150 → $120** ($40/ea); balcony 5″ disk **$0 → $15/unit**; design edge-lit exit sign **$127 → $120**; boiler room disk confirmed $15/unit; bath-bar credit confirmed $45. Regression suite green (budget-math 38/38, fuzz 0 failures, bid-matrix 12/12).
+- **Emergency "frogeyes" → flat $0.17/SF** everywhere (was corridor $0.15 / amenity $0.15 / garage $0.10). New single editable knob `emergency.frogeyesPerSf` exposed in the master pricing editor under **Emergency Lighting**; engine special-cases the frogeyes strategy to use it. Other emergency strategies unchanged.
+- **Link + Pin wizard QA fixes** (held from earlier this session, included in this deploy): vanity now stores **gross** in master pricing with the engine netting out the $45 bath-bar credit; design ceiling-fan levels ($142/$190/$270) net of the disk credit with a sensible "medium" default; controls hard cap unified at **$180,000**; 7″ disk and unit dimmers shown as **$0** (included in base); balcony fixture always visible and priced from master pricing; corridor **recessed accent downlights** now a manual quantity entered in the section (falls back to Project Data). PricingEditor expanded so all of these (controls building-type rates, fan levels, garage adders, accent rates, vanity gross + credit) are editable.
+
+- **Playbook content — "How We Work Together"** (`src/lib/playbookContent.js` + recursive renderer `src/components/PlaybookContent.jsx`). Populated Scope (intros), Approvals, Process, and Expected Timeframes with the client's standard workflow. Durations render as badges; `{{client}}` tokens substitute the client name (de-named from the NexMetro template). Rendered in the Playbook tab (above the existing forms) and appended to the client share/PDF as a "How We Work Together" block. Sections without content still show "coming soon".
+
+### Notes
+- Approvals items are listed; per-item explanatory text still to come from Mike.
+- Deployed to production (Mike approved). Migration `0026` applies on Amplify via `prisma migrate deploy`.
+
+---
+
 ## [Session 36 — Notification management] · June 12, 2026
 
 ### Added

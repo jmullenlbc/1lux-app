@@ -21,7 +21,7 @@ export const PRICING = {
   // Per unit, cost delta vs. standard ceiling disk
   kitchenPendants: {
     none:             { product: 0,   labor: 0 },
-    threeSmallLow:    { product: 150, labor: 0 }, // 3 × $50
+    threeSmallLow:    { product: 120, labor: 0 }, // 3 × $40
     threeSmallMedium: { product: 300, labor: 0 }, // 3 × $100
     twoMediumLow:     { product: 176, labor: 0 }, // 2 × $88
     twoMediumMedium:  { product: 330, labor: 0 }, // 2 × $165
@@ -40,19 +40,22 @@ export const PRICING = {
   // ─── BATHROOM VANITY LIGHTING ─────────────────────────────────────────────
   // All costs are NET per vanity (product cost minus $45 bath bar base credit
   // except bathBarLow which is already included in base)
+  // GROSS product prices. The engine subtracts vanityBathBarCredit per vanity
+  // (a bath bar is already included in the $0.38/SF base). bathBarLow is the base.
   vanity: {
-    bathBarLow:              { product: 0,   labor: 0 }, // included in base
-    illuminatedMirrorLow:    { product: 130, labor: 0 }, // $175 product - $45 base credit
-    illuminatedMirrorMedium: { product: 155, labor: 0 }, // $200 product - $45 base credit
-    illuminatedMirrorHigh:   { product: 205, labor: 0 }, // $250 product - $45 base credit
-    bathBarMedium:           { product: 80,  labor: 0 }, // $125 product - $45 base credit
-    bathBarHigh:             { product: 205, labor: 0 }, // $250 product - $45 base credit
+    bathBarLow:              { product: 0,   labor: 0 }, // the base bath bar — no charge
+    illuminatedMirrorLow:    { product: 175, labor: 0 }, // gross; net = 175 - 45 = 130
+    illuminatedMirrorMedium: { product: 200, labor: 0 }, // gross; net = 200 - 45 = 155
+    illuminatedMirrorHigh:   { product: 250, labor: 0 }, // gross; net = 250 - 45 = 205
+    bathBarMedium:           { product: 125, labor: 0 }, // gross; net = 125 - 45 = 80
+    bathBarHigh:             { product: 250, labor: 0 }, // gross; net = 250 - 45 = 205
   },
+  vanityBathBarCredit: 45, // $ credit per vanity (base already includes an LED bath bar)
 
   // ─── BALCONY / EXTERIOR UNIT FIXTURES ────────────────────────────────────
   balcony: {
     none:         { product: 0,   labor: 0 }, // no balcony fixture
-    disk5inch:    { product: 0,   labor: 0 }, // 5" disk — included in base $0.38/SF, no adder
+    disk5inch:    { product: 15,  labor: 0 }, // 5" disk — $15/unit adder
     sconcelow:    { product: 55,  labor: 0 }, // upgrade from base disk → sconce low
     sconceMedium: { product: 135, labor: 0 }, // upgrade from base disk → sconce medium
     sconceHigh:   { product: 240, labor: 0 }, // upgrade from base disk → sconce high
@@ -129,7 +132,8 @@ export const PRICING = {
         corridorPerSf: 0,    amenityPerSf: 0,    garagePerSf: 0,    batteryGarage: false,
       },
       frogeyes: {
-        corridorPerSf: 0.15, amenityPerSf: 0.15, garagePerSf: 0.10, batteryGarage: false,
+        // Flat rate everywhere — driven by emergency.frogeyesPerSf (the editable knob)
+        corridorPerSf: 0.17, amenityPerSf: 0.17, garagePerSf: 0.17, batteryGarage: false,
       },
       frogeyes_inv: {
         // Frogeyes in corridors + inverters in amenities
@@ -148,6 +152,8 @@ export const PRICING = {
         corridorPerSf: 0.50, amenityPerSf: 1.25, garagePerSf: 0.25, batteryGarage: false,
       },
     },
+    // Flat $/SF for the "frogeyes everywhere" strategy — editable in master pricing
+    frogeyesPerSf: 0.17,
     // Garage integrated battery backup fixtures
     batteryGarage: {
       sfPerFixture:   625,  // 1 fixture per 625 SF
@@ -185,6 +191,7 @@ export const PRICING = {
       highRise:     { perSf: 0.50, cap: 190000 },
     },
     energyCreditAdderPct: 0.03, // 3% of lighting product subtotal (excl. freight/warehousing)
+    cap: 180000, // controls never exceed $180K regardless of SF (per sheet: over ~300K SF, reduce)
   },
 
   // ─── FREIGHT & WAREHOUSING ────────────────────────────────────────────────
@@ -199,7 +206,7 @@ export const PRICING = {
     entryDecorative:          30,   // $30/unit for decorative surface mount entry
     dimmerCostEach:           25,   // $25 per dimmer per unit
     boilerRoomDisk:           15,   // $15/unit for boiler room disk w/ occ sensor
-    fanSize52Adder:           25,   // $25/fan extra for 52" vs 48"
+    fanSize52Adder:            0,   // 52" is no upcharge over 48" (per Mike)
     livingRoom4Disks:         34,   // $34/unit adder when (4) small disks chosen over (1) 12" in living room
     closetOccSensor:           0,   // same cost as switch — info only
   },
@@ -214,8 +221,8 @@ export const PRICING = {
 
   // ─── DESIGN BUDGET GARAGE ────────────────────────────────────────────────
   designGarage: {
-    baseMediumPerSf:         0.30, // 'standard' — LED linear strips on grid
-    baseHighPerSf:           0.45, // 'enhanced' — better uniformity and CRI
+    baseMediumPerSf:         0.20, // 'standard' — eLuma garage fixture (per Link+Pin sheet)
+    baseHighPerSf:           0.25, // 'enhanced' — higher-end (per Link+Pin sheet)
     occSensorAdderPerSf:     0.02, // integrated occupancy sensor (legacy key)
     batteryAdderPerSf:       0.05, // integrated battery backup every other fixture (legacy)
     batteryAndSensorPerSf:   0.06, // integrated battery + occupancy sensor (legacy)
@@ -239,7 +246,7 @@ export const PRICING = {
   designExitSigns: {
     thermoplasticPerSign: 22,   // $22/sign — thermoplastic (code baseline)
     mixedPerSign:         75,   // blended avg: edge-lit in FOH ($118), thermo in BOH/garage ($22)
-    edgelitPerSign:      127,   // edge-lit everywhere ($105 + $22 baseline)
+    edgelitPerSign:      120,   // edge-lit everywhere — split of $118 (sheet) / $127 (prior), rounded
     sfPerSign:          5000,   // approx 1 sign per 5,000 gross SF
   },
 };
@@ -255,7 +262,7 @@ export const OPTION_LABELS = {
   },
   kitchenPendants: {
     none:             'None',
-    threeSmallLow:    '(3) Small Pendants — Low Finish ($50 ea)',
+    threeSmallLow:    '(3) Small Pendants — Low Finish ($40 ea)',
     threeSmallMedium: '(3) Small Pendants — Medium Finish ($100 ea)',
     twoMediumLow:     '(2) Medium Pendants — Low Finish ($88 ea)',
     twoMediumMedium:  '(2) Medium Pendants — Medium Finish ($165 ea)',
@@ -282,7 +289,7 @@ export const OPTION_LABELS = {
   },
   balcony: {
     none:         'None',
-    disk5inch:    '5" Surface Mount Disk ($14.30)',
+    disk5inch:    '5" Surface Mount Disk ($15)',
     sconcelow:    'Exterior Sconce — Low Finish ($55)',
     sconceMedium: 'Exterior Sconce — Medium Finish ($135)',
     sconceHigh:   'Exterior Sconce — High Finish ($240)',
@@ -311,7 +318,7 @@ export const OPTION_LABELS = {
   },
   emergency: {
     generator:            'Building generator covers all emergency lighting',
-    frogeyes:             'Frogeyes everywhere (corridors $0.15/SF, amenity $0.15/SF, garage $0.10/SF)',
+    frogeyes:             'Frogeyes everywhere ($0.17/SF)',
     frogeyes_inv:         'Frogeyes in corridors + inverters in amenity spaces',
     integrated_frogeyes:  'Integrated batteries in garage / frogeyes in corridors / inverters in amenity spaces',
     integrated_inverters: 'Integrated batteries in garage / inverters in corridors + amenity spaces',

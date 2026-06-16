@@ -16,6 +16,9 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
   // Single source of truth: read costs from the live master pricing (same object
   // the engine uses), falling back to static defaults. Prevents UI/engine drift.
   const P = pricing || PRICING;
+  // Vanity: master holds GROSS; net adder = gross − bath-bar credit (base includes a bath bar).
+  const vanCredit = P.vanityBathBarCredit ?? 45;
+  const vanNet = k => { const g = P.vanity?.[k]?.product || 0; return g > 0 ? Math.max(0, g - vanCredit) : 0; };
   const [ans, setAns] = useState(() => ({
     // ── Conceptual questions (always shown) ──────────────────────────────
     undercabinet:       responses.undercabinet       || 'none',
@@ -137,10 +140,10 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
 
             <QuestionCard
               question="What size ceiling disk in the units?"
-              note='7" provides more light output and is recommended for higher ceilings.'
+              note='7" provides more light output and is recommended for higher ceilings. Both included in the base — no added cost.'
               options={[
                 { value: '5inch', label: '5" Disk', sub: 'Standard — included in base', cost: 0 },
-                { value: '7inch', label: '7" Disk', sub: '+$4/unit — slightly more light output', cost: 4 },
+                { value: '7inch', label: '7" Disk', sub: 'Included in base — slightly more light output', cost: 0 },
               ]}
               value={ans.diskSize}
               onChange={v => set('diskSize', v)}
@@ -172,15 +175,15 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
 
             <QuestionCard
               question="Basic switching or dimmers? How many dimmers per unit?"
-              note="Dimmers add ~$25 each (product only). Typical locations: kitchen, living room, master bedroom."
+              note="Dimmers/switching are included in the base package — no added cost. Typical locations: kitchen, living room, master bedroom."
               options={[
-                { value: '0', label: 'No dimmers — basic on/off switching only', cost: 0   },
-                { value: '1', label: '1 dimmer per unit',  sub: '+$25/unit',  cost: 25  },
-                { value: '2', label: '2 dimmers per unit', sub: '+$50/unit',  cost: 50  },
-                { value: '3', label: '3 dimmers per unit', sub: '+$75/unit',  cost: 75  },
-                { value: '4', label: '4 dimmers per unit', sub: '+$100/unit', cost: 100 },
-                { value: '5', label: '5 dimmers per unit', sub: '+$125/unit', cost: 125 },
-                { value: '6', label: '6 dimmers per unit', sub: '+$150/unit', cost: 150 },
+                { value: '0', label: 'No dimmers — basic on/off switching only', cost: 0 },
+                { value: '1', label: '1 dimmer per unit',  cost: 0 },
+                { value: '2', label: '2 dimmers per unit', cost: 0 },
+                { value: '3', label: '3 dimmers per unit', cost: 0 },
+                { value: '4', label: '4 dimmers per unit', cost: 0 },
+                { value: '5', label: '5 dimmers per unit', cost: 0 },
+                { value: '6', label: '6 dimmers per unit', cost: 0 },
               ]}
               value={ans.dimmersPerUnit}
               onChange={v => set('dimmersPerUnit', v)}
@@ -362,12 +365,12 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
             note='"Mirror + Bath Bar (Low)" is included in the base $0.38/SF. Illuminated mirrors eliminate the need for a separate mirror allowance and are often cost-neutral.'
             costSuffix="/vanity"
             options={[
-              { value: 'bathBarLow',              label: 'Mirror + LED Bath Bar — Low',        sub: 'Included in base budget',            cost: P.vanity.bathBarLow.product   },
-              { value: 'illuminatedMirrorLow',    label: 'Illuminated Mirror — Low Finish',    sub: 'Net of bath-bar base credit',        cost: P.vanity.illuminatedMirrorLow.product },
-              { value: 'illuminatedMirrorMedium', label: 'Illuminated Mirror — Medium Finish', cost: P.vanity.illuminatedMirrorMedium.product },
-              { value: 'illuminatedMirrorHigh',   label: 'Illuminated Mirror — High Finish',   cost: P.vanity.illuminatedMirrorHigh.product },
-              { value: 'bathBarMedium',           label: 'Mirror + LED Bath Bar — Medium',     cost: P.vanity.bathBarMedium.product },
-              { value: 'bathBarHigh',             label: 'Mirror + LED Bath Bar — High',       cost: P.vanity.bathBarHigh.product },
+              { value: 'bathBarLow',              label: 'Mirror + LED Bath Bar — Low',        sub: 'Included in base budget',            cost: vanNet('bathBarLow')   },
+              { value: 'illuminatedMirrorLow',    label: 'Illuminated Mirror — Low Finish',    sub: 'Net of bath-bar base credit',        cost: vanNet('illuminatedMirrorLow') },
+              { value: 'illuminatedMirrorMedium', label: 'Illuminated Mirror — Medium Finish', cost: vanNet('illuminatedMirrorMedium') },
+              { value: 'illuminatedMirrorHigh',   label: 'Illuminated Mirror — High Finish',   cost: vanNet('illuminatedMirrorHigh') },
+              { value: 'bathBarMedium',           label: 'Mirror + LED Bath Bar — Medium',     cost: vanNet('bathBarMedium') },
+              { value: 'bathBarHigh',             label: 'Mirror + LED Bath Bar — High',       cost: vanNet('bathBarHigh') },
             ]}
             value={ans.vanity}
             onChange={v => set('vanity', v)}
@@ -394,8 +397,8 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
         </div>
       )}
 
-      {/* ── BALCONIES ────────────────────────────────────────────────────────── */}
-      {(numBalconies > 0 || isDesign) && (
+      {/* ── BALCONIES (always shown; cost = answer × # of balconies in Project Data) ── */}
+      {true && (
         <div>
           <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Balconies</div>
           <div className="space-y-4">

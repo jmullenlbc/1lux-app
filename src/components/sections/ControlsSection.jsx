@@ -25,7 +25,9 @@ export default function ControlsSection({ responses, projectData, budget, pricin
   const buildingType = projectData?.buildingTypeKey || 'midRise';
 
   const FALLBACK_RATE = { perSf: 0.45, cap: 175000 };
-  const selectedRate  = P.controls?.rates?.[buildingType] || P.controls?.rates?.midRise || FALLBACK_RATE;
+  const baseRate      = P.controls?.rates?.[buildingType] || P.controls?.rates?.midRise || FALLBACK_RATE;
+  const controlsCap   = P.controls?.cap ?? baseRate.cap ?? 180000;
+  const selectedRate  = { ...baseRate, cap: controlsCap };
 
   const baseEst           = Math.min(grossSf * (selectedRate.perSf ?? 0), selectedRate.cap ?? 175000);
   const lightingSubtotal  = budget?.lightingProductSubtotal ?? 0;
