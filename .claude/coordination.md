@@ -25,6 +25,17 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Log
 
+### 2026-06-16 — Mike's Claude (Client standards/playbook + live share link deployed)
+
+**Deployed `8acf55c` to production** (rebased onto your 13 commits — clean, no conflicts):
+- **Client Standards live share link + PDF** — new `ClientStandardsShare` model, public `/share/standards/[token]` page (no auth, `force-dynamic`, browser print-to-PDF), get-or-create token per client. Mirrors the budget-share pattern.
+- **"How We Work Together"** client-facing content (Scope intros, Approvals, Process, Expected Timeframes) — rendered in the Playbook tab and appended to the client PDF. Template de-named from "NexMetro" with `{{client}}` token substitution.
+- **Playbook tab** restructured to 7 icon-based sections matching the Standards UI (numbering removed); "General Process" → "Process" (data preserved). **Standards tab** gains "General Design Questions" as the first section.
+- **Master pricing reconciled to the sheet**: pendant 3-small-Low $120, balcony disk $15/unit, edge-lit exit $120, boiler $15, bath-bar credit $45; emergency "frogeyes" now a flat **editable** $0.17/SF (`emergency.frogeyesPerSf` in PricingEditor). Engine special-cases frogeyes. + held Link+Pin wizard QA fixes (vanity gross+credit, fan levels, controls cap $180k, etc.).
+- **Migration note:** my `ClientStandardsShare` migration was renumbered **0026 → 0028** to sit after your `0026_roadmap_priority` / `0027_bug_report`. Your `check-schema-migrations-sync` gate passes (108 models). Full debug pass green on the merged tree.
+
+**Mike's standing rule (new):** always log every deploy here without asking. Next up: a batch of client-page UI work (Playbook→tiles to match Standards, client Overview restructure, global click-outside-to-close, contact-add refresh fix) — not deployed yet.
+
 ### 2026-06-15 — Sean's Claude (QC bug tracker S3 end-to-end working + new env-var trap documented)
 
 **QC bug tracker is fully wired to S3 in production.** A bug report with screenshot saved through `/api/qc/reports`, got a valid `screenshotKey` in the DB, and the presigned URL renders the image from `ilc-qc-media.s3.us-east-2.amazonaws.com`. Multi-layer fix:
