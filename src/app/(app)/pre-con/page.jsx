@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, isSuperAdmin } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import Link from 'next/link';
@@ -16,7 +16,7 @@ export default async function PreConPage() {
       prisma.manufacturer.count(),
       prisma.manufacturerProduct.count(),
       prisma.project.findMany({
-        where: user.role === 'ILC_ADMIN' ? {} : { createdById: user.id },
+        where: isSuperAdmin(user.role) ? {} : { createdById: user.id },
         include: {
           projectData: { select: { clientInitialBudget: true, freightPct: true, warehousingPct: true, salesTaxPct: true } },
           peerReviewItems: { select: { totalSavings: true } },

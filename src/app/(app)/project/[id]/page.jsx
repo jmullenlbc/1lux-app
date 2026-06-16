@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { notFound, redirect } from 'next/navigation';
-import { getSession } from '@/lib/auth';
+import { getSession, isSuperAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { responsesToSections } from '@/lib/utils';
 import { calculateBudget } from '@/lib/calculations';
@@ -24,7 +24,7 @@ export default async function ProjectHubPage({ params }) {
   });
 
   if (!project) notFound();
-  if (session.role !== 'ILC_ADMIN' && project.createdById !== session.id) notFound();
+  if (!isSuperAdmin(session.role) && project.createdById !== session.id) notFound();
 
   const pricing = project.pricingSnapshot
     ? JSON.parse(project.pricingSnapshot)

@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { getSession } from '@/lib/auth';
+import { getSession, isSuperAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { calculateBudget } from '@/lib/calculations';
 import { loadPricing } from '@/lib/pricingLoader';
@@ -10,7 +10,7 @@ import DashboardClient from './DashboardClient';
 export default async function DashboardPage() {
   const session = await getSession();
 
-  const where = session.role === 'ILC_ADMIN' ? {} : { createdById: session.id };
+  const where = isSuperAdmin(session.role) ? {} : { createdById: session.id };
 
   const projects = await prisma.project.findMany({
     where,

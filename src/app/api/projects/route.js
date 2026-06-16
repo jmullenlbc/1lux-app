@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, isSuperAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { loadPricing } from '@/lib/pricingLoader';
 
@@ -7,7 +7,7 @@ export async function GET() {
   const { user, error } = await requireAuth();
   if (error) return error;
 
-  const where = user.role === 'ILC_ADMIN'
+  const where = isSuperAdmin(user.role)
     ? {}
     : { createdById: user.id };
 
