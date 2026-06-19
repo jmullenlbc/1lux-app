@@ -373,7 +373,33 @@ function AutoTaggedFileTab({ title, subtitle, autoTag, files, projectId, tab, on
   );
 }
 
-export default function ProjectHubClient({ userId, project, budget, peerReviewTotal, clients = [], allUsers = [], initialFiles = [], initialDesignInfo = {}, masterTypes = [] }) {
+export default function ProjectHubClient({ userId, userRole, project, budget, peerReviewTotal, clients = [], allUsers = [], initialFiles = [], initialDesignInfo = {}, masterTypes = [] }) {
+  // Inline super-admin check — the auth helper module imports next/headers
+  // which isn't usable in a client component, so we replicate the predicate
+  // here. Mirrors isSuperAdmin() in src/lib/auth.js exactly.
+  const isSuper = userRole === 'SUPER_ADMIN' || userRole === 'ILC_ADMIN';
+
+  async function copyProjectAsJson() {
+    try {
+      const res = await fetch(`/api/admin/projects/${project.id}/export`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        alert(`Export failed (${res.status}): ${body?.error || 'unknown error'}`);
+        return;
+      }
+      const json = await res.json();
+      await navigator.clipboard.writeText(JSON.stringify(json, null, 2));
+      // Lightweight inline confirmation — avoids hauling in a toast lib.
+      const el = document.getElementById('qc-export-toast');
+      if (el) {
+        el.textContent = 'Copied! Paste into Hive / chat.';
+        el.style.opacity = '1';
+        setTimeout(() => { el.style.opacity = '0'; }, 2500);
+      }
+    } catch (err) {
+      alert(`Export failed: ${err?.message || err}`);
+    }
+  }
   const router       = useRouter();
   const searchParams = useSearchParams();
   const pathname     = usePathname();
@@ -1127,6 +1153,20 @@ export default function ProjectHubClient({ userId, project, budget, peerReviewTo
                     View Summary
                   </Link>
                 )}
+                {isSuper && (
+                  <button
+                    onClick={copyProjectAsJson}
+                    title="Copy full project data (inputs + budget breakdown + pricing) as JSON. For QC / debugging."
+                    className="px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 text-xs font-medium transition-colors"
+                  >
+                    Copy as JSON
+                  </button>
+                )}
+                <span
+                  id="qc-export-toast"
+                  className="text-xs text-green-700 transition-opacity"
+                  style={{ opacity: 0 }}
+                />
                 <span className={`ml-auto px-2.5 py-1 rounded-full text-xs font-medium ${
                   (project.status || 'DRAFT') === 'DRAFT' ? 'bg-slate-100 text-slate-500' : 'bg-green-100 text-green-700'
                 }`}>
