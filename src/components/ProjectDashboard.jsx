@@ -1,6 +1,7 @@
 'use client';
 import { useState, useCallback, useRef } from 'react';
 import { buildingTypeLabel } from '@/lib/utils';
+import MissingInputsWarning from './MissingInputsWarning';
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 function fmt(val) {
@@ -244,6 +245,10 @@ export default function ProjectDashboard({
           </span>
         )}
       </div>
+
+      {/* ── Missing-inputs warning (compact) ──────────────────────────────── */}
+      {/* Auto-hides when nothing's blank — see src/lib/projectInputChecks.js */}
+      <MissingInputsWarning projectData={pd} projectId={project.id} mode="compact" />
 
       {/* ── Budget row ────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-4">

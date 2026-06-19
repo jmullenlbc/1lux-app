@@ -10,6 +10,7 @@ import { loadPricing } from '@/lib/pricingLoader';
 import Link from 'next/link';
 import SummaryPrintButton from './SummaryPrintButton';
 import SummaryBudgetBreakdown from './SummaryBudgetBreakdown';
+import MissingInputsWarning from '@/components/MissingInputsWarning';
 import SendBudgetButton from './SendBudgetButton';
 
 export default async function SummaryPage({ params }) {
@@ -196,6 +197,13 @@ export default async function SummaryPage({ params }) {
             Enter Project Data →
           </Link>
         </div>
+      )}
+
+      {/* ── PARTIAL PROJECT DATA WARNING ──────────────────────────── */}
+      {/* Shows ONLY when grossSf is set but other critical fields are blank — */}
+      {/* the silent-zero case that surfaced on Manuel's 2026-06-18 retest. */}
+      {pd.grossSf && (
+        <MissingInputsWarning projectData={pd} projectId={project.id} mode="full" />
       )}
 
       {/* ── SCREEN-ONLY HEADER ─────────────────────────────────────── */}
