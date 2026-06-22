@@ -177,10 +177,15 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const avgDoorCost    = (PRICING.exterior.exteriorDoor.primarySconce + PRICING.exterior.exteriorDoor.secondarySconce) / 2;
   const extDoorProduct = exteriorDoors * avgDoorCost;
 
-  // Landscape: 2% of total lot SF (Excel-verified formula)
-  const autoLandscape  = lotSf > 0 ? lotSf * 0.02 : 0;
-  const landscapeAdder = n(exterior.landscapeBudget) > 0 ? n(exterior.landscapeBudget) : 0;
-  const landscapeFlat  = autoLandscape + landscapeAdder;
+  // Landscape: 2% of total lot SF (Excel-verified formula).
+  //
+  // Historical note: `exterior.landscapeBudget` was a manual override
+  // field on the wizard before mid-2026. The input was removed from the
+  // UI when the Exterior step was redesigned; new projects route manual
+  // landscape additions through `exteriorManualItems.manualExteriorAdder`
+  // instead. Engine reference removed 2026-06-22 along with the only
+  // remaining project that used it (Mike's "The Approach").
+  const landscapeFlat = lotSf > 0 ? lotSf * 0.02 : 0;
 
   // Misc buffer = 5% of subtotal before misc
   const extSubBeforeMisc     = extAmenityProduct + parkingProduct + carportProduct + garageExtProduct + extDoorProduct + landscapeFlat;

@@ -22,7 +22,6 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
   const [answers, setAnswers] = useState({
     amenityLevel:      responses.amenityLevel      || 'medium',
     amenityHours:      responses.amenityHours      || 'beforeDusk',
-    landscapeBudget:   responses.landscapeBudget   ?? '',
     exteriorOverride:  responses.exteriorOverride  ?? '',
     // Design-only
     exteriorEmergency: responses.exteriorEmergency || 'wallpack',
@@ -30,6 +29,9 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
     siteType:          responses.siteType          || 'pedestrian',
     roadwayLighting:   responses.roadwayLighting   || 'no',
   });
+  // `landscapeBudget` was a manual override field removed from the UI
+  // mid-2026; engine reference also removed. Manual landscape additions
+  // now route through exteriorManualItems.manualExteriorAdder.
 
   // Manual adder items (pathway, parking entrances, catch-all). These ADD on top
   // of the frozen formula breakdown.
@@ -68,9 +70,7 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
   // (avgDoorCost × doors) and the spreadsheet (doors/2 × primary + doors/2 × secondary).
   const door = P.exterior?.exteriorDoor || {};
   const doorProduct     = extDoors * ((door.primarySconce ?? 350) + (door.secondarySconce ?? 75)) / 2;
-  const landscapeAdder  = parseFloat(answers.landscapeBudget) > 0 ? parseFloat(answers.landscapeBudget) : 0;
-  const landscapeTotal  = autoLandscape + landscapeAdder;
-  const subBeforeMisc   = amenityProduct + parkingProduct + carportProduct + garageProduct + doorProduct + landscapeTotal;
+  const subBeforeMisc   = amenityProduct + parkingProduct + carportProduct + garageProduct + doorProduct + autoLandscape;
   const miscBuffer      = subBeforeMisc * (P.exterior?.miscBufferPct ?? 0.05);
   const exteriorFormulaTotal = subBeforeMisc + miscBuffer;
 
@@ -82,7 +82,7 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
     { label: 'Carports',              math: `${carports} ÷ 2 = ${Math.floor(carports / 2)} disk${Math.floor(carports / 2) === 1 ? '' : 's'} × $${P.exterior?.carport?.diskEveryOther ?? 30}`, value: carportProduct },
     { label: 'Detached garages',      math: `${numGarages} × $${P.exterior?.detachedGarage?.sconcePerDoor ?? 80}/door`, value: garageProduct },
     { label: 'Exterior door sconces', math: `${extDoors} × ($${door.primarySconce ?? 350} + $${door.secondarySconce ?? 75}) ÷ 2`, value: doorProduct },
-    { label: 'Landscape',             math: `${lotSf.toLocaleString()} SF lot × 2%`, value: landscapeTotal },
+    { label: 'Landscape',             math: `${lotSf.toLocaleString()} SF lot × 2%`, value: autoLandscape },
     { label: 'Miscellaneous',         math: `${((P.exterior?.miscBufferPct ?? 0.05) * 100).toFixed(0)}% buffer of full exterior (incl. amenities)`, value: miscBuffer },
   ];
   // Subtotal of the breakdown box = everything in the formula EXCEPT amenities
