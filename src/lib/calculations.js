@@ -373,8 +373,21 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
 
   const totalWithControls = subtotalLightingOnly + controlsTotal;
 
-  const perSf   = grossSf  > 0 ? totalWithControls / grossSf  : 0;
-  const perUnit = numUnits > 0 ? totalWithControls / numUnits : 0;
+  // Contingency — held against the lighting product subtotal as a separate
+  // line item beneath the totals. UI lives on the Project Data step (design
+  // mode for now); engine honors the stored value regardless of mode.
+  // Selection values: 'none' / undefined → 0, '5pct' → 0.05, '10pct' → 0.10.
+  // Applied to lightingProductSubtotal per the UI note "5–10% of lighting
+  // subtotal." Does NOT trigger additional freight/warehousing.
+  const contingencyRate =
+        projectDataR.contingency === '5pct'  ? 0.05
+      : projectDataR.contingency === '10pct' ? 0.10
+      : 0;
+  const contingencyAmount    = lightingProductSubtotal * contingencyRate;
+  const totalWithContingency = totalWithControls + contingencyAmount;
+
+  const perSf   = grossSf  > 0 ? totalWithContingency / grossSf  : 0;
+  const perUnit = numUnits > 0 ? totalWithContingency / numUnits : 0;
 
   return {
     sections: {
@@ -429,6 +442,9 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     controlsWarehousing,
     controlsTotal,
     totalWithControls,
+    contingencyRate,
+    contingencyAmount,
+    totalWithContingency,
     fanCount,
     perSf:   Math.round(perSf   * 100) / 100,
     perUnit: Math.round(perUnit),
