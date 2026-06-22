@@ -91,8 +91,11 @@ export default function ProjectDataSection({ projectId, projectData, responses =
       }
     }
     await onSaveData(payload);
-    // Save design-only Q&A responses if in design mode
-    if (isDesign && onSaveResponses) {
+    // Always save Q&A responses. Contingency is now visible in all modes;
+    // the other strategy fields (buyHold, switchesDimmers) remain design-
+    // only in the UI but are harmless to send from conceptual mode (the
+    // server preserve-on-blank guard, commit 896ded1, skips empty writes).
+    if (onSaveResponses) {
       await onSaveResponses(qAnswers);
     }
     setSaved(true);
@@ -136,6 +139,22 @@ export default function ProjectDataSection({ projectId, projectData, responses =
         </Card>
       ))}
 
+      {/* ── CONTINGENCY (all modes) ─────────────────────────────────────── */}
+      {/* Visible in conceptual + design. Engine applies the selected % to the */}
+      {/* lighting product subtotal and adds a "Total w/ Contingency" line on */}
+      {/* the Summary. Selecting "No contingency" leaves the totals unchanged. */}
+      <QuestionCard
+        question="Should we hold a contingency line item in the budget?"
+        note="A contingency covers scope gaps discovered during design. Typical range: 5–10% of lighting subtotal. Recommended for early-stage budgets."
+        options={[
+          { value: 'none', label: 'No contingency',                          sub: 'Use only for late-stage CD budgets with high confidence', cost: 0 },
+          { value: '5pct', label: '5% contingency',                          sub: 'Standard for DD-stage budgets', cost: 0 },
+          { value: '10pct',label: '10% contingency',                         sub: 'Recommended for SD-stage or early schematic budgets', cost: 0 },
+        ]}
+        value={qAnswers.contingency}
+        onChange={v => setQAnswers(a => ({ ...a, contingency: v }))}
+      />
+
       {/* ── DESIGN-ONLY Q&A ───────────────────────────────────────────────── */}
       {isDesign && (
         <div className="space-y-4">
@@ -162,18 +181,6 @@ export default function ProjectDataSection({ projectId, projectData, responses =
             ]}
             value={qAnswers.switchesDimmers}
             onChange={v => setQAnswers(a => ({ ...a, switchesDimmers: v }))}
-          />
-
-          <QuestionCard
-            question="Should we hold a contingency line item in the budget?"
-            note="A contingency covers scope gaps discovered during design. Typical range: 5–10% of lighting subtotal. Recommended for early-stage design budgets."
-            options={[
-              { value: 'none', label: 'No contingency',                          sub: 'Use only for late-stage CD budgets with high confidence', cost: 0 },
-              { value: '5pct', label: '5% contingency',                          sub: 'Standard for DD-stage budgets', cost: 0 },
-              { value: '10pct',label: '10% contingency',                         sub: 'Recommended for SD-stage or early schematic budgets', cost: 0 },
-            ]}
-            value={qAnswers.contingency}
-            onChange={v => setQAnswers(a => ({ ...a, contingency: v }))}
           />
 
           {/* Sales tax is now entered as a numeric % in the Freight, Warehousing & Tax section above */}
