@@ -22,14 +22,25 @@ When Manny opens a session:
 
 ## Active tasks
 
-### Task: Wizard dirty-field tracking (active)
+### Task 1: Wizard dirty-field tracking (active)
 - **Branch:** `manny/wizard-dirty-tracking` (create when starting)
-- **Spec:** `manny_wizard_dirty_tracking.pdf` on his Desktop (Sean delivers)
+- **Spec:** `manny_wizard_dirty_tracking.pdf` on Manny's Desktop (Sean delivers)
 - **Why:** the wizard's section forms send every field on save, including blanks. A server-side guard catches the worst (Sean's `896ded1`), but the form should track which fields the user actually changed and only PATCH those. Eliminates the underlying issue.
 - **Scope:** ~7 wizard section components (ProjectDataSection, UnitsSection, CorridorsSection, AmenitiesSection, ExteriorSection, EmergencySection, ControlsSection). Same pattern in each.
 - **Acceptance:** form payload on save contains only user-touched fields. Existing UI behavior unchanged. Pre-push hooks pass.
 - **Time estimate:** ~1–2 hours for a careful first pass.
 - **Start with:** ProjectDataSection — it's where the worst data wipe happened. Validate the pattern there before touching the others.
+
+### Task 2: Manual adder field on every wizard section (queued for after Task 1)
+- **Branch:** `manny/section-manual-adders` (create when starting)
+- **Why:** Per Mike's 2026-06-22 decision: every section should have a manual adder (mirroring the way Exterior already does). Manual overrides stay exterior-only. The intent is that users can bump any section's total when the formula misses scope — without resorting to the all-or-nothing override pattern.
+- **Scope:** Add a single "Manual adder ($)" field to each of these wizard sections — UnitsSection, CorridorsSection, AmenitiesSection, EmergencySection, ExitSignsSection (if it exists as its own step, otherwise skip), plus BOH and Enclosed Garage if they have their own sections. The Exterior section already has `manualExteriorAdder` via `exteriorManualItems` — leave that alone, don't duplicate.
+- **Engine work:** In `src/lib/calculations.js`, for each section, read the new manual adder value from the section's responses and add it to that section's total. Follow the pattern from the existing `exteriorManualTotal` handling.
+- **Display work:** In `src/app/(app)/project/[id]/summary/SummaryBudgetBreakdown.jsx`, show a per-section manual adder sub-line when > 0 (only render the sub-line when the user actually added something — keep clean breakdowns by default).
+- **Don't add overrides.** Mike explicitly said only Exterior gets the override pattern. Just adders.
+- **Acceptance:** Each affected wizard section has a manual adder input. Entering a value persists across sessions. The Summary shows the addition as a labeled sub-line in that section and the total reflects it. Pre-push hooks pass.
+- **Time estimate:** ~2–3 hours (mechanical pattern × ~5 sections, plus engine + display).
+- **Start with:** UnitsSection — most-used section, most user value. Validate the pattern there before replicating.
 
 ## Recent guidance from Sean
 

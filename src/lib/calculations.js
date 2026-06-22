@@ -187,11 +187,6 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // remaining project that used it (Mike's "The Approach").
   const landscapeFlat = lotSf > 0 ? lotSf * 0.02 : 0;
 
-  // Misc buffer = 5% of subtotal before misc
-  const extSubBeforeMisc     = extAmenityProduct + parkingProduct + carportProduct + garageExtProduct + extDoorProduct + landscapeFlat;
-  const extMiscBuffer        = extSubBeforeMisc * PRICING.exterior.miscBufferPct;
-  const exteriorFormulaTotal = extSubBeforeMisc + extMiscBuffer;
-
   // Manual override: site/exterior is frequently hand-calculated outside the
   // formula (manually built in the spreadsheet). A positive exteriorOverride
   // replaces the formula total entirely. Mirrors controlsOverride. The formula
@@ -200,8 +195,11 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const exteriorOverrideUsed = exteriorOverrideVal > 0;
 
   // Manual adder section: the 3 items the formula does NOT compute — pathway
-  // lighting, parking entrances, and a catch-all manual adder. These ADD on top
-  // of the formula breakdown (no double-counting, since they're not in the formula).
+  // lighting, parking entrances, and a catch-all manual adder. These ADD on
+  // top of the formula breakdown and DO participate in the 5% misc buffer
+  // calculation per Mike's decision 2026-06-22 (the buffer is a "general
+  // coverage" line, not specific to formula items; manual entries are real
+  // scope and the buffer should scale with them too).
   let exteriorManualItems = exterior.exteriorManualItems;
   if (typeof exteriorManualItems === 'string') {
     try { exteriorManualItems = JSON.parse(exteriorManualItems); } catch { exteriorManualItems = null; }
@@ -212,7 +210,15 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     + n(exteriorManualItems.parkingEntrances)
     + n(exteriorManualItems.manualExteriorAdder);
 
+  // Misc buffer = 5% of formula-line subtotal + manual adder. Both contribute.
+  const extSubBeforeMisc     = extAmenityProduct + parkingProduct + carportProduct + garageExtProduct + extDoorProduct + landscapeFlat;
+  const extBufferBase        = extSubBeforeMisc + exteriorManualTotal;
+  const extMiscBuffer        = extBufferBase * PRICING.exterior.miscBufferPct;
+  const exteriorFormulaTotal = extSubBeforeMisc + extMiscBuffer;
+
   // Override replaces everything; otherwise formula breakdown + manual adder.
+  // (The buffer's contribution from the manual portion is already in
+  // exteriorFormulaTotal via extMiscBuffer.)
   const exteriorProductTotal = exteriorOverrideUsed
     ? exteriorOverrideVal
     : exteriorFormulaTotal + exteriorManualTotal;
