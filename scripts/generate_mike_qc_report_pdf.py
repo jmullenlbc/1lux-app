@@ -81,7 +81,7 @@ story = []
 
 # ── Header ────────────────────────────────────────────────────────────
 story.append(Paragraph("Conceptual Budget Engine QC", title_style))
-story.append(Paragraph("Tester: Sean &nbsp;·&nbsp; Date: 2026-06-22 &nbsp;·&nbsp; Vehicle: The Approach (recreated as APPROACH II)", date_style))
+story.append(Paragraph("Tester: Sean &nbsp;·&nbsp; Date: 2026-06-22 &nbsp;·&nbsp; Vehicle: The Approach (recreated as THE APPROACH (SEAN&apos;S))", date_style))
 
 # ── Verdict ──────────────────────────────────────────────────────────
 story.append(Paragraph(
@@ -95,7 +95,7 @@ story.append(styled_table([
     ['',                                  'Total',         'Delta vs sheet'],
     ['Source spreadsheet (The Approach)', '$512,883',      '—'],
     ['Your run last month',               '$500,118',      '-2.5%'],
-    ['APPROACH II (re-run today)',        '$501,034',      '-2.3%'],
+    ["THE APPROACH (SEAN'S) — re-run today", '$501,034',      '-2.3%'],
 ], col_widths=[3.4 * inch, 1.6 * inch, 2.0 * inch], totals_row=3))
 story.append(Spacer(1, 4))
 story.append(Paragraph(
@@ -129,7 +129,7 @@ story.append(styled_table([
 story.append(PageBreak())
 
 # ── Section-by-section ───────────────────────────────────────────────
-story.append(Paragraph("Section-by-section (APPROACH II vs sheet)", h1_style))
+story.append(Paragraph("Section-by-section (re-run vs sheet)", h1_style))
 story.append(styled_table([
     ['Section',                'Sheet',      'App',        'Δ'],
     ['Residential Units',      '$171,414',   '$165,609',   '-3.4%'],
@@ -154,16 +154,6 @@ story.append(styled_table([
     ['SUPER_ADMIN role correctly grants visibility to projects/clients',                  'Affects Sean and any future super admins'],
     ['Native Delete button for bug reports',                                              'Drawer on /admin/tasks bug card'],
 ], col_widths=[4.8 * inch, 2.2 * inch]))
-
-# ── For Mason ────────────────────────────────────────────────────────
-story.append(Paragraph("For Mason, when he starts", h1_style))
-story.append(Paragraph(
-    "Hand him APPROACH II as the reference example. Tell him to fill in every Project Data field "
-    "that applies — the missing-inputs warning banner will tell him if anything critical is blank. "
-    "The engine validates within 2.3% when inputs are complete; the way to send a wrong budget is "
-    "to leave fields blank, and we now warn against that.",
-    body_style,
-))
 
 # ── Footer ────────────────────────────────────────────────────────────
 story.append(Spacer(1, 16))
