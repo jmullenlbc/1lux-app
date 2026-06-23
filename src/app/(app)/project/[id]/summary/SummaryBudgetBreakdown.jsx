@@ -27,6 +27,9 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
         { label: 'Ceiling fans',     value: sections?.units?.fans?.product         || 0 },
         { label: 'Vanity lighting',  value: sections?.units?.vanity?.product       || 0 },
         { label: 'Balcony fixtures', value: sections?.units?.balcony?.product      || 0 },
+        ...(sections?.units?.manualAdder > 0
+          ? [{ label: 'Manual adder', value: sections?.units?.manualAdder }]
+          : []),
       ],
     },
     {

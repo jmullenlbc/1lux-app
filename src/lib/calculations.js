@@ -103,7 +103,10 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const balconyPricing = PRICING.balcony[units.balcony || 'none'] || PRICING.balcony.none;
   const balconyProduct = n(balconyPricing.product) * numBalconies;
 
-  const unitsProductTotal = baseProduct + undercabinetProduct + pendantsProduct + fansProduct + vanityProduct + balconyProduct;
+  // Manual adder
+  const unitsManualAdder = n(units.manualAdder);
+
+  const unitsProductTotal = baseProduct + undercabinetProduct + pendantsProduct + fansProduct + vanityProduct + balconyProduct + unitsManualAdder;
 
   // ─── CORRIDORS / STAIRWELLS ───────────────────────────────────────────────
   // Disk rate: conceptual budget uses 0.27/SF (10ft average). Design questionnaire

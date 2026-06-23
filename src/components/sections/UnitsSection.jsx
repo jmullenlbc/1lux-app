@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
 import QuestionCard from './QuestionCard';
 import { formatCurrency } from '@/lib/calculations';
 import { PRICING } from '@/lib/pricing';
@@ -41,6 +42,7 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
     livingRoomDisks:    responses.livingRoomDisks    || '1large',
     halfHotReceptacles: responses.halfHotReceptacles || 'no',
     closetControl:      responses.closetControl      || 'switch',
+    manualAdder:        responses.manualAdder        ?? '',
   }));
   const [dirty, setDirty] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
@@ -439,6 +441,21 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
           </div>
         </div>
       )}
+
+      {/* Manual adder */}
+      <div>
+        <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Manual Adder</div>
+        <Input
+          label="Residential Units manual adder"
+          type="number"
+          placeholder="0"
+          hint="Add an arbitrary dollar amount to bump the units total (e.g. for custom scope)."
+          prefix="$"
+          value={ans.manualAdder}
+          onChange={e => set('manualAdder', e.target.value)}
+          min={0}
+        />
+      </div>
 
       <div className="flex gap-3 pt-2">
         <Button variant="secondary" onClick={onPrev}>Back</Button>
