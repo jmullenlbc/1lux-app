@@ -134,7 +134,10 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     ? numAccents * n(PRICING.designCorridors?.accentDownlightEach, 120)
     : 0;
 
-  const corridorProductTotal = diskProduct + sconceProduct + stairwellProduct + accentProduct;
+  // Manual adder
+  const corridorsManualAdder = n(corridors.manualAdder);
+
+  const corridorProductTotal = diskProduct + sconceProduct + stairwellProduct + accentProduct + corridorsManualAdder;
 
   // ─── BOH / CORE + SHELL ───────────────────────────────────────────────────
   const bohProduct = bohSf * PRICING.boh.perSf;

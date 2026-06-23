@@ -40,6 +40,9 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
         { label: 'Unit entry sconces', value: sections?.corridors?.sconces?.product    || 0 },
         { label: 'Stairwell fixtures', value: sections?.corridors?.stairwells?.product || 0 },
         { label: 'Accent downlights',  value: sections?.corridors?.accents?.product    || 0 },
+        ...(sections?.corridors?.manualAdder > 0
+          ? [{ label: 'Manual adder', value: sections?.corridors?.manualAdder }]
+          : []),
       ],
     },
     { label: 'BOH / Core + Shell',  value: sections?.boh?.product            || 0, details: [] },
