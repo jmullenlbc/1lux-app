@@ -140,7 +140,9 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const corridorProductTotal = diskProduct + sconceProduct + stairwellProduct + accentProduct + corridorsManualAdder;
 
   // ─── BOH / CORE + SHELL ───────────────────────────────────────────────────
-  const bohProduct = bohSf * PRICING.boh.perSf;
+  const bohBaseProduct = bohSf * PRICING.boh.perSf;
+  const bohManualAdder = n(projectData.bohManualAdder);
+  const bohProduct = bohBaseProduct + bohManualAdder;
 
   // ─── INTERIOR AMENITIES ───────────────────────────────────────────────────
   const intLevelRaw = amenities.interiorLevel || 'medium';
@@ -157,7 +159,9 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const intAmenityProduct = intAmenityBaseProduct + interiorManualAdder;
 
   // ─── GARAGE ───────────────────────────────────────────────────────────────
-  const garageProduct = garageSf * PRICING.garage.perSf;
+  const garageBaseProduct = garageSf * PRICING.garage.perSf;
+  const garageManualAdder = n(projectData.garageManualAdder);
+  const garageProduct = garageBaseProduct + garageManualAdder;
 
   // ─── EXTERIOR ─────────────────────────────────────────────────────────────
   const extLevelRaw = exterior.amenityLevel || 'medium';
@@ -250,7 +254,9 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // Before this rule was applied, large projects were over-billed at full rate.
   const exitSignsRaw     = grossSf * PRICING.exitSigns.perSf;
   const exitSignsCutoff  = n(PRICING.exitSigns.largeProjectThreshold, 300000);
-  const exitSignsProduct = grossSf > exitSignsCutoff ? exitSignsRaw / 2 : exitSignsRaw;
+  const exitSignsBaseProduct = grossSf > exitSignsCutoff ? exitSignsRaw / 2 : exitSignsRaw;
+  const exitSignsManualAdder = n(projectData.exitSignsManualAdder);
+  const exitSignsProduct = exitSignsBaseProduct + exitSignsManualAdder;
 
   // ─── DESIGN BUDGET ADDERS ────────────────────────────────────────────────
   // NOTE: The base rate (grossSf × $0.38) already includes the standard design

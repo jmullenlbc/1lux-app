@@ -45,7 +45,15 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
           : []),
       ],
     },
-    { label: 'BOH / Core + Shell',  value: sections?.boh?.product            || 0, details: [] },
+    {
+      label: 'BOH / Core + Shell',
+      value: sections?.boh?.product || 0,
+      details: [
+        ...(sections?.boh?.manualAdder > 0
+          ? [{ label: 'Manual adder', value: sections?.boh?.manualAdder }]
+          : []),
+      ],
+    },
     {
       label: 'Interior Amenities',
       value: sections?.interior?.product || 0,
@@ -55,7 +63,15 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
           : []),
       ],
     },
-    { label: 'Enclosed Garage',     value: sections?.garage?.product          || 0, details: [] },
+    {
+      label: 'Enclosed Garage',
+      value: sections?.garage?.product || 0,
+      details: [
+        ...(sections?.garage?.manualAdder > 0
+          ? [{ label: 'Manual adder', value: sections?.garage?.manualAdder }]
+          : []),
+      ],
+    },
     {
       label: 'Exterior & Site',
       value: sections?.exterior?.total?.product || 0,
@@ -78,7 +94,15 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
           : []),
       ],
     },
-    { label: 'Exit Signs',          value: sections?.exitSigns?.product        || 0, details: [] },
+    {
+      label: 'Exit Signs',
+      value: sections?.exitSigns?.product || 0,
+      details: [
+        ...(sections?.exitSigns?.manualAdder > 0
+          ? [{ label: 'Manual adder', value: sections?.exitSigns?.manualAdder }]
+          : []),
+      ],
+    },
   ];
 
   return (

@@ -46,6 +46,13 @@ const FIELDS = [
       { key: 'salesTaxPct',    label: 'Sales Tax %',   type: 'number', placeholder: '9.15', hint: 'Jurisdiction sales tax rate on materials. Leave blank for tax-exempt projects. Applied to product subtotals only.', suffix: '%' },
     ],
   },
+  { group: 'Section Adders',
+    fields: [
+      { key: 'bohManualAdder',       label: 'BOH / Core + Shell manual adder',    type: 'number', placeholder: '0', hint: 'Add an arbitrary dollar amount to bump the BOH total.', prefix: '$' },
+      { key: 'garageManualAdder',    label: 'Enclosed Garage manual adder',       type: 'number', placeholder: '0', hint: 'Add an arbitrary dollar amount to bump the garage total.', prefix: '$' },
+      { key: 'exitSignsManualAdder', label: 'Exit Signs manual adder',            type: 'number', placeholder: '0', hint: 'Add an arbitrary dollar amount to bump the exit signs total.', prefix: '$' },
+    ],
+  },
 ];
 
 const PCT_FIELDS = new Set(['freightPct', 'warehousingPct', 'salesTaxPct']);
