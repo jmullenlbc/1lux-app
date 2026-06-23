@@ -231,7 +231,7 @@ export default async function SummaryPage({ params }) {
             projectName={project.name}
             totalBudget={budget.totalWithControls}
           />
-          <SummaryPrintButton />
+          <SummaryPrintButton projectName={project.name} budgetType={project.budgetType} />
         </div>
       </div>
 
