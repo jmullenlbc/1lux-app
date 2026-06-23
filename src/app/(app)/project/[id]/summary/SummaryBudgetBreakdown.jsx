@@ -69,7 +69,15 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
         { label: '5% misc buffer',     value: sections?.exterior?.misc?.product      || 0 },
       ],
     },
-    { label: 'Emergency Lighting',  value: sections?.emergency?.product       || 0, details: [] },
+    {
+      label: 'Emergency Lighting',
+      value: sections?.emergency?.product || 0,
+      details: [
+        ...(sections?.emergency?.manualAdder > 0
+          ? [{ label: 'Manual adder', value: sections?.emergency?.manualAdder }]
+          : []),
+      ],
+    },
     { label: 'Exit Signs',          value: sections?.exitSigns?.product        || 0, details: [] },
   ];
 

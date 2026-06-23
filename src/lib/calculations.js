@@ -241,6 +241,9 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     emergencyProduct += battCount * b.costPerFixture;
   }
 
+  // Manual adder
+  emergencyProduct += n(emergency.manualAdder);
+
   // ─── EXIT SIGNS ───────────────────────────────────────────────────────────
   // Large-project threshold: per pricing.js, exit signs cost is halved when
   // the project exceeds the large-project threshold (default 300,000 SF).

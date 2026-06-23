@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
 import { PRICING } from '@/lib/pricing';
 import { formatCurrency } from '@/lib/calculations';
 import { cn } from '@/lib/utils';
@@ -53,7 +54,8 @@ const STRATEGIES = [
 export default function EmergencySection({ responses, projectData, pricing, onSaveResponses, onNext, onPrev }) {
   const P = pricing || PRICING;
   const [answers, setAnswers] = useState({
-    strategy: responses.strategy || 'integrated_inverters',
+    strategy:   responses.strategy   || 'integrated_inverters',
+    manualAdder: responses.manualAdder ?? '',
   });
   const [dirty, setDirty] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
@@ -168,6 +170,24 @@ export default function EmergencySection({ responses, projectData, pricing, onSa
 
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
         <strong>Note:</strong> Stairwell integrated battery backup is required by code regardless of strategy selected. This cost is included in the Corridors & Stairwells line item.
+      </div>
+
+      {/* Manual adder */}
+      <div>
+        <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Manual Adder</div>
+        <Input
+          label="Emergency Lighting manual adder"
+          type="number"
+          placeholder="0"
+          hint="Add an arbitrary dollar amount to bump the emergency lighting total."
+          prefix="$"
+          value={answers.manualAdder}
+          onChange={e => {
+            setAnswers(a => ({ ...a, manualAdder: e.target.value }));
+            setDirty(d => new Set(d).add('manualAdder'));
+          }}
+          min={0}
+        />
       </div>
 
       <div className="flex gap-3 pt-2">
