@@ -19,6 +19,7 @@ export default function ControlsSection({ responses, projectData, budget, pricin
     sceneSwitching:     responses.sceneSwitching     || 'bankSwitches',
     zoneReduction:      responses.zoneReduction      || 'no',
   });
+  const [dirty, setDirty] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
 
   const grossSf      = projectData?.grossSf || 0;
@@ -40,14 +41,22 @@ export default function ControlsSection({ responses, projectData, budget, pricin
 
   async function handleNext() {
     setSaving(true);
-    const payload = { ...answers };
+    // Only send dirty fields
+    const payload = {};
+    for (const key of dirty) {
+      payload[key] = answers[key];
+    }
+    // Null out design-only keys in conceptual mode
     if (!isDesign) {
       payload.controlsSystem    = null;
       payload.decorativeDimming = null;
       payload.sceneSwitching    = null;
       payload.zoneReduction     = null;
     }
-    await onSaveResponses(payload);
+    if (Object.keys(payload).length > 0) {
+      await onSaveResponses(payload);
+    }
+    setDirty(new Set());
     setSaving(false);
     onNext();
   }
@@ -113,7 +122,10 @@ export default function ControlsSection({ responses, projectData, budget, pricin
           },
         ]}
         value={answers.energyCredit}
-        onChange={val => setAnswers(a => ({ ...a, energyCredit: val }))}
+        onChange={val => {
+          setAnswers(a => ({ ...a, energyCredit: val }));
+          setDirty(d => new Set(d).add('energyCredit'));
+        }}
       />
 
       {/* Manual override */}
@@ -130,7 +142,10 @@ export default function ControlsSection({ responses, projectData, budget, pricin
             placeholder="Formula result"
             prefix="$"
             value={answers.controlsOverride}
-            onChange={e => setAnswers(a => ({ ...a, controlsOverride: e.target.value }))}
+            onChange={e => {
+              setAnswers(a => ({ ...a, controlsOverride: e.target.value }));
+              setDirty(d => new Set(d).add('controlsOverride'));
+            }}
             min={0}
           />
         </div>
@@ -159,7 +174,10 @@ export default function ControlsSection({ responses, projectData, budget, pricin
               </label>
               <select
                 value={answers.controlsSystem}
-                onChange={e => setAnswers(a => ({ ...a, controlsSystem: e.target.value }))}
+                onChange={e => {
+                  setAnswers(a => ({ ...a, controlsSystem: e.target.value }));
+                  setDirty(d => new Set(d).add('controlsSystem'));
+                }}
                 className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
               >
                 <option value="standalone">Standalone occupancy &amp; photosensors (code minimum)</option>
@@ -186,7 +204,10 @@ export default function ControlsSection({ responses, projectData, budget, pricin
               { value: 'yes', label: 'Yes — dim decorative fixtures in public spaces',                  sub: 'Adds dimmer cost; creates hospitality feel', cost: 0 },
             ]}
             value={answers.decorativeDimming}
-            onChange={val => setAnswers(a => ({ ...a, decorativeDimming: val }))}
+            onChange={val => {
+              setAnswers(a => ({ ...a, decorativeDimming: val }));
+              setDirty(d => new Set(d).add('decorativeDimming'));
+            }}
           />
 
           <QuestionCard
@@ -197,7 +218,10 @@ export default function ControlsSection({ responses, projectData, budget, pricin
               { value: 'sceneController',label: 'Scene controller / keypad',                             sub: 'Programmed scenes; premium appearance; higher cost', cost: 0 },
             ]}
             value={answers.sceneSwitching}
-            onChange={val => setAnswers(a => ({ ...a, sceneSwitching: val }))}
+            onChange={val => {
+              setAnswers(a => ({ ...a, sceneSwitching: val }));
+              setDirty(d => new Set(d).add('sceneSwitching'));
+            }}
           />
 
           <QuestionCard
@@ -208,7 +232,10 @@ export default function ControlsSection({ responses, projectData, budget, pricin
               { value: 'yes', label: 'Yes — minimize zones to reduce controls cost where possible',     sub: 'Recommended for budget-conscious projects', cost: 0 },
             ]}
             value={answers.zoneReduction}
-            onChange={val => setAnswers(a => ({ ...a, zoneReduction: val }))}
+            onChange={val => {
+              setAnswers(a => ({ ...a, zoneReduction: val }));
+              setDirty(d => new Set(d).add('zoneReduction'));
+            }}
           />
         </>
       )}
