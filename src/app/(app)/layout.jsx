@@ -13,15 +13,17 @@ export default async function AppLayout({ children }) {
   if (session.mustChangePassword) redirect('/change-password');
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
+    <div className="flex h-screen overflow-hidden bg-slate-50 print:h-auto print:overflow-visible print:block">
       <Sidebar user={session} />
-      <main className="flex-1 overflow-y-auto flex flex-col">
+      <main className="flex-1 overflow-y-auto flex flex-col print:overflow-visible">
         <AppBreadcrumb />
-        <div className="flex-1 pb-28">
+        <div className="flex-1 pb-28 print:pb-0">
           {children}
         </div>
-        <QcCapture />
-        <GlobalAIButton />
+        <div className="print:hidden">
+          <QcCapture />
+          <GlobalAIButton />
+        </div>
       </main>
     </div>
   );

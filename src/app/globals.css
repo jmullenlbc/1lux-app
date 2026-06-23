@@ -64,6 +64,9 @@
 
   /* Remove shadows */
   * { box-shadow: none !important; }
+
+  /* Undo the app shell's scroll-container constraints so full page content prints */
+  html, body { overflow: visible !important; height: auto !important; }
 }
 
 /* Custom scrollbar */
