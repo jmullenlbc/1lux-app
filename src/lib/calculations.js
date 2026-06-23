@@ -152,7 +152,9 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     const parsed = parseFloat(intLevelRaw);
     intAmenityRate = (isFinite(parsed) && parsed > 0) ? parsed : PRICING.interiorAmenities.medium;
   }
-  const intAmenityProduct = intAmenitySf * intAmenityRate;
+  const intAmenityBaseProduct = intAmenitySf * intAmenityRate;
+  const interiorManualAdder = n(amenities.manualAdder);
+  const intAmenityProduct = intAmenityBaseProduct + interiorManualAdder;
 
   // ─── GARAGE ───────────────────────────────────────────────────────────────
   const garageProduct = garageSf * PRICING.garage.perSf;

@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/calculations';
 import { PRICING } from '@/lib/pricing';
@@ -11,6 +12,7 @@ export default function AmenitiesSection({ responses, projectData, pricing, onSa
   const P = pricing || PRICING;
   const [answers, setAnswers] = useState({
     interiorLevel: responses.interiorLevel || '10',
+    manualAdder:   responses.manualAdder   ?? '',
   });
   const [dirty, setDirty] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
@@ -108,6 +110,24 @@ export default function AmenitiesSection({ responses, projectData, pricing, onSa
           <div><span className="font-medium text-slate-600">$11–13/SF</span> — Upper mid-range, enhanced amenity package</div>
           <div><span className="font-medium text-slate-600">$14–15/SF</span> — High-end mid-rise or high-rise, luxury finishes</div>
         </div>
+      </div>
+
+      {/* Manual adder */}
+      <div>
+        <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Manual Adder</div>
+        <Input
+          label="Interior Amenities manual adder"
+          type="number"
+          placeholder="0"
+          hint="Add an arbitrary dollar amount to bump the amenities total."
+          prefix="$"
+          value={answers.manualAdder}
+          onChange={e => {
+            setAnswers(a => ({ ...a, manualAdder: e.target.value }));
+            setDirty(d => new Set(d).add('manualAdder'));
+          }}
+          min={0}
+        />
       </div>
 
       <div className="flex gap-3 pt-2">

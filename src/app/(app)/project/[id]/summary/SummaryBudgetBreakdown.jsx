@@ -46,7 +46,15 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
       ],
     },
     { label: 'BOH / Core + Shell',  value: sections?.boh?.product            || 0, details: [] },
-    { label: 'Interior Amenities',  value: sections?.interior?.product        || 0, details: [] },
+    {
+      label: 'Interior Amenities',
+      value: sections?.interior?.product || 0,
+      details: [
+        ...(sections?.interior?.manualAdder > 0
+          ? [{ label: 'Manual adder', value: sections?.interior?.manualAdder }]
+          : []),
+      ],
+    },
     { label: 'Enclosed Garage',     value: sections?.garage?.product          || 0, details: [] },
     {
       label: 'Exterior & Site',
