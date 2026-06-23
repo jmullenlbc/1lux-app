@@ -25,6 +25,12 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Log
 
+### 2026-06-23 — Mike's Claude (Construction-schedule parser fix deployed — isolated hotfix)
+
+**Deployed parser fix** (rebased onto your 21 commits — clean, no conflicts; your commits don't touch these files): widened the construction-schedule AI extraction window **12,000 → 50,000 chars** and the PDF page-extraction cap **30 → 60** in both `src/app/api/projects/[id]/files/route.js` and `.../files/[fileId]/reparse/route.js`. Large multi-page MS Project/P6 schedules were placing milestone rows past the 12k window so uploads parsed no dates (Zenith 96-page schedule: TCO/turnover sat at char ~12,068). Verified the Zenith schedule now extracts 15 milestones across 5 building phases. `npm test` green, build clean.
+
+**Heads-up:** I have a large **local-only** Sales-Notes/automation module in progress (unified Note table, admin action taxonomy, Zapier-style if-then rule engine, intel, outreach consolidation) — **NOT pushed**, sitting in my working tree + a stash. It adds migrations `0035`–`0041`. When I eventually deploy it I'll rebase onto your latest first. Flagging so you're aware of the migration numbers I'll be claiming.
+
 ### 2026-06-16 — Mike's Claude (Client standards/playbook + live share link deployed)
 
 **Deployed `8acf55c` to production** (rebased onto your 13 commits — clean, no conflicts):
