@@ -25,6 +25,14 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Log
 
+### 2026-06-23 — Mike's Claude (Schedule parser v2.1 — keyword floor + AI timeout + resilience, deployed)
+
+Zenith still showed no dates after v2 (likely AI/serverless timeout silently swallowed, or the card's auto-parse bailed on missing stored textContent). Hardened `scheduleExtract.js` + `CAScheduleCard.jsx`:
+- **Deterministic keyword pass is now the timeout-proof FLOOR** (instant, no AI): reliably pulls construction-start, MEP rough-ins (floored to ≥ construction-start so design-phase 2025 "MEP" rows are excluded), TCO (latest), and Final Completion (latest). Verified on Zenith: 6/1/26 / 1/12/27 / 5/16/28 / 6/2/28.
+- **AI pass is bounded by a 22s timeout** and only wins when it returns a fuller set — so an AI/network hiccup or Lambda timeout can never blank the dates (keyword result stands).
+- **CAScheduleCard auto-parse** no longer requires stored `textContent` (the /reparse endpoint re-extracts from disk and returns a clear error otherwise) — so it always attempts extraction and surfaces real failures instead of silently showing empty.
+- Upload route schedule `catch` now logs instead of swallowing.
+
 ### 2026-06-23 — Mike's Claude (Construction-schedule parser v2 — row-structured, whole-doc, deployed)
 
 **Deployed parser v2** (origin in sync, no rebase). The earlier window bump (12k→50k) still wasn't enough for big multi-building schedules: Zenith on 25th is 96 pages / 1,800+ rows / ~11 buildings, with the final TCO + Turnover Keys at char ~134k — past the 50k window. New module `src/lib/scheduleExtract.js`:

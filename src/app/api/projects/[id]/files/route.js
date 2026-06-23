@@ -221,7 +221,7 @@ export async function POST(request, { params }) {
           await prisma.$executeRawUnsafe(`UPDATE "Project" SET ${cols.join(', ')} WHERE "id" = ?`, ...vals);
         }
       }
-    } catch {}
+    } catch (e) { console.error('[upload schedule extraction] failed:', e?.message ?? e); }
   }
 
   // Prepend YY.MM.DD date prefix for drawing and fixture-schedule uploads

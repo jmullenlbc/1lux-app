@@ -331,9 +331,8 @@ export default function CAScheduleCard({ files, projectId, onFileUpdated }) {
     let stored = [];
     try { stored = JSON.parse(scheduleFile.takeoffData || '{}')?.milestones ?? []; } catch {}
     if (stored.length > 0) return;
-    // Skip if no text content (scanned PDF)
-    if (!scheduleFile.textContent) return;
-    // Skip if already parsing
+    // Skip if already parsing. (No textContent precondition — /reparse re-extracts
+    // the PDF from disk itself, and returns a clear error if it truly can't.)
     if (autoParsing) return;
 
     setAutoParsing(true);

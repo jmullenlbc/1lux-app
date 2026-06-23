@@ -123,33 +123,58 @@ const matches = (row, res) => res.some(re => re.test(row));
 export function keywordExtractMilestones(text) {
   if (!text) return [];
   const rows = text.split('\n');
-  const startDs = [], mepRows = [], elecRows = [], tcoDs = [], endDs = [];
+  const startDs = [], mepDs = [], elecDs = [], tcoDs = [], endDs = [];
   for (const row of rows) {
     const ds = datesInRow(row);
     if (!ds.length) continue;
     if (matches(row, KW.start)) startDs.push(ds[0]);
-    if (matches(row, KW.mep))   mepRows.push(ds[0]);
-    if (matches(row, KW.elec))  elecRows.push(ds[0]);
+    if (matches(row, KW.mep))   mepDs.push(ds[0]);
+    if (matches(row, KW.elec))  elecDs.push(ds[0]);
     if (matches(row, KW.tco))   tcoDs.push(ds[ds.length - 1]); // finish
     if (matches(row, KW.end))   endDs.push(ds[ds.length - 1]); // finish
   }
+  const start = startDs.length ? startDs.sort()[0] : null;
+  // Rough-ins must fall on/after construction start — drops design/submittal-phase
+  // "MEP"/"electrical" references (e.g. 2025 utility design rows).
+  const floor = start || '2020-01-01';
+  const roughs = ds => [...new Set(ds.filter(d => d >= floor))].sort();
+
   const out = [];
-  if (startDs.length) out.push({ id: 'construction-start', label: 'Construction Start', date: startDs.sort()[0] });
-  elecRows.sort().slice(0, 12).forEach((d, i) => out.push({ id: `electrical-rough-${i + 1}`, label: `Electrical Rough-In ${i + 1}`, date: d }));
-  mepRows.sort().slice(0, 12).forEach((d, i) => out.push({ id: `mep-rough-${i + 1}`, label: `MEP Rough-In ${i + 1}`, date: d }));
+  if (start) out.push({ id: 'construction-start', label: 'Construction Start', date: start });
+  roughs(elecDs).slice(0, 15).forEach((d, i) => out.push({ id: `electrical-rough-${i + 1}`, label: `Electrical Rough-In ${i + 1}`, date: d }));
+  roughs(mepDs).slice(0, 15).forEach((d, i) => out.push({ id: `mep-rough-${i + 1}`, label: `MEP Rough-In ${i + 1}`, date: d }));
   if (tcoDs.length) out.push({ id: 'tco', label: 'TCO', date: tcoDs.sort().at(-1) });
   if (endDs.length) out.push({ id: 'construction-end', label: 'Final Completion', date: endDs.sort().at(-1) });
   return out;
 }
 
 // ── Orchestrator ──────────────────────────────────────────────────────────────
-export async function extractScheduleMilestones(buffer, anthropic) {
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, rej) => setTimeout(() => rej(new Error(`${label} timed out after ${ms}ms`)), ms)),
+  ]);
+}
+
+/**
+ * Always returns a usable result within a serverless budget:
+ *  - deterministic keyword pass is the instant, timeout-proof FLOOR,
+ *  - AI pass (bounded by a timeout) ENHANCES it (accurate per-building rough-ins,
+ *    better labels) and wins when it returns a fuller set.
+ * So an AI/network hiccup or Lambda timeout can never blank the dates.
+ */
+export async function extractScheduleMilestones(buffer, anthropic, { aiTimeoutMs = 22000 } = {}) {
   const text = await extractScheduleText(buffer);
   if (!text) return { text: null, milestones: [], source: 'none' };
-  let milestones = [];
-  try { milestones = await aiExtractMilestones(text, anthropic); }
-  catch (e) { console.error('[extractScheduleMilestones] AI failed:', e?.message ?? e); }
-  if (milestones.length >= 2) return { text, milestones, source: 'ai' };
-  const fallback = keywordExtractMilestones(text);
-  return { text, milestones: fallback.length ? fallback : milestones, source: fallback.length ? 'keyword' : 'ai' };
+
+  const keyword = keywordExtractMilestones(text);
+
+  let ai = [];
+  try { ai = await withTimeout(aiExtractMilestones(text, anthropic), aiTimeoutMs, 'AI extraction'); }
+  catch (e) { console.error('[extractScheduleMilestones] AI skipped:', e?.message ?? e); }
+
+  // Prefer AI when it returns a fuller set; otherwise the reliable keyword floor.
+  if (ai.length >= keyword.length && ai.length >= 2) return { text, milestones: ai, source: 'ai' };
+  if (keyword.length) return { text, milestones: keyword, source: 'keyword' };
+  return { text, milestones: ai, source: ai.length ? 'ai' : 'none' };
 }
