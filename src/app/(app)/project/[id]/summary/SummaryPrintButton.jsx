@@ -5,7 +5,7 @@ export default function SummaryPrintButton({ projectName, budgetType }) {
   function handlePrint() {
     const type = budgetType === 'design' ? 'Design' : 'Conceptual';
     const original = document.title;
-    document.title = `ILC - ${projectName} - ${type} Budget`;
+    document.title = `ILC-${projectName}-${type} Budget`;
     window.print();
     window.addEventListener('afterprint', () => { document.title = original; }, { once: true });
   }
