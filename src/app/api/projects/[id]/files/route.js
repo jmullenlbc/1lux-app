@@ -7,6 +7,7 @@ import { logActivity, TAB_LABELS } from '@/lib/activity';
 import { sendNotification } from '@/lib/notify';
 import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicKey } from '@/lib/anthropicKey';
+import { extractScheduleMilestones } from '@/lib/scheduleExtract';
 
 // Anthropic client created per-request inside the POST handler so env vars are available
 
@@ -50,78 +51,6 @@ async function parseTakeoff(buffer, fileName) {
 function parseTags(raw) {
   if (!raw) return [];
   try { return JSON.parse(raw); } catch { return []; }
-}
-
-// ── AI-powered construction schedule milestone extractor ───────────────────────
-// Sends schedule text to Claude — handles Primavera P6, MS Project, Excel exports,
-// multi-phase electrical/MEP rough-ins (one row per phase/building), "A" dates, etc.
-async function extractScheduleMilestonesWithAI(textContent, anthropic) {
-  const prompt = `You are reading a construction schedule (may be Primavera P6, MS Project, Excel, or similar Gantt export).
-
-Extract milestone dates and return ONLY a valid JSON array — no markdown, no explanation.
-
-Return format: [{"id":"milestone-id","label":"Milestone Label","date":"YYYY-MM-DD"}, ...]
-
-Milestone types to find:
-
-• "construction-start" — NTP, Notice to Proceed, mobilization, project start, first day of construction. "A" (Actual) dates are valid.
-
-• "electrical-rough-1", "electrical-rough-2", ... — Overhead electrical rough, electrical rough-in, in-wall electrical.
-  IMPORTANT: If the schedule has separate phases or buildings (e.g. Building A, Phase 1, Floors 1-3), return ONE entry per phase/building, numbered sequentially (electrical-rough-1, electrical-rough-2, etc.).
-  Use the EARLIEST start date for each phase. Sort entries by date ascending.
-  Label each entry with the phase/building info, e.g. "Electrical Rough-In — Phase 1" or "Electrical Rough-In — Bldg A".
-  If only one phase exists, use id "electrical-rough-1" and label "Electrical Rough-In".
-  Exclude: switchgear, panelboard, fire alarm, underground/conduit, transformers, fabrication rows.
-
-• "mep-rough-1", "mep-rough-2", ... — MEP rough-in, overhead mechanical, mechanical rough, plumbing overhead.
-  Same multi-phase rule as electrical-rough above. Use "mep-rough-1", "mep-rough-2", etc.
-  Exclude: fire alarm, switchgear, fabrication rows.
-  Note: only include MEP rough if it is listed separately from electrical rough.
-
-• "light-fixtures" — Light fixture install, install lighting, light fixtures / fans. Finish trade — after paint.
-  Exclude: site lighting, exterior lighting, bollards.
-
-• "site-lighting" — Site lighting, exterior lighting, parking lot lighting, railing lights, bollard install.
-
-• "electrical-devicing" — Electrical devicing, devicing / trims, electrical trim. Last electrical trade before punch list.
-  Exclude: fire alarm, mechanical devicing.
-
-• "tco" — Temporary Certificate of Occupancy. If multiple phases exist, use the FIRST phase date.
-
-• "construction-end" — Substantial completion, final completion, project closeout, owner move-in. If multiple phases use the LAST date.
-
-Rules:
-- Only include milestones explicitly in the schedule — do NOT guess or invent dates
-- Dates marked "A" (Actual/already happened) are valid — include them
-- Ignore calendar column headers, data dates, and revision dates
-- "CURRENT FINISH" preferred over "CURRENT START" for completion-type milestones
-- Return [] if no recognizable milestone dates are found
-
-Schedule text (first 50000 chars):
-${textContent.slice(0, 50000)}`;
-
-  const msg = await anthropic.messages.create({
-    model:      'claude-haiku-4-5',
-    max_tokens: 1200,
-    messages:   [{ role: 'user', content: prompt }],
-  });
-
-  const raw   = msg.content.map(b => b.text || '').join('');
-  const start = raw.indexOf('[');
-  const end   = raw.lastIndexOf(']');
-  if (start === -1 || end === -1) return null;
-
-  const parsed = JSON.parse(raw.slice(start, end + 1));
-
-  // Valid IDs: exact singletons OR multi-phase rough-in with numeric suffix
-  const SINGLETON_IDS = new Set(['construction-start', 'light-fixtures', 'site-lighting', 'electrical-devicing', 'tco', 'construction-end']);
-  const MULTI_RE = /^(electrical-rough|mep-rough)-\d+$/;
-
-  return parsed.filter(m =>
-    m.id && m.label && /^\d{4}-\d{2}-\d{2}$/.test(m.date) &&
-    parseInt(m.date) >= 2020 && parseInt(m.date) <= 2035 &&
-    (SINGLETON_IDS.has(m.id) || MULTI_RE.test(m.id))
-  );
 }
 
 export async function GET(request, { params }) {
@@ -263,11 +192,12 @@ export async function POST(request, { params }) {
     } catch {}
   }
 
-  // ── CA Construction Schedule: AI milestone extraction ────────────────
+  // ── CA Construction Schedule: row-structured, whole-document extraction ──
   let scheduleUpdate = null;
-  if (tab === 'ca' && tags.includes('Construction Schedule') && textContent) {
+  if (tab === 'ca' && tags.includes('Construction Schedule')) {
     try {
-      const milestones = await extractScheduleMilestonesWithAI(textContent, anthropic);
+      const { text: schedText, milestones } = await extractScheduleMilestones(buffer, anthropic);
+      if (schedText) textContent = schedText; // store the clean row text
       if (milestones && milestones.length > 0) {
         takeoffData    = JSON.stringify({ milestones });
         scheduleUpdate = { milestones };

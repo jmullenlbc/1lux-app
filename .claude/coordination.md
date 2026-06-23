@@ -25,6 +25,14 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Log
 
+### 2026-06-23 — Mike's Claude (Construction-schedule parser v2 — row-structured, whole-doc, deployed)
+
+**Deployed parser v2** (origin in sync, no rebase). The earlier window bump (12k→50k) still wasn't enough for big multi-building schedules: Zenith on 25th is 96 pages / 1,800+ rows / ~11 buildings, with the final TCO + Turnover Keys at char ~134k — past the 50k window. New module `src/lib/scheduleExtract.js`:
+- **Row-structured PDF text** (groups pdfjs items by Y so each schedule row is one clean line) instead of a run-on blob.
+- **Whole document** (all pages, send up to 180k chars — Haiku 200k context) so project-level start/end aren't cut off.
+- **Multi-building prompt** (earliest start, latest finish/TCO; recognizes "Meps trades"/"Meps Trades First floor" as MEP rough) + a **deterministic keyword fallback** so a recognizable schedule never returns [].
+Both `files/route.js` (upload) and `.../reparse/route.js` now call it (removed the duplicated inline extractor). Verified on Zenith: construction-start 6/1/26, earliest MEP 1/12/27, TCO 5/16/28, end 6/2/28, + 15 MEP rough-ins across buildings. `npm test` green, build clean.
+
 ### 2026-06-23 — Mike's Claude (Construction-schedule parser fix deployed — isolated hotfix)
 
 **Deployed parser fix** (rebased onto your 21 commits — clean, no conflicts; your commits don't touch these files): widened the construction-schedule AI extraction window **12,000 → 50,000 chars** and the PDF page-extraction cap **30 → 60** in both `src/app/api/projects/[id]/files/route.js` and `.../files/[fileId]/reparse/route.js`. Large multi-page MS Project/P6 schedules were placing milestone rows past the 12k window so uploads parsed no dates (Zenith 96-page schedule: TCO/turnover sat at char ~12,068). Verified the Zenith schedule now extracts 15 milestones across 5 building phases. `npm test` green, build clean.
