@@ -30,6 +30,7 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
     siteType:          responses.siteType          || 'pedestrian',
     roadwayLighting:   responses.roadwayLighting   || 'no',
   });
+  const [dirtyAnswers, setDirtyAnswers] = useState(() => new Set());
 
   // Manual adder items (pathway, parking entrances, catch-all). These ADD on top
   // of the frozen formula breakdown.
@@ -37,7 +38,11 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
     try { return JSON.parse(responses.exteriorManualItems || '{}') || {}; }
     catch { return {}; }
   });
-  const setManualItem = (key, val) => setManualItems(m => ({ ...m, [key]: val }));
+  const [dirtyManualItems, setDirtyManualItems] = useState(() => new Set());
+  const setManualItem = (key, val) => {
+    setManualItems(m => ({ ...m, [key]: val }));
+    setDirtyManualItems(d => new Set(d).add(key));
+  };
   const manualTotal = EXT_MANUAL_ITEMS.reduce((s, [key]) => s + (parseFloat(manualItems[key]) || 0), 0);
 
   const [saving, setSaving] = useState(false);
@@ -96,14 +101,31 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
 
   async function handleNext() {
     setSaving(true);
-    const payload = { ...answers, exteriorManualItems: JSON.stringify(manualItems) };
+    // Only send dirty answers
+    const payload = {};
+    for (const key of dirtyAnswers) {
+      payload[key] = answers[key];
+    }
+    // Only send dirty manual items
+    if (dirtyManualItems.size > 0) {
+      const dirtyManual = {};
+      for (const key of dirtyManualItems) {
+        dirtyManual[key] = manualItems[key];
+      }
+      payload.exteriorManualItems = JSON.stringify(dirtyManual);
+    }
+    // Null out design-only keys in conceptual mode
     if (!isDesign) {
       payload.exteriorEmergency  = null;
       payload.exteriorPoleControl = null;
       payload.siteType            = null;
       payload.roadwayLighting     = null;
     }
-    await onSaveResponses(payload);
+    if (Object.keys(payload).length > 0) {
+      await onSaveResponses(payload);
+    }
+    setDirtyAnswers(new Set());
+    setDirtyManualItems(new Set());
     setSaving(false);
     onNext();
   }
@@ -155,7 +177,10 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
           { value: 'high',      label: `$${rateMap.high}/SF — High`,            sub: 'High-end mid-rise / high-rise; may include façade accent lighting', cost: extSf * rateMap.high },
         ]}
         value={answers.amenityLevel}
-        onChange={val => setAnswers(a => ({ ...a, amenityLevel: val }))}
+        onChange={val => {
+          setAnswers(a => ({ ...a, amenityLevel: val }));
+          setDirtyAnswers(d => new Set(d).add('amenityLevel'));
+        }}
       />
 
       {/* Amenity hours */}
@@ -178,7 +203,10 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
           },
         ]}
         value={answers.amenityHours}
-        onChange={val => setAnswers(a => ({ ...a, amenityHours: val }))}
+        onChange={val => {
+          setAnswers(a => ({ ...a, amenityHours: val }));
+          setDirtyAnswers(d => new Set(d).add('amenityHours'));
+        }}
       />
 
       {/* Exterior amenities subtotal — calculated from the cards above (shown once, here) */}
@@ -285,7 +313,10 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
             placeholder="0"
             prefix="$"
             value={answers.exteriorOverride}
-            onChange={e => setAnswers(a => ({ ...a, exteriorOverride: e.target.value }))}
+            onChange={e => {
+              setAnswers(a => ({ ...a, exteriorOverride: e.target.value }));
+              setDirtyAnswers(d => new Set(d).add('exteriorOverride'));
+            }}
             min={0}
           />
         </div>
@@ -308,7 +339,10 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
               { value: 'integrated', label: 'Integrated emergency module in architectural fixture',       sub: 'Premium option; cleanest appearance', cost: 0 },
             ]}
             value={answers.exteriorEmergency}
-            onChange={val => setAnswers(a => ({ ...a, exteriorEmergency: val }))}
+            onChange={val => {
+              setAnswers(a => ({ ...a, exteriorEmergency: val }));
+              setDirtyAnswers(d => new Set(d).add('exteriorEmergency'));
+            }}
           />
 
           <QuestionCard
@@ -320,7 +354,10 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
               { value: 'smartControl', label: 'Smart / networked controls',                           sub: 'Scheduling, dimming, energy reporting — adder', cost: 0 },
             ]}
             value={answers.exteriorPoleControl}
-            onChange={val => setAnswers(a => ({ ...a, exteriorPoleControl: val }))}
+            onChange={val => {
+              setAnswers(a => ({ ...a, exteriorPoleControl: val }));
+              setDirtyAnswers(d => new Set(d).add('exteriorPoleControl'));
+            }}
           />
 
           <QuestionCard
@@ -333,7 +370,10 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
               { value: 'mixed',         label: 'Mixed — combination of pole types and building-mount', sub: 'Most common for mid-rise and podium buildings', cost: 0 },
             ]}
             value={answers.siteType}
-            onChange={val => setAnswers(a => ({ ...a, siteType: val }))}
+            onChange={val => {
+              setAnswers(a => ({ ...a, siteType: val }));
+              setDirtyAnswers(d => new Set(d).add('siteType'));
+            }}
           />
 
           <QuestionCard
@@ -344,7 +384,10 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
               { value: 'yes', label: 'Yes — city-required roadway lighting in scope', sub: 'Note in project; coordinate with civil engineer', cost: 0 },
             ]}
             value={answers.roadwayLighting}
-            onChange={val => setAnswers(a => ({ ...a, roadwayLighting: val }))}
+            onChange={val => {
+              setAnswers(a => ({ ...a, roadwayLighting: val }));
+              setDirtyAnswers(d => new Set(d).add('roadwayLighting'));
+            }}
           />
         </>
       )}
