@@ -61,12 +61,27 @@ export async function PUT(request, { params }) {
 
   const numericFields = Object.keys(QUESTIONNAIRE_SYNC);
 
+  // Preserve-on-blank semantics: skip fields that arrive as undefined,
+  // null, or empty string. Treats blanks as "no change" rather than
+  // "clear to null", which prevents stale wizard forms from silently
+  // wiping saved data on Save & Continue.
+  //
+  // Background: on 2026-06-22, Sean's APPROACH II project lost
+  // exteriorAmenitySf=19909 and several other fields after he reopened
+  // the wizard and clicked through. The wizard's Project Data form
+  // sends every field in its payload, including blanks that hadn't been
+  // populated from a stale projectData prop — the old loop treated each
+  // blank as null and overwrote the DB column.
+  //
+  // Trade-off: the wizard can no longer be used to *clear* an existing
+  // value. Clears must go through the Dashboard's single-field PATCH
+  // (which sends one field at a time, so clearing is explicit).
   const data = {};
   for (const field of numericFields) {
-    if (body[field] !== undefined) {
-      const val = parseFloat(body[field]);
-      data[field] = isNaN(val) ? null : val;
-    }
+    const v = body[field];
+    if (v === undefined || v === null || v === '') continue;
+    const val = parseFloat(v);
+    if (!isNaN(val)) data[field] = val;
   }
 
   // Compute which fields actually changed for a useful description

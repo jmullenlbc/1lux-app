@@ -373,7 +373,33 @@ function AutoTaggedFileTab({ title, subtitle, autoTag, files, projectId, tab, on
   );
 }
 
-export default function ProjectHubClient({ userId, project, budget, peerReviewTotal, clients = [], allUsers = [], initialFiles = [], initialDesignInfo = {}, masterTypes = [] }) {
+export default function ProjectHubClient({ userId, userRole, project, budget, peerReviewTotal, clients = [], allUsers = [], initialFiles = [], initialDesignInfo = {}, masterTypes = [] }) {
+  // Inline super-admin check — the auth helper module imports next/headers
+  // which isn't usable in a client component, so we replicate the predicate
+  // here. Mirrors isSuperAdmin() in src/lib/auth.js exactly.
+  const isSuper = userRole === 'SUPER_ADMIN' || userRole === 'ILC_ADMIN';
+
+  async function copyProjectAsJson() {
+    try {
+      const res = await fetch(`/api/admin/projects/${project.id}/export`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        alert(`Export failed (${res.status}): ${body?.error || 'unknown error'}`);
+        return;
+      }
+      const json = await res.json();
+      await navigator.clipboard.writeText(JSON.stringify(json, null, 2));
+      // Lightweight inline confirmation — avoids hauling in a toast lib.
+      const el = document.getElementById('qc-export-toast');
+      if (el) {
+        el.textContent = 'Copied! Paste into Hive / chat.';
+        el.style.opacity = '1';
+        setTimeout(() => { el.style.opacity = '0'; }, 2500);
+      }
+    } catch (err) {
+      alert(`Export failed: ${err?.message || err}`);
+    }
+  }
   const router       = useRouter();
   const searchParams = useSearchParams();
   const pathname     = usePathname();
@@ -621,17 +647,35 @@ export default function ProjectHubClient({ userId, project, budget, peerReviewTo
       {/* Top bar */}
       <div className="bg-white border-b border-slate-200">
         <div className="max-w-6xl mx-auto px-6 py-4">
-          {/* Breadcrumb */}
-          <div className="flex items-center gap-2 text-xs text-slate-400 mb-3">
-            <Link href="/dashboard" className="hover:text-amber-600 transition-colors">Dashboard</Link>
-            <span>›</span>
-            {project.client && (
-              <>
-                <span className="text-slate-500">{project.client.name}</span>
-                <span>›</span>
-              </>
+          {/* Breadcrumb + admin tools */}
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <Link href="/dashboard" className="hover:text-amber-600 transition-colors">Dashboard</Link>
+              <span>›</span>
+              {project.client && (
+                <>
+                  <span className="text-slate-500">{project.client.name}</span>
+                  <span>›</span>
+                </>
+              )}
+              <span className="text-slate-600 font-medium">{project.name}</span>
+            </div>
+            {isSuper && (
+              <div className="flex items-center gap-2">
+                <span
+                  id="qc-export-toast"
+                  className="text-xs text-green-700 transition-opacity"
+                  style={{ opacity: 0 }}
+                />
+                <button
+                  onClick={copyProjectAsJson}
+                  title="Copy full project data (inputs + budget breakdown + pricing) as JSON. For QC / debugging."
+                  className="px-2.5 py-1 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 text-[11px] font-medium transition-colors"
+                >
+                  Copy as JSON
+                </button>
+              </div>
             )}
-            <span className="text-slate-600 font-medium">{project.name}</span>
           </div>
 
           {/* Project header */}

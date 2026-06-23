@@ -1,6 +1,7 @@
 'use client';
 import { useState, useCallback, useRef } from 'react';
 import { buildingTypeLabel } from '@/lib/utils';
+import MissingInputsWarning from './MissingInputsWarning';
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 function fmt(val) {
@@ -245,6 +246,10 @@ export default function ProjectDashboard({
         )}
       </div>
 
+      {/* ── Missing-inputs warning (compact) ──────────────────────────────── */}
+      {/* Auto-hides when nothing's blank — see src/lib/projectInputChecks.js */}
+      <MissingInputsWarning projectData={pd} projectId={project.id} mode="compact" />
+
       {/* ── Budget row ────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-4">
         <Widget
@@ -330,8 +335,8 @@ export default function ProjectDashboard({
 
           {/* ── Square Footage ── */}
           <Rule label="Square Footage" />
-          <EditableStat label="Gross Interior SF"     displayValue={fmtSf(pd.grossSf)}              rawValue={pd.grossSf}              onSave={d('grossSf')} />
-          <EditableStat label="Unit / Room SF"        displayValue={fmtSf(pd.unitsSf)}              rawValue={pd.unitsSf}              onSave={d('unitsSf')} />
+          <EditableStat label="Total Gross SF"        displayValue={fmtSf(pd.grossSf)}              rawValue={pd.grossSf}              onSave={d('grossSf')} />
+          <EditableStat label="Units Gross SF"        displayValue={fmtSf(pd.unitsSf)}              rawValue={pd.unitsSf}              onSave={d('unitsSf')} />
           <EditableStat label="Garage SF"             displayValue={fmtSf(pd.garageSf)}             rawValue={pd.garageSf}             onSave={d('garageSf')} />
           <EditableStat label="Corridor SF"           displayValue={fmtSf(pd.corridorSf)}           rawValue={pd.corridorSf}           onSave={d('corridorSf')} />
           <EditableStat label="Interior Amenity SF"   displayValue={fmtSf(pd.interiorAmenitySf)}    rawValue={pd.interiorAmenitySf}    onSave={d('interiorAmenitySf')} />

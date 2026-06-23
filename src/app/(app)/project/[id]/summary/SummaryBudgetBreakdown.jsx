@@ -14,7 +14,8 @@ function Row({ label, value }) {
 }
 
 export default function SummaryBudgetBreakdown({ budget, freightPct, warehousingPct }) {
-  const { sections, freight, warehousing, lightingProductSubtotal, subtotalLightingOnly, controls, controlsFreight, controlsWarehousing, totalWithControls } = budget;
+  const { sections, freight, warehousing, lightingProductSubtotal, subtotalLightingOnly, controls, controlsFreight, controlsWarehousing, totalWithControls, contingencyRate, contingencyAmount, totalWithContingency } = budget;
+  const contingencyPct = contingencyRate ? Math.round(contingencyRate * 100) : 0;
 
   const lineItems = [
     {
@@ -178,6 +179,28 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
           <span className="font-mono">{formatCurrency(totalWithControls)}</span>
         </div>
       </div>
+
+      {/* Contingency (only shown when selected — none/empty produces no rows) */}
+      {contingencyAmount > 0 && (
+        <>
+          <div className="mt-3 print:hidden">
+            <TooltipBudgetRow
+              label={`Contingency (${contingencyPct}%)`}
+              value={contingencyAmount}
+              details={[{ label: `${contingencyPct}% of lighting subtotal`, value: contingencyAmount }]}
+            />
+          </div>
+          <div className="hidden print:block mt-3">
+            <Row label={`Contingency (${contingencyPct}%)`} value={contingencyAmount} />
+          </div>
+          <div className="border-t-2 border-slate-900 pt-3 mt-2">
+            <div className="flex justify-between font-bold text-base print:text-sm">
+              <span>Total w/ Contingency</span>
+              <span className="font-mono">{formatCurrency(totalWithContingency)}</span>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

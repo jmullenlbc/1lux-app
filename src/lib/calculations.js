@@ -189,15 +189,15 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const avgDoorCost    = (PRICING.exterior.exteriorDoor.primarySconce + PRICING.exterior.exteriorDoor.secondarySconce) / 2;
   const extDoorProduct = exteriorDoors * avgDoorCost;
 
-  // Landscape: 2% of total lot SF (Excel-verified formula)
-  const autoLandscape  = lotSf > 0 ? lotSf * 0.02 : 0;
-  const landscapeAdder = n(exterior.landscapeBudget) > 0 ? n(exterior.landscapeBudget) : 0;
-  const landscapeFlat  = autoLandscape + landscapeAdder;
-
-  // Misc buffer = 5% of subtotal before misc
-  const extSubBeforeMisc     = extAmenityProduct + parkingProduct + carportProduct + garageExtProduct + extDoorProduct + landscapeFlat;
-  const extMiscBuffer        = extSubBeforeMisc * PRICING.exterior.miscBufferPct;
-  const exteriorFormulaTotal = extSubBeforeMisc + extMiscBuffer;
+  // Landscape: 2% of total lot SF (Excel-verified formula).
+  //
+  // Historical note: `exterior.landscapeBudget` was a manual override
+  // field on the wizard before mid-2026. The input was removed from the
+  // UI when the Exterior step was redesigned; new projects route manual
+  // landscape additions through `exteriorManualItems.manualExteriorAdder`
+  // instead. Engine reference removed 2026-06-22 along with the only
+  // remaining project that used it (Mike's "The Approach").
+  const landscapeFlat = lotSf > 0 ? lotSf * 0.02 : 0;
 
   // Manual override: site/exterior is frequently hand-calculated outside the
   // formula (manually built in the spreadsheet). A positive exteriorOverride
@@ -207,8 +207,11 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const exteriorOverrideUsed = exteriorOverrideVal > 0;
 
   // Manual adder section: the 3 items the formula does NOT compute — pathway
-  // lighting, parking entrances, and a catch-all manual adder. These ADD on top
-  // of the formula breakdown (no double-counting, since they're not in the formula).
+  // lighting, parking entrances, and a catch-all manual adder. These ADD on
+  // top of the formula breakdown and DO participate in the 5% misc buffer
+  // calculation per Mike's decision 2026-06-22 (the buffer is a "general
+  // coverage" line, not specific to formula items; manual entries are real
+  // scope and the buffer should scale with them too).
   let exteriorManualItems = exterior.exteriorManualItems;
   if (typeof exteriorManualItems === 'string') {
     try { exteriorManualItems = JSON.parse(exteriorManualItems); } catch { exteriorManualItems = null; }
@@ -219,7 +222,15 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     + n(exteriorManualItems.parkingEntrances)
     + n(exteriorManualItems.manualExteriorAdder);
 
+  // Misc buffer = 5% of formula-line subtotal + manual adder. Both contribute.
+  const extSubBeforeMisc     = extAmenityProduct + parkingProduct + carportProduct + garageExtProduct + extDoorProduct + landscapeFlat;
+  const extBufferBase        = extSubBeforeMisc + exteriorManualTotal;
+  const extMiscBuffer        = extBufferBase * PRICING.exterior.miscBufferPct;
+  const exteriorFormulaTotal = extSubBeforeMisc + extMiscBuffer;
+
   // Override replaces everything; otherwise formula breakdown + manual adder.
+  // (The buffer's contribution from the manual portion is already in
+  // exteriorFormulaTotal via extMiscBuffer.)
   const exteriorProductTotal = exteriorOverrideUsed
     ? exteriorOverrideVal
     : exteriorFormulaTotal + exteriorManualTotal;
@@ -385,8 +396,21 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
 
   const totalWithControls = subtotalLightingOnly + controlsTotal;
 
-  const perSf   = grossSf  > 0 ? totalWithControls / grossSf  : 0;
-  const perUnit = numUnits > 0 ? totalWithControls / numUnits : 0;
+  // Contingency — held against the lighting product subtotal as a separate
+  // line item beneath the totals. UI lives on the Project Data step (design
+  // mode for now); engine honors the stored value regardless of mode.
+  // Selection values: 'none' / undefined → 0, '5pct' → 0.05, '10pct' → 0.10.
+  // Applied to lightingProductSubtotal per the UI note "5–10% of lighting
+  // subtotal." Does NOT trigger additional freight/warehousing.
+  const contingencyRate =
+        projectDataR.contingency === '5pct'  ? 0.05
+      : projectDataR.contingency === '10pct' ? 0.10
+      : 0;
+  const contingencyAmount    = lightingProductSubtotal * contingencyRate;
+  const totalWithContingency = totalWithControls + contingencyAmount;
+
+  const perSf   = grossSf  > 0 ? totalWithContingency / grossSf  : 0;
+  const perUnit = numUnits > 0 ? totalWithContingency / numUnits : 0;
 
   return {
     sections: {
@@ -441,6 +465,9 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     controlsWarehousing,
     controlsTotal,
     totalWithControls,
+    contingencyRate,
+    contingencyAmount,
+    totalWithContingency,
     fanCount,
     perSf:   Math.round(perSf   * 100) / 100,
     perUnit: Math.round(perUnit),

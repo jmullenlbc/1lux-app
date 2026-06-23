@@ -46,13 +46,6 @@ const FIELDS = [
       { key: 'salesTaxPct',    label: 'Sales Tax %',   type: 'number', placeholder: '9.15', hint: 'Jurisdiction sales tax rate on materials. Leave blank for tax-exempt projects. Applied to product subtotals only.', suffix: '%' },
     ],
   },
-  { group: 'Section Adders',
-    fields: [
-      { key: 'bohManualAdder',       label: 'BOH / Core + Shell manual adder',    type: 'number', placeholder: '0', hint: 'Add an arbitrary dollar amount to bump the BOH total.', prefix: '$' },
-      { key: 'garageManualAdder',    label: 'Enclosed Garage manual adder',       type: 'number', placeholder: '0', hint: 'Add an arbitrary dollar amount to bump the garage total.', prefix: '$' },
-      { key: 'exitSignsManualAdder', label: 'Exit Signs manual adder',            type: 'number', placeholder: '0', hint: 'Add an arbitrary dollar amount to bump the exit signs total.', prefix: '$' },
-    ],
-  },
 ];
 
 const PCT_FIELDS = new Set(['freightPct', 'warehousingPct', 'salesTaxPct']);
@@ -71,52 +64,40 @@ export default function ProjectDataSection({ projectId, projectData, responses =
     }));
     return f;
   });
-  const [dirty, setDirty] = useState(() => new Set());
   const [qAnswers, setQAnswers] = useState({
     buyHold:          responses.buyHold          || '',
     switchesDimmers:  responses.switchesDimmers  || '',
     contingency:      responses.contingency      || '',
     salesTax:         responses.salesTax         || '',
   });
-  const [qDirty, setQDirty] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
   const [saved,  setSaved]  = useState(false);
 
   function update(key) {
     return e => {
       setForm(f => ({ ...f, [key]: e.target.value }));
-      setDirty(d => new Set(d).add(key));
       setSaved(false);
     };
   }
 
   async function handleSave(andNext = false) {
     setSaving(true);
-    // Only send fields the user actually touched
-    const payload = {};
-    for (const key of dirty) {
-      payload[key] = form[key];
-    }
     // Convert display percentage (6) → stored decimal (0.06) for pct fields
+    const payload = { ...form };
     for (const key of PCT_FIELDS) {
-      if (key in payload && payload[key] !== '' && payload[key] != null) {
+      if (payload[key] !== '' && payload[key] != null) {
         const pct = parseFloat(payload[key]);
         payload[key] = isNaN(pct) ? '' : (pct / 100).toString();
       }
     }
-    if (Object.keys(payload).length > 0) {
-      await onSaveData(payload);
+    await onSaveData(payload);
+    // Always save Q&A responses. Contingency is now visible in all modes;
+    // the other strategy fields (buyHold, switchesDimmers) remain design-
+    // only in the UI but are harmless to send from conceptual mode (the
+    // server preserve-on-blank guard, commit 896ded1, skips empty writes).
+    if (onSaveResponses) {
+      await onSaveResponses(qAnswers);
     }
-    // Save design-only Q&A responses if in design mode and any changed
-    if (isDesign && onSaveResponses && Object.keys(qDirty).length > 0) {
-      const qPayload = {};
-      for (const key of qDirty) {
-        qPayload[key] = qAnswers[key];
-      }
-      await onSaveResponses(qPayload);
-    }
-    setDirty(new Set());
-    setQDirty(new Set());
     setSaved(true);
     setSaving(false);
     if (andNext) onNext();
@@ -158,6 +139,22 @@ export default function ProjectDataSection({ projectId, projectData, responses =
         </Card>
       ))}
 
+      {/* ── CONTINGENCY (all modes) ─────────────────────────────────────── */}
+      {/* Visible in conceptual + design. Engine applies the selected % to the */}
+      {/* lighting product subtotal and adds a "Total w/ Contingency" line on */}
+      {/* the Summary. Selecting "No contingency" leaves the totals unchanged. */}
+      <QuestionCard
+        question="Should we hold a contingency line item in the budget?"
+        note="A contingency covers scope gaps discovered during design. Typical range: 5–10% of lighting subtotal. Recommended for early-stage budgets."
+        options={[
+          { value: 'none', label: 'No contingency',                          sub: 'Use only for late-stage CD budgets with high confidence', cost: 0 },
+          { value: '5pct', label: '5% contingency',                          sub: 'Standard for DD-stage budgets', cost: 0 },
+          { value: '10pct',label: '10% contingency',                         sub: 'Recommended for SD-stage or early schematic budgets', cost: 0 },
+        ]}
+        value={qAnswers.contingency}
+        onChange={v => setQAnswers(a => ({ ...a, contingency: v }))}
+      />
+
       {/* ── DESIGN-ONLY Q&A ───────────────────────────────────────────────── */}
       {isDesign && (
         <div className="space-y-4">
@@ -171,10 +168,7 @@ export default function ProjectDataSection({ projectId, projectData, responses =
               { value: 'buildSell', label: 'Build and sell — exit at or near CO',     sub: 'Prioritize visual impact per dollar', cost: 0 },
             ]}
             value={qAnswers.buyHold}
-            onChange={v => {
-              setQAnswers(a => ({ ...a, buyHold: v }));
-              setQDirty(d => new Set(d).add('buyHold'));
-            }}
+            onChange={v => setQAnswers(a => ({ ...a, buyHold: v }))}
           />
 
           <QuestionCard
@@ -186,25 +180,7 @@ export default function ProjectDataSection({ projectId, projectData, responses =
               { value: 'tbd',      label: 'TBD — to be determined',                     cost: 0 },
             ]}
             value={qAnswers.switchesDimmers}
-            onChange={v => {
-              setQAnswers(a => ({ ...a, switchesDimmers: v }));
-              setQDirty(d => new Set(d).add('switchesDimmers'));
-            }}
-          />
-
-          <QuestionCard
-            question="Should we hold a contingency line item in the budget?"
-            note="A contingency covers scope gaps discovered during design. Typical range: 5–10% of lighting subtotal. Recommended for early-stage design budgets."
-            options={[
-              { value: 'none', label: 'No contingency',                          sub: 'Use only for late-stage CD budgets with high confidence', cost: 0 },
-              { value: '5pct', label: '5% contingency',                          sub: 'Standard for DD-stage budgets', cost: 0 },
-              { value: '10pct',label: '10% contingency',                         sub: 'Recommended for SD-stage or early schematic budgets', cost: 0 },
-            ]}
-            value={qAnswers.contingency}
-            onChange={v => {
-              setQAnswers(a => ({ ...a, contingency: v }));
-              setQDirty(d => new Set(d).add('contingency'));
-            }}
+            onChange={v => setQAnswers(a => ({ ...a, switchesDimmers: v }))}
           />
 
           {/* Sales tax is now entered as a numeric % in the Freight, Warehousing & Tax section above */}

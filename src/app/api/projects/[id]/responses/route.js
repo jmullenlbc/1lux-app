@@ -42,20 +42,44 @@ export async function PUT(request, { params }) {
   const existing = await prisma.questionnaireResponse.findMany({
     where: { projectId: params.id, section },
   });
+  const existingByKey = Object.fromEntries(existing.map(r => [r.questionKey, r.answerValue]));
 
-  const upserts = Object.entries(responses).map(([questionKey, answerValue]) =>
-    prisma.questionnaireResponse.upsert({
-      where: {
-        projectId_section_questionKey: {
-          projectId: params.id,
-          section,
-          questionKey,
-        },
-      },
-      update:  { answerValue: String(answerValue ?? '') },
-      create:  { projectId: params.id, section, questionKey, answerValue: String(answerValue ?? '') },
+  // Preserve-on-blank semantics, same fix as /api/projects/[id]/data:
+  // skip writes that would replace a meaningful existing value with a
+  // blank one. Stale wizard sections were silently wiping responses
+  // like exterior.exteriorManualItems (Sean's $75K manual adder on
+  // APPROACH II, lost 2026-06-22) when the form re-mounted with empty
+  // defaults and then sent everything on Save & Continue.
+  //
+  // "Blank" here = '' or '{}' (empty JSON object — how the form
+  // serializes an untouched manualItems map). If existing value is
+  // already blank, write the new blank (no harm). If existing was
+  // meaningful and new is blank, skip — preserve the meaningful value.
+  function isBlank(v) {
+    if (v === null || v === undefined) return true;
+    const s = String(v).trim();
+    return s === '' || s === '{}';
+  }
+
+  const upserts = Object.entries(responses)
+    .filter(([questionKey, answerValue]) => {
+      if (!isBlank(answerValue)) return true;
+      // New value is blank. Only allow it if existing was also blank.
+      return isBlank(existingByKey[questionKey]);
     })
-  );
+    .map(([questionKey, answerValue]) =>
+      prisma.questionnaireResponse.upsert({
+        where: {
+          projectId_section_questionKey: {
+            projectId: params.id,
+            section,
+            questionKey,
+          },
+        },
+        update:  { answerValue: String(answerValue ?? '') },
+        create:  { projectId: params.id, section, questionKey, answerValue: String(answerValue ?? '') },
+      })
+    );
 
   await prisma.$transaction(upserts);
 
