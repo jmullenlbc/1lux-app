@@ -328,12 +328,12 @@ export default async function SummaryPage({ params }) {
         {/* Flat single-column list — sections separated by a heading */}
         <div className="space-y-0">
           {answerRows.map((group, gi) => (
-            <div key={group.section} className={gi > 0 ? 'mt-4 print:mt-3' : ''}>
-              <div className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-1 pb-1 border-b border-slate-200 print:border-slate-300">
+            <div key={group.section} className={gi > 0 ? 'mt-4 print:mt-2' : ''}>
+              <div className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-1 pb-1 border-b border-slate-200 print:border-slate-300 print:mb-0">
                 {group.section}
               </div>
               {group.rows.map(row => (
-                <div key={row.q} className="flex py-1.5 print:py-1 border-b border-slate-50 print:border-slate-100">
+                <div key={row.q} className="flex py-1.5 print:py-0.5 border-b border-slate-50 print:border-slate-100">
                   <span className="text-sm print:text-xs text-slate-500 w-56 print:w-48 shrink-0">{row.q}</span>
                   <span className="text-sm print:text-xs text-slate-800 font-medium leading-snug">{row.a}</span>
                 </div>
