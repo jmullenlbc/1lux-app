@@ -30,9 +30,13 @@ export default function CorridorsSection({ responses, projectData, pricing, onSa
     garageDesignLevel: existing.garageDesignLevel  || undefined,
     garageControls:    existing.garageControls     || undefined,
   });
+  const [dirty, setDirty] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
 
-  function set(k, v) { setAns(a => ({ ...a, [k]: v })); }
+  function set(k, v) {
+    setAns(a => ({ ...a, [k]: v }));
+    setDirty(d => new Set(d).add(k));
+  }
 
   const corridorSf  = Number(projectData?.corridorSf)         || 0;
   const stairwells  = Number(projectData?.numEgressStairwells) || 0;
@@ -84,10 +88,10 @@ export default function CorridorsSection({ responses, projectData, pricing, onSa
 
   async function handleNext() {
     setSaving(true);
-    // Always merge to preserve exitSignType written by ExitSignsSection
-    const payload = {};
-    for (const [k, v] of Object.entries({ ...existing, ...ans })) {
-      if (v !== undefined) payload[k] = v;
+    // Only send dirty fields from ans, but preserve other keys from existing
+    const payload = { ...existing };
+    for (const key of dirty) {
+      payload[key] = ans[key];
     }
     // Null out design-only keys in conceptual mode
     if (!isDesign) {
@@ -100,7 +104,10 @@ export default function CorridorsSection({ responses, projectData, pricing, onSa
       payload.stairwellPainting  = null;
       payload.stairwellDesign    = null;
     }
-    await onSaveResponses(payload);
+    if (Object.keys(dirty).length > 0 || Object.keys(existing).length > 0) {
+      await onSaveResponses(payload);
+    }
+    setDirty(new Set());
     setSaving(false);
     onNext();
   }
