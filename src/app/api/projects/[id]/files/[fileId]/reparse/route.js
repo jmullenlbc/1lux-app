@@ -12,7 +12,7 @@ async function extractPdfText(buffer) {
     const uint8    = new Uint8Array(buffer);
     const doc      = await pdfjsLib.getDocument({ data: uint8 }).promise;
     let text = '';
-    const maxPages = Math.min(doc.numPages, 30);
+    const maxPages = Math.min(doc.numPages, 60);
     for (let i = 1; i <= maxPages; i++) {
       const page    = await doc.getPage(i);
       const content = await page.getTextContent();
@@ -61,8 +61,8 @@ Rules:
 - Dates marked "A" (Actual/already happened) are valid — include them
 - Return [] if no recognizable milestone dates are found
 
-Schedule text (first 12000 chars):
-${textContent.slice(0, 12000)}`;
+Schedule text (first 50000 chars):
+${textContent.slice(0, 50000)}`;
 
   const msg = await anthropic.messages.create({
     model:      'claude-haiku-4-5',
