@@ -47,6 +47,12 @@ Both `files/route.js` (upload) and `.../reparse/route.js` now call it (removed t
 
 **Heads-up:** I have a large **local-only** Sales-Notes/automation module in progress (unified Note table, admin action taxonomy, Zapier-style if-then rule engine, intel, outreach consolidation) — **NOT pushed**, sitting in my working tree + a stash. It adds migrations `0035`–`0041`. When I eventually deploy it I'll rebase onto your latest first. Flagging so you're aware of the migration numbers I'll be claiming.
 
+### 2026-06-23 — Sean's Claude (PDF polish: filename format + bid matrix redesign + disclaimer fix)
+
+- **Budget PDF filename** now uses `YY.MM.DD ProjectName Type Budget` format for both conceptual and design budgets (`SummaryPrintButton.jsx`); bid matrix wizard print also uses `YY.MM.DD ProjectName Design Bid Matrix` (`PeerReviewClient.jsx`).
+- **Design Bid Matrix PDF** (server-side route) redesigned to match TrackVia "Budget" style: ILC Studios logo, rotating "Design Bid Matrix" watermark, info grid, line items with Qty/DN/CN columns, totals, General Terms + Contractor Bidding Guidelines. File: `src/app/api/projects/[id]/design-bid-matrix/pdf/route.js`.
+- **Design budget disclaimer** moved to bottom of last questionnaire page (after all Q&A rows), visible in both screen and print, design budgets only. Conceptual budgets keep a short note on page 1 only.
+
 ### 2026-06-16 — Mike's Claude (Client standards/playbook + live share link deployed)
 
 **Deployed `8acf55c` to production** (rebased onto your 13 commits — clean, no conflicts):

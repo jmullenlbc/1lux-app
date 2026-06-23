@@ -4,8 +4,12 @@ import Button from '@/components/ui/Button';
 export default function SummaryPrintButton({ projectName, budgetType }) {
   function handlePrint() {
     const type = budgetType === 'design' ? 'Design' : 'Conceptual';
+    const now = new Date();
+    const yy = String(now.getFullYear()).slice(2);
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
     const original = document.title;
-    document.title = `ILC-${projectName}-${type} Budget`;
+    document.title = `${yy}.${mm}.${dd} ${projectName} ${type} Budget`;
     window.print();
     window.addEventListener('afterprint', () => { document.title = original; }, { once: true });
   }

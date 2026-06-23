@@ -3,18 +3,26 @@ import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 function fmtCurrency(n) {
-  if (n == null) return '—';
+  if (n == null || n === 0) return '—';
   return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function fmtDate(d) {
+  const dt = new Date(d);
+  const yy = String(dt.getFullYear()).slice(2);
+  const mm = String(dt.getMonth() + 1).padStart(2, '0');
+  const day = String(dt.getDate()).padStart(2, '0');
+  return `${yy}.${mm}.${day}`;
+}
+
 // GET /api/projects/[id]/design-bid-matrix/pdf?version=N
-// Returns a standalone print-ready HTML page for PDF export
 export async function GET(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
   const { searchParams } = new URL(request.url);
   const version = searchParams.get('version') ? Number(searchParams.get('version')) : undefined;
+  const origin = new URL(request.url).origin;
 
   const where = version !== undefined
     ? { projectId: params.id, version }
@@ -25,115 +33,362 @@ export async function GET(request, { params }) {
     orderBy: { version: 'desc' },
     include: {
       items:          { where: { isArchived: false }, orderBy: [{ sortOrder: 'asc' }] },
-      pushedBy:       { select: { name: true } },
+      pushedBy:       { select: { name: true, email: true } },
       sourceSchedule: { select: { version: true, submissionTag: true } },
-      project:        { select: { name: true, address: true, city: true, state: true } },
+      project:        { select: { name: true, client: { select: { name: true } } } },
     },
   });
 
   if (!matrix) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const totalDN = matrix.items.reduce((s, i) => s + (i.dnPerUnit ?? 0), 0);
-  const totalCN = matrix.items.reduce((s, i) => s + (i.cnPerUnit ?? 0), 0);
+  const totalCN = matrix.items.reduce((s, i) => {
+    return s + (i.cnTotal ?? ((i.cnPerUnit ?? 0) * (i.qty ?? 1)));
+  }, 0);
+  const totalDN = matrix.items.reduce((s, i) => {
+    return s + ((i.dnPerUnit ?? 0) * (i.qty ?? 1));
+  }, 0);
 
-  const rows = matrix.items.map((item, idx) => `
+  const dateStr = fmtDate(matrix.createdAt);
+  const projectName = matrix.project?.name ?? '';
+  const clientName = matrix.project?.client?.name ?? '';
+  const pmName = matrix.pushedBy?.name ?? '';
+  const pmEmail = matrix.pushedBy?.email ?? '';
+  const sourceTag = `Schedule v${matrix.sourceSchedule?.version}${matrix.sourceSchedule?.submissionTag ? ' · ' + matrix.sourceSchedule.submissionTag : ''}`;
+  const title = `${dateStr} ${projectName} Design Bid Matrix v${matrix.version}`;
+
+  const rows = matrix.items.map((item, idx) => {
+    const cnTotal = item.cnTotal ?? ((item.cnPerUnit ?? 0) * (item.qty ?? 1));
+    return `
     <tr class="${idx % 2 === 0 ? 'even' : 'odd'}">
       <td>${item.type || ''}</td>
       <td>${item.description || ''}</td>
       <td>${item.locationTag || ''}</td>
       <td>${item.manufacturer || ''}</td>
       <td class="mono">${item.partNumber || ''}</td>
-      <td>${item.salesRep || ''}</td>
-      <td>${item.rfqStatus || ''}</td>
-      <td class="num">${fmtCurrency(item.dnPerUnit)}</td>
-      <td class="num">${fmtCurrency(item.cnPerUnit)}</td>
+      <td class="right">${item.qty != null ? item.qty : '—'}</td>
+      <td class="right">${fmtCurrency(item.dnPerUnit)}</td>
+      <td class="right">${fmtCurrency(item.cnPerUnit)}</td>
+      <td class="right">${cnTotal > 0 ? fmtCurrency(cnTotal) : '—'}</td>
       <td>${item.notes || ''}</td>
-    </tr>`).join('');
-
-  const projectLine = [matrix.project?.name, matrix.project?.city, matrix.project?.state].filter(Boolean).join(', ');
-  const dateLine = new Date(matrix.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-  const sourceTag = `Schedule v${matrix.sourceSchedule?.version}${matrix.sourceSchedule?.submissionTag ? ' · ' + matrix.sourceSchedule.submissionTag : ''}`;
+    </tr>`;
+  }).join('');
 
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Design Bid Matrix v${matrix.version} — ${matrix.project?.name ?? ''}</title>
+  <title>${title}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; font-size: 10pt; color: #1e293b; background: #fff; padding: 20px; }
-    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 2px solid #7c3aed; }
-    .header-left h1 { font-size: 16pt; font-weight: 700; color: #1e293b; }
-    .header-left p  { font-size: 9pt; color: #64748b; margin-top: 2px; }
-    .header-right   { text-align: right; font-size: 9pt; color: #64748b; }
-    .meta-chips { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
-    .chip { background: #f1f5f9; color: #475569; border-radius: 999px; padding: 3px 10px; font-size: 8.5pt; font-weight: 500; }
-    .chip.purple { background: #ede9fe; color: #7c3aed; }
-    table { width: 100%; border-collapse: collapse; font-size: 9pt; }
-    thead th { background: #1e293b; color: #fff; padding: 6px 7px; text-align: left; font-weight: 600; font-size: 8.5pt; letter-spacing: 0.03em; white-space: nowrap; }
-    tbody tr.even { background: #fff; }
-    tbody tr.odd  { background: #f8fafc; }
-    td { padding: 5px 7px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
-    td.num  { text-align: right; font-variant-numeric: tabular-nums; }
-    td.mono { font-family: "SF Mono", "Fira Mono", monospace; font-size: 8.5pt; }
-    tfoot tr { background: #1e293b; color: #fff; }
-    tfoot td { padding: 6px 7px; font-weight: 700; }
-    tfoot td.num { text-align: right; }
-    .footer { margin-top: 16px; font-size: 8pt; color: #94a3b8; text-align: center; }
+    body {
+      font-family: Arial, "Helvetica Neue", sans-serif;
+      font-size: 9pt;
+      color: #1e1e1e;
+      background: white;
+    }
+
+    /* ── Repeating page header ── */
+    .page-header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 8mm 14mm 5mm 28mm;
+      border-bottom: 1px solid #bbb;
+      background: white;
+      z-index: 10;
+    }
+    .page-header img { height: 28px; }
+    .company-info {
+      text-align: right;
+      font-size: 7.5pt;
+      color: #555;
+      line-height: 1.55;
+    }
+
+    /* ── Rotated left-margin label ── */
+    .watermark {
+      position: fixed;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 20mm;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22pt;
+      font-weight: 700;
+      color: #d0d0d0;
+      letter-spacing: 3px;
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    /* ── Repeating page footer ── */
+    .page-footer {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      padding: 3mm 14mm;
+      border-top: 1px solid #bbb;
+      font-size: 7pt;
+      color: #888;
+      font-style: italic;
+      background: white;
+      z-index: 10;
+    }
+
+    /* ── Main content ── */
+    .content {
+      margin-top: 22mm;
+      margin-bottom: 10mm;
+      padding: 5mm 14mm 0 28mm;
+    }
+
+    /* ── Page 1 info block ── */
+    .info-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 8mm;
+      align-items: flex-start;
+    }
+    .info-grid {
+      flex: 1;
+      border: 1px solid #ccc;
+      border-collapse: collapse;
+    }
+    .info-grid table { width: 100%; border-collapse: collapse; }
+    .info-grid td {
+      padding: 5px 8px;
+      border: 1px solid #ddd;
+      vertical-align: top;
+    }
+    .info-label {
+      font-size: 7pt;
+      font-weight: bold;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      display: block;
+      margin-bottom: 2px;
+    }
+    .info-value { font-size: 9pt; }
+
+    .legal-box {
+      flex: 0 0 200px;
+      border: 1px solid #ccc;
+      padding: 8px 10px;
+      font-size: 8pt;
+      font-weight: bold;
+    }
+    .legal-item {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 5px;
+      color: #c0392b;
+      line-height: 1.35;
+    }
+    .legal-item span { flex: 0 0 12px; }
+
+    /* ── Line items table ── */
+    table.items-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8pt;
+    }
+    table.items-table thead th {
+      background: #2c3e50;
+      color: white;
+      padding: 5px 6px;
+      text-align: left;
+      font-size: 7.5pt;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    table.items-table thead { display: table-header-group; }
+    table.items-table tbody tr.even { background: #ffffff; }
+    table.items-table tbody tr.odd  { background: #f4f6f8; }
+    table.items-table td {
+      padding: 4px 6px;
+      border-bottom: 1px solid #e0e0e0;
+      vertical-align: top;
+    }
+    .right { text-align: right; font-variant-numeric: tabular-nums; }
+    .mono  { font-family: "Courier New", monospace; font-size: 7.5pt; }
+
+    /* ── Totals ── */
+    .totals-wrap {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 6mm;
+    }
+    table.totals {
+      border-collapse: collapse;
+      min-width: 220px;
+    }
+    table.totals td {
+      padding: 3px 8px;
+      font-size: 9pt;
+    }
+    table.totals .total-label { text-align: right; color: #555; }
+    table.totals .total-value { text-align: right; font-variant-numeric: tabular-nums; }
+    table.totals .grand-row td {
+      font-weight: bold;
+      border-top: 2px solid #2c3e50;
+      padding-top: 5px;
+    }
+
+    /* ── Terms ── */
+    .terms-section { margin-top: 10mm; }
+    .terms-title {
+      font-size: 11pt;
+      font-weight: bold;
+      color: #c0392b;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 3px;
+      margin-bottom: 6px;
+    }
+    .terms-box {
+      background: #f5f5f5;
+      border: 1px solid #ddd;
+      padding: 8px 12px;
+      border-radius: 2px;
+    }
+    .terms-item {
+      font-size: 8pt;
+      font-style: italic;
+      margin-bottom: 5px;
+      line-height: 1.4;
+    }
+    .terms-item strong { font-style: normal; }
+
     @media print {
-      body { padding: 0; }
-      @page { margin: 15mm 12mm; }
+      @page { size: letter landscape; margin: 0; }
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <div class="header-left">
-      <h1>Design Bid Matrix</h1>
-      <p>${projectLine}</p>
-    </div>
-    <div class="header-right">
-      <p><strong>ILC Studios</strong></p>
-      <p>${dateLine}</p>
-      <p>Pushed by ${matrix.pushedBy?.name ?? 'Unknown'}</p>
+
+  <div class="page-header">
+    <img src="${origin}/ilc-studios-logo.jpg" alt="ILC Studios" />
+    <div class="company-info">
+      ILC Studios<br>
+      2301 Blake Street, Ste 100 | Denver, CO 80205<br>
+      720-248-8208 | orders@ilcstudios.com
     </div>
   </div>
 
-  <div class="meta-chips">
-    <span class="chip purple">Version ${matrix.version}</span>
-    ${matrix.submissionTag ? `<span class="chip">${matrix.submissionTag}</span>` : ''}
-    <span class="chip">Source: ${sourceTag}</span>
-    <span class="chip">${matrix.items.length} line items</span>
+  <div class="watermark">Design Bid Matrix</div>
+
+  <div class="page-footer">
+    Design Bid Matrix v${matrix.version} | ${projectName}
   </div>
 
-  <table>
-    <thead>
-      <tr>
-        <th style="width:7%">Type</th>
-        <th style="width:18%">Description</th>
-        <th style="width:10%">Location</th>
-        <th style="width:11%">Manufacturer</th>
-        <th style="width:13%">Part #</th>
-        <th style="width:9%">Sales Rep</th>
-        <th style="width:9%">RFQ Status</th>
-        <th style="width:9%;text-align:right">DN / Unit</th>
-        <th style="width:9%;text-align:right">CN / Unit</th>
-        <th style="width:15%">Notes</th>
-      </tr>
-    </thead>
-    <tbody>${rows}</tbody>
-    <tfoot>
-      <tr>
-        <td colspan="7" style="font-size:8.5pt">Total — ${matrix.items.length} items</td>
-        <td class="num">${fmtCurrency(totalDN)}</td>
-        <td class="num">${fmtCurrency(totalCN)}</td>
-        <td></td>
-      </tr>
-    </tfoot>
-  </table>
+  <div class="content">
 
-  <div class="footer">
-    Confidential · ILC Studios · Generated ${dateLine}
+    <div class="info-row">
+      <div class="info-grid">
+        <table>
+          <tr>
+            <td>
+              <span class="info-label">Matrix Version</span>
+              <span class="info-value">v${matrix.version}</span>
+            </td>
+            <td>
+              <span class="info-label">Date</span>
+              <span class="info-value">${dateStr}</span>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span class="info-label">Project Name</span>
+              <span class="info-value">${projectName}</span>
+            </td>
+            <td>
+              <span class="info-label">Client</span>
+              <span class="info-value">${clientName}</span>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span class="info-label">Project Manager</span>
+              <span class="info-value">${pmName}</span>
+            </td>
+            <td>
+              <span class="info-label">PM Email</span>
+              <span class="info-value">${pmEmail}</span>
+            </td>
+          </tr>
+          <tr>
+            <td colspan="2">
+              <span class="info-label">Source Schedule</span>
+              <span class="info-value">${sourceTag}</span>
+            </td>
+          </tr>
+        </table>
+      </div>
+      <div class="legal-box">
+        <div class="legal-item"><span>✓</span> For budgetary purposes only, not an offer to sell</div>
+        <div class="legal-item"><span>✓</span> Quote must be requested by client after verifying quantities</div>
+      </div>
+    </div>
+
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th style="width:7%">Type</th>
+          <th style="width:22%">Description</th>
+          <th style="width:9%">Location</th>
+          <th style="width:11%">Manufacturer</th>
+          <th style="width:11%">Part #</th>
+          <th style="width:4%;text-align:right">Qty</th>
+          <th style="width:8%;text-align:right">DN / Unit</th>
+          <th style="width:8%;text-align:right">CN / Unit</th>
+          <th style="width:8%;text-align:right">CN Total</th>
+          <th style="width:12%">Notes</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+
+    <div class="totals-wrap">
+      <table class="totals">
+        <tr>
+          <td class="total-label">DN Subtotal</td>
+          <td class="total-value">${fmtCurrency(totalDN)}</td>
+        </tr>
+        <tr class="grand-row">
+          <td class="total-label">CN Total</td>
+          <td class="total-value">${fmtCurrency(totalCN)}</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="terms-section">
+      <div class="terms-title">General Terms</div>
+      <div class="terms-box">
+        <div class="terms-item">• Pricing is based on a 90-day lead time from submittal.</div>
+        <div class="terms-item">• All invoices are Net 15.</div>
+        <div class="terms-item">• Warehousing/Freight estimates include 120 days of storage and 10 deliveries to the jobsite.</div>
+      </div>
+    </div>
+
+    <div class="terms-section" style="margin-top:6mm">
+      <div class="terms-title">Contractor Bidding Guidelines</div>
+      <div class="terms-box">
+        <div class="terms-item"><strong>BID BREAKOUT STRUCTURE</strong><br>
+          Contractor is to break out the lighting fixture and lighting control product package prices from labor and materials. Show the total amount for lighting fixtures as one line item and lighting controls as a separate line item.</div>
+        <div class="terms-item"><strong>LIGHTING CONTROLS</strong><br>
+          Bid price is provided by ILC, but formal submittals, drawings and one-lines will be provided after 100% CD.</div>
+        <div class="terms-item"><strong>LOW VOLTAGE &amp; LINEAR FIXTURES</strong><br>
+          Bid price is provided by ILC, but lengths and power supply takeoffs will be verified during the ordering phase by the contractor.</div>
+        <div class="terms-item"><strong>SALES TAX</strong><br>
+          ILC will provide a best estimate for sales tax per our physical office locations, but the bidding contractor is to adjust for any missing sales tax.</div>
+      </div>
+    </div>
+
   </div>
 
   <script>window.onload = () => window.print();</script>
