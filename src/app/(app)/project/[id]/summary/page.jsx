@@ -342,7 +342,7 @@ export default async function SummaryPage({ params }) {
           ))}
         </div>
 
-        <div className="mt-8 print:mt-6 text-xs text-slate-400 leading-relaxed text-center">
+        <div className="mt-8 print:mt-2 text-xs text-slate-400 leading-relaxed text-center">
           This is a design phase budget prepared by ILC Studios for early design and pre-con purposes only.
           Actual costs will vary based on final design, product selections, and market conditions.
           Not a formal bid or contract.
