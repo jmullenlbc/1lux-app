@@ -120,10 +120,10 @@ export async function logActivity(projectId, user, type, description, metadata =
 // ── Questionnaire diff helper ──────────────────────────────────────────────
 
 /**
- * Compare old DB responses to incoming payload, return changed question labels.
+ * Compare old DB responses to incoming payload, return changed question objects with old/new values.
  * @param {Array<{questionKey: string, answerValue: string}>} existing
  * @param {{ [key: string]: string|null }} incoming
- * @returns {string[]} array of human-readable question labels that changed
+ * @returns {Array<{key: string, label: string, oldVal: string|null, newVal: string|null}>} array of changes with old/new values
  */
 export function diffResponses(existing, incoming) {
   const changed = [];
@@ -138,7 +138,12 @@ export function diffResponses(existing, incoming) {
     const newNorm = (newVal === '') ? null : String(newVal);
     if (oldNorm !== newNorm) {
       const label = QUESTION_LABELS[key] || key;
-      changed.push(label);
+      changed.push({
+        key,
+        label,
+        oldVal: oldNorm,
+        newVal: newNorm,
+      });
     }
   }
 
@@ -147,19 +152,23 @@ export function diffResponses(existing, incoming) {
 
 /**
  * Build a human-readable description for a questionnaire save event.
+ * @param {string} section
+ * @param {Array<{key: string, label: string, oldVal: string|null, newVal: string|null}>} changedItems
+ * @param {string} budgetType
  */
-export function describeQuestionnaireChange(section, changedLabels, budgetType) {
+export function describeQuestionnaireChange(section, changedItems, budgetType) {
   const sectionLabel = SECTION_LABELS[section] || section;
   const budgetLabel  = budgetType === 'design' ? 'Design Budget' : 'Conceptual Budget';
 
-  if (changedLabels.length === 0) {
+  if (changedItems.length === 0) {
     return `Saved ${sectionLabel} section (no changes detected)`;
   }
-  if (changedLabels.length === 1) {
-    return `Updated **${changedLabels[0]}** in ${sectionLabel} · ${budgetLabel}`;
+  if (changedItems.length === 1) {
+    const { label, oldVal, newVal } = changedItems[0];
+    return `Updated **${label}**: ${oldVal || '(blank)'} → ${newVal || '(blank)'} in ${sectionLabel} · ${budgetLabel}`;
   }
-  if (changedLabels.length <= 3) {
-    return `Updated ${changedLabels.map(l => `**${l}**`).join(', ')} in ${sectionLabel} · ${budgetLabel}`;
+  if (changedItems.length <= 3) {
+    return `Updated ${changedItems.map(i => `**${i.label}**`).join(', ')} in ${sectionLabel} · ${budgetLabel}`;
   }
-  return `Updated ${changedLabels.length} answers in ${sectionLabel} · ${budgetLabel}`;
+  return `Updated ${changedItems.length} answers in ${sectionLabel} · ${budgetLabel}`;
 }
