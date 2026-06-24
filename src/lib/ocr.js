@@ -1,3 +1,4 @@
+import '@/lib/pdfPolyfill';
 import { createCanvas } from '@napi-rs/canvas';
 import Tesseract from 'tesseract.js';
 import path from 'path';

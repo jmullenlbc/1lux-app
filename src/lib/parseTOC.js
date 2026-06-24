@@ -1,3 +1,4 @@
+import '@/lib/pdfPolyfill';
 /**
  * parseTOC.js
  *

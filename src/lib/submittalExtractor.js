@@ -1,3 +1,4 @@
+import '@/lib/pdfPolyfill';
 /**
  * Submittal Review Extractor — Phases 1–4
  *

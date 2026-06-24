@@ -1,3 +1,4 @@
+import '@/lib/pdfPolyfill';
 /**
  * scheduleExtract.js — robust construction-schedule milestone extraction.
  *
