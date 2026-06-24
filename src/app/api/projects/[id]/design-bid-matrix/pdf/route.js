@@ -150,7 +150,7 @@ export async function GET(request, { params }) {
     /* ── Page 1 info block ── */
     .info-row {
       display: flex;
-      gap: 16px;
+      gap: 32px;
       margin-bottom: 8mm;
       align-items: flex-start;
     }
@@ -177,7 +177,7 @@ export async function GET(request, { params }) {
     .info-value { font-size: 9pt; }
 
     .legal-box {
-      flex: 0 0 200px;
+      flex: 0 0 160px;
       border: 1px solid #ccc;
       padding: 8px 10px;
       font-size: 8pt;
@@ -264,6 +264,7 @@ export async function GET(request, { params }) {
     }
     .terms-item strong { font-style: normal; }
 
+    @page { size: letter landscape; margin: 0; }
     @media print {
       @page { size: letter landscape; margin: 0; }
     }
