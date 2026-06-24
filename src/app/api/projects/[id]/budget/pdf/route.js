@@ -142,10 +142,13 @@ export async function GET(request, { params }) {
     { section: 'Interior Amenities', rows: [
       { q: 'Finish Level / Rate', a: (() => {
           const v = r.amenities?.interiorLevel || 'medium';
-          const labels = { low: 'Low / Simple ($0.25/SF)', medium: 'Medium / Standard ($0.35/SF)', high: 'High / Upscale ($0.50/SF)', custom: 'Custom Rate' };
+          const labels = { low: 'Low ($6/SF)', medium: 'Medium ($10/SF)', high: 'High ($15/SF)', custom: 'Custom Rate' };
           if (v === 'custom' && r.amenities?.interiorCustomRate)
             return `Custom: $${Number(r.amenities.interiorCustomRate).toFixed(2)}/SF`;
-          return labels[v] || v;
+          if (labels[v]) return labels[v];
+          // conceptual wizard stores a raw dollar rate; design wizard stores key — handle both
+          const rate = parseFloat(v);
+          return !isNaN(rate) ? `$${rate.toFixed(0)}/SF` : v;
         })() },
       ...(r.amenities?.amenityList?.length
         ? [{ q: 'Amenity Types', a: r.amenities.amenityList.map(v => gl('interiorAmenities', v)).join(', ') }] : []),
@@ -221,13 +224,13 @@ export async function GET(request, { params }) {
   const qRows = answerGroups.map(group => {
     if (!group.rows.length) return '';
     const rowsHtml = group.rows.map(r =>
-      `<div style="display:flex;padding:1.5px 0;border-bottom:1px solid #f1f5f9">
+      `<div style="display:flex;padding:1px 0;border-bottom:1px solid #f1f5f9">
         <span style="width:160px;flex-shrink:0;font-size:7.5pt;color:#64748b">${esc(r.q)}</span>
         <span style="font-size:7.5pt;color:#1e293b;font-weight:500">${esc(r.a)}</span>
       </div>`
     ).join('');
     return `
-      <div style="margin-top:8px">
+      <div style="margin-top:6px">
         <div style="font-size:6.5pt;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#0f172a;border-bottom:1px solid #cbd5e1;padding-bottom:2px;margin-bottom:2px">${esc(group.section)}</div>
         ${rowsHtml}
       </div>`;
