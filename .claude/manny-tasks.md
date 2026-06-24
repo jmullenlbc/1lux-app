@@ -24,7 +24,13 @@ When Manny opens a session:
 
 ## Active tasks
 
-### Task 3: Activity feed filtering (start here)
+_No active tasks. All five PRs merged to main on 2026-06-24. Await new tasks from Sean._
+
+---
+
+## Completed tasks (Tasks 3–5)
+
+### Task 3: Activity feed filtering
 
 - **Branch:** `manny/activity-feed-filters`
 - **Why:** Mike asked for this on 2026-06-22. The activity feed on every project's Activity tab shows a flat list of everything that ever happened — no way to filter by module, user, or date. As projects grow, this becomes noisy. Mason needs to be able to search "what changed in the budget?" without scrolling through file uploads.
@@ -106,5 +112,8 @@ Run `npm run dev:3000`. Log in as `admin@ilcstudios.com` (password in the repo's
 
 ## Completed tasks (for reference)
 
-- **Task 1: Wizard dirty-field tracking** — completed 2026-06-23. Branch: `manny/wizard-dirty-tracking`.
-- **Task 2: Section manual adders** — completed 2026-06-23. Branch: `manny/section-manual-adders`.
+- **Task 1: Wizard dirty-field tracking** — merged to main 2026-06-24. Branch: `manny/wizard-dirty-tracking`.
+- **Task 2: Section manual adders** — merged to main 2026-06-24. Branch: `manny/section-manual-adders`.
+- **Task 3: Activity feed filters** — merged to main 2026-06-24. Branch: `manny/activity-feed-filters`.
+- **Task 4: Old→new values in activity descriptions** — merged to main 2026-06-24. Branch: `manny/activity-old-new-values`.
+- **Task 5: Budget change history on Summary page** — merged to main 2026-06-24. Branch: `manny/summary-budget-history`.

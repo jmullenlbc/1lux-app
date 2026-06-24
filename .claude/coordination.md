@@ -25,6 +25,10 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Log
 
+### 2026-06-24 — Sean's Claude (Manny PRs #1–5 merged to main)
+
+Reviewed and merged all five of Manny's open PRs in order: wizard dirty-field tracking, section manual adders, activity feed filters, old→new values in activity descriptions, budget change history on Summary page. Merge conflicts in ExteriorSection and ProjectDataSection (stale base branches) resolved by hand — dirty-tracking guard preserved, contingency all-modes approach kept. All 38 tests + fuzz + bid matrix checks passed. Deployed. Manny's queue is now clear.
+
 ### 2026-06-24 — Sean's Claude (Server-side PDF generation — all three PDF types, not yet deployed)
 
 Replaced all `window.print()` flows with server-side Puppeteer PDF generation. `puppeteer-core` + `@sparticuz/chromium` installed. Three routes:
