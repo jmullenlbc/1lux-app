@@ -1713,7 +1713,17 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
           {/* Print */}
           <button onClick={async () => {
             const ok = await qcStripRef.current?.checkCanSend();
-            if (ok !== false) window.print();
+            if (ok !== false) {
+              const now = new Date();
+              const yy = String(now.getFullYear()).slice(2);
+              const mm = String(now.getMonth() + 1).padStart(2, '0');
+              const dd = String(now.getDate()).padStart(2, '0');
+              const type = isDesignBid ? 'Design Bid Matrix' : 'Budget Matrix';
+              const original = document.title;
+              document.title = `${yy}.${mm}.${dd} ${project.name} ${type}`;
+              window.print();
+              window.addEventListener('afterprint', () => { document.title = original; }, { once: true });
+            }
           }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
