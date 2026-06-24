@@ -103,7 +103,10 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const balconyPricing = PRICING.balcony[units.balcony || 'none'] || PRICING.balcony.none;
   const balconyProduct = n(balconyPricing.product) * numBalconies;
 
-  const unitsProductTotal = baseProduct + undercabinetProduct + pendantsProduct + fansProduct + vanityProduct + balconyProduct;
+  // Manual adder
+  const unitsManualAdder = n(units.manualAdder);
+
+  const unitsProductTotal = baseProduct + undercabinetProduct + pendantsProduct + fansProduct + vanityProduct + balconyProduct + unitsManualAdder;
 
   // ─── CORRIDORS / STAIRWELLS ───────────────────────────────────────────────
   // Disk rate: conceptual budget uses 0.27/SF (10ft average). Design questionnaire
@@ -131,10 +134,15 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     ? numAccents * n(PRICING.designCorridors?.accentDownlightEach, 120)
     : 0;
 
-  const corridorProductTotal = diskProduct + sconceProduct + stairwellProduct + accentProduct;
+  // Manual adder
+  const corridorsManualAdder = n(corridors.manualAdder);
+
+  const corridorProductTotal = diskProduct + sconceProduct + stairwellProduct + accentProduct + corridorsManualAdder;
 
   // ─── BOH / CORE + SHELL ───────────────────────────────────────────────────
-  const bohProduct = bohSf * PRICING.boh.perSf;
+  const bohBaseProduct = bohSf * PRICING.boh.perSf;
+  const bohManualAdder = n(projectData.bohManualAdder);
+  const bohProduct = bohBaseProduct + bohManualAdder;
 
   // ─── INTERIOR AMENITIES ───────────────────────────────────────────────────
   const intLevelRaw = amenities.interiorLevel || 'medium';
@@ -146,10 +154,14 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     const parsed = parseFloat(intLevelRaw);
     intAmenityRate = (isFinite(parsed) && parsed > 0) ? parsed : PRICING.interiorAmenities.medium;
   }
-  const intAmenityProduct = intAmenitySf * intAmenityRate;
+  const intAmenityBaseProduct = intAmenitySf * intAmenityRate;
+  const interiorManualAdder = n(amenities.manualAdder);
+  const intAmenityProduct = intAmenityBaseProduct + interiorManualAdder;
 
   // ─── GARAGE ───────────────────────────────────────────────────────────────
-  const garageProduct = garageSf * PRICING.garage.perSf;
+  const garageBaseProduct = garageSf * PRICING.garage.perSf;
+  const garageManualAdder = n(projectData.garageManualAdder);
+  const garageProduct = garageBaseProduct + garageManualAdder;
 
   // ─── EXTERIOR ─────────────────────────────────────────────────────────────
   const extLevelRaw = exterior.amenityLevel || 'medium';
@@ -244,13 +256,18 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     emergencyProduct += battCount * b.costPerFixture;
   }
 
+  // Manual adder
+  emergencyProduct += n(emergency.manualAdder);
+
   // ─── EXIT SIGNS ───────────────────────────────────────────────────────────
   // Large-project threshold: per pricing.js, exit signs cost is halved when
   // the project exceeds the large-project threshold (default 300,000 SF).
   // Before this rule was applied, large projects were over-billed at full rate.
   const exitSignsRaw     = grossSf * PRICING.exitSigns.perSf;
   const exitSignsCutoff  = n(PRICING.exitSigns.largeProjectThreshold, 300000);
-  const exitSignsProduct = grossSf > exitSignsCutoff ? exitSignsRaw / 2 : exitSignsRaw;
+  const exitSignsBaseProduct = grossSf > exitSignsCutoff ? exitSignsRaw / 2 : exitSignsRaw;
+  const exitSignsManualAdder = n(projectData.exitSignsManualAdder);
+  const exitSignsProduct = exitSignsBaseProduct + exitSignsManualAdder;
 
   // ─── DESIGN BUDGET ADDERS ────────────────────────────────────────────────
   // NOTE: The base rate (grossSf × $0.38) already includes the standard design

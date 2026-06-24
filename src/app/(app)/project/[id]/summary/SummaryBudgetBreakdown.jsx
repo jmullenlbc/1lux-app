@@ -28,6 +28,9 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
         { label: 'Ceiling fans',     value: sections?.units?.fans?.product         || 0 },
         { label: 'Vanity lighting',  value: sections?.units?.vanity?.product       || 0 },
         { label: 'Balcony fixtures', value: sections?.units?.balcony?.product      || 0 },
+        ...(sections?.units?.manualAdder > 0
+          ? [{ label: 'Manual adder', value: sections?.units?.manualAdder }]
+          : []),
       ],
     },
     {
@@ -38,11 +41,38 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
         { label: 'Unit entry sconces', value: sections?.corridors?.sconces?.product    || 0 },
         { label: 'Stairwell fixtures', value: sections?.corridors?.stairwells?.product || 0 },
         { label: 'Accent downlights',  value: sections?.corridors?.accents?.product    || 0 },
+        ...(sections?.corridors?.manualAdder > 0
+          ? [{ label: 'Manual adder', value: sections?.corridors?.manualAdder }]
+          : []),
       ],
     },
-    { label: 'BOH / Core + Shell',  value: sections?.boh?.product            || 0, details: [] },
-    { label: 'Interior Amenities',  value: sections?.interior?.product        || 0, details: [] },
-    { label: 'Enclosed Garage',     value: sections?.garage?.product          || 0, details: [] },
+    {
+      label: 'BOH / Core + Shell',
+      value: sections?.boh?.product || 0,
+      details: [
+        ...(sections?.boh?.manualAdder > 0
+          ? [{ label: 'Manual adder', value: sections?.boh?.manualAdder }]
+          : []),
+      ],
+    },
+    {
+      label: 'Interior Amenities',
+      value: sections?.interior?.product || 0,
+      details: [
+        ...(sections?.interior?.manualAdder > 0
+          ? [{ label: 'Manual adder', value: sections?.interior?.manualAdder }]
+          : []),
+      ],
+    },
+    {
+      label: 'Enclosed Garage',
+      value: sections?.garage?.product || 0,
+      details: [
+        ...(sections?.garage?.manualAdder > 0
+          ? [{ label: 'Manual adder', value: sections?.garage?.manualAdder }]
+          : []),
+      ],
+    },
     {
       label: 'Exterior & Site',
       value: sections?.exterior?.total?.product || 0,
@@ -56,8 +86,24 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
         { label: '5% misc buffer',     value: sections?.exterior?.misc?.product      || 0 },
       ],
     },
-    { label: 'Emergency Lighting',  value: sections?.emergency?.product       || 0, details: [] },
-    { label: 'Exit Signs',          value: sections?.exitSigns?.product        || 0, details: [] },
+    {
+      label: 'Emergency Lighting',
+      value: sections?.emergency?.product || 0,
+      details: [
+        ...(sections?.emergency?.manualAdder > 0
+          ? [{ label: 'Manual adder', value: sections?.emergency?.manualAdder }]
+          : []),
+      ],
+    },
+    {
+      label: 'Exit Signs',
+      value: sections?.exitSigns?.product || 0,
+      details: [
+        ...(sections?.exitSigns?.manualAdder > 0
+          ? [{ label: 'Manual adder', value: sections?.exitSigns?.manualAdder }]
+          : []),
+      ],
+    },
   ];
 
   return (
