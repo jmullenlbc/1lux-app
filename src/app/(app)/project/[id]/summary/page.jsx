@@ -281,6 +281,15 @@ export default async function SummaryPage({ params }) {
         </p>
       </div>
 
+      {/* ── Design disclaimer — small, above Project Data ──────────── */}
+      {project.budgetType === 'design' && (
+        <p className="text-[10px] text-slate-400 leading-relaxed mb-3 print:mb-2">
+          This is a design phase budget prepared by ILC Studios for early design and pre-con purposes only.
+          Actual costs will vary based on final design, product selections, and market conditions.
+          Not a formal bid or contract.
+        </p>
+      )}
+
       {/* ── PROJECT DATA — horizontal grid ─────────────────────────── */}
       <div className="bg-white rounded-xl print:rounded-none border border-slate-200 print:border-0 p-5 print:p-0 mb-6 print:mb-4">
         <h3 className="font-bold text-slate-900 mb-3 print:text-sm print:font-bold print:text-slate-900 print:mb-2">Project Data</h3>
@@ -342,13 +351,6 @@ export default async function SummaryPage({ params }) {
           ))}
         </div>
 
-        {project.budgetType === 'design' && (
-          <div className="mt-8 text-xs text-slate-400 leading-relaxed text-center">
-            This is a design phase budget prepared by ILC Studios for early design and pre-con purposes only.
-            Actual costs will vary based on final design, product selections, and market conditions.
-            Not a formal bid or contract.
-          </div>
-        )}
       </div>
 
     </div>
