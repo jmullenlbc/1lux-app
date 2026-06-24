@@ -95,6 +95,12 @@ export async function PUT(request, { params }) {
   let description;
   if (changedFields.length === 0) {
     description = 'Saved Project Data (no changes)';
+  } else if (changedFields.length === 1) {
+    const field = changedFields[0];
+    const label = FIELD_LABELS[field] || field;
+    const oldVal = String(existing?.[field] ?? '(blank)');
+    const newVal = String(data[field] ?? '(blank)');
+    description = `Updated **${label}**: ${oldVal} → ${newVal} · Project Data`;
   } else if (changedFields.length <= 3) {
     const labels = changedFields.map(f => FIELD_LABELS[f] || f);
     description = `Updated Project Data: ${labels.join(', ')}`;

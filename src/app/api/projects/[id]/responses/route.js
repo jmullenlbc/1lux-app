@@ -84,9 +84,9 @@ export async function PUT(request, { params }) {
   await prisma.$transaction(upserts);
 
   // Compute diff and log
-  const changedLabels = diffResponses(existing, responses);
-  const description   = describeQuestionnaireChange(section, changedLabels, project.budgetType);
-  await logActivity(params.id, user, 'questionnaire', description, { section, changed: changedLabels });
+  const changedItems = diffResponses(existing, responses);
+  const description   = describeQuestionnaireChange(section, changedItems, project.budgetType);
+  await logActivity(params.id, user, 'questionnaire', description, { section, changed: changedItems });
 
   const all = await prisma.questionnaireResponse.findMany({
     where: { projectId: params.id },
