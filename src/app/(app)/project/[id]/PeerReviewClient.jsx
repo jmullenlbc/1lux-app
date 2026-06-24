@@ -1719,7 +1719,12 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
               setPrintLoading(true);
               try {
                 const res = await fetch(`/api/projects/${project.id}/peer-review/pdf`);
-                if (!res.ok) throw new Error(await res.text());
+                if (!res.ok) {
+                  const text = await res.text();
+                  let msg = text;
+                  try { msg = JSON.parse(text).error || text; } catch {}
+                  throw new Error(msg || `HTTP ${res.status}`);
+                }
                 const blob = await res.blob();
                 window.open(URL.createObjectURL(blob), '_blank');
               } catch (e) {

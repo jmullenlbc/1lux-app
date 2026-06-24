@@ -342,11 +342,16 @@ ${rawTotal > 0 ? `
 </body>
 </html>`;
 
-  const pdf = await htmlToPdf(html, { landscape: true, margin: { top: '0.4in', right: '0.6in', bottom: '0.4in', left: '0.45in' } });
-  return new NextResponse(pdf, {
-    headers: {
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `inline; filename="${title}.pdf"`,
-    },
-  });
+  try {
+    const pdf = await htmlToPdf(html, { landscape: true, margin: { top: '0.4in', right: '0.6in', bottom: '0.4in', left: '0.45in' } });
+    return new NextResponse(pdf, {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `inline; filename="${title}.pdf"`,
+      },
+    });
+  } catch (err) {
+    console.error('[peer-review/pdf]', err);
+    return NextResponse.json({ error: err?.message || String(err) }, { status: 500 });
+  }
 }

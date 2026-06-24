@@ -307,11 +307,16 @@ ${contingencyRows}
 </body>
 </html>`;
 
-  const pdf = await htmlToPdf(html, { landscape: false, margin: { top: '0.5in', right: '0.6in', bottom: '0.5in', left: '0.6in' } });
-  return new NextResponse(pdf, {
-    headers: {
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `inline; filename="${title}.pdf"`,
-    },
-  });
+  try {
+    const pdf = await htmlToPdf(html, { landscape: false, margin: { top: '0.5in', right: '0.6in', bottom: '0.5in', left: '0.6in' } });
+    return new NextResponse(pdf, {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `inline; filename="${title}.pdf"`,
+      },
+    });
+  } catch (err) {
+    console.error('[budget/pdf]', err);
+    return NextResponse.json({ error: err?.message || String(err) }, { status: 500 });
+  }
 }

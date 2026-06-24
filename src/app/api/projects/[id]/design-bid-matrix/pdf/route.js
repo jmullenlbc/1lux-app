@@ -396,11 +396,16 @@ export async function GET(request, { params }) {
 </body>
 </html>`;
 
-  const pdf = await htmlToPdf(html, { landscape: true });
-  return new NextResponse(pdf, {
-    headers: {
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `inline; filename="${title}.pdf"`,
-    },
-  });
+  try {
+    const pdf = await htmlToPdf(html, { landscape: true });
+    return new NextResponse(pdf, {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `inline; filename="${title}.pdf"`,
+      },
+    });
+  } catch (err) {
+    console.error('[design-bid-matrix/pdf]', err);
+    return NextResponse.json({ error: err?.message || String(err) }, { status: 500 });
+  }
 }

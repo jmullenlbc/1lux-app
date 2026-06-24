@@ -36,6 +36,14 @@ const nextConfig = {
     },
     experimental: {
           serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs', 'xlsx', '@napi-rs/canvas', 'tesseract.js', 'pdfjs-dist', 'pdf-parse', '@anthropic-ai/sdk', '@aws-sdk/client-s3', '@aws-sdk/s3-request-presigner', 'puppeteer-core', '@sparticuz/chromium'],
+          // Force-include the Chromium binary in Amplify's Lambda output tracing.
+          // Dynamic imports of @sparticuz/chromium aren't statically traced by nft,
+          // so without this the binary (.br file) would be missing from the Lambda.
+          outputFileTracingIncludes: {
+                '/api/projects/[id]/budget/pdf': ['./node_modules/@sparticuz/chromium/**/*'],
+                '/api/projects/[id]/peer-review/pdf': ['./node_modules/@sparticuz/chromium/**/*'],
+                '/api/projects/[id]/design-bid-matrix/pdf': ['./node_modules/@sparticuz/chromium/**/*'],
+          },
           // Zero out the client-side router cache for dynamic pages so navigating
           // back to the dashboard (or any force-dynamic page) always re-fetches.
           staleTimes: {

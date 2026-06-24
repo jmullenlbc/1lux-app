@@ -9,7 +9,12 @@ export default function SummaryPrintButton({ projectId }) {
     setLoading(true);
     try {
       const res = await fetch(`/api/projects/${projectId}/budget/pdf`);
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        const text = await res.text();
+        let msg = text;
+        try { msg = JSON.parse(text).error || text; } catch {}
+        throw new Error(msg || `HTTP ${res.status}`);
+      }
       const blob = await res.blob();
       const url  = URL.createObjectURL(blob);
       window.open(url, '_blank');
