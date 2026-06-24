@@ -2,6 +2,17 @@
 import { useState } from 'react';
 import Button from '@/components/ui/Button';
 
+function downloadBlob(blob, res) {
+  const disposition = res.headers.get('content-disposition') || '';
+  const filename = disposition.match(/filename="([^"]+)"/)?.[1] || 'budget.pdf';
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
 export default function SummaryPrintButton({ projectId }) {
   const [loading, setLoading] = useState(false);
 
@@ -15,9 +26,7 @@ export default function SummaryPrintButton({ projectId }) {
         try { msg = JSON.parse(text).error || text; } catch {}
         throw new Error(msg || `HTTP ${res.status}`);
       }
-      const blob = await res.blob();
-      const url  = URL.createObjectURL(blob);
-      window.open(url, '_blank');
+      downloadBlob(await res.blob(), res);
     } catch (e) {
       alert('PDF generation failed: ' + e.message);
     } finally {

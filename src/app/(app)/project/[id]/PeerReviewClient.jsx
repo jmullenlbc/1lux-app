@@ -1725,8 +1725,12 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                   try { msg = JSON.parse(text).error || text; } catch {}
                   throw new Error(msg || `HTTP ${res.status}`);
                 }
-                const blob = await res.blob();
-                window.open(URL.createObjectURL(blob), '_blank');
+                const disposition = res.headers.get('content-disposition') || '';
+                const filename = disposition.match(/filename="([^"]+)"/)?.[1] || 'bid-matrix.pdf';
+                const url = URL.createObjectURL(await res.blob());
+                const a = document.createElement('a');
+                a.href = url; a.download = filename; a.click();
+                setTimeout(() => URL.revokeObjectURL(url), 60000);
               } catch (e) {
                 alert('PDF generation failed: ' + e.message);
               } finally {
