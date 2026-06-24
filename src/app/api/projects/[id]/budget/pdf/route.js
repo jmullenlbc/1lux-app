@@ -49,7 +49,14 @@ export async function GET(request, { params }) {
   function gl(cat, key) { return OPTION_LABELS[cat]?.[key] || key || '—'; }
   const LL = {
     diskType:           { flatEdgeLit: 'Flat Edge-Lit (standard)', backlit: 'Backlit Rounded (–$0.04/SF credit)' },
-    entryDisk:          { typical: 'Standard', upgraded12: '12" Oversized Entry Disk (+$25/unit)', decorative: 'Decorative Surface Mount (+$30/unit)' },
+    diskSize:           { '5inch': '5" Disk (standard)', '7inch': '7" Disk (more output)' },
+    entryDisk:          { typical: 'Standard', '12inch': '12" Oversized Entry Disk (+$25/unit)', upgraded12: '12" Oversized Entry Disk (+$25/unit)', decorative: 'Decorative Surface Mount (+$30/unit)' },
+    fireRating:         { none: 'None — standard j-boxes', '1hr': '1-Hour fire-rated IC housing', '2hr': '2-Hour fire-rated IC housing' },
+    fanLevel:           { low: 'Low (builder grade pull-chain)', medium: 'Medium (eLuma spec grade)', high: 'High (custom/premium)' },
+    fanSize52:          { no: '48" (standard)', yes: '52" upgrade' },
+    fanLightKit:        { no: 'No', yes: 'Yes — light kit on fans' },
+    fanSupplemental:    { no: 'No', yes: 'Yes — supplemental lighting in fan areas' },
+    undercabinetSwitch: { integrated: 'Integrated on-fixture switch', wallSwitch: 'Dedicated wall switch', backsplash: 'Switch in backsplash' },
     fixtureType:        { disk: 'Surface-Mount Disk', recessed: 'Recessed Downlight' },
     corridorFireRating: { surfaceMount: 'Surface Mount', fireRated: 'Fire-Rated Concealed' },
     stairwellDesign:    { code: 'Code Minimum', elevated: 'Elevated / Upgraded Design' },
@@ -64,6 +71,9 @@ export async function GET(request, { params }) {
     boilerRoom:         { no: 'No', yes: 'Yes (+$15/unit)' },
     closetControl:      { switch: 'Standard Switch', occSensor: 'Occupancy Sensor' },
     halfHotReceptacles: { no: 'No', yes: 'Yes' },
+    buyHold:            { buyHold: 'Buy and hold — long-term ownership', buildSell: 'Build and sell — exit at or near CO' },
+    switchesDimmers:    { ourScope: 'ILC / lighting budget', ecScope: "Electrical contractor's scope", tbd: 'TBD' },
+    contingency:        { none: 'No contingency', '5pct': '5% contingency', '10pct': '10% contingency' },
     controlsSystem:     { standalone: 'Standalone / Independent', bms: 'BMS Integrated', none: 'None' },
     decorativeDimming:  { no: 'No', yes: 'Yes' },
     sceneSwitching:     { bankSwitches: 'Bank Switches', dmx: 'DMX / Scene Controller', none: 'None', no: 'None' },
@@ -75,15 +85,34 @@ export async function GET(request, { params }) {
   };
   function ll(cat, key) { return LL[cat]?.[key] || key || '—'; }
 
+  const pd2 = r['project-data'] || {};
   const answerGroups = [
+    { section: 'Project Intent', rows: [
+      { q: 'Contingency',              a: ll('contingency',     pd2.contingency    || '') },
+      ...(isDesign ? [
+        { q: 'Buy / Hold vs. Build / Sell', a: ll('buyHold',        pd2.buyHold        || '') },
+        { q: 'Switches & Dimmers Scope',    a: ll('switchesDimmers', pd2.switchesDimmers || '') },
+      ] : []),
+    ].filter(row => row.a && row.a !== '—') },
+
     { section: 'Residential Units', rows: [
       { q: 'Disk Type',               a: ll('diskType',       r.units?.diskType           || 'flatEdgeLit') },
+      { q: 'Disk Size',               a: ll('diskSize',       r.units?.diskSize           || '5inch') },
       { q: 'Unit Entry Disk',         a: ll('entryDisk',      r.units?.entryDisk          || 'typical') },
+      { q: 'Fire Rating',             a: ll('fireRating',     r.units?.fireRating         || 'none') },
       { q: 'Undercabinet Lighting',   a: gl('undercabinet',   r.units?.undercabinet       || 'none') },
+      ...(r.units?.undercabinet === 'lineVoltage'
+        ? [{ q: 'Undercabinet Switch', a: ll('undercabinetSwitch', r.units?.undercabinetSwitch || 'integrated') }] : []),
       { q: 'Kitchen Island Pendants', a: gl('kitchenPendants',r.units?.kitchenPendants    || 'none') },
       { q: 'Ceiling Fans',            a: gl('fans',           r.units?.fans               || 'none') },
       ...(r.units?.fans && r.units.fans !== 'none' && r.units?.fanLevel
-        ? [{ q: 'Fan Finish Level',   a: r.units.fanLevel }] : []),
+        ? [{ q: 'Fan Finish Level',   a: ll('fanLevel',       r.units.fanLevel) }] : []),
+      ...(r.units?.fans && r.units.fans !== 'none' && r.units?.fanSize52
+        ? [{ q: 'Fan Size',           a: ll('fanSize52',      r.units.fanSize52) }] : []),
+      ...(r.units?.fans && r.units.fans !== 'none' && r.units?.fanLightKit
+        ? [{ q: 'Fan Light Kit',      a: ll('fanLightKit',    r.units.fanLightKit) }] : []),
+      ...(r.units?.fans && r.units.fans !== 'none' && r.units?.fanSupplemental
+        ? [{ q: 'Supplemental in Fan Areas', a: ll('fanSupplemental', r.units.fanSupplemental) }] : []),
       { q: 'Vanity Lighting',         a: gl('vanity',         r.units?.vanity             || 'bathBarLow') },
       { q: 'Balcony Fixture',         a: gl('balcony',        r.units?.balcony            || 'none') },
       { q: 'Living Room Fixture',     a: ll('livingRoomDisks',r.units?.livingRoomDisks    || '1large') },
