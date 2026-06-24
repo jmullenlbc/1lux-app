@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { htmlToPdf } from '@/lib/pdf';
 
 function fmtCurrency(n) {
   if (n == null || n === 0) return '—';
@@ -392,11 +393,14 @@ export async function GET(request, { params }) {
 
   </div>
 
-  <script>window.onload = () => window.print();</script>
 </body>
 </html>`;
 
-  return new NextResponse(html, {
-    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+  const pdf = await htmlToPdf(html, { landscape: true });
+  return new NextResponse(pdf, {
+    headers: {
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `inline; filename="${title}.pdf"`,
+    },
   });
 }

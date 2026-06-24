@@ -25,6 +25,14 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Log
 
+### 2026-06-24 — Sean's Claude (Server-side PDF generation — all three PDF types, not yet deployed)
+
+Replaced all `window.print()` flows with server-side Puppeteer PDF generation. `puppeteer-core` + `@sparticuz/chromium` installed. Three routes:
+- `GET /api/projects/[id]/budget/pdf` — new; fetches project + calculateBudget + renders 2-page HTML (financial summary p1, questionnaire Q&A p2), returns `application/pdf`.
+- `GET /api/projects/[id]/peer-review/pdf` — new; fetches PeerReviewItems + calculates adders; landscape, 2-page (matrix + terms). Mirrors PeerReviewClient print layout exactly.
+- `GET /api/projects/[id]/design-bid-matrix/pdf` — existing route already generated HTML; now calls `htmlToPdf()` and returns PDF instead of HTML.
+`SummaryPrintButton` and `PeerReviewClient` Print button both call API and open PDF in new tab. Verified locally: Puppeteer finds Chrome at `C:/Program Files/Google/Chrome/Application/chrome.exe`, generates valid PDF. All three routes compile cleanly. **Not yet deployed** — needs `npm run deploy`.
+
 ### 2026-06-23 — Mike's Claude (Schedule parser v2.1 — keyword floor + AI timeout + resilience, deployed)
 
 Zenith still showed no dates after v2 (likely AI/serverless timeout silently swallowed, or the card's auto-parse bailed on missing stored textContent). Hardened `scheduleExtract.js` + `CAScheduleCard.jsx`:

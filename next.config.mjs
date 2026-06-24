@@ -35,7 +35,7 @@ const nextConfig = {
           S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY,
     },
     experimental: {
-          serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs', 'xlsx', '@napi-rs/canvas', 'tesseract.js', 'pdfjs-dist', 'pdf-parse', '@anthropic-ai/sdk', '@aws-sdk/client-s3', '@aws-sdk/s3-request-presigner'],
+          serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs', 'xlsx', '@napi-rs/canvas', 'tesseract.js', 'pdfjs-dist', 'pdf-parse', '@anthropic-ai/sdk', '@aws-sdk/client-s3', '@aws-sdk/s3-request-presigner', 'puppeteer-core', '@sparticuz/chromium'],
           // Zero out the client-side router cache for dynamic pages so navigating
           // back to the dashboard (or any force-dynamic page) always re-fetches.
           staleTimes: {
