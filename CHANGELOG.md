@@ -5,6 +5,76 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Hotfix — PDF parsing fixed in production (pdfjs polyfill + fixture-route hardening)] · June 24, 2026
+
+> **Deployed to production** (commit `d4ea191` polyfill, then this commit for the fixture-schedule route — both isolated from the in-progress Sales-Notes/Playbook work).
+
+### Fixed
+- **All PDF parsing worked locally but failed in production.** Root cause: `pdfjs-dist` v5 calls `Promise.withResolvers()`, which only exists on Node 22+. Amplify's serverless runtime runs an older Node where it's `undefined`, so every extractor threw before producing text. New `src/lib/pdfPolyfill.js` (a no-op on Node 22+) is imported at the top of all 10 pdfjs extractors.
+- **Fixture-schedule parsing returned "0 fixtures imported."** That route still used a bare extractor with none of the serverless font-hardening that fixed the construction schedule. Ported it over to `src/app/api/projects/[id]/fixture-schedule/parse/route.js`: bundled `standardFontDataUrl`, `disableFontFace`, `isEvalSupported:false`, `useSystemFonts:false`, per-page `try/catch`, and precise error surfacing (a blank extraction now reports the real page error instead of a generic message).
+- **Made a missing API key explicit.** `getAnthropicKey()` falls back to reading a local `.env` file that doesn't exist in the Amplify bundle. If `ANTHROPIC_API_KEY` isn't set as an Amplify environment variable, every AI parser fails silently in prod. The route now returns a clear "Anthropic API key not configured" error instead.
+
+### Files changed
+- `src/lib/pdfPolyfill.js` (new) + import added to all 10 pdfjs extractors (`d4ea191`).
+- `src/app/api/projects/[id]/fixture-schedule/parse/route.js` — serverless font-hardening + explicit key check.
+
+---
+
+## [Hotfix — Construction-schedule parser rebuilt for large multi-building schedules] · June 23, 2026
+
+> **Deployed to production** (commits `3cb06d0` window bump, then `a5a903e` v2 rewrite — both isolated from the Session 38 work below).
+
+### Fixed
+- **Large construction schedules parsed no milestone dates.** The extractor only fed the AI the first **12,000 characters** and read **30 pages**, and it joined PDF text into a run-on blob. Big multi-building MS Project / P6 exports — Zenith on 25th is **96 pages, 1,800+ rows, ~11 buildings** — place the project-level TCO + Turnover Keys ~character **134,000**, far past the window, so uploads came back empty.
+- **First pass** (`3cb06d0`): widened the window to 50k and the page cap to 60. Still cut off the true project end on Zenith (page 48).
+- **v2 rewrite** (`a5a903e`, new `src/lib/scheduleExtract.js`):
+  - **Row-structured extraction** — groups PDF text items by Y position so each schedule row is one clean line, instead of a run-on stream.
+  - **Whole document** — reads all pages and sends up to **180,000 chars** to Claude Haiku (200k context), so project-level start/end aren't truncated.
+  - **Multi-building prompt** — earliest start, latest finish/TCO across all buildings; recognizes this schedule's vocabulary ("Meps trades", "Meps Trades First floor" = MEP rough-in).
+  - **Deterministic keyword fallback** — if the AI returns nothing, a keyword+date scanner still pulls the core milestones, so a recognizable schedule never yields [].
+  - Both the upload and reparse routes now share this module (removed the duplicated inline extractor).
+- Verified on the Zenith PDF: **Construction Start 6/1/26, earliest MEP 1/12/27, TCO 5/16/28, Final Completion 6/2/28**, plus 15 MEP rough-ins across buildings A–K. Pure code change — no schema/migration.
+
+---
+
+## [Session 38 — Unified Notes module + actionable AI extraction + admin method taxonomy] · June 23, 2026
+
+> Local only — **not deployed**. Awaiting Mike's "Deploy".
+
+### Added
+- **Unified `Note` table** (migration `0035_unified_note`) merging Sales Notes + project Meeting Notes behind a `noteType` discriminator (`SALES` | `PROJECT_MEETING`). Each UI/UX is preserved by filtering on `noteType` and aliasing `content ↔ body` for meeting notes (`toMeetingNote()` helper). Join tables `NoteContact`/`NoteClient`/`NoteDeal`. All sales-notes, project meeting-notes, portal meeting-notes, and project-chat routes repointed to `prisma.note`. Unified search at `GET /api/notes/search?q=&type=`.
+- **AI action extraction** (`src/lib/bot/extractNoteActions.js`, Claude Haiku 4.5): turns a note's terse prose into structured **action items** + **intel**, soft-resolving person names to CRM contacts. Runs **automatically** — on note open (if empty), debounced after edits, and on publish. `NoteAction` model (migration `0036`) stores `kind` (ACTION/INTEL), `type`, `rawText`, `detail`, contact/target/company, `status` (SUGGESTED→CONFIRMED/DONE/DISMISSED), `source`. Confirmed/dismissed items are protected from re-extraction.
+- **Admin-controlled method taxonomy** (`NoteActionType`, migration `0037_note_action_types`). Action types are now **methods** that tell the bot what to do: **Email, Text, Call, Schedule an event, Expect intro, Send materials, Add to list, Internal task, Intel**. Each type carries an editable **message template** (blank to start; built for DocSend links on Send materials) + **bot instructions**, plus `executor`, `kind`, `description` (feeds the AI classifier), `sortOrder`, `isActive`.
+  - **Expect-intro reminder logic** is not hardcoded: an **admin default** "remind after N days" (`NoteActionType.reminderDays`, default 7) **plus a per-line-item override** (`NoteAction.reminderDays`) editable on the action itself.
+  - Admin editor at **`/admin/note-actions`** (`NoteActionTypesEditor.jsx`) — light theme, full CRUD, active toggle, template/instructions/reminder fields shown contextually per executor. Sidebar link added (admins).
+  - API `GET/POST/PATCH/DELETE /api/crm/note-action-types` (GET any authed user; writes admin-gated). Auto-seeds the 10 default method types on first access (`noteActionTypesStore.js`).
+- The note action dropdown + extractor now read the **live DB taxonomy** (not a hardcoded list); the note UI shows the per-item intro reminder (`⏰ remind in Nd`) with an override input.
+- **Sales Admin permission + relocation.** The taxonomy editor moved from `/admin/note-actions` to the **Sales Automation tab** (`/sales/automation/actions`, new "Action Types" sub-tab in `AutomationNav`), gated to **Sales Admin or Super Admin**. New `salesAdmin` permission flag (`isSalesAdmin`/`requireSalesAdmin` in `auth.js`; toggle in the Admin → Users editor; surfaced via `/api/auth/me`). Super Admin always qualifies.
+- **Contact-tag chips** on action items (`ContactChip` + inline `ContactLinkPicker` in `NotesClient`): the person is a real chip — solid + ✓ when linked to a CRM contact, dashed when unmatched — with a search picker to link/relink/unlink (writes `contactId`).
+- **Relationship Intel section** — new `/crm/intel` page (`IntelClient`) + `GET /api/crm/intel`: all INTEL across notes, searchable by person/company/keyword, filter All vs Verified, link each fact to a CRM contact, Confirm (→ verified knowledge) / Dismiss. Sidebar link added under CRM.
+- **Light-theme restyle** of the Sales Notes screen (`NotesClient.jsx`) — converted from dark slate-900/800 to the app's light theme.
+- **Bot Queue executor** (`src/lib/bot/executeNoteAction.js`): confirming an action hands it to the queue. Message methods (Email/Text/Send materials) create a `BotDraft` (type `FOLLOW_UP`, `PENDING_REVIEW`) from the type's template with `{{firstName}}/{{name}}/{{company}}/{{target}}` substitution, addressed to the linked contact. **Expect-intro** schedules `remindAt = now + reminderDays` (per-item override or type default); the processor `POST /api/bot/process-note-actions` (cron `x-cron-secret` or admin) fires due reminders as queue drafts. Call/Schedule/Add-to-list/Internal-task are marked confirmed to-dos. New `NoteAction` fields `confirmedAt`/`executedAt`/`remindAt`/`botDraftId` (migration `0038_note_action_execution`).
+
+### Automation platform refactor (Zapier-in-app)
+- **Generic if-then rule engine** (`src/lib/bot/ruleEngine.js`): a trigger registry (`NOTE_ACTION_CONFIRMED`, `NOTE_PUBLISHED`, `EMAIL_RECEIVED`, `CALENDAR_EVENT_CREATED` — email/calendar marked not-yet-live pending M365 sync), a JSON **condition evaluator** (`match all/any` of `{field, op, value}`), and an **action primitive registry** (`DRAFT_EMAIL`, `NOTIFY`, `SCHEDULE_REMINDER`, `CREATE_TASK`, `ADD_TO_LIST`). `runTrigger()` runs the method's **baseline** action and then every matching **user rule**, logging each fire. Primitives are code; the wiring is data the sales team builds.
+- **Note-action confirm rerouted** through the engine (was a hardcoded call) — baseline behavior preserved, user rules layer on top.
+- **If-Then builder UI** at `/sales/automation/triggers` (Sales-Admin gated, new `AutomationNav` tab): a When → If (condition rows from the trigger's fields) → Then (action + config) composer, a rule list with active toggle/delete, and a **learning-review table** (fired / accepted / edited / rejected per rule). Reuses `BotRule` for storage; `GET /api/automation/rule-meta` + `GET /api/automation/activity` back the UI.
+- **Learning loop ledger** `AutomationLog` (migration `0040_automation_log`): one row per fire with `outcome` (PENDING/ACCEPTED/EDITED/REJECTED). Outcomes recorded from the queue — draft edit → EDITED, cancel → REJECTED (`recordDraftOutcome`). ACCEPTED wires up when real send (Phase B) lands.
+- **Legacy tables dropped** (migration `0039_drop_legacy_note_tables`): `SalesNote` + `SalesNoteContact/Client/Deal` + `MeetingNote` removed (superseded by the unified `Note`). Repointed the last live consumer — the Sales Activity dashboard (`dashboardEngine.runSalesActivity`) — to `prisma.note` (`noteType: 'SALES'`). Removed the 5 dead back-relation fields.
+- **Bot is gated behind publish (with pause on revert).** Nothing the bot does — drafting emails, scheduling reminders, firing if-then rules — happens while a note is a **draft**. Confirming an action in draft just records it; the publish toggle is the bot's "go" switch. `src/lib/bot/noteActionRunner.js` (`fireNoteActionConfirmed`, `executeNotePublished`, `pauseNoteOnUnpublish`): on publish, every confirmed action runs; on an already-published note, confirming/linking runs immediately. **Reverting to draft pauses the bot** — unsent drafts go to a paused `DRAFT` status (out of the review queue) and reminders clear, but the draft (and any human edits) is preserved; re-publishing **reactivates the same draft** and folds in anything added while paused. Expect-intro reminders count from the publish day. (Pause→edit→re-publish cycle verified.) The note panel shows "✉ on publish" while in draft.
+- **One email per contact, automatically (no button).** Confirming an Email / Send-materials / Schedule action no longer drafts one email per item. `composeOutreach.js` consolidates ALL of a contact's confirmed asks into ONE cohesive email (Claude Haiku, deterministic fallback). **Recompose-aware:** an untouched pending draft is fully recomposed as asks are added (one email, verified). **Edit-preserving:** once you've hand-edited the draft, your text is kept and each new ask is appended as a **new paragraph** (AI-written, no extra greeting/sign-off) rather than overwriting your edits. **No double-sends:** asks already on a sent/cancelled draft are never re-included; a genuinely new ask after a send starts a fresh draft. (All three branches verified.) `GET/POST /api/crm/notes/[id]/draft-outreach` retained.
+- **Roadmap:** parked "Sales bot: send texts" and "place/log calls" from note actions under CRM (`RoadmapPriority`, migration `0041`) so the deferred Text/Call automation isn't lost.
+- **Text & Call are now plain to-dos.** The bot can't send texts or place calls yet (down the road), so confirming a Text/Call action just marks it a confirmed to-do — no draft. (`executeNoteAction` simplified; the per-template draft path removed.)
+- **Add a contact from a note action chip.** When a person on an action item isn't in the CRM (e.g. "Rebecca"), the contact-link picker now has **"+ Add new contact"** — enter name + email (+ company, prefilled), it `POST`s to `/api/crm/contacts` and links the action to the new contact. Once linked, the consolidated email picks them up automatically.
+- **Merge-token autocomplete in template editors.** Shared token registry + fill (`src/lib/bot/mergeTokens.js`: `{{firstName}}`, `{{name}}`, `{{company}}`, `{{target}}`) is now the single source of truth for both the editors and the bot's fill step. New `TemplateTextarea` component: typing `{` opens a filterable variable menu (↑/↓/Enter), plus a clickable token legend. Wired into the Action Types template field and the If-Then `DRAFT_EMAIL` template; `ruleEngine` + `executeNoteAction` both fill via the shared function (engine now substitutes all tokens, not just firstName).
+- **Email/calendar intake layer (app side of M365 sync) + test harness.** `src/lib/bot/intake.js` normalizes a raw provider email/calendar payload into the engine's field shape (`fromDomain` parsing, activity-type inference from the title, in-person vs virtual detection), resolves the ILC owner + CRM contact by email, and fires the trigger. Endpoints `POST /api/automation/intake/email` and `/calendar` (cron-secret or Sales Admin) are the stable boundary M365 Graph sync will call. `EMAIL_RECEIVED`/`CALENDAR_EVENT_CREATED` are now `live` (with a `needsSync` UI hint). **Testable without M365:** `runTrigger` gained a `dryRun` mode (evaluate + report, mutate nothing); `POST /api/automation/test` simulates an event; the If-Then builder has a **"Test a trigger"** panel — fill sample fields, *Dry run* shows which rules would fire, *Run for real* fires and queues drafts.
+
+### Notes
+- Verified end-to-end locally: extraction taxonomy; executor drafts + intro reminders; rule engine (conditions match/filter, multiple rules fire, learning outcomes group per rule); dashboard repoint. Checks green (40 migrations, 49 app pages, 112 models).
+- Infra TODO: schedule `POST /api/bot/process-note-actions` on the existing `CRON_SECRET` cron. Follow-ups: wire email/calendar **ingestion** to call `runTrigger` (triggers already defined); record ACCEPTED when sending goes live; real `CREATE_TASK`/`ADD_TO_LIST` integrations (currently log-only).
+
+---
+
 ## [Session 37 — Standards/Playbook restructure, live share link, pricing] · June 15, 2026
 
 ### Added

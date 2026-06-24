@@ -25,6 +25,12 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Log
 
+### 2026-06-24 — Mike's Claude (PDF parsing prod hotfix — pdfjs polyfill + fixture-route hardening)
+
+**Root cause of "parsing works local, fails in prod":** pdfjs-dist v5 calls `Promise.withResolvers()` (Node 22+). Amplify's serverless runtime is on older Node where it's `undefined`, so every PDF extractor threw. **Deployed** `d4ea191`: new `src/lib/pdfPolyfill.js` (no-op on Node 22+) imported at the top of all 10 pdfjs extractors. `npm test` 12/12, build clean.
+
+**Follow-up (this commit):** the fixture-schedule parse route (`src/app/api/projects/[id]/fixture-schedule/parse/route.js`) still used a bare extractor with **none of the serverless font-hardening** that fixed the construction schedule. Ported it over: bundled `standardFontDataUrl`, `disableFontFace`, `isEvalSupported:false`, `useSystemFonts:false`, per-page try/catch, and precise error surfacing. Also added an explicit "ANTHROPIC_API_KEY not configured" error — `getAnthropicKey()` falls back to reading a local `.env` that doesn't exist in the Amplify bundle, so if the env var isn't set in the Amplify console, **all** AI parsing silently fails in prod. **Sean/Mike: confirm `ANTHROPIC_API_KEY` is set in Amplify → Hosting → Environment variables.**
+
 ### 2026-06-24 — Sean's Claude (Manny PRs #1–5 merged to main)
 
 Reviewed and merged all five of Manny's open PRs in order: wizard dirty-field tracking, section manual adders, activity feed filters, old→new values in activity descriptions, budget change history on Summary page. Merge conflicts in ExteriorSection and ProjectDataSection (stale base branches) resolved by hand — dirty-tracking guard preserved, contingency all-modes approach kept. All 38 tests + fuzz + bid matrix checks passed. Deployed. Manny's queue is now clear.
@@ -56,6 +62,8 @@ Both `files/route.js` (upload) and `.../reparse/route.js` now call it (removed t
 ### 2026-06-23 — Mike's Claude (Construction-schedule parser fix deployed — isolated hotfix)
 
 **Deployed parser fix** (rebased onto your 21 commits — clean, no conflicts; your commits don't touch these files): widened the construction-schedule AI extraction window **12,000 → 50,000 chars** and the PDF page-extraction cap **30 → 60** in both `src/app/api/projects/[id]/files/route.js` and `.../files/[fileId]/reparse/route.js`. Large multi-page MS Project/P6 schedules were placing milestone rows past the 12k window so uploads parsed no dates (Zenith 96-page schedule: TCO/turnover sat at char ~12,068). Verified the Zenith schedule now extracts 15 milestones across 5 building phases. `npm test` green, build clean.
+
+**Heads-up (Playbook v3, local-only):** Reworked `ClientPlaybook` to be fully queryable/bot-actionable. **Dropped the JSON bins** `architectRel`/`eeRel`/`gcRel`/`roleAssignments`; **added 4 tables** `PlaybookRelationship` / `PlaybookAssignment` / `PlaybookDistribution` / `PlaybookNote` (+ intro/comms/logistics scalar columns), migration `0042_playbook_normalize`. No data to migrate (app empty). Export route + PlaybookTab repointed. **Not pushed** — flagging since it touches your `ClientPlaybook`; will rebase onto your latest before any deploy.
 
 **Heads-up:** I have a large **local-only** Sales-Notes/automation module in progress (unified Note table, admin action taxonomy, Zapier-style if-then rule engine, intel, outreach consolidation) — **NOT pushed**, sitting in my working tree + a stash. It adds migrations `0035`–`0041`. When I eventually deploy it I'll rebase onto your latest first. Flagging so you're aware of the migration numbers I'll be claiming.
 

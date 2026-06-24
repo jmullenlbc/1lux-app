@@ -4,9 +4,19 @@ import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
+import { createRequire } from 'module';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 
 export const maxDuration = 120;
+
+// Resolve pdfjs's bundled standard fonts (same setup as scheduleExtract.js / ocr.js).
+// Without this, getTextContent can throw in Amplify's serverless runtime — which is
+// why prod parsing fails while local works. See scheduleExtract.js for the full note.
+let FONTS_URL = null;
+try {
+  const req = createRequire(import.meta.url);
+  FONTS_URL = `file://${path.dirname(req.resolve('pdfjs-dist/package.json'))}/standard_fonts/`.replace(/\\/g, '/');
+} catch {}
 
 const AI_PARSE_PROMPT = `You are extracting a lighting fixture schedule from an architectural drawing.
 The schedule is a table listing fixture types with their specifications.
@@ -87,15 +97,32 @@ Return ONLY the JSON array. Example of expected output format:
 
 async function extractPdfText(buffer) {
   const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
-  const doc      = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise;
+  const doc      = await pdfjsLib.getDocument({
+    data: new Uint8Array(buffer),
+    ...(FONTS_URL ? { standardFontDataUrl: FONTS_URL } : {}),
+    disableFontFace: true,
+    isEvalSupported: false,
+    useSystemFonts: false,
+    verbosity: 0,
+  }).promise;
+  const numPages = doc.numPages;
   let text = '';
-  const maxPages = Math.min(doc.numPages, 3); // spec: max 3 pages
+  let pageError = null;
+  const maxPages = Math.min(numPages, 3); // spec: max 3 pages
   for (let i = 1; i <= maxPages; i++) {
-    const page    = await doc.getPage(i);
-    const content = await page.getTextContent();
-    text += content.items.map(item => item.str).join(' ') + '\n';
+    try {
+      const page    = await doc.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map(item => item.str).join(' ') + '\n';
+    } catch (pe) {
+      pageError = `page ${i}: ${pe?.message ?? pe}`;
+    }
   }
-  return { text: text.trim(), numPages: doc.numPages };
+  try { await doc.destroy(); } catch {}
+  const trimmed = text.trim();
+  // Surface a precise diagnostic when nothing came out (we can't read prod logs).
+  if (!trimmed && pageError) throw new Error(pageError);
+  return { text: trimmed, numPages };
 }
 
 async function getOrCreateDraft(projectId) {
@@ -165,8 +192,12 @@ export async function POST(request, { params }) {
   // Call Claude
   let rows = [];
   try {
+    const apiKey = getAnthropicKey();
+    if (!apiKey) {
+      throw new Error('Anthropic API key not configured on the server. Set ANTHROPIC_API_KEY in the Amplify environment variables.');
+    }
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
-    const anthropic  = new Anthropic({ apiKey: getAnthropicKey() });
+    const anthropic  = new Anthropic({ apiKey });
     const msg = await anthropic.messages.create({
       model:      'claude-haiku-4-5',
       max_tokens: 8192,
