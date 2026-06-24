@@ -1518,7 +1518,8 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
           .print\\:hidden { display: none !important; }
           .print-only { display: block !important; }
           body { background: white; margin: 0; }
-          @page { size: landscape; margin: 0.4in 0.6in 0.4in 0.45in; }
+          @page { size: landscape; margin: 0; }
+          .print-only { padding: 0.4in 0.6in 0.4in 0.45in; }
           .pm-table { border-collapse: collapse; width: 100%; font-size: 7.5pt; font-family: Arial, Helvetica, sans-serif; }
           .pm-table th, .pm-table td { border: 1px solid #d0d0d0; padding: 3px 6px; vertical-align: top; }
           .pm-table thead tr { border-bottom: 2px solid #555; }
