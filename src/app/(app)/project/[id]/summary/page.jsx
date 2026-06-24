@@ -13,15 +13,31 @@ import SummaryBudgetBreakdown from './SummaryBudgetBreakdown';
 import MissingInputsWarning from '@/components/MissingInputsWarning';
 import SendBudgetButton from './SendBudgetButton';
 
+function formatActivityTime(dateStr) {
+  return new Date(dateStr).toLocaleString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit', hour12: true,
+  });
+}
+
 export default async function SummaryPage({ params }) {
   const session = await getSession();
   if (!session) redirect('/login');
 
   let project = null;
+  let budgetHistory = [];
   try {
     project = await prisma.project.findUnique({
       where: { id: params.id },
       include: { projectData: true, responses: true, createdBy: { select: { name: true, email: true } } },
+    });
+    budgetHistory = await prisma.projectActivity.findMany({
+      where: {
+        projectId: params.id,
+        type: { in: ['questionnaire', 'project_data'] },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
     });
   } catch (err) {
     console.error('[/project/id/summary] DB query failed:', err?.message ?? err);
@@ -352,6 +368,37 @@ export default async function SummaryPage({ params }) {
         </div>
 
       </div>
+
+      {/* ── BUDGET CHANGE HISTORY — screen only ───────────────────── */}
+      {budgetHistory.length > 0 && (
+        <div className="print:hidden bg-white rounded-xl border border-slate-200 p-5 mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-slate-900">Budget Change History</h3>
+            <Link
+              href={`/project/${project.id}?tab=activity`}
+              className="text-xs text-amber-600 hover:text-amber-700 font-medium transition-colors"
+            >
+              View all in Activity tab →
+            </Link>
+          </div>
+
+          <div className="space-y-0 divide-y divide-slate-100">
+            {budgetHistory.map(activity => (
+              <div key={activity.id} className="flex gap-4 py-3 first:pt-0 last:pb-0">
+                <div className="w-32 shrink-0 text-xs text-slate-500">
+                  {formatActivityTime(activity.createdAt)}
+                </div>
+                <div className="w-24 shrink-0 text-sm font-medium text-slate-700">
+                  {activity.userName || activity.userEmail || 'Unknown'}
+                </div>
+                <div className="flex-1 text-sm text-slate-600">
+                  {activity.description}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
     </div>
   );
