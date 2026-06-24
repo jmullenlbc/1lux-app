@@ -32,14 +32,16 @@ export async function POST(request, { params }) {
     return NextResponse.json({ error: 'File not found on disk' }, { status: 404 });
   }
 
-  let milestones = [], text = null;
+  let milestones = [], text = null, diag = null;
   try {
-    ({ milestones, text } = await extractScheduleMilestones(buffer, anthropic));
+    ({ milestones, text, diag } = await extractScheduleMilestones(buffer, anthropic));
   } catch (e) {
     return NextResponse.json({ error: `Extraction failed: ${e.message}`, milestones: [] });
   }
   if (!text) {
-    return NextResponse.json({ error: 'Could not extract text — scanned PDF?', milestones: [] });
+    const d = diag || {};
+    const detail = `pages=${d.numPages ?? '?'} read=${d.pagesRead ?? 0}${d.error ? ` err=${d.error}` : ''}`;
+    return NextResponse.json({ error: `Could not extract text (${detail})`, milestones: [], diag }, { status: 200 });
   }
   if (milestones.length === 0) {
     return NextResponse.json({ error: 'No milestone dates found in the document', milestones: [] });

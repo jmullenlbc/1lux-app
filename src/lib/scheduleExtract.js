@@ -15,34 +15,62 @@
  *     still pulls the core milestones, so a recognizable schedule never yields [].
  */
 import { getAnthropicKey } from '@/lib/anthropicKey';
+import path from 'path';
+import { createRequire } from 'module';
+
+// Resolve pdfjs's bundled standard fonts (same setup as the working ocr.js path).
+// Without this, getTextContent can throw in a serverless runtime.
+let FONTS_URL = null;
+try {
+  const req = createRequire(import.meta.url);
+  FONTS_URL = `file://${path.dirname(req.resolve('pdfjs-dist/package.json'))}/standard_fonts/`.replace(/\\/g, '/');
+} catch {}
 
 // ── Row-structured PDF text ───────────────────────────────────────────────────
-export async function extractScheduleText(buffer, maxPages = 200) {
+// Returns { text, numPages, pagesRead, error } so callers can surface a precise
+// diagnostic (we can't read prod logs) instead of a generic "no text".
+export async function extractScheduleTextDiag(buffer, maxPages = 120) {
+  let numPages = 0, pagesRead = 0, error = null;
   try {
     const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
-    const doc = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise;
+    const doc = await pdfjsLib.getDocument({
+      data: new Uint8Array(buffer),
+      ...(FONTS_URL ? { standardFontDataUrl: FONTS_URL } : {}),
+      disableFontFace: true,
+      isEvalSupported: false,
+      useSystemFonts: false,
+      verbosity: 0,
+    }).promise;
+    numPages = doc.numPages;
     let text = '';
-    const n = Math.min(doc.numPages, maxPages);
+    const n = Math.min(numPages, maxPages);
     for (let i = 1; i <= n; i++) {
-      const content = await (await doc.getPage(i)).getTextContent();
-      const byY = new Map();
-      for (const it of content.items) {
-        const y = Math.round(it.transform[5]);
-        if (!byY.has(y)) byY.set(y, []);
-        byY.get(y).push({ x: it.transform[4], s: it.str });
-      }
-      const rows = [...byY.entries()]
-        .sort((a, b) => b[0] - a[0]) // top→bottom
-        .map(([, items]) => items.sort((a, b) => a.x - b.x).map(i => i.s).join(' ').replace(/\s+/g, ' ').trim())
-        .filter(r => r);
-      text += rows.join('\n') + '\n';
+      try {
+        const content = await (await doc.getPage(i)).getTextContent();
+        const byY = new Map();
+        for (const it of content.items) {
+          const y = Math.round(it.transform[5]);
+          if (!byY.has(y)) byY.set(y, []);
+          byY.get(y).push({ x: it.transform[4], s: it.str });
+        }
+        const rows = [...byY.entries()]
+          .sort((a, b) => b[0] - a[0]) // top→bottom
+          .map(([, items]) => items.sort((a, b) => a.x - b.x).map(i => i.s).join(' ').replace(/\s+/g, ' ').trim())
+          .filter(r => r);
+        text += rows.join('\n') + '\n';
+        pagesRead++;
+      } catch (pe) { error = `page ${i}: ${pe?.message ?? pe}`; }
     }
+    try { await doc.destroy(); } catch {}
     const t = text.trim();
-    return t.length > 50 ? t : null;
+    return { text: t.length > 50 ? t : null, numPages, pagesRead, error };
   } catch (e) {
-    console.error('[extractScheduleText] failed:', e?.message ?? e);
-    return null;
+    return { text: null, numPages, pagesRead, error: e?.message ?? String(e) };
   }
+}
+
+export async function extractScheduleText(buffer, maxPages = 120) {
+  return (await extractScheduleTextDiag(buffer, maxPages)).text;
 }
 
 // ── Dates ─────────────────────────────────────────────────────────────────────
@@ -164,17 +192,18 @@ function withTimeout(promise, ms, label) {
  * So an AI/network hiccup or Lambda timeout can never blank the dates.
  */
 export async function extractScheduleMilestones(buffer, anthropic, { aiTimeoutMs = 22000 } = {}) {
-  const text = await extractScheduleText(buffer);
-  if (!text) return { text: null, milestones: [], source: 'none' };
+  const { text, numPages, pagesRead, error } = await extractScheduleTextDiag(buffer);
+  const diag = { numPages, pagesRead, error, textLen: text?.length ?? 0 };
+  if (!text) return { text: null, milestones: [], source: 'none', diag };
 
   const keyword = keywordExtractMilestones(text);
 
   let ai = [];
   try { ai = await withTimeout(aiExtractMilestones(text, anthropic), aiTimeoutMs, 'AI extraction'); }
-  catch (e) { console.error('[extractScheduleMilestones] AI skipped:', e?.message ?? e); }
+  catch (e) { console.error('[extractScheduleMilestones] AI skipped:', e?.message ?? e); diag.aiError = e?.message ?? String(e); }
 
   // Prefer AI when it returns a fuller set; otherwise the reliable keyword floor.
-  if (ai.length >= keyword.length && ai.length >= 2) return { text, milestones: ai, source: 'ai' };
-  if (keyword.length) return { text, milestones: keyword, source: 'keyword' };
-  return { text, milestones: ai, source: ai.length ? 'ai' : 'none' };
+  if (ai.length >= keyword.length && ai.length >= 2) return { text, milestones: ai, source: 'ai', diag };
+  if (keyword.length) return { text, milestones: keyword, source: 'keyword', diag };
+  return { text, milestones: ai, source: ai.length ? 'ai' : 'none', diag };
 }
