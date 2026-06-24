@@ -28,6 +28,24 @@ _No active tasks. All five PRs merged to main on 2026-06-24. Await new tasks fro
 
 ---
 
+## Manual testing checklist (PRs 1–5)
+
+Sean needs confirmation these work in the browser before closing them out. Use **"THE APPROACH (SEAN'S)"** project on the live site (`app.ilcstudios.com`). Run `npm run dev:3000` locally if you prefer.
+
+1. **Dirty tracking** — open any wizard section, change nothing, hit Save. Check the Activity tab. You should see at most a "no changes detected" entry — not a full re-save of every field.
+
+2. **Old→new in activity log** — in any wizard section, change exactly one answer and save. Activity tab should show `Updated **Field**: old → new`. Change two fields in one save — should fall back to the summarized format.
+
+3. **Section manual adders (questionnaire sections)** — open Units. Scroll to the bottom of the section, enter `5000` in the Manual Adder field, save. Open the Summary page — Units line item should be $5,000 higher and show a "Manual adder" detail line. Clear it back to zero when done. Repeat a spot-check on Corridors and Emergency.
+
+4. **Section manual adders (Project Data)** — open the Project Data wizard step. Scroll to "Section Adders" at the bottom. Enter `3000` in BOH manual adder, save. Summary should reflect it. Clear when done.
+
+5. **Activity feed filters** — Activity tab. Try the Module dropdown (pick "Budgets (Questionnaire)"), the User dropdown, and the date range inputs. Each should narrow the list. Clear Filters button should restore it.
+
+6. **Budget change history** — Summary page, scroll to the bottom. Should see a "Budget Change History" section listing recent saves with date, user, and description.
+
+---
+
 ## Completed tasks (Tasks 3–5)
 
 ### Task 3: Activity feed filtering
