@@ -130,6 +130,11 @@ export default function ProjectActivityFeed({ projectId }) {
   const [cursor,     setCursor]     = useState(null);
   const [loadingMore,setLoadingMore]= useState(false);
 
+  // Filter state
+  const [selectedModule, setSelectedModule] = useState(null);
+  const [selectedUser, setSelectedUser]     = useState(null);
+  const [dateRange, setDateRange]           = useState({ from: null, to: null });
+
   const fetchActivities = useCallback(async (opts = {}) => {
     const { append = false, afterCursor = null } = opts;
     if (!append) setLoading(true);
@@ -177,6 +182,27 @@ export default function ProjectActivityFeed({ projectId }) {
     );
   }
 
+  // Extract unique users from activities
+  const uniqueUsers = Array.from(
+    new Map(activities.map(a => [a.userName || a.userEmail, { name: a.userName, email: a.userEmail }])).values()
+  ).filter(u => u.name || u.email);
+
+  // Module options: TAB_LABELS + questionnaire + project_data
+  const MODULE_OPTIONS = {
+    ...{ questionnaire: 'Budgets (Questionnaire)', project_data: 'Project Data' },
+    drawings: 'Drawings',
+    correspondence: 'Correspondence',
+    submittals: 'Submittals',
+    ca: 'CA',
+    contracts: 'Contracts',
+    meetings: 'Meetings',
+    designInfo: 'Design Info',
+    takeoffs: 'Takeoffs',
+    budgets: 'Budgets',
+    file_upload: 'File Upload',
+    file_delete: 'File Delete',
+  };
+
   if (activities.length === 0) {
     return (
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
@@ -197,10 +223,32 @@ export default function ProjectActivityFeed({ projectId }) {
     );
   }
 
+  // Apply filters to activities
+  let filtered = activities;
+
+  if (selectedModule) {
+    filtered = filtered.filter(a => a.type === selectedModule);
+  }
+
+  if (selectedUser) {
+    filtered = filtered.filter(a => (a.userName || a.userEmail) === selectedUser);
+  }
+
+  if (dateRange.from) {
+    const fromDate = new Date(dateRange.from);
+    filtered = filtered.filter(a => new Date(a.createdAt) >= fromDate);
+  }
+
+  if (dateRange.to) {
+    const toDate = new Date(dateRange.to);
+    toDate.setHours(23, 59, 59, 999); // Include entire day
+    filtered = filtered.filter(a => new Date(a.createdAt) <= toDate);
+  }
+
   // Group by date
   const grouped = [];
   let lastDate  = null;
-  for (const act of activities) {
+  for (const act of filtered) {
     const d = new Date(act.createdAt).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
     if (d !== lastDate) {
       grouped.push({ type: 'date', label: d });
@@ -227,8 +275,89 @@ export default function ProjectActivityFeed({ projectId }) {
         </button>
       </div>
 
+      {/* Filter bar */}
+      <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex flex-wrap items-end gap-4">
+        {/* Module filter */}
+        <div className="flex flex-col gap-1">
+          <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Module</label>
+          <select
+            value={selectedModule || ''}
+            onChange={e => setSelectedModule(e.target.value || null)}
+            className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm text-slate-700 bg-white hover:border-slate-300 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-100"
+          >
+            <option value="">All modules</option>
+            {Object.entries(MODULE_OPTIONS).map(([key, label]) => (
+              <option key={key} value={key}>{label}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* User filter */}
+        <div className="flex flex-col gap-1">
+          <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">User</label>
+          <select
+            value={selectedUser || ''}
+            onChange={e => setSelectedUser(e.target.value || null)}
+            className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm text-slate-700 bg-white hover:border-slate-300 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-100"
+          >
+            <option value="">All users</option>
+            {uniqueUsers.map((user, idx) => (
+              <option key={idx} value={user.name || user.email}>
+                {user.name || user.email}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Date range filters */}
+        <div className="flex flex-col gap-1">
+          <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">From</label>
+          <input
+            type="date"
+            value={dateRange.from || ''}
+            onChange={e => setDateRange({ ...dateRange, from: e.target.value || null })}
+            className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm text-slate-700 bg-white hover:border-slate-300 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-100"
+          />
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">To</label>
+          <input
+            type="date"
+            value={dateRange.to || ''}
+            onChange={e => setDateRange({ ...dateRange, to: e.target.value || null })}
+            className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm text-slate-700 bg-white hover:border-slate-300 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-100"
+          />
+        </div>
+
+        {/* Clear button */}
+        {(selectedModule || selectedUser || dateRange.from || dateRange.to) && (
+          <button
+            onClick={() => {
+              setSelectedModule(null);
+              setSelectedUser(null);
+              setDateRange({ from: null, to: null });
+            }}
+            className="px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+          >
+            Clear filters
+          </button>
+        )}
+      </div>
+
       <div className="divide-y divide-slate-50">
-        {grouped.map((item, idx) => {
+        {grouped.length === 0 && (selectedModule || selectedUser || dateRange.from || dateRange.to) ? (
+          <div className="flex flex-col items-center justify-center py-10 text-center px-6">
+            <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center mb-3">
+              <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <p className="text-sm text-slate-400">No activity matches your filters</p>
+            <p className="text-xs text-slate-300 mt-1">Try adjusting your selections or clearing filters</p>
+          </div>
+        ) : (
+          grouped.map((item, idx) => {
           if (item.type === 'date') {
             return (
               <div key={`date-${idx}`} className="px-6 py-2 bg-slate-50">
@@ -272,7 +401,8 @@ export default function ProjectActivityFeed({ projectId }) {
               </div>
             </div>
           );
-        })}
+          })
+        )}
       </div>
 
       {hasMore && (
