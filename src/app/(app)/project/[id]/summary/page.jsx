@@ -375,7 +375,7 @@ export default async function SummaryPage({ params }) {
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-slate-900">Budget Change History</h3>
             <Link
-              href={`/project/${project.id}?tab=activity`}
+              href={`/project/${project.id}`}
               className="text-xs text-amber-600 hover:text-amber-700 font-medium transition-colors"
             >
               View all in Activity tab →
