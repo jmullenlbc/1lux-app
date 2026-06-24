@@ -305,9 +305,7 @@ export default async function SummaryPage({ params }) {
         </div>
         <SummaryBudgetBreakdown budget={budget} freightPct={freightPct} warehousingPct={warehousingPct} />
         <p className="hidden print:block text-xs mt-3 text-slate-400">
-          {project.budgetType === 'design'
-            ? 'This is a design phase budget prepared by ILC Studios for early design and pre-con purposes only. Actual costs will vary based on final design, product selections, and market conditions. Not a formal bid or contract.'
-            : 'Conceptual estimate only. Does not include sales tax.'}
+          Conceptual estimate only. Does not include sales tax.
         </p>
       </div>
 
@@ -344,11 +342,13 @@ export default async function SummaryPage({ params }) {
           ))}
         </div>
 
-        <div className="mt-8 print:hidden text-xs text-slate-400 leading-relaxed text-center">
-          This is a design phase budget prepared by ILC Studios for early design and pre-con purposes only.
-          Actual costs will vary based on final design, product selections, and market conditions.
-          Not a formal bid or contract.
-        </div>
+        {project.budgetType === 'design' && (
+          <div className="mt-8 text-xs text-slate-400 leading-relaxed text-center">
+            This is a design phase budget prepared by ILC Studios for early design and pre-con purposes only.
+            Actual costs will vary based on final design, product selections, and market conditions.
+            Not a formal bid or contract.
+          </div>
+        )}
       </div>
 
     </div>
