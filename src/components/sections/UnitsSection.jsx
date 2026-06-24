@@ -42,9 +42,13 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
     halfHotReceptacles: responses.halfHotReceptacles || 'no',
     closetControl:      responses.closetControl      || 'switch',
   }));
+  const [dirty, setDirty] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
 
-  function set(k, v) { setAns(a => ({ ...a, [k]: v })); }
+  function set(k, v) {
+    setAns(a => ({ ...a, [k]: v }));
+    setDirty(d => new Set(d).add(k));
+  }
 
   const hasFans         = ans.fans !== 'none';
   const hasUndercab120v = ans.undercabinet === 'lineVoltage';
@@ -57,7 +61,11 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
 
   async function handleNext() {
     setSaving(true);
-    const payload = { ...ans };
+    // Only send fields the user actually touched
+    const payload = {};
+    for (const key of dirty) {
+      payload[key] = ans[key];
+    }
     // In conceptual mode, null out design-only fields so they don't pollute the budget
     if (!isDesign) {
       payload.diskType           = null;
@@ -80,7 +88,10 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
       payload.fanLightKit     = null;
       payload.fanSupplemental = null;
     }
-    await onSaveResponses(payload);
+    if (Object.keys(payload).length > 0) {
+      await onSaveResponses(payload);
+    }
+    setDirty(new Set());
     setSaving(false);
     onNext();
   }

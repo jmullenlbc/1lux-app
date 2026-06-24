@@ -64,33 +64,42 @@ export default function ProjectDataSection({ projectId, projectData, responses =
     }));
     return f;
   });
+  const [dirty, setDirty] = useState(() => new Set());
   const [qAnswers, setQAnswers] = useState({
     buyHold:          responses.buyHold          || '',
     switchesDimmers:  responses.switchesDimmers  || '',
     contingency:      responses.contingency      || '',
     salesTax:         responses.salesTax         || '',
   });
+  const [qDirty, setQDirty] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
   const [saved,  setSaved]  = useState(false);
 
   function update(key) {
     return e => {
       setForm(f => ({ ...f, [key]: e.target.value }));
+      setDirty(d => new Set(d).add(key));
       setSaved(false);
     };
   }
 
   async function handleSave(andNext = false) {
     setSaving(true);
+    // Only send fields the user actually touched
+    const payload = {};
+    for (const key of dirty) {
+      payload[key] = form[key];
+    }
     // Convert display percentage (6) → stored decimal (0.06) for pct fields
-    const payload = { ...form };
     for (const key of PCT_FIELDS) {
-      if (payload[key] !== '' && payload[key] != null) {
+      if (key in payload && payload[key] !== '' && payload[key] != null) {
         const pct = parseFloat(payload[key]);
         payload[key] = isNaN(pct) ? '' : (pct / 100).toString();
       }
     }
-    await onSaveData(payload);
+    if (Object.keys(payload).length > 0) {
+      await onSaveData(payload);
+    }
     // Always save Q&A responses. Contingency is now visible in all modes;
     // the other strategy fields (buyHold, switchesDimmers) remain design-
     // only in the UI but are harmless to send from conceptual mode (the
@@ -98,6 +107,8 @@ export default function ProjectDataSection({ projectId, projectData, responses =
     if (onSaveResponses) {
       await onSaveResponses(qAnswers);
     }
+    setDirty(new Set());
+    setQDirty(new Set());
     setSaved(true);
     setSaving(false);
     if (andNext) onNext();
@@ -168,7 +179,10 @@ export default function ProjectDataSection({ projectId, projectData, responses =
               { value: 'buildSell', label: 'Build and sell — exit at or near CO',     sub: 'Prioritize visual impact per dollar', cost: 0 },
             ]}
             value={qAnswers.buyHold}
-            onChange={v => setQAnswers(a => ({ ...a, buyHold: v }))}
+            onChange={v => {
+              setQAnswers(a => ({ ...a, buyHold: v }));
+              setQDirty(d => new Set(d).add('buyHold'));
+            }}
           />
 
           <QuestionCard
@@ -180,7 +194,10 @@ export default function ProjectDataSection({ projectId, projectData, responses =
               { value: 'tbd',      label: 'TBD — to be determined',                     cost: 0 },
             ]}
             value={qAnswers.switchesDimmers}
-            onChange={v => setQAnswers(a => ({ ...a, switchesDimmers: v }))}
+            onChange={v => {
+              setQAnswers(a => ({ ...a, switchesDimmers: v }));
+              setQDirty(d => new Set(d).add('switchesDimmers'));
+            }}
           />
 
           {/* Sales tax is now entered as a numeric % in the Freight, Warehousing & Tax section above */}

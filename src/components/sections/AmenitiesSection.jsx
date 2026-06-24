@@ -12,6 +12,7 @@ export default function AmenitiesSection({ responses, projectData, pricing, onSa
   const [answers, setAnswers] = useState({
     interiorLevel: responses.interiorLevel || '10',
   });
+  const [dirty, setDirty] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
 
   const intSf    = Number(projectData?.interiorAmenitySf) || 0;
@@ -26,7 +27,14 @@ export default function AmenitiesSection({ responses, projectData, pricing, onSa
 
   async function handleNext() {
     setSaving(true);
-    await onSaveResponses(answers);
+    if (dirty.size > 0) {
+      const payload = {};
+      for (const key of dirty) {
+        payload[key] = answers[key];
+      }
+      await onSaveResponses(payload);
+    }
+    setDirty(new Set());
     setSaving(false);
     onNext();
   }
@@ -70,7 +78,10 @@ export default function AmenitiesSection({ responses, projectData, pricing, onSa
             return (
               <button
                 key={rate}
-                onClick={() => setAnswers(a => ({ ...a, interiorLevel: String(rate) }))}
+                onClick={() => {
+                  setAnswers(a => ({ ...a, interiorLevel: String(rate) }));
+                  setDirty(d => new Set(d).add('interiorLevel'));
+                }}
                 className={cn(
                   'rounded-lg border p-3 text-center transition-all',
                   isSelected

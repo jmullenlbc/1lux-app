@@ -55,6 +55,7 @@ export default function EmergencySection({ responses, projectData, pricing, onSa
   const [answers, setAnswers] = useState({
     strategy: responses.strategy || 'integrated_inverters',
   });
+  const [dirty, setDirty] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
 
   const corridorSf = Number(projectData?.corridorSf)       || 0;
@@ -72,7 +73,14 @@ export default function EmergencySection({ responses, projectData, pricing, onSa
 
   async function handleNext() {
     setSaving(true);
-    await onSaveResponses(answers);
+    if (dirty.size > 0) {
+      const payload = {};
+      for (const key of dirty) {
+        payload[key] = answers[key];
+      }
+      await onSaveResponses(payload);
+    }
+    setDirty(new Set());
     setSaving(false);
     onNext();
   }
@@ -134,7 +142,10 @@ export default function EmergencySection({ responses, projectData, pricing, onSa
                   name="strategy"
                   value={opt.value}
                   checked={isSelected}
-                  onChange={() => setAnswers(a => ({ ...a, strategy: opt.value }))}
+                  onChange={() => {
+                    setAnswers(a => ({ ...a, strategy: opt.value }));
+                    setDirty(d => new Set(d).add('strategy'));
+                  }}
                   className="mt-0.5 accent-amber-500 shrink-0"
                 />
                 <div className="flex-1 min-w-0">
