@@ -41,6 +41,10 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 ## Log
 
+### 2026-06-25 — Mike's Claude (Bid Matrix: spec/prop cleanup + version history renders like live matrix — deployed)
+
+Two fixes: (1) Peer Review/Bid was showing the parsed mfr in BOTH Spec and Prop (legacy prop pollution + later spec backfill). Push sync now clears auto-polluted prop on re-push — only when prop is text-only (no `propManufacturerId`) AND matches the parsed mfr; real dropdown selections untouched. (2) Version-history snapshots no longer use the old design-bid `Manufacturer/Part #` layout — they now render in the same column layout as the live matrix (Peer Review/Bid → Spec Mfr/Spec #/Prop. Mfr/Prop. Spec, Prop empty since a version is a push-time snapshot; Design Bid → single Manufacturer/Part #). No schema change. Files: `fixture-schedule/publish/route.js`, `PeerReviewClient.jsx`. `npm test` green, build clean. (Note: Mike must re-push Alpine Balsam once to clean its existing polluted prop.)
+
 ### 2026-06-25 — Mike's Claude (Bid Matrix: parsed Mfr/Spec# routes to correct column by project type — deployed)
 
 Push to Bid's `PeerReviewItem` sync now branches on `matrixType`: **fullDesign/designAssist → PROP** (`propManufacturer`/`propModel`), **peerReview/bidOnly → SPEC** (`specManufacturer`/`specModel`). Covers CREATE + smart-merge UPDATE; pricing still rides on prop. Single file: `src/app/api/projects/[id]/fixture-schedule/publish/route.js`. `npm test` green, build clean. (The view default by type already existed in `PeerReviewClient.jsx`.)

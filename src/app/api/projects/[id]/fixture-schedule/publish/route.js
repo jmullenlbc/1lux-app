@@ -253,6 +253,33 @@ export async function POST(request, { params }) {
       const existing = existingByType.get(typeKey);
 
       if (existing) {
+        // Where the parsed Manufacturer/Spec # lands depends on project type:
+        // Design Bid (fullDesign/designAssist) → PROP fields; Peer Review/Bid → SPEC fields.
+        // Backfill only if the user hasn't already filled the target field.
+        let mfrFields;
+        if (isPeerReview) {
+          mfrFields = {
+            specManufacturer: existing.specManufacturer ?? bi.manufacturer ?? null,
+            specModel:        existing.specModel        ?? bi.partNumber   ?? null,
+          };
+          // For Peer Review / Bid, the PROP columns are ILC's manually-chosen products,
+          // never written by the parse. A real selection sets propManufacturerId; the old
+          // parse (pre-fix) wrote propManufacturer as TEXT only. Clear that auto-pollution
+          // (text-only prop that mirrors the parsed manufacturer) so it doesn't linger.
+          const autoPolluted =
+            !existing.propManufacturerId &&
+            !!existing.propManufacturer &&
+            existing.propManufacturer.trim().toLowerCase() === (bi.manufacturer || '').trim().toLowerCase();
+          if (autoPolluted) {
+            mfrFields.propManufacturer = null;
+            mfrFields.propModel        = null;
+          }
+        } else {
+          mfrFields = {
+            propManufacturer: existing.propManufacturer ?? bi.manufacturer ?? null,
+            propModel:        existing.propModel        ?? bi.partNumber   ?? null,
+          };
+        }
         // UPDATE: refresh schedule-derived fields, preserve all user-entered data
         await prisma.peerReviewItem.update({
           where: { id: existing.id },
@@ -263,18 +290,7 @@ export async function POST(request, { params }) {
             internalNotes: bi.internalNotes || '',
             section:       normalizeSectionId(bi.locationTag),
             sortOrder,
-            // Where the parsed Manufacturer/Spec # lands depends on project type:
-            // Design Bid (fullDesign/designAssist) → PROP fields; Peer Review/Bid → SPEC fields.
-            // Backfill only if the user hasn't already filled the target field.
-            ...(isPeerReview
-              ? {
-                  specManufacturer: existing.specManufacturer ?? bi.manufacturer ?? null,
-                  specModel:        existing.specModel        ?? bi.partNumber   ?? null,
-                }
-              : {
-                  propManufacturer: existing.propManufacturer ?? bi.manufacturer ?? null,
-                  propModel:        existing.propModel        ?? bi.partNumber   ?? null,
-                }),
+            ...mfrFields,
           },
         });
       } else {

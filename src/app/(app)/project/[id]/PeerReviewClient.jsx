@@ -1913,7 +1913,10 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                 <table className="min-w-full text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
-                      {['Type', 'Description', 'Location', 'Manufacturer', 'Part #', 'Qty', 'DN $/Unit', 'CN $/Unit', 'CN Total', 'Notes'].map(h => (
+                      {(isDesignBid
+                        ? ['Type', 'Description', 'Location', 'Manufacturer', 'Part #', 'Qty', 'DN $/Unit', 'CN $/Unit', 'CN Total', 'Notes']
+                        : ['Type', 'Description', 'Location', 'Spec Mfr', 'Spec #', 'Prop. Mfr', 'Prop. Spec', 'Qty', 'DN $/Unit', 'CN $/Unit', 'CN Total', 'Notes']
+                      ).map(h => (
                         <th key={h} className="px-3 py-2 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -1932,8 +1935,21 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                           </td>
                           <td className="px-3 py-2 text-slate-600 max-w-[200px]">{item.description || '—'}</td>
                           <td className="px-3 py-2 text-slate-500">{item.locationTag || '—'}</td>
-                          <td className="px-3 py-2 text-blue-700 font-medium">{item.manufacturer || '—'}</td>
-                          <td className="px-3 py-2 font-mono text-slate-600">{item.partNumber || '—'}</td>
+                          {isDesignBid ? (
+                            <>
+                              <td className="px-3 py-2 text-blue-700 font-medium">{item.manufacturer || '—'}</td>
+                              <td className="px-3 py-2 font-mono text-slate-600">{item.partNumber || '—'}</td>
+                            </>
+                          ) : (
+                            <>
+                              {/* Peer Review / Bid: the pushed product is the SPEC. Prop is filled by ILC
+                                  after the push, so a push-time snapshot shows Prop empty. */}
+                              <td className="px-3 py-2 text-slate-700 font-medium">{item.manufacturer || '—'}</td>
+                              <td className="px-3 py-2 font-mono text-slate-600">{item.partNumber || '—'}</td>
+                              <td className="px-3 py-2 text-slate-300 italic">—</td>
+                              <td className="px-3 py-2 text-slate-300 italic">—</td>
+                            </>
+                          )}
                           <td className="px-3 py-2 text-slate-600 text-right">{item.qty ?? '—'}</td>
                           <td className="px-3 py-2 text-slate-600 text-right">{item.dnPerUnit != null ? fmt(item.dnPerUnit) : '—'}</td>
                           <td className="px-3 py-2 text-blue-600 font-semibold text-right">
@@ -1957,7 +1973,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                       );
                     })}
                     {(matrix.items || []).length === 0 && (
-                      <tr><td colSpan={10} className="py-8 text-center text-sm text-slate-400">No items in this version</td></tr>
+                      <tr><td colSpan={isDesignBid ? 10 : 12} className="py-8 text-center text-sm text-slate-400">No items in this version</td></tr>
                     )}
                   </tbody>
                 </table>

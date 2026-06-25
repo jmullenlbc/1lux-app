@@ -5,6 +5,20 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Bid Matrix — Peer Review/Bid spec routing cleanup + version history renders like the live matrix] · June 25, 2026
+
+> **Deployed to production.**
+
+### Fixed
+- **Peer Review / Bid showed the parsed manufacturer in BOTH the Spec and Prop columns.** Projects pushed before the spec/prop routing fix had `propManufacturer` written by the old parse; the later fix backfilled `specManufacturer` too, and the smart-merge never wipes prop — so both populated. The Push to Bid sync now clears auto-polluted prop on re-push: only when prop is text-only (`propManufacturerId` is null — i.e. not a real manufacturer-dropdown selection) **and** its text matches the parsed manufacturer. Genuine ILC proposed products (picked from the dropdown) are never touched. (`src/app/api/projects/[id]/fixture-schedule/publish/route.js`)
+- **Version history opened into a separate, design-bid-styled read-only snapshot** (single Manufacturer / Part # column) that looked nothing like the live Budget Matrix. Historical versions now render in the **same column layout as the live matrix** for the project type: Peer Review/Bid show Spec Mfr / Spec # / Prop. Mfr / Prop. Spec (Prop empty — a version is a push-time snapshot, before ILC fills proposed alternates); Design Bid keeps the single Manufacturer / Part # column. No schema change — same stored data, mapped into the right columns. (`src/app/(app)/project/[id]/PeerReviewClient.jsx`)
+
+### Files changed
+- `src/app/api/projects/[id]/fixture-schedule/publish/route.js`
+- `src/app/(app)/project/[id]/PeerReviewClient.jsx`
+
+---
+
 ## [Bid Matrix — parsed Manufacturer/Spec # routes to the right column by project type] · June 25, 2026
 
 > **Deployed to production.**
