@@ -8,8 +8,16 @@ const nextConfig = {
     // in value of process.env.DATABASE_URL is what gets passed through.
     // Without this, the Lambda has no DB connection and every API route fails.
     //
-    // ANTHROPIC_API_KEY and JWT_SECRET are intentionally NOT here — those stay
-    // server-only and are read from process.env at runtime by the Lambda.
+    // ANTHROPIC_API_KEY must be baked in here — same Amplify Gen 1 trap as
+    // DATABASE_URL and S3 keys. Console env vars do NOT reach the SSR Lambda
+    // runtime; they're only available during the build. getAnthropicKey() in
+    // src/lib/anthropicKey.js checks process.env first, then falls back to
+    // reading .env from disk — but .env is gitignored and not in the bundle.
+    // Without baking the key in here, all AI parsers (fixture schedule, schedule
+    // extract, etc.) silently return null in production. Empirically confirmed
+    // broken; same fix pattern as S3_ACCESS_KEY_ID (commit d0c8d8c).
+    // JWT_SECRET is intentionally NOT here — it's only used by jose/bcrypt in
+    // auth.js which is webpack-bundled differently and needs separate analysis.
     env: {
           DATABASE_URL:        process.env.DATABASE_URL,
           NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
@@ -33,6 +41,7 @@ const nextConfig = {
           // compute role during the security pass and delete this block.
           S3_ACCESS_KEY_ID:     process.env.S3_ACCESS_KEY_ID,
           S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY,
+          ANTHROPIC_API_KEY:    process.env.ANTHROPIC_API_KEY,
     },
     experimental: {
           serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs', 'xlsx', '@napi-rs/canvas', 'tesseract.js', 'pdfjs-dist', 'pdf-parse', '@anthropic-ai/sdk', '@aws-sdk/client-s3', '@aws-sdk/s3-request-presigner', 'puppeteer-core', '@sparticuz/chromium'],
