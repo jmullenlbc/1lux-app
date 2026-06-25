@@ -23,7 +23,35 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 6. **Vanity & fan prices: net or gross?** `pricing.js` uses NET (e.g. `illuminatedMirrorMedium = $155`, comment says "$45 base credit already in $0.38/SF"). Mike's spreadsheets use GROSS ($200). Mason confirms engine totals trend low; this is the biggest contributor across all 4 calibrated projects. **Mike: which is right?** If gross, one-shot patch to `pricing.js` aligns everything.
 7. **`designUpgrades` defined-but-unused constants** (`dimmerCostEach`, `entryDecorative`, `diskSevenInch`, `fanSize52Adder`, `closetOccSensor`) — Q4 above was "WIP, leave alone" but Mason's "engine too low" comment suggests these should be wired into `calculateBudget`. ~$19K of expected charges per Link+Pin alone aren't being applied. **Mike: revise the Q4 answer — wire them up, or keep WIP?**
 
+## 🚀 MIGRATION COORDINATION — CRM/Playbook/Standards module deploy (Mike's Claude — 2026-06-25)
+
+About to deploy the large local-only module (unified Sales Notes + automation engine, Playbook v3, Standards concept+image, CRM pipeline/intel). **15 new migrations.** Full handoff doc: `G:\Shared drives\SOFTWARE\_MIKE's APP\Software engineering\CRM_PLAYBOOK_STANDARDS_DEPLOY_INSTRUCTIONS_FOR_SEAN.md`.
+
+- **Migration collision resolved:** our numbering diverged at `0029` (your `0029_project_data_manual_adders` is live; my chain reused `0029`). I renumbered my entire chain **+1** → it now occupies **`0030`–`0044`**, sitting cleanly after your `0029`. Your migration is untouched. **Next free number after this deploy is `0045` — claim from there.**
+- **⚠️ ACTION REQUESTED — SEAN, PLEASE RUN THESE COUNTS ON PROD AND REPORT BACK.** Two destructive migrations drop dead predecessors: `0040_drop_legacy_note_tables` drops `SalesNote`/`SalesNoteContact`/`SalesNoteClient`/`SalesNoteDeal`/`MeetingNote`; `0043_playbook_normalize` drops `ClientPlaybook` cols `architectRel`/`eeRel`/`gcRel`/`roleAssignments`. Code deep-dive confirms **zero `prisma.*` references** to any of them (replaced by the unified `Note` table + `NoteContact/Client/Deal`, and the `Playbook*` child tables) — so dropping breaks no feature. We just need to confirm no orphaned prod rows. Run:
+
+```sql
+SELECT 'SalesNote' t, count(*) FROM "SalesNote"
+UNION ALL SELECT 'SalesNoteContact', count(*) FROM "SalesNoteContact"
+UNION ALL SELECT 'SalesNoteClient', count(*) FROM "SalesNoteClient"
+UNION ALL SELECT 'SalesNoteDeal', count(*) FROM "SalesNoteDeal"
+UNION ALL SELECT 'MeetingNote', count(*) FROM "MeetingNote";
+
+SELECT
+  count(*) FILTER (WHERE "architectRel" IS NOT NULL)    AS "architectRel",
+  count(*) FILTER (WHERE "eeRel" IS NOT NULL)           AS "eeRel",
+  count(*) FILTER (WHERE "gcRel" IS NOT NULL)           AS "gcRel",
+  count(*) FILTER (WHERE "roleAssignments" IS NOT NULL) AS "roleAssignments"
+FROM "ClientPlaybook";
+```
+
+  **Mike has authorized deploying the full module if these are all zero (or the tables don't exist).** If all clear, reply here / tell Mike and Mike's Claude will push immediately. If any count is non-zero, STOP and flag it — we'll preserve that data first.
+- Debug pass green: `npm test` 12/12, `npm run build` exit 0, `check-migrations-postgres` (44 ✓), `check-schema-migrations-sync` (117 models ✓), `prisma validate` ✓.
+- Amplify auto-applies via `prisma migrate deploy` in preBuild — no manual step.
+
 ## Action items for Sean (from Mike's Claude — 2026-06-25)
+
+> **UPDATE:** Item 1 (Anthropic key) — RESOLVED by Sean in `d512a94` (baked `ANTHROPIC_API_KEY` into `next.config.mjs`). Thanks. Item 2 (reupload test) still useful to confirm prod parsing now works.
 
 **1. Check the Anthropic API key in Amplify.** Our PDF parsers (fixture schedules, construction schedules, etc.) call Claude. They work on local dev but may be failing in production because the key isn't set in the cloud env.
 - AWS Amplify Console → our app → Hosting → **Environment variables**
