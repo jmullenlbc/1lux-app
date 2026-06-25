@@ -31,6 +31,10 @@ const QUESTIONNAIRE_SYNC = {
   warehousingPct:     { section: 'project-data', key: 'warehousingPct' },
   salesTaxPct:        { section: 'project-data', key: 'salesTaxPct' },
   marginPct:          { section: 'project-data', key: 'marginPct' },
+
+  bohManualAdder:       { section: 'project-data', key: 'bohManualAdder' },
+  garageManualAdder:    { section: 'project-data', key: 'garageManualAdder' },
+  exitSignsManualAdder: { section: 'project-data', key: 'exitSignsManualAdder' },
 };
 
 const FIELD_LABELS = {
@@ -45,6 +49,8 @@ const FIELD_LABELS = {
   buildingFootprintSf: 'Building Footprint SF',
   clientInitialBudget: 'Initial Budget',
   freightPct: 'Freight %', warehousingPct: 'Warehousing %', salesTaxPct: 'Sales Tax %',
+  bohManualAdder: 'BOH manual adder', garageManualAdder: 'Garage manual adder',
+  exitSignsManualAdder: 'Exit Signs manual adder',
 };
 
 export async function PUT(request, { params }) {

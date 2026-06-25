@@ -453,6 +453,10 @@ model ProjectData {
   warehousingPct      Float?
   salesTaxPct         Float?
   marginPct           Float?
+
+  bohManualAdder       Float?
+  garageManualAdder    Float?
+  exitSignsManualAdder Float?
 }
 
 model ProjectShare {
