@@ -23,7 +23,27 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 6. **Vanity & fan prices: net or gross?** `pricing.js` uses NET (e.g. `illuminatedMirrorMedium = $155`, comment says "$45 base credit already in $0.38/SF"). Mike's spreadsheets use GROSS ($200). Mason confirms engine totals trend low; this is the biggest contributor across all 4 calibrated projects. **Mike: which is right?** If gross, one-shot patch to `pricing.js` aligns everything.
 7. **`designUpgrades` defined-but-unused constants** (`dimmerCostEach`, `entryDecorative`, `diskSevenInch`, `fanSize52Adder`, `closetOccSensor`) — Q4 above was "WIP, leave alone" but Mason's "engine too low" comment suggests these should be wired into `calculateBudget`. ~$19K of expected charges per Link+Pin alone aren't being applied. **Mike: revise the Q4 answer — wire them up, or keep WIP?**
 
+## Action items for Sean (from Mike's Claude — 2026-06-25)
+
+**1. Check the Anthropic API key in Amplify.** Our PDF parsers (fixture schedules, construction schedules, etc.) call Claude. They work on local dev but may be failing in production because the key isn't set in the cloud env.
+- AWS Amplify Console → our app → Hosting → **Environment variables**
+- Confirm a variable named **`ANTHROPIC_API_KEY`** exists with a valid key value
+- If **missing or blank**, add it (value is in our local `.env` / password manager), Save, then **redeploy** (Run build / Redeploy this version)
+- Report back: present, missing, or blank
+- *Why:* `getAnthropicKey()` checks the `ANTHROPIC_API_KEY` env var first, then falls back to reading the local `.env` file — and that `.env` is **not** bundled into Amplify's serverless runtime. If the env var isn't set in the Amplify console, every AI-based parser silently fails in prod while working locally. That alone would explain why Mason couldn't parse anything.
+
+**2. Re-upload test** (after the current build — commit `9a2f178` — finishes deploying). On a project's Fixture Schedule tab, re-upload a fixture schedule PDF and report the **exact** message:
+- Green/blue banner "X fixtures imported" (with the number), **or**
+- Red error box — copy the exact wording. It now names the real cause (a PDF-read error, "Anthropic API key not configured," or "No fixture schedule found").
+- That message tells us whether the env-var fix was the whole problem or if there's more to chase.
+
+*Context:* just deployed `d4ea191` (pdfjs `Promise.withResolvers` polyfill for all 10 extractors) + `9a2f178` (fixture-schedule route serverless font-hardening + explicit API-key error). Root cause of "parses local, fails prod" is pdfjs v5 needing Node 22+ `Promise.withResolvers` on Amplify's older Node, plus the possible missing API key above.
+
 ## Log
+
+### 2026-06-25 — Mike's Claude (Bid Matrix: parsed Mfr/Spec# routes to correct column by project type — deployed)
+
+Push to Bid's `PeerReviewItem` sync now branches on `matrixType`: **fullDesign/designAssist → PROP** (`propManufacturer`/`propModel`), **peerReview/bidOnly → SPEC** (`specManufacturer`/`specModel`). Covers CREATE + smart-merge UPDATE; pricing still rides on prop. Single file: `src/app/api/projects/[id]/fixture-schedule/publish/route.js`. `npm test` green, build clean. (The view default by type already existed in `PeerReviewClient.jsx`.)
 
 ### 2026-06-24 — Mike's Claude (PDF parsing prod hotfix — pdfjs polyfill + fixture-route hardening)
 

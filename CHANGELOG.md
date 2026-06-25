@@ -5,6 +5,21 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Bid Matrix — parsed Manufacturer/Spec # routes to the right column by project type] · June 25, 2026
+
+> **Deployed to production.**
+
+### Added
+- **Push to Bid now routes the parsed fixture Manufacturer + Catalog # to the correct Bid Matrix columns based on `serviceType`:**
+  - **Design Bid** projects (`fullDesign` / `designAssist`) → **PROP MFR / PROP SPEC** (`propManufacturer` / `propModel`) — unchanged; these types only ever use the single manufacturer/spec column (the Design Bid View hides the original-Spec columns).
+  - **Peer Review / Bid** projects (`peerReview` / `bidOnly`) → **SPEC MFR / SPEC #** (`specManufacturer` / `specModel`), leaving the Prop columns open for ILC's proposed alternates.
+- The branch is keyed on the existing `matrixType` derivation in `src/app/api/projects/[id]/fixture-schedule/publish/route.js` and covers both the CREATE and the smart-merge UPDATE paths. Pricing still rides on the prop fields.
+
+### Files changed
+- `src/app/api/projects/[id]/fixture-schedule/publish/route.js` — `serviceType`-based spec-vs-prop column routing in the PeerReviewItem sync.
+
+---
+
 ## [Hotfix — PDF parsing fixed in production (pdfjs polyfill + fixture-route hardening)] · June 24, 2026
 
 > **Deployed to production** (commit `d4ea191` polyfill, then this commit for the fixture-schedule route — both isolated from the in-progress Sales-Notes/Playbook work).

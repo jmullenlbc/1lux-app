@@ -207,6 +207,8 @@ export async function POST(request, { params }) {
   // • New type codes in this push → CREATE
   // • Type codes removed from schedule → DELETE
   // • Type codes still present → UPDATE description/location/notes only (keep all pricing)
+  // Peer Review / Bid push parsed Mfr/Spec# to the SPEC columns; Design Bid to PROP.
+  const isPeerReview = matrixType === 'PEER_REVIEW';
   try {
     const existingItems = await prisma.peerReviewItem.findMany({
       where: { projectId: params.id },
@@ -261,9 +263,18 @@ export async function POST(request, { params }) {
             internalNotes: bi.internalNotes || '',
             section:       normalizeSectionId(bi.locationTag),
             sortOrder,
-            // Backfill manufacturer/partNumber only if user hasn't filled them yet
-            propManufacturer: existing.propManufacturer ?? bi.manufacturer ?? null,
-            propModel:        existing.propModel        ?? bi.partNumber   ?? null,
+            // Where the parsed Manufacturer/Spec # lands depends on project type:
+            // Design Bid (fullDesign/designAssist) → PROP fields; Peer Review/Bid → SPEC fields.
+            // Backfill only if the user hasn't already filled the target field.
+            ...(isPeerReview
+              ? {
+                  specManufacturer: existing.specManufacturer ?? bi.manufacturer ?? null,
+                  specModel:        existing.specModel        ?? bi.partNumber   ?? null,
+                }
+              : {
+                  propManufacturer: existing.propManufacturer ?? bi.manufacturer ?? null,
+                  propModel:        existing.propModel        ?? bi.partNumber   ?? null,
+                }),
           },
         });
       } else {
@@ -279,8 +290,17 @@ export async function POST(request, { params }) {
             internalNotes:   bi.internalNotes || '',
             sortOrder,
             qtyType:         'Unit',
-            propManufacturer: bi.manufacturer || null,
-            propModel:        bi.partNumber   || null,
+            // Parsed Manufacturer/Spec # → PROP for Design Bid (fullDesign/designAssist),
+            // → SPEC for Peer Review/Bid. propUnit pricing always rides on prop.
+            ...(isPeerReview
+              ? {
+                  specManufacturer: bi.manufacturer || null,
+                  specModel:        bi.partNumber   || null,
+                }
+              : {
+                  propManufacturer: bi.manufacturer || null,
+                  propModel:        bi.partNumber   || null,
+                }),
             propUnitDN:       bi.dnPerUnit    ?? null,
             propUnitPrice:    bi.cnPerUnit    ?? null,
             repName:          bi.salesRep     ?? null,
