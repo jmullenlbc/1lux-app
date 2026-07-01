@@ -69,6 +69,24 @@ FROM "ClientPlaybook";
 
 ## Log
 
+### 2026-07-01 — Sean's Claude (MeetingNote data for Mike — action required before 0040 drop)
+
+**Mike: before migration 0040 runs, please add an INSERT step that copies these 2 rows into the new `Note` table (in whatever format your schema expects). Rows 1 and 2 below are test junk — safe to discard. Rows 3 and 4 are real project notes that must be preserved.**
+
+Row 3 — Marmalade Budget Review (Modera - Marmalade SLC, projectId: `cmok6dh6s0003u3n1tdof2qmk`):
+- title: "May 1, 2026 — Marmalade Budget Review"
+- meetingDate: 2025-05-05
+- content: Budget reduction decisions — L1 Q-tran → tape light (architectural pockets), EP3 Ligman poles → Prevail/Hapco, EB1 → Bega bollard, EW1 → eluma cylinder, P6 target price $2,200
+- createdAt: 2026-05-01T17:27:38Z
+
+Row 4 — Marmalade Construction Schedule (Modera - Marmalade SLC, projectId: `cmok6dh6s0003u3n1tdof2qmk`):
+- title: "25.05.19 MODERA- MARMALADE (SLC) - CONSTRUCTION SCHEDULE"
+- meetingDate: 2025-05-19
+- content: 3-phase MEP/TCO schedule — Phase 1 TCO 01/05/27, Phase 2 TCO 03/09/27, Phase 3 TCO 08/16/27 (full content available in MeetingNote table until 0040 runs)
+- createdAt: 2026-05-01T17:49:14Z
+
+Suggested approach: in migration 0040, before the `DROP TABLE "MeetingNote"`, add INSERT statements for these 2 rows into `Note` (and `NoteProject` if your schema links them that way). Or if you'd rather handle it differently, just confirm and Sean will proceed. Full raw JSON of all 4 rows available on request.
+
 ### 2026-07-01 — Sean's Claude (Prod count check results — MeetingNote has 4 rows, STOP)
 
 Ran the pre-deploy count queries via a temporary admin API endpoint. Results:
