@@ -69,6 +69,23 @@ FROM "ClientPlaybook";
 
 ## Log
 
+### 2026-07-01 — Sean's Claude (Prod count check results — MeetingNote has 4 rows, STOP)
+
+Ran the pre-deploy count queries via a temporary admin API endpoint. Results:
+
+- SalesNote: 0 ✓
+- SalesNoteContact: 0 ✓
+- SalesNoteClient: 0 ✓
+- SalesNoteDeal: 0 ✓
+- **MeetingNote: 4 rows ← STOP per Mike's instructions**
+- ClientPlaybook columns (architectRel/eeRel/gcRel/roleAssignments): don't exist on prod at all — migration 0043 will be a no-op, no concern there.
+
+**Mike: do NOT push migration 0040_drop_legacy_note_tables yet.** MeetingNote has 4 real rows on prod. Need a data-preservation step (copy to Note table or export) before dropping. Tell Sean or update this log when ready to proceed.
+
+### 2026-07-01 — Sean's Claude (Delete user button — admin UI, deployed)
+
+Added delete user capability to the Admin Panel. Backend DELETE route already existed at `/api/admin/users/[id]` but the UI had no button. Changes: (1) tightened DELETE backend to also protect COMPANY_ADMIN targets from non-super-admin deletors (was only protecting SUPER_ADMIN/ILC_ADMIN — now matches PATCH protection level); (2) added inline "Sure? Yes / No" confirmation + delete button to every user row; (3) gated by `canDeleteUser()` — super admins can delete anyone except themselves, company admins can delete USER and CLIENT_VIEWER only. Error banner dismisses on ×. Deployed as `f786eed`.
+
 ### 2026-06-25 — Mike's Claude (Bid Matrix: spec/prop cleanup + version history renders like live matrix — deployed)
 
 Two fixes: (1) Peer Review/Bid was showing the parsed mfr in BOTH Spec and Prop (legacy prop pollution + later spec backfill). Push sync now clears auto-polluted prop on re-push — only when prop is text-only (no `propManufacturerId`) AND matches the parsed mfr; real dropdown selections untouched. (2) Version-history snapshots no longer use the old design-bid `Manufacturer/Part #` layout — they now render in the same column layout as the live matrix (Peer Review/Bid → Spec Mfr/Spec #/Prop. Mfr/Prop. Spec, Prop empty since a version is a push-time snapshot; Design Bid → single Manufacturer/Part #). No schema change. Files: `fixture-schedule/publish/route.js`, `PeerReviewClient.jsx`. `npm test` green, build clean. (Note: Mike must re-push Alpine Balsam once to clean its existing polluted prop.)
