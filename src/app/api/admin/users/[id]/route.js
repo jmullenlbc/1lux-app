@@ -61,7 +61,9 @@ export async function DELETE(request, { params }) {
   const target = await prisma.user.findUnique({ where: { id: params.id } });
   if (!target) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-  if ((target.role === 'SUPER_ADMIN' || target.role === 'ILC_ADMIN') && !isSuperAdmin(actor.role)) {
+  // Only SUPER_ADMIN can delete any admin-level account (matches PATCH protection)
+  if ((target.role === 'SUPER_ADMIN' || target.role === 'ILC_ADMIN' ||
+       target.role === 'COMPANY_ADMIN' || target.role === 'ADMIN') && !isSuperAdmin(actor.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

@@ -357,12 +357,26 @@ function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
 
 // ── Main AdminClient ──────────────────────────────────────────────────────────
 
+const ADMIN_ROLES = new Set(['SUPER_ADMIN', 'ILC_ADMIN', 'COMPANY_ADMIN', 'ADMIN']);
+
+function canDeleteUser(actor, target) {
+  if (target.id === actor.id) return false;
+  const actorIsSuper = actor.role === 'SUPER_ADMIN' || actor.role === 'ILC_ADMIN';
+  const actorIsCompanyAdmin = actor.role === 'COMPANY_ADMIN' || actor.role === 'ADMIN';
+  if (actorIsSuper) return true;
+  if (actorIsCompanyAdmin) return !ADMIN_ROLES.has(target.role);
+  return false;
+}
+
 export default function AdminClient({ users: initialUsers, projects, currentUser }) {
-  const router     = useRouter();
-  const [tab,      setTab]      = useState('users');
-  const [users,    setUsers]    = useState(initialUsers);
-  const [editUser, setEditUser] = useState(null);
-  const [created,  setCreated]  = useState(null);
+  const router          = useRouter();
+  const [tab,           setTab]          = useState('users');
+  const [users,         setUsers]        = useState(initialUsers);
+  const [editUser,      setEditUser]     = useState(null);
+  const [created,       setCreated]      = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deleting,      setDeleting]     = useState(null);
+  const [deleteError,   setDeleteError]  = useState('');
 
   function handleUserCreated(newUser) {
     setUsers(prev => [newUser, ...prev]);
@@ -372,6 +386,25 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
 
   function handleUserSaved(updated) {
     setUsers(prev => prev.map(u => u.id === updated.id ? { ...u, ...updated } : u));
+  }
+
+  async function handleDeleteUser(userId) {
+    setDeleting(userId);
+    setDeleteConfirm(null);
+    setDeleteError('');
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json();
+        setDeleteError(data.error || 'Failed to delete user');
+        return;
+      }
+      setUsers(prev => prev.filter(u => u.id !== userId));
+    } catch {
+      setDeleteError('Network error');
+    } finally {
+      setDeleting(null);
+    }
   }
 
   const TABS = [
@@ -416,6 +449,13 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
             </div>
           )}
 
+          {deleteError && (
+            <div className="mb-4 bg-red-50 border border-red-200 rounded-xl px-5 py-3 flex items-center justify-between gap-3">
+              <p className="text-sm text-red-700">{deleteError}</p>
+              <button onClick={() => setDeleteError('')} className="text-red-400 hover:text-red-600 text-lg leading-none">&times;</button>
+            </div>
+          )}
+
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
             <table className="w-full text-sm">
               <thead>
@@ -426,7 +466,7 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
                   <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
                   <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Projects</th>
                   <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Joined</th>
-                  <th className="px-6 py-3 w-16"></th>
+                  <th className="px-6 py-3 w-32"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -481,12 +521,36 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
                         {new Date(u.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </td>
                       <td className="px-6 py-4">
-                        {!isMe && (
-                          <button onClick={() => setEditUser(u)}
-                            className="text-xs text-slate-400 hover:text-amber-600 font-medium transition-colors">
-                            Edit
-                          </button>
-                        )}
+                        <div className="flex items-center gap-3">
+                          {!isMe && (
+                            <button onClick={() => setEditUser(u)}
+                              className="text-xs text-slate-400 hover:text-amber-600 font-medium transition-colors">
+                              Edit
+                            </button>
+                          )}
+                          {canDeleteUser(currentUser, u) && (
+                            deleteConfirm === u.id ? (
+                              <span className="flex items-center gap-1.5">
+                                <span className="text-xs text-red-500">Sure?</span>
+                                <button onClick={() => handleDeleteUser(u.id)}
+                                  className="text-xs text-red-600 font-semibold hover:text-red-700 transition-colors">
+                                  Yes
+                                </button>
+                                <button onClick={() => setDeleteConfirm(null)}
+                                  className="text-xs text-slate-400 hover:text-slate-600 transition-colors">
+                                  No
+                                </button>
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => { setDeleteConfirm(u.id); setDeleteError(''); }}
+                                disabled={deleting === u.id}
+                                className="text-xs text-slate-300 hover:text-red-500 font-medium transition-colors disabled:opacity-40">
+                                {deleting === u.id ? '…' : 'Delete'}
+                              </button>
+                            )
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
