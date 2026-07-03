@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 export async function PATCH(request, { params }) {
-  const { error } = await requireAuth(request);
+  const { error } = await requireAdmin(request);
   if (error) return error;
   const { id } = params;
   const body = await request.json();
@@ -23,7 +23,7 @@ export async function PATCH(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-  const { error } = await requireAuth(request);
+  const { error } = await requireAdmin(request);
   if (error) return error;
   await prisma.roadmapPriority.delete({ where: { id: params.id } });
   return NextResponse.json({ ok: true });

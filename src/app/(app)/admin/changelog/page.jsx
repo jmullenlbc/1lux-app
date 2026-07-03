@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getSession } from '@/lib/auth';
+import { getSession, isSuperAdmin } from '@/lib/auth';
 import fs from 'fs';
 import path from 'path';
 import ChangelogClient from './ChangelogClient';
@@ -48,7 +48,7 @@ function loadDeployLog() {
 export default async function ChangelogPage() {
   const session = await getSession();
   if (!session) redirect('/login');
-  if (session.role !== 'ILC_ADMIN' && session.role !== 'ADMIN' && session.role !== 'SUPER_ADMIN') redirect('/dashboard');
+  if (!isSuperAdmin(session.role)) redirect('/dashboard');
 
   // CHANGELOG.md
   const changelogPath = path.join(process.cwd(), 'CHANGELOG.md');

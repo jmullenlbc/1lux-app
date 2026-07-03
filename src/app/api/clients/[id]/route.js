@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, isAnyAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 async function getClientOrFail(id, user) {
   const client = await prisma.client.findUnique({ where: { id } });
   if (!client) return { err: NextResponse.json({ error: 'Not found' }, { status: 404 }) };
-  const isAdmin = user.role === 'ILC_ADMIN' || user.role === 'ADMIN';
+  const isAdmin = isAnyAdmin(user.role);
   if (!isAdmin && client.createdById !== user.id) {
     return { err: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
   }
