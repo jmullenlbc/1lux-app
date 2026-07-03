@@ -67,6 +67,58 @@ export async function DELETE(request, { params }) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  await prisma.user.delete({ where: { id: params.id } });
+  // Count records with required (non-nullable) FK references that can't be nullified
+  const [projects, clients, deals, tasks, salesNotes, changeOrders, designBidMatrices] =
+    await Promise.all([
+      prisma.project.count({ where: { createdById: params.id } }),
+      prisma.client.count({ where: { createdById: params.id } }),
+      prisma.deal.count({ where: { createdById: params.id } }),
+      prisma.task.count({ where: { createdById: params.id } }),
+      prisma.salesNote.count({ where: { createdById: params.id } }),
+      prisma.changeOrder.count({ where: { createdById: params.id } }),
+      prisma.designBidMatrix.count({ where: { pushedById: params.id } }),
+    ]);
+
+  const total = projects + clients + deals + tasks + salesNotes + changeOrders + designBidMatrices;
+  if (total > 0) {
+    const parts = [
+      projects      && `${projects} project(s)`,
+      clients       && `${clients} client(s)`,
+      deals         && `${deals} deal(s)`,
+      tasks         && `${tasks} task(s)`,
+      salesNotes    && `${salesNotes} note(s)`,
+      changeOrders  && `${changeOrders} change order(s)`,
+      designBidMatrices && `${designBidMatrices} bid matrix/matrices`,
+    ].filter(Boolean);
+    return NextResponse.json(
+      { error: `Cannot delete — user owns ${parts.join(', ')}. Deactivate the account instead.` },
+      { status: 400 }
+    );
+  }
+
+  // Nullify optional FK references so the delete succeeds
+  await prisma.$transaction([
+    prisma.client.updateMany({ where: { ownerId: params.id }, data: { ownerId: null } }),
+    prisma.deal.updateMany({ where: { ownerId: params.id }, data: { ownerId: null } }),
+    prisma.designStandard.updateMany({ where: { updatedById: params.id }, data: { updatedById: null } }),
+    prisma.rFI.updateMany({ where: { assignedToId: params.id }, data: { assignedToId: null } }),
+    prisma.budgetQCChecklist.updateMany({ where: { assignedToId: params.id }, data: { assignedToId: null } }),
+    prisma.warehouseRelease.updateMany({ where: { releasedById: params.id }, data: { releasedById: null } }),
+    prisma.warehouseRelease.updateMany({ where: { approvedById: params.id }, data: { approvedById: null } }),
+    prisma.bugReport.updateMany({ where: { assigneeId: params.id }, data: { assigneeId: null } }),
+  ]);
+
+  try {
+    await prisma.user.delete({ where: { id: params.id } });
+  } catch (err) {
+    if (err?.code === 'P2003') {
+      return NextResponse.json(
+        { error: 'Cannot delete — user has associated records. Deactivate the account instead.' },
+        { status: 400 }
+      );
+    }
+    throw err;
+  }
+
   return NextResponse.json({ ok: true });
 }
