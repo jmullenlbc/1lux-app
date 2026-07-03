@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { recordDraftOutcome } from '@/lib/bot/ruleEngine';
 
 export async function GET(req, { params }) {
   const { user, error } = await requireAuth();
@@ -56,6 +57,11 @@ export async function PATCH(req, { params }) {
       editedByUserId: user.id,
     },
   });
+
+  // Learning signal: a human edited the draft content before sending.
+  if (draftBody !== undefined || subject !== undefined) {
+    await recordDraftOutcome(id, 'EDITED');
+  }
 
   return NextResponse.json({ draft: updated });
 }

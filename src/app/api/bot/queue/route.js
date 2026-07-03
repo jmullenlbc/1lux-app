@@ -24,8 +24,8 @@ export async function GET(req) {
   const drafts = await prisma.botDraft.findMany({
     where,
     include: {
-      deal: {
-        select: { id: true, title: true, pipeline: true, stage: true },
+      project: {
+        select: { id: true, name: true, serviceType: true, procurementStage: true, designStage: true },
       },
     },
     orderBy: { createdAt: 'desc' },

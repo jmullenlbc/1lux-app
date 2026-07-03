@@ -4,16 +4,10 @@ import { prisma } from '@/lib/db';
 
 const PROPOSAL_INCLUDE = {
   project: { select: { id: true, name: true, city: true, state: true, lifecycleStatus: true } },
-  deal:    { select: { id: true, dealNumber: true, pipeline: true, stage: true } },
   template: { select: { id: true, name: true } },
   createdBy: { select: { id: true, name: true } },
   _count: { select: { lineItems: true, sends: true } },
 };
-
-async function nextDealNumber() {
-  const max = await prisma.deal.aggregate({ _max: { dealNumber: true } });
-  return (max._max.dealNumber ?? 0) + 1;
-}
 
 async function snapshotRates() {
   const rates = await prisma.proposalRate.findMany();
@@ -61,8 +55,6 @@ export async function POST(req) {
   if (!existingProjectId && !projectName) return NextResponse.json({ error: 'projectName or projectId is required' }, { status: 400 });
 
   const rates            = await snapshotRates();
-  const dealNumber       = await nextDealNumber();
-  const procDealNumber   = dealNumber + 1;
 
   const template = templateId
     ? await prisma.proposalTemplate.findUnique({
@@ -80,14 +72,16 @@ export async function POST(req) {
   ]);
 
   const result = await prisma.$transaction(async tx => {
-    let projectRecord, dealRecord;
+    let projectRecord;
 
     if (existingProjectId) {
-      // Attach to existing project — no new project/deal created
+      // Attach to existing project
       projectRecord = await tx.project.findUnique({ where: { id: existingProjectId } });
       if (!projectRecord) throw new Error('Project not found');
     } else {
-      // 1. Create PROSPECT project
+      // Create PROSPECT project — it IS the pipeline entity. It appears in the
+      // Procurement + Design boards by serviceType; stages default to Qualified /
+      // Design Qualified. No separate Deal records (merged into the project).
       projectRecord = await tx.project.create({
         data: {
           name:            projectName,
@@ -96,40 +90,7 @@ export async function POST(req) {
           serviceType:     type === 'FULL_DESIGN' ? 'fullDesign' : type === 'DESIGN_ASSIST' ? 'designAssist' : 'peerReview',
           status:          'DRAFT',
           createdById:     user.id,
-        },
-      });
-
-      const svcType = type === 'FULL_DESIGN' ? 'FULL_SERVICE_DESIGN' : type === 'DESIGN_ASSIST' ? 'DESIGN_ASSIST' : 'PEER_REVIEW';
-
-      // 2. Create DESIGN deal at DESIGN_QUALIFIED
-      dealRecord = await tx.deal.create({
-        data: {
-          dealNumber,
-          title:           projectName,
-          pipeline:        'DESIGN',
-          stage:           'DESIGN_QUALIFIED',
-          dealStatus:      'OPEN',
-          serviceType:     svcType,
-          clientId:        clientId || null,
-          linkedProjectId: projectRecord.id,
-          ownerId:         user.id,
-          createdById:     user.id,
-        },
-      });
-
-      // 3. Create PROCUREMENT deal at QUALIFIED — every design project has procurement potential
-      await tx.deal.create({
-        data: {
-          dealNumber:      procDealNumber,
-          title:           projectName,
-          pipeline:        'PROCUREMENT',
-          stage:           'QUALIFIED',
-          dealStatus:      'OPEN',
-          serviceType:     svcType,
-          clientId:        clientId || null,
-          linkedProjectId: projectRecord.id,
-          ownerId:         user.id,
-          createdById:     user.id,
+          salesOwnerId:    user.id,
         },
       });
     }
@@ -140,7 +101,6 @@ export async function POST(req) {
     const created = await tx.proposal.create({
       data: {
         projectId:     projectRecord.id,
-        dealId:        dealRecord?.id || null,
         templateId:    templateId || null,
         type,
         status:        'DRAFT',

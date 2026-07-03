@@ -1,0 +1,200 @@
+'use client';
+import { useState, useEffect, useCallback, useRef } from 'react';
+
+function initials(name) {
+  if (!name) return '?';
+  return name.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2);
+}
+function avatarColor(name) {
+  if (!name) return 'bg-slate-400';
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+  const colors = ['bg-orange-500','bg-amber-500','bg-blue-500','bg-indigo-500','bg-emerald-500','bg-teal-500','bg-violet-500','bg-rose-500'];
+  return colors[Math.abs(h) % colors.length];
+}
+function fmt(d) {
+  if (!d) return '';
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// Inline contact link picker (mirrors the one on the Notes screen).
+function ContactLinkPicker({ initialQuery, linked, onPick, onUnlink, onClose }) {
+  const [q, setQ] = useState(initialQuery || '');
+  const [results, setResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const ref = useRef(null);
+  const deb = useRef(null);
+
+  useEffect(() => {
+    function h(e) { if (ref.current && !ref.current.contains(e.target)) onClose(); }
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [onClose]);
+
+  useEffect(() => {
+    clearTimeout(deb.current);
+    if (!q.trim()) { setResults([]); return; }
+    deb.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const r = await fetch(`/api/crm/contacts?search=${encodeURIComponent(q)}`);
+        if (r.ok) { const d = await r.json(); setResults((d.contacts || d || []).slice(0, 8)); }
+      } catch {}
+      setSearching(false);
+    }, 250);
+    return () => clearTimeout(deb.current);
+  }, [q]);
+
+  return (
+    <div ref={ref} className="absolute z-50 mt-1 left-0 w-64 rounded-lg shadow-xl border border-slate-200 bg-white overflow-hidden">
+      <div className="p-2 border-b border-slate-100">
+        <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Search CRM contacts…"
+          className="w-full bg-slate-50 text-xs text-slate-900 rounded px-2 py-1.5 outline-none placeholder:text-slate-400 focus:bg-white border border-transparent focus:border-amber-400" />
+      </div>
+      <div className="max-h-44 overflow-y-auto">
+        {searching && <div className="px-3 py-2 text-[11px] text-slate-400">Searching…</div>}
+        {!searching && q && results.length === 0 && <div className="px-3 py-2 text-[11px] text-slate-400">No matches</div>}
+        {results.map(c => (
+          <button key={c.id} onClick={() => { onPick(c); onClose(); }}
+            className="w-full text-left px-3 py-1.5 flex items-center gap-2 hover:bg-amber-50 transition-colors">
+            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0 ${avatarColor(c.name)}`}>{initials(c.name)}</span>
+            <span className="min-w-0">
+              <span className="block text-xs text-slate-800 font-medium truncate">{c.name}</span>
+              {c.company?.name && <span className="block text-[10px] text-slate-400 truncate">{c.company.name}</span>}
+            </span>
+          </button>
+        ))}
+      </div>
+      {linked && (
+        <div className="p-2 border-t border-slate-100">
+          <button onClick={() => { onUnlink(); onClose(); }} className="text-[11px] text-rose-600 hover:text-rose-700">Unlink contact</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function IntelCard({ item, onPatch }) {
+  const [linking, setLinking] = useState(false);
+  const confirmed = item.status === 'CONFIRMED' || item.status === 'DONE';
+  const person = item.contactName || item.targetName;
+
+  return (
+    <div className={`rounded-lg border px-4 py-3 ${confirmed ? 'border-emerald-200 bg-emerald-50/60' : 'border-slate-200 bg-white'}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-slate-800">{item.detail || item.rawText}</p>
+          <div className="flex items-center gap-2 flex-wrap mt-2">
+            {person && (
+              <span className="relative inline-flex">
+                <button type="button" onClick={() => setLinking(v => !v)}
+                  title={item.contactId ? 'Linked to a CRM contact — click to change' : 'Not linked — click to link a CRM contact'}
+                  className={`inline-flex items-center gap-1 pl-0.5 pr-1.5 py-0.5 rounded-full text-[11px] border transition-colors ${
+                    item.contactId ? 'bg-white border-slate-200 text-slate-700 hover:border-amber-400'
+                                   : 'bg-white border-dashed border-slate-300 text-slate-500 hover:border-amber-400 hover:text-amber-700'}`}>
+                  <span className={`w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold shrink-0 ${item.contactId ? avatarColor(person) : 'bg-slate-300'}`}>{initials(person)}</span>
+                  <span>{person}</span>
+                  {item.contactId ? <span className="text-emerald-600">✓</span> : <span className="text-slate-400">↗</span>}
+                </button>
+                {linking && (
+                  <ContactLinkPicker initialQuery={person} linked={!!item.contactId}
+                    onPick={c => onPatch(item, { contactId: c.id, contactName: c.name, company: c.company?.name || item.company || '' })}
+                    onUnlink={() => onPatch(item, { contactId: '' })}
+                    onClose={() => setLinking(false)} />
+                )}
+              </span>
+            )}
+            {item.company && <span className="text-[11px] text-slate-500">· {item.company}</span>}
+            {item.note && <span className="text-[11px] text-slate-400">Note #{item.note.noteNumber}{item.note.title ? ` — ${item.note.title}` : ''}</span>}
+            <span className="text-[11px] text-slate-300">{fmt(item.createdAt)}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {!confirmed
+            ? <button onClick={() => onPatch(item, { status: 'CONFIRMED' })} title="Confirm as verified knowledge"
+                className="text-xs px-2 py-1 rounded border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100">Confirm</button>
+            : <span className="text-[11px] px-2 py-1 rounded bg-emerald-100 text-emerald-700">✓ Verified</span>}
+          <button onClick={() => onPatch(item, { status: 'DISMISSED' })} title="Dismiss"
+            className="text-slate-400 hover:text-rose-500 text-sm px-1">✕</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function IntelClient() {
+  const [items, setItems] = useState(null);
+  const [q, setQ] = useState('');
+  const [status, setStatus] = useState('active'); // active | confirmed
+  const debRef = useRef(null);
+
+  const load = useCallback(async (query, st) => {
+    const sp = new URLSearchParams();
+    if (query) sp.set('q', query);
+    if (st === 'confirmed') sp.set('status', 'CONFIRMED');
+    try {
+      const r = await fetch(`/api/crm/intel?${sp.toString()}`);
+      const d = await r.json();
+      setItems(d.items || []);
+    } catch { setItems([]); }
+  }, []);
+
+  useEffect(() => { load('', 'active'); }, [load]);
+
+  useEffect(() => {
+    clearTimeout(debRef.current);
+    debRef.current = setTimeout(() => load(q, status), 250);
+    return () => clearTimeout(debRef.current);
+  }, [q, status, load]);
+
+  async function patch(item, fields) {
+    // Optimistic-ish: re-load after patch.
+    await fetch(`/api/crm/notes/${item.note.id}/actions`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ actionId: item.id, ...fields }),
+    }).catch(() => {});
+    load(q, status);
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto px-6 py-8">
+      <div className="mb-1 flex items-center gap-2 text-sm text-slate-400">
+        <span>CRM</span><span>/</span><span className="text-slate-600">Intel</span>
+      </div>
+      <h1 className="text-2xl font-bold text-slate-900">Relationship Intel</h1>
+      <p className="text-slate-500 text-sm mt-1 max-w-2xl">
+        Facts the bot pulled from your notes — who does what, where, and for whom. Search across everything,
+        link a fact to its CRM contact, and confirm the ones worth keeping as verified relationship knowledge.
+      </p>
+
+      <div className="flex items-center gap-3 mt-5 mb-4">
+        <div className="relative flex-1">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z" /></svg>
+          </span>
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search intel by person, company, or keyword…"
+            className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-amber-400" />
+        </div>
+        <div className="flex gap-1.5">
+          {[['active', 'All'], ['confirmed', 'Verified']].map(([v, l]) => (
+            <button key={v} onClick={() => setStatus(v)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${status === v ? 'bg-amber-500 text-white' : 'bg-white text-slate-500 hover:text-slate-700 border border-slate-200'}`}>{l}</button>
+          ))}
+        </div>
+      </div>
+
+      {items === null ? (
+        <p className="text-sm text-slate-400 py-10 text-center">Loading…</p>
+      ) : items.length === 0 ? (
+        <p className="text-sm text-slate-400 py-10 text-center">
+          {q ? 'No intel matches your search.' : 'No intel yet — it appears automatically as the bot reads your published notes.'}
+        </p>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-xs text-slate-400">{items.length} item{items.length !== 1 ? 's' : ''}</p>
+          {items.map(it => <IntelCard key={it.id} item={it} onPatch={patch} />)}
+        </div>
+      )}
+    </div>
+  );
+}

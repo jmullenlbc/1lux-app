@@ -8,6 +8,7 @@ import {
   PROJECT_TYPES, resolveAnswer,
 } from '@/lib/standards-questions';
 import PlaybookTab from './PlaybookTab';
+import PipelineTab from './PipelineTab';
 import ShareStandardsButton from './ShareStandardsButton';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -35,12 +36,17 @@ const LOCATION_TYPES = [
   { value: 'national',     label: 'National' },
 ];
 
+// Seed departments (creatable — clients can add their own, e.g. a GC differs from a developer)
+const CONTACT_DEPARTMENTS = ['Development', 'Design', 'Pre-construction', 'Construction', 'Finance'];
+
 const TABS = [
   { id: 'overview',   label: 'Overview'       },
   { id: 'people',     label: 'People'         },
   { id: 'playbook',   label: 'Playbook'       },
   { id: 'standards',  label: 'Standards'      },
   { id: 'projects',   label: 'Projects'       },
+  { id: 'projectData', label: 'Project Data'  },
+  { id: 'pipeline',   label: 'Pipeline'       },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -195,6 +201,24 @@ function CreatableSelect({ value, onChange, options, placeholder = 'Select or cr
 }
 
 // ── Edit Client Modal ─────────────────────────────────────────────────────────
+// Module-level so it isn't re-created on every keystroke (that remounts the
+// input and steals focus). Takes value/onChange directly.
+function Inp({ label, type = 'text', placeholder, value, onChange }) {
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">{label}</label>
+      <input type={type} value={value} onChange={onChange} placeholder={placeholder}
+        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+    </div>
+  );
+}
+
+const US_STATES = [
+  'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD',
+  'MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC',
+  'SD','TN','TX','UT','VT','VA','WA','WV','WI','WY',
+];
+
 function EditModal({ client, onClose, onSave }) {
   const [form, setForm] = useState({
     name:                client.name                || '',
@@ -209,6 +233,9 @@ function EditModal({ client, onClose, onSave }) {
     developerType:       client.developerType       || '',
     orgTypes:            parseJSON(client.orgTypes),
     markets:             parseJSON(client.markets),
+    geographies:         parseJSON(client.geographies),
+    projectTypes:        parseJSON(client.projectTypes),
+    projectsPerYear:     client.projectsPerYear     ?? '',
     notes:               client.notes               || '',
     ownerId:             client.ownerId              || '',
   });
@@ -222,16 +249,6 @@ function EditModal({ client, onClose, onSave }) {
 
   function set(k, v) { setForm(f => ({ ...f, [k]: v })); }
 
-  function Inp({ label, field, type = 'text', placeholder }) {
-    return (
-      <div>
-        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">{label}</label>
-        <input type={type} value={form[field]} onChange={e => set(field, e.target.value)} placeholder={placeholder}
-          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-      </div>
-    );
-  }
-
   async function handleSubmit(e) {
     e.preventDefault();
     if (!form.name.trim()) { setErr('Client name is required'); return; }
@@ -244,6 +261,9 @@ function EditModal({ client, onClose, onSave }) {
           type: form.orgTypes[0] || client.type,
           orgTypes: form.orgTypes,
           markets: form.markets,
+          geographies: form.geographies,
+          projectTypes: form.projectTypes,
+          projectsPerYear: form.projectsPerYear,
           ownerId: form.ownerId || null,
         }),
       });
@@ -254,7 +274,7 @@ function EditModal({ client, onClose, onSave }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+    <div onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
           <h2 className="text-base font-bold text-slate-900">Edit Client</h2>
@@ -268,10 +288,10 @@ function EditModal({ client, onClose, onSave }) {
           <section>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Company</p>
             <div className="space-y-3">
-              <Inp label="Client Name *" field="name" />
+              <Inp label="Client Name *" value={form.name} onChange={e => set('name', e.target.value)} />
               <div className="grid grid-cols-2 gap-3">
-                <Inp label="City" field="city" />
-                <Inp label="State" field="state" />
+                <Inp label="City" value={form.city} onChange={e => set('city', e.target.value)} />
+                <Inp label="State" value={form.state} onChange={e => set('state', e.target.value)} />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Location Type</label>
@@ -334,14 +354,32 @@ function EditModal({ client, onClose, onSave }) {
           </section>
 
           <section className="border-t border-slate-100 pt-5">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Portfolio</p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Project types built</label>
+                <MultiSelect options={PROJECT_TYPES} selected={form.projectTypes} onChange={v => set('projectTypes', v)} />
+              </div>
+              <Inp label="Approx. projects per year" type="number" placeholder="e.g. 12" value={form.projectsPerYear} onChange={e => set('projectsPerYear', e.target.value)} />
+            </div>
+          </section>
+
+          <section className="border-t border-slate-100 pt-5">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Geography</p>
+            <p className="text-xs text-slate-400 mb-3">States this client is active in</p>
+            <MultiSelect options={US_STATES} selected={form.geographies} onChange={v => set('geographies', v)} />
+          </section>
+
+          <section className="border-t border-slate-100 pt-5">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Contact Info</p>
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <Inp label="Email" field="email" type="email" />
-                <Inp label="Phone" field="phone" type="tel" />
-              </div>
-              <Inp label="Website" field="website" type="url" placeholder="https://…" />
-              <Inp label="LinkedIn" field="linkedIn" type="url" placeholder="https://linkedin.com/company/…" />
+              {/* No general company email — only GCs have a pre-construction email */}
+              {form.orgTypes?.includes('General Contractor') && (
+                <Inp label="Pre-construction email" type="email" placeholder="GC pre-construction contact email" value={form.email} onChange={e => set('email', e.target.value)} />
+              )}
+              <Inp label="Phone" type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} />
+              <Inp label="Website" type="url" placeholder="https://…" value={form.website} onChange={e => set('website', e.target.value)} />
+              <Inp label="LinkedIn" type="url" placeholder="https://linkedin.com/company/…" value={form.linkedIn} onChange={e => set('linkedIn', e.target.value)} />
             </div>
           </section>
 
@@ -387,7 +425,7 @@ function LinkProjectsModal({ clientId, available, onClose, onSave }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+    <div onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <h2 className="text-base font-bold text-slate-900">Link Projects</h2>
@@ -434,66 +472,80 @@ function LinkProjectsModal({ clientId, available, onClose, onSave }) {
 // ── KB Attachment Card ────────────────────────────────────────────────────────
 // ── Overview Tab ──────────────────────────────────────────────────────────────
 function OverviewTab({ client, onEditClick }) {
-  const orgTypes   = parseJSON(client.orgTypes);
-  const markets    = parseJSON(client.markets);
+  const orgTypes     = parseJSON(client.orgTypes);
+  const markets      = parseJSON(client.markets);
+  const geographies  = parseJSON(client.geographies);
+  const projectTypes = parseJSON(client.projectTypes);
+  const ptLabels     = projectTypes.map(v => PROJECT_TYPES.find(p => p.value === v)?.label || v);
   const devType    = DEVELOPER_TYPES.find(d => d.value === client.developerType)?.label;
   const locType    = LOCATION_TYPES.find(l => l.value === client.locationType)?.label;
   const location   = [client.city, client.state].filter(Boolean).join(', ');
+  const isGC       = orgTypes.includes('General Contractor');
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Left: identity card */}
-      <div className="space-y-4">
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <div className="flex items-start justify-between mb-4">
-            <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
-              <span className="text-xl font-bold text-amber-600">{client.name[0].toUpperCase()}</span>
-            </div>
-            <button onClick={onEditClick}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit client">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
-              </svg>
-            </button>
+    <div className="space-y-6">
+      {/* ── One full-width client info window ── */}
+      <div className="bg-white rounded-xl border border-slate-200 p-6">
+        {/* Top bar: Client ID + edit */}
+        <div className="flex items-center justify-between mb-5">
+          <span className="font-mono text-xs font-semibold text-slate-400 tracking-wide">
+            {client.clientNumber ? `CLT-${String(client.clientNumber).padStart(4, '0')}` : ''}
+          </span>
+          <button onClick={onEditClick}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit client">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Identity row */}
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+            <span className="text-xl font-bold text-amber-600">{client.name[0].toUpperCase()}</span>
           </div>
-
-          {/* Tier + org types */}
-          <div className="flex flex-wrap items-center gap-1.5 mb-3">
-            {client.tier && (
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${tierColor(client.tier)}`}>
-                Tier {client.tier}
-              </span>
+          <div className="min-w-0">
+            <h1 className="text-lg font-bold text-slate-900 leading-tight">{client.name}</h1>
+            {(location || locType) && (
+              <p className="text-sm text-slate-500 mt-0.5">
+                {location}{location && locType ? ' · ' : ''}{locType}
+              </p>
             )}
-            {orgTypes.map(t => (
-              <span key={t} className={`text-xs font-medium px-2 py-0.5 rounded-full ${orgTypeColor(t)}`}>{t}</span>
-            ))}
-            {orgTypes.length === 0 && client.type && (
-              <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${orgTypeColor(client.type)}`}>{client.type}</span>
-            )}
-          </div>
-
-          <h1 className="text-lg font-bold text-slate-900 mb-1 leading-tight">{client.name}</h1>
-
-          {(location || locType) && (
-            <p className="text-sm text-slate-500 mb-3">
-              {location}{location && locType ? ' · ' : ''}{locType}
-            </p>
-          )}
-
-          {devType && (
-            <div className="text-xs text-slate-400 mb-3">
-              <span className="font-semibold text-slate-500">Developer type: </span>{devType}
+            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+              {client.tier && (
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${tierColor(client.tier)}`}>
+                  Tier {client.tier}
+                </span>
+              )}
+              {orgTypes.map(t => (
+                <span key={t} className={`text-xs font-medium px-2 py-0.5 rounded-full ${orgTypeColor(t)}`}>{t}</span>
+              ))}
+              {orgTypes.length === 0 && client.type && (
+                <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${orgTypeColor(client.type)}`}>{client.type}</span>
+              )}
             </div>
-          )}
+          </div>
+        </div>
 
-          {/* Contact info */}
-          <div className="space-y-2 mt-3">
-            {client.email && (
+        {/* Detail grid: contact info | markets */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5 mt-5 pt-5 border-t border-slate-100">
+          {/* Left: dev type + contact info */}
+          <div className="space-y-2">
+            {devType && (
+              <div className="text-xs text-slate-400 mb-1">
+                <span className="font-semibold text-slate-500">Developer type: </span>{devType}
+              </div>
+            )}
+            {/* Pre-construction email — GC clients only */}
+            {isGC && client.email && (
               <div className="flex items-center gap-2 text-sm">
                 <svg className="w-4 h-4 shrink-0 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
                 </svg>
-                <a href={`mailto:${client.email}`} className="text-amber-600 hover:text-amber-500 truncate">{client.email}</a>
+                <div className="min-w-0">
+                  <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide leading-none">Pre-construction email</div>
+                  <a href={`mailto:${client.email}`} className="text-amber-600 hover:text-amber-500 truncate">{client.email}</a>
+                </div>
               </div>
             )}
             {client.phone && (
@@ -524,69 +576,98 @@ function OverviewTab({ client, onEditClick }) {
             )}
           </div>
 
-          {client.notes && (
-            <div className="mt-4 pt-4 border-t border-slate-100">
-              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Notes</div>
-              <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-line">{client.notes}</p>
+          {/* Right: markets */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Markets</h3>
+              <button onClick={onEditClick} className="text-xs text-amber-600 hover:text-amber-500 transition-colors">Edit</button>
             </div>
-          )}
+            {markets.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {markets.map(m => (
+                  <span key={m} className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">{m}</span>
+                ))}
+              </div>
+            ) : (
+              <button onClick={onEditClick} className="text-sm text-slate-400 hover:text-amber-600 transition-colors">
+                + Add markets this client builds in
+              </button>
+            )}
 
-          <div className="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-400">
-            Added by {client.createdBy?.name || client.createdBy?.email}
+            {/* Geography */}
+            <div className="mt-4">
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Geography</h3>
+              {geographies.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {geographies.map(s => (
+                    <span key={s} className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">{s}</span>
+                  ))}
+                </div>
+              ) : (
+                <button onClick={onEditClick} className="text-sm text-slate-400 hover:text-amber-600 transition-colors">
+                  + Add states this client is active in
+                </button>
+              )}
+            </div>
+
+            {/* Portfolio */}
+            <div className="mt-4">
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+                Portfolio{client.projectsPerYear ? ` · ~${client.projectsPerYear} projects/yr` : ''}
+              </h3>
+              {ptLabels.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {ptLabels.map(t => (
+                    <span key={t} className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">{t}</span>
+                  ))}
+                </div>
+              ) : (
+                <button onClick={onEditClick} className="text-sm text-slate-400 hover:text-amber-600 transition-colors">
+                  + Add project types this client builds
+                </button>
+              )}
+            </div>
           </div>
+        </div>
+
+        {client.notes && (
+          <div className="mt-5 pt-5 border-t border-slate-100">
+            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Notes</div>
+            <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-line">{client.notes}</p>
+          </div>
+        )}
+
+        <div className="mt-5 pt-4 border-t border-slate-100 text-xs text-slate-400">
+          Added by {client.createdBy?.name || client.createdBy?.email}
         </div>
       </div>
 
-      {/* Right: markets + quick stats */}
-      <div className="lg:col-span-2 space-y-4">
-        {/* Markets */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-slate-800">Markets</h3>
-            <button onClick={onEditClick} className="text-xs text-amber-600 hover:text-amber-500 transition-colors">Edit</button>
-          </div>
-          {markets.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {markets.map(m => (
-                <span key={m} className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">{m}</span>
-              ))}
-            </div>
-          ) : (
-            <button onClick={onEditClick} className="text-sm text-slate-400 hover:text-amber-600 transition-colors">
-              + Add markets this client builds in
-            </button>
-          )}
+      {/* ── Stats below ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <div className="bg-white rounded-xl border border-slate-200 px-4 py-4 text-center">
+          <div className="text-2xl font-bold text-slate-800">{client.projects?.length || 0}</div>
+          <div className="text-xs text-slate-400 mt-0.5 font-medium">Linked Projects</div>
         </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl border border-slate-200 px-4 py-4 text-center">
-            <div className="text-2xl font-bold text-slate-800">{client.projects?.length || 0}</div>
-            <div className="text-xs text-slate-400 mt-0.5 font-medium">Linked Projects</div>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-200 px-4 py-4 text-center">
-            <div className="text-2xl font-bold text-slate-800">{client.contacts?.length || 0}</div>
-            <div className="text-xs text-slate-400 mt-0.5 font-medium">Contacts</div>
-          </div>
+        <div className="bg-white rounded-xl border border-slate-200 px-4 py-4 text-center">
+          <div className="text-2xl font-bold text-slate-800">{client.contacts?.length || 0}</div>
+          <div className="text-xs text-slate-400 mt-0.5 font-medium">Contacts</div>
         </div>
-
-        {/* Client number */}
-        {client.clientNumber && (
-          <div className="bg-white rounded-xl border border-slate-200 px-4 py-3 flex items-center justify-between">
-            <span className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Client ID</span>
-            <span className="font-mono text-sm font-semibold text-slate-600">
-              CLT-{String(client.clientNumber).padStart(4, '0')}
-            </span>
-          </div>
-        )}
       </div>
     </div>
   );
 }
 
 // ── People Tab ────────────────────────────────────────────────────────────────
-function PeopleTab({ contacts: initial, clientId }) {
+function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
   const [contacts,  setContacts]  = useState(initial);
+
+  // Propagate any contact change up so the Overview count, tab badge, and
+  // Playbook "primary national contact" dropdown stay in sync without a refresh.
+  const firstRun = useRef(true);
+  useEffect(() => {
+    if (firstRun.current) { firstRun.current = false; return; }
+    onContactsChange?.(contacts);
+  }, [contacts]);
   const [addForm,   setAddForm]   = useState(null); // null | {}
   const [editId,    setEditId]    = useState(null);
   const [editForm,  setEditForm]  = useState({});
@@ -636,7 +717,7 @@ function PeopleTab({ contacts: initial, clientId }) {
           <span className="ml-2 text-sm font-normal text-slate-400">({contacts.length})</span>
         </h2>
         {addForm === null && (
-          <button onClick={() => setAddForm({ name: '', title: '', email: '', phone: '' })}
+          <button onClick={() => setAddForm({ name: '', title: '', email: '', phone: '', department: '' })}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
             Add Contact
@@ -645,6 +726,9 @@ function PeopleTab({ contacts: initial, clientId }) {
       </div>
 
       {/* Table */}
+      <datalist id="dept-options">
+        {CONTACT_DEPARTMENTS.map(d => <option key={d} value={d} />)}
+      </datalist>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -653,6 +737,7 @@ function PeopleTab({ contacts: initial, clientId }) {
               <th className="px-4 py-2.5 text-left">Title</th>
               <th className="px-4 py-2.5 text-left">Email</th>
               <th className="px-4 py-2.5 text-left">Phone</th>
+              <th className="px-4 py-2.5 text-left">Department</th>
               <th className="w-16"></th>
             </tr>
           </thead>
@@ -665,6 +750,7 @@ function PeopleTab({ contacts: initial, clientId }) {
                     <td className="px-4 py-2"><input value={editForm.title || ''} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} className={inputCls} /></td>
                     <td className="px-4 py-2"><input value={editForm.email || ''} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} className={inputCls} /></td>
                     <td className="px-4 py-2"><input value={editForm.phone || ''} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} className={inputCls} /></td>
+                    <td className="px-4 py-2"><input list="dept-options" value={editForm.department || ''} onChange={e => setEditForm(f => ({ ...f, department: e.target.value }))} placeholder="Dept" className={inputCls} /></td>
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-1">
                         <button onClick={() => saveEdit(c.id)} disabled={saving}
@@ -683,9 +769,10 @@ function PeopleTab({ contacts: initial, clientId }) {
                       {c.email ? <a href={`mailto:${c.email}`} className="text-amber-600 hover:text-amber-500">{c.email}</a> : <span className="text-slate-300">—</span>}
                     </td>
                     <td className="px-4 py-3 text-slate-500">{c.phone || <span className="text-slate-300">—</span>}</td>
+                    <td className="px-4 py-3">{c.department ? <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">{c.department}</span> : <span className="text-slate-300">—</span>}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => { setEditId(c.id); setEditForm({ name: c.name, title: c.title || '', email: c.email || '', phone: c.phone || '' }); }}
+                        <button onClick={() => { setEditId(c.id); setEditForm({ name: c.name, title: c.title || '', email: c.email || '', phone: c.phone || '', department: c.department || '' }); }}
                           className="p-1 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Edit">
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                         </button>
@@ -709,6 +796,7 @@ function PeopleTab({ contacts: initial, clientId }) {
                 <td className="px-4 py-2"><input value={addForm.title} onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))} placeholder="Title" className={inputCls} /></td>
                 <td className="px-4 py-2"><input value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} placeholder="Email" className={inputCls} /></td>
                 <td className="px-4 py-2"><input value={addForm.phone} onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))} placeholder="Phone" className={inputCls} /></td>
+                <td className="px-4 py-2"><input list="dept-options" value={addForm.department} onChange={e => setAddForm(f => ({ ...f, department: e.target.value }))} placeholder="Dept" className={inputCls} /></td>
                 <td className="px-4 py-2">
                   <div className="flex items-center gap-1">
                     <button onClick={addContact} disabled={saving || !addForm.name?.trim()}
@@ -726,7 +814,7 @@ function PeopleTab({ contacts: initial, clientId }) {
         {contacts.length === 0 && addForm === null && (
           <div className="px-5 py-12 text-center">
             <p className="text-slate-400 text-sm mb-3">No contacts yet.</p>
-            <button onClick={() => setAddForm({ name: '', title: '', email: '', phone: '' })}
+            <button onClick={() => setAddForm({ name: '', title: '', email: '', phone: '', department: '' })}
               className="text-sm font-medium text-amber-600 hover:text-amber-500 transition-colors">
               + Add first contact
             </button>
@@ -1397,6 +1485,115 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
   );
 }
 
+// ── Project Data Tab ──────────────────────────────────────────────────────────
+function StatCard({ label, value, small }) {
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 px-4 py-4 text-center">
+      <div className={`font-bold text-slate-800 ${small ? 'text-xl' : 'text-2xl'}`}>{value}</div>
+      <div className="text-xs text-slate-400 mt-0.5 font-medium">{label}</div>
+    </div>
+  );
+}
+
+function ProjectDataTab({ clientId }) {
+  const [rows, setRows] = useState(null);
+
+  useEffect(() => {
+    fetch(`/api/clients/${clientId}/project-stats`)
+      .then(r => r.json())
+      .then(d => setRows(d.rows || []))
+      .catch(() => setRows([]));
+  }, [clientId]);
+
+  if (rows === null) {
+    return (
+      <div className="flex items-center justify-center h-48 text-sm text-slate-400">
+        <Spinner className="w-5 h-5 mr-2" /> Crunching project data…
+      </div>
+    );
+  }
+  if (rows.length === 0) {
+    return (
+      <div className="py-16 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
+        <div className="text-3xl mb-2">📊</div>
+        <p className="text-sm font-medium text-slate-500">No project data yet</p>
+        <p className="text-xs mt-1">Link projects with budgets to this client to see averages here.</p>
+      </div>
+    );
+  }
+
+  const sum        = (k) => rows.reduce((n, r) => n + (r[k] || 0), 0);
+  const totalUnits = sum('units');
+  const totalSf    = sum('grossSf');
+  const grandTotal = sum('total');
+  const money      = (n) => n ? '$' + Math.round(n).toLocaleString() : '—';
+  const perUnitAvg = (k) => totalUnits ? sum(k) / totalUnits : 0;
+
+  const byType = {};
+  for (const r of rows) {
+    const t = r.buildingType || 'unknown';
+    const g = byType[t] || (byType[t] = { count: 0, units: 0, sf: 0, total: 0 });
+    g.count++; g.units += r.units; g.sf += r.grossSf; g.total += r.total;
+  }
+  const typeRows = Object.entries(byType).map(([type, g]) => ({
+    type, count: g.count, units: g.units,
+    perUnit: g.units ? g.total / g.units : 0,
+    perSf:   g.sf    ? g.total / g.sf    : 0,
+  }));
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <StatCard label="Projects"    value={rows.length} />
+        <StatCard label="Total units" value={totalUnits.toLocaleString()} />
+        <StatCard label="Avg $/unit"  value={money(totalUnits ? grandTotal / totalUnits : 0)} />
+        <StatCard label="Avg $/SF"    value={totalSf ? '$' + (grandTotal / totalSf).toFixed(2) : '—'} />
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="px-5 py-3 border-b border-slate-100"><h3 className="text-sm font-semibold text-slate-800">By building type</h3></div>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              <th className="px-5 py-2.5 text-left">Building type</th>
+              <th className="px-4 py-2.5 text-right">Projects</th>
+              <th className="px-4 py-2.5 text-right">Units</th>
+              <th className="px-4 py-2.5 text-right">Avg $/unit</th>
+              <th className="px-4 py-2.5 text-right">Avg $/SF</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+            {typeRows.map(tr => (
+              <tr key={tr.type}>
+                <td className="px-5 py-2.5 font-medium text-slate-800">{buildingTypeLabel(tr.type)}</td>
+                <td className="px-4 py-2.5 text-right text-slate-600">{tr.count}</td>
+                <td className="px-4 py-2.5 text-right text-slate-600">{tr.units.toLocaleString()}</td>
+                <td className="px-4 py-2.5 text-right font-semibold text-slate-800">{money(tr.perUnit)}</td>
+                <td className="px-4 py-2.5 text-right text-slate-600">{tr.perSf ? '$' + tr.perSf.toFixed(2) : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <h3 className="text-sm font-semibold text-slate-800 mb-3">Average per unit</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          <StatCard label="Ceiling fans / unit"      value={perUnitAvg('numFans').toFixed(2)} small />
+          <StatCard label="Accent downlights / unit" value={perUnitAvg('numAccent').toFixed(2)} small />
+          <StatCard label="Vanities / unit"          value={perUnitAvg('numVanities').toFixed(2)} small />
+          <StatCard label="Bathrooms / unit"         value={perUnitAvg('numBathrooms').toFixed(2)} small />
+          <StatCard label="Balconies / unit"         value={perUnitAvg('numBalconies').toFixed(2)} small />
+        </div>
+      </div>
+
+      <p className="text-[11px] text-slate-400">
+        Weighted by unit count across {rows.length} linked project{rows.length !== 1 ? 's' : ''} with budget data.
+      </p>
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function ClientDetailClient({ client: initial, availableProjects, user, canEditStandards = false, initialStandardsAnswers = [], canEditPlaybook = false }) {
   const [client,    setClient]    = useState(initial);
@@ -1447,6 +1644,12 @@ export default function ClientDetailClient({ client: initial, availableProjects,
               {client.tier && (
                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${tierColor(client.tier)}`}>Tier {client.tier}</span>
               )}
+              <a href={`/api/clients/${client.id}/export`}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                title="Export Standards + Playbook to Excel">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 10.5v6m0 0l-2.25-2.25M12 16.5l2.25-2.25M3 12a9 9 0 1018 0 9 9 0 00-18 0z" /></svg>
+                Export Excel
+              </a>
               <button onClick={() => setEditing(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
@@ -1478,7 +1681,7 @@ export default function ClientDetailClient({ client: initial, availableProjects,
       {/* ── Tab content ── */}
       <div className="max-w-6xl mx-auto px-6 py-6">
         {activeTab === 'overview'  && <OverviewTab client={client} onEditClick={() => setEditing(true)} />}
-        {activeTab === 'people'    && <PeopleTab contacts={client.contacts || []} clientId={client.id} />}
+        {activeTab === 'people'    && <PeopleTab contacts={client.contacts || []} clientId={client.id} onContactsChange={(contacts) => setClient(c => ({ ...c, contacts }))} />}
         {activeTab === 'playbook'  && (
           <PlaybookTab
             clientId={client.id}
@@ -1490,6 +1693,8 @@ export default function ClientDetailClient({ client: initial, availableProjects,
         {activeTab === 'projects'  && (
           <ProjectsTab client={client} available={available} onRefresh={refreshClient} />
         )}
+        {activeTab === 'projectData' && <ProjectDataTab clientId={client.id} />}
+        {activeTab === 'pipeline' && <PipelineTab clientId={client.id} canEdit={canEditPlaybook} />}
         {activeTab === 'standards' && (
           <ClientStandardsTab
             clientId={client.id}

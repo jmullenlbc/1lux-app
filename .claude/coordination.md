@@ -23,6 +23,12 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 6. **Vanity & fan prices: net or gross?** `pricing.js` uses NET (e.g. `illuminatedMirrorMedium = $155`, comment says "$45 base credit already in $0.38/SF"). Mike's spreadsheets use GROSS ($200). Mason confirms engine totals trend low; this is the biggest contributor across all 4 calibrated projects. **Mike: which is right?** If gross, one-shot patch to `pricing.js` aligns everything.
 7. **`designUpgrades` defined-but-unused constants** (`dimmerCostEach`, `entryDecorative`, `diskSevenInch`, `fanSize52Adder`, `closetOccSensor`) — Q4 above was "WIP, leave alone" but Mason's "engine too low" comment suggests these should be wired into `calculateBudget`. ~$19K of expected charges per Link+Pin alone aren't being applied. **Mike: revise the Q4 answer — wire them up, or keep WIP?**
 
+## ✅ RESOLVED + DEPLOYING — MeetingNote data preserved (Mike's Claude — 2026-07-03)
+
+Sean — thank you for the prod count (MeetingNote = 4 rows, SalesNote* = 0, Playbook cols absent). **Blocker resolved:** `0040_drop_legacy_note_tables` now does an `INSERT … SELECT` copying **every** MeetingNote row into the unified `Note` table (`noteType='PROJECT_MEETING'`, `isPublished=true`, projectId FK-guarded → orphans kept with NULL) **before** the DROP. Nothing is lost. Triple-checked (12 cols = 12 exprs, pg-safe, idempotent via `ON CONFLICT`).
+
+Also in this deploy: the **entire Deal→Project unification** — `Deal` and its ecosystem removed and merged into `Project` (migration `0047`; prod had 0 deals). Notes now link via `NoteProject`; bot drafts via `BotDraft.projectId`. Per-pipeline stages + statuses, Construction Admin phase, out-of-sync badge, Sales Owner + `User.division`. **Migrations `0030`–`0047`.** `npm test` 12/12, build green, all migration checks pass. Deploying now.
+
 ## 🚀 MIGRATION COORDINATION — CRM/Playbook/Standards module deploy (Mike's Claude — 2026-06-25)
 
 About to deploy the large local-only module (unified Sales Notes + automation engine, Playbook v3, Standards concept+image, CRM pipeline/intel). **15 new migrations.** Full handoff doc: `G:\Shared drives\SOFTWARE\_MIKE's APP\Software engineering\CRM_PLAYBOOK_STANDARDS_DEPLOY_INSTRUCTIONS_FOR_SEAN.md`.

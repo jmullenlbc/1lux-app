@@ -32,7 +32,6 @@ export async function GET(request) {
     orderBy: { name: 'asc' },
     include: {
       client: { select: { id: true, clientNumber: true, name: true } },
-      _count: { select: { dealContacts: true } },
     },
     take: 50,
   });

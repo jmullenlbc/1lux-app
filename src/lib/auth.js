@@ -26,6 +26,22 @@ export function isClientViewer(role) {
   return role === 'CLIENT_VIEWER';
 }
 
+// Parse a User.permissions value (JSON string or object) safely.
+export function parsePermissions(permissions) {
+  if (!permissions) return {};
+  if (typeof permissions === 'object') return permissions;
+  try { return JSON.parse(permissions) || {}; } catch { return {}; }
+}
+
+// Sales Admin = a user explicitly granted the `salesAdmin` permission, OR any
+// Super Admin (higher tier). Used to gate Sales-Automation admin actions.
+// `user` may be { role, permissions } where permissions is a JSON string or object.
+export function isSalesAdmin(user) {
+  if (!user) return false;
+  if (isSuperAdmin(user.role)) return true;
+  return parsePermissions(user.permissions).salesAdmin === true;
+}
+
 export function getRoleLabel(role) {
   const map = {
     SUPER_ADMIN:    'Super Admin',
@@ -103,6 +119,22 @@ export async function requireAdmin(request) {
   const { user, error } = await requireAuth(request);
   if (error) return { user: null, error };
   if (!isAnyAdmin(user.role)) {
+    return { user: null, error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
+  }
+  return { user, error: null };
+}
+
+// Gate on Sales Admin (or Super Admin). Permissions aren't in the JWT, so for
+// non-super-admins we look up the user's permissions from the DB.
+export async function requireSalesAdmin(request) {
+  const { user, error } = await requireAuth(request);
+  if (error) return { user: null, error };
+  if (isSuperAdmin(user.role)) return { user, error: null };
+
+  // Lazy import to avoid a hard dependency in edge/middleware contexts.
+  const { prisma } = await import('@/lib/db');
+  const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { permissions: true } });
+  if (!isSalesAdmin({ role: user.role, permissions: dbUser?.permissions })) {
     return { user: null, error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
   }
   return { user, error: null };

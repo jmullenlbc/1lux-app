@@ -435,7 +435,7 @@ export default function SalesActivityPage() {
                   {recent10.map(note => {
                     const meta = ACTIVITY_META[note.activityType] || ACTIVITY_META.OTHER;
                     const contactName = note.contacts?.[0]?.contact?.name || note.clients?.[0]?.client?.name || null;
-                    const dealTitle = note.deals?.[0]?.deal?.title || null;
+                    const dealTitle = note.projects?.[0]?.project?.name || null;
                     return (
                       <div key={note.id} className="flex items-start gap-2.5">
                         <span className="text-base shrink-0 mt-0.5">{meta.emoji}</span>

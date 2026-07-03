@@ -3,7 +3,7 @@ import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 async function nextNoteNumber() {
-  const max = await prisma.salesNote.aggregate({ _max: { noteNumber: true } });
+  const max = await prisma.note.aggregate({ where: { noteType: 'SALES' }, _max: { noteNumber: true } });
   return (max._max.noteNumber ?? 0) + 1;
 }
 
@@ -15,10 +15,10 @@ const NOTE_INCLUDE = {
     include: { client: { select: { id: true, clientNumber: true, name: true, type: true } } },
     orderBy: { createdAt: 'asc' },
   },
-  deals: {
+  projects: {
     include: {
-      deal: {
-        select: { id: true, dealNumber: true, title: true, pipeline: true, stage: true, dealStatus: true },
+      project: {
+        select: { id: true, projectNumber: true, name: true, serviceType: true, procurementStage: true, designStage: true, procurementStatus: true, designStatus: true },
       },
     },
     orderBy: { createdAt: 'asc' },
@@ -29,28 +29,27 @@ const NOTE_INCLUDE = {
   },
 };
 
-// GET /api/crm/notes
-// Query params: search, clientId, dealId
+// GET /api/crm/notes — Query params: search, clientId, dealId
 export async function GET(request) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
   const { searchParams } = new URL(request.url);
-  const search   = searchParams.get('search');
-  const clientId = searchParams.get('clientId');
-  const dealId   = searchParams.get('dealId');
+  const search    = searchParams.get('search');
+  const clientId  = searchParams.get('clientId');
+  const projectId = searchParams.get('projectId');
 
-  const where = {};
+  const where = { noteType: 'SALES' };
   if (search) {
     where.OR = [
       { title: { contains: search } },
       { body:  { contains: search } },
     ];
   }
-  if (clientId) where.clients = { some: { clientId } };
-  if (dealId)   where.deals   = { some: { dealId } };
+  if (clientId)  where.clients  = { some: { clientId } };
+  if (projectId) where.projects = { some: { projectId } };
 
-  const notes = await prisma.salesNote.findMany({
+  const notes = await prisma.note.findMany({
     where,
     orderBy: [{ meetingDate: 'desc' }, { updatedAt: 'desc' }],
     include: NOTE_INCLUDE,
@@ -72,17 +71,17 @@ export async function POST(request) {
     attendees    = '[]',
     calendarRef,
     clientIds    = [],
-    dealIds      = [],
+    projectIds   = [],
     activityType,
     contactIds   = [],
   } = body;
 
   const isInPerson = activityType ? IN_PERSON_ACTIVITY_TYPES.has(activityType) : false;
-
   const noteNumber = await nextNoteNumber();
 
-  const note = await prisma.salesNote.create({
+  const note = await prisma.note.create({
     data: {
+      noteType:     'SALES',
       noteNumber,
       title:        title.trim(),
       body:         noteBody,
@@ -96,20 +95,20 @@ export async function POST(request) {
   });
 
   if (clientIds.length > 0) {
-    await prisma.salesNoteClient.createMany({
-      data: clientIds.map(cid => ({ salesNoteId: note.id, clientId: cid })),
+    await prisma.noteClient.createMany({
+      data: clientIds.map(cid => ({ noteId: note.id, clientId: cid })),
       skipDuplicates: true,
     });
   }
-  if (dealIds.length > 0) {
-    await prisma.salesNoteDeal.createMany({
-      data: dealIds.map(did => ({ salesNoteId: note.id, dealId: did })),
+  if (projectIds.length > 0) {
+    await prisma.noteProject.createMany({
+      data: projectIds.map(pid => ({ noteId: note.id, projectId: pid })),
       skipDuplicates: true,
     });
   }
   if (contactIds.length > 0) {
-    await prisma.salesNoteContact.createMany({
-      data: contactIds.map(cid => ({ salesNoteId: note.id, contactId: cid })),
+    await prisma.noteContact.createMany({
+      data: contactIds.map(cid => ({ noteId: note.id, contactId: cid })),
       skipDuplicates: true,
     });
 
@@ -125,20 +124,14 @@ export async function POST(request) {
           if (!contact) return;
 
           const data = {};
-          if (!contact.lastInPersonAt || noteDate > contact.lastInPersonAt) {
-            data.lastInPersonAt = noteDate;
-          }
-          if (!contact.lastTouchpointAt || noteDate > contact.lastTouchpointAt) {
-            data.lastTouchpointAt = noteDate;
-          }
-          if (Object.keys(data).length > 0) {
-            await prisma.contact.update({ where: { id: contactId }, data });
-          }
+          if (!contact.lastInPersonAt || noteDate > contact.lastInPersonAt) data.lastInPersonAt = noteDate;
+          if (!contact.lastTouchpointAt || noteDate > contact.lastTouchpointAt) data.lastTouchpointAt = noteDate;
+          if (Object.keys(data).length > 0) await prisma.contact.update({ where: { id: contactId }, data });
         })
       );
     }
   }
 
-  const full = await prisma.salesNote.findUnique({ where: { id: note.id }, include: NOTE_INCLUDE });
+  const full = await prisma.note.findUnique({ where: { id: note.id }, include: NOTE_INCLUDE });
   return NextResponse.json(full, { status: 201 });
 }

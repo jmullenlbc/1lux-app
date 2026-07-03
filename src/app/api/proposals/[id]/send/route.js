@@ -10,7 +10,7 @@ export async function POST(req, { params }) {
 
   const proposal = await prisma.proposal.findUnique({
     where: { id: params.id },
-    include: { deal: true },
+    include: { project: { select: { id: true, serviceType: true } } },
   });
   if (!proposal) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   if (proposal.status === 'ACCEPTED') {
@@ -40,11 +40,11 @@ export async function POST(req, { params }) {
       data: { status: 'SENT', sentAt: new Date() },
     });
 
-    // Advance linked DESIGN deal to PROPOSAL_SENT
-    if (proposal.dealId && proposal.deal?.pipeline === 'DESIGN') {
-      await tx.deal.update({
-        where: { id: proposal.dealId },
-        data: { stage: 'PROPOSAL_SENT' },
+    // Advance the project's Design board to PROPOSAL_SENT (design-fee projects only)
+    if (proposal.project && ['fullDesign', 'designAssist'].includes(proposal.project.serviceType)) {
+      await tx.project.update({
+        where: { id: proposal.project.id },
+        data: { designStage: 'PROPOSAL_SENT' },
       });
     }
   });
@@ -52,7 +52,6 @@ export async function POST(req, { params }) {
   const updated = await prisma.proposal.findUnique({
     where: { id: params.id },
     include: {
-      deal:      { select: { id: true, dealNumber: true, pipeline: true, stage: true } },
       sends:     { include: { sentBy: { select: { id: true, name: true } } }, orderBy: { sentAt: 'desc' } },
       lineItems: { orderBy: [{ area: 'asc' }, { sortOrder: 'asc' }] },
     },

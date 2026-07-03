@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 const TABS = [
   { href: '/sales/automation/rules',     label: 'Rules' },
@@ -8,12 +9,30 @@ const TABS = [
   { href: '/sales/automation/knowledge', label: 'Bot Knowledge' },
 ];
 
+// Shown only to Sales Admins / Super Admins.
+const ADMIN_TABS = [
+  { href: '/sales/automation/triggers', label: 'If-Then Rules' },
+  { href: '/sales/automation/actions', label: 'Action Types' },
+];
+
 export default function AutomationNav() {
   const pathname = usePathname();
+  const [salesAdmin, setSalesAdmin] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/auth/me')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (alive && d) setSalesAdmin(!!d.salesAdmin); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  const tabs = salesAdmin ? [...TABS, ...ADMIN_TABS] : TABS;
 
   return (
     <div className="flex items-center gap-1 border-b border-slate-200 mb-6 -mt-1">
-      {TABS.map(tab => {
+      {tabs.map(tab => {
         const active = pathname.startsWith(tab.href);
         return (
           <Link

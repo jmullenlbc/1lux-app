@@ -28,12 +28,6 @@ export async function GET(request) {
     },
     include: {
       client: { select: { id: true, name: true, cadenceDays: true } },
-      dealContacts: {
-        include: {
-          deal: { select: { id: true, title: true, stage: true, createdAt: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-      },
     },
   });
 
@@ -79,11 +73,6 @@ export async function GET(request) {
     if (status === 'overdue' && daysOverdue <= 0) continue;
     if (status === 'due_soon' && daysOverdue <= -14) continue;
 
-    // Most recent deal
-    const latestDeal = contact.dealContacts[0]?.deal
-      ? { title: contact.dealContacts[0].deal.title, stage: contact.dealContacts[0].deal.stage }
-      : null;
-
     results.push({
       id:                   contact.id,
       name:                 contact.name,
@@ -100,7 +89,6 @@ export async function GET(request) {
       daysSinceLastInPerson,
       daysOverdue,
       client:               contact.client ? { name: contact.client.name } : null,
-      latestDeal,
     });
   }
 

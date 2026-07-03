@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Badge from '@/components/ui/Badge';
+import { DIVISIONS } from '@/lib/divisions';
 
 const DEPT_ROLES = ['Operations', 'Finance', 'Design', 'Pre-construction', 'Construction', 'Sales'];
 
@@ -151,12 +152,14 @@ function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
   const [form, setForm] = useState({
     name:              user.name || '',
     role:              user.role,
+    division:          user.division || '',
     deptRoles:         parsedDeptRoles,
     mustChangePassword: user.mustChangePassword,
     isActive:          user.isActive !== false,
     newPassword:       '',
     permKnowledgeBase:    parsedPerms.knowledgeBase    === true,
     permClientStandards:  parsedPerms.clientStandards  === true,
+    permSalesAdmin:       parsedPerms.salesAdmin       === true,
   });
 
   function toggleDeptRole(dr) {
@@ -185,10 +188,11 @@ function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
       const body = {
         name:              form.name,
         role:              form.role,
+        division:          form.division || null,
         deptRoles:         form.deptRoles,
         mustChangePassword: form.mustChangePassword,
         isActive:          form.isActive,
-        permissions:       { knowledgeBase: form.permKnowledgeBase, clientStandards: form.permClientStandards },
+        permissions:       { knowledgeBase: form.permKnowledgeBase, clientStandards: form.permClientStandards, salesAdmin: form.permSalesAdmin },
       };
       if (form.newPassword) body.newPassword = form.newPassword;
       const res  = await fetch(`/api/admin/users/${user.id}`, {
@@ -256,6 +260,22 @@ function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
               {/* ── RIGHT COLUMN ── */}
               <div className="space-y-4">
 
+                {/* Division — one per user; drives the Sales Owner dropdown */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-2">
+                    Division
+                    <span className="text-slate-400 font-normal ml-1">— primary team</span>
+                  </label>
+                  <select
+                    value={form.division}
+                    onChange={e => set('division', e.target.value)}
+                    className="w-full text-sm border border-slate-200 rounded-lg px-2.5 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  >
+                    <option value="">— None —</option>
+                    {DIVISIONS.map(d => <option key={d.key} value={d.key}>{d.label}</option>)}
+                  </select>
+                </div>
+
                 {/* Department Roles */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-2">
@@ -309,6 +329,13 @@ function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
                       <div>
                         <div className="text-sm font-medium text-slate-800">Client Standards Editor</div>
                         <div className="text-xs text-slate-400">Can view and fill out national lighting standards</div>
+                      </div>
+                    </label>
+                    <label className="flex items-start gap-3 p-2.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors">
+                      <input type="checkbox" checked={form.permSalesAdmin} onChange={e => set('permSalesAdmin', e.target.checked)} className="accent-amber-500 mt-0.5" />
+                      <div>
+                        <div className="text-sm font-medium text-slate-800">Sales Admin</div>
+                        <div className="text-xs text-slate-400">Can manage Sales Automation action types, templates &amp; bot reminders</div>
                       </div>
                     </label>
                   </div>

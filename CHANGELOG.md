@@ -5,6 +5,31 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Project ⇄ Pipeline unification + CRM/Playbook/Standards/Automation module] · July 3, 2026
+
+> **Major release.** Migrations `0030`–`0047`. `MeetingNote`'s 4 prod rows are preserved into the unified `Note` table before the legacy drop.
+
+### Added
+- **A project IS the pipeline entity** — the `Deal` model is fully removed and merged into `Project`. One record across budgets, the pipeline, and the CRM; edit any field anywhere → reflected everywhere (no drift).
+  - Board membership derived from `serviceType` (Procurement = all; Design = Full Design / Design Assist).
+  - **Per-pipeline stages** (`procurementStage` / `designStage`) incl. the new **Construction Admin** design phase; **per-pipeline statuses** (`procurementStatus` / `designStatus`: Open/Won/Lost/Completed/Abandoned).
+  - **Out-of-sync badge** with real rules (each Design phase pairs to exactly one Procurement phase).
+  - **Sales Owner** = one owner field platform-wide, drawn from Sales-division users (new `User.division`).
+  - Pipeline board renders projects; Project Dashboard shows an editable **Sales Details** section.
+- **CRM / Sales Notes / Automation module** — unified `Note` table, `NoteAction` taxonomy, Zapier-style if-then `BotRule` engine + `AutomationLog`, intake, bot follow-up (retargeted to projects), CRM pipeline/intel.
+- **Playbook v3** — normalized `ClientPlaybook` (`PlaybookRelationship`/`Assignment`/`Distribution`/`Note`), JSON bins dropped.
+- **Standards** — `StandardsAnswerConcept` (concept + image).
+
+### Migration notes
+- `0040` preserves the 4 `MeetingNote` rows into `Note` (PROJECT_MEETING) **before** dropping the legacy tables; SalesNote* were empty in prod (Sean's count).
+- `0043` playbook-JSON drop is a no-op in prod (columns never existed there).
+- `0047` removes `Deal` + ecosystem (prod had 0 deals); notes now link via `NoteProject`, drafts via `BotDraft.projectId`.
+
+### Known follow-ups
+- Home "upcoming actions" widget empty (projects carry no next-action field yet); dashboard filters on `pipeline`/`lostReason`/`numberOfUnits` are no-ops.
+
+---
+
 ## [Bid Matrix — Peer Review/Bid spec routing cleanup + version history renders like the live matrix] · June 25, 2026
 
 > **Deployed to production.**

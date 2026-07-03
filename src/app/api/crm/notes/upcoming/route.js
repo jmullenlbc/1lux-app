@@ -12,8 +12,9 @@ export async function GET() {
   const now   = new Date();
   const end   = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
 
-  const raw = await prisma.salesNote.findMany({
+  const raw = await prisma.note.findMany({
     where: {
+      noteType: 'SALES',
       meetingDate: { gte: now, lte: end },
       activityType: { not: null },
     },
@@ -21,8 +22,8 @@ export async function GET() {
     take: 50,  // fetch more, then dedupe
     include: {
       createdBy: { select: { id: true, name: true } },
-      clients:   { include: { client: { select: { id: true, name: true } } } },
-      deals:     { include: { deal:   { select: { id: true, title: true } } } },
+      clients:   { include: { client:  { select: { id: true, name: true } } } },
+      projects:  { include: { project: { select: { id: true, name: true } } } },
       contacts:  { include: { contact: { select: { id: true, name: true } } } },
     },
   });

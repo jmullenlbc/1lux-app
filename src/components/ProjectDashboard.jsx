@@ -1,7 +1,12 @@
 'use client';
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { buildingTypeLabel } from '@/lib/utils';
+import { PIPELINE_STAGES, STAGE_LABEL, STATUS_LABEL, PIPELINE_STATUS, inDesignPipeline, stagesOutOfSync } from '@/lib/pipeline';
 import MissingInputsWarning from './MissingInputsWarning';
+
+const PROC_STAGE_OPTIONS   = PIPELINE_STAGES.PROCUREMENT.map(s => ({ value: s.key, label: s.label }));
+const DESIGN_STAGE_OPTIONS = PIPELINE_STAGES.DESIGN.map(s => ({ value: s.key, label: s.label }));
+const STATUS_OPTIONS       = PIPELINE_STATUS.map(s => ({ value: s.key, label: s.label }));
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 function fmt(val) {
@@ -27,6 +32,14 @@ function fmtDate(str) {
       month: 'short', day: 'numeric', year: 'numeric',
     });
   } catch { return str; }
+}
+const SERVICE_TYPE_LABELS = {
+  fullDesign: 'Full Design', designAssist: 'Design Assist',
+  peerReview: 'Peer Review', bidOnly: 'Bid Only', conceptual: 'Conceptual',
+};
+function serviceTypeLabel(val) {
+  if (!val) return null;
+  return SERVICE_TYPE_LABELS[val] || val;
 }
 
 // ── Widget (summary card — unchanged) ────────────────────────────────────────
@@ -137,6 +150,19 @@ function EditableStat({ label, displayValue, rawValue, onSave, wide, mono, type 
   );
 }
 
+// ── Read-only stat cell (synced display — e.g. Sales Details from CRM) ─────────
+function ReadStat({ label, value, wide, accent }) {
+  const hasValue = value != null && value !== '';
+  return (
+    <div className={`min-w-0 ${wide ? 'col-span-2' : ''}`}>
+      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider leading-none mb-1 truncate">{label}</p>
+      <p className={`text-sm font-semibold leading-snug ${wide ? '' : 'truncate'} ${hasValue ? (accent || 'text-slate-800') : 'text-slate-300'}`}>
+        {hasValue ? value : '—'}
+      </p>
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function ProjectDashboard({
   project: initialProject,
@@ -152,6 +178,24 @@ export default function ProjectDashboard({
   const [projectData, setProjectData] = useState(initialProject.projectData ?? {});
 
   const pd = projectData;
+
+  // ── Sales / Pipeline fields live on the project itself (Deal merged in) ──────
+  const isDesignPipeline = inDesignPipeline(project.serviceType);
+  const combinedRevenue  = (project.contractValue || 0) + (project.designContractValue || 0);
+  const outOfSync        = stagesOutOfSync(project);
+
+  // Sales Owner dropdown — Sales-division users only.
+  const [salesUsers, setSalesUsers] = useState([]);
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/users?division=SALES')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (alive && d) setSalesUsers(d.users || []); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  const salesOwnerOptions = [{ value: '', label: '— Unassigned —' }, ...salesUsers.map(u => ({ value: u.id, label: u.name || u.email }))];
+  const salesOwnerName    = salesUsers.find(u => u.id === project.salesOwnerId)?.name;
 
   // ── Budget numbers ────────────────────────────────────────────────────────
   const clientInitialBudget = pd.clientInitialBudget ?? null;
@@ -366,6 +410,47 @@ export default function ProjectDashboard({
           <EditableStat label="Warehousing %" displayValue={fmtPct(pd.warehousingPct)} rawValue={pd.warehousingPct != null ? (pd.warehousingPct * 100).toFixed(2) : ''} onSave={val => d('warehousingPct')(val != null && val !== '' ? parseFloat(val) / 100 : null)} />
           <EditableStat label="Sales Tax %"  displayValue={fmtPct(pd.salesTaxPct)}    rawValue={pd.salesTaxPct != null ? (pd.salesTaxPct * 100).toFixed(2) : ''} onSave={val => d('salesTaxPct')(val != null && val !== '' ? parseFloat(val) / 100 : null)} />
 
+        </div>
+      </div>
+
+      {/* ── Sales Details — editable, lives on the project (Deal merged in) ───── */}
+      <div className="bg-white border border-slate-200 rounded-2xl px-6 py-5 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Sales Details</p>
+            {outOfSync && (
+              <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full" title="Procurement and Design stages differ">
+                ⚠ stages differ
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] text-slate-300 italic">Click any field to edit</span>
+        </div>
+
+        <div className="grid grid-cols-4 gap-x-6 gap-y-4">
+          {/* ── Stage & type (top) ── */}
+          <Rule label="Pipeline" />
+          <EditableStat label="Procurement Stage" displayValue={STAGE_LABEL[project.procurementStage] || 'Qualified'} rawValue={project.procurementStage || 'QUALIFIED'} onSave={p('procurementStage')} select options={PROC_STAGE_OPTIONS} />
+          {isDesignPipeline && (
+            <EditableStat label="Design Stage" displayValue={STAGE_LABEL[project.designStage] || 'Design Qualified'} rawValue={project.designStage || 'DESIGN_QUALIFIED'} onSave={p('designStage')} select options={DESIGN_STAGE_OPTIONS} />
+          )}
+          <EditableStat label="Project Type" displayValue={project.projectType} rawValue={project.projectType || ''} onSave={p('projectType')} />
+          <EditableStat label="Procurement Status" displayValue={STATUS_LABEL[project.procurementStatus] || 'Open'} rawValue={project.procurementStatus || 'OPEN'} onSave={p('procurementStatus')} select options={STATUS_OPTIONS} />
+          {isDesignPipeline && (
+            <EditableStat label="Design Status" displayValue={STATUS_LABEL[project.designStatus] || 'Open'} rawValue={project.designStatus || 'OPEN'} onSave={p('designStatus')} select options={STATUS_OPTIONS} />
+          )}
+          <EditableStat label="Sales Owner" displayValue={salesOwnerName} rawValue={project.salesOwnerId || ''} onSave={p('salesOwnerId')} select options={salesOwnerOptions} />
+
+          {/* ── Revenue ── */}
+          <Rule label="Revenue" />
+          <EditableStat label="Product Sale Total ($)" displayValue={fmt(project.contractValue)}       rawValue={project.contractValue ?? ''}       onSave={p('contractValue')} />
+          <EditableStat label="Design Fee Total ($)"   displayValue={fmt(project.designContractValue)} rawValue={project.designContractValue ?? ''} onSave={p('designContractValue')} />
+          <ReadStat     label="Total Combined ($)"     value={fmt(combinedRevenue)} accent="text-blue-600" />
+          <EditableStat label="Probability"            displayValue={project.pipelineProbability != null ? `${project.pipelineProbability}%` : null} rawValue={project.pipelineProbability ?? 50} onSave={p('pipelineProbability')} type="number" />
+          <EditableStat label="Expected Order Date"
+            displayValue={project.expectedOrderDate ? new Date(project.expectedOrderDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null}
+            rawValue={project.expectedOrderDate ? new Date(project.expectedOrderDate).toISOString().slice(0, 10) : ''}
+            onSave={p('expectedOrderDate')} type="date" />
         </div>
       </div>
     </div>

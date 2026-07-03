@@ -102,10 +102,10 @@ function DraftCard({ draft, onCancel, onUpdate }) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
               <span className="text-[11px] font-mono font-bold text-slate-700 truncate">
-                {draft.deal?.title || 'No deal linked'}
+                {draft.project?.name || 'No project linked'}
               </span>
-              {draft.deal?.pipeline && (
-                <span className="text-[10px] text-slate-400 shrink-0">{draft.deal.pipeline}</span>
+              {draft.project?.serviceType && (
+                <span className="text-[10px] text-slate-400 shrink-0">{draft.project.serviceType}</span>
               )}
               {draft.classificationReason && (
                 <span className="text-[10px] text-slate-400 shrink-0 italic">{draft.classificationReason}</span>
@@ -455,11 +455,6 @@ export default function BotQueuePage() {
                           {contact.lastInPersonAt && (
                             <p className="text-[11px] text-slate-400 mt-0.5">
                               Last in-person: {fmtDate(contact.lastInPersonAt)}
-                            </p>
-                          )}
-                          {contact.deal && (
-                            <p className="text-[11px] text-slate-500 mt-0.5">
-                              Deal: {contact.deal.title || `#${contact.deal.dealNumber}`}
                             </p>
                           )}
                         </div>

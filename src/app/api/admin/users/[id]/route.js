@@ -20,11 +20,12 @@ export async function PATCH(request, { params }) {
     return NextResponse.json({ error: 'Use account settings to modify your own account' }, { status: 400 });
   }
 
-  const { name, role, deptRoles, permissions, mustChangePassword, isActive, newPassword } = await request.json();
+  const { name, role, division, deptRoles, permissions, mustChangePassword, isActive, newPassword } = await request.json();
 
   const data = {};
   if (name !== undefined)              data.name              = name;
   if (role !== undefined)              data.role              = role;
+  if (division !== undefined)          data.division          = division || null;
   if (deptRoles !== undefined)         data.deptRoles         = JSON.stringify(Array.isArray(deptRoles) ? deptRoles : []);
   if (permissions !== undefined)       data.permissions       = JSON.stringify(permissions);
   if (mustChangePassword !== undefined) data.mustChangePassword = mustChangePassword;
@@ -43,6 +44,7 @@ export async function PATCH(request, { params }) {
     email:             updated.email,
     name:              updated.name,
     role:              updated.role,
+    division:          updated.division,
     deptRoles:         updated.deptRoles,
     permissions:       updated.permissions,
     mustChangePassword: updated.mustChangePassword,
@@ -68,25 +70,21 @@ export async function DELETE(request, { params }) {
   }
 
   // Count records with required (non-nullable) FK references that can't be nullified
-  const [projects, clients, deals, tasks, salesNotes, changeOrders, designBidMatrices] =
+  const [projects, clients, tasks, changeOrders, designBidMatrices] =
     await Promise.all([
       prisma.project.count({ where: { createdById: params.id } }),
       prisma.client.count({ where: { createdById: params.id } }),
-      prisma.deal.count({ where: { createdById: params.id } }),
       prisma.task.count({ where: { createdById: params.id } }),
-      prisma.salesNote.count({ where: { createdById: params.id } }),
       prisma.changeOrder.count({ where: { createdById: params.id } }),
       prisma.designBidMatrix.count({ where: { pushedById: params.id } }),
     ]);
 
-  const total = projects + clients + deals + tasks + salesNotes + changeOrders + designBidMatrices;
+  const total = projects + clients + tasks + changeOrders + designBidMatrices;
   if (total > 0) {
     const parts = [
       projects      && `${projects} project(s)`,
       clients       && `${clients} client(s)`,
-      deals         && `${deals} deal(s)`,
       tasks         && `${tasks} task(s)`,
-      salesNotes    && `${salesNotes} note(s)`,
       changeOrders  && `${changeOrders} change order(s)`,
       designBidMatrices && `${designBidMatrices} bid matrix/matrices`,
     ].filter(Boolean);
@@ -99,7 +97,7 @@ export async function DELETE(request, { params }) {
   // Nullify optional FK references so the delete succeeds
   await prisma.$transaction([
     prisma.client.updateMany({ where: { ownerId: params.id }, data: { ownerId: null } }),
-    prisma.deal.updateMany({ where: { ownerId: params.id }, data: { ownerId: null } }),
+    prisma.project.updateMany({ where: { salesOwnerId: params.id }, data: { salesOwnerId: null } }),
     prisma.designStandard.updateMany({ where: { updatedById: params.id }, data: { updatedById: null } }),
     prisma.rFI.updateMany({ where: { assignedToId: params.id }, data: { assignedToId: null } }),
     prisma.budgetQCChecklist.updateMany({ where: { assignedToId: params.id }, data: { assignedToId: null } }),

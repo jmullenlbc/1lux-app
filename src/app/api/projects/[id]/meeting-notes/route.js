@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { randomUUID } from 'crypto';
 import { sendNotification } from '@/lib/notify';
 
 async function canAccess(projectId, user) {
@@ -10,24 +9,27 @@ async function canAccess(projectId, user) {
   return user.role === 'ILC_ADMIN' || project.createdById === user.id;
 }
 
-// Use raw SQL throughout — Prisma client may be stale and unaware of
-// the MeetingNote model or its newer columns (meetingDate, meetingLink, attendees).
-// All fields are LLM-readable via the GET endpoint.
+// Project meeting notes live in the unified Note table (noteType='PROJECT_MEETING').
+// The API preserves the meeting-note shape (content ↔ body) so the UI is unchanged.
+export function toMeetingNote(n) {
+  return {
+    id: n.id, projectId: n.projectId, title: n.title, content: n.body,
+    meetingDate: n.meetingDate, meetingLink: n.meetingLink,
+    attendees: n.attendees === '[]' ? null : n.attendees,
+    isExternalVisible: n.isExternalVisible, createdAt: n.createdAt, updatedAt: n.updatedAt,
+  };
+}
 
 export async function GET(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
   if (!await canAccess(params.id, user)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const notes = await prisma.$queryRawUnsafe(
-    `SELECT id, projectId, title, content, meetingDate, meetingLink, attendees, isExternalVisible, createdAt, updatedAt
-     FROM "MeetingNote"
-     WHERE "projectId" = ?
-     ORDER BY "createdAt" DESC`,
-    params.id
-  );
-
-  return NextResponse.json({ notes });
+  const rows = await prisma.note.findMany({
+    where:   { noteType: 'PROJECT_MEETING', projectId: params.id },
+    orderBy: { createdAt: 'desc' },
+  });
+  return NextResponse.json({ notes: rows.map(toMeetingNote) });
 }
 
 export async function POST(request, { params }) {
@@ -45,26 +47,23 @@ export async function POST(request, { params }) {
     isExternalVisible = false,
   } = body;
 
-  const id  = randomUUID();
-  const now = new Date().toISOString();
+  const created = await prisma.note.create({
+    data: {
+      noteType:          'PROJECT_MEETING',
+      projectId:         params.id,
+      title,
+      body:              content,
+      meetingDate:       meetingDate ? new Date(meetingDate) : null,
+      meetingLink:       meetingLink || null,
+      attendees:         attendees ? (typeof attendees === 'string' ? attendees : JSON.stringify(attendees)) : '[]',
+      isExternalVisible: !!isExternalVisible,
+      createdById:       user.id,
+    },
+  });
 
-  await prisma.$executeRawUnsafe(
-    `INSERT INTO "MeetingNote"
-       (id, projectId, title, content, meetingDate, meetingLink, attendees, isExternalVisible, createdAt, updatedAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    id, params.id, title, content, meetingDate, meetingLink, attendees, isExternalVisible ? 1 : 0, now, now
-  );
-
-  const [note] = await prisma.$queryRawUnsafe(
-    `SELECT id, projectId, title, content, meetingDate, meetingLink, attendees, isExternalVisible, createdAt, updatedAt
-     FROM "MeetingNote" WHERE id = ?`,
-    id
-  );
-
-  // Fire external notification if this note is marked external
   if (isExternalVisible) {
-    sendNotification(params.id, 'MEETING_NOTE', { noteId: id, title, meetingDate }).catch(() => {});
+    sendNotification(params.id, 'MEETING_NOTE', { noteId: created.id, title, meetingDate }).catch(() => {});
   }
 
-  return NextResponse.json({ note }, { status: 201 });
+  return NextResponse.json({ note: toMeetingNote(created) }, { status: 201 });
 }

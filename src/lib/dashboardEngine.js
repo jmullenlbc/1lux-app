@@ -111,11 +111,21 @@ export const RELATIVE_DATE_OPTIONS = [
 
 // ── Filter → Prisma where clause ──────────────────────────────────────────
 
-const DATE_FIELDS    = new Set(['expectedOrderDate','createdAt','wonAt','lostAt','nextActionDue']);
-const NUMERIC_FIELDS = new Set(['probability','totalRevenue','designFeeTotal','numberOfUnits']);
+const DATE_FIELDS    = new Set(['expectedOrderDate','createdAt']);
+const NUMERIC_FIELDS = new Set(['pipelineProbability','contractValue','designContractValue']);
+
+// The dashboard now runs on Project (Deal merged in). Translate legacy deal filter
+// field names → project columns; drop filters on fields that no longer exist.
+const FIELD_MAP = {
+  dealStatus: 'procurementStatus', stage: 'procurementStage', probability: 'pipelineProbability',
+  totalRevenue: 'contractValue', designFeeTotal: 'designContractValue', ownerId: 'salesOwnerId',
+};
+const DROP_FILTER_FIELDS = new Set(['pipeline','lostReason','wonAt','lostAt','nextActionDue','numberOfUnits']);
 
 function filterToWhere(rule) {
-  const { field, operator, value } = rule;
+  if (DROP_FILTER_FIELDS.has(rule.field)) return {};
+  const field = FIELD_MAP[rule.field] || rule.field;
+  const { operator, value } = rule;
 
   if (DATE_FIELDS.has(field)) {
     let range = typeof value === 'string' ? resolveRelativeDate(value) : null;
@@ -216,13 +226,26 @@ export async function runWidget(widget, db) {
 
   const where = filtersToWhere(filters);
 
-  const deals = await db.deal.findMany({
+  // The pipeline now lives on Project (Deal merged in). Query projects and shape
+  // each into the deal-like object the grouping/metric logic below expects.
+  const rawProjects = await db.project.findMany({
     where,
     include: {
-      client: { select: { id: true, name: true } },
-      owner:  { select: { id: true, name: true } },
+      client:     { select: { id: true, name: true } },
+      salesOwner: { select: { id: true, name: true } },
     },
   });
+  const deals = rawProjects.map(p => ({
+    ...p,
+    owner:          p.salesOwner,
+    stage:          p.procurementStage,
+    probability:    p.pipelineProbability,
+    dealStatus:     p.procurementStatus,
+    totalRevenue:   p.contractValue,
+    designFeeTotal: p.designContractValue,
+    pipeline:       'PROCUREMENT',
+    lostReason:     null,
+  }));
 
   const { category, metric, viewBy, segmentBy } = widget;
 
@@ -362,13 +385,14 @@ function timeLabelsFromDates(dates, viewBy) {
   return eachMonth(min, max).map(fmtMonthYear);
 }
 
-// ── SALES_ACTIVITY — counts SalesNote rows (meetings, in-person, unique clients) ──
+// ── SALES_ACTIVITY — counts sales Note rows (meetings, in-person, unique clients) ──
 
 async function runSalesActivity(widget, db, filters) {
   const { metric, viewBy } = widget;
   const range = relDateFromFilters(filters, ['meetingDate', 'createdAt', 'date']);
 
-  let notes = await db.salesNote.findMany({
+  let notes = await db.note.findMany({
+    where: { noteType: 'SALES' },
     include: {
       createdBy: { select: { id: true, name: true } },
       clients:   { include: { client: { select: { id: true, name: true } } } },

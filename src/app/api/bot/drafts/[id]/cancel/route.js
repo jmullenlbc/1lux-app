@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { recordDraftOutcome } from '@/lib/bot/ruleEngine';
 
 export async function POST(req, { params }) {
   const { user, error } = await requireAuth();
@@ -24,6 +25,7 @@ export async function POST(req, { params }) {
       cancelledAt: new Date(),
     },
   });
+  await recordDraftOutcome(id, 'REJECTED'); // learning signal
 
   return NextResponse.json({ ok: true });
 }

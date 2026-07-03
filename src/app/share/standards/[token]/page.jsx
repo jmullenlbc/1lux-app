@@ -12,6 +12,8 @@ const WORK_SECTIONS = [
   { id: 'approvals',  label: 'Approvals',           icon: '✅' },
   { id: 'process',    label: 'Process',             icon: '🔄' },
   { id: 'timeframes', label: 'Expected Timeframes', icon: '⏱️' },
+  { id: 'precon',     label: 'Pre-con + Bidding',   icon: '📐' },
+  { id: 'buyout',     label: 'Buyout + Ordering',   icon: '📦' },
 ];
 
 export const dynamic = 'force-dynamic'; // always reflect the client's current standards

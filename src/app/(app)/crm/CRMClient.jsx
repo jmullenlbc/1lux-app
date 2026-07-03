@@ -1,192 +1,107 @@
 'use client';
-import { useState, useMemo, useRef, useCallback } from 'react';
-import DealDrawer from './DealDrawer';
-import DealModal from './DealModal';
+import { useState, useMemo, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  PIPELINE_STAGES, STAGE_LABEL, PIPELINE_STATUS, STATUS_LABEL,
+  stageFieldFor, statusFieldFor, revenueFor, inDesignPipeline, stagesOutOfSync,
+} from '@/lib/pipeline';
 
-// ── Pipeline config ───────────────────────────────────────────────────────────
-
-export const PIPELINE_STAGES = {
-  PROCUREMENT: [
-    { stage: 'QUALIFIED',      label: 'Qualified',       color: '#6b7280', bg: 'bg-slate-100'  },
-    { stage: 'PRECONSTRUCTION',label: 'Pre-Construction', color: '#3b82f6', bg: 'bg-blue-50'    },
-    { stage: 'CONSTRUCTION',   label: 'Construction',    color: '#f59e0b', bg: 'bg-amber-50'   },
-    { stage: 'COMPLETED',      label: 'Completed',       color: '#22c55e', bg: 'bg-green-50'   },
-  ],
-  DESIGN: [
-    { stage: 'DESIGN_QUALIFIED', label: 'Design Qualified', color: '#6b7280', bg: 'bg-slate-100' },
-    { stage: 'PROPOSAL_SENT',    label: 'Proposal Sent',    color: '#3b82f6', bg: 'bg-blue-50'   },
-    { stage: 'DESIGN',           label: 'Design',           color: '#f59e0b', bg: 'bg-amber-50'  },
-    { stage: 'DESIGN_COMPLETED', label: 'Design Completed', color: '#22c55e', bg: 'bg-green-50'  },
-  ],
-};
-
+// Re-exported for the (orphaned, Phase-2) Deal components' imports.
+export { PIPELINE_STAGES };
 export const SERVICE_TYPE_LABELS = {
-  FULL_SERVICE_DESIGN: 'Full Design',
-  DESIGN_ASSIST:       'Design Assist',
-  PEER_REVIEW:         'Peer Review',
-  BID_ONLY:            'Bid Only',
+  fullDesign: 'Full Design', designAssist: 'Design Assist',
+  peerReview: 'Peer Review', bidOnly: 'Bid Only', other: 'Other',
 };
+export const PROJECT_TYPE_LABELS = {};
 
-export const PROJECT_TYPE_LABELS = {
-  MULTI_FAMILY:    'Multi-Family',
-  STUDENT_HOUSING: 'Student Housing',
-  HOSPITALITY:     'Hospitality',
-  OFFICE:          'Office',
-  OTHER:           'Other',
-};
-
-const DEAL_STATUS_CONFIG = {
-  OPEN:      { label: 'Open',      color: 'text-blue-700  bg-blue-50  border-blue-200'   },
-  WON:       { label: 'Won',       color: 'text-green-700 bg-green-50 border-green-200'  },
-  LOST:      { label: 'Lost',      color: 'text-red-700   bg-red-50   border-red-200'    },
-  ABANDONED: { label: 'Abandoned', color: 'text-slate-600 bg-slate-100 border-slate-200' },
-  ON_HOLD:   { label: 'On Hold',   color: 'text-amber-700 bg-amber-50 border-amber-200'  },
+const STATUS_CONFIG = {
+  OPEN:      { label: 'Open',      color: 'text-blue-700  bg-blue-50   border-blue-200'   },
+  WON:       { label: 'Won',       color: 'text-green-700 bg-green-50  border-green-200'  },
+  LOST:      { label: 'Lost',      color: 'text-red-700   bg-red-50    border-red-200'    },
+  COMPLETED: { label: 'Completed', color: 'text-slate-700 bg-slate-100 border-slate-300' },
+  ABANDONED: { label: 'Abandoned', color: 'text-slate-500 bg-slate-50  border-slate-200' },
 };
 
 // ── Formatters ────────────────────────────────────────────────────────────────
-
 function fmtMoney(val) {
   if (val == null) return null;
   if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(1)}M`;
   if (val >= 1_000)     return `$${(val / 1_000).toFixed(0)}K`;
   return `$${val.toLocaleString()}`;
 }
-
 function fmtDate(str) {
   if (!str) return null;
   try { return new Date(str).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }); }
   catch { return null; }
 }
+const svcLabel  = s => SERVICE_TYPE_LABELS[s] || s || null;
+const unitsOf   = p => p.projectData?.numUnits ?? null;
 
-function daysSince(str) {
-  if (!str) return null;
-  return Math.floor((Date.now() - new Date(str).getTime()) / 86_400_000);
-}
-
-// ── Deal Card ─────────────────────────────────────────────────────────────────
-
-function DealCard({ deal, onOpen, onDragStart, onDragEnd, isDragging }) {
-  const st          = DEAL_STATUS_CONFIG[deal.dealStatus]   || DEAL_STATUS_CONFIG.OPEN;
-  const stDes       = DEAL_STATUS_CONFIG[deal.designStatus] || DEAL_STATUS_CONFIG.OPEN;
-  const hasDualStatus = ['FULL_SERVICE_DESIGN', 'DESIGN_ASSIST'].includes(deal.serviceType);
-  const svcLabel    = SERVICE_TYPE_LABELS[deal.serviceType] || deal.serviceType;
-  const lastAct     = deal.activities?.[0];
-  const daysOld     = lastAct ? daysSince(lastAct.createdAt) : null;
-  const isOverdue   = deal.nextActionDue && new Date(deal.nextActionDue) < new Date();
-  const isStale     = daysOld != null && daysOld >= 30 && deal.dealStatus === 'OPEN';
-  const didDrag     = useRef(false);
+// ── Project Card ────────────────────────────────────────────────────────────
+function ProjectCard({ project, pipeline, onOpen, onDragStart, onDragEnd, isDragging }) {
+  const status   = project[statusFieldFor(pipeline)] || 'OPEN';
+  const st       = STATUS_CONFIG[status] || STATUS_CONFIG.OPEN;
+  const rev      = revenueFor(project, pipeline);
+  const outSync  = stagesOutOfSync(project);
+  const didDrag  = useRef(false);
 
   return (
     <div
       draggable
-      onDragStart={e => {
-        didDrag.current = true;
-        e.dataTransfer.effectAllowed = 'move';
-        onDragStart(deal.id);
-      }}
+      onDragStart={e => { didDrag.current = true; e.dataTransfer.effectAllowed = 'move'; onDragStart(project.id); }}
       onDragEnd={() => { onDragEnd(); setTimeout(() => { didDrag.current = false; }, 50); }}
-      onClick={() => { if (!didDrag.current) onOpen(deal); }}
-      className={`bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all cursor-grab active:cursor-grabbing select-none group ${
-        isDragging ? 'opacity-40 scale-[0.97] shadow-none' : ''
-      }`}
+      onClick={() => { if (!didDrag.current) onOpen(project); }}
+      className={`bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all cursor-grab active:cursor-grabbing select-none ${isDragging ? 'opacity-40 scale-[0.97] shadow-none' : ''}`}
     >
-      {/* Top stripe — color by pipeline */}
-      <div className={`h-0.5 rounded-t-xl ${deal.pipeline === 'PROCUREMENT' ? 'bg-orange-400' : 'bg-blue-400'}`} />
-
+      <div className={`h-0.5 rounded-t-xl ${pipeline === 'PROCUREMENT' ? 'bg-orange-400' : 'bg-blue-400'}`} />
       <div className="px-3 py-3">
-        {/* Row 1: deal number + badges */}
         <div className="flex items-center justify-between gap-2 mb-1.5">
           <span className="text-[10px] font-mono font-bold text-slate-400">
-            #{String(deal.dealNumber).padStart(3, '0')}
+            {project.projectNumber ? `PRJ-${String(project.projectNumber).padStart(4, '0')}` : '—'}
           </span>
           <div className="flex items-center gap-1 flex-wrap justify-end">
-            {hasDualStatus ? (
-              <>
-                {deal.dealStatus !== 'OPEN' && (
-                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${st.color}`} title="Procurement">
-                    P: {st.label}
-                  </span>
-                )}
-                {deal.designStatus !== 'OPEN' && (
-                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${stDes.color}`} title="Design">
-                    D: {stDes.label}
-                  </span>
-                )}
-              </>
-            ) : (
-              deal.dealStatus !== 'OPEN' && (
-                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${st.color}`}>
-                  {st.label}
-                </span>
-              )
+            {outSync && (
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200" title="Procurement and Design stages differ">
+                ⚠ stages differ
+              </span>
             )}
-            {svcLabel && (
+            {status !== 'OPEN' && (
+              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${st.color}`}>{st.label}</span>
+            )}
+            {svcLabel(project.serviceType) && (
               <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200">
-                {svcLabel}
+                {svcLabel(project.serviceType)}
               </span>
             )}
           </div>
         </div>
 
-        {/* Row 2: title */}
-        <p className="text-sm font-semibold text-slate-900 leading-snug mb-0.5 line-clamp-2">
-          {deal.title}
-        </p>
+        <p className="text-sm font-semibold text-slate-900 leading-snug mb-0.5 line-clamp-2">{project.name}</p>
 
-        {/* Row 3: client + location */}
         <div className="mb-2">
-          {deal.client && (
-            <p className="text-xs text-slate-500 truncate">{deal.client.name}</p>
-          )}
-          {(deal.city || deal.state) && (
+          {project.client && <p className="text-xs text-slate-500 truncate">{project.client.name}</p>}
+          {(project.city || project.state) && (
             <p className="text-[10px] text-slate-400 truncate">
-              {[deal.city, deal.state].filter(Boolean).join(', ')}
-              {deal.numberOfUnits ? ` · ${deal.numberOfUnits} units` : ''}
+              {[project.city, project.state].filter(Boolean).join(', ')}
+              {unitsOf(project) ? ` · ${unitsOf(project)} units` : ''}
             </p>
           )}
         </div>
 
-        {/* Divider */}
         <div className="border-t border-slate-100 mb-2" />
 
-        {/* Row 4: revenue + date */}
         <div className="flex items-center justify-between text-xs">
           <span className="font-bold text-slate-800">
-            {(() => {
-              const rev = deal.pipeline === 'DESIGN'
-                ? (deal.designFeeTotal ?? deal.totalRevenue)
-                : deal.totalRevenue;
-              return rev ? fmtMoney(rev) : <span className="text-slate-400 font-normal">No value</span>;
-            })()}
+            {rev ? fmtMoney(rev) : <span className="text-slate-400 font-normal">No value</span>}
           </span>
-          {deal.expectedOrderDate && (
-            <span className="text-slate-400">{fmtDate(deal.expectedOrderDate)}</span>
-          )}
+          {project.expectedOrderDate && <span className="text-slate-400">{fmtDate(project.expectedOrderDate)}</span>}
         </div>
 
-        {/* Row 5: probability + staleness + next action */}
-        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-          <div className="flex items-center gap-1">
-            <div className="w-12 h-1 rounded-full bg-slate-200 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-orange-400"
-                style={{ width: `${deal.probability}%` }}
-              />
-            </div>
-            <span className="text-[10px] text-slate-400">{deal.probability}%</span>
+        <div className="flex items-center gap-2 mt-1.5">
+          <div className="w-12 h-1 rounded-full bg-slate-200 overflow-hidden">
+            <div className="h-full rounded-full bg-orange-400" style={{ width: `${project.pipelineProbability ?? 0}%` }} />
           </div>
-          {isStale && (
-            <span className="text-[10px] text-amber-600 font-semibold flex items-center gap-0.5">
-              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
-              {daysOld}d
-            </span>
-          )}
-          {isOverdue && (
-            <span className="text-[10px] text-red-600 font-semibold flex items-center gap-0.5 ml-auto">
-              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"/></svg>
-              Action due
-            </span>
-          )}
+          <span className="text-[10px] text-slate-400">{project.pipelineProbability ?? 0}%</span>
         </div>
       </div>
     </div>
@@ -194,71 +109,37 @@ function DealCard({ deal, onOpen, onDragStart, onDragEnd, isDragging }) {
 }
 
 // ── Kanban Column ─────────────────────────────────────────────────────────────
-
-function KanbanColumn({ stageCfg, deals, pipeline, onOpenDeal, onAddDeal, draggingId, onDragStart, onDragEnd, onDrop }) {
+function KanbanColumn({ stageCfg, projects, pipeline, onOpen, onAdd, draggingId, onDragStart, onDragEnd, onDrop }) {
   const [dragOver, setDragOver] = useState(false);
-  const totalValue = deals.reduce((s, d) => s + (d.totalRevenue || 0) + (d.designFeeTotal || 0), 0);
+  const totalValue = projects.reduce((s, p) => s + (revenueFor(p, pipeline) || 0), 0);
   const isActiveDrop = dragOver && draggingId;
+  const color = '#6b7280';
 
   return (
     <div className="flex flex-col min-w-[260px] w-[260px] shrink-0">
-      {/* Column header */}
-      <div
-        className={`rounded-xl mb-2 px-3 py-2.5 transition-colors ${isActiveDrop ? 'ring-2' : ''}`}
-        style={{
-          border: `1px solid ${isActiveDrop ? stageCfg.color : '#e2e8f0'}`,
-          borderTopColor: stageCfg.color,
-          borderTopWidth: 3,
-          background: isActiveDrop ? `${stageCfg.color}10` : '#f8fafc',
-          ...(isActiveDrop ? { boxShadow: `0 0 0 2px ${stageCfg.color}40` } : {}),
-        }}
-      >
+      <div className="rounded-xl mb-2 px-3 py-2.5" style={{ border: '1px solid #e2e8f0', borderTopColor: color, borderTopWidth: 3, background: '#f8fafc' }}>
         <div className="flex items-center justify-between">
-          <span className="text-xs font-bold" style={{ color: stageCfg.color }}>{stageCfg.label}</span>
-          <span className="text-[10px] font-bold text-slate-400 bg-slate-200 rounded-full px-1.5 py-0.5">{deals.length}</span>
+          <span className="text-xs font-bold text-slate-700">{stageCfg.label}</span>
+          <span className="text-[10px] font-bold text-slate-400 bg-slate-200 rounded-full px-1.5 py-0.5">{projects.length}</span>
         </div>
-        <p className="text-[11px] font-semibold mt-0.5" style={{ color: totalValue > 0 ? stageCfg.color : '#cbd5e1' }}>
-          {totalValue > 0 ? fmtMoney(totalValue) : '—'}
-        </p>
+        <p className="text-[11px] font-semibold mt-0.5 text-slate-500">{totalValue > 0 ? fmtMoney(totalValue) : '—'}</p>
       </div>
 
-      {/* Drop zone */}
       <div
-        className={`flex-1 min-h-[200px] rounded-xl transition-all space-y-2 p-2 ${
-          isActiveDrop
-            ? 'border-2 border-dashed'
-            : 'bg-slate-100/50'
-        }`}
-        style={isActiveDrop ? { borderColor: stageCfg.color, backgroundColor: `${stageCfg.color}08` } : {}}
+        className={`flex-1 min-h-[200px] rounded-xl transition-all space-y-2 p-2 ${isActiveDrop ? 'border-2 border-dashed border-orange-400 bg-orange-50/40' : 'bg-slate-100/50'}`}
         onDragOver={e => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(false); }}
-        onDrop={() => { setDragOver(false); onDrop(stageCfg.stage); }}
+        onDrop={() => { setDragOver(false); onDrop(stageCfg.key); }}
       >
-        {deals.map(deal => (
-          <DealCard
-            key={deal.id}
-            deal={deal}
-            onOpen={onOpenDeal}
-            onDragStart={onDragStart}
-            onDragEnd={onDragEnd}
-            isDragging={draggingId === deal.id}
-          />
+        {projects.map(p => (
+          <ProjectCard key={p.id} project={p} pipeline={pipeline} onOpen={onOpen} onDragStart={onDragStart} onDragEnd={onDragEnd} isDragging={draggingId === p.id} />
         ))}
-
-        {/* Drop hint when dragging over an empty column */}
-        {isActiveDrop && deals.length === 0 && (
-          <div className="flex items-center justify-center h-16 rounded-lg text-xs font-semibold" style={{ color: stageCfg.color }}>
-            Drop here → {stageCfg.label}
-          </div>
+        {isActiveDrop && projects.length === 0 && (
+          <div className="flex items-center justify-center h-16 rounded-lg text-xs font-semibold text-orange-500">Drop here → {stageCfg.label}</div>
         )}
-
-        {/* Add deal button */}
-        <button
-          onClick={() => onAddDeal(stageCfg.stage)}
-          className="w-full py-2 rounded-lg text-xs text-slate-400 hover:text-slate-600 hover:bg-white border border-dashed border-slate-300 hover:border-slate-400 transition-all flex items-center justify-center gap-1"
-        >
+        <button onClick={onAdd} className="w-full py-2 rounded-lg text-xs text-slate-400 hover:text-slate-600 hover:bg-white border border-dashed border-slate-300 hover:border-slate-400 transition-all flex items-center justify-center gap-1">
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-          Add deal
+          New project
         </button>
       </div>
     </div>
@@ -266,21 +147,20 @@ function KanbanColumn({ stageCfg, deals, pipeline, onOpenDeal, onAddDeal, draggi
 }
 
 // ── Pipeline Summary Bar ──────────────────────────────────────────────────────
-
-function PipelineSummary({ deals, pipeline }) {
-  const open    = deals.filter(d => d.pipeline === pipeline && d.dealStatus === 'OPEN');
-  const won     = deals.filter(d => d.pipeline === pipeline && d.dealStatus === 'WON');
-  const onHold  = deals.filter(d => d.pipeline === pipeline && d.dealStatus === 'ON_HOLD');
-  const highProb = open.filter(d => d.probability >= 80);
-
-  const sum = arr => arr.reduce((s, d) => s + (d.totalRevenue || 0) + (d.designFeeTotal || 0), 0);
+function PipelineSummary({ projects, pipeline }) {
+  const sf       = statusFieldFor(pipeline);
+  const open     = projects.filter(p => p[sf] === 'OPEN');
+  const won      = projects.filter(p => p[sf] === 'WON');
+  const lost     = projects.filter(p => p[sf] === 'LOST');
+  const highProb = open.filter(p => (p.pipelineProbability ?? 0) >= 80);
+  const sum = arr => arr.reduce((s, p) => s + (revenueFor(p, pipeline) || 0), 0);
 
   const stats = [
-    { label: 'Open Pipeline',   value: fmtMoney(sum(open))     || '—', color: 'text-slate-900' },
+    { label: 'Open Pipeline',    value: fmtMoney(sum(open))     || '—', color: 'text-slate-900'  },
     { label: 'High Prob (80%+)', value: fmtMoney(sum(highProb)) || '—', color: 'text-orange-600' },
-    { label: 'Won (all time)',   value: fmtMoney(sum(won))      || '—', color: 'text-green-700' },
-    { label: 'On Hold',          value: fmtMoney(sum(onHold))   || '—', color: 'text-amber-600' },
-    { label: 'Open Deals',       value: open.length,                    color: 'text-slate-700' },
+    { label: 'Won (all time)',   value: fmtMoney(sum(won))      || '—', color: 'text-green-700'  },
+    { label: 'Lost',             value: lost.length,                    color: 'text-red-600'    },
+    { label: 'Open Projects',    value: open.length,                    color: 'text-slate-700'  },
   ];
 
   return (
@@ -296,31 +176,22 @@ function PipelineSummary({ deals, pipeline }) {
 }
 
 // ── List View ─────────────────────────────────────────────────────────────────
-
-function ListView({ deals, onOpen, onUpdate, pipeline }) {
-  const [sortKey,       setSortKey]       = useState('updatedAt');
-  const [sortDir,       setSortDir]       = useState('desc');
-  const [editingStatus, setEditingStatus] = useState(null);
-  const [savingStatus,  setSavingStatus]  = useState(null);
-
-  // ── Multi-select ────────────────────────────────────────────────────────────
-  const [selected,    setSelected]    = useState(new Set());
-  const [bulkSaving,  setBulkSaving]  = useState(false);
-  const [bulkDone,    setBulkDone]    = useState(null); // success message
-
-  const stages = PIPELINE_STAGES[pipeline] || [];
-  const stageLabel = s => stages.find(x => x.stage === s)?.label || s;
-  const totalCombined = d => (d.totalRevenue || 0) + (d.designFeeTotal || 0);
+function ListView({ projects, pipeline, onOpen, onUpdate }) {
+  const [sortKey, setSortKey] = useState('updatedAt');
+  const [sortDir, setSortDir] = useState('desc');
+  const [savingStatus, setSavingStatus] = useState(null);
+  const stageField  = stageFieldFor(pipeline);
+  const statusField = statusFieldFor(pipeline);
+  const rev = p => revenueFor(p, pipeline);
 
   function toggleSort(key) {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortKey(key); setSortDir('asc'); }
   }
 
-  const sorted = [...deals].sort((a, b) => {
-    let av = sortKey === 'totalCombined' ? totalCombined(a) : a[sortKey];
-    let bv = sortKey === 'totalCombined' ? totalCombined(b) : b[sortKey];
-    if (sortKey === 'client') { av = a.client?.name || ''; bv = b.client?.name || ''; }
+  const sorted = [...projects].sort((a, b) => {
+    let av = sortKey === 'revenue' ? rev(a) : sortKey === 'stage' ? a[stageField] : sortKey === 'client' ? (a.client?.name || '') : a[sortKey];
+    let bv = sortKey === 'revenue' ? rev(b) : sortKey === 'stage' ? b[stageField] : sortKey === 'client' ? (b.client?.name || '') : b[sortKey];
     if (typeof av === 'string' || typeof bv === 'string') {
       const as = String(av ?? ''), bs = String(bv ?? '');
       return sortDir === 'asc' ? as.localeCompare(bs) : bs.localeCompare(as);
@@ -330,508 +201,210 @@ function ListView({ deals, onOpen, onUpdate, pipeline }) {
     return sortDir === 'asc' ? av - bv : bv - av;
   });
 
-  // Select / deselect helpers
-  const allIds      = sorted.map(d => d.id);
-  const allSelected = allIds.length > 0 && allIds.every(id => selected.has(id));
-  const someSelected = !allSelected && allIds.some(id => selected.has(id));
-
-  function toggleRow(id, e) {
-    e.stopPropagation();
-    setSelected(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  }
-  function toggleAll(e) {
-    e.stopPropagation();
-    setSelected(allSelected ? new Set() : new Set(allIds));
-  }
-  function clearSelection() { setSelected(new Set()); setBulkDone(null); }
-
-  // ── Single-row inline status change ────────────────────────────────────────
-  async function changeStatus(deal, newStatus) {
-    setSavingStatus(deal.id);
-    setEditingStatus(null);
+  async function changeStatus(project, newStatus) {
+    setSavingStatus(project.id);
     try {
-      const res = await fetch(`/api/crm/deals/${deal.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dealStatus: newStatus }),
+      const res = await fetch(`/api/projects/${project.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [statusField]: newStatus }),
       });
-      if (res.ok) onUpdate(await res.json());
-    } finally {
-      setSavingStatus(null);
-    }
-  }
-
-  // ── Bulk update ─────────────────────────────────────────────────────────────
-  async function bulkUpdate(patch) {
-    if (selected.size === 0 || bulkSaving) return;
-    setBulkSaving(true);
-    setBulkDone(null);
-    try {
-      const ids = [...selected];
-      const results = await Promise.allSettled(
-        ids.map(id =>
-          fetch(`/api/crm/deals/${id}`, {
-            method:  'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify(patch),
-          }).then(r => r.ok ? r.json() : Promise.reject(r.status))
-        )
-      );
-      results.forEach(r => { if (r.status === 'fulfilled') onUpdate(r.value); });
-      const ok = results.filter(r => r.status === 'fulfilled').length;
-      setBulkDone(`Updated ${ok} of ${ids.length} deal${ids.length !== 1 ? 's' : ''}`);
-      clearSelection();
-    } finally {
-      setBulkSaving(false);
-    }
+      if (res.ok) { const d = await res.json(); onUpdate(d.project || d); }
+    } finally { setSavingStatus(null); }
   }
 
   const Th = ({ col, label }) => (
-    <th
-      onClick={() => toggleSort(col)}
-      className="px-3 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-600 whitespace-nowrap select-none"
-    >
-      {label}
-      {sortKey === col && <span className="ml-1">{sortDir === 'asc' ? '↑' : '↓'}</span>}
+    <th onClick={() => toggleSort(col)} className="px-3 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-600 whitespace-nowrap select-none">
+      {label}{sortKey === col && <span className="ml-1">{sortDir === 'asc' ? '↑' : '↓'}</span>}
     </th>
   );
 
-  const colSpanTotal = 10;
-
   return (
-    <div className="flex flex-col gap-2">
-
-      {/* ── Bulk action toolbar ─────────────────────────────────────────────── */}
-      {(selected.size > 0 || bulkDone) && (
-        <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-xl shadow-lg flex-wrap">
-          {/* Count */}
-          <span className="text-xs font-bold text-white mr-1">
-            {selected.size > 0 ? `${selected.size} selected` : bulkDone}
-          </span>
-
-          {selected.size > 0 && (
-            <>
-              <div className="w-px h-4 bg-slate-600 mx-1" />
-
-              {/* Change Status */}
-              <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Set Status:</span>
-              {Object.entries(DEAL_STATUS_CONFIG).map(([val, cfg]) => (
-                <button
-                  key={val}
-                  disabled={bulkSaving}
-                  onClick={() => bulkUpdate({ dealStatus: val })}
-                  className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border transition-all disabled:opacity-40 hover:opacity-80 ${cfg.color}`}
-                >
-                  {cfg.label}
-                </button>
-              ))}
-
-              <div className="w-px h-4 bg-slate-600 mx-1" />
-
-              {/* Change Stage */}
-              <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Set Stage:</span>
-              <select
-                disabled={bulkSaving}
-                defaultValue=""
-                onChange={e => { if (e.target.value) { bulkUpdate({ stage: e.target.value }); e.target.value = ''; } }}
-                className="text-[10px] font-semibold border border-slate-600 rounded-lg px-2 py-1 bg-slate-800 text-white focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:opacity-40 cursor-pointer"
-              >
-                <option value="">— pick stage —</option>
-                {stages.map(s => <option key={s.stage} value={s.stage}>{s.label}</option>)}
-              </select>
-
-              <div className="flex-1" />
-            </>
-          )}
-
-          {/* Done toast / clear */}
-          {bulkDone && selected.size === 0 && (
-            <span className="text-xs text-green-400 font-semibold flex items-center gap-1">
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-              {bulkDone}
-            </span>
-          )}
-
-          {bulkSaving && (
-            <span className="text-xs text-slate-400 ml-auto animate-pulse">Saving…</span>
-          )}
-
-          <button
-            onClick={clearSelection}
-            className="ml-auto text-slate-400 hover:text-white transition-colors p-1 rounded"
-            title="Clear selection"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
-        </div>
-      )}
-
-      {/* ── Table ───────────────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr>
-              {/* Select-all checkbox */}
-              <th className="pl-4 pr-2 py-2.5 w-8" onClick={e => e.stopPropagation()}>
-                <input
-                  type="checkbox"
-                  checked={allSelected}
-                  ref={el => { if (el) el.indeterminate = someSelected; }}
-                  onChange={toggleAll}
-                  className="w-3.5 h-3.5 rounded accent-orange-500 cursor-pointer"
-                />
-              </th>
-              <th className="px-3 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider w-14">#</th>
-              <Th col="title"             label="Deal" />
-              <Th col="client"            label="Client" />
-              <Th col="stage"             label="Stage" />
-              <Th col="totalCombined"     label="Total Value" />
-              <Th col="probability"       label="Prob" />
-              <Th col="expectedOrderDate" label="Expected" />
-              <Th col="dealStatus"        label="Status" />
-              <th className="px-3 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Owner</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {sorted.map(deal => {
-              const st         = DEAL_STATUS_CONFIG[deal.dealStatus] || DEAL_STATUS_CONFIG.OPEN;
-              const isSaving   = savingStatus === deal.id;
-              const isEditing  = editingStatus === deal.id;
-              const isSelected = selected.has(deal.id);
-              return (
-                <tr
-                  key={deal.id}
-                  onClick={() => { if (!isEditing) onOpen(deal); }}
-                  className={`cursor-pointer transition-colors ${isSelected ? 'bg-orange-50 hover:bg-orange-50' : 'hover:bg-slate-50'}`}
-                >
-                  {/* Row checkbox */}
-                  <td className="pl-4 pr-2 py-2.5" onClick={e => toggleRow(deal.id, e)}>
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => {}}
-                      className="w-3.5 h-3.5 rounded accent-orange-500 cursor-pointer"
-                    />
-                  </td>
-                  <td className="px-3 py-2.5 text-[10px] font-mono text-slate-400">
-                    #{String(deal.dealNumber).padStart(3, '0')}
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <p className="font-semibold text-slate-900 truncate max-w-[200px]">{deal.title}</p>
-                  </td>
-                  <td className="px-3 py-2.5 text-slate-500 truncate max-w-[140px]">
-                    {deal.client?.name || '—'}
-                  </td>
-                  <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap">
-                    {stageLabel(deal.stage)}
-                  </td>
-                  <td className="px-3 py-2.5 font-semibold text-slate-800 whitespace-nowrap">
-                    {fmtMoney(totalCombined(deal)) || <span className="text-slate-300">—</span>}
-                  </td>
-                  <td className="px-3 py-2.5 whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-10 h-1.5 rounded-full bg-slate-200 overflow-hidden">
-                        <div className="h-full rounded-full bg-orange-400" style={{ width: `${deal.probability}%` }} />
-                      </div>
-                      <span className="text-[11px] text-slate-500">{deal.probability}%</span>
-                    </div>
-                  </td>
-                  <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap text-xs">
-                    {fmtDate(deal.expectedOrderDate) || '—'}
-                  </td>
-                  <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
-                    {isEditing ? (
-                      <select
-                        autoFocus
-                        defaultValue={deal.dealStatus}
-                        onBlur={() => setEditingStatus(null)}
-                        onChange={e => changeStatus(deal, e.target.value)}
-                        className="text-[10px] font-bold border border-slate-300 rounded px-1.5 py-0.5 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400 cursor-pointer"
-                        onClick={e => e.stopPropagation()}
-                      >
-                        {Object.entries(DEAL_STATUS_CONFIG).map(([v, c]) => (
-                          <option key={v} value={v}>{c.label}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <button
-                        title="Click to change status"
-                        disabled={isSaving}
-                        onClick={e => { e.stopPropagation(); setEditingStatus(deal.id); }}
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded border transition-all hover:scale-105 disabled:opacity-50 ${st.color}`}
-                      >
-                        {isSaving ? '…' : st.label}
-                      </button>
-                    )}
-                  </td>
-                  <td className="px-3 py-2.5 text-slate-500 text-xs whitespace-nowrap">
-                    {deal.owner?.name || '—'}
-                  </td>
-                </tr>
-              );
-            })}
-            {sorted.length === 0 && (
-              <tr>
-                <td colSpan={colSpanTotal} className="px-4 py-12 text-center text-slate-400 text-sm">
-                  No deals match your filters.
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <table className="w-full text-sm">
+        <thead className="bg-slate-50 border-b border-slate-200">
+          <tr>
+            <th className="px-3 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider w-16">#</th>
+            <Th col="name" label="Project" />
+            <Th col="client" label="Client" />
+            <Th col="stage" label="Stage" />
+            <Th col="revenue" label={pipeline === 'DESIGN' ? 'Design Fee' : 'Product Sale'} />
+            <Th col="pipelineProbability" label="Prob" />
+            <Th col="expectedOrderDate" label="Expected" />
+            <Th col={statusField} label="Status" />
+            <th className="px-3 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sales Owner</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {sorted.map(project => {
+            const st = STATUS_CONFIG[project[statusField]] || STATUS_CONFIG.OPEN;
+            return (
+              <tr key={project.id} onClick={() => onOpen(project)} className="cursor-pointer hover:bg-slate-50 transition-colors">
+                <td className="px-3 py-2.5 text-[10px] font-mono text-slate-400">{project.projectNumber ? `PRJ-${String(project.projectNumber).padStart(4, '0')}` : '—'}</td>
+                <td className="px-3 py-2.5"><p className="font-semibold text-slate-900 truncate max-w-[200px]">{project.name}</p></td>
+                <td className="px-3 py-2.5 text-slate-500 truncate max-w-[140px]">{project.client?.name || '—'}</td>
+                <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap">{STAGE_LABEL[project[stageField]] || project[stageField]}</td>
+                <td className="px-3 py-2.5 font-semibold text-slate-800 whitespace-nowrap">{fmtMoney(rev(project)) || <span className="text-slate-300">—</span>}</td>
+                <td className="px-3 py-2.5 whitespace-nowrap">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-10 h-1.5 rounded-full bg-slate-200 overflow-hidden"><div className="h-full rounded-full bg-orange-400" style={{ width: `${project.pipelineProbability ?? 0}%` }} /></div>
+                    <span className="text-[11px] text-slate-500">{project.pipelineProbability ?? 0}%</span>
+                  </div>
                 </td>
+                <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap text-xs">{fmtDate(project.expectedOrderDate) || '—'}</td>
+                <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
+                  <select
+                    value={project[statusField] || 'OPEN'}
+                    disabled={savingStatus === project.id}
+                    onChange={e => changeStatus(project, e.target.value)}
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded border cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-400 ${st.color}`}
+                  >
+                    {PIPELINE_STATUS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                  </select>
+                </td>
+                <td className="px-3 py-2.5 text-slate-500 text-xs whitespace-nowrap">{project.salesOwner?.name || '—'}</td>
               </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            );
+          })}
+          {sorted.length === 0 && (
+            <tr><td colSpan={9} className="px-4 py-12 text-center text-slate-400 text-sm">No projects match your filters.</td></tr>
+          )}
+        </tbody>
+      </table>
     </div>
   );
 }
 
 // ── Main CRMClient ────────────────────────────────────────────────────────────
-
-export default function CRMClient({ initialDeals, clients, users, currentUser }) {
-  const [deals,       setDeals]       = useState(initialDeals);
-  const [pipeline,    setPipeline]    = useState('PROCUREMENT');
-  const [viewMode,    setViewMode]    = useState('kanban'); // 'kanban' | 'list'
-  const [drawerDeal,  setDrawerDeal]  = useState(null);  // deal object or null
-  const [createModal, setCreateModal] = useState(null);  // null | { stage, pipeline }
-  const [filters,     setFilters]     = useState({
-    search:      '',
-    dealStatus:  '',  // '' (all) | OPEN | WON | LOST | ON_HOLD
-    serviceType: '',
-    ownerId:     '',
-  });
-
-  const dragId     = useRef(null);
+export default function CRMClient({ initialProjects, users }) {
+  const router = useRouter();
+  const [projects, setProjects] = useState(initialProjects || []);
+  const [pipeline, setPipeline] = useState('PROCUREMENT');
+  const [viewMode, setViewMode] = useState('kanban');
+  const [filters,  setFilters]  = useState({ search: '', status: '', serviceType: '', salesOwnerId: '' });
+  const dragId = useRef(null);
   const [draggingId, setDraggingId] = useState(null);
 
-  // ── Filtered deals ──────────────────────────────────────────────────────────
-  const filtered = useMemo(() => {
-    return deals.filter(d => {
-      if (d.pipeline !== pipeline) return false;
-      if (filters.dealStatus  && d.dealStatus  !== filters.dealStatus)  return false;
-      if (filters.serviceType && d.serviceType !== filters.serviceType) return false;
-      if (filters.ownerId     && d.ownerId     !== filters.ownerId)     return false;
-      if (filters.search) {
-        const q = filters.search.toLowerCase();
-        if (
-          !d.title.toLowerCase().includes(q) &&
-          !(d.client?.name || '').toLowerCase().includes(q) &&
-          !(d.notes || '').toLowerCase().includes(q)
-        ) return false;
-      }
-      return true;
-    });
-  }, [deals, pipeline, filters]);
+  const stages      = PIPELINE_STAGES[pipeline] || [];
+  const stageField  = stageFieldFor(pipeline);
+  const statusField = statusFieldFor(pipeline);
 
-  const dealsByStage = useMemo(() => {
+  // Board membership: Procurement = all; Design = design-fee service types only.
+  const inBoard = p => pipeline === 'DESIGN' ? inDesignPipeline(p.serviceType) : true;
+
+  const filtered = useMemo(() => projects.filter(p => {
+    if (!inBoard(p)) return false;
+    if (filters.status && p[statusField] !== filters.status) return false;
+    if (filters.serviceType    && p.serviceType    !== filters.serviceType)    return false;
+    if (filters.salesOwnerId   && p.salesOwner?.id !== filters.salesOwnerId)   return false;
+    if (filters.search) {
+      const q = filters.search.toLowerCase();
+      if (!(p.name || '').toLowerCase().includes(q) && !(p.client?.name || '').toLowerCase().includes(q)) return false;
+    }
+    return true;
+  }), [projects, pipeline, filters]);
+
+  const byStage = useMemo(() => {
     const map = {};
-    const stages = PIPELINE_STAGES[pipeline] || [];
-    stages.forEach(s => { map[s.stage] = []; });
-    filtered.forEach(d => { if (map[d.stage]) map[d.stage].push(d); });
+    stages.forEach(s => { map[s.key] = []; });
+    filtered.forEach(p => { const k = p[stageField]; if (map[k]) map[k].push(p); });
     return map;
   }, [filtered, pipeline]);
 
-  // ── Drag and drop ───────────────────────────────────────────────────────────
-  function handleDragStart(id) {
-    dragId.current = id;
-    setDraggingId(id);
-  }
-  function handleDragEnd() {
-    dragId.current = null;
-    setDraggingId(null);
-  }
+  function handleDragStart(id) { dragId.current = id; setDraggingId(id); }
+  function handleDragEnd()      { dragId.current = null; setDraggingId(null); }
 
   async function handleDrop(newStage) {
     const id = dragId.current;
-    dragId.current = null;
-    setDraggingId(null);
+    dragId.current = null; setDraggingId(null);
     if (!id) return;
-    const deal = deals.find(d => d.id === id);
-    if (!deal || deal.stage === newStage) return;
-
-    // Optimistic update
-    setDeals(prev => prev.map(d => d.id === id ? { ...d, stage: newStage } : d));
-
-    // Persist — stage change logs activity in the API
+    const project = projects.find(p => p.id === id);
+    if (!project || project[stageField] === newStage) return;
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, [stageField]: newStage } : p));
     try {
-      const res = await fetch(`/api/crm/deals/${id}`, {
-        method:  'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ stage: newStage }),
+      const res = await fetch(`/api/projects/${id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [stageField]: newStage }),
       });
       if (!res.ok) throw new Error('failed');
-      const updated = await res.json();
-      setDeals(prev => prev.map(d => d.id === id ? updated : d));
     } catch {
-      // Rollback
-      setDeals(prev => prev.map(d => d.id === id ? deal : d));
+      setProjects(prev => prev.map(p => p.id === id ? project : p));
     }
   }
 
-  // ── Deal CRUD callbacks ─────────────────────────────────────────────────────
-  function handleDealCreated(newDeal) {
-    setDeals(prev => [newDeal, ...prev]);
-    setCreateModal(null);
-    setDrawerDeal(newDeal);
+  function handleUpdated(updated) {
+    setProjects(prev => prev.map(p => p.id === updated.id ? { ...p, ...updated } : p));
   }
 
-  function handleDealUpdated(updated) {
-    setDeals(prev => prev.map(d => d.id === updated.id ? updated : d));
-    setDrawerDeal(updated);
-  }
-
-  function handleDealDeleted(id) {
-    setDeals(prev => prev.filter(d => d.id !== id));
-    setDrawerDeal(null);
-  }
-
-  // ── Refresh a single deal (for drawer activity updates) ──────────────────
-  async function refreshDeal(id) {
-    try {
-      const res  = await fetch(`/api/crm/deals/${id}`);
-      const data = await res.json();
-      setDeals(prev => prev.map(d => d.id === id ? data : d));
-      setDrawerDeal(data);
-    } catch {}
-  }
-
-  const stages = PIPELINE_STAGES[pipeline] || [];
+  const openProject = p => router.push(`/project/${p.id}`);
+  const newProject  = () => router.push('/project/new');
 
   return (
     <div className="flex flex-col h-screen bg-slate-50 overflow-hidden">
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-0.5">
-              <span className="text-[10px] font-bold text-orange-500 uppercase tracking-wider">ILC Studios</span>
-            </div>
+            <span className="text-[10px] font-bold text-orange-500 uppercase tracking-wider">ILC Studios</span>
             <h1 className="text-xl font-bold text-slate-900">Pipeline</h1>
           </div>
 
-          {/* Pipeline tabs */}
           <div className="flex items-center bg-slate-100 rounded-xl p-1 gap-1">
             {['PROCUREMENT', 'DESIGN'].map(p => (
-              <button
-                key={p}
-                onClick={() => setPipeline(p)}
-                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  pipeline === p
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
+              <button key={p} onClick={() => setPipeline(p)} className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${pipeline === p ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                 {p === 'PROCUREMENT' ? '📦 Procurement' : '✏️ Design'}
               </button>
             ))}
           </div>
 
-          {/* View toggle + New deal */}
           <div className="flex items-center gap-2">
             <div className="flex bg-slate-100 rounded-xl p-1 gap-1">
-              <button
-                onClick={() => setViewMode('kanban')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${viewMode === 'kanban' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 4.5v15m6-15v15M3.75 9h16.5M3.75 15h16.5" /></svg>
-                Board
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
-                List
-              </button>
+              <button onClick={() => setViewMode('kanban')} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${viewMode === 'kanban' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}>Board</button>
+              <button onClick={() => setViewMode('list')}   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${viewMode === 'list'   ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}>List</button>
             </div>
-
-            <button
-              onClick={() => setCreateModal({ stage: stages[0]?.stage, pipeline })}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition-colors shadow-sm"
-            >
+            <button onClick={newProject} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition-colors shadow-sm">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-              New Deal
+              New Project
             </button>
           </div>
         </div>
 
-        {/* Filter bar */}
+        {/* Filters */}
         <div className="flex items-center gap-2 mt-3 flex-wrap">
-          {/* Search */}
           <div className="relative">
             <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
-            <input
-              value={filters.search}
-              onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
-              placeholder="Search deals…"
-              className="pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-orange-400 w-44"
-            />
+            <input value={filters.search} onChange={e => setFilters(f => ({ ...f, search: e.target.value }))} placeholder="Search projects…" className="pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-orange-400 w-44" />
           </div>
-
-          {/* Status filter */}
           <div className="flex items-center gap-1">
-            {[
-              { val: '',        label: 'All'     },
-              { val: 'OPEN',    label: 'Open'    },
-              { val: 'WON',     label: 'Won'     },
-              { val: 'ON_HOLD', label: 'On Hold' },
-            ].map(s => (
-              <button
-                key={s.val}
-                onClick={() => setFilters(f => ({ ...f, dealStatus: s.val }))}
-                className={`px-2.5 py-1.5 text-[10px] font-bold rounded-lg transition-colors ${
-                  filters.dealStatus === s.val
-                    ? 'bg-slate-900 text-white'
-                    : 'text-slate-500 hover:bg-slate-200'
-                }`}
-              >
-                {s.label}
-              </button>
+            {[{ val: '', label: 'All' }, { val: 'OPEN', label: 'Open' }, { val: 'WON', label: 'Won' }, { val: 'LOST', label: 'Lost' }].map(s => (
+              <button key={s.val} onClick={() => setFilters(f => ({ ...f, status: s.val }))} className={`px-2.5 py-1.5 text-[10px] font-bold rounded-lg transition-colors ${filters.status === s.val ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-200'}`}>{s.label}</button>
             ))}
           </div>
-
-          {/* Service type filter */}
-          <select
-            value={filters.serviceType}
-            onChange={e => setFilters(f => ({ ...f, serviceType: e.target.value }))}
-            className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-orange-400"
-          >
+          <select value={filters.serviceType} onChange={e => setFilters(f => ({ ...f, serviceType: e.target.value }))} className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-orange-400">
             <option value="">All service types</option>
             {Object.entries(SERVICE_TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
-
-          {/* Owner filter */}
-          <select
-            value={filters.ownerId}
-            onChange={e => setFilters(f => ({ ...f, ownerId: e.target.value }))}
-            className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-orange-400"
-          >
+          <select value={filters.salesOwnerId} onChange={e => setFilters(f => ({ ...f, salesOwnerId: e.target.value }))} className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-orange-400">
             <option value="">All owners</option>
-            {users.map(u => <option key={u.id} value={u.id}>{u.name || u.email}</option>)}
+            {(users || []).map(u => <option key={u.id} value={u.id}>{u.name || u.email}</option>)}
           </select>
-
-          <span className="text-xs text-slate-400 ml-auto">{filtered.length} deal{filtered.length !== 1 ? 's' : ''}</span>
+          <span className="text-xs text-slate-400 ml-auto">{filtered.length} project{filtered.length !== 1 ? 's' : ''}</span>
         </div>
       </div>
 
-      {/* ── Body ── */}
+      {/* Body */}
       <div className="flex-1 overflow-hidden flex flex-col px-6 py-4">
-        {/* Pipeline summary */}
-        <PipelineSummary deals={deals} pipeline={pipeline} />
+        <PipelineSummary projects={filtered} pipeline={pipeline} />
 
-        {/* Kanban */}
         {viewMode === 'kanban' && (
           <div className="flex gap-3 overflow-x-auto flex-1 pb-4">
             {stages.map(stageCfg => (
               <KanbanColumn
-                key={stageCfg.stage}
+                key={stageCfg.key}
                 stageCfg={stageCfg}
-                deals={dealsByStage[stageCfg.stage] || []}
+                projects={byStage[stageCfg.key] || []}
                 pipeline={pipeline}
-                onOpenDeal={deal => setDrawerDeal(deal)}
-                onAddDeal={stage => setCreateModal({ stage, pipeline })}
+                onOpen={openProject}
+                onAdd={newProject}
                 draggingId={draggingId}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
@@ -841,45 +414,12 @@ export default function CRMClient({ initialDeals, clients, users, currentUser })
           </div>
         )}
 
-        {/* List */}
         {viewMode === 'list' && (
           <div className="flex-1 overflow-y-auto">
-            <ListView
-              deals={filtered}
-              onOpen={deal => setDrawerDeal(deal)}
-              onUpdate={handleDealUpdated}
-              pipeline={pipeline}
-            />
+            <ListView projects={filtered} pipeline={pipeline} onOpen={openProject} onUpdate={handleUpdated} />
           </div>
         )}
       </div>
-
-      {/* ── Deal Drawer ── */}
-      {drawerDeal && (
-        <DealDrawer
-          deal={drawerDeal}
-          clients={clients}
-          users={users}
-          currentUser={currentUser}
-          onClose={() => setDrawerDeal(null)}
-          onUpdate={handleDealUpdated}
-          onDelete={handleDealDeleted}
-          onRefresh={() => refreshDeal(drawerDeal.id)}
-        />
-      )}
-
-      {/* ── Create/Edit Deal Modal ── */}
-      {createModal && (
-        <DealModal
-          defaultPipeline={createModal.pipeline}
-          defaultStage={createModal.stage}
-          clients={clients}
-          users={users}
-          currentUser={currentUser}
-          onSave={handleDealCreated}
-          onClose={() => setCreateModal(null)}
-        />
-      )}
     </div>
   );
 }

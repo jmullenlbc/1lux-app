@@ -11,24 +11,25 @@ export default async function NotesPage() {
   const { user, error } = await requireAuth();
   if (error) redirect('/login');
 
-  let notes = [], clients = [], deals = [];
+  let notes = [], clients = [], projects = [];
   try {
-  [notes, clients, deals] = await Promise.all([
-    prisma.salesNote.findMany({
+  [notes, clients, projects] = await Promise.all([
+    prisma.note.findMany({
+      where: { noteType: 'SALES' },
       orderBy: [{ meetingDate: 'desc' }, { updatedAt: 'desc' }],
       include: {
         createdBy: { select: { id: true, name: true } },
-        clients: { include: { client: { select: { id: true, clientNumber: true, name: true, type: true } } } },
-        deals:   { include: { deal:   { select: { id: true, dealNumber: true, title: true, pipeline: true, stage: true } } } },
+        clients:  { include: { client:  { select: { id: true, clientNumber: true, name: true, type: true } } } },
+        projects: { include: { project: { select: { id: true, projectNumber: true, name: true, serviceType: true, procurementStage: true, designStage: true } } } },
       },
     }),
     prisma.client.findMany({
       orderBy: { name: 'asc' },
       select: { id: true, clientNumber: true, name: true, type: true },
     }),
-    prisma.deal.findMany({
-      orderBy: [{ pipeline: 'asc' }, { updatedAt: 'desc' }],
-      select: { id: true, dealNumber: true, title: true, pipeline: true, stage: true, dealStatus: true,
+    prisma.project.findMany({
+      orderBy: { updatedAt: 'desc' },
+      select: { id: true, projectNumber: true, name: true, serviceType: true, procurementStage: true, designStage: true, procurementStatus: true, designStatus: true,
                 client: { select: { id: true, name: true } } },
     }),
   ]);
@@ -40,7 +41,7 @@ export default async function NotesPage() {
     <NotesClient
       initialNotes={notes}
       clients={clients}
-      deals={deals}
+      projects={projects}
       currentUser={{ id: user.id, name: user.name, email: user.email, role: user.role }}
     />
   );

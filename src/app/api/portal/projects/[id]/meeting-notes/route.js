@@ -14,13 +14,15 @@ export async function GET(req, { params }) {
   }
 
   // Only return notes explicitly marked as visible to external contacts
-  const notes = await prisma.$queryRawUnsafe(
-    `SELECT id, title, content, meetingDate, attendees, createdAt, updatedAt
-     FROM "MeetingNote"
-     WHERE "projectId" = ? AND "isExternalVisible" = 1
-     ORDER BY "createdAt" DESC`,
-    params.id
-  );
+  const rows = await prisma.note.findMany({
+    where:   { noteType: 'PROJECT_MEETING', projectId: params.id, isExternalVisible: true },
+    orderBy: { createdAt: 'desc' },
+    select:  { id: true, title: true, body: true, meetingDate: true, attendees: true, createdAt: true, updatedAt: true },
+  });
+  const notes = rows.map(n => ({
+    id: n.id, title: n.title, content: n.body, meetingDate: n.meetingDate,
+    attendees: n.attendees === '[]' ? null : n.attendees, createdAt: n.createdAt, updatedAt: n.updatedAt,
+  }));
 
   return NextResponse.json({ notes });
 }

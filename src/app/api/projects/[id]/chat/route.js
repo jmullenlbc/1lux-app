@@ -82,11 +82,13 @@ export async function POST(request, { params }) {
     project.clientId
       ? prisma.client.findUnique({ where: { id: project.clientId }, select: { name: true } })
       : Promise.resolve(null),
-    prisma.$queryRawUnsafe(
-      `SELECT id, title, content, meetingDate, meetingLink, attendees, createdAt, updatedAt
-       FROM "MeetingNote" WHERE projectId = ? ORDER BY meetingDate DESC, createdAt DESC`,
-      params.id
-    ).catch(() => []),
+    prisma.note.findMany({
+      where:   { noteType: 'PROJECT_MEETING', projectId: params.id },
+      orderBy: [{ meetingDate: 'desc' }, { createdAt: 'desc' }],
+    }).then(rows => rows.map(n => ({
+      id: n.id, title: n.title, content: n.body, meetingDate: n.meetingDate,
+      meetingLink: n.meetingLink, attendees: n.attendees, createdAt: n.createdAt, updatedAt: n.updatedAt,
+    }))).catch(() => []),
     loadPricing().catch(() => null),
   ]);
 

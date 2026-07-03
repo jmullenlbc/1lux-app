@@ -20,17 +20,18 @@ export async function PATCH(request, { params }) {
   const { err, contact } = await authorizeContact(params.id, params.contactId, user);
   if (err) return err;
 
-  const { name, title, email, phone } = await request.json();
+  const { name, title, email, phone, department } = await request.json();
   if (name !== undefined && !name?.trim())
     return NextResponse.json({ error: 'Name is required' }, { status: 400 });
 
   const updated = await prisma.clientContact.update({
     where: { id: contact.id },
     data: {
-      ...(name  !== undefined && { name: name.trim() }),
-      ...(title !== undefined && { title: title || null }),
-      ...(email !== undefined && { email: email || null }),
-      ...(phone !== undefined && { phone: phone || null }),
+      ...(name       !== undefined && { name: name.trim() }),
+      ...(title      !== undefined && { title: title || null }),
+      ...(email      !== undefined && { email: email || null }),
+      ...(phone      !== undefined && { phone: phone || null }),
+      ...(department !== undefined && { department: department || null }),
     },
   });
 

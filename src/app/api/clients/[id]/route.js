@@ -53,7 +53,7 @@ export async function PATCH(request, { params }) {
     email, phone, website, address, city, state,
     linkedIn, primaryContact, primaryContactTitle,
     primaryContactEmail, primaryContactPhone,
-    tier, markets, developerType, orgTypes, ownerId,
+    tier, markets, geographies, projectTypes, projectsPerYear, pipelinePerUnit, developerType, orgTypes, ownerId,
   } = body;
 
   if (name !== undefined && !name?.trim()) {
@@ -80,6 +80,10 @@ export async function PATCH(request, { params }) {
       ...(primaryContactPhone !== undefined && { primaryContactPhone: primaryContactPhone || null }),
       ...(tier                !== undefined && { tier: tier || null }),
       ...(markets             !== undefined && { markets: JSON.stringify(markets) }),
+      ...(geographies         !== undefined && { geographies: JSON.stringify(geographies) }),
+      ...(projectTypes        !== undefined && { projectTypes: JSON.stringify(projectTypes) }),
+      ...(projectsPerYear     !== undefined && { projectsPerYear: parseInt(projectsPerYear) || null }),
+      ...(pipelinePerUnit     !== undefined && { pipelinePerUnit: pipelinePerUnit === '' || pipelinePerUnit == null ? null : Number(pipelinePerUnit) }),
       ...(developerType       !== undefined && { developerType: developerType || null }),
       ...(orgTypes            !== undefined && { orgTypes: JSON.stringify(orgTypes) }),
       ...(ownerId             !== undefined && { ownerId: ownerId || null }),

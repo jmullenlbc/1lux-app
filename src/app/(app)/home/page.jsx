@@ -79,62 +79,47 @@ export default async function HomePage() {
 
     safe('productCount', () => prisma.manufacturerProduct.count(), 0),
 
-    // Total open deal count
+    // Total open (pipeline) project count
     safe('openDeals', () =>
-      prisma.deal.count({ where: { dealStatus: 'OPEN' } }), 0),
+      prisma.project.count({ where: { procurementStatus: 'OPEN' } }), 0),
 
-    // Recent open deals for pipeline widget
+    // Recent open projects for pipeline widget (shaped to the legacy deal shape)
     safe('recentOpenDeals', () =>
-      prisma.deal.findMany({
-        where: { dealStatus: 'OPEN' }, take: 5, orderBy: { updatedAt: 'desc' },
+      prisma.project.findMany({
+        where: { procurementStatus: 'OPEN' }, take: 5, orderBy: { updatedAt: 'desc' },
         select: {
-          id: true, dealNumber: true, title: true,
-          pipeline: true, stage: true, totalRevenue: true, probability: true,
+          id: true, projectNumber: true, name: true, procurementStage: true,
+          contractValue: true, pipelineProbability: true, updatedAt: true,
           client: { select: { id: true, name: true } },
-          updatedAt: true,
         },
-      }), []),
+      }).then(rows => rows.map(p => ({
+        id: p.id, dealNumber: p.projectNumber, title: p.name, pipeline: 'PROCUREMENT',
+        stage: p.procurementStage, totalRevenue: p.contractValue, probability: p.pipelineProbability,
+        client: p.client, updatedAt: p.updatedAt,
+      }))), []),
 
-    // Won deals this calendar year
+    // Won projects this calendar year
     safe('wonThisYear', () =>
-      prisma.deal.findMany({
-        where: { dealStatus: 'WON', wonAt: { gte: yearStart } },
-        select: {
-          id: true, dealNumber: true, title: true,
-          pipeline: true, totalRevenue: true, wonAt: true,
-          client: { select: { id: true, name: true } },
-        },
-        orderBy: { wonAt: 'desc' },
-      }), []),
+      prisma.project.findMany({
+        where: { procurementStatus: 'WON', updatedAt: { gte: yearStart } },
+        select: { id: true, projectNumber: true, name: true, contractValue: true, updatedAt: true, client: { select: { id: true, name: true } } },
+        orderBy: { updatedAt: 'desc' },
+      }).then(rows => rows.map(p => ({
+        id: p.id, dealNumber: p.projectNumber, title: p.name, pipeline: 'PROCUREMENT',
+        totalRevenue: p.contractValue, wonAt: p.updatedAt, client: p.client,
+      }))), []),
 
-    // Deals with action due in the next 7 days OR overdue
-    // Use AND array — combining `not: null` with `lte` in a single object is unreliable on PostgreSQL
-    safe('upcomingActions', () =>
-      prisma.deal.findMany({
-        where: {
-          dealStatus: 'OPEN',
-          AND: [
-            { nextActionDue: { not: null } },
-            { nextActionDue: { lte: in7days } },
-          ],
-        },
-        orderBy: { nextActionDue: 'asc' },
-        take: 10,
-        select: {
-          id: true, dealNumber: true, title: true,
-          nextActionText: true, nextActionDue: true,
-          pipeline: true,
-          client: { select: { id: true, name: true } },
-          owner:  { select: { id: true, name: true } },
-        },
-      }), []),
+    // Next-action reminders lived on the Deal; projects don't carry one yet.
+    safe('upcomingActions', () => Promise.resolve([]), []),
 
-    // All open deals for pipeline calculations
+    // All open projects for pipeline value calculations
     safe('pipelineDeals', () =>
-      prisma.deal.findMany({
-        where: { dealStatus: 'OPEN' },
-        select: { totalRevenue: true, probability: true, pipeline: true, stage: true },
-      }), []),
+      prisma.project.findMany({
+        where: { procurementStatus: 'OPEN' },
+        select: { contractValue: true, pipelineProbability: true, procurementStage: true },
+      }).then(rows => rows.map(p => ({
+        totalRevenue: p.contractValue, probability: p.pipelineProbability, pipeline: 'PROCUREMENT', stage: p.procurementStage,
+      }))), []),
 
     // Unique sales reps — orderBy required for DISTINCT ON in PostgreSQL
     safe('salesReps', () =>

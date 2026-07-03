@@ -36,11 +36,16 @@ export async function PATCH(request, { params }) {
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const body = await request.json();
-  const { name, buildingType, location, address, date, status, currentStep, completedSteps, contactEmail, clientId, phase, city, state, serviceType, flagged, flagNote, contractValue, contractSignedDate, designContractValue, designContractSignedDate, constructionStartDate, mepRoughInDate, constructionEndDate, budgetType, budgetSentDate, peerReviewMatrixType } = body;
+  const { name, buildingType, location, address, date, status, currentStep, completedSteps, contactEmail, clientId, phase, city, state, serviceType, flagged, flagNote, contractValue, contractSignedDate, designContractValue, designContractSignedDate, constructionStartDate, mepRoughInDate, constructionEndDate, budgetType, budgetSentDate, peerReviewMatrixType,
+    // ── Pipeline / CRM fields (merged from Deal) ──
+    projectType, procurementStage, designStage, pipelineProbability, procurementStatus, designStatus, expectedOrderDate, salesOwnerId } = body;
 
   const validPhases      = ['sd', 'dd', 'cd', 'ifc', 'construction', 'closeout'];
   const validBudgetTypes = ['conceptual', 'design', 'peer_review'];
   const validServiceTypes = ['fullDesign', 'designAssist', 'peerReview', 'bidOnly', 'other'];
+  const validProcurementStages = ['QUALIFIED', 'PRECONSTRUCTION', 'CONSTRUCTION', 'COMPLETED'];
+  const validDesignStages      = ['DESIGN_QUALIFIED', 'PROPOSAL_SENT', 'DESIGN', 'DESIGN_COMPLETED'];
+  const validPipelineStatus    = ['OPEN', 'WON', 'LOST', 'COMPLETED', 'ABANDONED'];
 
   const updated = await prisma.project.update({
     where: { id: params.id },
@@ -71,6 +76,15 @@ export async function PATCH(request, { params }) {
       ...(budgetType     !== undefined && validBudgetTypes.includes(budgetType) && { budgetType }),
       ...(budgetSentDate !== undefined && { budgetSentDate: budgetSentDate ? new Date(budgetSentDate) : null }),
       ...(peerReviewMatrixType !== undefined && ['PEER_REVIEW', 'DESIGN_BID'].includes(peerReviewMatrixType) && { peerReviewMatrixType }),
+      // ── Pipeline / CRM fields (merged from Deal — a project IS the pipeline entity) ──
+      ...(projectType         !== undefined && { projectType: projectType || null }),
+      ...(procurementStage    !== undefined && validProcurementStages.includes(procurementStage) && { procurementStage }),
+      ...(designStage         !== undefined && validDesignStages.includes(designStage) && { designStage }),
+      ...(pipelineProbability !== undefined && { pipelineProbability: pipelineProbability === null ? 50 : Math.max(0, Math.min(100, Number(pipelineProbability))) }),
+      ...(procurementStatus   !== undefined && validPipelineStatus.includes(procurementStatus) && { procurementStatus }),
+      ...(designStatus        !== undefined && validPipelineStatus.includes(designStatus) && { designStatus }),
+      ...(expectedOrderDate   !== undefined && { expectedOrderDate: expectedOrderDate ? new Date(expectedOrderDate) : null }),
+      ...(salesOwnerId        !== undefined && { salesOwnerId: salesOwnerId || null }),
     },
     include: { projectData: true },
   });

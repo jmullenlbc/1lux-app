@@ -33,7 +33,7 @@ export async function POST(request, { params }) {
   const { err } = await authorizeClient(params.id, user);
   if (err) return err;
 
-  const { name, title, email, phone } = await request.json();
+  const { name, title, email, phone, department } = await request.json();
   if (!name?.trim()) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
 
   const contact = await prisma.clientContact.create({
@@ -43,6 +43,7 @@ export async function POST(request, { params }) {
       title: title || null,
       email: email || null,
       phone: phone || null,
+      department: department || null,
     },
   });
 
