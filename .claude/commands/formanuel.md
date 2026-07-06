@@ -2,7 +2,7 @@
 description: Orient Manuel for a new session -- loads full project context, current tasks, and confirms readiness
 ---
 
-You are a fresh Claude Code instance. Read everything below, then read the two live files listed at the end. Then greet Manny with a warm, specific orientation that confirms you're fully educated and tells him exactly what to do over the next two days.
+You are a fresh Claude Code instance. Read everything below, then read the two live files listed at the end. Then greet Manny with a warm, specific orientation that confirms you're fully educated and tells him exactly what to do.
 
 ## Project
 
@@ -13,7 +13,6 @@ ILC Lighting App -- internal tool for ILC Studios (lighting consultancy). Produc
 - **Mike Kershner** -- founder, lead dev, pushes directly to `main`
 - **Sean McCauley** -- Manny's reviewer, merges all Manny's PRs
 - **Manny (here now)** -- part-time dev ~10 hr/week, always uses `manny/*` branches + PRs
-- **Mason** -- project manager, using the conceptual budget tool for real client work this week
 
 ## Manny's mandatory workflow
 
@@ -31,21 +30,20 @@ Six checks: dynamic-pages, postgres-migrations, schema-sync, npm test (38 scenar
 
 - Every `(app)/` page must export `export const dynamic = 'force-dynamic'`
 - `schema.prisma` must stay `provider = "sqlite"` -- Amplify patches it at build time
-- `src/lib/calculations.js` is the budget engine -- validated to 2.3%, do not touch unless explicitly asked
+- `src/lib/calculations.js` is the budget engine -- validated, do not touch unless explicitly asked
 - Every API route calls `requireAuth(request)` at the top
 - Local dev login: `admin@ilcstudios.com` / `ILCadmin2024!`
 
-## Current state (as of 2026-06-23)
+## Current state (as of 2026-07-06)
 
-- Tasks 1 (wizard dirty-tracking) and 2 (section manual adders) -- both complete
-- Engine math is validated and trusted. Mason is using the tool for real client budgets this week.
-- PDFs (print layout) -- Sean's job, not Manny's
+- Tasks 1–5 all merged to main (2026-06-24): wizard dirty-tracking, section manual adders, activity feed filters, old→new activity values, budget change history.
+- Now on Tasks 6–9: all CRM-side work in `src/app/(app)/crm/CRMClient.jsx`. No engine or schema changes.
+- Mike's recent deploy unified the Deal model into Project. `DealCard`, `DealDrawer`, and the activities API are gone. The pipeline entity is now `Project` with `procurementStatus`/`designStatus` fields.
 
 ## Key files
 
-- `src/lib/activity.js` -- activity logging helpers (Manny's current work area)
-- `src/components/ProjectActivityFeed.jsx` -- activity feed UI (Task 3 target)
-- `src/app/(app)/project/[id]/summary/page.jsx` -- Summary page (Task 5 target)
+- `src/app/(app)/crm/CRMClient.jsx` -- all four active tasks live here
+- `src/lib/pipeline.js` -- pipeline helpers (statusFieldFor, stageFieldFor, etc.) already imported in CRMClient
 - `.claude/manny-tasks.md` -- Manny's live task queue (read this now)
 - `.claude/coordination.md` -- cross-team log (read top 40 lines)
 
@@ -59,8 +57,8 @@ Six checks: dynamic-pages, postgres-migrations, schema-sync, npm test (38 scenar
 After reading both files:
 
 1. **Greet Manny by name** -- one warm sentence
-2. **Confirm you're educated** -- mention one or two specifics (e.g. the engine validation, his completed tasks) so he knows you actually read it
-3. **Two-day plan** -- Tasks 3, 4, 5 briefly: what they are, which to start, what the very first step is
+2. **Confirm you're educated** -- mention one or two specifics from the task specs so he knows you actually read them
+3. **Current task plan** -- briefly cover Tasks 6 and 7 (the two small ones to start), what they are, and what the very first step is
 4. **End with:** "Ready to branch and start, or do you want to talk through anything first?"
 
 Tone: warm, efficient. Manny wants to be in motion. Short sentences.
