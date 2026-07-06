@@ -1,6 +1,6 @@
 'use client';
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { buildingTypeLabel } from '@/lib/utils';
+import { buildingTypeLabel, PROJECT_TYPES, projectTypeLabel } from '@/lib/utils';
 import { PIPELINE_STAGES, STAGE_LABEL, STATUS_LABEL, PIPELINE_STATUS, inDesignPipeline, stagesOutOfSync } from '@/lib/pipeline';
 import MissingInputsWarning from './MissingInputsWarning';
 
@@ -182,6 +182,9 @@ export default function ProjectDashboard({
   // ── Sales / Pipeline fields live on the project itself (Deal merged in) ──────
   const isDesignPipeline = inDesignPipeline(project.serviceType);
   const combinedRevenue  = (project.contractValue || 0) + (project.designContractValue || 0);
+  // Average Probability — mean of the two entered values (falls back to whichever is present).
+  const _probParts = [project.probabilityToWin, project.probabilityToMoveForward].filter(v => v != null && v !== '');
+  const avgProbability = _probParts.length ? Math.round(_probParts.reduce((a, b) => a + Number(b), 0) / _probParts.length) : null;
   const outOfSync        = stagesOutOfSync(project);
 
   // Sales Owner dropdown — Sales-division users only.
@@ -434,7 +437,7 @@ export default function ProjectDashboard({
           {isDesignPipeline && (
             <EditableStat label="Design Stage" displayValue={STAGE_LABEL[project.designStage] || 'Design Qualified'} rawValue={project.designStage || 'DESIGN_QUALIFIED'} onSave={p('designStage')} select options={DESIGN_STAGE_OPTIONS} />
           )}
-          <EditableStat label="Project Type" displayValue={project.projectType} rawValue={project.projectType || ''} onSave={p('projectType')} />
+          <EditableStat label="Project Type" displayValue={project.projectType ? projectTypeLabel(project.projectType) : null} rawValue={project.projectType || ''} onSave={p('projectType')} select options={[{ value: '', label: '— Select —' }, ...PROJECT_TYPES]} />
           <EditableStat label="Procurement Status" displayValue={STATUS_LABEL[project.procurementStatus] || 'Open'} rawValue={project.procurementStatus || 'OPEN'} onSave={p('procurementStatus')} select options={STATUS_OPTIONS} />
           {isDesignPipeline && (
             <EditableStat label="Design Status" displayValue={STATUS_LABEL[project.designStatus] || 'Open'} rawValue={project.designStatus || 'OPEN'} onSave={p('designStatus')} select options={STATUS_OPTIONS} />
@@ -446,7 +449,9 @@ export default function ProjectDashboard({
           <EditableStat label="Product Sale Total ($)" displayValue={fmt(project.contractValue)}       rawValue={project.contractValue ?? ''}       onSave={p('contractValue')} />
           <EditableStat label="Design Fee Total ($)"   displayValue={fmt(project.designContractValue)} rawValue={project.designContractValue ?? ''} onSave={p('designContractValue')} />
           <ReadStat     label="Total Combined ($)"     value={fmt(combinedRevenue)} accent="text-blue-600" />
-          <EditableStat label="Probability"            displayValue={project.pipelineProbability != null ? `${project.pipelineProbability}%` : null} rawValue={project.pipelineProbability ?? 50} onSave={p('pipelineProbability')} type="number" />
+          <EditableStat label="Probability to Win (%)"          displayValue={project.probabilityToWin != null ? `${project.probabilityToWin}%` : null}                 rawValue={project.probabilityToWin ?? ''}          onSave={p('probabilityToWin')} type="number" />
+          <EditableStat label="Probability to Move Forward (%)" displayValue={project.probabilityToMoveForward != null ? `${project.probabilityToMoveForward}%` : null} rawValue={project.probabilityToMoveForward ?? ''} onSave={p('probabilityToMoveForward')} type="number" />
+          <ReadStat     label="Average Probability (%)"          value={avgProbability != null ? `${avgProbability}%` : null} accent="text-blue-600" />
           <EditableStat label="Expected Order Date"
             displayValue={project.expectedOrderDate ? new Date(project.expectedOrderDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null}
             rawValue={project.expectedOrderDate ? new Date(project.expectedOrderDate).toISOString().slice(0, 10) : ''}

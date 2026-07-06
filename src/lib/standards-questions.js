@@ -200,12 +200,6 @@ export const STANDARDS_SECTIONS = [
         ],
       },
       {
-        key:       'unit_kitchen_pendants_styles',
-        label:     'Preferred pendant styles',
-        hint:      'Pick 5 styles',
-        inputType: 'TEXT',
-      },
-      {
         key:       'unit_balcony',
         label:     'Balcony / patio fixture',
         hint:      'Units with balconies — disk, sconce, or nothing?',
@@ -216,12 +210,6 @@ export const STANDARDS_SECTIONS = [
           { value: 'DISK',   label: 'Ceiling disk (wet-listed)'  },
           { value: 'SCONCE', label: 'Wall sconce'                },
         ],
-      },
-      {
-        key:       'unit_balcony_styles',
-        label:     'Preferred balcony fixture styles',
-        hint:      'Pick 3 styles',
-        inputType: 'TEXT',
       },
     ],
   },
@@ -373,12 +361,6 @@ export const STANDARDS_SECTIONS = [
           { value: '8FT', label: '8 ft' },
           { value: '9FT', label: '9 ft' },
         ],
-      },
-      {
-        key:       'corridor_entry_sconce_styles',
-        label:     'Unit entry sconce — preferred styles',
-        hint:      'Pick 5 styles',
-        inputType: 'TEXT',
       },
       {
         key:       'corridor_light_ends',

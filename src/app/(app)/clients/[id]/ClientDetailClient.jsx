@@ -9,6 +9,8 @@ import {
 } from '@/lib/standards-questions';
 import PlaybookTab from './PlaybookTab';
 import PipelineTab from './PipelineTab';
+import StandardFixtureScheduleTab from './StandardFixtureScheduleTab';
+import ProductOptionsTab from './ProductOptionsTab';
 import ShareStandardsButton from './ShareStandardsButton';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -44,6 +46,8 @@ const TABS = [
   { id: 'people',     label: 'People'         },
   { id: 'playbook',   label: 'Playbook'       },
   { id: 'standards',  label: 'Standards'      },
+  { id: 'productOptions',  label: 'Product Options' },
+  { id: 'fixtureSchedule', label: 'Fixture Schedule' },
   { id: 'projects',   label: 'Projects'       },
   { id: 'projectData', label: 'Project Data'  },
   { id: 'pipeline',   label: 'Pipeline'       },
@@ -236,6 +240,7 @@ function EditModal({ client, onClose, onSave }) {
     geographies:         parseJSON(client.geographies),
     projectTypes:        parseJSON(client.projectTypes),
     projectsPerYear:     client.projectsPerYear     ?? '',
+    paymentTerms:        client.paymentTerms         || '',
     notes:               client.notes               || '',
     ownerId:             client.ownerId              || '',
   });
@@ -310,6 +315,17 @@ function EditModal({ client, onClose, onSave }) {
                       className={`px-4 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${
                         form.tier === t ? 'bg-slate-800 text-white border-slate-800' : 'border-slate-200 text-slate-500 hover:border-slate-400'
                       }`}>Tier {t}</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Payment terms</label>
+                <div className="flex flex-wrap gap-2">
+                  {['NET30', 'NET45', 'NET60', 'OTHER'].map(t => (
+                    <button key={t} type="button" onClick={() => set('paymentTerms', form.paymentTerms === t ? '' : t)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${
+                        form.paymentTerms === t ? 'bg-slate-800 text-white border-slate-800' : 'border-slate-200 text-slate-500 hover:border-slate-400'
+                      }`}>{t === 'OTHER' ? 'Other' : t.replace('NET', 'NET ')}</button>
                   ))}
                 </div>
               </div>
@@ -534,6 +550,11 @@ function OverviewTab({ client, onEditClick }) {
             {devType && (
               <div className="text-xs text-slate-400 mb-1">
                 <span className="font-semibold text-slate-500">Developer type: </span>{devType}
+              </div>
+            )}
+            {client.paymentTerms && (
+              <div className="text-xs text-slate-400 mb-1">
+                <span className="font-semibold text-slate-500">Payment terms: </span>{client.paymentTerms === 'OTHER' ? 'Other' : client.paymentTerms.replace('NET', 'NET ')}
               </div>
             )}
             {/* Pre-construction email — GC clients only */}
@@ -1701,6 +1722,12 @@ export default function ClientDetailClient({ client: initial, availableProjects,
             initialAnswers={initialStandardsAnswers}
             canEdit={canEditStandards}
           />
+        )}
+        {activeTab === 'productOptions' && (
+          <ProductOptionsTab clientId={client.id} canEdit={canEditStandards} />
+        )}
+        {activeTab === 'fixtureSchedule' && (
+          <StandardFixtureScheduleTab clientId={client.id} canEdit={canEditStandards} />
         )}
       </div>
 

@@ -67,6 +67,23 @@ export function serviceTypeLabel(key) {
   return SERVICE_TYPES.find(t => t.value === key)?.label || key || '—';
 }
 
+// Project's asset/product type — one controlled vocabulary used across the platform
+// (Sales Details editor, dashboards). Distinct from BUILDING_TYPES (construction form).
+export const PROJECT_TYPES = [
+  { value: 'Multi-Family',  label: 'Multi-Family' },
+  { value: 'BTR',           label: 'BTR (Build to Rent)' },  // typically townhomes
+  { value: 'Student',       label: 'Student Housing' },
+  { value: 'Senior',        label: 'Senior Living' },
+  { value: 'Affordable',    label: 'Affordable' },
+  { value: 'Mixed-Use',     label: 'Mixed-Use' },
+  { value: 'Hospitality',   label: 'Hospitality' },
+  { value: 'Other',         label: 'Other' },
+];
+
+export function projectTypeLabel(key) {
+  return PROJECT_TYPES.find(t => t.value === key)?.label || key || '—';
+}
+
 export const BUILDING_TYPES = [
   { value: 'singleFamily', label: 'Single Family (1-2 Levels)'         },
   { value: 'townHouses',   label: 'Town Houses (2-3 Levels)'           },

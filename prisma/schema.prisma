@@ -40,6 +40,8 @@ model User {
   tasksCreated       Task[]                     @relation("TaskCreator")
   tasksAssigned      Task[]                     @relation("TaskAssignee")
   dashboards         Dashboard[]                @relation("DashboardCreator")
+  ownedDashboards    Dashboard[]                @relation("DashboardOwner")
+  dashboardShares    DashboardShare[]           @relation("DashboardSharedWith")
   standardsAnswers   ClientStandardsAnswer[]    @relation("AnsweredByUser")
   standardsOverrides ProjectStandardsOverride[] @relation("OverrideActivator")
   confirmedFixtures  PlacedFixture[]            @relation("FixtureConfirmer")
@@ -224,10 +226,12 @@ model Client {
   kbSections       ClientKBSection[]
   crmContacts      Contact[]
   standardsAnswers ClientStandardsAnswer[]
+  standardFixtures ClientStandardFixture[]
+  productOptions   ClientProductOption[]
   noteLinks        NoteClient[]
   standardsShare   ClientStandardsShare?
   playbook         ClientPlaybook?
-  playbookRelationships PlaybookRelationship[] @relation("ClientPlaybookRelationships")
+  paymentTerms     String?  // NET30 | NET45 | NET60 | OTHER — shown on Overview (moved off Playbook)
   playbookAssignments   PlaybookAssignment[]   @relation("ClientPlaybookAssignments")
   playbookDistribution  PlaybookDistribution[] @relation("ClientPlaybookDistribution")
   playbookNotes         PlaybookNote[]         @relation("ClientPlaybookNotes")
@@ -246,10 +250,7 @@ model ClientPlaybook {
   // Section 1 — Account Profile (relationships normalized → PlaybookRelationship)
   projectTypes    String?  // JSON array: ['BTR','GARDEN','PODIUM','HIGHRISE','LIHTC']
   projectsPerYear Int?
-  primaryMarkets  String?
-  costTierNotes   String?
-  primaryContactId  String?  // Contact id (resolved in UI/queries)
-  approverContactId String?
+  primaryMarkets  String?  // JSON array of US state codes
 
   // Section 2 — Introductions & Onboarding
   introOwnerContactId String?  // who introduces ILC (Contact id)
@@ -262,12 +263,9 @@ model ClientPlaybook {
   // Section 3 — Communication posture (recipients normalized → PlaybookDistribution)
   commsPosture      String?  // e.g. "CC more, not less"
 
-  // Section 6 — Process & Timeframes
+  // Section 5 — Process & Timeframes
   engagementTiming  String?  // SD|DD|CD|BID|VARIES
   submittalPlatform String?  // EMAIL|PROCORE|BUILDING_CONNECTED|BLUEBEAM|OTHER
-  coTolerance       String?  // TIGHT|NORMAL|FLEXIBLE
-  mgmtStructure     String?  // CENTRAL|REGIONAL|MIXED
-  hasDesignTeam     Boolean  @default(false)
   processNotes      String?
   engagementLeadTime     String?
   budgetCadence          String?
@@ -275,39 +273,13 @@ model ClientPlaybook {
   typicalSdToCd          String?
   rfiResponseExpectation String?
   timeframeNotes         String?
-
-  // Section 4 — Approvals (signers/invoicing normalized → PlaybookAssignment)
-  paymentTerms      String?  // NET30 | NET45 | NET60 | OTHER
-
-  // Section 5 — Logistics
-  storageDuration        String?
-  receivingPartyContactId String?  // who receives/stores on site (Contact id)
-  receivingPartyNote     String?
-  freightWarehousing     String?
-  damageInventory        String?
-  logisticsNotes         String?
+  // (paymentTerms moved to Client; costTier/contacts/CO-tolerance/mgmt/design-team/logistics removed — not used with clients)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 // ── Normalized Playbook data (Option B — queryable + bot-actionable) ───────────
-
-model PlaybookRelationship {
-  id          String   @id @default(cuid())
-  clientId    String
-  client      Client   @relation("ClientPlaybookRelationships", fields: [clientId], references: [id], onDelete: Cascade)
-  kind        String   // ARCHITECT | ENGINEER | GC
-  exists      Boolean  @default(false)
-  firm        String?
-  contactId   String?  // Contact id (resolved in UI/queries)
-  introStatus String?  // NOT_INTRODUCED | INTRODUCED | WORKING
-  gcModel     String?  // GC only
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  @@unique([clientId, kind])
-}
 
 model PlaybookAssignment {
   id        String   @id @default(cuid())
@@ -445,7 +417,10 @@ model Project {
   projectType              String?                       // Multi-Family, etc. (from Deal)
   procurementStage         String    @default("QUALIFIED")        // Procurement board column
   designStage              String    @default("DESIGN_QUALIFIED")  // Design board column (dual-pipeline only)
-  pipelineProbability      Int       @default(50)
+  pipelineProbability      Int       @default(50)   // legacy single probability (kept; = probabilityToWin)
+  probabilityToWin         Int?                     // % chance ILC wins the job
+  probabilityToMoveForward Int?                     // % chance the project moves forward at all
+  // Average Probability (mean of the two above) is DERIVED, never stored — computed in the sales provider.
   procurementStatus        String    @default("OPEN")    // OPEN | WON | LOST | COMPLETED | ABANDONED
   designStatus             String    @default("OPEN")    // dual-pipeline (Full Design / Design Assist) only
   expectedOrderDate        DateTime?
@@ -1065,12 +1040,17 @@ model DesignBidMatrix {
 model Dashboard {
   id          String            @id @default(cuid())
   name        String
-  isDefault   Boolean           @default(false)
+  section     String            @default("SALES")  // MAIN | SALES | BUDGET | CONSTRUCTION | DESIGN | FINANCE
+  isDefault   Boolean           @default(false)    // the admin default for its section (ownerUserId null)
+  ownerUserId String?                              // null = shared/admin default; set = a user's personal copy
+  owner       User?             @relation("DashboardOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
   createdById String
   createdBy   User              @relation("DashboardCreator", fields: [createdById], references: [id])
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
   widgets     DashboardWidget[]
+  shares      DashboardShare[]
+  @@index([section, ownerUserId])
 }
 
 model DashboardWidget {
@@ -1083,9 +1063,22 @@ model DashboardWidget {
   viewBy      String
   segmentBy   String?
   filters     String    @default("[]")
+  chartType   String    @default("BAR")           // BAR | LINE
+  dataSpec    String?                             // JSON for field-picker widgets: { fields, op, groupBy, ... }
   position    Int
   width       String    @default("HALF")
   createdAt   DateTime  @default(now())
+}
+model DashboardShare {
+  id               String    @id @default(cuid())
+  dashboardId      String
+  dashboard        Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  sharedWithUserId String
+  sharedWith       User      @relation("DashboardSharedWith", fields: [sharedWithUserId], references: [id], onDelete: Cascade)
+  createdById      String
+  createdAt        DateTime  @default(now())
+  @@unique([dashboardId, sharedWithUserId])
+  @@index([sharedWithUserId])
 }
 
 model MasterType {
@@ -1180,6 +1173,59 @@ model StandardsAnswerConcept {
   updatedAt   DateTime @updatedAt
   @@index([clientId, questionKey])
   @@index([answerId])
+}
+
+// ═══ PRODUCT OPTIONS (the "Alternate Options" approval funnel — matches LAC) ═══
+// A pool of product options per category. Approve/reject; approved options feed the
+// standard fixture schedule. Columns mirror LAC: Concept Link · Notes · Price
+// Estimate · Price Target · Approved, grouped by Category.
+model ClientProductOption {
+  id            String   @id @default(cuid())
+  clientId      String
+  client        Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  category      String   @default("")   // 'Vanity' | 'Kitchen Pendants' | 'Ceiling Fans' ...
+  name          String   @default("")   // 'Cone glass'  (the "concept link" label)
+  imageKey      String?                 // uploaded picture
+  productUrl    String?                 // concept link
+  notes         String?
+  priceEstimate Float?
+  priceTarget   Float?
+  status        String   @default("PENDING")  // PENDING | APPROVED | REJECTED
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@index([clientId, category])
+}
+
+// ═══ CLIENT STANDARD FIXTURE SCHEDULE ═══
+// The client's standard fixture schedule — assembled AFTER spec approvals. One row
+// per fixture type, carrying the approved option's picture + target price. The exact
+// SKU (manufacturer/catalogNumber) is picked per project by a person, not locked here.
+model ClientStandardFixture {
+  id            String   @id @default(cuid())
+  clientId      String
+  client        Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  typeCode      String   @default("")   // 'C1','D2','P1','X3'
+  location      String   @default("")   // UNITS | CORRIDOR | GARAGE | BOH | AMENITY | EXTERIOR
+  description   String   @default("")
+  imageKey      String?                 // approved product picture (carried from the option)
+  priceTarget   Float?                  // target price (carried from the option)
+  productUrl    String?
+  manufacturer  String?                 // optional; exact SKU picked per project
+  catalogNumber String?
+  finish        String?
+  cct           String?
+  lumens        String?
+  wattage       String?
+  voltage       String?
+  dimming       String?
+  mounting      String?
+  notes         String?
+  optionId      String?                 // provenance: the approved ClientProductOption this came from
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@index([clientId])
 }
 
 model ProjectStandardsOverride {

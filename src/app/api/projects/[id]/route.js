@@ -38,7 +38,9 @@ export async function PATCH(request, { params }) {
   const body = await request.json();
   const { name, buildingType, location, address, date, status, currentStep, completedSteps, contactEmail, clientId, phase, city, state, serviceType, flagged, flagNote, contractValue, contractSignedDate, designContractValue, designContractSignedDate, constructionStartDate, mepRoughInDate, constructionEndDate, budgetType, budgetSentDate, peerReviewMatrixType,
     // ── Pipeline / CRM fields (merged from Deal) ──
-    projectType, procurementStage, designStage, pipelineProbability, procurementStatus, designStatus, expectedOrderDate, salesOwnerId } = body;
+    projectType, procurementStage, designStage, pipelineProbability, probabilityToWin, probabilityToMoveForward, procurementStatus, designStatus, expectedOrderDate, salesOwnerId } = body;
+
+  const clampPct = v => v === null || v === '' ? null : Math.max(0, Math.min(100, Number(v)));
 
   const validPhases      = ['sd', 'dd', 'cd', 'ifc', 'construction', 'closeout'];
   const validBudgetTypes = ['conceptual', 'design', 'peer_review'];
@@ -81,6 +83,8 @@ export async function PATCH(request, { params }) {
       ...(procurementStage    !== undefined && validProcurementStages.includes(procurementStage) && { procurementStage }),
       ...(designStage         !== undefined && validDesignStages.includes(designStage) && { designStage }),
       ...(pipelineProbability !== undefined && { pipelineProbability: pipelineProbability === null ? 50 : Math.max(0, Math.min(100, Number(pipelineProbability))) }),
+      ...(probabilityToWin         !== undefined && { probabilityToWin:         clampPct(probabilityToWin) }),
+      ...(probabilityToMoveForward !== undefined && { probabilityToMoveForward: clampPct(probabilityToMoveForward) }),
       ...(procurementStatus   !== undefined && validPipelineStatus.includes(procurementStatus) && { procurementStatus }),
       ...(designStatus        !== undefined && validPipelineStatus.includes(designStatus) && { designStatus }),
       ...(expectedOrderDate   !== undefined && { expectedOrderDate: expectedOrderDate ? new Date(expectedOrderDate) : null }),

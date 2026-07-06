@@ -366,12 +366,13 @@ export default function Sidebar({ user }) {
   const startsWith = (path) => pathname.startsWith(path);
 
   // ── Route groupings ──────────────────────────────────────────────────────────
-  const homeRelated     = at('/home') || startsWith('/dashboard') ||
+  const homeRelated     = at('/home') || startsWith('/dashboard') || startsWith('/dashboards/main') ||
                           (startsWith('/project') && !startsWith('/project/new')) ||
                           startsWith('/knowledge-base');
-  const crmRelated      = startsWith('/crm') || startsWith('/clients') || startsWith('/sales') || startsWith('/market-intel');
+  const crmRelated      = startsWith('/crm') || startsWith('/clients') || startsWith('/sales') ||
+                          startsWith('/market-intel') || startsWith('/dashboards/sales');
   const preconRelated   = startsWith('/pre-con') || startsWith('/manufacturers') ||
-                          startsWith('/sales-reps') || startsWith('/products');
+                          startsWith('/sales-reps') || startsWith('/products') || startsWith('/dashboards/budget');
   const softwareRelated = startsWith('/admin/changelog') || startsWith('/admin/roadmap') ||
                           startsWith('/admin/tasks') || startsWith('/admin/tech-stack');
 
@@ -449,11 +450,11 @@ export default function Sidebar({ user }) {
             isActive={homeRelated}
             isOpen={homeOpen}
             expanded={expanded}
-            onClick={() => expanded ? setHomeOpen(o => !o) : router.push('/home')}
+            onClick={() => expanded ? setHomeOpen(o => !o) : router.push('/dashboards/main')}
           />
           {expanded && homeOpen && (
             <div className="mt-0.5 space-y-0.5 ml-1">
-              <SubNavItem href="/home"      icon={<IconGrid />}   label="Overview"  expanded={expanded} active={at('/home')} />
+              <SubNavItem href="/dashboards/main" icon={<IconBarChart />}  label="Dashboard"  expanded={expanded} active={startsWith('/dashboards/main')} />
               <SubNavItem href="/dashboard" icon={<IconFolder />} label="Projects"  expanded={expanded} active={at('/dashboard') || (startsWith('/project') && !startsWith('/project/new'))} />
               <SubNavItem href="/knowledge-base" icon={<IconBook />} label="Knowledge Base" expanded={expanded} active={startsWith('/knowledge-base')} />
             </div>
@@ -474,7 +475,7 @@ export default function Sidebar({ user }) {
             <div className="mt-0.5 space-y-0.5 ml-1">
               <SubNavItem href="/clients"        icon={<IconClientUsers />}     label="Clients"     expanded={expanded} active={startsWith('/clients')} />
               <SubNavItem href="/crm"            icon={<IconPipeline />}        label="Pipeline"    expanded={expanded} active={at('/crm') || (crmRelated && !startsWith('/crm/dashboards') && !startsWith('/crm/notes') && !startsWith('/crm/intel') && !startsWith('/clients'))} />
-              <SubNavItem href="/crm/dashboards" icon={<IconDashboardWidget />} label="Dashboards"  expanded={expanded} active={startsWith('/crm/dashboards')} />
+              <SubNavItem href="/dashboards/sales" icon={<IconBarChart />}      label="Dashboard"   expanded={expanded} active={startsWith('/dashboards/sales')} />
               <SubNavItem href="/crm/notes"      icon={<IconNotes />}           label="Sales Notes" expanded={expanded} active={startsWith('/crm/notes')} />
               <SubNavItem href="/crm/intel"      icon={<IconNews />}            label="Intel"       expanded={expanded} active={startsWith('/crm/intel')} />
               <SubNavItem href="/sales/proposals"  icon={<IconDoc />}      label="Proposals"           expanded={expanded} active={startsWith('/sales/proposals')} />
@@ -498,6 +499,7 @@ export default function Sidebar({ user }) {
           />
           {expanded && preconOpen && (
             <div className="mt-0.5 space-y-0.5 ml-1">
+              <SubNavItem href="/dashboards/budget" icon={<IconBarChart />} label="Dashboard"    expanded={expanded} active={startsWith('/dashboards/budget')} />
               <SubNavItem href="/manufacturers" icon={<IconFactory />} label="Manufacturers" expanded={expanded} active={startsWith('/manufacturers')} />
               <SubNavItem href="/sales-reps"    icon={<IconTag />}     label="Sales Reps"    expanded={expanded} active={startsWith('/sales-reps')} />
               <SubNavItem href="/products"      icon={<IconPackage />} label="Products"      expanded={expanded} active={startsWith('/products')} />

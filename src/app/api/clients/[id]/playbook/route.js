@@ -8,19 +8,14 @@ function isAdmin(session) { return session.role === 'ILC_ADMIN' || session.role 
 // Flat ClientPlaybook columns the client may write (no id/clientId/timestamps).
 const WRITABLE = [
   // §1 Account Profile
-  'projectTypes', 'projectsPerYear', 'primaryMarkets', 'costTierNotes',
-  'primaryContactId', 'approverContactId',
+  'projectTypes', 'projectsPerYear', 'primaryMarkets',
   // §2 Introductions & Onboarding
   'introOwnerContactId', 'introOwnerNote', 'onVendorList', 'vendorListNote', 'pipelineFeed', 'introNotes',
   // §3 Communication posture
   'commsPosture',
-  // §6 Process & Timeframes
-  'engagementTiming', 'submittalPlatform', 'coTolerance', 'mgmtStructure', 'hasDesignTeam', 'processNotes',
+  // §4 Process & Timeframes
+  'engagementTiming', 'submittalPlatform', 'processNotes',
   'engagementLeadTime', 'budgetCadence', 'submittalTurnaround', 'typicalSdToCd', 'rfiResponseExpectation', 'timeframeNotes',
-  // §4 Approvals
-  'paymentTerms',
-  // §5 Logistics
-  'storageDuration', 'receivingPartyContactId', 'receivingPartyNote', 'freightWarehousing', 'damageInventory', 'logisticsNotes',
 ];
 
 // ── GET — scalars + all normalized collections ────────────────────────────────
@@ -31,15 +26,14 @@ export async function GET(req, { params }) {
   if (!(isAdmin(session) || p.clients === true || p.clients === 'read'))
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const [playbook, relationships, assignments, distribution, notes] = await Promise.all([
+  const [playbook, assignments, distribution, notes] = await Promise.all([
     prisma.clientPlaybook.findUnique({ where: { clientId: params.id } }),
-    prisma.playbookRelationship.findMany({ where: { clientId: params.id } }),
     prisma.playbookAssignment.findMany({ where: { clientId: params.id } }),
     prisma.playbookDistribution.findMany({ where: { clientId: params.id }, orderBy: { createdAt: 'asc' } }),
     prisma.playbookNote.findMany({ where: { clientId: params.id }, orderBy: { sortOrder: 'asc' } }),
   ]);
 
-  return NextResponse.json({ playbook: playbook || null, relationships, assignments, distribution, notes });
+  return NextResponse.json({ playbook: playbook || null, assignments, distribution, notes });
 }
 
 // ── PUT — partial save: only the keys present in the body are touched ──────────
@@ -64,22 +58,7 @@ export async function PUT(req, { params }) {
     }
   }
 
-  // 2) Relationships — upsert each provided kind (ARCHITECT/ENGINEER/GC)
-  if (Array.isArray(body.relationships)) {
-    for (const r of body.relationships) {
-      if (!r?.kind) continue;
-      const fields = {
-        exists: !!r.exists, firm: r.firm || null, contactId: r.contactId || null,
-        introStatus: r.introStatus || null, gcModel: r.gcModel || null, notes: r.notes || null,
-      };
-      await prisma.playbookRelationship.upsert({
-        where: { clientId_kind: { clientId, kind: r.kind } },
-        update: fields, create: { clientId, kind: r.kind, ...fields },
-      });
-    }
-  }
-
-  // 3) Assignments — upsert each provided role (clears contact when empty)
+  // 2) Assignments — upsert each provided role (clears contact when empty)
   if (Array.isArray(body.assignments)) {
     for (const a of body.assignments) {
       if (!a?.role) continue;
@@ -111,12 +90,11 @@ export async function PUT(req, { params }) {
     ]);
   }
 
-  const [playbook, relationships, assignments, distribution, notes] = await Promise.all([
+  const [playbook, assignments, distribution, notes] = await Promise.all([
     prisma.clientPlaybook.findUnique({ where: { clientId } }),
-    prisma.playbookRelationship.findMany({ where: { clientId } }),
     prisma.playbookAssignment.findMany({ where: { clientId } }),
     prisma.playbookDistribution.findMany({ where: { clientId }, orderBy: { createdAt: 'asc' } }),
     prisma.playbookNote.findMany({ where: { clientId }, orderBy: { sortOrder: 'asc' } }),
   ]);
-  return NextResponse.json({ playbook: playbook || null, relationships, assignments, distribution, notes });
+  return NextResponse.json({ playbook: playbook || null, assignments, distribution, notes });
 }

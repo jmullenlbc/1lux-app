@@ -53,7 +53,7 @@ export async function PATCH(request, { params }) {
     email, phone, website, address, city, state,
     linkedIn, primaryContact, primaryContactTitle,
     primaryContactEmail, primaryContactPhone,
-    tier, markets, geographies, projectTypes, projectsPerYear, pipelinePerUnit, developerType, orgTypes, ownerId,
+    tier, markets, geographies, projectTypes, projectsPerYear, pipelinePerUnit, developerType, orgTypes, ownerId, paymentTerms,
   } = body;
 
   if (name !== undefined && !name?.trim()) {
@@ -87,6 +87,7 @@ export async function PATCH(request, { params }) {
       ...(developerType       !== undefined && { developerType: developerType || null }),
       ...(orgTypes            !== undefined && { orgTypes: JSON.stringify(orgTypes) }),
       ...(ownerId             !== undefined && { ownerId: ownerId || null }),
+      ...(paymentTerms        !== undefined && { paymentTerms: paymentTerms || null }),
     },
   });
 

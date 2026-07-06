@@ -3,6 +3,36 @@ const bcrypt = require('bcryptjs');
 const { seedMasterTypes }      = require('./seeds/masterTypes');
 const { seedILCSpecs }         = require('./seeds/ilcSpecs');
 const { seedProposalDefaults } = require('./seeds/proposalDefaults');
+const { TEMPLATES_BY_SECTION }  = require('./seeds/dashboardTemplates');
+
+// ── Universal dashboard defaults ──────────────────────────────────────────────
+// Create the admin-default dashboard per section (Main / Sales / Pre-Con) with
+// its template widgets — only if one doesn't already exist, so we never clobber
+// a default an admin has since customized. Idempotent: safe on every deploy.
+async function seedDashboards(prisma, createdById) {
+  if (!prisma.dashboard) { console.log('⚠ Dashboards: prisma.dashboard not in schema — skipping'); return; }
+  const SECTION_NAME = { MAIN: 'Main Dashboard', SALES: 'Sales Dashboard', BUDGET: 'Pre-Con Dashboard' };
+  let created = 0;
+  for (const [section, templates] of Object.entries(TEMPLATES_BY_SECTION)) {
+    const existing = await prisma.dashboard.findFirst({ where: { section, ownerUserId: null, isDefault: true } });
+    if (existing) continue;
+    await prisma.dashboard.create({
+      data: {
+        name: SECTION_NAME[section] || `${section} Dashboard`, section, createdById,
+        isDefault: true, ownerUserId: null,
+        widgets: {
+          create: templates.map((t, i) => ({
+            name: t.name, chartType: t.chartType || 'BAR', width: t.width || 'HALF', position: i,
+            dataSpec: JSON.stringify(t.dataSpec || {}),
+            category: 'FIELD', metric: 'custom', viewBy: 'none', filters: '[]', // inert legacy NOT-NULL cols
+          })),
+        },
+      },
+    });
+    created++;
+  }
+  console.log(`✓ Dashboard defaults ready (${created} created, ${Object.keys(TEMPLATES_BY_SECTION).length - created} already present)`);
+}
 
 const prisma = new PrismaClient();
 
@@ -254,6 +284,9 @@ async function main() {
   } else {
     console.log('⚠ Roadmap priorities: prisma.roadmapPriority not in schema — skipping');
   }
+
+  // ── Universal dashboard defaults (Main / Sales / Pre-Con) ────────────────────
+  await seedDashboards(prisma, adminUser.id);
 }
 
 main()

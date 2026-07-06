@@ -10,37 +10,28 @@ const SECTIONS = [
   { id: 'intro',      label: 'Introductions & Onboarding', icon: '🚪', color: 'indigo' },
   { id: 'comms',      label: 'Communication & Distribution', icon: '📣', color: 'violet' },
   { id: 'approvals',  label: 'Approvals & Sign-off',     icon: '✅', color: 'amber' },
-  { id: 'logistics',  label: 'Logistics',                icon: '📦', color: 'orange' },
   { id: 'process',    label: 'Process & Timeframes',     icon: '🔄', color: 'indigo' },
   { id: 'notes',      label: 'Manual Notes',             icon: '📝', color: 'slate' },
 ];
 const SECTION_DESCS = {
-  profile:   'Project types, markets, volume, and the standing architect / engineer / GC relationships.',
+  profile:   'Project types, markets, and volume.',
   intro:     'Who puts ILC in, the vendor-list trigger, and how we learn of new deals.',
   comms:     'Who is on the thread for each deliverable (drives the bot’s CC list).',
   approvals: 'Who signs, who is invoiced, and payment terms.',
-  logistics: 'Storage, freight/warehousing, receiving party, and damage/inventory.',
   process:   'Our standard process plus lead times and turnaround expectations.',
   notes:     'Free-form, account-specific operating detail (phasing models, special terms).',
 };
 
+// US states for the Primary markets picker (button-per-state, like the geographies picker).
+const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
+function parseMarkets(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v;
+  try { const p = JSON.parse(v); if (Array.isArray(p)) return p; } catch {}
+  return String(v).split(',').map(s => s.trim().toUpperCase()).filter(s => US_STATES.includes(s));
+}
+
 // ── Option sets ───────────────────────────────────────────────────────────────
-const CO_TOLERANCE = [
-  { value: 'TIGHT', label: 'Tight' }, { value: 'NORMAL', label: 'Normal' }, { value: 'FLEXIBLE', label: 'Flexible' },
-];
-const MGMT = [
-  { value: 'CENTRAL', label: 'Centralized' }, { value: 'REGIONAL', label: 'Regional PM' }, { value: 'MIXED', label: 'Mixed' },
-];
-const GC_MODEL = [
-  { value: 'OPEN_BID', label: 'Open bid' }, { value: 'PREFERRED', label: 'Preferred list' },
-  { value: 'SINGLE', label: 'Single GC' }, { value: 'DESIGN_BUILD', label: 'Design-build' },
-];
-const INTRO_STATUS = [
-  { value: 'NOT_INTRODUCED', label: 'Not introduced' }, { value: 'INTRODUCED', label: 'Introduced' }, { value: 'WORKING', label: 'Working together' },
-];
-const PAYMENT_TERMS = [
-  { value: 'NET30', label: 'NET 30' }, { value: 'NET45', label: 'NET 45' }, { value: 'NET60', label: 'NET 60' }, { value: 'OTHER', label: 'Other' },
-];
 const DISTRIBUTION_EVENTS = [
   { value: 'BUDGETS', label: 'Budgets' }, { value: 'DESIGN_MILESTONE', label: 'Design milestones' },
   { value: 'FIXTURE_SCHEDULE', label: 'Fixture schedule' }, { value: 'PHOTOMETRICS', label: 'Photometrics' },
@@ -51,11 +42,7 @@ const DISTRIBUTION_EVENTS = [
 const ASSIGNMENT_ROLES = [
   { role: 'PROPOSAL_SIGNER_STANDARDS', label: 'Standards proposal signer' },
   { role: 'PROPOSAL_SIGNER_PROJECT',   label: 'Project proposal signer' },
-  { role: 'CONTRACT_SIGNER',           label: 'Project contract signer' },
-  { role: 'INVOICING_STANDARDS',       label: 'Invoices to (standards)' },
-  { role: 'INVOICING_PROJECT',         label: 'Invoices to (project)' },
-  { role: 'DESIGN_INTRO',              label: 'Design-team intro handled by' },
-  { role: 'GC_INTRO',                  label: 'Pre-con GC intro handled by' },
+  { role: 'INVOICING_PROJECT',         label: 'Invoices to' },
 ];
 
 // ── Primitives ────────────────────────────────────────────────────────────────
@@ -128,25 +115,6 @@ function GroupLabel({ children }) { return <div className="text-[10px] font-bold
 
 function parseJSON(v, fb) { if (v == null) return fb; if (typeof v !== 'string') return v; try { return JSON.parse(v); } catch { return fb; } }
 
-// ── Relationship editor (one of architect / engineer / gc) ────────────────────
-function RelationshipEditor({ title, rel, contacts, isGc, onChange }) {
-  const set = (k, v) => onChange({ ...rel, [k]: v });
-  return (
-    <div className="rounded-xl border border-slate-200 p-4 bg-white space-y-3">
-      <Toggle checked={!!rel.exists} onChange={v => set('exists', v)} label={title} sub="Is there a standing relationship?" />
-      {rel.exists && (
-        <div className="space-y-3 pl-1">
-          <div><FieldLabel>Firm</FieldLabel><Inp value={rel.firm} onChange={v => set('firm', v)} placeholder="Firm name" /></div>
-          <div><FieldLabel>Key contact</FieldLabel><ContactSelect contacts={contacts} value={rel.contactId} onChange={v => set('contactId', v)} /></div>
-          <div><FieldLabel>Intro status</FieldLabel><ChipRow options={INTRO_STATUS} value={rel.introStatus || ''} onChange={v => set('introStatus', v)} /></div>
-          {isGc && <div><FieldLabel>GC model</FieldLabel><ChipRow options={GC_MODEL} value={rel.gcModel || ''} onChange={v => set('gcModel', v)} /></div>}
-          <div><FieldLabel>Notes</FieldLabel><Textarea value={rel.notes} onChange={v => set('notes', v)} rows={2} /></div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ── Distribution editor ───────────────────────────────────────────────────────
 function DistributionEditor({ rows, contacts, onChange }) {
   const update = (i, patch) => onChange(rows.map((r, j) => j === i ? { ...r, ...patch } : r));
@@ -208,7 +176,6 @@ export default function PlaybookTab({ clientId, clientName = '', contacts = [], 
 
   const [scalars, setScalars] = useState({});
   const [projectTypes, setProjectTypes] = useState([]);
-  const [rels, setRels] = useState({ ARCHITECT: { kind: 'ARCHITECT' }, ENGINEER: { kind: 'ENGINEER' }, GC: { kind: 'GC' } });
   const [asg, setAsg] = useState({});           // role -> contactId
   const [distribution, setDistribution] = useState([]);
   const [notes, setNotes] = useState([]);
@@ -223,9 +190,6 @@ export default function PlaybookTab({ clientId, clientName = '', contacts = [], 
           const pb = d.playbook || {};
           setScalars(pb);
           setProjectTypes(parseJSON(pb.projectTypes, []));
-          const rmap = { ARCHITECT: { kind: 'ARCHITECT' }, ENGINEER: { kind: 'ENGINEER' }, GC: { kind: 'GC' } };
-          for (const r of (d.relationships || [])) rmap[r.kind] = r;
-          setRels(rmap);
           setAsg(Object.fromEntries((d.assignments || []).map(a => [a.role, a.contactId])));
           setDistribution((d.distribution || []).map(x => ({ event: x.event, contactId: x.contactId || '', freetextName: x.freetextName || '', note: x.note || '' })));
           setNotes((d.notes || []).map(n => ({ topic: n.topic, body: n.body })));
@@ -255,7 +219,6 @@ export default function PlaybookTab({ clientId, clientName = '', contacts = [], 
   const setScalar = (patch, key = 'scalars') => { const next = { ...scalars, ...patch }; setScalars(next); save(key, { scalars: pickScalars(next, projectTypes) }); };
   const setPTypes = (arr) => { setProjectTypes(arr); save('scalars', { scalars: { projectTypes: JSON.stringify(arr) } }); };
 
-  const setRel = (kind, rel) => { const next = { ...rels, [kind]: rel }; setRels(next); save('rels', { relationships: [next.ARCHITECT, next.ENGINEER, next.GC] }); };
   const setRole = (role, contactId) => { const next = { ...asg, [role]: contactId }; setAsg(next); save('asg', { assignments: ASSIGNMENT_ROLES.map(r => ({ role: r.role, contactId: next[r.role] || null })) }); };
   const setDist = (rows) => { setDistribution(rows); save('dist', { distribution: rows }); };
   const setNote = (arr) => { setNotes(arr); save('notes', { notes: arr.map((n, i) => ({ ...n, sortOrder: i })) }); };
@@ -301,22 +264,9 @@ export default function PlaybookTab({ clientId, clientName = '', contacts = [], 
           {activeSection === 'profile' && (
             <div className="space-y-5 max-w-2xl">
               <div><FieldLabel>Project types</FieldLabel><ChipMulti options={PROJECT_TYPES} selected={projectTypes} onChange={setPTypes} /></div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><FieldLabel>Projects / year</FieldLabel><Inp type="number" value={scalars.projectsPerYear} onChange={v => setScalar({ projectsPerYear: v ? Number(v) : null })} /></div>
-                <div><FieldLabel>Primary markets</FieldLabel><Inp value={scalars.primaryMarkets} onChange={v => setScalar({ primaryMarkets: v })} placeholder="e.g. CO, AZ, TX" /></div>
-              </div>
-              <div><FieldLabel>Cost-tier notes</FieldLabel><Textarea value={scalars.costTierNotes} onChange={v => setScalar({ costTierNotes: v })} rows={2} /></div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><FieldLabel>Primary national contact</FieldLabel><ContactSelect contacts={contacts} value={scalars.primaryContactId} onChange={v => setScalar({ primaryContactId: v })} /></div>
-                <div><FieldLabel>Approver</FieldLabel><ContactSelect contacts={contacts} value={scalars.approverContactId} onChange={v => setScalar({ approverContactId: v })} /></div>
-              </div>
-              <Divider />
-              <GroupLabel>Standing relationships</GroupLabel>
-              <div className="space-y-3">
-                <RelationshipEditor title="Architect" rel={rels.ARCHITECT} contacts={contacts} onChange={r => setRel('ARCHITECT', r)} />
-                <RelationshipEditor title="Engineer (EE)" rel={rels.ENGINEER} contacts={contacts} onChange={r => setRel('ENGINEER', r)} />
-                <RelationshipEditor title="General Contractor" rel={rels.GC} contacts={contacts} isGc onChange={r => setRel('GC', r)} />
-              </div>
+              <div><FieldLabel>Projects / year</FieldLabel><Inp type="number" value={scalars.projectsPerYear} onChange={v => setScalar({ projectsPerYear: v ? Number(v) : null })} /></div>
+              <div><FieldLabel hint="Click each state they build in">Primary markets</FieldLabel>
+                <ChipMulti options={US_STATES} selected={parseMarkets(scalars.primaryMarkets)} onChange={arr => setScalar({ primaryMarkets: JSON.stringify(arr) })} /></div>
             </div>
           )}
 
@@ -345,8 +295,7 @@ export default function PlaybookTab({ clientId, clientName = '', contacts = [], 
           {/* §4 Approvals & Sign-off */}
           {activeSection === 'approvals' && (
             <div className="space-y-5 max-w-2xl">
-              <div><FieldLabel>Payment terms</FieldLabel><ChipRow options={PAYMENT_TERMS} value={scalars.paymentTerms || ''} onChange={v => setScalar({ paymentTerms: v })} /></div>
-              <Divider />
+              <p className="text-xs text-slate-400">Payment terms live on the client <b>Overview</b>.</p>
               <GroupLabel>Who signs / who's invoiced</GroupLabel>
               <div className="space-y-4">
                 {ASSIGNMENT_ROLES.map(r => (
@@ -356,26 +305,9 @@ export default function PlaybookTab({ clientId, clientName = '', contacts = [], 
             </div>
           )}
 
-          {/* §5 Logistics */}
-          {activeSection === 'logistics' && (
-            <div className="space-y-5 max-w-2xl">
-              <div><FieldLabel>Storage duration</FieldLabel><Inp value={scalars.storageDuration} onChange={v => setScalar({ storageDuration: v })} placeholder="e.g. ~180 days" /></div>
-              <div><FieldLabel hint="Who receives/stores on site">Receiving party</FieldLabel><ContactSelect contacts={contacts} value={scalars.receivingPartyContactId} onChange={v => setScalar({ receivingPartyContactId: v })} /></div>
-              <div><FieldLabel>Receiving party note</FieldLabel><Inp value={scalars.receivingPartyNote} onChange={v => setScalar({ receivingPartyNote: v })} placeholder="e.g. EC, paid a negotiated fee by the GC" /></div>
-              <div><FieldLabel>Freight & warehousing</FieldLabel><Textarea value={scalars.freightWarehousing} onChange={v => setScalar({ freightWarehousing: v })} rows={2} /></div>
-              <div><FieldLabel>Damage & inventory</FieldLabel><Textarea value={scalars.damageInventory} onChange={v => setScalar({ damageInventory: v })} rows={2} /></div>
-              <div><FieldLabel>Notes</FieldLabel><Textarea value={scalars.logisticsNotes} onChange={v => setScalar({ logisticsNotes: v })} rows={2} /></div>
-            </div>
-          )}
-
-          {/* §6 Process & Timeframes */}
+          {/* §5 Process & Timeframes */}
           {activeSection === 'process' && (
             <div className="space-y-5 max-w-2xl">
-              <div className="grid grid-cols-2 gap-4">
-                <div><FieldLabel>CO tolerance</FieldLabel><ChipRow options={CO_TOLERANCE} value={scalars.coTolerance || ''} onChange={v => setScalar({ coTolerance: v })} /></div>
-                <div><FieldLabel>Mgmt structure</FieldLabel><ChipRow options={MGMT} value={scalars.mgmtStructure || ''} onChange={v => setScalar({ mgmtStructure: v })} /></div>
-              </div>
-              <Toggle checked={!!scalars.hasDesignTeam} onChange={v => setScalar({ hasDesignTeam: v })} label="Has in-house design team" />
               <div><FieldLabel>Process notes</FieldLabel><Textarea value={scalars.processNotes} onChange={v => setScalar({ processNotes: v })} rows={3} /></div>
               <Divider />
               <GroupLabel>Timeframes</GroupLabel>
@@ -414,12 +346,11 @@ export default function PlaybookTab({ clientId, clientName = '', contacts = [], 
 // Build the scalar payload (projectTypes serialized) for a partial save.
 function pickScalars(scalars, projectTypes) {
   const FIELDS = [
-    'projectsPerYear', 'primaryMarkets', 'costTierNotes', 'primaryContactId', 'approverContactId',
+    'projectsPerYear', 'primaryMarkets',
     'introOwnerContactId', 'introOwnerNote', 'onVendorList', 'vendorListNote', 'pipelineFeed', 'introNotes',
-    'commsPosture', 'engagementTiming', 'submittalPlatform', 'coTolerance', 'mgmtStructure', 'hasDesignTeam',
+    'commsPosture', 'engagementTiming', 'submittalPlatform',
     'processNotes', 'engagementLeadTime', 'budgetCadence', 'submittalTurnaround', 'typicalSdToCd',
-    'rfiResponseExpectation', 'timeframeNotes', 'paymentTerms', 'storageDuration', 'receivingPartyContactId',
-    'receivingPartyNote', 'freightWarehousing', 'damageInventory', 'logisticsNotes',
+    'rfiResponseExpectation', 'timeframeNotes',
   ];
   const out = {};
   for (const f of FIELDS) if (f in scalars) out[f] = scalars[f] ?? null;

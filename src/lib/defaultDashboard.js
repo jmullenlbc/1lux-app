@@ -1,7 +1,15 @@
 /**
  * Default dashboard widget configs.
- * Seeded once when the first user visits /crm/dashboards with no dashboards present.
+ *
+ * `DEFAULT_WIDGETS` (legacy, category/metric/viewBy) seeds the old /crm/dashboards.
+ * `TEMPLATES_BY_SECTION` (new, field-picker dataSpec) seeds the universal engine —
+ * these are the "template charts" every new admin default starts with. Both formats
+ * coexist during the migration; the render route bridges any legacy widget.
  */
+
+// Field-picker templates for the universal dashboard engine — canonical list
+// lives in prisma/seeds/dashboardTemplates.js so the seed and app never drift.
+export { TEMPLATES_BY_SECTION } from '../../prisma/seeds/dashboardTemplates';
 
 export const DEFAULT_WIDGETS = [
   {

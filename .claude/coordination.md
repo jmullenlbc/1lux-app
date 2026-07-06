@@ -10,6 +10,13 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 - **Sean:** math test harness at `_tests/budget-math.mjs` + calibration script `_tests/calibrate-conceptual.mjs` (both gitignored). Calibration run against 4 real spreadsheets (2 conceptual, 2 Full Design) on 2026-05-27 AM with Mason's review — engine matches within 1-2% on conceptuals; explainable patterns on Full Design. Two math changes still queued (Q1 energy credit refactor, Q3 exit signs sum extension — Q3 needs stairwell-SF clarification).
 - **Mike:** Conceptual-budget + CRM sprint live. Most recent (2026-06-12): **all wizard sections (conceptual AND design) now read pricing from Master Pricing** (`/admin/pricing` → SystemConfig DB, the `pricing` prop) instead of hardcoded constants — engine + UI previews read one source and can no longer drift. Also: exterior section restructured, CRM Batch 1+2 (unified Rules tab, sales dashboards). Commits through `10cf3a1`.
 
+## DEPLOYED 2026-07-06 (Mike) — client standards + playbook trim + dashboards
+
+Big deploy (migrations `0048`–`0050`), full debug pass green. Heads-up on schema for Sean:
+- **New models** `ClientProductOption` (product-options funnel) + `ClientStandardFixture` (client standard fixture schedule). Routes under `api/clients/[id]/product-options` + `/standard-fixtures`; UI tabs "Product Options" + "Fixture Schedule". Migration `0050` written by hand.
+- **Playbook trimmed to what real client meetings cover:** dropped `PlaybookRelationship` table + these `ClientPlaybook` columns — `costTierNotes, primaryContactId, approverContactId, coTolerance, mgmtStructure, hasDesignTeam, storageDuration, receivingPartyContactId, receivingPartyNote, freightWarehousing, damageInventory, logisticsNotes, paymentTerms`. **`paymentTerms` moved to `Client`** (backfilled). Playbook UI is now 6 lean sections; Primary markets is a state-button picker.
+- Also shipped: universal dashboard engine + 3 probability fields + win rate (`0048`/`0049`), YTD/Custom time buckets, link-preview unfurl. Docs in `G:\Shared drives\SOFTWARE\_MIKE's APP\Software engineering\`.
+
 ## Open questions for Mike (when convenient)
 
 ~~1. **Energy credit dollar impact compounds through freight+warehousing+tax.**~~ **ANSWERED:** Not intentional — fix it so the energy credit reduces the lighting subtotal *before* F+W+T are applied, matching Trackvia behavior.

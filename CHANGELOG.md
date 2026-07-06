@@ -5,6 +5,69 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Client Product Options + Standard Fixture Schedule — matched to LAC] · July 4, 2026
+
+> **Local only — NOT deployed. Schema is Sean's** (see `.claude/coordination.md`): Postgres migration needed for two new models. Modeled directly on the real **Lincoln Avenue** workbook (National Lighting Schedule + Alternate Options sheets); the existing `ClientStandardsAnswer` question bank stays the decision layer.
+
+### Added
+- **Product Options approval funnel** — new **Product Options** tab on `clients/[id]`: options grouped by **category** (Vanity, Kitchen Pendants, Ceiling Fans, sconces…), each an **option card** with picture, name, product link, **price estimate + price target**, notes, and **Approve / Reject** (green ring / dimmed). Approved options can be pushed **→ to the fixture schedule**. Full CRUD: **add / edit / remove options** (inline edit; delete with confirm) and **manage categories** (add, **rename** inline, **delete** a whole category). New model `ClientProductOption` + API `/api/clients/[id]/product-options` (incl. bulk `renameCategory` / delete-by-`category`). Matches the LAC "Alternate Options" sheet exactly.
+- **Paste-a-link unfurl** — new `POST /api/link-preview`: paste a product URL on an option and it fetches the page's Open Graph image + title, **downloads the thumbnail into storage**, and auto-fills the card (name stays editable) — no manual download/upload. Basic SSRF guard (http/https only, private hosts blocked, timeouts, 8 MB cap).
+- **Standard Fixture Schedule table within the client** — **Fixture Schedule** tab: editable, spreadsheet-style table mirroring the LAC "National Lighting Schedule" columns (Type / Location / Description / **Manufacturer / Catalog #** / Finish / CCT / Lumens / Watts / Voltage / Dim / Mounting / Notes) + Target $ and a product image. The exact SKU stays basis-of-design/optional — picked per project. New model `ClientStandardFixture` + API `/api/clients/[id]/standard-fixtures`.
+- **Seeded the real LAC standard** (Lincoln Avenue, local): **24 fixtures** (C1–X3, ELUMA/NORA/etc.) + **58 product options** across 6 categories, straight from the workbook.
+- **Dashboards: Year-to-Date + Custom Range** time buckets — the Time bucket field now offers **Annual / Year to Date / Custom Range** (with From/To date pickers); YTD/Custom restrict the date window and bucket by month. (`engine.js`, `DashboardView` editor)
+
+### Refinements (July 6)
+- **Fixture Schedule**: removed the Image + Target $ columns (those belong to Product Options); table now has **cell borders** like a real schedule; fixed the Location dropdown (text no longer under the arrow).
+- **Product Options**: "+ Category" is now a **popup modal** (not an inline field); the link field is a **labeled "Hyperlink" boxed input**; image boxes are **square with object-contain** (fits the whole product image); **thicker** green/red approve/reject frames.
+- **Standards tab**: removed three style-picker questions now covered by Product Options — *Preferred pendant styles*, *Preferred balcony fixture styles*, *Unit entry sconce — preferred styles*.
+- **Playbook trim** (grounded in the real LAC meeting notes — kept only what was actually discussed): removed the **Logistics** section, **Standing Relationships** (architect/engineer/GC + GC model), cost-tier notes, CO tolerance, mgmt structure, and has-design-team; slimmed **Approvals** from 7 roles to 3 (standards signer, project signer, invoices-to). **Primary markets** is now a **button-per-state** picker (like geographies) instead of a text line. Kept: project types, projects/year, markets, Introductions, Communication, Process & Timeframes, Manual Notes.
+- **Payment terms moved to the client Overview** (off the Playbook) — new `Client.paymentTerms`, edited in the Overview modal, shown on the Overview.
+- **Schema (migration `0050`)**: new `ClientProductOption` + `ClientStandardFixture` tables; `Client.paymentTerms` added (backfilled from Playbook); dormant `ClientPlaybook` columns dropped; `PlaybookRelationship` table removed.
+
+> **DEPLOYED 2026-07-06** — this deploy ships everything since the last release: the universal dashboard engine + probabilities + win rate (migrations `0048`/`0049`), the client Product Options / Standard Fixture Schedule + Playbook trim (`0050`), and all UI refinements. Full debug pass green (build + 3 migration checks + API smoke + runtime UI).
+
+### Known follow-ups (next passes)
+- Phase 3: seed a project `FixtureSchedule` from the client standard table (person picks the SKU per project).
+- Controls narrative (A–K per space) — third LAC sheet, not yet built.
+- Playbook trim (pending Mike's go) — drop sections not grounded in real LAC discussions.
+- Sean: Postgres migration for `ClientProductOption` + `ClientStandardFixture`.
+
+---
+
+## [Universal drag-and-drop dashboard engine — one engine for every department] · July 3, 2026
+
+> **Local only — NOT deployed.** Migrations `0048` + `0049` (both additive) pending. Verified end-to-end against 25 real projects (engine + live API + browser UI + full production build).
+
+### Added
+- **One field-picker dashboard engine, per section** (Main / Sales / Pre-Con · Budget) — every dashboard is now built from the same guided widget builder, drag-to-reorder, half/full width, admin-authored default + per-user tweak, shareable.
+  - **Curated, layman-labeled field catalog** (`src/lib/dashboards/fieldCatalog.js`) — the picker only ever offers vetted fields, each tagged with an MCP `tier` for the future redact layer.
+  - **Guided formula evaluator** (`formula.js`) — Sum/Avg/Count/Min/Max/Median per measure, plus two-measure math (A+B, A−B, A×B, A÷B, A/B ratio, A/B %). No free-form code.
+  - **Engine** (`engine.js`) — group by any dimension, time-bucket (week/month/quarter), or **numeric bucket** (e.g. probability tiers); per-group formula eval, filters, ordered/value sort. Bar + line only (no pie).
+  - **Section data providers** (`providers.js`) — seam so Budget/MCP-gated sources swap in later without touching the engine.
+  - Schema (`0048`): `Dashboard.section` + `ownerUserId` (null = admin default), `DashboardWidget.chartType` + `dataSpec`, new `DashboardShare`.
+  - Routes: `/api/dashboards` (resolve/create), `[id]` (rename/delete), `[id]/fork`, `[id]/share`, `[id]/widgets(/[widgetId])`, `/render`. Page `/dashboards/[section]` + `DashboardView` builder + `Chart` (CSP-safe SVG).
+- **Three probability fields per project** (`0049`) — **Probability to Win** and **Probability to Move Forward** (editable in the project's Sales Details), plus a derived **Average Probability** (mean of the two, never stored — computed in the sales provider and shown read-only). All three are catalog measures; `probabilityToWin` is backfilled from the legacy single probability so nothing regresses.
+- **Win rate on the one engine** — new status-conditional count measures (**Won / Lost / Abandoned / Lost+Abandoned / Decided**, each a filtered count on `procurementStatus`). Win Rate = Won ÷ Decided (%), where Decided = Won + Lost + Abandoned. The formula evaluator now supports a `where` predicate on a measure (`in`/`not_in`/`is`/`gte`/`lte`), which powers these.
+- **9 of 10 templates translated to native field-picker widgets** (Revenue forecasts, Pipeline Value by Stage, Deals by Org, Win Rate by Owner/Project Type, Open Pipeline by Probability, Lost+Abandoned by Stage) + a going-forward **template library** (`TEMPLATES_BY_SECTION`) that seeds a new admin default so it's never blank. (Sales Cycle Duration stays on the legacy bridge — needs close timestamps.)
+- **Department-level dashboard nav** — a **Dashboard** sub-item under Home (`/dashboards/main`), Sales (`/dashboards/sales`), and Pre-con (`/dashboards/budget`), matching the section menus.
+- **Global filter bar** — `/render` returns per-dimension facets from the full row set; `DashboardView` renders a dropdown per plain dimension (Client / Service Type / Stage / Status…), filtering every widget live. Empty-facet dimensions auto-hide.
+- **Layman labels everywhere** — dashboards never show raw field values. `serviceType` uses the platform-wide `SERVICE_TYPES` map (Full Design / Design Assist / Peer Review / Bid Only), and Status / Stage / Phase get proper labels too, via a `valueLabels` map on catalog dimensions applied in both charts and the filter bar.
+- **Project Type is now a controlled vocabulary** (`PROJECT_TYPES` in `utils.js`) including **BTR (Build to Rent)** — a dropdown in the project's Sales Details, distinct from building form.
+- **Overview retired** — `/home` and `/` now redirect to `/dashboards/main`; the "Overview" nav item is gone (legacy `HomeClient` kept in-tree, unused). The **Main dashboard is an executive overview**: New Projects by Month, Product Revenue by Client, Projects by Phase / Service Type / Status / Sales Owner, and company Win Rate. The Main field catalog gained revenue, status, owner, and phase.
+
+### Fixed
+- **Seeded template widgets rendered as a single meaningless "Total: 25" bar.** Legacy `category/metric/viewBy` widgets have `dataSpec=null`; the new engine reads only `dataSpec`. `/api/dashboards/render` now bridges any non-`FIELD` empty-spec widget through the original `dashboardEngine.runWidget`, flattening its multi-segment output to `[{label,value}]`. (`src/app/api/dashboards/render/route.js`)
+- **Creating a section default didn't demote the existing one** — `POST /api/dashboards` now demotes any existing default in a transaction so there's only ever one.
+
+- **Pre-con (BUDGET) dashboard is live with real budget dollars.** The provider computes each project's product budget the same way the summary does (`calculateBudget` over `pricingSnapshot`/responses → `totalWithControls`) and resolves a single **Budget Value** by priority: a **priced Bid Matrix** > **Design-Questionnaire** budget > **Conceptual** budget (a draft/$0 matrix does not hide the conceptual number). Exposes `budgetValue`, `budgetSource`, `conceptualTotal`, `bidMatrixTotal`. 8 default widgets (Budgets by Type, Budget Value by Client / Source / Month, Budgets Created-by-Month, by Service/Project Type, by Client). Main also grew to 8 (added Projects by Project Type).
+- **Default dashboards baked into the seed** — canonical widget lineups live in one CommonJS module (`prisma/seeds/dashboardTemplates.js`) shared by the app and `seed.js`, so they never drift. `seed.js` creates the Main / Sales / Pre-Con admin defaults on deploy (idempotent — only if missing, never clobbers a customized default). **Not yet deployed** — pending local review.
+
+### Known follow-ups
+- **Sales Cycle Duration** template needs project close timestamps (`wonAt`/`lostAt`) to move off the legacy bridge.
+- Pre-con budget computation runs `calculateBudget` per project on each dashboard load — fine at current scale; revisit (snapshot column) if the project count grows large.
+
+---
+
 ## [Project ⇄ Pipeline unification + CRM/Playbook/Standards/Automation module] · July 3, 2026
 
 > **Major release.** Migrations `0030`–`0047`. `MeetingNote`'s 4 prod rows are preserved into the unified `Note` table before the legacy drop.
