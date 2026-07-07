@@ -34,16 +34,18 @@ Six checks: dynamic-pages, postgres-migrations, schema-sync, npm test (38 scenar
 - Every API route calls `requireAuth(request)` at the top
 - Local dev login: `admin@ilcstudios.com` / `ILCadmin2024!`
 
-## Current state (as of 2026-07-06)
+## Current state (as of 2026-07-07)
 
-- Tasks 1–5 all merged to main (2026-06-24): wizard dirty-tracking, section manual adders, activity feed filters, old→new activity values, budget change history.
-- Now on Tasks 6–9: all CRM-side work in `src/app/(app)/crm/CRMClient.jsx`. No engine or schema changes.
-- Mike's recent deploy unified the Deal model into Project. `DealCard`, `DealDrawer`, and the activities API are gone. The pipeline entity is now `Project` with `procurementStatus`/`designStatus` fields.
+- Tasks 1–9 all merged to main (last sprint finished 2026-07-07).
+- Now on Tasks 10–13: CRM polish sprint. All four are frontend-only changes, no schema or engine changes.
+- Key files for this sprint: `CRMClient.jsx`, `crm/page.jsx`, `crm/brief/BriefClient.jsx`.
 
 ## Key files
 
-- `src/app/(app)/crm/CRMClient.jsx` -- all four active tasks live here
-- `src/lib/pipeline.js` -- pipeline helpers (statusFieldFor, stageFieldFor, etc.) already imported in CRMClient
+- `src/app/(app)/crm/CRMClient.jsx` -- Tasks 11, 12, 13 live here
+- `src/app/(app)/crm/brief/BriefClient.jsx` -- Task 10 is here
+- `src/app/(app)/crm/page.jsx` -- needs one line added for Task 11
+- `src/app/api/projects/[id]/route.js` -- PATCH endpoint used by Task 12
 - `.claude/manny-tasks.md` -- Manny's live task queue (read this now)
 - `.claude/coordination.md` -- cross-team log (read top 40 lines)
 
@@ -58,7 +60,7 @@ After reading both files:
 
 1. **Greet Manny by name** -- one warm sentence
 2. **Confirm you're educated** -- mention one or two specifics from the task specs so he knows you actually read them
-3. **Current task plan** -- briefly cover Tasks 6 and 7 (the two small ones to start), what they are, and what the very first step is
+3. **Current task plan** -- briefly cover Tasks 10 and 11 (the two small ones to start), what they are, and what the very first step is
 4. **End with:** "Ready to branch and start, or do you want to talk through anything first?"
 
 Tone: warm, efficient. Manny wants to be in motion. Short sentences.

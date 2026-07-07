@@ -24,13 +24,150 @@ When Manny opens a session:
 
 ## Active tasks
 
-> **Note (2026-07-06):** Mike pushed a major deploy that merged the Deal model into Project.
-> `DealCard`, `DealDrawer`, and the activities API are all gone. Tasks 6–9 below are
-> rewritten against the new model. The pipeline entity is now `Project`. All pipeline
-> state lives on `Project` fields: `procurementStage`, `procurementStatus`, `designStage`,
-> `designStatus`, `contractValue`, `designContractValue`. Status values: `OPEN`, `WON`,
-> `LOST`, `COMPLETED`, `ABANDONED`. The existing `PipelineSummary` component (line 150 of
-> `CRMClient.jsx`) already shows 5 stats chips — don't replace it, enhance it.
+### Task 10: Brief page — clickable project names
+
+- **Branch:** `manny/brief-clickable-links`
+- **Why:** The `/crm/brief` stale-projects table and recent-wins list show project names as plain text. Mike can't click through to the project hub. One-line change per table.
+- **File:** `src/app/(app)/crm/brief/BriefClient.jsx`
+- **What to change:**
+  1. In the stale projects table (the `stale.map` block), find the `<td>` that renders `{p.name}` and wrap it: `<a href={/project/${p.id}} className="font-semibold text-slate-900 hover:text-blue-600 underline">{p.name}</a>`
+  2. In the recent wins list, find wherever `p.name` is rendered and apply the same link pattern.
+  3. The `id` field is already selected in `brief/page.jsx`'s Prisma query — no server changes needed.
+- **What NOT to touch:** `brief/page.jsx`, the Prisma queries, anything in `CRMClient.jsx`.
+- **Acceptance:** Clicking a project name in the Brief page navigates to `/project/[id]`. Pre-push hooks pass.
+- **Time estimate:** ~30 min.
+- **Start with:** Read `BriefClient.jsx` top-to-bottom. Find every place `p.name` is rendered in a table or list. Apply the link. Done.
+
+---
+
+### Task 11: Notes count badge on ProjectCard
+
+- **Branch:** `manny/crm-notes-count`
+- **Why:** Task 4 (your last sprint) added a `+ Note` button on each kanban card, but there's no way to tell at a glance if a project already has notes. A small "N notes" badge closes the loop.
+- **Files:**
+  - `src/app/(app)/crm/page.jsx` — add `_count` to the Prisma select
+  - `src/app/(app)/crm/CRMClient.jsx` — show the count in `ProjectCard`
+- **Step 1 — update the query in `crm/page.jsx`:**
+  Inside the `prisma.project.findMany({ select: { ... } })` block, add one line:
+  ```js
+  _count: { select: { noteLinks: true } },
+  ```
+  `noteLinks` is the relation name (declared as `noteLinks NoteProject[] @relation("ProjectNoteLinks")` in `schema.prisma`).
+- **Step 2 — show the count in `ProjectCard` (`CRMClient.jsx`):**
+  After the `{!noteOpen ? ... <NoteInput>}` block (at the bottom of `ProjectCard`'s return), add:
+  ```jsx
+  {(project._count?.noteLinks ?? 0) > 0 && (
+    <p className="text-[10px] text-slate-400 mt-0.5 select-none">
+      {project._count.noteLinks} note{project._count.noteLinks !== 1 ? 's' : ''}
+    </p>
+  )}
+  ```
+- **What NOT to touch:** The notes API. The NoteInput component. The `filtered` useMemo.
+- **Acceptance:** Cards with existing notes show "N notes" below the `+ Note` button. Cards with zero notes show nothing. Pre-push hooks pass.
+- **Time estimate:** ~1.5 hours.
+- **Start with:** Read `crm/page.jsx` to understand the current `select` block. Add `_count`. Then read `ProjectCard` in `CRMClient.jsx` (line 110) and add the count display.
+
+---
+
+### Task 12: Probability quick-edit on ProjectCard
+
+- **Branch:** `manny/crm-prob-edit`
+- **Why:** The probability bar and percentage on each card are display-only. Updating probability requires navigating into the project. Inline click-to-edit saves three clicks.
+- **File:** `src/app/(app)/crm/CRMClient.jsx`
+- **API:** `PATCH /api/projects/${id}` — already accepts `{ pipelineProbability: number }`. Clamps to 0–100 server-side.
+- **Architecture — read before writing:**
+  - `projects` state and `setProjects` live in `CRMClient` (line ~363).
+  - `ProjectCard` receives `project` as a prop but has no way to update parent state — you must add a callback.
+  - Pattern already used in the file: `handleDrop` does an optimistic `setProjects` then fires a PATCH.
+- **Step 1 — add `handleProbabilityChange` to `CRMClient` (near `handleDrop`):**
+  ```js
+  async function handleProbabilityChange(id, value) {
+    const clamped = Math.max(0, Math.min(100, Number(value)));
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, pipelineProbability: clamped } : p));
+    try {
+      await fetch(`/api/projects/${id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pipelineProbability: clamped }),
+      });
+    } catch { /* optimistic already applied; fail silently */ }
+  }
+  ```
+- **Step 2 — thread `onProbabilityChange` through to `ProjectCard`.**
+  Wherever `ProjectCard` is rendered (inside `KanbanColumn` and inside `ListView`), add `onProbabilityChange={handleProbabilityChange}` as a prop. Thread it through `KanbanColumn`'s props as well.
+- **Step 3 — add editing state and inline input inside `ProjectCard`:**
+  ```js
+  const [editingProb, setEditingProb] = useState(false);
+  ```
+  Replace the probability display block (the `<span>` showing `{project.pipelineProbability ?? 0}%`) with:
+  ```jsx
+  {editingProb ? (
+    <input
+      type="number" min="0" max="100"
+      defaultValue={project.pipelineProbability ?? 0}
+      autoFocus
+      className="w-10 text-[10px] border border-slate-200 rounded px-1 focus:outline-none focus:ring-1 focus:ring-orange-400"
+      onBlur={e  => { setEditingProb(false); onProbabilityChange(project.id, e.target.value); }}
+      onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingProb(false); }}
+      onClick={e => e.stopPropagation()}
+    />
+  ) : (
+    <span
+      className="text-[10px] text-slate-400 cursor-pointer hover:text-slate-600 hover:underline"
+      onClick={e => { e.stopPropagation(); setEditingProb(true); }}
+      title="Click to edit probability"
+    >
+      {project.pipelineProbability ?? 0}%
+    </span>
+  )}
+  ```
+  The `e.stopPropagation()` on click is critical — prevents the card's `onOpen` from firing.
+- **Acceptance:** Clicking the probability % on a card opens an inline number input. Blur or Enter saves via PATCH and updates the bar optimistically. Escape cancels without saving. Clicking the input itself doesn't open the project panel. Pre-push hooks pass.
+- **Time estimate:** ~2–3 hours.
+- **Start with:** Read `handleDrop` in `CRMClient.jsx` to understand the optimistic-update pattern. Then add `handleProbabilityChange` next to it. Then thread the prop. Then update `ProjectCard`.
+
+---
+
+### Task 13: CRM CSV export
+
+- **Branch:** `manny/crm-csv-export`
+- **Why:** Mike occasionally needs the pipeline as a spreadsheet. All data is already in client state — no API needed.
+- **File:** `src/app/(app)/crm/CRMClient.jsx`
+- **Step 1 — add `handleExportCSV` function inside `CRMClient` (near `handleDrop`):**
+  ```js
+  function handleExportCSV() {
+    const sf = statusFieldFor(pipeline);
+    const stagef = stageFieldFor(pipeline);
+    const headers = ['Project', 'Client', 'Stage', 'Status', 'Revenue', 'Probability', 'Expected Order'];
+    const rows = filtered.map(p => [
+      p.name,
+      p.client?.name || '',
+      p[stagef] || '',
+      p[sf] || '',
+      revenueFor(p, pipeline) ? `$${revenueFor(p, pipeline).toLocaleString()}` : '',
+      `${p.pipelineProbability ?? 0}%`,
+      p.expectedOrderDate ? new Date(p.expectedOrderDate).toLocaleDateString() : '',
+    ]);
+    const csv = [headers, ...rows]
+      .map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `crm-${pipeline.toLowerCase()}-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  ```
+- **Step 2 — add an "Export CSV" button in the CRM toolbar** (near the pipeline tab switcher and "New Project" button). Style: low-key secondary button (`text-xs border border-slate-200 text-slate-600 hover:bg-slate-50 px-2.5 py-1.5 rounded-lg`).
+- **What NOT to touch:** No new API routes. No schema changes. No changes to `filtered` logic.
+- **Acceptance:** Clicking "Export CSV" downloads a `.csv` file containing the current pipeline's filtered project list with correct columns. Filename includes the pipeline name and today's date. File opens cleanly in Excel/Google Sheets. Pre-push hooks pass.
+- **Time estimate:** ~2 hours.
+- **Start with:** Read `CRMClient`'s toolbar JSX to find where to place the button. Then add `handleExportCSV` and wire the button.
+
+---
+
+> **Completed 2026-07-07:** Tasks 6–9 all merged. CRM "Needs Attention" filter, stats bar enhancement, Morning Brief page at `/crm/brief`, and project quick-note all shipped to main.
 
 ---
 
@@ -216,6 +353,14 @@ These were confirmed working on `app.ilcstudios.com` using "THE APPROACH (SEAN'S
 
 ## Completed tasks (for reference)
 
+- **Task 10: Brief page clickable links** — queued 2026-07-07.
+- **Task 11: Notes count badge on ProjectCard** — queued 2026-07-07.
+- **Task 12: Probability quick-edit on ProjectCard** — queued 2026-07-07.
+- **Task 13: CRM CSV export** — queued 2026-07-07.
+- **Task 6: CRM "Needs Attention" filter** — merged to main 2026-07-07. Branch: `manny/crm-needs-attention`.
+- **Task 7: Enhance stats bar** — merged to main 2026-07-07. Branch: `manny/crm-stats-enhance`.
+- **Task 8: Morning Brief page** — merged to main 2026-07-07. Branch: `manny/crm-morning-brief`.
+- **Task 9: Project quick-note from kanban card** — merged to main 2026-07-07. Branch: `manny/crm-project-quicknote`.
 - **Task 1: Wizard dirty-field tracking** — merged to main 2026-06-24. Branch: `manny/wizard-dirty-tracking`.
 - **Task 2: Section manual adders** — merged to main 2026-06-24. Branch: `manny/section-manual-adders`.
 - **Task 3: Activity feed filters** — merged to main 2026-06-24. Branch: `manny/activity-feed-filters`.
@@ -242,7 +387,9 @@ Read `.claude/coordination.md` top-to-bottom from the June 2026 entries. Fastest
 
 ## Recent guidance from Sean
 
-- **(2026-07-06)** Tasks 6–9 rewritten. Mike's deploy merged Deal→Project — old specs referenced deleted entities (DealCard, DealDrawer, activities API). New specs use Project model with procurementStatus/designStatus fields. Task 7 now enhances the existing PipelineSummary instead of building a second bar. Task 9 now posts to /api/crm/notes instead of the deleted activities route. Work in order: 6 → 7 → 8 → 9. Tasks 6 and 7 can be done in either order (they're both small); 7 depends on the `daysSince` helper that 6 adds, so do 6 first or add `daysSince` yourself if doing 7 first.
+- **(2026-07-07)** Tasks 10–13 queued — CRM polish sprint. All four are pure frontend changes to `CRMClient.jsx` (and `crm/page.jsx` for Task 11). No schema changes. Work in order: 10 → 11 → 12 → 13. Task 10 is in `BriefClient.jsx` and takes ~30 min — good warmup. Tasks 12 and 13 are the meatier ones.
+- **(2026-07-07)** Tasks 6–9 all merged successfully. Good sprint. `setProjects` optimistic-update pattern is the right model for Task 12's probability edit.
+- **(2026-07-06)** Tasks 6–9 rewritten. Mike's deploy merged Deal→Project — old specs referenced deleted entities (DealCard, DealDrawer, activities API). New specs use Project model with procurementStatus/designStatus fields.
 - **(2026-06-24)** Tasks 1–5 all merged. Great sprint.
 - **(2026-06-23)** PDFs (budget print, bid matrix) — Sean's job, not Manny's.
 - **(2026-06-23)** Model tip: Haiku 4.5 is fine for mechanical tasks. Switch to Sonnet when stuck or at a decision point.

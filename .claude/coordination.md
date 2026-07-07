@@ -10,6 +10,10 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 - **Sean:** math test harness at `_tests/budget-math.mjs` + calibration script `_tests/calibrate-conceptual.mjs` (both gitignored). Calibration run against 4 real spreadsheets (2 conceptual, 2 Full Design) on 2026-05-27 AM with Mason's review — engine matches within 1-2% on conceptuals; explainable patterns on Full Design. Two math changes still queued (Q1 energy credit refactor, Q3 exit signs sum extension — Q3 needs stairwell-SF clarification).
 - **Mike:** Conceptual-budget + CRM sprint live. Most recent (2026-06-12): **all wizard sections (conceptual AND design) now read pricing from Master Pricing** (`/admin/pricing` → SystemConfig DB, the `pricing` prop) instead of hardcoded constants — engine + UI previews read one source and can no longer drift. Also: exterior section restructured, CRM Batch 1+2 (unified Rules tab, sales dashboards). Commits through `10cf3a1`.
 
+## 2026-07-07 (Sean's Claude) — Manny tasks 10–13 queued; PDF delivery simplified
+
+Tasks 10–13 written into `.claude/manny-tasks.md` (CRM polish sprint: clickable brief links, notes count badge, probability quick-edit, CSV export). Tasks 6–9 marked complete. PDF rewritten — now the single delivery artifact; Claude reads it directly, no separate `.md` file needed. Sean just sends the PDF. Script: `python scripts/generate_manny_tasks6to9_pdf.py`.
+
 ## 2026-07-06 (Sean's Claude) — Manny tasks 6–9 rewritten for new CRM model
 
 Rewrote all four Manny task specs in `.claude/manny-tasks.md` after Mike's Deal→Project unification. Old specs referenced `DealCard`, `DealDrawer`, and the activities API — all deleted. New specs use `Project` model with `procurementStatus`/`designStatus` fields. Key change: Task 7 was originally "build a stats bar" — discovered `PipelineSummary` already exists (line 150), so Task 7 now enhances it instead. Task 9 now posts to `/api/crm/notes` instead of the deleted activities route. PDF at `scripts/generate_manny_tasks6to9_pdf.py` (regenerate for Manny: `python scripts/generate_manny_tasks6to9_pdf.py`).

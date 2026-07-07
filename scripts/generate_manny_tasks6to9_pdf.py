@@ -1,6 +1,7 @@
-"""Generate Manny's Tasks 6–9 spec PDF (v2 — rewritten for Deal→Project unification).
+"""Generate Manny's session orientation PDF — Tasks 10–13 (presented as 1–4).
 
-Run once, send resulting PDF to Manny.
+This PDF is primarily read by Claude Code at the start of Manny's session.
+Run: python scripts/generate_manny_tasks6to9_pdf.py
 Requires: pip install reportlab
 """
 
@@ -10,39 +11,49 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.colors import HexColor
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Preformatted, PageBreak, Table, TableStyle
+    SimpleDocTemplate, Paragraph, Spacer, Preformatted, PageBreak, Table, TableStyle,
+    HRFlowable,
 )
 from reportlab.lib.enums import TA_LEFT
 
-OUT_PATH = Path.home() / "Desktop" / "manny_tasks_6to9.pdf"
+OUT_PATH = Path.home() / "Desktop" / "manny_ilc_guide.pdf"
 
 # ── Colour palette ──────────────────────────────────────────────────────────
-INK     = HexColor('#0f172a')
-STEEL   = HexColor('#334155')
-MUTED   = HexColor('#64748b')
-BORDER  = HexColor('#e2e8f0')
-LIGHT   = HexColor('#f8fafc')
-CODE_BG = HexColor('#f1f5f9')
-AMBER   = HexColor('#92400e')
+INK      = HexColor('#0f172a')
+STEEL    = HexColor('#334155')
+MUTED    = HexColor('#64748b')
+BORDER   = HexColor('#e2e8f0')
+LIGHT    = HexColor('#f8fafc')
+CODE_BG  = HexColor('#f1f5f9')
+AMBER    = HexColor('#92400e')
 AMBER_BG = HexColor('#fffbeb')
 AMBER_BR = HexColor('#fcd34d')
-GREEN   = HexColor('#14532d')
+GREEN    = HexColor('#14532d')
 GREEN_BG = HexColor('#f0fdf4')
 GREEN_BR = HexColor('#bbf7d0')
+ORANGE   = HexColor('#ea580c')
+BLUE     = HexColor('#1e3a5f')
+BLUE_BG  = HexColor('#eff6ff')
+BLUE_BR  = HexColor('#bfdbfe')
 
 styles = getSampleStyleSheet()
 
 title_style = ParagraphStyle(
-    'T', parent=styles['Title'], fontSize=22,
+    'T', parent=styles['Title'], fontSize=24,
     textColor=INK, spaceAfter=4, alignment=TA_LEFT,
 )
 subtitle_style = ParagraphStyle(
     'Sub', parent=styles['Normal'], fontSize=11,
     textColor=MUTED, spaceAfter=16, alignment=TA_LEFT, leading=15,
 )
+section_label_style = ParagraphStyle(
+    'SLabel', parent=styles['Normal'], fontSize=9,
+    textColor=ORANGE, spaceAfter=2, alignment=TA_LEFT,
+    fontName='Helvetica-Bold', spaceBefore=18,
+)
 h1_style = ParagraphStyle(
-    'H1', parent=styles['Heading1'], fontSize=14,
-    textColor=INK, spaceBefore=16, spaceAfter=6,
+    'H1', parent=styles['Heading1'], fontSize=16,
+    textColor=INK, spaceBefore=4, spaceAfter=6,
 )
 h2_style = ParagraphStyle(
     'H2', parent=styles['Heading2'], fontSize=11.5,
@@ -68,6 +79,12 @@ ok_style = ParagraphStyle(
     backColor=GREEN_BG, borderColor=GREEN_BR,
     borderWidth=0.5, borderPadding=8, leftIndent=4, rightIndent=4, spaceAfter=10,
 )
+claude_style = ParagraphStyle(
+    'CL', parent=body_style, textColor=BLUE,
+    backColor=BLUE_BG, borderColor=BLUE_BR,
+    borderWidth=0.5, borderPadding=10, leftIndent=4, rightIndent=4, spaceAfter=12,
+    fontSize=11, leading=16,
+)
 
 def styled_table(data, col_widths):
     t = Table(data, colWidths=col_widths)
@@ -91,483 +108,481 @@ def styled_table(data, col_widths):
 
 doc = SimpleDocTemplate(
     str(OUT_PATH), pagesize=letter,
-    topMargin=0.6 * inch, bottomMargin=0.6 * inch,
+    topMargin=0.65 * inch, bottomMargin=0.65 * inch,
     leftMargin=0.85 * inch, rightMargin=0.85 * inch,
-    title="Manny — Tasks 6-9 (CRM improvements)",
+    title="Manny — ILC Guide",
     author="Sean / ILC Studios",
 )
 
 story = []
 
 # ══════════════════════════════════════════════════════════════════════════════
-# COVER
+# PAGE 1 — ORIENTATION
 # ══════════════════════════════════════════════════════════════════════════════
-story.append(Paragraph("Manny — Tasks 6–9", title_style))
+story.append(Paragraph("ILC Lighting App", title_style))
 story.append(Paragraph(
-    "CRM improvements · July 2026 · All four tasks are in "
-    "<font face='Courier'>src/app/(app)/crm/CRMClient.jsx</font> "
-    "(plus two new files for Task 8). No schema changes, no engine changes.",
+    "Session orientation for Manuel San Ramon · July 2026",
     subtitle_style,
 ))
 
+story.append(HRFlowable(width='100%', thickness=0.5, color=BORDER, spaceAfter=14))
+
+# Instruction block for Claude
 story.append(Paragraph(
-    "<b>Important context:</b> Since your last sprint, Mike pushed a large deploy that unified "
-    "the Deal model into Project. <font face='Courier'>DealCard</font>, "
-    "<font face='Courier'>DealDrawer</font>, and the activities API are gone. "
-    "The pipeline entity is now <font face='Courier'>Project</font>. "
-    "Status values live on <font face='Courier'>procurementStatus</font> and "
-    "<font face='Courier'>designStatus</font> fields directly on the project. "
-    "Valid statuses: <font face='Courier'>OPEN WON LOST COMPLETED ABANDONED</font>.",
+    "<b>TO CLAUDE CODE:</b> You have been given this PDF to orient yourself for Manny's session. "
+    "Read everything on pages 1–2, then the task specs that follow. "
+    "Greet Manny by name, confirm you understand the project and current tasks by mentioning "
+    "one or two specifics, tell him Task 1 (clickable links in the Brief page) is the warmup "
+    "and what the very first step is. Warm tone, short sentences — he wants to be in motion. "
+    "End with: \"Ready to branch and start, or do you want to talk through anything first?\"",
+    claude_style,
+))
+
+# The project
+story.append(Paragraph("THE PROJECT", section_label_style))
+story.append(Paragraph(
+    "Internal tool for ILC Studios (lighting consultancy). Produces conceptual and design budgets, "
+    "manages projects, and runs a CRM pipeline. Live at "
+    "<font face='Courier'>https://app.ilcstudios.com</font>, auto-deploys from "
+    "<font face='Courier'>main</font> via AWS Amplify.",
+    body_style,
+))
+story.append(Paragraph(
+    "Stack: Next.js 14 App Router, Tailwind CSS, Prisma 5.22 (SQLite locally / PostgreSQL in prod), "
+    "JWT auth, Amplify SSR.",
+    body_style,
+))
+
+# The team
+story.append(Paragraph("THE TEAM", section_label_style))
+story.append(styled_table([
+    ['Name',          'Role'],
+    ['Mike Kershner', 'Founder and lead dev. Pushes directly to main.'],
+    ['Sean McCauley',  "Manny's reviewer. Merges all Manny's PRs."],
+    ['Manny (you)',    'Part-time dev ~10 hr/week. Always works on manny/* branches.'],
+], col_widths=[1.5*inch, 5.3*inch]))
+
+# Mandatory workflow
+story.append(Paragraph("MANNY'S MANDATORY WORKFLOW — EVERY SESSION", section_label_style))
+story.append(styled_table([
+    ['Step', 'Command / Action'],
+    ['1', 'git pull  (always first — never skip)'],
+    ['2', 'git checkout -b manny/<short-description>'],
+    ['3', 'Edit code, test with npm run dev:3000, iterate'],
+    ['4', 'git commit, then git push  (pre-push hooks run ~25 sec — never use --no-verify)'],
+    ['5', 'gh pr create, then ping Sean to review. Never push to main directly.'],
+], col_widths=[0.4*inch, 6.4*inch]))
+
+# Pre-push hooks
+story.append(Paragraph("PRE-PUSH HOOKS (NEVER BYPASS)", section_label_style))
+story.append(Paragraph(
+    "Six checks run automatically on every push: dynamic-pages, postgres-migrations, "
+    "schema-sync, <font face='Courier'>npm test</font> (38 scenarios + 112K fuzz), "
+    "check-secrets, push-size. If one fails, fix the underlying issue — "
+    "<b>never use <font face='Courier'>--no-verify</font></b>.",
     warn_style,
+))
+
+# Critical rules
+story.append(Paragraph("CRITICAL RULES", section_label_style))
+story.append(styled_table([
+    ['Rule', 'Detail'],
+    ['force-dynamic on every page',
+     "Every file under src/app/(app)/ must export: export const dynamic = 'force-dynamic'  "
+     "Without it the page crashes in production."],
+    ['schema.prisma stays sqlite',
+     'provider = "sqlite" must never be changed — Amplify patches it to postgresql at build time.'],
+    ['Leave the budget engine alone',
+     'src/lib/calculations.js is validated. Do not touch unless a task explicitly says to.'],
+    ['Auth on every API route',
+     'Every route handler starts with: const { user, error } = await requireAuth(request)'],
+], col_widths=[1.7*inch, 5.1*inch]))
+
+# Local dev
+story.append(Paragraph("LOCAL DEV LOGIN", section_label_style))
+story.append(Preformatted(
+    "npm run dev:3000\n"
+    "\n"
+    "Email:    admin@ilcstudios.com\n"
+    "Password: ILCadmin2024!",
+    code_style,
+))
+
+# Current state
+story.append(Paragraph("CURRENT STATE (as of 2026-07-07)", section_label_style))
+story.append(Paragraph(
+    "Tasks 1–9 from the last two sprints all merged to main. "
+    "Now on Tasks 1–4 in this document — all CRM polish, pure frontend. "
+    "No schema changes, no engine changes.",
+    ok_style,
+))
+
+# Key files
+story.append(Paragraph("KEY FILES FOR THIS SPRINT", section_label_style))
+story.append(styled_table([
+    ['File', 'Purpose'],
+    ['src/app/(app)/crm/brief/BriefClient.jsx', 'Task 1 — add clickable project name links'],
+    ['src/app/(app)/crm/page.jsx',              'Task 2 — add _count to the Prisma select'],
+    ['src/app/(app)/crm/CRMClient.jsx',         'Tasks 2, 3, 4 — notes badge, prob edit, CSV export'],
+    ['src/app/api/projects/[id]/route.js',      'Task 3 — PATCH endpoint (already accepts pipelineProbability)'],
+], col_widths=[3.2*inch, 3.6*inch]))
+
+story.append(PageBreak())
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TASK OVERVIEW
+# ══════════════════════════════════════════════════════════════════════════════
+story.append(Paragraph("Tasks 1–4 overview", h1_style))
+story.append(Paragraph(
+    "All four tasks are CRM polish. No schema changes, no engine changes. "
+    "Work in order: 1 → 2 → 3 → 4. Tasks 1 and 2 are quick warmups (~30 min and ~1.5 hrs).",
+    body_style,
 ))
 
 story.append(styled_table([
     ['Task', 'Branch', 'File(s)', 'Effort'],
-    ['6 — Needs Attention filter',
-     'manny/crm-needs-attention',
+    ['1 — Brief page clickable links',
+     'manny/brief-clickable-links',
+     'BriefClient.jsx',
+     '~30 min'],
+    ['2 — Notes count badge',
+     'manny/crm-notes-count',
+     'crm/page.jsx + CRMClient.jsx',
+     '~1.5 hr'],
+    ['3 — Probability quick-edit',
+     'manny/crm-prob-edit',
+     'CRMClient.jsx',
+     '~2-3 hr'],
+    ['4 — CSV export',
+     'manny/crm-csv-export',
      'CRMClient.jsx',
      '~2 hr'],
-    ['7 — Enhance stats bar',
-     'manny/crm-stats-enhance',
-     'CRMClient.jsx',
-     '~1 hr'],
-    ['8 — Morning Brief page',
-     'manny/crm-morning-brief',
-     'crm/brief/page.jsx + BriefClient.jsx',
-     '~3-4 hr'],
-    ['9 — Project quick-note',
-     'manny/crm-project-quicknote',
-     'CRMClient.jsx',
-     '~2 hr'],
-], col_widths=[2.1*inch, 2.0*inch, 2.1*inch, 0.8*inch]))
-
-story.append(Paragraph(
-    "<b>Work in order:</b> 6 then 7, then 8, then 9. Tasks 6 and 7 are both small and can be "
-    "done in the same session. Task 7 uses a <font face='Courier'>daysSince()</font> helper "
-    "that Task 6 adds — do 6 first, or add the helper yourself if you tackle 7 first.",
-    body_style,
-))
+], col_widths=[2.0*inch, 2.1*inch, 1.9*inch, 0.8*inch]))
 
 story.append(PageBreak())
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TASK 6
+# TASK 1
 # ══════════════════════════════════════════════════════════════════════════════
-story.append(Paragraph("Task 6 — \"Needs Attention\" filter", h1_style))
+story.append(Paragraph("Task 1 — Brief page: clickable project names", h1_style))
 story.append(Paragraph(
-    "Branch: <font face='Courier'>manny/crm-needs-attention</font> | "
-    "File: <font face='Courier'>src/app/(app)/crm/CRMClient.jsx</font> | ~2 hours",
+    "Branch: <font face='Courier'>manny/brief-clickable-links</font> | "
+    "File: <font face='Courier'>src/app/(app)/crm/brief/BriefClient.jsx</font> | ~30 min",
     subtitle_style,
 ))
 story.append(Paragraph(
-    "Mike needs a one-click view of every open project that hasn't been touched in 30+ days "
-    "so nothing slips through. Right now you have to scan the kanban card by card.",
+    "The Morning Brief page shows stale projects and recent wins as tables, "
+    "but project names are plain text. Mike can't click through. "
+    "One-line change per table makes the page actionable.",
     body_style,
 ))
 
-story.append(Paragraph("Architecture notes — read CRMClient.jsx first", h2_style))
+story.append(Paragraph("What to change", h2_style))
 story.append(Paragraph(
-    "* Pipeline entity is <font face='Courier'>Project</font> — state array is "
-    "<font face='Courier'>projects</font>.<br/>"
-    "* Current pipeline's status field: "
-    "<font face='Courier'>project[statusFieldFor(pipeline)]</font> returns "
-    "<font face='Courier'>procurementStatus</font> or <font face='Courier'>designStatus</font>. "
-    "Both helpers are already imported from <font face='Courier'>@/lib/pipeline</font>.<br/>"
-    "* There is <b>no</b> <font face='Courier'>daysSince()</font> function in the file — you must add one.<br/>"
-    "* Staleness is based on <font face='Courier'>project.updatedAt</font> (no activities array).<br/>"
-    "* The <font face='Courier'>filtered</font> useMemo is at line 294. "
-    "The header/filter controls render at lines 344-392.",
+    "1. In the <b>stale projects table</b> (the <font face='Courier'>stale.map</font> block), "
+    "find the <font face='Courier'>&lt;td&gt;</font> that renders "
+    "<font face='Courier'>{p.name}</font> and wrap it:",
     body_style,
 ))
-
-story.append(Paragraph("Step 1 — add daysSince() helper (~line 37, near other formatters)", h2_style))
 story.append(Preformatted(
-    "function daysSince(dateStr) {\n"
-    "  if (!dateStr) return 999;\n"
-    "  return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86_400_000);\n"
-    "}",
+    '<a\n'
+    '  href={`/project/${p.id}`}\n'
+    '  className="font-semibold text-slate-900 hover:text-blue-600 underline"\n'
+    '>\n'
+    '  {p.name}\n'
+    '</a>',
     code_style,
 ))
-
-story.append(Paragraph("Step 2 — add state inside CRMClient", h2_style))
-story.append(Preformatted("const [needsAttention, setNeedsAttention] = useState(false);", code_style))
-
-story.append(Paragraph("Step 3 — add a derived list via useMemo", h2_style))
-story.append(Preformatted(
-    "const needsAttentionFiltered = useMemo(() => {\n"
-    "  const sf = statusFieldFor(pipeline);\n"
-    "  return projects\n"
-    "    .filter(p => inBoard(p) && p[sf] === 'OPEN' && daysSince(p.updatedAt) >= 30)\n"
-    "    .sort((a, b) => new Date(a.updatedAt) - new Date(b.updatedAt));\n"
-    "}, [projects, pipeline]);",
-    code_style,
-))
-
-story.append(Paragraph("Step 4 — add button in the filter row (after status pills, ~line 380)", h2_style))
-story.append(Preformatted(
-    "<button\n"
-    "  onClick={() => setNeedsAttention(n => !n)}\n"
-    "  className={`px-2.5 py-1.5 text-[10px] font-bold rounded-lg transition-colors ${\n"
-    "    needsAttention\n"
-    "      ? 'bg-amber-500 text-white'\n"
-    "      : needsAttentionFiltered.length > 0\n"
-    "        ? 'border border-amber-400 text-amber-600 hover:bg-amber-50'\n"
-    "        : 'text-slate-400 hover:bg-slate-200'\n"
-    "  }`}\n"
-    ">\n"
-    "  {needsAttention\n"
-    "    ? `Needs Attention (${needsAttentionFiltered.length})`\n"
-    "    : needsAttentionFiltered.length > 0\n"
-    "      ? `Warning Needs Attention (${needsAttentionFiltered.length})`\n"
-    "      : 'Needs Attention'}\n"
-    "</button>",
-    code_style,
-))
-
-story.append(Paragraph("Step 5 — override the active list and view mode when filter is on", h2_style))
-story.append(Preformatted(
-    "const activeList     = needsAttention ? needsAttentionFiltered : filtered;\n"
-    "const activeViewMode = needsAttention ? 'list' : viewMode;\n"
-    "\n"
-    "// Use activeList and activeViewMode in JSX instead of filtered and viewMode.",
-    code_style,
-))
-
-story.append(Paragraph("Acceptance criteria", h2_style))
 story.append(Paragraph(
-    "* Button shows amber outline when stale projects exist, grey when zero.<br/>"
-    "* Clicking it shows list view with only open + stale projects, most stale first.<br/>"
-    "* Clicking again restores normal view.<br/>"
-    "* Switching PROCUREMENT / DESIGN tab re-runs the filter for the new pipeline.<br/>"
-    "* Existing filters still work when Needs Attention is off.<br/>"
-    "* Pre-push hooks pass.",
+    "2. Apply the same link pattern to <b>project names in the recent wins section</b>.",
     body_style,
 ))
-
-story.append(PageBreak())
-
-# ══════════════════════════════════════════════════════════════════════════════
-# TASK 7
-# ══════════════════════════════════════════════════════════════════════════════
-story.append(Paragraph("Task 7 — Enhance the existing stats bar", h1_style))
 story.append(Paragraph(
-    "Branch: <font face='Courier'>manny/crm-stats-enhance</font> | "
-    "File: <font face='Courier'>src/app/(app)/crm/CRMClient.jsx</font> | ~1 hour",
-    subtitle_style,
-))
-story.append(Paragraph(
-    "<b>Don't build a new stats bar.</b> One already exists: the "
-    "<font face='Courier'>PipelineSummary</font> component at line 150. "
-    "It shows 5 chips. Make two targeted improvements.",
-    warn_style,
-))
-
-story.append(Paragraph("Change 1 — Replace 'Won (all time)' with 'Won (30 days)'", h2_style))
-story.append(Preformatted(
-    "// Before:\n"
-    "const won = projects.filter(p => p[sf] === 'WON');\n"
-    "\n"
-    "// After:\n"
-    "const won = projects.filter(p => p[sf] === 'WON' && daysSince(p.updatedAt) <= 30);\n"
-    "\n"
-    "// Also update the label string from 'Won (all time)' to 'Won (30 days)'.",
-    code_style,
-))
-
-story.append(Paragraph("Change 2 — Add a 'Needs Attention' count chip", h2_style))
-story.append(Preformatted(
-    "const stale = open.filter(p => daysSince(p.updatedAt) >= 30);\n"
-    "\n"
-    "// Add to the stats array:\n"
-    "{\n"
-    "  label: 'Needs Attention',\n"
-    "  value: stale.length,\n"
-    "  color: stale.length > 0 ? 'text-amber-600' : 'text-slate-400'\n"
-    "}",
-    code_style,
-))
-
-story.append(Paragraph(
-    "<b>Note on daysSince:</b> This helper is added by Task 6. "
-    "If you're doing Task 7 first, define it yourself (same definition as Task 6's Step 1). "
-    "Only one definition should exist in the file.",
+    "The <font face='Courier'>id</font> field is already in the Prisma select in "
+    "<font face='Courier'>brief/page.jsx</font> — no server changes needed.",
     body_style,
 ))
 
 story.append(Paragraph("Acceptance criteria", h2_style))
 story.append(Paragraph(
-    "* Stats bar shows 6 chips. 'Won (30 days)' replaces 'Won (all time)'.<br/>"
-    "* 'Needs Attention' chip is amber text when count > 0, grey when 0.<br/>"
-    "* Counts update instantly when switching PROCUREMENT / DESIGN tab.<br/>"
-    "* Pre-push hooks pass.",
+    "* Clicking a project name in the stale table navigates to /project/[id].<br/>"
+    "* Same for the recent wins section.<br/>"
+    "* No other changes to the page. Pre-push hooks pass.",
     body_style,
 ))
 
 story.append(PageBreak())
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TASK 8
+# TASK 2
 # ══════════════════════════════════════════════════════════════════════════════
-story.append(Paragraph("Task 8 — Morning Brief page", h1_style))
+story.append(Paragraph("Task 2 — Notes count badge on ProjectCard", h1_style))
 story.append(Paragraph(
-    "Branch: <font face='Courier'>manny/crm-morning-brief</font> | ~3-4 hours | Do after Tasks 6 and 7.",
+    "Branch: <font face='Courier'>manny/crm-notes-count</font> | "
+    "Files: <font face='Courier'>crm/page.jsx</font> + "
+    "<font face='Courier'>CRMClient.jsx</font> | ~1.5 hours",
     subtitle_style,
 ))
 story.append(Paragraph(
-    "Create a page at <font face='Courier'>/crm/brief</font> that gives Mike a single daily view: "
-    "stale projects needing outreach, pipeline counts by stage, and recent wins.",
+    "The last sprint added a '+ Note' button on each kanban card (Task 4). "
+    "There's no way to tell at a glance if a project already has notes. "
+    "A small count badge closes the loop.",
     body_style,
 ))
 
-story.append(Paragraph("Files to create", h2_style))
-story.append(styled_table([
-    ['File', 'Type', 'Notes'],
-    ['src/app/(app)/crm/brief/page.jsx',
-     'Server component',
-     "MUST have: export const dynamic = 'force-dynamic'"],
-    ['src/app/(app)/crm/brief/BriefClient.jsx',
-     'Client component',
-     "'use client' at top; display-only, no data fetching"],
-], col_widths=[2.8*inch, 1.3*inch, 2.8*inch]))
-
+story.append(Paragraph("Step 1 — add _count to crm/page.jsx", h2_style))
 story.append(Paragraph(
-    "<b>Model this on <font face='Courier'>src/app/(app)/crm/page.jsx</font></b> — "
-    "same auth pattern, same Prisma import. "
-    "You can import <font face='Courier'>PIPELINE_STAGES</font> from "
-    "<font face='Courier'>@/lib/pipeline</font> — it's SSR-safe.",
+    "Inside the <font face='Courier'>prisma.project.findMany({{ select: {{ ... }} }})</font> block, "
+    "add one line:",
     body_style,
 ))
-
-story.append(Paragraph("Section 1 — Needs Attention (stale open projects, top 10)", h2_style))
 story.append(Preformatted(
-    "const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);\n"
-    "\n"
-    "const stale = await prisma.project.findMany({\n"
-    "  where: {\n"
-    "    OR: [{ procurementStatus: 'OPEN' }, { designStatus: 'OPEN' }],\n"
-    "    updatedAt: { lt: thirtyDaysAgo },\n"
-    "  },\n"
-    "  orderBy: { updatedAt: 'asc' },\n"
-    "  take: 10,\n"
-    "  select: {\n"
-    "    id: true, name: true, updatedAt: true,\n"
-    "    procurementStage: true, designStage: true,\n"
-    "    procurementStatus: true, designStatus: true,\n"
-    "    client: { select: { name: true } },\n"
-    "  },\n"
-    "});",
+    "_count: { select: { noteLinks: true } },",
     code_style,
 ))
 story.append(Paragraph(
-    "Display as a table: Project | Client | Stage | Days since update. "
-    "If empty: show a green 'All caught up — no stale open projects.'",
+    "<font face='Courier'>noteLinks</font> is the relation name on Project "
+    "(declared as <font face='Courier'>noteLinks NoteProject[] @relation(\"ProjectNoteLinks\")</font> "
+    "in schema.prisma). Each count is the number of notes linked to the project.",
     body_style,
 ))
 
-story.append(Paragraph("Section 2 — Pipeline snapshot (open project counts by stage)", h2_style))
+story.append(Paragraph("Step 2 — show the count in ProjectCard (CRMClient.jsx)", h2_style))
+story.append(Paragraph(
+    "Find the <font face='Courier'>ProjectCard</font> function (search for "
+    "<font face='Courier'>// ── Project Card</font>). "
+    "After the <font face='Courier'>{{!noteOpen ? ... &lt;NoteInput&gt;}}</font> block "
+    "at the bottom of the return, add:",
+    body_style,
+))
 story.append(Preformatted(
-    "const [procSnapshot, designSnapshot] = await Promise.all([\n"
-    "  prisma.project.groupBy({\n"
-    "    by: ['procurementStage'],\n"
-    "    where: { procurementStatus: 'OPEN' },\n"
-    "    _count: { id: true },\n"
-    "  }),\n"
-    "  prisma.project.groupBy({\n"
-    "    by: ['designStage'],\n"
-    "    where: { designStatus: 'OPEN' },\n"
-    "    _count: { id: true },\n"
-    "  }),\n"
-    "]);",
-    code_style,
-))
-story.append(Paragraph(
-    "Display as two side-by-side tables (Procurement | Design), each showing Stage | Count. "
-    "Use <font face='Courier'>PIPELINE_STAGES.PROCUREMENT</font> and "
-    "<font face='Courier'>PIPELINE_STAGES.DESIGN</font> to control stage order and labels.",
-    body_style,
-))
-
-story.append(Paragraph("Section 3 — Won last 30 days", h2_style))
-story.append(Preformatted(
-    "const recentWins = await prisma.project.findMany({\n"
-    "  where: {\n"
-    "    OR: [{ procurementStatus: 'WON' }, { designStatus: 'WON' }],\n"
-    "    updatedAt: { gte: thirtyDaysAgo },\n"
-    "  },\n"
-    "  orderBy: { updatedAt: 'desc' },\n"
-    "  select: {\n"
-    "    id: true, name: true, updatedAt: true,\n"
-    "    procurementStatus: true, designStatus: true,\n"
-    "    client: { select: { name: true } },\n"
-    "  },\n"
-    "});",
-    code_style,
-))
-story.append(Paragraph(
-    "Display: project name, client, which pipeline(s) are Won, date updated.",
-    body_style,
-))
-
-story.append(Paragraph(
-    "Fetch all three with Promise.all. Pass stale, procSnapshot, designSnapshot, recentWins "
-    "as props to BriefClient.",
-    body_style,
-))
-
-story.append(Paragraph(
-    "Also add a 'Brief ->' link in CRMClient.jsx's header near the 'New Project' button "
-    "(lines 359-368) pointing to <font face='Courier'>/crm/brief</font>.",
-    body_style,
-))
-
-story.append(Paragraph("Acceptance criteria", h2_style))
-story.append(Paragraph(
-    "* <font face='Courier'>/crm/brief</font> loads without errors when logged in.<br/>"
-    "* Auth gates the page (same pattern as crm/page.jsx).<br/>"
-    "* All three sections render. Empty states are handled gracefully.<br/>"
-    "* <font face='Courier'>export const dynamic = 'force-dynamic'</font> is on the page.<br/>"
-    "* 'Brief ->' link appears in the CRM header.<br/>"
-    "* Pre-push hooks pass.",
-    body_style,
-))
-
-story.append(PageBreak())
-
-# ══════════════════════════════════════════════════════════════════════════════
-# TASK 9
-# ══════════════════════════════════════════════════════════════════════════════
-story.append(Paragraph("Task 9 — Project quick-note from the kanban card", h1_style))
-story.append(Paragraph(
-    "Branch: <font face='Courier'>manny/crm-project-quicknote</font> | "
-    "File: <font face='Courier'>src/app/(app)/crm/CRMClient.jsx</font> | ~2 hours | Do after Tasks 6-8.",
-    subtitle_style,
-))
-story.append(Paragraph(
-    "Add a '+ Note' link at the bottom of each ProjectCard so Mike can log a quick note "
-    "from the kanban without navigating away from the board.",
-    body_style,
-))
-story.append(Paragraph(
-    "<b>The old activities API is gone.</b> Use the new Notes API: "
-    "<font face='Courier'>POST /api/crm/notes</font>. "
-    "Read that route at <font face='Courier'>src/app/api/crm/notes/route.js</font> before writing anything.",
-    warn_style,
-))
-
-story.append(Paragraph("Notes API — POST /api/crm/notes", h2_style))
-story.append(Paragraph("Minimal body to create a project-linked note:", body_style))
-story.append(Preformatted(
-    '{\n'
-    '  "noteBody": "the note text",\n'
-    '  "projectIds": ["project-id-here"],\n'
-    '  "title": "",\n'
-    '  "meetingDate": null,\n'
-    '  "attendees": "[]",\n'
-    '  "calendarRef": null,\n'
-    '  "clientIds": [],\n'
-    '  "activityType": null,\n'
-    '  "contactIds": []\n'
-    '}',
-    code_style,
-))
-story.append(Paragraph(
-    "Response: 201 Created on success. 4xx with { error: '...' } on failure.",
-    body_style,
-))
-
-story.append(Paragraph("NoteInput component (add above ProjectCard)", h2_style))
-story.append(Preformatted(
-    "function NoteInput({ projectId, onClose }) {\n"
-    "  const [text,   setText]   = useState('');\n"
-    "  const [saving, setSaving] = useState(false);\n"
-    "  const [saved,  setSaved]  = useState(false);\n"
-    "  const [err,    setErr]    = useState(null);\n"
-    "\n"
-    "  async function handleSave() {\n"
-    "    if (!text.trim()) return;\n"
-    "    setSaving(true); setErr(null);\n"
-    "    try {\n"
-    "      const res = await fetch('/api/crm/notes', {\n"
-    "        method: 'POST',\n"
-    "        headers: { 'Content-Type': 'application/json' },\n"
-    "        body: JSON.stringify({\n"
-    "          noteBody: text.trim(), projectIds: [projectId],\n"
-    "          title: '', meetingDate: null, attendees: '[]',\n"
-    "          calendarRef: null, clientIds: [],\n"
-    "          activityType: null, contactIds: [],\n"
-    "        }),\n"
-    "      });\n"
-    "      if (!res.ok) throw new Error((await res.json()).error || 'Failed');\n"
-    "      setSaved(true);\n"
-    "      setTimeout(onClose, 1500);\n"
-    "    } catch (e) {\n"
-    "      setErr(e.message);\n"
-    "    } finally {\n"
-    "      setSaving(false);\n"
-    "    }\n"
-    "  }\n"
-    "\n"
-    "  if (saved) return <p className='text-xs text-green-600 mt-2'>Saved check</p>;\n"
-    "\n"
-    "  return (\n"
-    "    <div className='mt-2 flex flex-col gap-1'>\n"
-    "      <input autoFocus value={text}\n"
-    "        onChange={e => setText(e.target.value)}\n"
-    "        placeholder='Quick note...'\n"
-    "        className='text-xs border border-slate-200 rounded px-2 py-1 w-full\n"
-    "                   focus:outline-none focus:ring-1 focus:ring-orange-400' />\n"
-    "      {err && <p className='text-xs text-red-500'>{err}</p>}\n"
-    "      <div className='flex gap-1'>\n"
-    "        <button onClick={handleSave}\n"
-    "          disabled={saving || !text.trim()}\n"
-    "          className='text-xs px-2 py-1 bg-slate-800 text-white rounded\n"
-    "                     disabled:opacity-40'>\n"
-    "          {saving ? 'Saving...' : 'Save'}\n"
-    "        </button>\n"
-    "        <button onClick={onClose}\n"
-    "          className='text-xs text-slate-400 hover:text-slate-600'>x</button>\n"
-    "      </div>\n"
-    "    </div>\n"
-    "  );\n"
-    "}",
-    code_style,
-))
-
-story.append(Paragraph("Add to ProjectCard's JSX (at the very bottom of the return)", h2_style))
-story.append(Preformatted(
-    "const [noteOpen, setNoteOpen] = useState(false);\n"
-    "\n"
-    "// In JSX:\n"
-    "{!noteOpen ? (\n"
-    "  <button onClick={() => setNoteOpen(true)}\n"
-    "    className='text-xs text-slate-400 hover:text-slate-600 mt-2 w-full text-left'>\n"
-    "    + Note\n"
-    "  </button>\n"
-    ") : (\n"
-    "  <NoteInput\n"
-    "    projectId={project.id}\n"
-    "    onClose={() => setNoteOpen(false)}\n"
-    "  />\n"
+    "{(project._count?.noteLinks ?? 0) > 0 && (\n"
+    "  <p className=\"text-[10px] text-slate-400 mt-0.5 select-none\">\n"
+    "    {project._count.noteLinks} note{project._count.noteLinks !== 1 ? 's' : ''}\n"
+    "  </p>\n"
     ")}",
     code_style,
 ))
 
 story.append(Paragraph("Acceptance criteria", h2_style))
 story.append(Paragraph(
-    "* Clicking '+ Note' opens an inline input on the card.<br/>"
-    "* Save is disabled when input is empty or while saving.<br/>"
-    "* Submitting POSTs to /api/crm/notes with projectIds: [project.id].<br/>"
-    "* Success shows 'Saved' then closes after 1.5 seconds.<br/>"
-    "* Error message stays visible; input stays open so the user can retry.<br/>"
+    "* Cards with existing notes show \"N notes\" below the '+ Note' button.<br/>"
+    "* Cards with zero notes show nothing extra.<br/>"
+    "* No API changes, no schema changes. Pre-push hooks pass.",
+    body_style,
+))
+
+story.append(PageBreak())
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TASK 3
+# ══════════════════════════════════════════════════════════════════════════════
+story.append(Paragraph("Task 3 — Probability quick-edit on ProjectCard", h1_style))
+story.append(Paragraph(
+    "Branch: <font face='Courier'>manny/crm-prob-edit</font> | "
+    "File: <font face='Courier'>src/app/(app)/crm/CRMClient.jsx</font> | ~2–3 hours",
+    subtitle_style,
+))
+story.append(Paragraph(
+    "The probability bar and percentage on each card are display-only. "
+    "Editing requires navigating into the project. "
+    "Click-to-edit on the card saves three clicks.",
+    body_style,
+))
+
+story.append(Paragraph("Architecture — read before writing", h2_style))
+story.append(Paragraph(
+    "* <font face='Courier'>projects</font> state and <font face='Courier'>setProjects</font> "
+    "live in <font face='Courier'>CRMClient</font> (~line 363).<br/>"
+    "* <font face='Courier'>ProjectCard</font> receives <font face='Courier'>project</font> "
+    "as a prop — it cannot update parent state without a callback.<br/>"
+    "* <font face='Courier'>handleDrop</font> already shows the optimistic-update pattern: "
+    "call <font face='Courier'>setProjects</font> immediately, then fire the PATCH.<br/>"
+    "* API: <font face='Courier'>PATCH /api/projects/[id]</font> already accepts "
+    "<font face='Courier'>pipelineProbability</font> and clamps it to 0–100 server-side.",
+    body_style,
+))
+
+story.append(Paragraph("Step 1 — add handleProbabilityChange to CRMClient (near handleDrop)", h2_style))
+story.append(Preformatted(
+    "async function handleProbabilityChange(id, value) {\n"
+    "  const clamped = Math.max(0, Math.min(100, Number(value)));\n"
+    "  setProjects(prev => prev.map(p =>\n"
+    "    p.id === id ? { ...p, pipelineProbability: clamped } : p\n"
+    "  ));\n"
+    "  try {\n"
+    "    await fetch(`/api/projects/${id}`, {\n"
+    "      method: 'PATCH',\n"
+    "      headers: { 'Content-Type': 'application/json' },\n"
+    "      body: JSON.stringify({ pipelineProbability: clamped }),\n"
+    "    });\n"
+    "  } catch { /* optimistic already applied; fail silently */ }\n"
+    "}",
+    code_style,
+))
+
+story.append(Paragraph("Step 2 — thread onProbabilityChange to ProjectCard", h2_style))
+story.append(Paragraph(
+    "Wherever <font face='Courier'>ProjectCard</font> is rendered "
+    "(inside <font face='Courier'>KanbanColumn</font> and inside "
+    "<font face='Courier'>ListView</font>), add the prop. "
+    "Also thread it through <font face='Courier'>KanbanColumn</font>'s props.",
+    body_style,
+))
+story.append(Preformatted(
+    "// In CRMClient's JSX:\n"
+    "<KanbanColumn ... onProbabilityChange={handleProbabilityChange} />\n"
+    "<ListView     ... onProbabilityChange={handleProbabilityChange} />\n"
+    "\n"
+    "// In KanbanColumn:\n"
+    "function KanbanColumn({ ..., onProbabilityChange }) {\n"
+    "  // pass it down:\n"
+    "  <ProjectCard ... onProbabilityChange={onProbabilityChange} />\n"
+    "}",
+    code_style,
+))
+
+story.append(Paragraph("Step 3 — add editing state and inline input inside ProjectCard", h2_style))
+story.append(Preformatted(
+    "const [editingProb, setEditingProb] = useState(false);\n"
+    "\n"
+    "// Replace the probability <span> with this:\n"
+    "{editingProb ? (\n"
+    "  <input\n"
+    "    type=\"number\" min=\"0\" max=\"100\"\n"
+    "    defaultValue={project.pipelineProbability ?? 0}\n"
+    "    autoFocus\n"
+    "    className=\"w-10 text-[10px] border border-slate-200 rounded px-1\n"
+    "               focus:outline-none focus:ring-1 focus:ring-orange-400\"\n"
+    "    onBlur={e => {\n"
+    "      setEditingProb(false);\n"
+    "      onProbabilityChange(project.id, e.target.value);\n"
+    "    }}\n"
+    "    onKeyDown={e => {\n"
+    "      if (e.key === 'Enter')  e.target.blur();\n"
+    "      if (e.key === 'Escape') setEditingProb(false);\n"
+    "    }}\n"
+    "    onClick={e => e.stopPropagation()}\n"
+    "  />\n"
+    ") : (\n"
+    "  <span\n"
+    "    className=\"text-[10px] text-slate-400 cursor-pointer\n"
+    "               hover:text-slate-600 hover:underline\"\n"
+    "    title=\"Click to edit\"\n"
+    "    onClick={e => { e.stopPropagation(); setEditingProb(true); }}\n"
+    "  >\n"
+    "    {project.pipelineProbability ?? 0}%\n"
+    "  </span>\n"
+    ")}",
+    code_style,
+))
+story.append(Paragraph(
+    "<b>Critical:</b> <font face='Courier'>e.stopPropagation()</font> on both the span click "
+    "and the input click — without it, clicking to edit opens the project detail panel.",
+    warn_style,
+))
+
+story.append(Paragraph("Acceptance criteria", h2_style))
+story.append(Paragraph(
+    "* Clicking the % on a card opens a number input (0–100).<br/>"
+    "* Blur or Enter saves via PATCH and updates the bar immediately (optimistic).<br/>"
+    "* Escape cancels without saving.<br/>"
+    "* Clicking the input does NOT open the project panel.<br/>"
     "* Pre-push hooks pass.",
     body_style,
 ))
 
-story.append(Spacer(1, 0.3 * inch))
+story.append(PageBreak())
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TASK 4
+# ══════════════════════════════════════════════════════════════════════════════
+story.append(Paragraph("Task 4 — CRM CSV export", h1_style))
 story.append(Paragraph(
-    "<b>Operating reminder.</b> Tell Claude what you want, not how. Claude handles git, "
-    "tests, and pushes. You review and approve. Never push to main directly — always via "
-    "a manny/* branch and PR. If something is unclear after 30 minutes, ask Sean.",
+    "Branch: <font face='Courier'>manny/crm-csv-export</font> | "
+    "File: <font face='Courier'>src/app/(app)/crm/CRMClient.jsx</font> | ~2 hours",
+    subtitle_style,
+))
+story.append(Paragraph(
+    "Mike occasionally needs the pipeline as a spreadsheet. "
+    "All data is already in client state — no API needed. "
+    "A download button in the CRM toolbar serializes the current filtered view.",
+    body_style,
+))
+
+story.append(Paragraph("Step 1 — add handleExportCSV to CRMClient (near handleDrop)", h2_style))
+story.append(Preformatted(
+    "function handleExportCSV() {\n"
+    "  const sf     = statusFieldFor(pipeline);\n"
+    "  const stagef = stageFieldFor(pipeline);\n"
+    "  const headers = [\n"
+    "    'Project', 'Client', 'Stage', 'Status',\n"
+    "    'Revenue', 'Probability', 'Expected Order',\n"
+    "  ];\n"
+    "  const rows = filtered.map(p => [\n"
+    "    p.name,\n"
+    "    p.client?.name || '',\n"
+    "    p[stagef] || '',\n"
+    "    p[sf] || '',\n"
+    "    revenueFor(p, pipeline)\n"
+    "      ? `$${revenueFor(p, pipeline).toLocaleString()}` : '',\n"
+    "    `${p.pipelineProbability ?? 0}%`,\n"
+    "    p.expectedOrderDate\n"
+    "      ? new Date(p.expectedOrderDate).toLocaleDateString() : '',\n"
+    "  ]);\n"
+    "  const csv = [headers, ...rows]\n"
+    "    .map(r => r.map(v =>\n"
+    "      `\"${String(v).replace(/\"/g, '\"\"')}\"`\n"
+    "    ).join(','))\n"
+    "    .join('\\n');\n"
+    "  const blob = new Blob([csv], { type: 'text/csv' });\n"
+    "  const url  = URL.createObjectURL(blob);\n"
+    "  const a    = document.createElement('a');\n"
+    "  a.href     = url;\n"
+    "  a.download = `crm-${pipeline.toLowerCase()}-`\n"
+    "             + new Date().toISOString().slice(0, 10) + '.csv';\n"
+    "  a.click();\n"
+    "  URL.revokeObjectURL(url);\n"
+    "}",
+    code_style,
+))
+
+story.append(Paragraph("Step 2 — add the Export CSV button in the toolbar", h2_style))
+story.append(Paragraph(
+    "Find the CRM toolbar JSX (search for <font face='Courier'>// ── Main CRMClient</font> "
+    "and look for the area with the pipeline tab switcher and 'New Project' button). "
+    "Add a low-key secondary button:",
+    body_style,
+))
+story.append(Preformatted(
+    "<button\n"
+    "  onClick={handleExportCSV}\n"
+    "  className=\"text-xs border border-slate-200 text-slate-600\n"
+    "             hover:bg-slate-50 px-2.5 py-1.5 rounded-lg\"\n"
+    ">\n"
+    "  Export CSV\n"
+    "</button>",
+    code_style,
+))
+
+story.append(Paragraph("Acceptance criteria", h2_style))
+story.append(Paragraph(
+    "* Clicking 'Export CSV' downloads a .csv file of the current filtered pipeline view.<br/>"
+    "* Filename includes pipeline name and today's date "
+    "(e.g. <font face='Courier'>crm-procurement-2026-07-07.csv</font>).<br/>"
+    "* Columns: Project, Client, Stage, Status, Revenue, Probability, Expected Order.<br/>"
+    "* File opens cleanly in Excel or Google Sheets.<br/>"
+    "* No API routes added. Pre-push hooks pass.",
+    body_style,
+))
+
+story.append(Spacer(1, 0.3 * inch))
+story.append(HRFlowable(width='100%', thickness=0.5, color=BORDER, spaceAfter=12))
+story.append(Paragraph(
+    "<b>Operating reminder (for Claude):</b> Tell Manny what to do — not how to do it technically. "
+    "He approves proposed changes; Claude handles git, tests, and pushes. "
+    "Manny never pushes to main — always via a manny/* branch and PR to Sean. "
+    "If pre-push hooks fail, diagnose and fix. Never --no-verify.",
     warn_style,
 ))
 
