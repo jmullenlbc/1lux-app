@@ -34,6 +34,10 @@ function fmtDate(str) {
   try { return new Date(str).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }); }
   catch { return null; }
 }
+function daysSince(dateStr) {
+  if (!dateStr) return 999;
+  return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86_400_000);
+}
 const svcLabel  = s => SERVICE_TYPE_LABELS[s] || s || null;
 const unitsOf   = p => p.projectData?.numUnits ?? null;
 
@@ -281,6 +285,7 @@ export default function CRMClient({ initialProjects, users }) {
   const [pipeline, setPipeline] = useState('PROCUREMENT');
   const [viewMode, setViewMode] = useState('kanban');
   const [filters,  setFilters]  = useState({ search: '', status: '', serviceType: '', salesOwnerId: '' });
+  const [needsAttention, setNeedsAttention] = useState(false);
   const dragId = useRef(null);
   const [draggingId, setDraggingId] = useState(null);
 
@@ -309,6 +314,15 @@ export default function CRMClient({ initialProjects, users }) {
     filtered.forEach(p => { const k = p[stageField]; if (map[k]) map[k].push(p); });
     return map;
   }, [filtered, pipeline]);
+
+  const needsAttentionFiltered = useMemo(() => {
+    return projects
+      .filter(p => inBoard(p) && p[statusField] === 'OPEN' && daysSince(p.updatedAt) >= 30)
+      .sort((a, b) => new Date(a.updatedAt) - new Date(b.updatedAt));
+  }, [projects, pipeline]);
+
+  const activeList = needsAttention ? needsAttentionFiltered : filtered;
+  const activeViewMode = needsAttention ? 'list' : viewMode;
 
   function handleDragStart(id) { dragId.current = id; setDraggingId(id); }
   function handleDragEnd()      { dragId.current = null; setDraggingId(null); }
@@ -378,6 +392,22 @@ export default function CRMClient({ initialProjects, users }) {
             {[{ val: '', label: 'All' }, { val: 'OPEN', label: 'Open' }, { val: 'WON', label: 'Won' }, { val: 'LOST', label: 'Lost' }].map(s => (
               <button key={s.val} onClick={() => setFilters(f => ({ ...f, status: s.val }))} className={`px-2.5 py-1.5 text-[10px] font-bold rounded-lg transition-colors ${filters.status === s.val ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-200'}`}>{s.label}</button>
             ))}
+            <button
+              onClick={() => setNeedsAttention(n => !n)}
+              className={`px-2.5 py-1.5 text-[10px] font-bold rounded-lg transition-colors ${
+                needsAttention
+                  ? 'bg-amber-500 text-white'
+                  : needsAttentionFiltered.length > 0
+                  ? 'border border-amber-400 text-amber-600 hover:bg-amber-50'
+                  : 'text-slate-400 hover:bg-slate-200'
+              }`}
+            >
+              {needsAttention
+                ? `Needs Attention (${needsAttentionFiltered.length})`
+                : needsAttentionFiltered.length > 0
+                ? `! Needs Attention (${needsAttentionFiltered.length})`
+                : 'Needs Attention'}
+            </button>
           </div>
           <select value={filters.serviceType} onChange={e => setFilters(f => ({ ...f, serviceType: e.target.value }))} className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-orange-400">
             <option value="">All service types</option>
@@ -393,30 +423,35 @@ export default function CRMClient({ initialProjects, users }) {
 
       {/* Body */}
       <div className="flex-1 overflow-hidden flex flex-col px-6 py-4">
-        <PipelineSummary projects={filtered} pipeline={pipeline} />
+        <PipelineSummary projects={activeList} pipeline={pipeline} />
 
-        {viewMode === 'kanban' && (
+        {activeViewMode === 'kanban' && (
           <div className="flex gap-3 overflow-x-auto flex-1 pb-4">
-            {stages.map(stageCfg => (
-              <KanbanColumn
-                key={stageCfg.key}
-                stageCfg={stageCfg}
-                projects={byStage[stageCfg.key] || []}
-                pipeline={pipeline}
-                onOpen={openProject}
-                onAdd={newProject}
-                draggingId={draggingId}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-                onDrop={handleDrop}
-              />
-            ))}
+            {stages.map(stageCfg => {
+              const stageProjMap = {};
+              stages.forEach(s => { stageProjMap[s.key] = []; });
+              activeList.forEach(p => { const k = p[stageField]; if (stageProjMap[k]) stageProjMap[k].push(p); });
+              return (
+                <KanbanColumn
+                  key={stageCfg.key}
+                  stageCfg={stageCfg}
+                  projects={stageProjMap[stageCfg.key] || []}
+                  pipeline={pipeline}
+                  onOpen={openProject}
+                  onAdd={newProject}
+                  draggingId={draggingId}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                  onDrop={handleDrop}
+                />
+              );
+            })}
           </div>
         )}
 
-        {viewMode === 'list' && (
+        {activeViewMode === 'list' && (
           <div className="flex-1 overflow-y-auto">
-            <ListView projects={filtered} pipeline={pipeline} onOpen={openProject} onUpdate={handleUpdated} />
+            <ListView projects={activeList} pipeline={pipeline} onOpen={openProject} onUpdate={handleUpdated} />
           </div>
         )}
       </div>
