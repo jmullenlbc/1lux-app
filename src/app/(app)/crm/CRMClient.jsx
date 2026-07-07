@@ -41,6 +41,71 @@ function daysSince(dateStr) {
 const svcLabel  = s => SERVICE_TYPE_LABELS[s] || s || null;
 const unitsOf   = p => p.projectData?.numUnits ?? null;
 
+// ── Note Input ───────────────────────────────────────────────────────────────
+function NoteInput({ projectId, onClose }) {
+  const [text, setText] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [err, setErr] = useState(null);
+
+  async function handleSave() {
+    if (!text.trim()) return;
+    setSaving(true);
+    setErr(null);
+    try {
+      const res = await fetch('/api/crm/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          noteBody: text.trim(),
+          projectIds: [projectId],
+          title: '',
+          meetingDate: null,
+          attendees: '[]',
+          calendarRef: null,
+          clientIds: [],
+          activityType: null,
+          contactIds: [],
+        }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed');
+      setSaved(true);
+      setTimeout(onClose, 1500);
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (saved) return <p className="text-xs text-green-600 mt-2">Saved!</p>;
+
+  return (
+    <div className="mt-2 flex flex-col gap-1">
+      <input
+        autoFocus
+        value={text}
+        onChange={e => setText(e.target.value)}
+        placeholder="Quick note..."
+        className="text-xs border border-slate-200 rounded px-2 py-1 w-full focus:outline-none focus:ring-1 focus:ring-orange-400"
+      />
+      {err && <p className="text-xs text-red-500">{err}</p>}
+      <div className="flex gap-1">
+        <button
+          onClick={handleSave}
+          disabled={saving || !text.trim()}
+          className="text-xs px-2 py-1 bg-slate-800 text-white rounded disabled:opacity-40"
+        >
+          {saving ? 'Saving...' : 'Save'}
+        </button>
+        <button onClick={onClose} className="text-xs text-slate-400 hover:text-slate-600">
+          x
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Project Card ────────────────────────────────────────────────────────────
 function ProjectCard({ project, pipeline, onOpen, onDragStart, onDragEnd, isDragging }) {
   const status   = project[statusFieldFor(pipeline)] || 'OPEN';
@@ -48,6 +113,7 @@ function ProjectCard({ project, pipeline, onOpen, onDragStart, onDragEnd, isDrag
   const rev      = revenueFor(project, pipeline);
   const outSync  = stagesOutOfSync(project);
   const didDrag  = useRef(false);
+  const [noteOpen, setNoteOpen] = useState(false);
 
   return (
     <div
@@ -107,6 +173,17 @@ function ProjectCard({ project, pipeline, onOpen, onDragStart, onDragEnd, isDrag
           </div>
           <span className="text-[10px] text-slate-400">{project.pipelineProbability ?? 0}%</span>
         </div>
+
+        {!noteOpen ? (
+          <button
+            onClick={() => setNoteOpen(true)}
+            className="text-xs text-slate-400 hover:text-slate-600 mt-2 w-full text-left"
+          >
+            + Note
+          </button>
+        ) : (
+          <NoteInput projectId={project.id} onClose={() => setNoteOpen(false)} />
+        )}
       </div>
     </div>
   );
