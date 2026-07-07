@@ -377,6 +377,9 @@ export default function CRMClient({ initialProjects, users }) {
               <button onClick={() => setViewMode('kanban')} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${viewMode === 'kanban' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}>Board</button>
               <button onClick={() => setViewMode('list')}   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${viewMode === 'list'   ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}>List</button>
             </div>
+            <button onClick={() => router.push('/crm/brief')} className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-sm font-semibold transition-colors">
+              Brief →
+            </button>
             <button onClick={newProject} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition-colors shadow-sm">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
               New Project
