@@ -154,17 +154,19 @@ function KanbanColumn({ stageCfg, projects, pipeline, onOpen, onAdd, draggingId,
 function PipelineSummary({ projects, pipeline }) {
   const sf       = statusFieldFor(pipeline);
   const open     = projects.filter(p => p[sf] === 'OPEN');
-  const won      = projects.filter(p => p[sf] === 'WON');
+  const won      = projects.filter(p => p[sf] === 'WON' && daysSince(p.updatedAt) <= 30);
   const lost     = projects.filter(p => p[sf] === 'LOST');
   const highProb = open.filter(p => (p.pipelineProbability ?? 0) >= 80);
+  const stale    = open.filter(p => daysSince(p.updatedAt) >= 30);
   const sum = arr => arr.reduce((s, p) => s + (revenueFor(p, pipeline) || 0), 0);
 
   const stats = [
     { label: 'Open Pipeline',    value: fmtMoney(sum(open))     || '—', color: 'text-slate-900'  },
     { label: 'High Prob (80%+)', value: fmtMoney(sum(highProb)) || '—', color: 'text-orange-600' },
-    { label: 'Won (all time)',   value: fmtMoney(sum(won))      || '—', color: 'text-green-700'  },
+    { label: 'Won (30 days)',    value: fmtMoney(sum(won))      || '—', color: 'text-green-700'  },
     { label: 'Lost',             value: lost.length,                    color: 'text-red-600'    },
     { label: 'Open Projects',    value: open.length,                    color: 'text-slate-700'  },
+    { label: 'Needs Attention',  value: stale.length,                   color: stale.length > 0 ? 'text-amber-600' : 'text-slate-400' },
   ];
 
   return (
