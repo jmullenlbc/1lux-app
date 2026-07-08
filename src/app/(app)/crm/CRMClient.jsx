@@ -468,6 +468,39 @@ export default function CRMClient({ initialProjects, users }) {
     } catch { /* optimistic already applied; fail silently */ }
   }
 
+  function handleExportCSV() {
+    const sf = statusFieldFor(pipeline);
+    const stagef = stageFieldFor(pipeline);
+    const headers = [
+      'Project', 'Client', 'Stage', 'Status',
+      'Revenue', 'Probability', 'Expected Order',
+    ];
+    const rows = filtered.map(p => [
+      p.name,
+      p.client?.name || '',
+      p[stagef] || '',
+      p[sf] || '',
+      revenueFor(p, pipeline)
+        ? `$${revenueFor(p, pipeline).toLocaleString()}` : '',
+      `${p.pipelineProbability ?? 0}%`,
+      p.expectedOrderDate
+        ? new Date(p.expectedOrderDate).toLocaleDateString() : '',
+    ]);
+    const csv = [headers, ...rows]
+      .map(r => r.map(v =>
+        `"${String(v).replace(/"/g, '""')}"`
+      ).join(','))
+      .join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `crm-${pipeline.toLowerCase()}-`
+      + new Date().toISOString().slice(0, 10) + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function handleUpdated(updated) {
     setProjects(prev => prev.map(p => p.id === updated.id ? { ...p, ...updated } : p));
   }
@@ -498,6 +531,9 @@ export default function CRMClient({ initialProjects, users }) {
               <button onClick={() => setViewMode('kanban')} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${viewMode === 'kanban' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}>Board</button>
               <button onClick={() => setViewMode('list')}   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${viewMode === 'list'   ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}>List</button>
             </div>
+            <button onClick={handleExportCSV} className="text-xs border border-slate-200 text-slate-600 hover:bg-slate-50 px-2.5 py-1.5 rounded-lg">
+              Export CSV
+            </button>
             <button onClick={() => router.push('/crm/brief')} className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-sm font-semibold transition-colors">
               Brief →
             </button>
