@@ -184,6 +184,11 @@ function ProjectCard({ project, pipeline, onOpen, onDragStart, onDragEnd, isDrag
         ) : (
           <NoteInput projectId={project.id} onClose={() => setNoteOpen(false)} />
         )}
+        {(project._count?.noteLinks ?? 0) > 0 && (
+          <p className="text-[10px] text-slate-400 mt-0.5 select-none">
+            {project._count.noteLinks} note{project._count.noteLinks !== 1 ? 's' : ''}
+          </p>
+        )}
       </div>
     </div>
   );

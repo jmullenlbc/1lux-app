@@ -28,6 +28,7 @@ export default async function CRMPage() {
           salesOwner:  { select: { id: true, name: true } },
           client:      { select: { id: true, name: true } },
           projectData: { select: { numUnits: true } },
+          _count: { select: { noteLinks: true } },
         },
       }),
       prisma.user.findMany({
