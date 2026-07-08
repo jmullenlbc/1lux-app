@@ -496,6 +496,39 @@ export default function CRMClient({ initialProjects, users }) {
     URL.revokeObjectURL(url);
   }
 
+  function handleExportCSV() {
+    const sf = statusFieldFor(pipeline);
+    const stagef = stageFieldFor(pipeline);
+    const headers = [
+      'Project', 'Client', 'Stage', 'Status',
+      'Revenue', 'Probability', 'Expected Order',
+    ];
+    const rows = filtered.map(p => [
+      p.name,
+      p.client?.name || '',
+      p[stagef] || '',
+      p[sf] || '',
+      revenueFor(p, pipeline)
+        ? `$${revenueFor(p, pipeline).toLocaleString()}` : '',
+      `${p.pipelineProbability ?? 0}%`,
+      p.expectedOrderDate
+        ? new Date(p.expectedOrderDate).toLocaleDateString() : '',
+    ]);
+    const csv = [headers, ...rows]
+      .map(r => r.map(v =>
+        `"${String(v).replace(/"/g, '""')}"`
+      ).join(','))
+      .join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `crm-${pipeline.toLowerCase()}-`
+      + new Date().toISOString().slice(0, 10) + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function handleUpdated(updated) {
     setProjects(prev => prev.map(p => p.id === updated.id ? { ...p, ...updated } : p));
   }
