@@ -107,13 +107,14 @@ function NoteInput({ projectId, onClose }) {
 }
 
 // ── Project Card ────────────────────────────────────────────────────────────
-function ProjectCard({ project, pipeline, onOpen, onDragStart, onDragEnd, isDragging }) {
+function ProjectCard({ project, pipeline, onOpen, onDragStart, onDragEnd, isDragging, onProbabilityChange }) {
   const status   = project[statusFieldFor(pipeline)] || 'OPEN';
   const st       = STATUS_CONFIG[status] || STATUS_CONFIG.OPEN;
   const rev      = revenueFor(project, pipeline);
   const outSync  = stagesOutOfSync(project);
   const didDrag  = useRef(false);
   const [noteOpen, setNoteOpen] = useState(false);
+  const [editingProb, setEditingProb] = useState(false);
 
   return (
     <div
@@ -171,7 +172,31 @@ function ProjectCard({ project, pipeline, onOpen, onDragStart, onDragEnd, isDrag
           <div className="w-12 h-1 rounded-full bg-slate-200 overflow-hidden">
             <div className="h-full rounded-full bg-orange-400" style={{ width: `${project.pipelineProbability ?? 0}%` }} />
           </div>
-          <span className="text-[10px] text-slate-400">{project.pipelineProbability ?? 0}%</span>
+          {editingProb ? (
+            <input
+              type="number" min="0" max="100"
+              defaultValue={project.pipelineProbability ?? 0}
+              autoFocus
+              className="w-10 text-[10px] border border-slate-200 rounded px-1 focus:outline-none focus:ring-1 focus:ring-orange-400"
+              onBlur={e => {
+                setEditingProb(false);
+                onProbabilityChange(project.id, e.target.value);
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter') e.target.blur();
+                if (e.key === 'Escape') setEditingProb(false);
+              }}
+              onClick={e => e.stopPropagation()}
+            />
+          ) : (
+            <span
+              className="text-[10px] text-slate-400 cursor-pointer hover:text-slate-600 hover:underline"
+              title="Click to edit"
+              onClick={e => { e.stopPropagation(); setEditingProb(true); }}
+            >
+              {project.pipelineProbability ?? 0}%
+            </span>
+          )}
         </div>
 
         {!noteOpen ? (
@@ -195,7 +220,7 @@ function ProjectCard({ project, pipeline, onOpen, onDragStart, onDragEnd, isDrag
 }
 
 // ── Kanban Column ─────────────────────────────────────────────────────────────
-function KanbanColumn({ stageCfg, projects, pipeline, onOpen, onAdd, draggingId, onDragStart, onDragEnd, onDrop }) {
+function KanbanColumn({ stageCfg, projects, pipeline, onOpen, onAdd, draggingId, onDragStart, onDragEnd, onDrop, onProbabilityChange }) {
   const [dragOver, setDragOver] = useState(false);
   const totalValue = projects.reduce((s, p) => s + (revenueFor(p, pipeline) || 0), 0);
   const isActiveDrop = dragOver && draggingId;
@@ -218,7 +243,7 @@ function KanbanColumn({ stageCfg, projects, pipeline, onOpen, onAdd, draggingId,
         onDrop={() => { setDragOver(false); onDrop(stageCfg.key); }}
       >
         {projects.map(p => (
-          <ProjectCard key={p.id} project={p} pipeline={pipeline} onOpen={onOpen} onDragStart={onDragStart} onDragEnd={onDragEnd} isDragging={draggingId === p.id} />
+          <ProjectCard key={p.id} project={p} pipeline={pipeline} onOpen={onOpen} onDragStart={onDragStart} onDragEnd={onDragEnd} isDragging={draggingId === p.id} onProbabilityChange={onProbabilityChange} />
         ))}
         {isActiveDrop && projects.length === 0 && (
           <div className="flex items-center justify-center h-16 rounded-lg text-xs font-semibold text-orange-500">Drop here → {stageCfg.label}</div>
@@ -429,6 +454,20 @@ export default function CRMClient({ initialProjects, users }) {
     }
   }
 
+  async function handleProbabilityChange(id, value) {
+    const clamped = Math.max(0, Math.min(100, Number(value)));
+    setProjects(prev => prev.map(p =>
+      p.id === id ? { ...p, pipelineProbability: clamped } : p
+    ));
+    try {
+      await fetch(`/api/projects/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pipelineProbability: clamped }),
+      });
+    } catch { /* optimistic already applied; fail silently */ }
+  }
+
   function handleUpdated(updated) {
     setProjects(prev => prev.map(p => p.id === updated.id ? { ...p, ...updated } : p));
   }
@@ -530,6 +569,7 @@ export default function CRMClient({ initialProjects, users }) {
                   onDragStart={handleDragStart}
                   onDragEnd={handleDragEnd}
                   onDrop={handleDrop}
+                  onProbabilityChange={handleProbabilityChange}
                 />
               );
             })}
