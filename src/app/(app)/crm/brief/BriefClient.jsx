@@ -58,7 +58,14 @@ export default function BriefClient({ stale, procSnapshot, designSnapshot, recen
                       const stage = procOpen ? STAGE_LABEL[p.procurementStage] : STAGE_LABEL[p.designStage];
                       return (
                         <tr key={p.id} className="hover:bg-slate-50">
-                          <td className="px-4 py-2.5 font-semibold text-slate-900">{p.name}</td>
+                          <td className="px-4 py-2.5 font-semibold text-slate-900">
+                            <a
+                              href={`/project/${p.id}`}
+                              className="text-slate-900 hover:text-blue-600 underline"
+                            >
+                              {p.name}
+                            </a>
+                          </td>
                           <td className="px-4 py-2.5 text-slate-600">{p.client?.name || '—'}</td>
                           <td className="px-4 py-2.5 text-slate-600">{stage || '—'}</td>
                           <td className="px-4 py-2.5 text-amber-600 font-semibold">{daysSince(p.updatedAt)}d</td>
@@ -154,7 +161,14 @@ export default function BriefClient({ stale, procSnapshot, designSnapshot, recen
                       if (p.designStatus === 'WON') pipelines.push('Design');
                       return (
                         <tr key={p.id} className="hover:bg-slate-50">
-                          <td className="px-4 py-2.5 font-semibold text-slate-900">{p.name}</td>
+                          <td className="px-4 py-2.5 font-semibold text-slate-900">
+                            <a
+                              href={`/project/${p.id}`}
+                              className="text-slate-900 hover:text-blue-600 underline"
+                            >
+                              {p.name}
+                            </a>
+                          </td>
                           <td className="px-4 py-2.5 text-slate-600">{p.client?.name || '—'}</td>
                           <td className="px-4 py-2.5 text-slate-600">{pipelines.join(', ')}</td>
                           <td className="px-4 py-2.5 text-slate-500 text-xs">{fmtDate(p.updatedAt) || '—'}</td>
