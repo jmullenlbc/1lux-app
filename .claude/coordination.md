@@ -10,6 +10,14 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 - **Sean:** math test harness at `_tests/budget-math.mjs` + calibration script `_tests/calibrate-conceptual.mjs` (both gitignored). Calibration run against 4 real spreadsheets (2 conceptual, 2 Full Design) on 2026-05-27 AM with Mason's review — engine matches within 1-2% on conceptuals; explainable patterns on Full Design. Two math changes still queued (Q1 energy credit refactor, Q3 exit signs sum extension — Q3 needs stairwell-SF clarification).
 - **Mike:** Conceptual-budget + CRM sprint live. Most recent (2026-06-12): **all wizard sections (conceptual AND design) now read pricing from Master Pricing** (`/admin/pricing` → SystemConfig DB, the `pricing` prop) instead of hardcoded constants — engine + UI previews read one source and can no longer drift. Also: exterior section restructured, CRM Batch 1+2 (unified Rules tab, sales dashboards). Commits through `10cf3a1`.
 
+## 2026-07-08 — Manny's Claude (Tasks 10–13 complete: links + notes + prob-edit + CSV export)
+
+All four CRM polish tasks shipped and ready for review. 38/38 tests pass, 111,997 invariant checks (0 failures), production build clean, zero regressions.
+- **Task 10** (`manny/brief-clickable-links`): Morning Brief project names now clickable links to `/project/[id]`. Two tables updated (stale projects + recent wins).
+- **Task 11** (`manny/crm-notes-count`): Added `_count: { select: { noteLinks: true } }` to crm/page.jsx Prisma select. ProjectCard badge shows "N notes" below + Note button when count > 0.
+- **Task 12** (`manny/crm-prob-edit`): Click-to-edit inline input for probability on kanban cards (0–100 clamped). Blur/Enter saves via PATCH with optimistic update. Escape cancels. `e.stopPropagation()` prevents project panel from opening.
+- **Task 13** (`manny/crm-csv-export`): "Export CSV" button in toolbar. Downloads current filtered pipeline as spreadsheet. Filename: `crm-{pipeline}-{date}.csv`.
+
 ## 2026-07-07 (Sean's Claude) — Manny tasks 10–13 queued; PDF delivery simplified
 
 Tasks 10–13 written into `.claude/manny-tasks.md` (CRM polish sprint: clickable brief links, notes count badge, probability quick-edit, CSV export). Tasks 6–9 marked complete. PDF rewritten — now the single delivery artifact; Claude reads it directly, no separate `.md` file needed. Sean just sends the PDF. Script: `python scripts/generate_manny_tasks6to9_pdf.py`.
