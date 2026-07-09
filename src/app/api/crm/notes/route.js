@@ -76,6 +76,13 @@ export async function POST(request) {
     contactIds   = [],
   } = body;
 
+  if (!noteBody?.trim()) {
+    return NextResponse.json(
+      { error: 'Note body is required' },
+      { status: 400 }
+    );
+  }
+
   const isInPerson = activityType ? IN_PERSON_ACTIVITY_TYPES.has(activityType) : false;
   const noteNumber = await nextNoteNumber();
 

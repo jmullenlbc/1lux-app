@@ -25,7 +25,10 @@ export async function PATCH(request, { params }) {
   if (content           !== undefined) data.body              = content;
   if (meetingDate       !== undefined) data.meetingDate       = meetingDate ? new Date(meetingDate) : null;
   if (meetingLink       !== undefined) data.meetingLink       = meetingLink || null;
-  if (attendees         !== undefined) data.attendees         = attendees || '[]';
+  if (attendees         !== undefined)
+    data.attendees = typeof attendees === 'string'
+      ? attendees
+      : JSON.stringify(attendees || []);
   if (isExternalVisible !== undefined) data.isExternalVisible = !!isExternalVisible;
 
   const updated = await prisma.note.update({ where: { id: params.noteId }, data });
