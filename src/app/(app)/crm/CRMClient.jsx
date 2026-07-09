@@ -267,10 +267,21 @@ function PipelineSummary({ projects, pipeline }) {
   const stale    = open.filter(p => daysSince(p.updatedAt) >= 30);
   const sum = arr => arr.reduce((s, p) => s + (revenueFor(p, pipeline) || 0), 0);
 
+  const wonAll = projects.filter(p => p[sf] === 'WON');
+  const winRate = wonAll.length + lost.length > 0
+    ? `${Math.round(wonAll.length / (wonAll.length + lost.length) * 100)}%`
+    : '—';
+  const weightedTotal = open.reduce(
+    (s, p) => s + (revenueFor(p, pipeline) || 0) * (p.pipelineProbability ?? 0) / 100,
+    0
+  );
+
   const stats = [
     { label: 'Open Pipeline',    value: fmtMoney(sum(open))     || '—', color: 'text-slate-900'  },
     { label: 'High Prob (80%+)', value: fmtMoney(sum(highProb)) || '—', color: 'text-orange-600' },
+    { label: 'Weighted Pipeline', value: fmtMoney(Math.round(weightedTotal)) || '—', color: 'text-blue-700' },
     { label: 'Won (30 days)',    value: fmtMoney(sum(won))      || '—', color: 'text-green-700'  },
+    { label: 'Win Rate',         value: winRate,                        color: wonAll.length >= lost.length ? 'text-green-700' : 'text-red-600' },
     { label: 'Lost',             value: lost.length,                    color: 'text-red-600'    },
     { label: 'Open Projects',    value: open.length,                    color: 'text-slate-700'  },
     { label: 'Needs Attention',  value: stale.length,                   color: stale.length > 0 ? 'text-amber-600' : 'text-slate-400' },
