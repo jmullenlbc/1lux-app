@@ -10,6 +10,14 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 - **Sean:** math test harness at `_tests/budget-math.mjs` + calibration script `_tests/calibrate-conceptual.mjs` (both gitignored). Calibration run against 4 real spreadsheets (2 conceptual, 2 Full Design) on 2026-05-27 AM with Mason's review — engine matches within 1-2% on conceptuals; explainable patterns on Full Design. Two math changes still queued (Q1 energy credit refactor, Q3 exit signs sum extension — Q3 needs stairwell-SF clarification).
 - **Mike:** Conceptual-budget + CRM sprint live. Most recent (2026-06-12): **all wizard sections (conceptual AND design) now read pricing from Master Pricing** (`/admin/pricing` → SystemConfig DB, the `pricing` prop) instead of hardcoded constants — engine + UI previews read one source and can no longer drift. Also: exterior section restructured, CRM Batch 1+2 (unified Rules tab, sales dashboards). Commits through `10cf3a1`.
 
+## 2026-07-09 — Sean's Claude (Tasks 14–16 merged: security hygiene + CRM list polish + win rate)
+
+Manny's three PRs (#10–12) cherry-picked and merged to main (commits 206f1fb, 51968e7, 720fd55). All clean — no .claude/ clutter.
+- **Task 14** (`manny/security-hygiene`): Four backend security fixes — added `requireAuth` to `/api/anthropic-models`, inverted cron auth guard to fail closed, added empty-body validation to notes POST, fixed attendees JSON serialization in meeting-notes PATCH.
+- **Task 15** (`manny/crm-listview-polish`): Notes count badge now shows in list view rows (parity with kanban). "Clear" button in filter bar resets all 5 filter dimensions at once.
+- **Task 16** (`manny/crm-stats-winrate`): Stats bar expanded from 6 to 8 chips — added Weighted Pipeline (open revenue × probability) and Win Rate (all-time WON ÷ closed deals).
+Next sprint options under discussion: auth hygiene sweep (19 routes using getSession instead of requireAuth), upcoming deadlines view, or dashboard analytics.
+
 ## 2026-07-08 — Manny's Claude (Tasks 10–13 complete: links + notes + prob-edit + CSV export)
 
 All four CRM polish tasks shipped and ready for review. 38/38 tests pass, 111,997 invariant checks (0 failures), production build clean, zero regressions.
