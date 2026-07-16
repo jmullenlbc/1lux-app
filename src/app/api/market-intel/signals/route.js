@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 export async function GET(request) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { user, error } = await requireAuth(request);
+  if (error) return error;
 
   const { searchParams } = new URL(request.url);
   const projectType  = searchParams.get('projectType');

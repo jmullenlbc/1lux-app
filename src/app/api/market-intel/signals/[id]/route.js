@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { recordMatchFeedback } from '@/lib/market-intel/fuzzy-matcher';
 
 export async function PATCH(request, { params }) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { user, error } = await requireAuth(request);
+  if (error) return error;
 
   const body = await request.json();
 
@@ -53,7 +53,7 @@ export async function PATCH(request, { params }) {
           matchedClientId: targetClientId,
           outcome,
           signalId:  params.id,
-          userId:    session.id || session.userId || 'unknown',
+          userId:    user.id || user.userId || 'unknown',
         }).catch(() => {});
       }
     } catch {}

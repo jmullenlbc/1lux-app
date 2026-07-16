@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 // GET /api/market-intel/clients
 // Returns clients that have at least one linked market signal (any matchStatus)
 // Used to populate the client filter dropdown on the Market Intel page.
-export async function GET() {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function GET(request) {
+  const { user, error } = await requireAuth(request);
+  if (error) return error;
 
   // Find distinct client IDs that appear in MarketSignal.linkedClientId
   const signals = await prisma.marketSignal.findMany({
