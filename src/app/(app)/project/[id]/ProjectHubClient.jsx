@@ -404,7 +404,7 @@ function AutoTaggedFileTab({ title, subtitle, autoTag, files, projectId, tab, on
   );
 }
 
-export default function ProjectHubClient({ userId, userRole, project, budget, peerReviewTotal, clients = [], allUsers = [], initialFiles = [], initialDesignInfo = {}, masterTypes = [] }) {
+export default function ProjectHubClient({ userId, userRole, project, budget, peerReviewTotal, clients = [], allUsers = [], initialFiles = [], initialDesignInfo = {}, masterTypes = [], meetingNotesCount = 0 }) {
   // Inline super-admin check — the auth helper module imports next/headers
   // which isn't usable in a client component, so we replicate the predicate
   // here. Mirrors isSuperAdmin() in src/lib/auth.js exactly.
@@ -1012,6 +1012,7 @@ export default function ProjectHubClient({ userId, userRole, project, budget, pe
           activeTab={activeTab}
           onTabChange={setActiveTab}
           userId={userId}
+          badges={{ meetings: meetingNotesCount }}
         />
         <div className="flex-1 min-w-0">
           {/* Project Search */}

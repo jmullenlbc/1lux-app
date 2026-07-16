@@ -15,6 +15,9 @@ export default async function ProjectHubPage({ params }) {
   const project = await prisma.project.findUnique({
     where: { id: params.id },
     include: {
+      _count: {
+        select: { notes: { where: { noteType: 'PROJECT_MEETING' } } },
+      },
       projectData: true,
       responses: true,
       client: true,
@@ -88,6 +91,7 @@ export default async function ProjectHubPage({ params }) {
       initialFiles={projectFiles}
       initialDesignInfo={initialDesignInfo}
       masterTypes={masterTypes}
+      meetingNotesCount={project._count?.notes ?? 0}
     />
   );
 }
