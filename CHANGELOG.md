@@ -5,6 +5,36 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Live-app fixes: project visibility + prod PDF parsing] · July 6, 2026
+
+> **Local only — NOT deployed.** Both are production bugs reported by the team.
+
+### Fixed
+- **Team couldn't see each other's projects.** Project access was gated to *creator-or-super-admin* in **7 places** (`/api/projects`, `/api/projects/[id]`, the `/dashboard` list, `/pre-con`, and the project `page` / `summary` / `tracker` / `wizard` pages). `isSuperAdmin()` excludes `COMPANY_ADMIN` and `USER`, so e.g. Sean (COMPANY_ADMIN) saw **zero** of the 25 projects (all created by one admin) and got a 404 opening any of them. Projects are now visible to **all ILC staff**; external **Client Viewers stay scoped to their own** — deliberately not widened to `CLIENT_VIEWER`. Verified: as COMPANY_ADMIN, 25 projects returned (was 0) and a non-created project opens 200 (was 404). Also fixed an inconsistency where `/api/projects/[id]` checked `role !== 'ILC_ADMIN'`, which locked out SUPER_ADMINs too.
+- **PDF/AI parsing worked locally but returned 0 rows in production.** `pdfjs-dist/standard_fonts/` is resolved at **runtime** via a constructed `file://` path (`ocr.js`, `scheduleExtract.js`, `fixture-schedule/parse`), so Next's output-file tracing never included it — the Lambda traced only `pdfjs-dist/legacy/build`. In prod `standardFontDataUrl` pointed at a missing directory, text extraction yielded nothing, and every AI parse silently returned 0 rows. Same class of bug as the Chromium binary. Added `outputFileTracingIncludes` for the fonts on **all 8 pdfjs routes** (804K / 16 files). Verified in the build trace: 0 → 16 font files per route.
+
+---
+
+## [Weekly Sales Meeting dashboard (v1) + Buyout stage] · July 6, 2026
+
+> **Local only — NOT deployed.** Migration `0051` (additive) pending. Built from analysis of 13 weekly sales-meeting notes: the meetings are a manual, project-by-project status recital (chasing signatures + follow-ups) read off a stale doc — so this replaces the doc with a live, self-maintaining board.
+
+### Added
+- **Buyout** procurement stage — inserted between Pre-Construction and Construction in `PIPELINE_STAGES`; flows automatically to the CRM board, project stage selector, dashboards, and bot rules (no migration — `procurementStage` is free text).
+- **Weekly Meeting dashboard** — a new **Dashboards → (Sales) → Weekly Meeting** tab (`/dashboards/meeting`): a curated run-of-show, not the field-picker builder. **v1 = two live queues you work down and edit in the meeting**, so the pipeline maintains itself (no carried-forward doc):
+  - **① Awaiting signature** — deals with a proposal out (proposal-sent date or Proposal-Sent stage), sorted by days waiting, aged red at 14+ days; a **Signed ✓** action advances the deal off the queue.
+  - **② Next actions due** — every open next action, soonest/overdue first, overdue in red; **Done ✓** clears it.
+  - Inline **discrete** next-action editor on every row: **Action type** (Call / Chase signature / Send budget / Send photometrics / Schedule GC meeting / Request EE intro / … — `NEXT_ACTION_TYPES`) + **Owner** + **Due date**. Edits PATCH the project and the queues update live.
+- **Four discrete Project fields** (migration `0051`): `proposalSentDate`, `nextActionType`, `nextActionOwnerId`, `nextActionDueDate`. New endpoint `GET /api/sales/meeting` computes both queues (days-waiting, overdue) server-side.
+
+### Fixed
+- `validDesignStages` in the project PATCH route was missing `CONSTRUCTION_ADMIN` — you couldn't set that design stage via the API. Added.
+
+### Next passes
+- More queues (Gone quiet / aging · Closing this month · Ready to invoice · Nexmetro account) + a scorecard strip; auto-stamp `proposalSentDate`/last-touched from activity.
+
+---
+
 ## [Client Product Options + Standard Fixture Schedule — matched to LAC] · July 4, 2026
 
 > **Local only — NOT deployed. Schema is Sean's** (see `.claude/coordination.md`): Postgres migration needed for two new models. Modeled directly on the real **Lincoln Avenue** workbook (National Lighting Schedule + Alternate Options sheets); the existing `ClientStandardsAnswer` question bank stays the decision layer.

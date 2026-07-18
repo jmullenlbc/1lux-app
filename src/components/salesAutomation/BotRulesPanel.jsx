@@ -72,6 +72,7 @@ function TriggerConfig({ triggerType, config, onChange }) {
             const procStages = [
               { value: 'QUALIFIED',       label: 'Qualified' },
               { value: 'PRECONSTRUCTION', label: 'Pre-Construction' },
+              { value: 'BUYOUT',          label: 'Buyout' },
               { value: 'CONSTRUCTION',    label: 'Construction' },
               { value: 'COMPLETED',       label: 'Completed' },
             ];

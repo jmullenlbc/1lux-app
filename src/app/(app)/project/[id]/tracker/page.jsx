@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { notFound, redirect } from 'next/navigation';
-import { getSession } from '@/lib/auth';
+import { getSession, isClientViewer } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import SubmittalTrackerClient from '@/components/tracker/SubmittalTrackerClient';
 
@@ -15,7 +15,7 @@ export default async function TrackerPage({ params }) {
   });
 
   if (!project) notFound();
-  if (session.role !== 'ILC_ADMIN' && project.createdById !== session.id) notFound();
+  if (isClientViewer(session.role) && project.createdById !== session.id) notFound();
 
   return (
     <SubmittalTrackerClient

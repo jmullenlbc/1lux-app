@@ -6,6 +6,7 @@ export const PIPELINE_STAGES = {
   PROCUREMENT: [
     { key: 'QUALIFIED',       label: 'Qualified' },
     { key: 'PRECONSTRUCTION', label: 'Pre-Construction' },
+    { key: 'BUYOUT',          label: 'Buyout' },
     { key: 'CONSTRUCTION',    label: 'Construction' },
     { key: 'COMPLETED',       label: 'Completed' },
   ],
@@ -19,6 +20,24 @@ export const PIPELINE_STAGES = {
 };
 
 export const DEFAULT_STAGE = { PROCUREMENT: 'QUALIFIED', DESIGN: 'DESIGN_QUALIFIED' };
+
+// Discrete next-action vocabulary for the weekly sales meeting (Mike, 2026-07-06).
+// "Keep for now, add/remove later." Each deal carries one current next action.
+export const NEXT_ACTION_TYPES = [
+  { key: 'CALL',               label: 'Call' },
+  { key: 'EMAIL',              label: 'Email' },
+  { key: 'TEXT',               label: 'Text' },
+  { key: 'SEND_PROPOSAL',      label: 'Send proposal' },
+  { key: 'CHASE_SIGNATURE',    label: 'Chase signature' },
+  { key: 'SEND_BUDGET',        label: 'Send budget' },
+  { key: 'SEND_PHOTOMETRICS',  label: 'Send photometrics' },
+  { key: 'SCHEDULE_GC_MEETING',label: 'Schedule GC meeting' },
+  { key: 'REQUEST_EE_INTRO',   label: 'Request EE intro' },
+  { key: 'SEND_INVOICE',       label: 'Send invoice' },
+  { key: 'WAITING',            label: 'Waiting / blocked' },
+];
+export const NEXT_ACTION_LABEL = Object.fromEntries(NEXT_ACTION_TYPES.map(a => [a.key, a.label]));
+export const NEXT_ACTION_KEYS  = NEXT_ACTION_TYPES.map(a => a.key);
 
 export const STAGE_LABEL = Object.fromEntries(
   [...PIPELINE_STAGES.PROCUREMENT, ...PIPELINE_STAGES.DESIGN].map(s => [s.key, s.label])

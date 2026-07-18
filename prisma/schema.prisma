@@ -426,6 +426,11 @@ model Project {
   expectedOrderDate        DateTime?
   salesOwnerId             String?                        // the ONE project owner across the platform
   salesOwner               User?     @relation("ProjectSalesOwner", fields: [salesOwnerId], references: [id])
+  // ── Weekly sales meeting: discrete operational signals (Mike, 2026-07-06) ──
+  proposalSentDate         DateTime?                      // when a proposal went out → "awaiting signature" aging
+  nextActionType           String?                        // NEXT_ACTION_TYPES key (CALL, CHASE_SIGNATURE, …)
+  nextActionOwnerId        String?                        // who owes the action (User id, resolved in UI)
+  nextActionDueDate        DateTime?                      // when it's due → overdue flagging
   flagged                  Boolean   @default(false)
   flagNote                 String?
   contractValue            Float?

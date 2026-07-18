@@ -48,10 +48,26 @@ const nextConfig = {
           // Force-include the Chromium binary in Amplify's Lambda output tracing.
           // Dynamic imports of @sparticuz/chromium aren't statically traced by nft,
           // so without this the binary (.br file) would be missing from the Lambda.
+          //
+          // Same trap, second case: pdfjs-dist's standard_fonts/ is resolved at
+          // RUNTIME via a constructed file:// path (see ocr.js / scheduleExtract.js /
+          // fixture-schedule/parse), so nft never traces it — it only traced
+          // pdfjs-dist/legacy/build. In prod the fonts directory simply wasn't in the
+          // Lambda, standardFontDataUrl pointed at nothing, getTextContent yielded no
+          // text, and every AI parse silently returned 0 rows while local worked fine.
+          // 804K / 16 files — force-include it on every route that touches pdfjs.
           outputFileTracingIncludes: {
                 '/api/projects/[id]/budget/pdf': ['./node_modules/@sparticuz/chromium/**/*'],
                 '/api/projects/[id]/peer-review/pdf': ['./node_modules/@sparticuz/chromium/**/*'],
                 '/api/projects/[id]/design-bid-matrix/pdf': ['./node_modules/@sparticuz/chromium/**/*'],
+                '/api/projects/[id]/fixture-schedule/parse': ['./node_modules/pdfjs-dist/standard_fonts/*'],
+                '/api/projects/[id]/files': ['./node_modules/pdfjs-dist/standard_fonts/*'],
+                '/api/projects/[id]/files/[fileId]/reparse': ['./node_modules/pdfjs-dist/standard_fonts/*'],
+                '/api/projects/[id]/peer-review/parse-pdf': ['./node_modules/pdfjs-dist/standard_fonts/*'],
+                '/api/projects/[id]/analyze-contract': ['./node_modules/pdfjs-dist/standard_fonts/*'],
+                '/api/projects/[id]/drawing-submissions': ['./node_modules/pdfjs-dist/standard_fonts/*'],
+                '/api/projects/[id]/tracker/extract': ['./node_modules/pdfjs-dist/standard_fonts/*'],
+                '/api/projects/[id]/tracker/import-toc': ['./node_modules/pdfjs-dist/standard_fonts/*'],
           },
           // Zero out the client-side router cache for dynamic pages so navigating
           // back to the dashboard (or any force-dynamic page) always re-fetches.

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth, isSuperAdmin } from '@/lib/auth';
+import { requireAuth, isClientViewer } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { loadPricing } from '@/lib/pricingLoader';
 
@@ -7,9 +7,11 @@ export async function GET() {
   const { user, error } = await requireAuth();
   if (error) return error;
 
-  const where = isSuperAdmin(user.role)
-    ? {}
-    : { createdById: user.id };
+  // Projects are visible to all ILC staff (Mike, 2026-07). External Client Viewers
+  // stay scoped to their own — never widen this to CLIENT_VIEWER.
+  const where = isClientViewer(user.role)
+    ? { createdById: user.id }
+    : {};
 
   const projects = await prisma.project.findMany({
     where,

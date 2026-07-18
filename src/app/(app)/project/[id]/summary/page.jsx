@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { notFound, redirect } from 'next/navigation';
-import { getSession } from '@/lib/auth';
+import { getSession, isClientViewer } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { responsesToSections } from '@/lib/utils';
 import { calculateBudget, formatCurrency } from '@/lib/calculations';
@@ -44,7 +44,7 @@ export default async function SummaryPage({ params }) {
   }
 
   if (!project) notFound();
-  if (session.role !== 'ILC_ADMIN' && project.createdById !== session.id) notFound();
+  if (isClientViewer(session.role) && project.createdById !== session.id) notFound();
 
   // Use the pricing snapshot frozen at project creation; fall back to current if older project has none
   const pricing     = project.pricingSnapshot

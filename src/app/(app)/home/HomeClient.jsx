@@ -117,7 +117,7 @@ const PHASE_LABELS = {
   construction: 'CA', closeout: 'CL',
 };
 const STAGE_LABELS = {
-  QUALIFIED:'Qualified', PRECONSTRUCTION:'Pre-Con', CONSTRUCTION:'Construction', COMPLETED:'Completed',
+  QUALIFIED:'Qualified', PRECONSTRUCTION:'Pre-Con', BUYOUT:'Buyout', CONSTRUCTION:'Construction', COMPLETED:'Completed',
   DESIGN_QUALIFIED:'Qualified', PROPOSAL_SENT:'Proposal', DESIGN:'Design', DESIGN_COMPLETED:'Completed',
 };
 

@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, isClientViewer } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { logActivity, PHASE_LABELS } from '@/lib/activity';
 import { sendNotification } from '@/lib/notify';
+import { NEXT_ACTION_KEYS } from '@/lib/pipeline';
 
 async function getProjectForUser(projectId, user) {
   const project = await prisma.project.findUnique({
@@ -14,7 +15,9 @@ async function getProjectForUser(projectId, user) {
     },
   });
   if (!project) return null;
-  if (user.role !== 'ILC_ADMIN' && project.createdById !== user.id) return null;
+  // All ILC staff can reach any project; Client Viewers stay scoped to their own.
+  // (Previously ILC_ADMIN-only, which also locked out SUPER_ADMINs.)
+  if (isClientViewer(user.role) && project.createdById !== user.id) return null;
   return project;
 }
 
@@ -38,15 +41,17 @@ export async function PATCH(request, { params }) {
   const body = await request.json();
   const { name, buildingType, location, address, date, status, currentStep, completedSteps, contactEmail, clientId, phase, city, state, serviceType, flagged, flagNote, contractValue, contractSignedDate, designContractValue, designContractSignedDate, constructionStartDate, mepRoughInDate, constructionEndDate, budgetType, budgetSentDate, peerReviewMatrixType,
     // ── Pipeline / CRM fields (merged from Deal) ──
-    projectType, procurementStage, designStage, pipelineProbability, probabilityToWin, probabilityToMoveForward, procurementStatus, designStatus, expectedOrderDate, salesOwnerId } = body;
+    projectType, procurementStage, designStage, pipelineProbability, probabilityToWin, probabilityToMoveForward, procurementStatus, designStatus, expectedOrderDate, salesOwnerId,
+    // ── Weekly sales meeting fields ──
+    proposalSentDate, nextActionType, nextActionOwnerId, nextActionDueDate } = body;
 
   const clampPct = v => v === null || v === '' ? null : Math.max(0, Math.min(100, Number(v)));
 
   const validPhases      = ['sd', 'dd', 'cd', 'ifc', 'construction', 'closeout'];
   const validBudgetTypes = ['conceptual', 'design', 'peer_review'];
   const validServiceTypes = ['fullDesign', 'designAssist', 'peerReview', 'bidOnly', 'other'];
-  const validProcurementStages = ['QUALIFIED', 'PRECONSTRUCTION', 'CONSTRUCTION', 'COMPLETED'];
-  const validDesignStages      = ['DESIGN_QUALIFIED', 'PROPOSAL_SENT', 'DESIGN', 'DESIGN_COMPLETED'];
+  const validProcurementStages = ['QUALIFIED', 'PRECONSTRUCTION', 'BUYOUT', 'CONSTRUCTION', 'COMPLETED'];
+  const validDesignStages      = ['DESIGN_QUALIFIED', 'PROPOSAL_SENT', 'DESIGN', 'CONSTRUCTION_ADMIN', 'DESIGN_COMPLETED'];
   const validPipelineStatus    = ['OPEN', 'WON', 'LOST', 'COMPLETED', 'ABANDONED'];
 
   const updated = await prisma.project.update({
@@ -89,6 +94,10 @@ export async function PATCH(request, { params }) {
       ...(designStatus        !== undefined && validPipelineStatus.includes(designStatus) && { designStatus }),
       ...(expectedOrderDate   !== undefined && { expectedOrderDate: expectedOrderDate ? new Date(expectedOrderDate) : null }),
       ...(salesOwnerId        !== undefined && { salesOwnerId: salesOwnerId || null }),
+      ...(proposalSentDate    !== undefined && { proposalSentDate: proposalSentDate ? new Date(proposalSentDate) : null }),
+      ...(nextActionType      !== undefined && { nextActionType: (nextActionType && NEXT_ACTION_KEYS.includes(nextActionType)) ? nextActionType : null }),
+      ...(nextActionOwnerId   !== undefined && { nextActionOwnerId: nextActionOwnerId || null }),
+      ...(nextActionDueDate   !== undefined && { nextActionDueDate: nextActionDueDate ? new Date(nextActionDueDate) : null }),
     },
     include: { projectData: true },
   });

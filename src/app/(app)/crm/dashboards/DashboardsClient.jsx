@@ -312,7 +312,7 @@ const FILTER_FIELDS = [
   { key: 'pipeline',         label: 'Pipeline',          type: 'enum',    options: ['PROCUREMENT','DESIGN'] },
   { key: 'dealStatus',       label: 'Deal Status',       type: 'enum',    options: ['OPEN','WON','LOST','ABANDONED','ON_HOLD'] },
   { key: 'projectStatus',    label: 'Project Status',    type: 'enum',    options: ['ACTIVE','ON_HOLD','CANCELED','COMPLETED'] },
-  { key: 'stage',            label: 'Stage',             type: 'enum',    options: ['QUALIFIED','PRECONSTRUCTION','CONSTRUCTION','COMPLETED','DESIGN_QUALIFIED','PROPOSAL_SENT','DESIGN','DESIGN_COMPLETED'] },
+  { key: 'stage',            label: 'Stage',             type: 'enum',    options: ['QUALIFIED','PRECONSTRUCTION','BUYOUT','CONSTRUCTION','COMPLETED','DESIGN_QUALIFIED','PROPOSAL_SENT','DESIGN','DESIGN_COMPLETED'] },
   { key: 'projectType',      label: 'Project Type',      type: 'enum',    options: ['MULTI_FAMILY','STUDENT_HOUSING','HOSPITALITY','OFFICE','OTHER'] },
   { key: 'serviceType',      label: 'Service Type',      type: 'enum',    options: ['FULL_SERVICE_DESIGN','DESIGN_ASSIST','PEER_REVIEW','BID_ONLY'] },
   { key: 'lostReason',       label: 'Lost Reason',       type: 'enum',    options: ['BUDGET','COMPETITOR','CANCELLED','NO_DECISION','TIMING','OTHER'] },

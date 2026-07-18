@@ -370,7 +370,7 @@ export default function Sidebar({ user }) {
                           (startsWith('/project') && !startsWith('/project/new')) ||
                           startsWith('/knowledge-base');
   const crmRelated      = startsWith('/crm') || startsWith('/clients') || startsWith('/sales') ||
-                          startsWith('/market-intel') || startsWith('/dashboards/sales');
+                          startsWith('/market-intel') || startsWith('/dashboards/sales') || startsWith('/dashboards/meeting');
   const preconRelated   = startsWith('/pre-con') || startsWith('/manufacturers') ||
                           startsWith('/sales-reps') || startsWith('/products') || startsWith('/dashboards/budget');
   const softwareRelated = startsWith('/admin/changelog') || startsWith('/admin/roadmap') ||
@@ -476,6 +476,7 @@ export default function Sidebar({ user }) {
               <SubNavItem href="/clients"        icon={<IconClientUsers />}     label="Clients"     expanded={expanded} active={startsWith('/clients')} />
               <SubNavItem href="/crm"            icon={<IconPipeline />}        label="Pipeline"    expanded={expanded} active={at('/crm') || (crmRelated && !startsWith('/crm/dashboards') && !startsWith('/crm/notes') && !startsWith('/crm/intel') && !startsWith('/clients'))} />
               <SubNavItem href="/dashboards/sales" icon={<IconBarChart />}      label="Dashboard"   expanded={expanded} active={startsWith('/dashboards/sales')} />
+              <SubNavItem href="/dashboards/meeting" icon={<IconHandshake />}   label="Weekly Meeting" expanded={expanded} active={startsWith('/dashboards/meeting')} />
               <SubNavItem href="/crm/notes"      icon={<IconNotes />}           label="Sales Notes" expanded={expanded} active={startsWith('/crm/notes')} />
               <SubNavItem href="/crm/intel"      icon={<IconNews />}            label="Intel"       expanded={expanded} active={startsWith('/crm/intel')} />
               <SubNavItem href="/sales/proposals"  icon={<IconDoc />}      label="Proposals"           expanded={expanded} active={startsWith('/sales/proposals')} />
