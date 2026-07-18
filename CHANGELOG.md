@@ -5,6 +5,22 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Verification harness — Slice 2, first pass] · July 6, 2026
+
+> Turns two conventions that only prose enforced into **gates that fail**. Both were chosen because they catch the exact bugs the team hit today.
+
+### Added
+- **`npm run verify`** (`scripts/verify.mjs`) — runs the gates cheapest-first, stops at the first failure, writes `.claude/last-verify.json`. `--full` adds the production build + runtime-asset check. *The model doing the work no longer decides the work is done.*
+- **`scripts/check-runtime-assets.mjs`** — asserts, against the real build trace, that every route needing a **runtime-resolved asset** actually ships it in its Lambda (pdfjs `standard_fonts` × 8 routes, `@sparticuz/chromium` × 3). This is the class of bug where prod silently returns 0 rows while local works. **Wired into `npm run build`**, so it can't regress.
+- **`npm run verify:smoke`** (`scripts/tests/smoke.test.mjs`, `node:test`, zero new deps) — logs in and asserts no page/API 500s, that **every ILC role sees projects**, and that any role can open a project it didn't create. The seeded accounts are all ILC_ADMIN and would *not* have caught the visibility bug, so the test stands up a disposable **COMPANY_ADMIN** and deletes it afterwards.
+
+### Proven to actually fail
+Both gates were verified red-then-green, not just written:
+- Removed the fonts include → `check-runtime-assets` failed naming `/api/projects/[id]/fixture-schedule/parse — missing: standard_fonts`; restored → green.
+- Reverted the visibility fix → smoke test failed with `COMPANY_ADMIN sees 0 projects`; restored → 5/5 green, no stray test user left behind.
+
+---
+
 ## [Live-app fixes: project visibility + prod PDF parsing] · July 6, 2026
 
 > **Local only — NOT deployed.** Both are production bugs reported by the team.

@@ -6,7 +6,7 @@
     "dev": "node --max-old-space-size=4096 node_modules/next/dist/bin/next dev -p 3000",
     "dev:3000": "powershell -ExecutionPolicy Bypass -File start-dev.ps1",
     "deploy": "powershell -ExecutionPolicy Bypass -File deploy.ps1 -Message",
-    "build": "next build",
+    "build": "next build && node scripts/check-runtime-assets.mjs",
     "start": "next start",
     "lint": "next lint",
     "db:push": "prisma db push",
@@ -16,7 +16,10 @@
     "test": "tsx tests/budget-math.mjs && tsx tests/fuzz-budget.mjs && tsx tests/bid-matrix-logic.mjs",
     "postinstall": "node -e \"try{const fs=require('fs');fs.copyFileSync(require.resolve('pdfjs-dist/build/pdf.worker.min.mjs'),'public/pdf.worker.min.mjs');console.log('✓ pdf.worker.min.mjs copied to public/')}catch(e){console.warn('pdf worker copy failed:',e.message)}\"",
     "prebuild": "node -e \"try{const fs=require('fs');fs.copyFileSync(require.resolve('pdfjs-dist/build/pdf.worker.min.mjs'),'public/pdf.worker.min.mjs');console.log('✓ pdf.worker.min.mjs copied to public/')}catch(e){console.warn('pdf worker copy failed:',e.message)}\" && node scripts/check-dynamic-pages.js && node scripts/check-migrations-postgres.js && node scripts/check-schema-migrations-sync.js",
-    "prepare": "husky"
+    "prepare": "husky",
+    "verify": "node scripts/verify.mjs",
+    "verify:smoke": "node --test scripts/tests/smoke.test.mjs",
+    "check:runtime-assets": "node scripts/check-runtime-assets.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",

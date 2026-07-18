@@ -1,0 +1,27 @@
+{
+  "at": "2026-07-18T21:15:39.786Z",
+  "full": false,
+  "failed": null,
+  "results": [
+    {
+      "gate": "dynamic pages",
+      "ok": true,
+      "ms": 300
+    },
+    {
+      "gate": "migrations (postgres)",
+      "ok": true,
+      "ms": 228
+    },
+    {
+      "gate": "schema ↔ migrations",
+      "ok": true,
+      "ms": 150
+    },
+    {
+      "gate": "secrets",
+      "ok": true,
+      "ms": 303
+    }
+  ]
+}
