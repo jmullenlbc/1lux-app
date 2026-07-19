@@ -18,6 +18,7 @@ const GATES = [
   { name: 'dynamic pages',       cmd: 'node scripts/check-dynamic-pages.js' },
   { name: 'migrations (postgres)', cmd: 'node scripts/check-migrations-postgres.js' },
   { name: 'schema ↔ migrations', cmd: 'node scripts/check-schema-migrations-sync.js' },
+  { name: 'shared metrics',      cmd: 'node scripts/check-shared-metrics.mjs' },
   { name: 'secrets',             cmd: 'node scripts/check-secrets.js', optional: true },
   ...(FULL ? [
     { name: 'production build',  cmd: 'npm run build' },

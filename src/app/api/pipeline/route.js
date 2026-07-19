@@ -18,7 +18,7 @@ export async function GET(request, { params }) {
       buildingType: true, serviceType: true, projectType: true,
       contractValue: true, designContractValue: true,
       procurementStage: true, designStage: true,
-      pipelineProbability: true, procurementStatus: true, designStatus: true, expectedOrderDate: true,
+      pipelineProbability: true, probabilityToWin: true, probabilityToMoveForward: true, procurementStatus: true, designStatus: true, expectedOrderDate: true,
       updatedAt: true,
       salesOwner:  { select: { id: true, name: true } },
       client:      { select: { id: true, name: true } },

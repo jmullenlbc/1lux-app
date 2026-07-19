@@ -2,9 +2,17 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-## ⚠️ FOR SEAN — please PAUSE further CRM work (Mike, 2026-07-06)
+## ⚠️ FOR SEAN — from Mike, 2026-07-18
 
-**Ask: hold off on any more CRM/pipeline UI tasks (the Manny queue) until we've drawn an ownership line.** Nothing wrong with the code quality — the security hygiene commit (`206f1fb`) was genuinely good and I've kept all of it. The problem is that we were both building sales/pipeline views in parallel with no boundary, and it produced **two different answers to the same question**, which is the one outcome we can't ship.
+> **"Pause on building out the CRM until we talk. Finish the admin and user privileges."**
+
+**Action needed in `.claude/manny-tasks.md`:** please pull the remaining CRM/pipeline UI tasks out of Manny's queue and repoint him at **admin + user privileges** instead. That's the work Mike wants finished next. Manny's execution has been fine — this is about *what's in the queue*, not how it's built. Let's talk before any further CRM/pipeline UI work.
+
+**Why the privileges work matters right now:** a related bug was live in production until today — projects were gated to *creator-or-super-admin* in 7 places, so `COMPANY_ADMIN` and regular `USER` accounts saw **zero projects** and 404'd opening any (fixed in `9097ba0`). Roles/permissions are clearly under-specified, which makes this the right next thing to nail down properly.
+
+---
+
+**Also — hold off on any more CRM/pipeline UI tasks until we've drawn an ownership line.** Nothing wrong with the code quality — the security hygiene commit (`206f1fb`) was genuinely good and I've kept all of it. The problem is that we were both building sales/pipeline views in parallel with no boundary, and it produced **two different answers to the same question**, which is the one outcome we can't ship.
 
 **What collided, and how it's now resolved** (all reconciled in `9097ba0`+, please pull before touching this area):
 
