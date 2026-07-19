@@ -2,6 +2,24 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+## ⚠️ FOR SEAN — please PAUSE further CRM work (Mike, 2026-07-06)
+
+**Ask: hold off on any more CRM/pipeline UI tasks (the Manny queue) until we've drawn an ownership line.** Nothing wrong with the code quality — the security hygiene commit (`206f1fb`) was genuinely good and I've kept all of it. The problem is that we were both building sales/pipeline views in parallel with no boundary, and it produced **two different answers to the same question**, which is the one outcome we can't ship.
+
+**What collided, and how it's now resolved** (all reconciled in `9097ba0`+, please pull before touching this area):
+
+1. **Win rate was computed two different ways.** The CRM stats bar used `won ÷ (won + lost)`; the dashboards used a different denominator. On today's real data those produced **40% vs 29%** under the same label. **Resolved:** there is now ONE definition in `src/lib/pipeline.js` — `winRate()` + `WON_STATUSES` / `DECIDED_STATUSES`, per Mike: **won ÷ every project past Open** (won + completed, over won + completed + lost + abandoned; a completed job counts as won). The CRM bar now imports it. **Please never recompute a win rate locally — import `winRate()`.**
+
+2. **Probability had diverged.** The card quick-edit and Weighted Pipeline both wrote/read the legacy `pipelineProbability`. Projects now carry **`probabilityToWin` + `probabilityToMoveForward`**, and the number we display everywhere is the **derived average** (`averageProbability()` in `pipeline.js`). Because the average is derived, an inline edit of it is meaningless — the quick-edit has been **removed**, and the two source fields are edited on the project's Sales Details. Card, list, CSV, sort and Weighted Pipeline all now use `averageProbability()`. `pipelineProbability` is legacy — please don't build on it.
+
+3. **"Needs Attention" overlaps a queue Mike is building.** Yours is `OPEN && updatedAt ≥ 30d`. `updatedAt` bumps on *any* write (including automated ones), so it isn't really "we haven't spoken to them." Mike's version keys off a real last-touched signal. **Leaving yours in place for now**; we'll consolidate onto one definition rather than ship two.
+
+**Proposed boundary going forward** (Mike to confirm): Mike owns **sales/pipeline metrics + dashboards + the weekly-meeting surface**; Sean owns **budget/pricing math, schema, infra/deploy**. Anything that computes a *shared business number* (win rate, probability, pipeline value) goes in `src/lib/pipeline.js` as one exported function, imported by every surface — never re-derived in a component.
+
+**Also new — two gates now fail the build/test run**, worth knowing before your next push:
+- `npm run build` now runs `scripts/check-runtime-assets.mjs`, asserting runtime-resolved assets are actually in the Lambda trace (this is what was silently breaking **all PDF/AI parsing in prod** — pdfjs `standard_fonts` were never traced; fixed for 8 routes).
+- `npm run verify` (static gates) and `npm run verify:smoke` (role-aware smoke tests). The smoke tests caught that **all seeded accounts are ILC_ADMIN**, so they stand up a disposable COMPANY_ADMIN — that role was seeing **zero projects** in production until today.
+
 ## Current State
 
 - **Production:** live at https://app.ilcstudios.com, deploys flowing cleanly since 2026-05-26 PM. Mike pushed 5 commits on 2026-05-27 AM extending the defensive-guard pattern from seed.js to client/KB/master-types pages and routes — same approach Sean used in `0eda6d1`. Pipeline stable.

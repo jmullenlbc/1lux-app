@@ -53,6 +53,35 @@ export const PIPELINE_STATUS = [
 ];
 export const STATUS_LABEL = Object.fromEntries(PIPELINE_STATUS.map(s => [s.key, s.label]));
 
+// ── Win rate — ONE definition, used everywhere (Mike, 2026-07-06) ─────────────
+// Won ÷ every project that has moved PAST Open. A COMPLETED job was won and then
+// delivered, so it counts as a win — otherwise finishing work would lower the rate.
+// Never redefine this locally; import it. Two numbers under one label is the bug
+// this replaces (the CRM stats bar and the dashboard disagreed).
+export const WON_STATUSES     = ['WON', 'COMPLETED'];
+export const DECIDED_STATUSES = ['WON', 'COMPLETED', 'LOST', 'ABANDONED']; // i.e. everything past OPEN
+export const WIN_RATE_DESCRIPTION =
+  'Won ÷ every project past Open (won + completed, over won + completed + lost + abandoned).';
+
+/** Win rate as a 0–100 number, or null when nothing has been decided yet. */
+export function winRate(projects, statusField = 'procurementStatus') {
+  const decided = projects.filter(p => DECIDED_STATUSES.includes(p[statusField]));
+  if (!decided.length) return null;
+  const won = decided.filter(p => WON_STATUSES.includes(p[statusField]));
+  return Math.round((won.length / decided.length) * 100);
+}
+
+// ── Probability — the average of the two entered values ───────────────────────
+// probabilityToWin + probabilityToMoveForward; falls back to whichever exists,
+// then to the legacy single field. Mirrors the sales dashboard provider so the
+// CRM card and the dashboard can never show different numbers.
+export function averageProbability(project) {
+  const parts = [project?.probabilityToWin, project?.probabilityToMoveForward]
+    .filter(v => v != null && v !== '');
+  if (parts.length) return Math.round(parts.reduce((a, b) => a + Number(b), 0) / parts.length);
+  return project?.pipelineProbability ?? null;
+}
+
 // Full Design / Design Assist carry a design fee → they appear in BOTH boards
 // (and are the only ones with a design status / the out-of-sync badge).
 export const DESIGN_SERVICE_TYPES = ['fullDesign', 'designAssist'];

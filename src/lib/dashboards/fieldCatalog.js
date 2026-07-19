@@ -11,6 +11,7 @@
 //   type:'date'      → a time axis (group by week/month/quarter).
 
 import { SERVICE_TYPES } from '@/lib/utils';
+import { WON_STATUSES, DECIDED_STATUSES } from '@/lib/pipeline';
 
 // Value → layman label maps so dashboards never show raw field values.
 // serviceType mirrors the platform-wide SERVICE_TYPES (single source of truth).
@@ -37,11 +38,13 @@ export const FIELD_CATALOG = {
     { key: 'probabilityToMoveForward', label: 'Probability to Move Forward', type: 'number', unit: '%', tier: 'ilc_only', source: 'probabilityToMoveForward' },
     { key: 'averageProbability', label: 'Average Probability', type: 'number', unit: '%',     tier: 'ilc_only', source: 'averageProbability' },
     // status-conditional counts — power win rate & loss analysis
-    { key: 'wonCount',           label: 'Won',                 type: 'number', unit: 'count', tier: 'ilc_only', source: '_count', where: { source: 'procurementStatus', op: 'in', value: ['WON'] } },
+    { key: 'wonCount',           label: 'Won',                 type: 'number', unit: 'count', tier: 'ilc_only', source: '_count', where: { source: 'procurementStatus', op: 'in', value: WON_STATUSES },
+      description: 'Projects won (includes Completed — a completed job was won).' },
     { key: 'lostCount',          label: 'Lost',                type: 'number', unit: 'count', tier: 'ilc_only', source: '_count', where: { source: 'procurementStatus', op: 'in', value: ['LOST'] } },
     { key: 'abandonedCount',     label: 'Abandoned',           type: 'number', unit: 'count', tier: 'ilc_only', source: '_count', where: { source: 'procurementStatus', op: 'in', value: ['ABANDONED'] } },
     { key: 'lostAbandonedCount', label: 'Lost + Abandoned',    type: 'number', unit: 'count', tier: 'ilc_only', source: '_count', where: { source: 'procurementStatus', op: 'in', value: ['LOST', 'ABANDONED'] } },
-    { key: 'decidedCount',       label: 'Decided (Won+Lost+Abandoned)', type: 'number', unit: 'count', tier: 'ilc_only', source: '_count', where: { source: 'procurementStatus', op: 'in', value: ['WON', 'LOST', 'ABANDONED'] } },
+    { key: 'decidedCount',       label: 'Past Open (decided)', type: 'number', unit: 'count', tier: 'ilc_only', source: '_count', where: { source: 'procurementStatus', op: 'in', value: DECIDED_STATUSES },
+      description: 'Every project that has moved past Open: won, completed, lost or abandoned.' },
     // dimensions
     { key: 'client',             label: 'Client',              type: 'dimension', source: 'client.name' },
     { key: 'serviceType',        label: 'Service Type',        type: 'dimension', source: 'serviceType', valueLabels: SERVICE_TYPE_LABELS },
@@ -77,8 +80,10 @@ export const FIELD_CATALOG = {
     { key: 'projectCount',       label: 'Projects',            type: 'number', unit: 'count', tier: 'ilc_only', source: '_count' },
     { key: 'productSaleTotal',   label: 'Product Sale Total',  type: 'number', unit: '$',     tier: 'ilc_only', source: 'contractValue' },
     { key: 'designFeeTotal',     label: 'Design Fee Total',    type: 'number', unit: '$',     tier: 'ilc_only', source: 'designContractValue' },
-    { key: 'wonCount',           label: 'Won',                 type: 'number', unit: 'count', tier: 'ilc_only', source: '_count', where: { source: 'procurementStatus', op: 'in', value: ['WON'] } },
-    { key: 'decidedCount',       label: 'Decided (Won+Lost+Abandoned)', type: 'number', unit: 'count', tier: 'ilc_only', source: '_count', where: { source: 'procurementStatus', op: 'in', value: ['WON', 'LOST', 'ABANDONED'] } },
+    { key: 'wonCount',           label: 'Won',                 type: 'number', unit: 'count', tier: 'ilc_only', source: '_count', where: { source: 'procurementStatus', op: 'in', value: WON_STATUSES },
+      description: 'Projects won (includes Completed — a completed job was won).' },
+    { key: 'decidedCount',       label: 'Past Open (decided)', type: 'number', unit: 'count', tier: 'ilc_only', source: '_count', where: { source: 'procurementStatus', op: 'in', value: DECIDED_STATUSES },
+      description: 'Every project that has moved past Open: won, completed, lost or abandoned.' },
     // dimensions
     { key: 'client',             label: 'Client',              type: 'dimension', source: 'client.name' },
     { key: 'serviceType',        label: 'Service Type',        type: 'dimension', source: 'serviceType', valueLabels: SERVICE_TYPE_LABELS },

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import {
   PIPELINE_STAGES, STAGE_LABEL, PIPELINE_STATUS, STATUS_LABEL,
   stageFieldFor, statusFieldFor, revenueFor, inDesignPipeline, stagesOutOfSync,
+  winRate, averageProbability, WIN_RATE_DESCRIPTION,
 } from '@/lib/pipeline';
 
 // Re-exported for the (orphaned, Phase-2) Deal components' imports.
@@ -107,14 +108,13 @@ function NoteInput({ projectId, onClose }) {
 }
 
 // ── Project Card ────────────────────────────────────────────────────────────
-function ProjectCard({ project, pipeline, onOpen, onDragStart, onDragEnd, isDragging, onProbabilityChange }) {
+function ProjectCard({ project, pipeline, onOpen, onDragStart, onDragEnd, isDragging }) {
   const status   = project[statusFieldFor(pipeline)] || 'OPEN';
   const st       = STATUS_CONFIG[status] || STATUS_CONFIG.OPEN;
   const rev      = revenueFor(project, pipeline);
   const outSync  = stagesOutOfSync(project);
   const didDrag  = useRef(false);
   const [noteOpen, setNoteOpen] = useState(false);
-  const [editingProb, setEditingProb] = useState(false);
 
   return (
     <div
@@ -168,35 +168,14 @@ function ProjectCard({ project, pipeline, onOpen, onDragStart, onDragEnd, isDrag
           {project.expectedOrderDate && <span className="text-slate-400">{fmtDate(project.expectedOrderDate)}</span>}
         </div>
 
-        <div className="flex items-center gap-2 mt-1.5">
+        {/* Average Probability is DERIVED (win % + move-forward %, averaged), so it
+            is shown read-only here — edit the two source fields on the project. */}
+        <div className="flex items-center gap-2 mt-1.5"
+          title="Average Probability — the average of Probability to Win and Probability to Move Forward. Edit those on the project.">
           <div className="w-12 h-1 rounded-full bg-slate-200 overflow-hidden">
-            <div className="h-full rounded-full bg-orange-400" style={{ width: `${project.pipelineProbability ?? 0}%` }} />
+            <div className="h-full rounded-full bg-orange-400" style={{ width: `${averageProbability(project) ?? 0}%` }} />
           </div>
-          {editingProb ? (
-            <input
-              type="number" min="0" max="100"
-              defaultValue={project.pipelineProbability ?? 0}
-              autoFocus
-              className="w-10 text-[10px] border border-slate-200 rounded px-1 focus:outline-none focus:ring-1 focus:ring-orange-400"
-              onBlur={e => {
-                setEditingProb(false);
-                onProbabilityChange(project.id, e.target.value);
-              }}
-              onKeyDown={e => {
-                if (e.key === 'Enter') e.target.blur();
-                if (e.key === 'Escape') setEditingProb(false);
-              }}
-              onClick={e => e.stopPropagation()}
-            />
-          ) : (
-            <span
-              className="text-[10px] text-slate-400 cursor-pointer hover:text-slate-600 hover:underline"
-              title="Click to edit"
-              onClick={e => { e.stopPropagation(); setEditingProb(true); }}
-            >
-              {project.pipelineProbability ?? 0}%
-            </span>
-          )}
+          <span className="text-[10px] text-slate-400">{averageProbability(project) ?? 0}%</span>
         </div>
 
         {!noteOpen ? (
@@ -220,7 +199,7 @@ function ProjectCard({ project, pipeline, onOpen, onDragStart, onDragEnd, isDrag
 }
 
 // ── Kanban Column ─────────────────────────────────────────────────────────────
-function KanbanColumn({ stageCfg, projects, pipeline, onOpen, onAdd, draggingId, onDragStart, onDragEnd, onDrop, onProbabilityChange }) {
+function KanbanColumn({ stageCfg, projects, pipeline, onOpen, onAdd, draggingId, onDragStart, onDragEnd, onDrop }) {
   const [dragOver, setDragOver] = useState(false);
   const totalValue = projects.reduce((s, p) => s + (revenueFor(p, pipeline) || 0), 0);
   const isActiveDrop = dragOver && draggingId;
@@ -243,7 +222,7 @@ function KanbanColumn({ stageCfg, projects, pipeline, onOpen, onAdd, draggingId,
         onDrop={() => { setDragOver(false); onDrop(stageCfg.key); }}
       >
         {projects.map(p => (
-          <ProjectCard key={p.id} project={p} pipeline={pipeline} onOpen={onOpen} onDragStart={onDragStart} onDragEnd={onDragEnd} isDragging={draggingId === p.id} onProbabilityChange={onProbabilityChange} />
+          <ProjectCard key={p.id} project={p} pipeline={pipeline} onOpen={onOpen} onDragStart={onDragStart} onDragEnd={onDragEnd} isDragging={draggingId === p.id} />
         ))}
         {isActiveDrop && projects.length === 0 && (
           <div className="flex items-center justify-center h-16 rounded-lg text-xs font-semibold text-orange-500">Drop here → {stageCfg.label}</div>
@@ -263,36 +242,44 @@ function PipelineSummary({ projects, pipeline }) {
   const open     = projects.filter(p => p[sf] === 'OPEN');
   const won      = projects.filter(p => p[sf] === 'WON' && daysSince(p.updatedAt) <= 30);
   const lost     = projects.filter(p => p[sf] === 'LOST');
-  const highProb = open.filter(p => (p.pipelineProbability ?? 0) >= 80);
+  // Probability + win rate come from src/lib/pipeline.js — one definition, used by
+  // the CRM bar AND the dashboards. Do not recompute either of them here.
+  const highProb = open.filter(p => (averageProbability(p) ?? 0) >= 80);
   const stale    = open.filter(p => daysSince(p.updatedAt) >= 30);
   const sum = arr => arr.reduce((s, p) => s + (revenueFor(p, pipeline) || 0), 0);
 
-  const wonAll = projects.filter(p => p[sf] === 'WON');
-  const winRate = wonAll.length + lost.length > 0
-    ? `${Math.round(wonAll.length / (wonAll.length + lost.length) * 100)}%`
-    : '—';
+  const rate    = winRate(projects, sf);                 // won ÷ everything past Open
+  const rateStr = rate == null ? '—' : `${rate}%`;
   const weightedTotal = open.reduce(
-    (s, p) => s + (revenueFor(p, pipeline) || 0) * (p.pipelineProbability ?? 0) / 100,
+    (s, p) => s + (revenueFor(p, pipeline) || 0) * (averageProbability(p) ?? 0) / 100,
     0
   );
 
   const stats = [
     { label: 'Open Pipeline',    value: fmtMoney(sum(open))     || '—', color: 'text-slate-900'  },
-    { label: 'High Prob (80%+)', value: fmtMoney(sum(highProb)) || '—', color: 'text-orange-600' },
-    { label: 'Weighted Pipeline', value: fmtMoney(Math.round(weightedTotal)) || '—', color: 'text-blue-700' },
+    { label: 'High Prob (80%+)', value: fmtMoney(sum(highProb)) || '—', color: 'text-orange-600',
+      hint: 'Average Probability (win % and move-forward % averaged) of 80 or more.' },
+    { label: 'Weighted Pipeline', value: fmtMoney(Math.round(weightedTotal)) || '—', color: 'text-blue-700',
+      hint: 'Open pipeline value × each project’s Average Probability.' },
     { label: 'Won (30 days)',    value: fmtMoney(sum(won))      || '—', color: 'text-green-700'  },
-    { label: 'Win Rate',         value: winRate,                        color: wonAll.length >= lost.length ? 'text-green-700' : 'text-red-600' },
+    { label: 'Win Rate',         value: rateStr,                        color: rate != null && rate >= 50 ? 'text-green-700' : 'text-red-600',
+      hint: WIN_RATE_DESCRIPTION },
     { label: 'Lost',             value: lost.length,                    color: 'text-red-600'    },
     { label: 'Open Projects',    value: open.length,                    color: 'text-slate-700'  },
-    { label: 'Needs Attention',  value: stale.length,                   color: stale.length > 0 ? 'text-amber-600' : 'text-slate-400' },
+    { label: 'Needs Attention',  value: stale.length,                   color: stale.length > 0 ? 'text-amber-600' : 'text-slate-400',
+      hint: 'Open projects with no update in 30+ days.' },
   ];
 
   return (
     <div className="flex items-center gap-px bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm mb-4">
       {stats.map((s, i) => (
-        <div key={i} className={`flex-1 px-4 py-2.5 ${i < stats.length - 1 ? 'border-r border-slate-100' : ''}`}>
+        <div key={i} title={s.hint || undefined}
+          className={`flex-1 px-4 py-2.5 ${i < stats.length - 1 ? 'border-r border-slate-100' : ''}`}>
           <p className={`text-base font-bold ${s.color}`}>{s.value}</p>
-          <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide mt-0.5">{s.label}</p>
+          <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide mt-0.5 flex items-center gap-1">
+            {s.label}
+            {s.hint && <span className="text-slate-300 normal-case cursor-help" aria-label={s.hint}>ⓘ</span>}
+          </p>
         </div>
       ))}
     </div>
@@ -314,8 +301,8 @@ function ListView({ projects, pipeline, onOpen, onUpdate }) {
   }
 
   const sorted = [...projects].sort((a, b) => {
-    let av = sortKey === 'revenue' ? rev(a) : sortKey === 'stage' ? a[stageField] : sortKey === 'client' ? (a.client?.name || '') : a[sortKey];
-    let bv = sortKey === 'revenue' ? rev(b) : sortKey === 'stage' ? b[stageField] : sortKey === 'client' ? (b.client?.name || '') : b[sortKey];
+    let av = sortKey === 'revenue' ? rev(a) : sortKey === 'stage' ? a[stageField] : sortKey === 'client' ? (a.client?.name || '') : sortKey === 'probability' ? (averageProbability(a) ?? 0) : a[sortKey];
+    let bv = sortKey === 'revenue' ? rev(b) : sortKey === 'stage' ? b[stageField] : sortKey === 'client' ? (b.client?.name || '') : sortKey === 'probability' ? (averageProbability(b) ?? 0) : b[sortKey];
     if (typeof av === 'string' || typeof bv === 'string') {
       const as = String(av ?? ''), bs = String(bv ?? '');
       return sortDir === 'asc' ? as.localeCompare(bs) : bs.localeCompare(as);
@@ -352,7 +339,7 @@ function ListView({ projects, pipeline, onOpen, onUpdate }) {
             <Th col="client" label="Client" />
             <Th col="stage" label="Stage" />
             <Th col="revenue" label={pipeline === 'DESIGN' ? 'Design Fee' : 'Product Sale'} />
-            <Th col="pipelineProbability" label="Prob" />
+            <Th col="probability" label="Prob" />
             <Th col="expectedOrderDate" label="Expected" />
             <Th col={statusField} label="Status" />
             <th className="px-3 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sales Owner</th>
@@ -378,8 +365,8 @@ function ListView({ projects, pipeline, onOpen, onUpdate }) {
                 <td className="px-3 py-2.5 font-semibold text-slate-800 whitespace-nowrap">{fmtMoney(rev(project)) || <span className="text-slate-300">—</span>}</td>
                 <td className="px-3 py-2.5 whitespace-nowrap">
                   <div className="flex items-center gap-1.5">
-                    <div className="w-10 h-1.5 rounded-full bg-slate-200 overflow-hidden"><div className="h-full rounded-full bg-orange-400" style={{ width: `${project.pipelineProbability ?? 0}%` }} /></div>
-                    <span className="text-[11px] text-slate-500">{project.pipelineProbability ?? 0}%</span>
+                    <div className="w-10 h-1.5 rounded-full bg-slate-200 overflow-hidden"><div className="h-full rounded-full bg-orange-400" style={{ width: `${averageProbability(project) ?? 0}%` }} /></div>
+                    <span className="text-[11px] text-slate-500" title="Average Probability (win % + move-forward %, averaged)">{averageProbability(project) ?? 0}%</span>
                   </div>
                 </td>
                 <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap text-xs">{fmtDate(project.expectedOrderDate) || '—'}</td>
@@ -473,20 +460,6 @@ export default function CRMClient({ initialProjects, users }) {
     }
   }
 
-  async function handleProbabilityChange(id, value) {
-    const clamped = Math.max(0, Math.min(100, Number(value)));
-    setProjects(prev => prev.map(p =>
-      p.id === id ? { ...p, pipelineProbability: clamped } : p
-    ));
-    try {
-      await fetch(`/api/projects/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pipelineProbability: clamped }),
-      });
-    } catch { /* optimistic already applied; fail silently */ }
-  }
-
   function handleExportCSV() {
     const sf = statusFieldFor(pipeline);
     const stagef = stageFieldFor(pipeline);
@@ -501,7 +474,7 @@ export default function CRMClient({ initialProjects, users }) {
       p[sf] || '',
       revenueFor(p, pipeline)
         ? `$${revenueFor(p, pipeline).toLocaleString()}` : '',
-      `${p.pipelineProbability ?? 0}%`,
+      `${averageProbability(p) ?? 0}%`,
       p.expectedOrderDate
         ? new Date(p.expectedOrderDate).toLocaleDateString() : '',
     ]);
@@ -634,8 +607,7 @@ export default function CRMClient({ initialProjects, users }) {
                   draggingId={draggingId}
                   onDragStart={handleDragStart}
                   onDragEnd={handleDragEnd}
-                  onDrop={handleDrop}
-                  onProbabilityChange={handleProbabilityChange}
+                  onDrop={handleDrop}
                 />
               );
             })}
