@@ -109,6 +109,11 @@ export const PRICING = {
     landscape: {
       // (lotSf - buildingFootprintSf) × 2% — entered manually in Exterior section
       pctOfNetLotSf: 0.02,
+      // Hard ceiling. The source questionnaire says "add an estimate flat amount
+      // for landscape lighting — for most projects do not exceed $3,000". Without
+      // this cap the percentage runs away on large sites (a 1M SF lot returned
+      // $20,000 against a stated $3,000 ceiling). Confirmed by Mike 2026-07-18.
+      maxTotal: 3000,
     },
     carport: {
       diskEveryOther: 30,
@@ -120,6 +125,14 @@ export const PRICING = {
     exteriorDoor: {
       primarySconce:   350,
       secondarySconce: 75,
+      // Target model (not yet wired to the formula): count floor-1 egress doors,
+      // add 10%, and price one battery-backed wallpack each. Blocked on drawing
+      // parsing (phase 2) for the door count. Placeholder rate set by Mike
+      // 2026-07-18 — switching the formula to this will move the exterior door
+      // line from $212.50/door to $300/door on every existing project, so it is
+      // deliberately NOT live yet.
+      wallpackWithBattery: 300,
+      egressUpliftPct:     0.10,
     },
     miscBufferPct: 0.05, // 5% of exterior subtotal before misc
   },

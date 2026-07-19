@@ -5,6 +5,58 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Site/exterior pricing audit — conceptual budget prep] · July 18, 2026
+
+Audited the exterior engine line-by-line against the source questionnaire ("ILC Studios Conceptual lighting_controls design multifamily questionnaire") ahead of the public conceptual-budget intake tool. **7 of 9 lines already matched** — surface parking ($1,325 / 9 stalls), carports (disk every other), detached garage sconces ($80), exterior amenities ($/SF × night multiplier), exterior door sconces (`d × (350+75)/2`, algebraically identical to the sheet's `(d/2)×350 + (d/2)×75`), and the 5% misc buffer. Two gaps found.
+
+### Fixed
+- **Landscape lighting ran away on large sites.** `calculations.js` hardcoded `lotSf × 0.02` with no ceiling, against a questionnaire that states *"for most projects do not exceed $3,000"*. A 400,000 SF lot returned **$8,000**; a 1M SF lot returned **$20,000**. Now capped via `Math.min(lotSf × pct, PRICING.exterior.landscape.maxTotal)`. **No-op below 150,000 SF** — typical projects are unchanged. This matters most for the public tool, where an outside user types the lot size unsupervised.
+- **The landscape formula ignored master pricing.** `PRICING.exterior.landscape.pctOfNetLotSf` already existed but was never read — editing that rate in `/admin/pricing` had no effect on any budget. Both the rate and the new cap now come from master pricing.
+- **The same formula was hardcoded twice.** `ExteriorSection.jsx` carried its own copy of `lotSf * 0.02`, so the UI preview and the engine could drift apart independently. Both now read master pricing — the same "one definition" rule `check-shared-metrics` enforces for win rate.
+
+### Added
+- `exterior.exteriorDoor.wallpackWithBattery: 300` and `egressUpliftPct: 0.10` in master pricing, exposed in the pricing admin. **Deliberately not wired to the formula** — the target model (count floor-1 egress doors, add 10%, price a battery wallpack each) is blocked on drawing parsing, and switching it would move that line from $212.50/door to $300/door on every existing project.
+- Landscape rate + cap surfaced as editable rows in `PricingEditor.jsx`.
+
+- **A dead pricing admin control.** `PricingEditor.jsx` edited `exterior.surfaceParking.perStall`, but nothing reads that key — the engine and the UI preview both read `perFixture`. Since `perFixture` always exists, **every edit made through that field was silently discarded.** Confirmed in the saved pricing config, which holds both `perFixture: 1325` and an orphaned `perStall: 1325`; they happen to be equal, so no budget was ever wrong, but any edit would have vanished. Editor now targets `perFixture`, the label is corrected ($1,325 buys one fixture covering ~9 stalls, not one stall), and `stallsPerFixture` is now editable.
+
+### Added — public intake groundwork
+- **`src/lib/intake.js`** — dependency-free, DB-free helpers for the public conceptual-budget tool: work-email gating (free-mail and disposable-domain blocklists), `resolveClientByDomain`, project-name normalization, and duplicate detection. Written pure so it can be unit-tested without a database and called from an unauthenticated route.
+  - Work-email gating does double duty: the domain **is** the client-mapping key, and requiring a corporate domain is most of the spam defense on a form with no CAPTCHA.
+  - `resolveClientByDomain` treats an explicit `emailDomains` hit as authoritative but a `website` hit as a **low-confidence suggestion only** — `Client.website` is free text and must never auto-assign a client.
+  - Deliberately does **not** reuse `market-intel/normalizer.js#normalizeName`: that normalizer strips "development"/"residential"/"properties" as company noise, which would collapse "Lincoln Avenue" and "Lincoln Avenue Residential" into a false duplicate. Project names get their own lighter normalizer.
+- **`scripts/tests/intake.test.mjs`** — 22 unit tests, zero dependencies (`node:test`), wired into `npm run verify` as a new `unit tests` gate. **`npm run verify` is now 8 gates.**
+
+- **A breakdown label that contradicted its own value.** After the cap landed, the line read `Landscape (762,000 SF lot × 2%)` next to `$3,000` — implying $15,240 and looking like a bug. It now shows its work: `Landscape (762,000 SF lot × 2% = $15,240, capped at $3,000)`.
+
+### Impact on existing projects
+**6 of 25 affected**, all conceptual, none previously sent outside the company (confirmed by Mike), so no issued quote is contradicted.
+
+| Project | Lot SF | Landscape | Total change |
+|---|---:|---|---:|
+| Echo Trail Townhomes | 762,000 | $15,240 → $3,000 | **−$14,009 (−8.77%)** |
+| Fulshear Lakes | 545,000 | $10,900 → $3,000 | −$9,042 (−1.84%) |
+| Modera Easton Park | 453,459 | $9,069 → $3,000 | −$6,946 (−1.32%) |
+| Broadstone Southglenn | 221,284 | $4,426 → $3,000 | −$1,632 (−0.20%) |
+| Modera Lake Pointe | 209,088 | $4,182 → $3,000 | −$1,353 (−0.16%) |
+| Sheridan and Colfax – Option A | 154,809 | $3,096 → $3,000 | −$110 (−0.02%) |
+
+Echo Trail is the case that proves the bug: 64 townhomes on a 762,000 SF lot, where landscape alone was **9.5% of the entire budget**. Townhome/BTR projects have a very large lot relative to building SF, so they are structurally the projects an uncapped lot-SF percentage hits hardest. Every other project moves under 2%.
+
+### Verification
+Regression suite 38/38 budget-math assertions, **111,997 fuzz invariant checks** across 8,000 scenarios (0 failures), 12/12 bid matrix. `npm run verify` 8 gates. Production build clean, all 11 runtime assets traced. UI confirmed against the running app on Echo Trail — wizard breakdown and live budget panel both match the engine to the cent.
+
+Full sheet-vs-engine reconciliation: `EXTERIOR_SITE_ENGINE_VS_GOOGLE_SHEET.md` (Software engineering shared drive).
+
+### Flagged, not changed
+- `buildingFootprintSf` is read into `calculations.js` and never used — the "lot minus footprint" the UI hint promises is not implemented. Landscape uses raw lot SF. Correcting it would *reduce* existing budgets, so it needs a decision.
+- **Surface parking and pathway lighting still need real formulas** (deferred by Mike, "needs a deeper discussion"). Pathway is 100% manual despite `PRICING.exterior.bollard.perUnit = 800` existing and being wired to nothing; `surfaceParking.solarUpgrade = 3000` is likewise unwired.
+
+### Routed to Sean
+Schema for the public intake tool (all additive): `Client.emailDomains`, `Project.preconManagerId`, and a `ConceptualSubmission` review-queue model — public submissions must not create live projects until an ILC reviewer accepts them. See `.claude/coordination.md`.
+
+---
+
 ## [Verification harness — Slice 2 complete] · July 18, 2026
 
 ### Added

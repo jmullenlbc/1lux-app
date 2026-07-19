@@ -62,11 +62,19 @@ const PRICING_FIELDS = [
   { group: 'Exterior Amenities', key: 'exteriorAmenities.nighttimeMultiplier', label: 'Nighttime Multiplier', desc: 'Multiplied when open after sunset', unit: '×' },
 
   // ── EXTERIOR SITE ─────────────────────────────────────────────────────
-  { group: 'Exterior Site', key: 'exterior.surfaceParking.perStall',     label: 'Surface Parking Per Stall', desc: 'Area light + 30ft pole', unit: '$/stall' },
+  // Key was `perStall` until 2026-07-18, but nothing reads that — pricing.js defines
+  // `perFixture` and both the engine and the UI preview read `perFixture`, so every
+  // edit made through this field was silently discarded. Label was misleading too:
+  // $1,325 buys one area light + pole covering ~9 stalls, not one stall.
+  { group: 'Exterior Site', key: 'exterior.surfaceParking.perFixture',   label: 'Surface Parking — Per Fixture', desc: 'Area light + 30ft pole (covers ~9 stalls)', unit: '$/fixture' },
+  { group: 'Exterior Site', key: 'exterior.surfaceParking.stallsPerFixture', label: 'Stalls Per Fixture',    desc: 'How many stalls one area light covers', unit: 'stalls' },
   { group: 'Exterior Site', key: 'exterior.carport.diskEveryOther',      label: 'Carport Disk (every other)', desc: '7" disk per every other bay', unit: '$/disk' },
   { group: 'Exterior Site', key: 'exterior.detachedGarage.sconcePerDoor', label: 'Garage Sconce Per Door',   desc: 'Per detached garage door', unit: '$/door' },
   { group: 'Exterior Site', key: 'exterior.exteriorDoor.primarySconce',  label: 'Exterior Door — Primary',   desc: 'First sconce of each pair', unit: '$/door' },
   { group: 'Exterior Site', key: 'exterior.exteriorDoor.secondarySconce', label: 'Exterior Door — Secondary', desc: 'Second sconce of each pair', unit: '$/door' },
+  { group: 'Exterior Site', key: 'exterior.exteriorDoor.wallpackWithBattery', label: 'Wallpack + Battery',   desc: 'Egress wallpack w/ battery backup — not yet wired to the formula', unit: '$/door' },
+  { group: 'Exterior Site', key: 'exterior.landscape.pctOfNetLotSf',     label: 'Landscape % of Lot SF',     desc: 'Landscape lighting as a % of lot SF (0.02 = 2%)', unit: 'decimal' },
+  { group: 'Exterior Site', key: 'exterior.landscape.maxTotal',          label: 'Landscape Cap',             desc: 'Hard ceiling on landscape lighting regardless of lot size', unit: '$' },
   { group: 'Exterior Site', key: 'exterior.miscBufferPct',               label: 'Misc Buffer %',             desc: '% of exterior subtotal before misc', unit: '%' },
 
   // ── EMERGENCY ─────────────────────────────────────────────────────────

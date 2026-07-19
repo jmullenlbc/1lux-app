@@ -197,7 +197,13 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // landscape additions through `exteriorManualItems.manualExteriorAdder`
   // instead. Engine reference removed 2026-06-22 along with the only
   // remaining project that used it (Mike's "The Approach").
-  const landscapeFlat = lotSf > 0 ? lotSf * 0.02 : 0;
+  // Capped at landscape.maxTotal — the questionnaire's stated ceiling. The rate
+  // and the cap both come from master pricing now; this line used to hardcode
+  // 0.02 and ignore PRICING.exterior.landscape entirely, so editing the rate in
+  // the pricing admin had no effect on any budget.
+  const landscapePct  = PRICING.exterior.landscape?.pctOfNetLotSf ?? 0.02;
+  const landscapeCap  = PRICING.exterior.landscape?.maxTotal ?? 3000;
+  const landscapeFlat = lotSf > 0 ? Math.min(lotSf * landscapePct, landscapeCap) : 0;
 
   // Manual override: site/exterior is frequently hand-calculated outside the
   // formula (manually built in the spreadsheet). A positive exteriorOverride

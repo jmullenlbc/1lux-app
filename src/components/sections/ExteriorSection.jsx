@@ -55,8 +55,14 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
   const numGarages  = Number(projectData?.numGarages)            || 0;
   const extDoors    = Number(projectData?.numExteriorDoors)      || 0;
   const lotSf       = Number(projectData?.lotSf)                 || 0;
-  // Landscape = 2% of total lot SF (Excel-verified formula, matches the engine).
-  const autoLandscape = lotSf > 0 ? lotSf * 0.02 : 0;
+  // Landscape = 2% of total lot SF, capped at the questionnaire's stated ceiling.
+  // Rate and cap read from master pricing so this cannot drift from calculations.js
+  // (it previously hardcoded 0.02 with no cap, in two places).
+  const LS = P.exterior?.landscape || {};
+  const landscapePct = LS.pctOfNetLotSf ?? 0.02;
+  const landscapeCap = LS.maxTotal ?? 3000;
+  const autoLandscape = lotSf > 0 ? Math.min(lotSf * landscapePct, landscapeCap) : 0;
+  const landscapeCapped = lotSf > 0 && lotSf * landscapePct > landscapeCap;
 
   const EA       = P.exteriorAmenities || {};
   const rateMap  = { low: EA.low ?? 1, lowMedium: EA.lowMedium ?? 2, medium: EA.medium ?? 3, high: EA.high ?? 5 };
@@ -87,7 +93,11 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
     { label: 'Carports',              math: `${carports} ÷ 2 = ${Math.floor(carports / 2)} disk${Math.floor(carports / 2) === 1 ? '' : 's'} × $${P.exterior?.carport?.diskEveryOther ?? 30}`, value: carportProduct },
     { label: 'Detached garages',      math: `${numGarages} × $${P.exterior?.detachedGarage?.sconcePerDoor ?? 80}/door`, value: garageProduct },
     { label: 'Exterior door sconces', math: `${extDoors} × ($${door.primarySconce ?? 350} + $${door.secondarySconce ?? 75}) ÷ 2`, value: doorProduct },
-    { label: 'Landscape',             math: `${lotSf.toLocaleString()} SF lot × 2%`, value: autoLandscape },
+    // Show the cap when it binds, otherwise the label reads as the uncapped
+    // figure and silently contradicts the value next to it.
+    { label: 'Landscape',             math: landscapeCapped
+        ? `${lotSf.toLocaleString()} SF lot × ${(landscapePct * 100).toFixed(0)}% = $${Math.round(lotSf * landscapePct).toLocaleString()}, capped at $${landscapeCap.toLocaleString()}`
+        : `${lotSf.toLocaleString()} SF lot × ${(landscapePct * 100).toFixed(0)}%`, value: autoLandscape },
     { label: 'Miscellaneous',         math: `${((P.exterior?.miscBufferPct ?? 0.05) * 100).toFixed(0)}% buffer of full exterior (incl. amenities)`, value: miscBuffer },
   ];
   // Subtotal of the breakdown box = everything in the formula EXCEPT amenities

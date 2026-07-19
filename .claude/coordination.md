@@ -2,6 +2,52 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+## 👋 SEAN — START HERE NEXT SESSION (2026-07-18)
+
+Three things, in priority order. **#1 is blocking Mike's 2-week deadline.**
+
+**1. Add the intake schema (blocking).** Full spec in the "SCHEMA REQUEST" section directly below — `Client.emailDomains`, `Project.preconManagerId`, and a `ConceptualSubmission` model. All additive, nothing dropped. Mike is building the public conceptual-budget intake tool against these; the pure logic is already written and unit-tested in `src/lib/intake.js` (22 tests, `npm run verify`), so the moment the fields exist it wires straight up. **Please add the Postgres migration too** — local `db push` alone doesn't reach prod.
+
+**2. Finish admin + user privileges** — Mike's standing ask from earlier today, still the priority for Manny's queue. CRM/pipeline UI stays paused until Mike says otherwise.
+
+**3. Don't re-add `perStall`.** I removed `exterior.surfaceParking.perStall` from the pricing admin — see the note below for why it was dead. There's still an orphaned `perStall: 1325` key sitting in the saved SystemConfig pricing blob; it's inert (the engine prefers `perFixture`) so I left it rather than write to prod config. Bin it if you're touching that blob anyway.
+
+**Heads up on the run command:** `npm run verify` is now **8 gates** (added a `unit tests` gate). It's fast and static — no server, no DB. Run it before you push.
+
+---
+
+## 🔧 SCHEMA REQUEST — from Mike's Claude, 2026-07-18
+
+Mike is building a **public conceptual-budget intake tool** (external, non-ILC users, target live in 2 weeks). It needs schema I won't add unilaterally — schema is yours, and `amplify.yml` runs `prisma db push --accept-data-loss` on every deploy. **All of the below is additive** (new optional fields + one new model); nothing is removed, renamed, or retyped, so no existing production data is at risk.
+
+**1. `Client.emailDomains String @default("[]")`** — JSON string array, matching the existing `markets`/`geographies` convention. This is the blocker: there is currently **no way to resolve `bob@acme.com` to a Client**. The only `domain` anywhere in the schema is inside a free-text automation-rule config blob. Public intake maps submitter → client by domain, so this field is load-bearing.
+
+**2. `Project.preconManagerId String?` + relation to `User`** (suggest `@relation("ProjectPreconManager")`, mirroring `ProjectSalesOwner`). Today "pre-construction" exists **only** as a suggested free-text value for `ClientContact.department` — i.e. a label on an *external* contact, not an internal ILC assignee. Mike wants a real per-project ILC pre-con manager.
+
+**3. A submission/queue model** (working name `ConceptualSubmission`). Public submissions must **not** create live `Project` rows — an ILC reviewer accepts them and checks the math first. `Project.createdById` is required, so there's no anonymous-draft path today. Fields roughly: submitter name/email/domain, resolved `clientId?`, proposed project name, duplicate-match info, uploaded file refs, the raw answer payload, `status`, `reviewedById?`, timestamps.
+
+Happy to write the migration if you'd rather review than author — just say which way you want it.
+
+---
+
+## ⚠️ HEADS UP — pricing/calc edits in your area, 2026-07-18
+
+Per the boundary below you own budget/pricing math. Mike directed these three changes today, so flagging rather than surprising you:
+
+1. **Landscape lighting was uncapped and ignored master pricing.** `calculations.js` hardcoded `lotSf * 0.02` and never read `PRICING.exterior.landscape.pctOfNetLotSf` — so editing that rate in `/admin/pricing` did nothing. The source questionnaire says *"for most projects do not exceed $3,000"*; a 400k SF lot returned **$8,000** and a 1M SF lot **$20,000**. Now `Math.min(lotSf × pct, PRICING.exterior.landscape.maxTotal)` with `maxTotal: 3000`. **No-op below 150,000 SF**, so typical projects are unchanged.
+2. **Same formula was hardcoded a second time** in `ExteriorSection.jsx` — the UI preview and the engine could drift independently. Both now read master pricing.
+3. **Added `exteriorDoor.wallpackWithBattery: 300` + `egressUpliftPct: 0.10`** to pricing, exposed in the pricing admin, but **deliberately NOT wired to the formula**. The target model (floor-1 egress door count +10%, battery wallpack each) is blocked on drawing parsing. Switching it would move that line from $212.50/door to $300/door on every existing project — a live-data change that shouldn't happen silently.
+
+4. **Fixed a dead admin control.** `PricingEditor.jsx` edited `exterior.surfaceParking.perStall`, but **nothing reads that key** — `pricing.js` defines `perFixture: 1325`, and both `calculations.js` (`perFixture ?? perStall ?? 1325`) and `ExteriorSection.jsx` (`perFixture ?? 1325`) read `perFixture`. Since `perFixture` always exists, **every edit made through that admin field was silently discarded.** Confirmed in the DB: the saved pricing blob contains both `perFixture: 1325` and an orphaned `perStall: 1325`. They happen to be equal, so no budget was ever wrong — but any edit would have vanished. Editor now points at `perFixture`, and the label is corrected (it's $1,325 per *fixture* covering ~9 stalls, not per stall). Also exposed `stallsPerFixture`. Mike called this one directly: *"Fix it, I know more about this than Sean."*
+
+**Still open, needs a decision (not touched):** `buildingFootprintSf` is read into `calculations.js` and never used — the "lot minus footprint" the UI hint promises isn't implemented, landscape uses raw lot SF. Implementing it would *reduce* existing budgets, so it's a pricing decision rather than a cleanup.
+
+**Also deferred by Mike:** surface parking and pathway lighting both need real formulas ("needs a deeper discussion"). Pathway is 100% manual today despite `PRICING.exterior.bollard.perUnit = 800` existing and being wired to nothing; `surfaceParking.solarUpgrade = 3000` is likewise unwired. Mike owns this design call.
+
+`npm run verify` passes (**8 gates**) after all of the above.
+
+---
+
 ## ⚠️ FOR SEAN — from Mike, 2026-07-18
 
 > **"Pause on building out the CRM until we talk. Finish the admin and user privileges."**
