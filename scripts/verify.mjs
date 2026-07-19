@@ -16,6 +16,8 @@ const FULL = process.argv.includes('--full');
 
 const GATES = [
   { name: 'dynamic pages',       cmd: 'node scripts/check-dynamic-pages.js' },
+  { name: 'schema provider',     cmd: 'node scripts/check-schema-provider.js' },
+  { name: 'env contract',        cmd: 'node scripts/check-env-contract.js' },
   { name: 'migrations (postgres)', cmd: 'node scripts/check-migrations-postgres.js' },
   { name: 'schema ↔ migrations', cmd: 'node scripts/check-schema-migrations-sync.js' },
   { name: 'shared metrics',      cmd: 'node scripts/check-shared-metrics.mjs' },

@@ -5,6 +5,22 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Verification harness — Slice 2 complete] · July 18, 2026
+
+### Added
+- **`check-schema-provider.js`** — fails if `postgresql` is committed. `amplify.yml` sed-swaps `sqlite`→`postgresql` at build; committing the swapped value makes the sed a silent no-op *and* breaks local dev for everyone.
+- **`check-env-contract.js`** — asserts all 6 server env vars are baked into `next.config.mjs`. Amplify Gen 1 console vars never reach the SSR Lambda, so a missing one makes a feature return null in prod with no error. **This is the exact class of bug that silently broke all AI parsing.**
+- **`check-shared-metrics.mjs`** — fails if a component re-derives win rate or reads legacy `pipelineProbability`. Caught a real defect on its first run: `crm/page.jsx` and `api/pipeline/route.js` selected only the legacy column, so `averageProbability()` was silently falling back instead of showing the true average.
+- **`CLAUDE.md` binding** — "You do not decide when a task is done; `npm run verify` decides," a table mapping each gate to the production bug it prevents, and a standing rule that schema changes route to Sean.
+- **`.claude/agents/schema-guard.md`** — read-only reviewer that blocks schema diffs, classifies them additive vs destructive, checks a migration exists, and drafts the coordination note. Matters because `db push --accept-data-loss` makes a field removal an irreversible dropped production column.
+
+`npm run verify` now runs **7 static gates**; every one was proven red-then-green.
+
+### Deferred
+- Playwright browser verification (Step 9) — the only remaining Slice 2 item; needs a new dev dependency, deprioritised against the conceptual-budget deadline.
+
+---
+
 ## [Verification harness — Slice 2, first pass] · July 6, 2026
 
 > Turns two conventions that only prose enforced into **gates that fail**. Both were chosen because they catch the exact bugs the team hit today.

@@ -2,6 +2,36 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## You do not decide when a task is done
+
+**`npm run verify` decides.** Never report a task complete without running it and pasting the output.
+
+A model reporting work it did not do is a known failure mode, so the thing doing the work is never the thing that certifies it. Likewise, a rule no command can check is not a rule — it is a suggestion, and it will be treated as one.
+
+```bash
+npm run verify          # static gates (fast, no server needed)
+npm run verify -- --full  # + production build + runtime-asset trace check
+npm run verify:smoke    # role-aware smoke tests (needs `npm run dev:3000` running)
+```
+
+Each gate exists because something silently broke in production:
+
+| Gate | The bug it prevents |
+|---|---|
+| `check-dynamic-pages` | pages statically rendered that must be dynamic |
+| `check-schema-provider` | committing `postgresql` — Amplify's sed swap silently no-ops |
+| `check-env-contract` | a server env var missing from `next.config.mjs` → feature returns null in prod (this is what broke **all AI parsing**) |
+| `check-migrations-postgres` / `check-schema-migrations-sync` | migrations that won't apply to prod |
+| `check-shared-metrics` | a component re-deriving win rate / probability → two numbers under one label |
+| `check-runtime-assets` | runtime-resolved assets missing from the Lambda (prod returns 0 rows, local is fine) |
+| `verify:smoke` | a role seeing zero projects; routes 500ing after a dropped column |
+
+**When you fix a bug that a gate could have caught, add the gate.** That is how this list grew.
+
+## Schema changes are Sean's
+
+Never edit `prisma/schema.prisma` unilaterally. Amplify runs `prisma db push --accept-data-loss` on deploy, so a removed or renamed field is a **dropped production column with no rollback**. Propose the change in `.claude/coordination.md` and route it to Sean.
+
 ## Commands
 
 ```bash
