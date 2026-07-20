@@ -106,6 +106,16 @@ export const PRICING = {
     bollard: {
       perUnit: 800,
     },
+    pathway: {
+      // Floor for projects with little/no surface parking (structured-only,
+      // single-block sites) where a few walkway bollards still exist but there
+      // is no surface lot to drive a count. Mike, 2026-07-18: "small amount…
+      // for now enter $4000." A real formula is still TBD — pathway scales with
+      // building layout and how parking wraps the buildings, not a single input,
+      // so the eventual driver is the light symbols ILC places on the site
+      // lighting plan, not a ratio. This is only the low-end floor.
+      minTotal: 4000,
+    },
     landscape: {
       // (lotSf - buildingFootprintSf) × 2% — entered manually in Exterior section
       pctOfNetLotSf: 0.02,

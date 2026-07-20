@@ -73,6 +73,7 @@ const PRICING_FIELDS = [
   { group: 'Exterior Site', key: 'exterior.exteriorDoor.primarySconce',  label: 'Exterior Door — Primary',   desc: 'First sconce of each pair', unit: '$/door' },
   { group: 'Exterior Site', key: 'exterior.exteriorDoor.secondarySconce', label: 'Exterior Door — Secondary', desc: 'Second sconce of each pair', unit: '$/door' },
   { group: 'Exterior Site', key: 'exterior.exteriorDoor.wallpackWithBattery', label: 'Wallpack + Battery',   desc: 'Egress wallpack w/ battery backup — not yet wired to the formula', unit: '$/door' },
+  { group: 'Exterior Site', key: 'exterior.pathway.minTotal',            label: 'Pathway Lighting Floor',    desc: 'Minimum pathway lighting for structured-only / single-block sites with little surface parking', unit: '$' },
   { group: 'Exterior Site', key: 'exterior.landscape.pctOfNetLotSf',     label: 'Landscape % of Lot SF',     desc: 'Landscape lighting as a % of lot SF (0.02 = 2%)', unit: 'decimal' },
   { group: 'Exterior Site', key: 'exterior.landscape.maxTotal',          label: 'Landscape Cap',             desc: 'Hard ceiling on landscape lighting regardless of lot size', unit: '$' },
   { group: 'Exterior Site', key: 'exterior.miscBufferPct',               label: 'Misc Buffer %',             desc: '% of exterior subtotal before misc', unit: '%' },

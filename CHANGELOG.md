@@ -5,6 +5,93 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Pathway research — what drawings can and cannot tell us] · July 19, 2026
+
+Mined pathway-lighting data from **10 real conceptual budgets** and tested three automation routes against known answers. Recording the negative results because they define what not to build.
+
+### Data: pathway lighting has no single-variable formula
+Bollards ($800 ea) across 10 projects: `0, 6, 10, 12, 14, 15, 16, 20, 30, 30`.
+- **Surface parking is not the driver.** Lake Pointe: 0 surface stalls → 30 bollards. Broadstone: 0 surface stalls → 6 bollards. Fulshear: 537 stalls → 16 bollards. Same input, 5× different output.
+- **Unit count is not the driver.** 145-unit project → 14 bollards; 340-unit → 6; 408-unit → 10.
+
+### Negative result: paths cannot be read from raw drawings
+Checked three ways, all dead ends:
+- **CAD layers** — stripped on PDF export; all three site plans return no optional content groups.
+- **Text labels** — essentially none. Center Street's only 2 hits are *roof* walkway pads; Rice Village's are a 3rd-floor covered walkway; Fulshear and Easton Park have zero.
+- **Vector geometry** — 15,099 paths on Echo Trail but only 14 stroke colours and 10 line widths, none semantic. A sidewalk edge is indistinguishable from a curb line.
+
+This is precisely why the layout is done by hand: the information is not in the file.
+
+### Negative result: vision cannot estimate pathway scope
+Tested tier classification against known bollard counts: **1 of 4 correct**, biased toward "extensive" on every garden-style site. Reasoning text reads convincingly while the number underneath is wrong — the same plausible-but-wrong failure mode as the earlier 264-vs-324 unit misread. Not shippable as a budget number.
+
+**What vision *did* get right: product type, 4 of 4** (townhome vs garden). Small and skewed sample, but it is the reliable signal.
+
+### Open discrepancy — flagged, not resolved
+Echo Trail (the only townhome product) records **pathway = $0**, and an earlier draft rule generalised that to "townhomes get zero". Mike states townhomes have the **most** pathway lighting, which fits the site: 64 units on a 762,000 SF lot (**3.7 du/ac**, by far the most spread-out project in the set). That points to a **missing entry in the Echo Trail budget** rather than a real zero. The rule has been dropped pending confirmation.
+
+### Added
+- `PRICING.exterior.pathway.minTotal` ($4,000) + pricing-admin row. **Not wired into `calculations.js`** — no existing budget can move. Note the originally-proposed trigger ("zero surface parking") is refuted by the data above; the real driver is still open.
+
+---
+
+## [Vision fallback for site drawings + relevance-based truncation] · July 18, 2026
+
+Measured against **16 real conceptual drawings** from the shared drive. Two findings drove the work: 4 of 16 have no text layer at all (and 3 of those are the dedicated site/concept plans — exactly what we need for parking), and head-truncation was discarding most of every large drawing set.
+
+### Fixed — truncation was reading 6% of large sets
+`parseUnitMatrix` took a flat `slice(0, 12000)` from the head. The Center Street 100% SD set extracts to **190,873 characters**, so we were sending the first **6.3%** and silently dropping the rest — if the unit matrix sat on page 400 it was never seen, and the parse returned empty with no indication why.
+
+Replaced with **`selectRelevantText()`**: keeps the head (cover sheets carry totals), then scores 2,000-char windows on weighted unit-matrix signals and keeps the best ones **in document order** with explicit `[…]` gap markers. Two bugs found and fixed while testing against the real file:
+- **Repetition inflated boilerplate.** A drawing set repeats "1,200 SF" across hundreds of sheets; those windows outscored the one window containing the actual totals. Per-signal match counts are now capped at 3.
+- **`total units` and `total SF` were one signal.** The common phrase won the coverage reservation and the decisive one — `TOTAL UNITS: 364`, appearing exactly twice in 191k characters — was never selected. They are now separate signals with a guaranteed-coverage pass for rare, high-weight ones.
+
+Result on Center Street: old slice found neither `UNIT MIX` nor `TOTAL UNITS`; new selection finds both.
+
+### Added — vision fallback (`src/lib/siteVision.js`)
+Renders page 1 and reads it when there is no text layer. Beckett Firestone's hand-lettered SITE DATA block yields `324 units`, `1BR 162 / 2BR 118 / 3BR 44`, and `PROVIDED 680 spaces` — from a file our text pipeline returns **nothing** from.
+
+**The core rule: report what is written, return null for what is not, never count objects in the drawing.** Beckett Eastchase proves why — it states `TOTAL NO. OF UNITS: 324` but gives no parking total anywhere, and vision correctly returned nulls rather than inventing a count. A missing number is visible to a reviewer; an invented one becomes a budget.
+
+**Render resolution is an accuracy floor, not a comfort margin.** Measured on the same hand-lettered block:
+
+| Long edge | totalUnits | 2BR | Internal consistency |
+|---|---|---|---|
+| 1600px | **264** ❌ (truth 324) | **113** ❌ (truth 118) | mix summed to 319 ≠ 264 |
+| 2200px | 324 ✅ | 118 ✅ | consistent |
+| 3000px | 324 ✅ | 118 ✅ | consistent, ~60% more data for no gain |
+
+Set to **2200px**. Do not lower it to save tokens.
+
+### Added — deterministic cross-checks (`validateSiteData`)
+The 1600px failure was *plausible and wrong*, which is the dangerous kind. But it was **internally inconsistent** — the model's own bed mix summed to 319 against a reported 264. That is detectable for free, with no second model call. Now flags: bed mix vs total units, provided-below-required parking, implausible stalls-per-unit ratios, and **always** flags hand-lettered acreage (misread at *every* resolution tested: 16.56 / 16.86 / 16.56 against a true 16.50). Warnings never rewrite a number — they lower confidence and let a human decide. 12 tests encode the real failure verbatim.
+
+### Infrastructure
+`@napi-rs/canvas` is imported **statically** in `siteVision.js`, not dynamically — nft only follows static imports, and a dynamic import would have left the native skia binary out of the Lambda and failed in production only. Same class as the pdfjs `standard_fonts` omission. `check-runtime-assets` now enforces it (**13 requirements**, proven red-then-green), matching on `napi-rs` so it holds on both the Windows dev machine and the Linux build image.
+
+---
+
+## [Public intake — multi-file drawing upload + parse] · July 18, 2026
+
+First working slice of the public conceptual-budget tool: a stranger can land on `/start`, drop several drawings, and have the unit matrix read out of them. Submission is not wired yet (needs Sean's schema) and the button says so rather than silently dropping the user's work.
+
+### Added
+- **`src/lib/drawingExtract.js`** — one shared extraction core (text extraction, the AI prompt, model selection, code-fence stripping, shape validation) used by **both** the authed project route and the new public route. The existing `/api/projects/[id]/unit-matrix/parse` was refactored onto it and its duplicated copy of the prompt deleted. Two copies of an extraction prompt is how the internal tool and the public tool end up disagreeing about the same PDF — the same "one definition" rule we enforce for shared business numbers.
+- **`mergeProposals()`** — merges results across multiple drawings. **Same unit code appearing in two files does NOT sum quantities**; the higher-confidence row wins and the disagreement is recorded in `conflicts`. The common real case is one matrix reproduced on several sheets, and summing would silently report double the units — under-counting is visible to a reviewer, double-counting looks plausible and isn't.
+- **`POST /api/intake/parse`** — public, unauthenticated, and deliberately **stateless**: no `ProjectFile`, no disk write, no S3 object, no `Project`. It takes a file, returns data, persists nothing. This sidesteps the missing schema *and* is the right shape anyway — an anonymous form shouldn't create durable records, and an abandoned submission leaves nothing to clean up.
+- **`src/lib/rateLimit.js`** — first rate limiting in the codebase. Every parse is a paid model call, so an open endpoint with no throttle lets a stranger spend our API budget. **Documented limitation:** state is per warm Lambda instance, not global — a speed bump, not a defense. Needs a shared store or a WAF rule before this URL is advertised.
+- **`src/components/intake/DrawingDropzone.jsx`** — multi-file drag-and-drop with per-file status, per-file retry, and a merged rollup. Parses sequentially rather than in parallel, so a batch upload doesn't trip our own rate limit.
+- **`/start`** — public intake page (no auth, no navbar, `/share` pattern) with work-email gating wired to `lib/intake.js`.
+- **`scripts/tests/drawingExtract.test.mjs`** — 14 tests, the headline one being that a repeated matrix cannot double-count units.
+
+### Deliberately not built
+- **Live duplicate project-name checking on the public page.** Checking a typed name against all projects from an unauthenticated page would let anyone enumerate the client project list by guessing. It belongs in the ILC review queue, or scoped to the submitter's own client once email→client mapping exists.
+
+### Verification
+`/api/intake/parse` exercised end-to-end against a real unit matrix while logged out — 5 unit types, 51 units, 100% confidence. Rejection paths confirmed: image `422`, unsupported type `422`, missing file `400`, and `429` after the per-IP limit. **Rejections happen before any model call, so junk uploads cost nothing.** 8 verify gates, 36 unit tests, clean build with **12** runtime assets traced (up from 11 — the new route's pdfjs fonts are included, which is the exact trap that silently broke all parsing in production before).
+
+---
+
 ## [Site/exterior pricing audit — conceptual budget prep] · July 18, 2026
 
 Audited the exterior engine line-by-line against the source questionnaire ("ILC Studios Conceptual lighting_controls design multifamily questionnaire") ahead of the public conceptual-budget intake tool. **7 of 9 lines already matched** — surface parking ($1,325 / 9 stalls), carports (disk every other), detached garage sconces ($80), exterior amenities ($/SF × night multiplier), exterior door sconces (`d × (350+75)/2`, algebraically identical to the sheet's `(d/2)×350 + (d/2)×75`), and the 5% misc buffer. Two gaps found.

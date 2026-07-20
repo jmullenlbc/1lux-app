@@ -22,7 +22,7 @@ const GATES = [
   { name: 'schema ↔ migrations', cmd: 'node scripts/check-schema-migrations-sync.js' },
   { name: 'shared metrics',      cmd: 'node scripts/check-shared-metrics.mjs' },
   // Pure unit tests — no server, no DB, so they belong in the static run.
-  { name: 'unit tests',          cmd: 'node --test scripts/tests/intake.test.mjs' },
+  { name: 'unit tests',          cmd: 'node --test scripts/tests/intake.test.mjs scripts/tests/drawingExtract.test.mjs scripts/tests/siteVision.test.mjs' },
   { name: 'secrets',             cmd: 'node scripts/check-secrets.js', optional: true },
   ...(FULL ? [
     { name: 'production build',  cmd: 'npm run build' },

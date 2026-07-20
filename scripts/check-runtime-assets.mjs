@@ -23,6 +23,7 @@ const TRACE_ROOT = '.next/server/app';
 const REQUIREMENTS = [
   // pdfjs resolves standard_fonts/ at runtime for text extraction
   ...[
+    'api/intake/parse',
     'api/projects/[id]/fixture-schedule/parse',
     'api/projects/[id]/files',
     'api/projects/[id]/files/[fileId]/reparse',
@@ -38,6 +39,15 @@ const REQUIREMENTS = [
     'api/projects/[id]/peer-review/pdf',
     'api/projects/[id]/design-bid-matrix/pdf',
   ].map(route => ({ route, asset: 'sparticuz', why: 'PDF generation cannot launch a browser without the chromium binary' })),
+  // @napi-rs/canvas ships a platform-specific native binary (skia .node) used to
+  // rasterise PDF pages for the vision fallback. Matching on 'napi-rs' rather
+  // than the binary filename keeps this valid on both the Windows dev machine
+  // and the Linux build image, where the artefact has a different name.
+  {
+    route: 'api/intake/parse',
+    asset: 'napi-rs',
+    why: 'vision extraction cannot rasterise a PDF page without the canvas native binary — drawings with no text layer would fail in prod only',
+  },
 ];
 
 function traceFor(route) {

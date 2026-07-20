@@ -60,6 +60,8 @@ const nextConfig = {
                 '/api/projects/[id]/budget/pdf': ['./node_modules/@sparticuz/chromium/**/*'],
                 '/api/projects/[id]/peer-review/pdf': ['./node_modules/@sparticuz/chromium/**/*'],
                 '/api/projects/[id]/design-bid-matrix/pdf': ['./node_modules/@sparticuz/chromium/**/*'],
+                // Public conceptual-budget intake — same pdfjs runtime-font trap.
+                '/api/intake/parse': ['./node_modules/pdfjs-dist/standard_fonts/*'],
                 '/api/projects/[id]/fixture-schedule/parse': ['./node_modules/pdfjs-dist/standard_fonts/*'],
                 '/api/projects/[id]/files': ['./node_modules/pdfjs-dist/standard_fonts/*'],
                 '/api/projects/[id]/files/[fileId]/reparse': ['./node_modules/pdfjs-dist/standard_fonts/*'],

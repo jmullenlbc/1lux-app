@@ -19,7 +19,7 @@
     "prepare": "husky",
     "verify": "node scripts/verify.mjs",
     "verify:smoke": "node --test scripts/tests/smoke.test.mjs",
-    "verify:units": "node --test scripts/tests/intake.test.mjs",
+    "verify:units": "node --test scripts/tests/intake.test.mjs scripts/tests/drawingExtract.test.mjs scripts/tests/siteVision.test.mjs",
     "check:runtime-assets": "node scripts/check-runtime-assets.mjs"
   },
   "dependencies": {
