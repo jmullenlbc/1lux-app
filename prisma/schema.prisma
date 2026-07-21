@@ -572,6 +572,7 @@ model ProjectData {
   bohManualAdder       Float?
   garageManualAdder    Float?
   exitSignsManualAdder Float?
+  contingencyPct       Float?
 }
 
 model ProjectShare {
