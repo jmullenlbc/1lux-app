@@ -996,7 +996,11 @@ export default function PortalProjectPage({ params }) {
         {/* Section title (desktop) */}
         {active && (
           <div className="hidden md:block px-6 pt-5 pb-0 shrink-0">
-            <h2 className="text-lg font-bold text-slate-800">{active.label}</h2>
+            <a href="/portal" className="text-xs text-slate-400 hover:text-amber-600 transition-colors">
+              ← Back to projects
+            </a>
+            <p className="text-sm text-slate-400 mt-1">{project.name}</p>
+            <h2 className="text-lg font-bold text-slate-800 mt-3">{active.label}</h2>
           </div>
         )}
 
