@@ -24,373 +24,313 @@ When Manny opens a session:
 
 ## Active tasks
 
-### Task 10: Brief page — clickable project names
+**Do these in order. Tasks 23 and 24 use the ConceptualSubmission schema that just deployed (2026-07-27). Start with 23.**
 
-- **Branch:** `manny/brief-clickable-links`
-- **Why:** The `/crm/brief` stale-projects table and recent-wins list show project names as plain text. Mike can't click through to the project hub. One-line change per table.
-- **File:** `src/app/(app)/crm/brief/BriefClient.jsx`
-- **What to change:**
-  1. In the stale projects table (the `stale.map` block), find the `<td>` that renders `{p.name}` and wrap it: `<a href={/project/${p.id}} className="font-semibold text-slate-900 hover:text-blue-600 underline">{p.name}</a>`
-  2. In the recent wins list, find wherever `p.name` is rendered and apply the same link pattern.
-  3. The `id` field is already selected in `brief/page.jsx`'s Prisma query — no server changes needed.
-- **What NOT to touch:** `brief/page.jsx`, the Prisma queries, anything in `CRMClient.jsx`.
-- **Acceptance:** Clicking a project name in the Brief page navigates to `/project/[id]`. Pre-push hooks pass.
-- **Time estimate:** ~30 min.
-- **Start with:** Read `BriefClient.jsx` top-to-bottom. Find every place `p.name` is rendered in a table or list. Apply the link. Done.
+### Task 23: /start — Public intake wizard (~3 hrs)
+
+- **Branch:** `manny/intake-wizard`
+- **Why:** Developers and architects sometimes reach out to ILC cold wanting a rough budget estimate before any formal relationship. This adds a self-serve public page at `/start` where they fill in a short form. The submission is stored in `ConceptualSubmission` as PENDING — ILC admins review it in Task 24.
+
+**Files:**
+- `src/app/start/page.jsx` — new public page (NO auth guard, NOT under `(app)/`)
+- `src/app/api/intake/submit/route.js` — new public POST endpoint (no requireAuth)
+
+**Page fields:**
+- Contact name (required) → `submitterName`
+- Contact email (required) → `submitterEmail`; auto-extract domain → `submitterDomain`
+- Company name (required) → `proposedName`
+- Project name (required) → stored in `rawPayload` JSON
+- Building type (optional, select) → `buildingType`
+- Gross SF approx (optional, number) → stored in `rawPayload` JSON
+
+**Building type select options:**
+```js
+const BUILDING_TYPES = [
+  { value: 'singleFamily',  label: 'Single Family' },
+  { value: 'townHouses',    label: 'Townhouses' },
+  { value: 'garden',        label: 'Garden / Low-Rise Apartments' },
+  { value: 'wrap',          label: 'Wrap' },
+  { value: 'podium',        label: 'Podium' },
+  { value: 'midRise',       label: 'Mid-Rise' },
+  { value: 'highRise',      label: 'High-Rise' },
+  { value: 'mixedUse',      label: 'Mixed Use' },
+  { value: 'commercial',    label: 'Commercial' },
+  { value: 'other',         label: 'Other / Not Sure' },
+];
+```
+
+**API route (`src/app/api/intake/submit/route.js`):**
+```js
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
+
+export const dynamic = 'force-dynamic';
+
+export async function POST(req) {
+  const { contactName, contactEmail, companyName,
+          projectName, buildingType, grossSf } = await req.json();
+
+  if (!contactName || !contactEmail || !companyName || !projectName) {
+    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+  }
+
+  const emailLower = contactEmail.toLowerCase().trim();
+  const domain = emailLower.split('@')[1] ?? '';
+
+  const submission = await prisma.conceptualSubmission.create({
+    data: {
+      submitterName:   contactName,
+      submitterEmail:  emailLower,
+      submitterDomain: domain,
+      proposedName:    companyName,
+      buildingType:    buildingType || null,
+      rawPayload: JSON.stringify({
+        projectName,
+        grossSf: grossSf ? Number(grossSf) : null,
+        submittedAt: new Date().toISOString(),
+      }),
+    },
+  });
+
+  return NextResponse.json({ id: submission.id });
+}
+```
+
+**Page design:** Client component (`'use client'`), useState for form + submitted state. Dark navy header bar at top with "ILC Studios" in amber. Centered white/light-gray card with the form. Amber submit button. On success: replace form with "Thanks — we'll be in touch within 1-2 business days." No redirect.
+
+**⚠ NO `force-dynamic` on the page** (it reads no cookies). The API route does need it.
+
+**Acceptance:**
+1. `/start` loads while logged out — no auth redirect
+2. Submit with valid data → confirmation message, Network tab shows 200 with `{ id }`
+3. Empty required field → inline error, no API call
+4. Row appears in `prisma.conceptualSubmission` with status PENDING
 
 ---
 
-### Task 11: Notes count badge on ProjectCard
+### Task 24: Admin intake review queue (~3 hrs)
 
-- **Branch:** `manny/crm-notes-count`
-- **Why:** Task 4 (your last sprint) added a `+ Note` button on each kanban card, but there's no way to tell at a glance if a project already has notes. A small "N notes" badge closes the loop.
+- **Branch:** `manny/intake-admin-queue`
+- **Why:** Submissions from `/start` need to be reviewed by ILC admins before becoming real projects.
+
+**Files:**
+- `src/app/(app)/admin/intake/page.jsx` — server page, ILC_ADMIN only
+- `src/app/(app)/admin/intake/IntakeClient.jsx` — 'use client', list + detail panel
+- `src/app/api/admin/intake/[id]/route.js` — PATCH to update status/note/clientId
+
+**Server page:**
+```js
+export const dynamic = 'force-dynamic';
+import { requireAdmin } from '@/lib/auth';
+import { prisma } from '@/lib/db';
+import { cookies } from 'next/headers';
+import IntakeClient from './IntakeClient';
+
+export default async function IntakePage() {
+  const { user, error } = await requireAdmin(cookies());
+  if (error) return error;
+
+  const submissions = await prisma.conceptualSubmission.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: {
+      reviewedBy: { select: { name: true } },
+      client:     { select: { id: true, name: true } },
+    },
+  });
+
+  const clients = await prisma.client.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  });
+
+  return <IntakeClient submissions={submissions} clients={clients} currentUser={user} />;
+}
+```
+
+**IntakeClient list columns:** Submitted date, Name, Email, Company (`proposedName`), Building type, Status badge (PENDING=amber, APPROVED=green, REJECTED=red).
+
+**Detail panel (click a row):** Shows all fields + a status select, review note textarea, optional client-link select, and Save button.
+
+**PATCH route:**
+```js
+import { NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/auth';
+import { prisma } from '@/lib/db';
+
+export const dynamic = 'force-dynamic';
+
+export async function PATCH(req, { params }) {
+  const { user, error } = await requireAdmin(req);
+  if (error) return error;
+
+  const { status, reviewNote, clientId } = await req.json();
+
+  const updated = await prisma.conceptualSubmission.update({
+    where: { id: params.id },
+    data: {
+      status:       status     ?? undefined,
+      reviewNote:   reviewNote ?? undefined,
+      clientId:     clientId   ?? undefined,
+      reviewedById: user.id,
+    },
+  });
+
+  return NextResponse.json(updated);
+}
+```
+
+**Acceptance:**
+1. `/admin/intake` loads for ILC_ADMIN, shows submissions
+2. Non-admin gets 403/redirect
+3. Clicking a row → detail panel opens
+4. Changing status + saving → badge updates, persists on refresh
+5. `force-dynamic` on page.jsx
+
+---
+
+### Task 25: Portal nav / UX cleanup (~2 hrs)
+
+- **Branch:** `manny/portal-ux`
+- **File:** `src/app/portal/projects/[id]/page.jsx` — three small fixes, no new files, no API routes, no schema
+
+**Fix 1 — Project name in header:**
+The project name doesn't appear until you're inside a tab. Add it below the portal header title:
+```jsx
+<p className="text-sm text-slate-400 mt-1">{project.name}</p>
+```
+
+**Fix 2 — Back to projects link:**
+No navigation back to the project list. Add above the project name:
+```jsx
+<a href="/portal" className="text-xs text-slate-400 hover:text-amber-600 transition-colors">
+  ← Back to projects
+</a>
+```
+
+**Fix 3 — $/SF on conceptual budget hero:**
+`git pull` first — Task 22 already shipped `ConceptualBudgetView`. Read the component. If `budget.perSf` is already displayed and legible, this fix is done — note it in the PR. If it's missing or very small, make it visible alongside the other metrics.
+
+**Acceptance:**
+1. Portal project page shows project name below header
+2. Back link navigates to /portal
+3. $/SF visible in conceptual budget hero when `perSf > 0`
+4. Zero new API routes or schema changes
+
+---
+
+### Task 26: Cadence health badge on Client page (~2 hrs)
+
+- **Branch:** `manny/checkin-cadence-badge`
+- **Why:** The `/crm/contacts` page shows per-contact check-in status. The Client detail page's Contacts tab doesn't summarize this — no quick way to see if a client's contacts are mostly overdue.
+
+**Step 1:** Run `ls src/app/(app)/clients/[id]/` to see the file structure. Find where the Contacts tab renders.
+
+**Step 2:** Read `src/app/(app)/crm/contacts/ContactsClient.jsx` — the `checkInStatus()` helper is already there. Copy it (rename to avoid conflicts).
+
+**Status logic:**
+```js
+function getCheckinStatus(contact) {
+  const cadenceDays = contact.cadenceDays ?? contact.client?.defaultCadenceDays;
+  if (!cadenceDays) return 'none';
+  const lastTouch = contact.lastInPersonAt ?? contact.lastTouchpointAt;
+  if (!lastTouch) return 'overdue';
+  const daysSince = (Date.now() - new Date(lastTouch)) / 86400000;
+  const daysOverdue = daysSince - cadenceDays;
+  if (daysOverdue > 0)   return 'overdue';
+  if (daysOverdue > -14) return 'due-soon';
+  return 'current';
+}
+```
+
+**Banner (add above the contacts table):**
+```jsx
+// Count contacts
+const counts = { overdue: 0, 'due-soon': 0, current: 0, none: 0 };
+contacts.forEach(c => counts[getCheckinStatus(c)]++);
+
+// Only show if at least one contact has cadence set
+{(counts.overdue + counts['due-soon'] + counts.current) > 0 && (
+  <div className="flex gap-2 mb-3 flex-wrap">
+    {counts.overdue > 0 && (
+      <span className="text-xs font-semibold px-2 py-1 rounded-full bg-red-100 text-red-700">
+        {counts.overdue} overdue
+      </span>
+    )}
+    {counts['due-soon'] > 0 && (
+      <span className="text-xs font-semibold px-2 py-1 rounded-full bg-amber-100 text-amber-700">
+        {counts['due-soon']} due soon
+      </span>
+    )}
+    {counts.current > 0 && (
+      <span className="text-xs font-semibold px-2 py-1 rounded-full bg-green-100 text-green-700">
+        {counts.current} current
+      </span>
+    )}
+  </div>
+)}
+```
+
+**Acceptance:**
+1. Client with cadence-tracked contacts shows colored pills above the contacts table
+2. Client with no cadence data shows no banner (not zero counts)
+3. Colors match `/crm/contacts` — red/amber/green same logic
+4. No new API routes or schema changes
+
+---
+
+## Bonus tasks (if Manny finishes early)
+
+### Task 17: Auth hygiene sweep — 19 API routes (~1.5 hrs)
+
+- **Branch:** `manny/auth-hygiene-sweep`
+- **Why:** 19 API routes use the older `getSession()` pattern instead of `requireAuth(request)`. Consistent pattern makes future logging/middleware apply everywhere.
+- **The swap:**
+  ```js
+  // OLD — replace this pattern:
+  import { getSession } from '@/lib/auth';
+  export async function GET() {
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // uses: session.id, session.role
+  }
+
+  // NEW — with this pattern:
+  import { requireAuth } from '@/lib/auth';
+  export async function GET(request) {
+    const { user, error } = await requireAuth(request);
+    if (error) return error;
+    // uses: user.id, user.role
+  }
+  ```
+- **Files (19):** `src/app/api/link-preview/route.js`, `src/app/api/clients/[id]/standard-fixtures/route.js`, `src/app/api/clients/[id]/standards/concepts/route.js`, `src/app/api/clients/[id]/product-options/route.js`, `src/app/api/clients/[id]/playbook/route.js`, `src/app/api/alerts/route.js`, `src/app/api/market-intel/signals/[id]/route.js`, `src/app/api/market-intel/signals/route.js`, `src/app/api/market-intel/clients/route.js`, `src/app/api/clients/[id]/standards/route.js`, `src/app/api/market-intel/sources/[id]/route.js`, `src/app/api/market-intel/sources/route.js`, `src/app/api/market-intel/poll/route.js`, `src/app/api/projects/[id]/estimate/route.js`, `src/app/api/fixture-library/specs/[id]/route.js`, `src/app/api/fixture-library/fixture-types/route.js`, `src/app/api/fixture-library/master-types/[code]/route.js`, `src/app/api/fixture-library/fixture-types/[code]/route.js`, `src/app/api/fixture-library/fixture-types/import/route.js`
+- **Special case — `auth/me`:** It re-fetches the user from Prisma and assigns it to a variable also called `user`. Use `user: jwtUser` in destructuring to avoid the name collision.
+- **Do NOT touch page files** under `src/app/(app)/` — pages use `getSession()` to `redirect()`, which stays.
+- **Acceptance:** All 19 files changed. `grep -r "import.*getSession.*from '@/lib/auth'" src/app/api/` returns zero hits. App runs. Pre-push hooks pass.
+
+### Task 18: Meeting notes count badge in project hub sidebar (~1 hr)
+
+- **Branch:** `manny/meeting-notes-badge`
+- **Why:** `ProjectSidebar` already supports a `badges` prop — no infrastructure changes needed. Just wire a count to it.
 - **Files:**
-  - `src/app/(app)/crm/page.jsx` — add `_count` to the Prisma select
-  - `src/app/(app)/crm/CRMClient.jsx` — show the count in `ProjectCard`
-- **Step 1 — update the query in `crm/page.jsx`:**
-  Inside the `prisma.project.findMany({ select: { ... } })` block, add one line:
-  ```js
-  _count: { select: { noteLinks: true } },
-  ```
-  `noteLinks` is the relation name (declared as `noteLinks NoteProject[] @relation("ProjectNoteLinks")` in `schema.prisma`).
-- **Step 2 — show the count in `ProjectCard` (`CRMClient.jsx`):**
-  After the `{!noteOpen ? ... <NoteInput>}` block (at the bottom of `ProjectCard`'s return), add:
-  ```jsx
-  {(project._count?.noteLinks ?? 0) > 0 && (
-    <p className="text-[10px] text-slate-400 mt-0.5 select-none">
-      {project._count.noteLinks} note{project._count.noteLinks !== 1 ? 's' : ''}
-    </p>
-  )}
-  ```
-- **What NOT to touch:** The notes API. The NoteInput component. The `filtered` useMemo.
-- **Acceptance:** Cards with existing notes show "N notes" below the `+ Note` button. Cards with zero notes show nothing. Pre-push hooks pass.
-- **Time estimate:** ~1.5 hours.
-- **Start with:** Read `crm/page.jsx` to understand the current `select` block. Add `_count`. Then read `ProjectCard` in `CRMClient.jsx` (line 110) and add the count display.
+  1. `src/app/(app)/project/[id]/page.jsx` — add `_count: { select: { notes: { where: { noteType: 'PROJECT_MEETING' } } } }` inside the `include` block of the Prisma fetch. Pass `meetingNotesCount={project._count?.notes ?? 0}` to `<ProjectHubClient>`.
+  2. `src/app/(app)/project/[id]/ProjectHubClient.jsx` — accept `meetingNotesCount = 0` in the function signature, then pass `badges={{ meetings: meetingNotesCount }}` to `<ProjectSidebar>`. Read `ProjectSidebar.jsx` lines 22 and 65–90 first to understand how `badges` works — don't change that file.
+- **Acceptance:** Projects with meeting notes show a blue dot (collapsed) or blue number (expanded) on the Meetings tab. Projects with zero notes show nothing extra. Pre-push hooks pass.
 
 ---
 
-### Task 12: Probability quick-edit on ProjectCard
+## Completed tasks
 
-- **Branch:** `manny/crm-prob-edit`
-- **Why:** The probability bar and percentage on each card are display-only. Updating probability requires navigating into the project. Inline click-to-edit saves three clicks.
-- **File:** `src/app/(app)/crm/CRMClient.jsx`
-- **API:** `PATCH /api/projects/${id}` — already accepts `{ pipelineProbability: number }`. Clamps to 0–100 server-side.
-- **Architecture — read before writing:**
-  - `projects` state and `setProjects` live in `CRMClient` (line ~363).
-  - `ProjectCard` receives `project` as a prop but has no way to update parent state — you must add a callback.
-  - Pattern already used in the file: `handleDrop` does an optimistic `setProjects` then fires a PATCH.
-- **Step 1 — add `handleProbabilityChange` to `CRMClient` (near `handleDrop`):**
-  ```js
-  async function handleProbabilityChange(id, value) {
-    const clamped = Math.max(0, Math.min(100, Number(value)));
-    setProjects(prev => prev.map(p => p.id === id ? { ...p, pipelineProbability: clamped } : p));
-    try {
-      await fetch(`/api/projects/${id}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pipelineProbability: clamped }),
-      });
-    } catch { /* optimistic already applied; fail silently */ }
-  }
-  ```
-- **Step 2 — thread `onProbabilityChange` through to `ProjectCard`.**
-  Wherever `ProjectCard` is rendered (inside `KanbanColumn` and inside `ListView`), add `onProbabilityChange={handleProbabilityChange}` as a prop. Thread it through `KanbanColumn`'s props as well.
-- **Step 3 — add editing state and inline input inside `ProjectCard`:**
-  ```js
-  const [editingProb, setEditingProb] = useState(false);
-  ```
-  Replace the probability display block (the `<span>` showing `{project.pipelineProbability ?? 0}%`) with:
-  ```jsx
-  {editingProb ? (
-    <input
-      type="number" min="0" max="100"
-      defaultValue={project.pipelineProbability ?? 0}
-      autoFocus
-      className="w-10 text-[10px] border border-slate-200 rounded px-1 focus:outline-none focus:ring-1 focus:ring-orange-400"
-      onBlur={e  => { setEditingProb(false); onProbabilityChange(project.id, e.target.value); }}
-      onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setEditingProb(false); }}
-      onClick={e => e.stopPropagation()}
-    />
-  ) : (
-    <span
-      className="text-[10px] text-slate-400 cursor-pointer hover:text-slate-600 hover:underline"
-      onClick={e => { e.stopPropagation(); setEditingProb(true); }}
-      title="Click to edit probability"
-    >
-      {project.pipelineProbability ?? 0}%
-    </span>
-  )}
-  ```
-  The `e.stopPropagation()` on click is critical — prevents the card's `onOpen` from firing.
-- **Acceptance:** Clicking the probability % on a card opens an inline number input. Blur or Enter saves via PATCH and updates the bar optimistically. Escape cancels without saving. Clicking the input itself doesn't open the project panel. Pre-push hooks pass.
-- **Time estimate:** ~2–3 hours.
-- **Start with:** Read `handleDrop` in `CRMClient.jsx` to understand the optimistic-update pattern. Then add `handleProbabilityChange` next to it. Then thread the prop. Then update `ProjectCard`.
-
----
-
-### Task 13: CRM CSV export
-
-- **Branch:** `manny/crm-csv-export`
-- **Why:** Mike occasionally needs the pipeline as a spreadsheet. All data is already in client state — no API needed.
-- **File:** `src/app/(app)/crm/CRMClient.jsx`
-- **Step 1 — add `handleExportCSV` function inside `CRMClient` (near `handleDrop`):**
-  ```js
-  function handleExportCSV() {
-    const sf = statusFieldFor(pipeline);
-    const stagef = stageFieldFor(pipeline);
-    const headers = ['Project', 'Client', 'Stage', 'Status', 'Revenue', 'Probability', 'Expected Order'];
-    const rows = filtered.map(p => [
-      p.name,
-      p.client?.name || '',
-      p[stagef] || '',
-      p[sf] || '',
-      revenueFor(p, pipeline) ? `$${revenueFor(p, pipeline).toLocaleString()}` : '',
-      `${p.pipelineProbability ?? 0}%`,
-      p.expectedOrderDate ? new Date(p.expectedOrderDate).toLocaleDateString() : '',
-    ]);
-    const csv = [headers, ...rows]
-      .map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
-      .join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `crm-${pipeline.toLowerCase()}-${new Date().toISOString().slice(0,10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-  ```
-- **Step 2 — add an "Export CSV" button in the CRM toolbar** (near the pipeline tab switcher and "New Project" button). Style: low-key secondary button (`text-xs border border-slate-200 text-slate-600 hover:bg-slate-50 px-2.5 py-1.5 rounded-lg`).
-- **What NOT to touch:** No new API routes. No schema changes. No changes to `filtered` logic.
-- **Acceptance:** Clicking "Export CSV" downloads a `.csv` file containing the current pipeline's filtered project list with correct columns. Filename includes the pipeline name and today's date. File opens cleanly in Excel/Google Sheets. Pre-push hooks pass.
-- **Time estimate:** ~2 hours.
-- **Start with:** Read `CRMClient`'s toolbar JSX to find where to place the button. Then add `handleExportCSV` and wire the button.
-
----
-
-> **Completed 2026-07-07:** Tasks 6–9 all merged. CRM "Needs Attention" filter, stats bar enhancement, Morning Brief page at `/crm/brief`, and project quick-note all shipped to main.
-
----
-
-### Task 6: CRM "Needs Attention" filter
-
-- **Branch:** `manny/crm-needs-attention`
-- **Why:** Mike needs a one-click view of every open project that hasn't been touched in 30+ days so nothing slips through the cracks.
-- **File:** `src/app/(app)/crm/CRMClient.jsx`
-- **Key architecture facts before you start:**
-  - The pipeline entity is now `Project` (not `Deal`). State array is `projects`.
-  - Active pipeline is tracked with the `pipeline` state (`'PROCUREMENT'` or `'DESIGN'`).
-  - Current pipeline's status field: `project[statusFieldFor(pipeline)]` — returns `procurementStatus` or `designStatus`. Both imported from `@/lib/pipeline` (already at top of file).
-  - Valid statuses: `'OPEN'`, `'WON'`, `'LOST'`, `'COMPLETED'`, `'ABANDONED'`.
-  - There is **no** `daysSince()` function in this file — you need to add one.
-  - Staleness is based on `project.updatedAt` (no activities array on projects).
-  - The `filtered` useMemo is at **line 294**. The filter controls render at lines **371–391** inside the header `<div>`.
-- **What to build:**
-  1. Add a `daysSince(dateStr)` helper **outside the component** near the other formatters (~line 37):
-     ```js
-     function daysSince(dateStr) {
-       if (!dateStr) return 999;
-       return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86_400_000);
-     }
-     ```
-  2. Add a `needsAttention` boolean state inside `CRMClient` (default `false`).
-  3. Add a `needsAttentionFiltered` derived value (via `useMemo`) that computes the attention list:
-     ```js
-     const needsAttentionFiltered = useMemo(() => {
-       const sf = statusFieldFor(pipeline);
-       return projects
-         .filter(p => inBoard(p) && p[sf] === 'OPEN' && daysSince(p.updatedAt) >= 30)
-         .sort((a, b) => new Date(a.updatedAt) - new Date(b.updatedAt)); // most stale first
-     }, [projects, pipeline]);
-     ```
-  4. Add a "Needs Attention" button in the filter row (lines 371–391), after the status pills. Style: amber outline normally; filled amber (`bg-amber-500 text-white`) when active. Show the count when > 0: `⚠ Needs Attention (3)`.
-  5. When `needsAttention` is `true`: render `needsAttentionFiltered` instead of `filtered`, and force `viewMode` to `'list'` (override the view-mode variable, don't call `setViewMode`).
-  6. Clicking again sets `needsAttention` to `false`, restoring the normal `filtered` list and freeing `viewMode`.
-- **What NOT to touch:** `ProjectCard` internals, any API routes, the `filtered` useMemo logic, the `PipelineSummary` component.
-- **Acceptance:** Clicking "Needs Attention" shows only open projects in the current pipeline that haven't been updated in 30+ days, sorted most-stale first, in list view. Clicking again restores normal state. Switching the PROCUREMENT/DESIGN pipeline tab while Needs Attention is on re-runs the filter for the new pipeline. Pre-push hooks pass.
-- **Time estimate:** ~2 hours.
-- **Start with:** Read `CRMClient.jsx` top-to-bottom (~420+ lines). Map the `projects` state, `pipeline`, `filtered` useMemo, `viewMode`, and the header JSX before writing a single line. Then add `daysSince`, then `needsAttention` state, then the derived list, then the button.
-
----
-
-### Task 7: Enhance the existing pipeline stats bar
-
-- **Branch:** `manny/crm-stats-enhance`
-- **Why:** The `PipelineSummary` component already exists and shows 5 stats — but it's missing a "Needs Attention" count (the most actionable number) and shows "Won all time" instead of the more useful "Won this month."
-- **File:** `src/app/(app)/crm/CRMClient.jsx` — the `PipelineSummary` component at **line 150**
-- **What to build:** Two changes to `PipelineSummary`:
-  1. **Replace "Won (all time)"** with **"Won this month"** — change the filter from `p[sf] === 'WON'` to `p[sf] === 'WON' && daysSince(p.updatedAt) <= 30`. Update the label to `'Won (30 days)'`.
-  2. **Add a "Needs Attention" chip** — count of open projects in the current pipeline where `daysSince(p.updatedAt) >= 30`. Color it amber when > 0, grey when 0:
-     ```js
-     const stale = open.filter(p => daysSince(p.updatedAt) >= 30);
-     // Add to stats array:
-     { label: 'Needs Attention', value: stale.length, color: stale.length > 0 ? 'text-amber-600' : 'text-slate-400' }
-     ```
-  `PipelineSummary` already receives `projects` (already filtered to the current pipeline's board members) and `pipeline` as props — no new props needed.
-  **Note:** `daysSince()` is added by Task 6. If you do Task 7 first, add `daysSince()` yourself in this file (same definition as in Task 6 spec). Either way, it must exist only once in the file.
-- **What NOT to change:** Don't add API calls. Don't restructure `PipelineSummary`. Don't touch `ProjectCard` or the main state.
-- **Acceptance:** Stats bar shows 6 chips. "Needs Attention" chip is amber when > 0. "Won (30 days)" replaces "Won (all time)". Counts update when the pipeline tab switches. Pre-push hooks pass.
-- **Time estimate:** ~1 hour.
-- **Start with:** Read `PipelineSummary` (lines 150–176). Understand how it builds the `stats` array from the `projects` prop. Then apply the two changes.
-
----
-
-### Task 8: Morning Brief page (do after Tasks 6 and 7 ship)
-
-- **Branch:** `manny/crm-morning-brief`
-- **Why:** Mike needs a single-page daily overview — stale projects, pipeline counts by stage, recent wins — without clicking through the kanban. This is the "what do we need to do today?" view.
-- **Files to create:**
-  - `src/app/(app)/crm/brief/page.jsx` — server component; **must include `export const dynamic = 'force-dynamic'`**
-  - `src/app/(app)/crm/brief/BriefClient.jsx` — client display component (`'use client'` at top)
-- **Key architecture facts:**
-  - Pipeline entity is `Project`, not `Deal`. Use `prisma.project` everywhere.
-  - Status field per pipeline: `procurementStatus` for procurement, `designStatus` for design.
-  - Valid status values: `'OPEN'`, `'WON'`, `'LOST'`, `'COMPLETED'`, `'ABANDONED'`.
-  - Stage fields: `procurementStage`, `designStage`.
-  - You can import `PIPELINE_STAGES`, `stageFieldFor`, `statusFieldFor` from `@/lib/pipeline` — this file is SSR-safe (no `'use client'`, no React imports).
-  - Model the page's data fetching on `src/app/(app)/crm/page.jsx` — same auth pattern, same Prisma import.
-- **What to build:** Three sections:
-  1. **Needs Attention** — top 10 open projects not updated in 30+ days. Prisma query:
-     ```js
-     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-     const stale = await prisma.project.findMany({
-       where: {
-         OR: [{ procurementStatus: 'OPEN' }, { designStatus: 'OPEN' }],
-         updatedAt: { lt: thirtyDaysAgo },
-       },
-       orderBy: { updatedAt: 'asc' },
-       take: 10,
-       select: {
-         id: true, name: true, procurementStage: true, designStage: true,
-         procurementStatus: true, designStatus: true, updatedAt: true,
-         client: { select: { name: true } },
-       },
-     });
-     ```
-     Display: table with columns Project, Client, Stage, Days since update. If empty: green "All caught up — no stale open projects."
-  2. **Pipeline snapshot** — open project count per stage for each pipeline. Two separate `groupBy` calls:
-     ```js
-     const procSnapshot = await prisma.project.groupBy({
-       by: ['procurementStage'],
-       where: { procurementStatus: 'OPEN' },
-       _count: { id: true },
-     });
-     const designSnapshot = await prisma.project.groupBy({
-       by: ['designStage'],
-       where: { designStatus: 'OPEN' },
-       _count: { id: true },
-     });
-     ```
-     Display: two side-by-side tables (Procurement | Design), each with Stage | Count columns. Use `PIPELINE_STAGES` from `@/lib/pipeline` to set the stage order and labels.
-  3. **Won last 30 days** — projects that became Won recently:
-     ```js
-     const recentWins = await prisma.project.findMany({
-       where: {
-         OR: [{ procurementStatus: 'WON' }, { designStatus: 'WON' }],
-         updatedAt: { gte: thirtyDaysAgo },
-       },
-       orderBy: { updatedAt: 'desc' },
-       select: { id: true, name: true, procurementStatus: true, designStatus: true, updatedAt: true, client: { select: { name: true } } },
-     });
-     ```
-     Display: list with project name, client, which pipeline(s) won, date.
-  Fetch all three with `Promise.all`. Pass as props to `BriefClient`.
-  **Add a "Brief →" link** in `CRMClient.jsx`'s header (near the "New Project" button, lines 359–368) pointing to `/crm/brief`.
-- **Acceptance:** `/crm/brief` loads without errors. Three sections render. `force-dynamic` present. Auth gates the page (model on `crm/page.jsx`). "Brief →" link appears on the CRM header. Pre-push hooks pass.
-- **Time estimate:** ~3–4 hours.
-- **Start with:** Read `src/app/(app)/crm/page.jsx` in full (it's the model for this page's structure). Then create `brief/page.jsx` first (data fetching), then `brief/BriefClient.jsx` (display).
-
----
-
-### Task 9: Project quick-note from the kanban card (do after Tasks 6–8 ship)
-
-- **Branch:** `manny/crm-project-quicknote`
-- **Why:** Adding a note to a project currently requires navigating into the project. A one-line note right on the pipeline card is low-friction enough that it'll actually get used for quick "just called them" entries.
-- **File:** `src/app/(app)/crm/CRMClient.jsx` — modify the `ProjectCard` component at **line 41**
-- **Notes API — read this before writing anything:**
-  Route: `POST /api/crm/notes`
-  Minimal body to create a project-linked note:
-  ```js
-  {
-    noteBody: "the note text",
-    projectIds: ["project-id-here"],  // links the note to this project
-    title: "",
-    meetingDate: null,
-    attendees: "[]",
-    calendarRef: null,
-    clientIds: [],
-    activityType: null,
-    contactIds: [],
-  }
-  ```
-  On success: `201 Created`. On error: `4xx` with `{ error: "..." }` JSON.
-- **What to build:** At the very bottom of `ProjectCard`'s returned JSX:
-  1. A small `＋ Note` text link (low visual weight — `text-xs text-slate-400 hover:text-slate-600`).
-  2. On click: reveal a single-line `<input>` + "Save" button + `✕` cancel. `autoFocus` the input.
-  3. On Save: POST to `/api/crm/notes` with the body above. Disable Save while the request is in flight. Keep Save disabled when input is empty.
-  4. On success: clear + hide the input. Show a brief "Saved ✓" flash (1.5 s) then remove it.
-  5. On error: show a short error message inline. Keep the input open so the user can retry.
-  6. `ProjectCard` already gets `project` as a prop — use `project.id` as the `projectIds` value.
-- **State:** Add two `useState` hooks inside `ProjectCard`: `const [noteOpen, setNoteOpen] = useState(false)` and `const [noteText, setNoteText] = useState('')`. These are local — no prop drilling needed.
-- **What NOT to change:** The notes API route. The `ProjectCard` prop signature beyond local state. Any other component.
-- **Acceptance:** Clicking `＋ Note` on a project card opens an inline input. Saving posts to `/api/crm/notes`. Empty note is blocked. Success shows "Saved ✓" flash. Error message stays visible until the user retries or cancels. Pre-push hooks pass.
-- **Time estimate:** ~2 hours.
-- **Start with:** Read `ProjectCard` (lines 41–140ish) in full first. Then read `src/app/api/crm/notes/route.js` — understand the POST body. Then add the UI at the bottom of the card's JSX.
-
----
-
-## Manual testing checklist (PRs 1–5)
-
-These were confirmed working on `app.ilcstudios.com` using "THE APPROACH (SEAN'S)":
-
-1. **Dirty tracking** — wizard section save with no changes produces at most a "no changes detected" entry.
-2. **Old→new in activity log** — single-field change shows `Updated **Field**: old → new`. Multi-field falls back to summarized format.
-3. **Section manual adders (questionnaire sections)** — enter `5000` in Units manual adder, save; Summary shows $5,000 higher with "Manual adder" detail line.
-4. **Section manual adders (Project Data)** — Section Adders group at bottom of Project Data step; BOH/Garage/Exit Signs inputs save and flow through to Summary.
-5. **Activity feed filters** — Module, User, and date range dropdowns all narrow the activity list. Clear Filters restores it.
-6. **Budget change history** — Summary page bottom shows "Budget Change History" with date, user, and description.
-
----
-
-## Completed tasks (for reference)
-
-- **Task 10: Brief page clickable links** — queued 2026-07-07.
-- **Task 11: Notes count badge on ProjectCard** — queued 2026-07-07.
-- **Task 12: Probability quick-edit on ProjectCard** — queued 2026-07-07.
-- **Task 13: CRM CSV export** — queued 2026-07-07.
-- **Task 6: CRM "Needs Attention" filter** — merged to main 2026-07-07. Branch: `manny/crm-needs-attention`.
-- **Task 7: Enhance stats bar** — merged to main 2026-07-07. Branch: `manny/crm-stats-enhance`.
-- **Task 8: Morning Brief page** — merged to main 2026-07-07. Branch: `manny/crm-morning-brief`.
-- **Task 9: Project quick-note from kanban card** — merged to main 2026-07-07. Branch: `manny/crm-project-quicknote`.
-- **Task 1: Wizard dirty-field tracking** — merged to main 2026-06-24. Branch: `manny/wizard-dirty-tracking`.
-- **Task 2: Section manual adders** — merged to main 2026-06-24. Branch: `manny/section-manual-adders`.
-- **Task 3: Activity feed filters** — merged to main 2026-06-24. Branch: `manny/activity-feed-filters`.
-- **Task 4: Old→new values in activity descriptions** — merged to main 2026-06-24. Branch: `manny/activity-old-new-values`.
-- **Task 5: Budget change history on Summary page** — merged to main 2026-06-24. Branch: `manny/summary-budget-history`.
-
----
-
-## Orientation / training (read these once, between tasks)
-
-### 1. Read the activity system end-to-end (~20 min)
-Read `src/lib/activity.js` in full. Then find where `logActivity()` is called in `responses/route.js`, `data/route.js`, and `project/[id]/route.js`. For each call, understand: what type is logged, what the description string is, what metadata is stored.
-
-### 2. Run the test suite and read it (~15 min)
-`npm test` from repo root. Should pass (38 scenario + ~112K fuzz + 12 bid-matrix). Read 5–10 test scenarios in `tests/budget-math.mjs`. Don't modify — just read.
-
-### 3. Read the coordination log (~10 min)
-Read `.claude/coordination.md` top-to-bottom from the June 2026 entries. Fastest way to understand project history and decisions.
-
-### 4. Explore a real project in dev (~15 min)
-`npm run dev:3000`. Log in as `admin@ilcstudios.com`. Open "THE APPROACH (SEAN'S)". Step through the Budget wizard, view Summary, check Activity tab, then open the CRM. This makes every future task concrete.
+> **Completed 2026-07-27:** Tasks 20 (global contacts + CRM links), 21 (budget contingency), 22 (portal conceptual budget) merged to main as PRs #16, #17, #18.
+> **Completed 2026-07-09:** Tasks 14–16 (security fixes, CRM list polish, win rate stats) merged (commits 206f1fb, 51968e7, 720fd55).
+> **Completed 2026-07-08:** Tasks 10–13 (brief links, notes badge, probability edit, CSV export) merged.
+> **Completed 2026-07-07:** Tasks 6–9 (needs attention, stats bar, morning brief, quick-note) merged.
+> **Completed 2026-06-24:** Tasks 1–5 (dirty tracking, section adders, activity filters, old→new values, budget history) merged.
 
 ---
 
 ## Recent guidance from Sean
 
-- **(2026-07-07)** Tasks 10–13 queued — CRM polish sprint. All four are pure frontend changes to `CRMClient.jsx` (and `crm/page.jsx` for Task 11). No schema changes. Work in order: 10 → 11 → 12 → 13. Task 10 is in `BriefClient.jsx` and takes ~30 min — good warmup. Tasks 12 and 13 are the meatier ones.
-- **(2026-07-07)** Tasks 6–9 all merged successfully. Good sprint. `setProjects` optimistic-update pattern is the right model for Task 12's probability edit.
-- **(2026-07-06)** Tasks 6–9 rewritten. Mike's deploy merged Deal→Project — old specs referenced deleted entities (DealCard, DealDrawer, activities API). New specs use Project model with procurementStatus/designStatus fields.
-- **(2026-06-24)** Tasks 1–5 all merged. Great sprint.
-- **(2026-06-23)** PDFs (budget print, bid matrix) — Sean's job, not Manny's.
-- **(2026-06-23)** Model tip: Haiku 4.5 is fine for mechanical tasks. Switch to Sonnet when stuck or at a decision point.
-- **(2026-06-22)** Engine math is validated and trusted. Do not touch `src/lib/calculations.js` unless a task explicitly asks.
+- **(2026-07-27)** Tasks 23–26 queued. CRM work remains paused per Mike's direction — none of the new tasks touch CRM. Task 23 first since it connects to the schema that just deployed.
+- **(2026-07-27)** ConceptualSubmission schema (migration 0053) is live in production as of today.
+- **(2026-07-09)** Tasks 14–16 all merged. Good sprint.
+- **(2026-06-23)** Engine math is validated and trusted. Do not touch `src/lib/calculations.js` unless a task explicitly asks.

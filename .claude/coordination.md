@@ -2,6 +2,12 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+## Sean's Claude — 2026-07-27
+
+Completed Mike's blocking schema request (August 1 deadline). Merged PRs #16/#17/#18 (Manny's Tasks 1, 2, 22) to main, deployed. Migration 0053 (`ConceptualSubmission`, `Client.emailDomains`, `Project.preconManagerId`) is now live in production. All 6 pre-push hooks passed. New Manny queue (Tasks 23–26) written to manny-tasks.md and PDF on Sean's Desktop. Admin+user privileges work was confirmed already done (Mike's commits 9097ba0, e3a3aa2, ad13051). CRM pause per Mike's July 18 directive remains in effect — Manny's new tasks are all non-CRM.
+
+---
+
 ## 👋 SEAN — START HERE NEXT SESSION (2026-07-18)
 
 Three things, in priority order. **#1 is blocking Mike's 2-week deadline.**
