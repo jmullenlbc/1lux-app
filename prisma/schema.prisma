@@ -84,6 +84,8 @@ model User {
   proposalRatesUpdated      ProposalRate[]                  @relation("ProposalRateUpdater")
   bugReportsCreated  BugReport[] @relation("BugReportReporter")
   bugReportsAssigned BugReport[] @relation("BugReportAssignee")
+  preconManagedProjects  Project[]              @relation("ProjectPreconManager")
+  reviewedSubmissions    ConceptualSubmission[] @relation("SubmissionReviewer")
 }
 
 model UserAlert {
@@ -214,6 +216,7 @@ model Client {
   pipelinePerUnit Float?  // ILC $/unit used for the pipeline value rollup
   developerType String?
   orgTypes      String  @default("[]")
+  emailDomains  String  @default("[]")
 
   ownerId          String?
   owner            User?                   @relation("ClientOwner", fields: [ownerId], references: [id])
@@ -240,6 +243,7 @@ model Client {
   signals          MarketSignal[]
   aliases          ClientAlias[]
   cadenceDays      Int?    // company-level cadence override; null = use individual tier defaults
+  intakeSubmissions ConceptualSubmission[]
 }
 
 model ClientPlaybook {
@@ -426,6 +430,8 @@ model Project {
   expectedOrderDate        DateTime?
   salesOwnerId             String?                        // the ONE project owner across the platform
   salesOwner               User?     @relation("ProjectSalesOwner", fields: [salesOwnerId], references: [id])
+  preconManagerId          String?
+  preconManager            User?     @relation("ProjectPreconManager", fields: [preconManagerId], references: [id])
   // ── Weekly sales meeting: discrete operational signals (Mike, 2026-07-06) ──
   proposalSentDate         DateTime?                      // when a proposal went out → "awaiting signature" aging
   nextActionType           String?                        // NEXT_ACTION_TYPES key (CALL, CHASE_SIGNATURE, …)
@@ -487,6 +493,7 @@ model Project {
   submittalOpenItems  SubmittalOpenItem[] @relation("SubmittalOpenItems") // DIRECT|THROUGH_ARCHITECT|REVIEW_ONLY
   proposals           Proposal[]         @relation("ProjectProposals")
   unitTypes           ProjectUnitType[]
+  submissions         ConceptualSubmission[] @relation("SubmissionDuplicateMatch")
 }
 
 model ProjectFile {
@@ -2279,4 +2286,27 @@ model RoadmapPriority {
   sortOrder Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Public intake submissions from /start — held for ILC review before becoming real projects
+model ConceptualSubmission {
+  id               String   @id @default(cuid())
+  submitterName    String
+  submitterEmail   String
+  submitterDomain  String   // extracted from email; used to resolve clientId
+  proposedName     String
+  buildingType     String?
+  rawPayload       String?  // JSON: full wizard answers from /start
+  fileRefs         String   @default("[]") // JSON: uploaded drawing keys/refs
+  duplicateMatchId String?  // Project id if a likely duplicate was detected
+  status           String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  reviewNote       String?
+  clientId         String?
+  reviewedById     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  client      Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  reviewedBy  User?    @relation("SubmissionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  duplicateMatch Project? @relation("SubmissionDuplicateMatch", fields: [duplicateMatchId], references: [id], onDelete: SetNull)
 }
