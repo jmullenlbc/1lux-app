@@ -679,6 +679,17 @@ function OverviewTab({ client, onEditClick }) {
 }
 
 // ── People Tab ────────────────────────────────────────────────────────────────
+function getCheckinStatus(contact) {
+  const ref = contact.lastInPersonAt ?? contact.lastTouchpointAt;
+  if (!ref || !contact.cadenceTier) return null;
+  const effectiveDays = contact.cadenceDays ?? 90;
+  const elapsed = Math.floor((Date.now() - new Date(ref)) / 86_400_000);
+  const daysOverdue = elapsed - effectiveDays;
+  if (daysOverdue > 0) return 'overdue';
+  if (daysOverdue > -14) return 'due_soon';
+  return 'current';
+}
+
 function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
   const [contacts,  setContacts]  = useState(initial);
 
@@ -745,6 +756,35 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
           </button>
         )}
       </div>
+
+      {/* Cadence badge banner */}
+      {(() => {
+        const counts = { overdue: 0, due_soon: 0, current: 0 };
+        contacts.forEach(c => {
+          const status = getCheckinStatus(c);
+          if (status) counts[status]++;
+        });
+        const hasAny = counts.overdue + counts.due_soon + counts.current > 0;
+        return hasAny ? (
+          <div className="px-5 py-3 bg-slate-50/50 border-b border-slate-100 flex gap-2 flex-wrap">
+            {counts.overdue > 0 && (
+              <span className="text-xs font-semibold px-2 py-1 rounded-full bg-red-100 text-red-700">
+                {counts.overdue} overdue
+              </span>
+            )}
+            {counts.due_soon > 0 && (
+              <span className="text-xs font-semibold px-2 py-1 rounded-full bg-amber-100 text-amber-700">
+                {counts.due_soon} due soon
+              </span>
+            )}
+            {counts.current > 0 && (
+              <span className="text-xs font-semibold px-2 py-1 rounded-full bg-green-100 text-green-700">
+                {counts.current} current
+              </span>
+            )}
+          </div>
+        ) : null;
+      })()}
 
       {/* Table */}
       <datalist id="dept-options">
