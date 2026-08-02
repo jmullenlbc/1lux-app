@@ -107,14 +107,68 @@ export const PRICING = {
       perUnit: 800,
     },
     pathway: {
-      // Floor for projects with little/no surface parking (structured-only,
-      // single-block sites) where a few walkway bollards still exist but there
-      // is no surface lot to drive a count. Mike, 2026-07-18: "small amount…
-      // for now enter $4000." A real formula is still TBD — pathway scales with
-      // building layout and how parking wraps the buildings, not a single input,
-      // so the eventual driver is the light symbols ILC places on the site
-      // lighting plan, not a ratio. This is only the low-end floor.
+      // Floor for sites with a minimal walkway network. Mike, 2026-07-18:
+      // "small amount… for now enter $4000."
       minTotal: 4000,
+
+      // ── BOLLARDS PER UNIT, BY BUILDING TYPE ──────────────────────────────
+      // PROVISIONAL — not yet wired into calculations.js. Mike is gathering
+      // more data to confirm before these drive a budget.
+      //
+      // Derived from 16 real projects (10 multifamily conceptual budgets +
+      // 6 NexMetro Avilla BTR procurement budgets). Multiply by unit count to
+      // get bollard quantity, then by `bollard.perUnit` for dollars.
+      //
+      // ⚠ MEASUREMENT MISMATCH — READ BEFORE TRUSTING THE OBSERVED NUMBERS.
+      // The multifamily figures come from CONCEPTUAL budgets (an up-front
+      // estimate of 6–30 bollards). The BTR figures come from PROCUREMENT
+      // budgets priced off completed photometric plans (actual counted
+      // fixtures). Estimates vs actuals is not a like-for-like comparison, and
+      // the gap is suspiciously large — so the multifamily observations may
+      // reflect UNDER-ESTIMATION at concept stage rather than true scope.
+      // Mike's field judgment (2026-07-19) contradicts the raw multifamily
+      // numbers directly, and takes precedence over them here:
+      //   • garden runs more like townhomes than like podium or wrap
+      //   • wrap can carry surface parking, so it can run high too
+      //   • podium / mid-rise / high-rise have the LEAST site lighting
+      //
+      // The ordering below follows that judgment. Only the townhome tier is
+      // grounded in actuals; the rest are Mike's relative ranking, anchored
+      // loosely to the (suspect) conceptual data. All are PROVISIONAL.
+      //
+      // Observed for reference — conceptual budgets, n in brackets:
+      //   garden [4] 0.037–0.089   wrap [2] 0.018–0.085 (the 5x spread is
+      //   consistent with surface parking being present or not)
+      //   podium [1] 0.025   highRise [1] 0.045
+      //
+      // NEXMETRO ADJUSTMENT: 6 Avilla projects median 0.517 bollards/unit, but
+      // NexMetro runs ~30% heavier than typical BTR, so the townhome rate is
+      // 0.517 / 1.3 ≈ 0.40, not the raw value. Raw: 0.157 / 0.385 / 0.399 /
+      // 0.517 / 0.582 / 0.638.
+      //
+      // Echo Trail (the only non-NexMetro townhome) recorded ZERO pathway
+      // bollards. Mike: "that was a really weird project." Excluded from
+      // calibration; it also distorts every density fit it appears in.
+      bollardsPerUnit: {
+        // ── Tier 1: horizontal product, long walks to individual doors ──
+        singleFamily: 0.40,  // grounded in BTR actuals
+        townHouses:   0.40,  // n=6 actuals, de-escalated 30%
+        stackedFlats: 0.35,  // NO DATA — horizontal-ish, just below townhome
+        garden:       0.30,  // Mike: "runs more like townhomes"; conceptual data says 0.062 — SEE MISMATCH NOTE
+        // ── Tier 2: can carry surface parking, so varies widely ──
+        wrap:         0.12,  // Mike: higher when surface parking is present; observed 0.018–0.085
+        gurban:       0.12,  // NO DATA — grouped with wrap
+        // ── Tier 3: structured parking, interior circulation, least site lighting ──
+        // Mike 2026-07-21: keep podium / mid-rise / high-rise as SEPARATE fields
+        // but with the SAME number for now. 0.06 ground fixtures/unit is the
+        // median of five procurement actuals (Clermont 0.108, 95 Lincoln 0.000,
+        // West Middle Creek 0.060, 38th+Huron 0.077, 40th+Walnut 0.062) —
+        // ~$60–80/unit at conventional rates. On these products most site
+        // lighting is building-mounted (wallpacks/steplights), not ground.
+        podium:       0.06,
+        midRise:      0.06,
+        highRise:     0.06,
+      },
     },
     landscape: {
       // (lotSf - buildingFootprintSf) × 2% — entered manually in Exterior section
