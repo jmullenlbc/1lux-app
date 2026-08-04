@@ -24,257 +24,274 @@ When Manny opens a session:
 
 ## Active tasks
 
-**Do these in order. Tasks 23 and 24 use the ConceptualSubmission schema that just deployed (2026-07-27). Start with 23.**
+### Task 27: Intake → Portal Invite Bridge (~3 hrs)
 
-### Task 23: /start — Public intake wizard (~3 hrs)
+- **Branch:** `manny/intake-portal-invite`
+- **Why:** The `/start` intake form is live and accepting submissions. Admins can approve them at `/admin/intake`. But after approval there's no way to deliver the conceptual budget to the submitter — they get a "we'll be in touch" message and then nothing. This task closes that loop: the admin links the approved submission to a project and sends the submitter a portal invite link so they can log in and view their budget.
 
-- **Branch:** `manny/intake-wizard`
-- **Why:** Developers and architects sometimes reach out to ILC cold wanting a rough budget estimate before any formal relationship. This adds a self-serve public page at `/start` where they fill in a short form. The submission is stored in `ConceptualSubmission` as PENDING — ILC admins review it in Task 24.
+**Background (read before starting):**
+- `/start` → creates `ConceptualSubmission` (status=PENDING)
+- `/admin/intake` → admin reviews, sets status=APPROVED, optionally links a `Client`
+- The portal invite system already exists: `ProjectExternalContact` has `inviteToken`, and `/portal/invite/[token]` lets a submitter set a password and get portal access
+- `ConceptualSubmission.duplicateMatchId` is a nullable FK to `Project` — this is the field we use to link the submission to its project
 
-**Files:**
-- `src/app/start/page.jsx` — new public page (NO auth guard, NOT under `(app)/`)
-- `src/app/api/intake/submit/route.js` — new public POST endpoint (no requireAuth)
+**Files to modify:**
+- `src/app/(app)/admin/intake/page.jsx` — fetch all projects too
+- `src/app/(app)/admin/intake/IntakeClient.jsx` — add "Link to Project" + "Send Portal Invite" to detail panel
+- `src/app/api/admin/intake/[id]/route.js` — accept `duplicateMatchId` in PATCH
 
-**Page fields:**
-- Contact name (required) → `submitterName`
-- Contact email (required) → `submitterEmail`; auto-extract domain → `submitterDomain`
-- Company name (required) → `proposedName`
-- Project name (required) → stored in `rawPayload` JSON
-- Building type (optional, select) → `buildingType`
-- Gross SF approx (optional, number) → stored in `rawPayload` JSON
-
-**Building type select options:**
-```js
-const BUILDING_TYPES = [
-  { value: 'singleFamily',  label: 'Single Family' },
-  { value: 'townHouses',    label: 'Townhouses' },
-  { value: 'garden',        label: 'Garden / Low-Rise Apartments' },
-  { value: 'wrap',          label: 'Wrap' },
-  { value: 'podium',        label: 'Podium' },
-  { value: 'midRise',       label: 'Mid-Rise' },
-  { value: 'highRise',      label: 'High-Rise' },
-  { value: 'mixedUse',      label: 'Mixed Use' },
-  { value: 'commercial',    label: 'Commercial' },
-  { value: 'other',         label: 'Other / Not Sure' },
-];
-```
-
-**API route (`src/app/api/intake/submit/route.js`):**
-```js
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
-
-export const dynamic = 'force-dynamic';
-
-export async function POST(req) {
-  const { contactName, contactEmail, companyName,
-          projectName, buildingType, grossSf } = await req.json();
-
-  if (!contactName || !contactEmail || !companyName || !projectName) {
-    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-  }
-
-  const emailLower = contactEmail.toLowerCase().trim();
-  const domain = emailLower.split('@')[1] ?? '';
-
-  const submission = await prisma.conceptualSubmission.create({
-    data: {
-      submitterName:   contactName,
-      submitterEmail:  emailLower,
-      submitterDomain: domain,
-      proposedName:    companyName,
-      buildingType:    buildingType || null,
-      rawPayload: JSON.stringify({
-        projectName,
-        grossSf: grossSf ? Number(grossSf) : null,
-        submittedAt: new Date().toISOString(),
-      }),
-    },
-  });
-
-  return NextResponse.json({ id: submission.id });
-}
-```
-
-**Page design:** Client component (`'use client'`), useState for form + submitted state. Dark navy header bar at top with "ILC Studios" in amber. Centered white/light-gray card with the form. Amber submit button. On success: replace form with "Thanks — we'll be in touch within 1-2 business days." No redirect.
-
-**⚠ NO `force-dynamic` on the page** (it reads no cookies). The API route does need it.
-
-**Acceptance:**
-1. `/start` loads while logged out — no auth redirect
-2. Submit with valid data → confirmation message, Network tab shows 200 with `{ id }`
-3. Empty required field → inline error, no API call
-4. Row appears in `prisma.conceptualSubmission` with status PENDING
+**New file:**
+- `src/app/api/admin/intake/[id]/invite/route.js` — POST: create ProjectExternalContact + send invite
 
 ---
 
-### Task 24: Admin intake review queue (~3 hrs)
+#### Step 1: Update the server page to fetch projects
 
-- **Branch:** `manny/intake-admin-queue`
-- **Why:** Submissions from `/start` need to be reviewed by ILC admins before becoming real projects.
+In `src/app/(app)/admin/intake/page.jsx`, add a projects fetch after the existing clients fetch:
 
-**Files:**
-- `src/app/(app)/admin/intake/page.jsx` — server page, ILC_ADMIN only
-- `src/app/(app)/admin/intake/IntakeClient.jsx` — 'use client', list + detail panel
-- `src/app/api/admin/intake/[id]/route.js` — PATCH to update status/note/clientId
-
-**Server page:**
 ```js
-export const dynamic = 'force-dynamic';
-import { requireAdmin } from '@/lib/auth';
-import { prisma } from '@/lib/db';
-import { cookies } from 'next/headers';
-import IntakeClient from './IntakeClient';
+const projects = await prisma.project.findMany({
+  select: { id: true, name: true },
+  orderBy: { name: 'asc' },
+});
 
-export default async function IntakePage() {
-  const { user, error } = await requireAdmin(cookies());
-  if (error) return error;
-
-  const submissions = await prisma.conceptualSubmission.findMany({
-    orderBy: { createdAt: 'desc' },
-    include: {
-      reviewedBy: { select: { name: true } },
-      client:     { select: { id: true, name: true } },
-    },
-  });
-
-  const clients = await prisma.client.findMany({
-    select: { id: true, name: true },
-    orderBy: { name: 'asc' },
-  });
-
-  return <IntakeClient submissions={submissions} clients={clients} currentUser={user} />;
-}
+return <IntakeClient submissions={submissions} clients={clients} projects={projects} currentUser={user} />;
 ```
 
-**IntakeClient list columns:** Submitted date, Name, Email, Company (`proposedName`), Building type, Status badge (PENDING=amber, APPROVED=green, REJECTED=red).
+Also update the submissions query to include the linked project:
+```js
+const submissions = await prisma.conceptualSubmission.findMany({
+  orderBy: { createdAt: 'desc' },
+  include: {
+    reviewedBy:    { select: { name: true } },
+    client:        { select: { id: true, name: true } },
+    duplicateMatch: { select: { id: true, name: true } },
+  },
+});
+```
 
-**Detail panel (click a row):** Shows all fields + a status select, review note textarea, optional client-link select, and Save button.
+---
 
-**PATCH route:**
+#### Step 2: Update the PATCH route
+
+In `src/app/api/admin/intake/[id]/route.js`, add `duplicateMatchId` to the accepted fields:
+
+```js
+const { status, reviewNote, clientId, duplicateMatchId } = await req.json();
+
+const updated = await prisma.conceptualSubmission.update({
+  where: { id: params.id },
+  data: {
+    status:           status           ?? undefined,
+    reviewNote:       reviewNote       ?? undefined,
+    clientId:         clientId         ?? undefined,
+    duplicateMatchId: duplicateMatchId ?? undefined,
+    reviewedById: user.id,
+  },
+});
+```
+
+---
+
+#### Step 3: New invite endpoint
+
+Create `src/app/api/admin/intake/[id]/invite/route.js`:
+
 ```js
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { randomUUID } from 'crypto';
+import { portalInvite } from '@/lib/emailTemplates';
 
 export const dynamic = 'force-dynamic';
 
-export async function PATCH(req, { params }) {
+export async function POST(req, { params }) {
   const { user, error } = await requireAdmin(req);
   if (error) return error;
 
-  const { status, reviewNote, clientId } = await req.json();
-
-  const updated = await prisma.conceptualSubmission.update({
+  const submission = await prisma.conceptualSubmission.findUnique({
     where: { id: params.id },
-    data: {
-      status:       status     ?? undefined,
-      reviewNote:   reviewNote ?? undefined,
-      clientId:     clientId   ?? undefined,
-      reviewedById: user.id,
-    },
+    include: { duplicateMatch: { select: { id: true, name: true } } },
+  });
+  if (!submission) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (!submission.duplicateMatchId)
+    return NextResponse.json({ error: 'Link a project to this submission first' }, { status: 400 });
+
+  const project = submission.duplicateMatch;
+
+  // Check if this email already has a contact record on this project
+  const existing = await prisma.projectExternalContact.findFirst({
+    where: { project_id: project.id, email: submission.submitterEmail },
   });
 
-  return NextResponse.json(updated);
+  let contact;
+  let alreadyAccepted = false;
+
+  if (existing) {
+    if (existing.acceptedAt) {
+      alreadyAccepted = true;
+      contact = existing;
+    } else {
+      // Regenerate token for resend
+      const inviteToken = randomUUID();
+      contact = await prisma.projectExternalContact.update({
+        where: { id: existing.id },
+        data: {
+          inviteToken,
+          inviteTokenExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          invitedAt: new Date(),
+        },
+      });
+    }
+  } else {
+    const inviteToken = randomUUID();
+    contact = await prisma.projectExternalContact.create({
+      data: {
+        project_id:    project.id,
+        name:          submission.submitterName,
+        email:         submission.submitterEmail,
+        role:          'Client',
+        canViewBudgets: true,
+        inviteToken,
+        inviteTokenExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        invitedAt: new Date(),
+      },
+    });
+  }
+
+  const appUrl   = process.env.APP_URL || 'https://app.ilcstudios.com';
+  const inviteUrl = alreadyAccepted ? null : `${appUrl}/portal/invite/${contact.inviteToken}`;
+
+  if (!alreadyAccepted) {
+    if (process.env.NOTIFY_DRY_RUN !== 'false') {
+      console.log(`[INVITE DRY RUN] to=${submission.submitterEmail} url=${inviteUrl}`);
+    } else {
+      const { subject, html } = portalInvite({
+        projectName: project.name,
+        inviteUrl,
+        contactName: submission.submitterName,
+      });
+      console.log(`[INVITE] Sending to=${submission.submitterEmail} subject="${subject}"`);
+      // TODO: Microsoft Graph API sendMail
+    }
+  }
+
+  return NextResponse.json({ success: true, alreadyAccepted, inviteUrl, submitterEmail: submission.submitterEmail });
 }
 ```
 
-**Acceptance:**
-1. `/admin/intake` loads for ILC_ADMIN, shows submissions
-2. Non-admin gets 403/redirect
-3. Clicking a row → detail panel opens
-4. Changing status + saving → badge updates, persists on refresh
-5. `force-dynamic` on page.jsx
-
 ---
 
-### Task 25: Portal nav / UX cleanup (~2 hrs)
+#### Step 4: Update IntakeClient.jsx
 
-- **Branch:** `manny/portal-ux`
-- **File:** `src/app/portal/projects/[id]/page.jsx` — three small fixes, no new files, no API routes, no schema
+Accept the new `projects` prop. In the detail panel, below the existing Save button, add a "Portal Access" section. **Only render this section when `selected.status === 'APPROVED'`.**
 
-**Fix 1 — Project name in header:**
-The project name doesn't appear until you're inside a tab. Add it below the portal header title:
+The section has two parts:
+
+**Part A — Link to Project** (always shown in the section):
 ```jsx
-<p className="text-sm text-slate-400 mt-1">{project.name}</p>
+<div>
+  <label className="block text-sm font-semibold text-slate-700 mb-1">Linked Project</label>
+  <select
+    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+    value={linkedProjectId}
+    onChange={e => setLinkedProjectId(e.target.value)}
+  >
+    <option value="">— not linked —</option>
+    {projects.map(p => (
+      <option key={p.id} value={p.id}>{p.name}</option>
+    ))}
+  </select>
+  <p className="text-xs text-slate-400 mt-1">
+    Link first, then save above, then send the invite below.
+  </p>
+</div>
 ```
 
-**Fix 2 — Back to projects link:**
-No navigation back to the project list. Add above the project name:
+`linkedProjectId` is a new piece of local state, initialized from `selected.duplicateMatchId ?? ''`. Include it in the existing Save button's PATCH body: `duplicateMatchId: linkedProjectId || null`.
+
+**Part B — Send Portal Invite** (shown below Part A):
 ```jsx
-<a href="/portal" className="text-xs text-slate-400 hover:text-amber-600 transition-colors">
-  ← Back to projects
-</a>
+<div className="mt-4 pt-4 border-t border-slate-100">
+  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Portal Invite</p>
+
+  {inviteResult?.alreadyAccepted ? (
+    <p className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2">
+      ✓ {inviteResult.submitterEmail} already has portal access for this project.
+    </p>
+  ) : inviteResult?.inviteUrl ? (
+    <div>
+      <p className="text-xs text-green-700 mb-1">Invite generated — copy and send to {inviteResult.submitterEmail}:</p>
+      <div className="flex gap-2">
+        <input
+          readOnly
+          value={inviteResult.inviteUrl}
+          className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-mono bg-slate-50"
+        />
+        <button
+          onClick={() => { navigator.clipboard.writeText(inviteResult.inviteUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+          className="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-semibold"
+        >
+          {copied ? 'Copied!' : 'Copy'}
+        </button>
+      </div>
+    </div>
+  ) : (
+    <button
+      disabled={!selected.duplicateMatchId || inviting}
+      onClick={handleSendInvite}
+      className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+        selected.duplicateMatchId && !inviting
+          ? 'bg-amber-500 hover:bg-amber-400 text-white'
+          : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+      }`}
+    >
+      {inviting ? 'Sending…' : 'Send Portal Invite'}
+    </button>
+  )}
+  {inviteError && <p className="text-xs text-red-500 mt-1">{inviteError}</p>}
+  {!selected.duplicateMatchId && (
+    <p className="text-xs text-slate-400 mt-1">Link a project above and save first.</p>
+  )}
+</div>
 ```
 
-**Fix 3 — $/SF on conceptual budget hero:**
-`git pull` first — Task 22 already shipped `ConceptualBudgetView`. Read the component. If `budget.perSf` is already displayed and legible, this fix is done — note it in the PR. If it's missing or very small, make it visible alongside the other metrics.
+New state: `const [linkedProjectId, setLinkedProjectId] = useState(selected?.duplicateMatchId ?? '')` — reset in the row-click handler whenever `selected` changes. Also: `const [inviting, setInviting] = useState(false)`, `const [inviteResult, setInviteResult] = useState(null)`, `const [inviteError, setInviteError] = useState(null)`, `const [copied, setCopied] = useState(false)`.
 
-**Acceptance:**
-1. Portal project page shows project name below header
-2. Back link navigates to /portal
-3. $/SF visible in conceptual budget hero when `perSf > 0`
-4. Zero new API routes or schema changes
-
----
-
-### Task 26: Cadence health badge on Client page (~2 hrs)
-
-- **Branch:** `manny/checkin-cadence-badge`
-- **Why:** The `/crm/contacts` page shows per-contact check-in status. The Client detail page's Contacts tab doesn't summarize this — no quick way to see if a client's contacts are mostly overdue.
-
-**Step 1:** Run `ls src/app/(app)/clients/[id]/` to see the file structure. Find where the Contacts tab renders.
-
-**Step 2:** Read `src/app/(app)/crm/contacts/ContactsClient.jsx` — the `checkInStatus()` helper is already there. Copy it (rename to avoid conflicts).
-
-**Status logic:**
+`handleSendInvite`:
 ```js
-function getCheckinStatus(contact) {
-  const cadenceDays = contact.cadenceDays ?? contact.client?.defaultCadenceDays;
-  if (!cadenceDays) return 'none';
-  const lastTouch = contact.lastInPersonAt ?? contact.lastTouchpointAt;
-  if (!lastTouch) return 'overdue';
-  const daysSince = (Date.now() - new Date(lastTouch)) / 86400000;
-  const daysOverdue = daysSince - cadenceDays;
-  if (daysOverdue > 0)   return 'overdue';
-  if (daysOverdue > -14) return 'due-soon';
-  return 'current';
+async function handleSendInvite() {
+  setInviting(true);
+  setInviteError(null);
+  try {
+    const res = await fetch(`/api/admin/intake/${selected.id}/invite`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed');
+    setInviteResult(data);
+  } catch (err) {
+    setInviteError(err.message);
+  } finally {
+    setInviting(false);
+  }
 }
 ```
 
-**Banner (add above the contacts table):**
-```jsx
-// Count contacts
-const counts = { overdue: 0, 'due-soon': 0, current: 0, none: 0 };
-contacts.forEach(c => counts[getCheckinStatus(c)]++);
+Reset `inviteResult` and `inviteError` when the selected row changes.
 
-// Only show if at least one contact has cadence set
-{(counts.overdue + counts['due-soon'] + counts.current) > 0 && (
-  <div className="flex gap-2 mb-3 flex-wrap">
-    {counts.overdue > 0 && (
-      <span className="text-xs font-semibold px-2 py-1 rounded-full bg-red-100 text-red-700">
-        {counts.overdue} overdue
-      </span>
-    )}
-    {counts['due-soon'] > 0 && (
-      <span className="text-xs font-semibold px-2 py-1 rounded-full bg-amber-100 text-amber-700">
-        {counts['due-soon']} due soon
-      </span>
-    )}
-    {counts.current > 0 && (
-      <span className="text-xs font-semibold px-2 py-1 rounded-full bg-green-100 text-green-700">
-        {counts.current} current
-      </span>
-    )}
-  </div>
-)}
-```
+---
 
 **Acceptance:**
-1. Client with cadence-tracked contacts shows colored pills above the contacts table
-2. Client with no cadence data shows no banner (not zero counts)
-3. Colors match `/crm/contacts` — red/amber/green same logic
-4. No new API routes or schema changes
+1. Detail panel for an APPROVED submission shows "Linked Project" dropdown and "Send Portal Invite" button
+2. "Send Portal Invite" is disabled (greyed out) until a project is linked and saved
+3. After linking a project and saving, the invite button activates
+4. Clicking "Send Portal Invite" → server creates `ProjectExternalContact` (verify in Prisma Studio: `npx prisma studio` → ProjectExternalContact table), returns invite URL
+5. Invite URL appears in a copyable field in the detail panel
+6. Clicking "Copy" copies the URL to clipboard
+7. Visiting the invite URL while logged out → `/portal/invite/[token]` loads the set-password form
+8. PENDING submissions show no "Portal Access" section at all
+9. `force-dynamic` already on page.jsx — don't remove it
+10. No schema changes — `duplicateMatchId` already exists on `ConceptualSubmission`
 
 ---
 
@@ -320,6 +337,7 @@ contacts.forEach(c => counts[getCheckinStatus(c)]++);
 
 ## Completed tasks
 
+> **Completed 2026-08-04:** Tasks 23 (intake /start submit wiring), 24 (admin intake queue), 25 (portal nav UX), 26 (cadence health badge) all merged to main and deployed. Schema migration 0053 (ConceptualSubmission) was already live.
 > **Completed 2026-07-27:** Tasks 20 (global contacts + CRM links), 21 (budget contingency), 22 (portal conceptual budget) merged to main as PRs #16, #17, #18.
 > **Completed 2026-07-09:** Tasks 14–16 (security fixes, CRM list polish, win rate stats) merged (commits 206f1fb, 51968e7, 720fd55).
 > **Completed 2026-07-08:** Tasks 10–13 (brief links, notes badge, probability edit, CSV export) merged.
@@ -330,7 +348,7 @@ contacts.forEach(c => counts[getCheckinStatus(c)]++);
 
 ## Recent guidance from Sean
 
-- **(2026-07-27)** Tasks 23–26 queued. CRM work remains paused per Mike's direction — none of the new tasks touch CRM. Task 23 first since it connects to the schema that just deployed.
-- **(2026-07-27)** ConceptualSubmission schema (migration 0053) is live in production as of today.
+- **(2026-08-04)** Task 27 queued. This is the last piece of the external intake flow — closes the loop between submission approval and the submitter getting portal access to view their budget. No schema changes needed.
+- **(2026-07-27)** Tasks 23–26 all shipped and deployed.
 - **(2026-07-09)** Tasks 14–16 all merged. Good sprint.
 - **(2026-06-23)** Engine math is validated and trusted. Do not touch `src/lib/calculations.js` unless a task explicitly asks.
