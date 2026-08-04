@@ -42,12 +42,43 @@ export default function IntakeClient() {
   const [project,   setProject]   = useState('');
   const [touchedEmail, setTouchedEmail] = useState(false);
   const [drawings, setDrawings] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted,  setSubmitted]  = useState(false);
+  const [submitError, setSubmitError] = useState(null);
 
   const emailCheck = email ? classifyIntakeEmail(email) : null;
   const emailError = touchedEmail && emailCheck && !emailCheck.ok ? emailCheck.message : null;
 
   const contactReady =
     firstName.trim() && lastName.trim() && project.trim() && emailCheck?.ok;
+
+  async function handleSubmit() {
+    if (!contactReady || submitting) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const res = await fetch('/api/intake/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contactName:  `${firstName.trim()} ${lastName.trim()}`,
+          contactEmail: email,
+          companyName:  company || null,
+          projectName:  project,
+          drawingsData: drawings || null,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Submission failed');
+      }
+      setSubmitted(true);
+    } catch (err) {
+      setSubmitError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -136,30 +167,43 @@ export default function IntakeClient() {
         {/* ── Submit ── */}
         <section className="bg-white rounded-2xl border border-slate-200 p-6">
           <div className="flex items-center gap-2.5 mb-4">
-            <span className="w-6 h-6 rounded-full bg-slate-300 text-white text-xs font-bold flex items-center justify-center">3</span>
+            <span className={`w-6 h-6 rounded-full text-white text-xs font-bold flex items-center justify-center ${contactReady ? 'bg-amber-500' : 'bg-slate-300'}`}>3</span>
             <h2 className="text-base font-semibold text-slate-800">Send it to us</h2>
           </div>
 
-          <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 mb-4">
-            <p className="text-sm text-amber-900 font-semibold">Submission isn&apos;t connected yet</p>
-            <p className="text-xs text-amber-800 mt-1">
-              Uploading and reading drawings works. Sending the submission needs a database change
-              that&apos;s still in progress, so this button is disabled rather than losing your work.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <button
-              disabled
-              className="px-5 py-2.5 rounded-lg bg-slate-200 text-slate-400 font-semibold text-sm cursor-not-allowed"
-            >
-              Submit budget request
-            </button>
-            <span className="text-xs text-slate-400">
-              {contactReady ? 'Your details look good' : 'Fill in your details above'}
-              {drawings ? ` · ${drawings.sources.length} drawing${drawings.sources.length !== 1 ? 's' : ''} read` : ' · no drawings yet'}
-            </span>
-          </div>
+          {submitted ? (
+            <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-4">
+              <p className="text-sm text-green-800 font-semibold">Request received — thanks!</p>
+              <p className="text-xs text-green-700 mt-1">
+                An ILC Studios team member will review your submission and be in touch within 1–2 business days.
+              </p>
+            </div>
+          ) : (
+            <>
+              {submitError && (
+                <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 mb-4">
+                  <p className="text-xs text-red-700">{submitError} — please try again or email us directly.</p>
+                </div>
+              )}
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={handleSubmit}
+                  disabled={!contactReady || submitting}
+                  className={`px-5 py-2.5 rounded-lg font-semibold text-sm transition-colors ${
+                    contactReady && !submitting
+                      ? 'bg-amber-500 hover:bg-amber-400 text-white'
+                      : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  }`}
+                >
+                  {submitting ? 'Sending…' : 'Submit budget request'}
+                </button>
+                <span className="text-xs text-slate-400">
+                  {contactReady ? 'Your details look good' : 'Fill in your details above'}
+                  {drawings ? ` · ${drawings.sources.length} drawing${drawings.sources.length !== 1 ? 's' : ''} read` : ' · no drawings yet'}
+                </span>
+              </div>
+            </>
+          )}
         </section>
 
         <p className="text-xs text-slate-400 text-center pb-6">
