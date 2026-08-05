@@ -10,7 +10,7 @@ export async function PATCH(request, { params }) {
   const { user, error } = await requireAdmin(request);
   if (error) return error;
 
-  const { status, reviewNote, clientId } = await request.json();
+  const { status, reviewNote, clientId, duplicateMatchId } = await request.json();
 
   const submission = await prisma.conceptualSubmission.findUnique({
     where: { id: params.id },
@@ -30,6 +30,7 @@ export async function PATCH(request, { params }) {
       // field — so approving a submission after linking a client silently
       // unlinked it, which would break the Task 27 invite bridge.
       clientId: clientId !== undefined ? (clientId || null) : submission.clientId,
+      duplicateMatchId: duplicateMatchId !== undefined ? (duplicateMatchId || null) : submission.duplicateMatchId,
       reviewedById: user.id,
       // NOTE: no `reviewedAt` — the model has no such column, and writing it
       // made Prisma reject the entire update, 500ing every approve/reject

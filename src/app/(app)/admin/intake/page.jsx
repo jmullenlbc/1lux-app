@@ -14,6 +14,7 @@ export default async function IntakePage() {
     include: {
       reviewedBy: { select: { name: true } },
       client: { select: { id: true, name: true } },
+      duplicateMatch: { select: { id: true, name: true } },
     },
   });
 
@@ -22,5 +23,10 @@ export default async function IntakePage() {
     orderBy: { name: 'asc' },
   });
 
-  return <IntakeClient submissions={submissions} clients={clients} currentUser={user} />;
+  const projects = await prisma.project.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  });
+
+  return <IntakeClient submissions={submissions} clients={clients} projects={projects} currentUser={user} />;
 }

@@ -13,13 +13,18 @@ function fmtDate(d) {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-export default function IntakeClient({ submissions, clients, currentUser }) {
+export default function IntakeClient({ submissions, clients, projects, currentUser }) {
   const [selectedId, setSelectedId] = useState(null);
   const selected = submissions.find(s => s.id === selectedId);
   const [status, setStatus] = useState(selected?.status || 'PENDING');
   const [reviewNote, setReviewNote] = useState(selected?.reviewNote || '');
   const [clientId, setClientId] = useState(selected?.clientId || '');
   const [saving, setSaving] = useState(false);
+  const [linkedProjectId, setLinkedProjectId] = useState('');
+  const [inviting, setInviting] = useState(false);
+  const [inviteResult, setInviteResult] = useState(null);
+  const [inviteError, setInviteError] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   async function handleSave() {
     if (!selected) return;
@@ -32,6 +37,7 @@ export default function IntakeClient({ submissions, clients, currentUser }) {
           status,
           reviewNote,
           clientId: clientId || null,
+          duplicateMatchId: linkedProjectId || null,
         }),
       });
       if (!res.ok) throw new Error('Failed to save');
@@ -42,6 +48,21 @@ export default function IntakeClient({ submissions, clients, currentUser }) {
       alert('Error: ' + err.message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSendInvite() {
+    setInviting(true);
+    setInviteError(null);
+    try {
+      const res = await fetch(`/api/admin/intake/${selected.id}/invite`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to send invite');
+      setInviteResult(data);
+    } catch (err) {
+      setInviteError(err.message);
+    } finally {
+      setInviting(false);
     }
   }
 
@@ -74,6 +95,10 @@ export default function IntakeClient({ submissions, clients, currentUser }) {
                         setStatus(s.status);
                         setReviewNote(s.reviewNote || '');
                         setClientId(s.clientId || '');
+                        setLinkedProjectId(s.duplicateMatchId ?? '');
+                        setInviteResult(null);
+                        setInviteError(null);
+                        setCopied(false);
                       }}
                       className={`cursor-pointer hover:bg-slate-50 transition-colors ${selectedId === s.id ? 'bg-blue-50' : ''}`}
                     >
@@ -176,6 +201,87 @@ export default function IntakeClient({ submissions, clients, currentUser }) {
                     Close
                   </button>
                 </div>
+
+                {selected.status === 'APPROVED' && (
+                  <div className="mt-6 pt-6 border-t border-slate-100">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
+                      Portal Access
+                    </p>
+
+                    {/* Part A: Link to project */}
+                    <div className="mb-4">
+                      <label className="block text-sm font-semibold text-slate-700 mb-1">
+                        Linked Project
+                      </label>
+                      <select
+                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                        value={linkedProjectId}
+                        onChange={e => setLinkedProjectId(e.target.value)}
+                      >
+                        <option value="">— not linked —</option>
+                        {projects.map(p => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Pick the project, save above, then send the invite below.
+                      </p>
+                    </div>
+
+                    {/* Part B: Send invite */}
+                    <div>
+                      {inviteResult?.alreadyAccepted ? (
+                        <p className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2">
+                          ✓ {inviteResult.submitterEmail} already has portal access for this project.
+                        </p>
+                      ) : inviteResult?.inviteUrl ? (
+                        <div>
+                          <p className="text-xs text-slate-600 mb-1">
+                            Invite ready — copy this link and send it to {inviteResult.submitterEmail}:
+                          </p>
+                          <div className="flex gap-2">
+                            <input
+                              readOnly
+                              value={inviteResult.inviteUrl}
+                              className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs font-mono bg-slate-50"
+                            />
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(inviteResult.inviteUrl);
+                                setCopied(true);
+                                setTimeout(() => setCopied(false), 2000);
+                              }}
+                              className="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-semibold whitespace-nowrap"
+                            >
+                              {copied ? 'Copied!' : 'Copy'}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          disabled={!selected.duplicateMatchId || inviting}
+                          onClick={handleSendInvite}
+                          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                            selected.duplicateMatchId && !inviting
+                              ? 'bg-amber-500 hover:bg-amber-400 text-white'
+                              : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                          }`}
+                        >
+                          {inviting ? 'Sending…' : 'Send Portal Invite'}
+                        </button>
+                      )}
+
+                      {inviteError && (
+                        <p className="text-xs text-red-500 mt-2">{inviteError}</p>
+                      )}
+                      {!selected.duplicateMatchId && (
+                        <p className="text-xs text-slate-400 mt-1">
+                          Link a project above and save first.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
