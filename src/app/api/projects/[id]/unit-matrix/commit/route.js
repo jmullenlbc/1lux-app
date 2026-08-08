@@ -50,6 +50,10 @@ export async function POST(request, { params }) {
     if ('numBathrooms'in confirmedFields) dataUpdate.numBathrooms= confirmedFields.numBathrooms!= null ? Number(confirmedFields.numBathrooms): null;
     if ('numBalconies'in confirmedFields) dataUpdate.numBalconies= confirmedFields.numBalconies!= null ? Number(confirmedFields.numBalconies): null;
     if ('grossSf'     in confirmedFields) dataUpdate.grossSf     = confirmedFields.grossSf     != null ? Number(confirmedFields.grossSf)     : null;
+    // garageSf/corridorSf were parsed by the extractor from day one but never
+    // made it past this allowlist — every parse silently discarded them.
+    if ('garageSf'    in confirmedFields) dataUpdate.garageSf    = confirmedFields.garageSf    != null ? Number(confirmedFields.garageSf)    : null;
+    if ('corridorSf'  in confirmedFields) dataUpdate.corridorSf  = confirmedFields.corridorSf  != null ? Number(confirmedFields.corridorSf)  : null;
 
     if (Object.keys(dataUpdate).length > 0) {
       await tx.projectData.upsert({

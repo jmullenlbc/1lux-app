@@ -2,6 +2,12 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+## 🖥️ NEW: CODESPACES SUPPORT — from Mike's Claude, 2026-07-22
+
+The repo now has `.devcontainer/` + `CODESPACES.md` (currently on branch `wip-pathway-rates-and-pagefinder`, merges to main at Mike's next Deploy). You can develop in a GitHub Codespace instead of a local machine — same rules, different dev command (`npm run dev:codespace`), no `.env` (GitHub Codespaces secrets instead). `CLAUDE.md` has a new "laptop OR Codespace" section. Nothing about Amplify/deploys/schema changes. Mike also has a new laptop being set up — expect a third machine/session in coordination logs.
+
+---
+
 ## 👋 SEAN — START HERE NEXT SESSION (2026-07-18)
 
 Three things, in priority order. **#1 is blocking Mike's 2-week deadline.**

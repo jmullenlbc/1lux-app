@@ -1,47 +1,47 @@
 {
-  "at": "2026-07-21T20:03:30.579Z",
+  "at": "2026-08-08T19:51:40.403Z",
   "full": false,
   "failed": null,
   "results": [
     {
       "gate": "dynamic pages",
       "ok": true,
-      "ms": 251
+      "ms": 266
     },
     {
       "gate": "schema provider",
       "ok": true,
-      "ms": 127
+      "ms": 123
     },
     {
       "gate": "env contract",
       "ok": true,
-      "ms": 233
+      "ms": 115
     },
     {
       "gate": "migrations (postgres)",
       "ok": true,
-      "ms": 484
+      "ms": 232
     },
     {
       "gate": "schema ↔ migrations",
       "ok": true,
-      "ms": 199
+      "ms": 168
     },
     {
       "gate": "shared metrics",
       "ok": true,
-      "ms": 1310
+      "ms": 748
     },
     {
       "gate": "unit tests",
       "ok": true,
-      "ms": 1227
+      "ms": 1055
     },
     {
       "gate": "secrets",
       "ok": true,
-      "ms": 270
+      "ms": 246
     }
   ]
 }

@@ -47,6 +47,16 @@ npm run db:studio     # Open Prisma Studio UI
 
 **Deploy** is always: `npm run deploy -- "description"` which triggers Amplify to build and deploy automatically.
 
+## Where development happens: laptop OR Codespace
+
+Since 2026-07-22 this repo supports GitHub Codespaces (`.devcontainer/`, guide in `CODESPACES.md`). A codespace replaces the *laptop only* — Amplify, the deploy ritual, the sqlite-in-repo rule, and Sean's schema ownership are identical in both environments.
+
+Differences that matter to a session:
+- **Dev server:** `npm run dev:3000` on Windows laptops, `npm run dev:codespace` in a codespace (the .ps1 can't run on Linux). Same never-plain-`dev` rule in both.
+- **Secrets:** laptops use `.env`; codespaces have NO `.env` — secrets arrive as env vars from GitHub Codespaces secrets, non-secrets from `devcontainer.json` `containerEnv`. If an AI feature returns nothing in a codespace, check the `ANTHROPIC_API_KEY` Codespaces secret before debugging code.
+- **Notifications are hard-off in codespaces** (`NOTIFY_DRY_RUN=true` in containerEnv). Do not "fix" that.
+- **Each environment owns its own `prisma/dev.db` and `uploads/`.** They never sync. Work needing specific drawing files on disk lives where those files are.
+
 ## Architecture
 
 **Stack:** Next.js 14 App Router, Tailwind CSS, Prisma 5.22.0, JWT auth (`jose`), AWS Amplify SSR.

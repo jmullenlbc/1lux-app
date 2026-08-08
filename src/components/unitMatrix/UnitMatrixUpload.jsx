@@ -81,6 +81,8 @@ function ReviewModal({ proposal, fileName, onConfirm, onCancel }) {
   // rows = editable copy of unitTypes
   const [rows, setRows]             = useState(() => (proposal.unitTypes || []).map((r, i) => ({ ...r, _key: i })));
   const [grossSf, setGrossSf]       = useState(proposal.projectTotals?.grossInteriorSf ?? null);
+  const [garageSf, setGarageSf]     = useState(proposal.projectTotals?.garageSf ?? null);
+  const [corridorSf, setCorridorSf] = useState(proposal.projectTotals?.corridorSf ?? null);
 
   // Which fields are checked for writing to ProjectData
   const totals = rollup(rows);
@@ -97,6 +99,8 @@ function ReviewModal({ proposal, fileName, onConfirm, onCancel }) {
     // Tier B always starts unchecked — user must explicitly confirm
     init.numBalconies = false;
     init.grossSf      = false;
+    init.garageSf     = false;
+    init.corridorSf   = false;
     return init;
   });
 
@@ -125,6 +129,8 @@ function ReviewModal({ proposal, fileName, onConfirm, onCancel }) {
     if (checked.numBathrooms&& live.bath  != null)  confirmedFields.numBathrooms= live.bath;
     if (checked.numBalconies&& live.balc  != null)  confirmedFields.numBalconies= live.balc;
     if (checked.grossSf     && grossSf    != null)  confirmedFields.grossSf     = grossSf;
+    if (checked.garageSf    && garageSf   != null)  confirmedFields.garageSf    = garageSf;
+    if (checked.corridorSf  && corridorSf != null)  confirmedFields.corridorSf  = corridorSf;
 
     onConfirm({ unitTypes: rows.map(({ _key, ...r }) => r), confirmedFields });
   }
@@ -270,8 +276,30 @@ function ReviewModal({ proposal, fileName, onConfirm, onCancel }) {
                     editable
                     onEdit={setGrossSf}
                   />
-                  <GreyRow label="Garage SF" />
-                  <GreyRow label="Corridor SF" />
+                  <FieldRow
+                    label="Garage SF"
+                    value={garageSf}
+                    fieldKey="garageSf"
+                    checked={checked}
+                    setChecked={setChecked}
+                    tier={garageSf != null ? 'confirm' : 'manual'}
+                    available={garageSf != null}
+                    alwaysConfirm
+                    editable
+                    onEdit={setGarageSf}
+                  />
+                  <FieldRow
+                    label="Corridor SF"
+                    value={corridorSf}
+                    fieldKey="corridorSf"
+                    checked={checked}
+                    setChecked={setChecked}
+                    tier={corridorSf != null ? 'confirm' : 'manual'}
+                    available={corridorSf != null}
+                    alwaysConfirm
+                    editable
+                    onEdit={setCorridorSf}
+                  />
                   <GreyRow label="BOH / Amenity / Lot / Footprint SF" note="+4 fields" />
                 </div>
               </div>
