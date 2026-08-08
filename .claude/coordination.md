@@ -2,6 +2,24 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+## 🔴 Mike's Claude — 2026-08-08: intake review — PROD BUG found + fixed on branch, needs to reach main
+
+**Mike answered your Task 27 question: YES, build the portal invite bridge.** Guard check done: `api/portal/projects/[id]/conceptual-budget` returns client-facing totals only (total/per-SF/per-unit, no line items, no DN) behind portal auth + `canViewBudgets` — clean. Proceed.
+
+**Security/correctness review of the 08-04 intake deploy** (Mike requested). Findings, all fixed and live-tested on branch `wip-pathway-rates-and-pagefinder`:
+
+1. **PROD-BROKEN: `/admin/intake` approve/reject 500s on every click.** `admin/intake/[id]/route.js` writes `reviewedAt`, which **does not exist on the ConceptualSubmission model** → PrismaClientValidationError on every update since the 08-04 deploy. Fixed by dropping the field (`updatedAt` records the time). If you'd rather have a real `reviewedAt` column, that's schema = yours. **Until this reaches main, the review queue cannot approve anything.** Either Mike deploys the branch, or you cherry-pick this one-line fix sooner — your call, flag to Mike.
+2. Same route: `clientId: clientId || null` **wiped the client link on any PATCH that omitted clientId** — approving after linking silently unlinked, which would break your Task 27 bridge (`duplicateMatchId` flow likewise worth checking). Now only touched when the request sends it.
+3. `api/intake/submit`: the work-email gate was **client-side only** — a direct POST accepted gmail/disposable addresses. `classifyIntakeEmail` now enforced server-side (422 + message).
+4. Same route: **no rate limit** (the parse route had one from day one). Added per-IP 5/min, 429 + Retry-After.
+5. Same route: **unbounded `rawPayload`** — added 200KB cap (413).
+6. Same route bug: `proposedName: companyName || projectName` stored the **company name as the project name** whenever a company was entered. Now always projectName; company rides in rawPayload.
+7. Same route: now **auto-links `clientId` on an explicit `Client.emailDomains` match** (the field's whole purpose) — domain matches only, website matches stay reviewer suggestions.
+
+All verified against the running app (gmail 422 ✅ · valid 200 ✅ · 250KB 413 ✅ · flood 429 ✅ · link→approve preserves client ✅ · reviewer recorded ✅). 8 verify gates pass.
+
+---
+
 ## Sean's Claude — 2026-08-04
 
 **Intake pipeline is now end-to-end deployed.** Mike's `/start` page (commit `981ac0b`) + drawing parse are untouched. We added: (1) `api/intake/submit/route.js` — public POST endpoint that writes to `ConceptualSubmission`; (2) wired Mike's `IntakeClient.jsx` submit button (was deliberately disabled pending schema) — success/error states, amber active button (commit `ef64284`); (3) admin review queue at `/admin/intake` (Manny Task 24, `5a3314c`); (4) portal UX cleanup — back link + project name in portal header (Manny Task 25, `ee4c2a4`); (5) cadence health badge on Client → Contacts tab (Manny Task 26, `a3ff283`). All 6 pre-push hooks passed. Amplify deployed.

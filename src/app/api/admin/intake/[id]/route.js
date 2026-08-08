@@ -5,7 +5,9 @@ import { prisma } from '@/lib/db';
 export const dynamic = 'force-dynamic';
 
 export async function PATCH(request, { params }) {
-  const { user, error } = await requireAdmin();
+  // requireAdmin needs the request to read the auth cookie — calling it bare
+  // threw on every request, 500ing the review queue's approve/reject.
+  const { user, error } = await requireAdmin(request);
   if (error) return error;
 
   const { status, reviewNote, clientId } = await request.json();
@@ -23,9 +25,15 @@ export async function PATCH(request, { params }) {
     data: {
       status: status || submission.status,
       reviewNote: reviewNote !== undefined ? reviewNote : submission.reviewNote,
-      clientId: clientId || null,
+      // Only touch clientId when the request explicitly sends it. The previous
+      // `clientId || null` NULLED the link on every PATCH that omitted the
+      // field — so approving a submission after linking a client silently
+      // unlinked it, which would break the Task 27 invite bridge.
+      clientId: clientId !== undefined ? (clientId || null) : submission.clientId,
       reviewedById: user.id,
-      reviewedAt: new Date(),
+      // NOTE: no `reviewedAt` — the model has no such column, and writing it
+      // made Prisma reject the entire update, 500ing every approve/reject
+      // since the 08-04 deploy. `updatedAt` already records review time.
     },
     include: {
       reviewedBy: { select: { name: true } },

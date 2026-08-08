@@ -5,6 +5,18 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Intake security review — prod approve/reject bug fixed] · August 8, 2026
+
+Mike approved Sean's Task 27 (portal invite bridge) after a DN check of the portal budget route (client-facing totals only — clean). Review of the 08-04 intake deploy found and fixed, live-tested:
+
+### Fixed (branch wip-pathway-rates-and-pagefinder — needs a deploy to reach prod)
+- **Admin review queue was broken in production**: approve/reject 500'd on every click — the route wrote a reviewedAt field that does not exist on the model, so Prisma rejected every update since 08-04. Field dropped (updatedAt covers it).
+- **Client link wiped on approve**: PATCHes omitting clientId nulled an existing link, which would break the Task 27 invite bridge. Now only touched when explicitly sent.
+- **/api/intake/submit hardened**: work-email gate enforced server-side (was client-only — direct POSTs accepted gmail), per-IP rate limit (5/min), 200KB payload cap, and the proposedName bug fixed (company name was stored as the project name whenever a company was entered).
+- **Client.emailDomains finally used**: submissions auto-link clientId on an explicit domain match; reviewers can override.
+
+All five behaviors verified against the running API; 8 verify gates pass.
+
 ## [Pathway research — what drawings can and cannot tell us] · July 19, 2026
 
 Mined pathway-lighting data from **10 real conceptual budgets** and tested three automation routes against known answers. Recording the negative results because they define what not to build.
