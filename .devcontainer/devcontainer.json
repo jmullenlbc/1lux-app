@@ -1,0 +1,56 @@
+{
+  // GitHub Codespaces config for the ILC Studios lighting app.
+  // Goal: any laptop (or browser) becomes a dev machine in ~2 minutes,
+  // with nothing installed locally and no .env file to move around.
+  //
+  // What this deliberately does NOT change: the Amplify production pipeline,
+  // the sqlite-in-repo / postgres-in-prod arrangement, or any deploy rule.
+  // A codespace is a replacement for the LAPTOP, not for Amplify.
+  "name": "ILC Studios Lighting App",
+
+  // Node 24 to match the native-dependency reality (tesseract.js,
+  // @napi-rs/canvas, pdfjs-dist): parsing results differ across Node
+  // versions, and the team machines run 24.x.
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:24",
+
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": { "label": "app", "onAutoForward": "openBrowserOnce" }
+  },
+
+  // Non-secret env. DATABASE_URL matches the repo convention (relative,
+  // resolves to prisma/dev.db). NOTIFY_DRY_RUN defaults safe so a codespace
+  // can never accidentally email humans.
+  "containerEnv": {
+    "DATABASE_URL": "file:./dev.db",
+    "NEXT_PUBLIC_APP_URL": "http://localhost:3000",
+    "APP_URL": "http://localhost:3000",
+    "NOTIFY_DRY_RUN": "true"
+  },
+
+  // Secrets come from GitHub (Settings → Codespaces → Secrets), injected as
+  // env vars — no .env file exists in a codespace. This block makes GitHub
+  // prompt for them at creation if they're missing.
+  "secrets": {
+    "ANTHROPIC_API_KEY": {
+      "description": "Anthropic API key for the AI parsing features. Without it the app runs but every AI feature silently returns nothing."
+    },
+    "JWT_SECRET": {
+      "description": "Session-signing secret. Any value works for a fresh codespace; use the shared team value if you want logins to survive database copies."
+    }
+  },
+
+  // Fresh codespace = install deps, create an empty local DB, seed the
+  // admin logins. (`db:push` here is LOCAL SQLite only — this is not the
+  // production db push, which only Amplify runs.)
+  "postCreateCommand": "npm ci && npx prisma db push && npm run db:seed",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "Prisma.prisma",
+        "anthropic.claude-code"
+      ]
+    }
+  }
+}
