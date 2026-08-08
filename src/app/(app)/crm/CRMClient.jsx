@@ -529,6 +529,12 @@ export default function CRMClient({ initialProjects, users }) {
             <button onClick={() => router.push('/crm/brief')} className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-sm font-semibold transition-colors">
               Brief →
             </button>
+            <a href="/crm/contacts" className="text-xs text-slate-500 hover:text-amber-600 font-medium transition-colors">
+              Contacts →
+            </a>
+            <a href="/sales/check-ins" className="text-xs text-slate-500 hover:text-amber-600 font-medium transition-colors">
+              Check-ins →
+            </a>
             <button onClick={newProject} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition-colors shadow-sm">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
               New Project
@@ -607,7 +613,7 @@ export default function CRMClient({ initialProjects, users }) {
                   draggingId={draggingId}
                   onDragStart={handleDragStart}
                   onDragEnd={handleDragEnd}
-                  onDrop={handleDrop}
+                  onDrop={handleDrop}
                 />
               );
             })}

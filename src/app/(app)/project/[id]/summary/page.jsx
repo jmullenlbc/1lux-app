@@ -10,6 +10,7 @@ import { loadPricing } from '@/lib/pricingLoader';
 import Link from 'next/link';
 import SummaryPrintButton from './SummaryPrintButton';
 import SummaryBudgetBreakdown from './SummaryBudgetBreakdown';
+import ContingencyWidget from './ContingencyWidget';
 import MissingInputsWarning from '@/components/MissingInputsWarning';
 import SendBudgetButton from './SendBudgetButton';
 
@@ -296,6 +297,12 @@ export default async function SummaryPage({ params }) {
           {project.budgetType === 'design' ? 'Design budget estimate' : 'Conceptual estimate'}. Does not include sales tax.
         </p>
       </div>
+
+      <ContingencyWidget
+        projectId={project.id}
+        baseBudget={budget.totalWithControls}
+        initialPct={pd.contingencyPct ?? 0}
+      />
 
       {/* ── Design disclaimer — small, above Project Data ──────────── */}
       {project.budgetType === 'design' && (

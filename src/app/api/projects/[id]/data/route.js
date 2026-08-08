@@ -49,8 +49,10 @@ const FIELD_LABELS = {
   buildingFootprintSf: 'Building Footprint SF',
   clientInitialBudget: 'Initial Budget',
   freightPct: 'Freight %', warehousingPct: 'Warehousing %', salesTaxPct: 'Sales Tax %',
+  marginPct: 'Margin %',
   bohManualAdder: 'BOH manual adder', garageManualAdder: 'Garage manual adder',
   exitSignsManualAdder: 'Exit Signs manual adder',
+  contingencyPct: 'Contingency %',
 };
 
 export async function PUT(request, { params }) {
@@ -88,6 +90,14 @@ export async function PUT(request, { params }) {
     if (v === undefined || v === null || v === '') continue;
     const val = parseFloat(v);
     if (!isNaN(val)) data[field] = val;
+  }
+
+  // contingencyPct is not a questionnaire field — handle separately
+  if (body.contingencyPct !== undefined &&
+      body.contingencyPct !== null &&
+      body.contingencyPct !== '') {
+    const val = parseFloat(body.contingencyPct);
+    if (!isNaN(val) && val >= 0 && val <= 50) data.contingencyPct = val;
   }
 
   // Compute which fields actually changed for a useful description

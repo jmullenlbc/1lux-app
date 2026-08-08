@@ -277,19 +277,70 @@ function ShipScheduleView({ projectId }) {
 
 // ── Budget ────────────────────────────────────────────────────────────────────
 
+function ConceptualBudgetView({ budget }) {
+  return (
+    <div>
+      <div
+        className="rounded-2xl p-6 mb-5 text-white"
+        style={{ backgroundColor: '#0f172a' }}
+      >
+        <p className="text-xs font-medium mb-1" style={{ color: '#94a3b8' }}>
+          ILC Studios — Conceptual Lighting & Controls Budget
+        </p>
+        <p className="text-3xl font-bold tabular-nums mb-2">
+          {fmtCurrency(budget.totalWithControls)}
+        </p>
+        <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+          <span>
+            <span style={{ color: '#94a3b8' }}>Lighting: </span>
+            <span className="font-semibold">{fmtCurrency(budget.subtotalLightingOnly)}</span>
+          </span>
+          <span>
+            <span style={{ color: '#94a3b8' }}>Controls: </span>
+            <span className="font-semibold">{fmtCurrency(budget.controlsTotal)}</span>
+          </span>
+          {budget.perSf > 0 && (
+            <span>
+              <span style={{ color: '#94a3b8' }}>$/SF: </span>
+              <span className="font-semibold">${budget.perSf.toFixed(2)}</span>
+            </span>
+          )}
+          {budget.perUnit > 0 && (
+            <span>
+              <span style={{ color: '#94a3b8' }}>$/Unit: </span>
+              <span className="font-semibold">{fmtCurrency(budget.perUnit)}</span>
+            </span>
+          )}
+        </div>
+      </div>
+      <p className="text-xs text-slate-400 text-center">
+        Conceptual estimate — subject to change as design progresses
+      </p>
+    </div>
+  );
+}
+
 function BudgetView({ projectId }) {
-  const [data,    setData]    = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [data,        setData]        = useState(null);
+  const [conceptual,  setConceptual]  = useState(null);
+  const [loading,     setLoading]     = useState(true);
 
   useEffect(() => {
-    fetch(`/api/portal/projects/${projectId}/budget`)
-      .then(r => r.json())
-      .then(d => { setData(d); setLoading(false); })
+    Promise.all([
+      fetch(`/api/portal/projects/${projectId}/budget`).then(r => r.json()),
+      fetch(`/api/portal/projects/${projectId}/conceptual-budget`).then(r => r.json()),
+    ])
+      .then(([budgetData, conceptualData]) => {
+        setData(budgetData);
+        setConceptual(conceptualData);
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, [projectId]);
 
   if (loading) return <Spinner />;
-  if (!data?.matrix) return <Empty text="Budget has not been shared yet." />;
+  if (!data?.matrix && !conceptual?.budget) return <Empty text="Budget has not been shared yet." />;
+  if (!data?.matrix) return <ConceptualBudgetView budget={conceptual.budget} />;
 
   const { matrix, coSummary } = data;
   const { items, salesTaxRate, freightRate, warehousingRate } = matrix;
@@ -945,7 +996,11 @@ export default function PortalProjectPage({ params }) {
         {/* Section title (desktop) */}
         {active && (
           <div className="hidden md:block px-6 pt-5 pb-0 shrink-0">
-            <h2 className="text-lg font-bold text-slate-800">{active.label}</h2>
+            <a href="/portal" className="text-xs text-slate-400 hover:text-amber-600 transition-colors">
+              ← Back to projects
+            </a>
+            <p className="text-sm text-slate-400 mt-1">{project.name}</p>
+            <h2 className="text-lg font-bold text-slate-800 mt-3">{active.label}</h2>
           </div>
         )}
 

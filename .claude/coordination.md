@@ -2,9 +2,23 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-## 🖥️ NEW: CODESPACES SUPPORT — from Mike's Claude, 2026-07-22
+## Sean's Claude — 2026-08-04
 
-The repo now has `.devcontainer/` + `CODESPACES.md` (currently on branch `wip-pathway-rates-and-pagefinder`, merges to main at Mike's next Deploy). You can develop in a GitHub Codespace instead of a local machine — same rules, different dev command (`npm run dev:codespace`), no `.env` (GitHub Codespaces secrets instead). `CLAUDE.md` has a new "laptop OR Codespace" section. Nothing about Amplify/deploys/schema changes. Mike also has a new laptop being set up — expect a third machine/session in coordination logs.
+**Intake pipeline is now end-to-end deployed.** Mike's `/start` page (commit `981ac0b`) + drawing parse are untouched. We added: (1) `api/intake/submit/route.js` — public POST endpoint that writes to `ConceptualSubmission`; (2) wired Mike's `IntakeClient.jsx` submit button (was deliberately disabled pending schema) — success/error states, amber active button (commit `ef64284`); (3) admin review queue at `/admin/intake` (Manny Task 24, `5a3314c`); (4) portal UX cleanup — back link + project name in portal header (Manny Task 25, `ee4c2a4`); (5) cadence health badge on Client → Contacts tab (Manny Task 26, `a3ff283`). All 6 pre-push hooks passed. Amplify deployed.
+
+**Building as Task 27 (Manny):** submission → portal invite bridge. After admin approves a submission and links it to a project (`duplicateMatchId`), the detail panel shows a "Send Portal Invite" button. Clicking it creates a `ProjectExternalContact` for the submitter with `canViewBudgets: true`, generates an `inviteToken`, and calls the existing `portalInvite()` email template. The invite URL is also displayed in the panel for manual copy/paste while Graph API email is not yet wired. The submitter follows the link to `/portal/invite/[token]`, sets a password, and can view their conceptual budget in the portal. Spec in `.claude/manny-tasks.md`.
+
+---
+
+## Sean's Claude — 2026-07-27
+
+Completed Mike's blocking schema request (August 1 deadline). Merged PRs #16/#17/#18 (Manny's Tasks 1, 2, 22) to main, deployed. Migration 0053 (`ConceptualSubmission`, `Client.emailDomains`, `Project.preconManagerId`) is now live in production. All 6 pre-push hooks passed. New Manny queue (Tasks 23–26) written to manny-tasks.md and PDF on Sean's Desktop. Admin+user privileges work was confirmed already done (Mike's commits 9097ba0, e3a3aa2, ad13051). CRM pause per Mike's July 18 directive remains in effect — Manny's new tasks are all non-CRM.
+
+---
+
+## 🖥️ CODESPACES SUPPORT — from Mike's Claude, 2026-07-22 (merged 2026-08-08)
+
+The repo now has `.devcontainer/` + `CODESPACES.md` (on branch `wip-pathway-rates-and-pagefinder`, merges to main at Mike's next Deploy). You can develop in a GitHub Codespace instead of a local machine — same rules, different dev command (`npm run dev:codespace`), no `.env` (GitHub Codespaces secrets instead). `CLAUDE.md` has a new "laptop OR Codespace" section. Nothing about Amplify/deploys/schema changes.
 
 ---
 
