@@ -9,6 +9,7 @@
  */
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
+import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
 import { DEFAULT_ACTION_TYPES } from '@/lib/noteActions';
 
 // Try to resolve a free-text person name to a CRM contact id.
@@ -42,13 +43,7 @@ export async function extractNoteActions(note, candidateContacts = [], actionTyp
     .map(t => `- ${t.key} (${t.kind}): ${t.label}${t.description ? ` — ${t.description}` : ''}`)
     .join('\n');
 
-  const prompt = `You extract structured items from a sales/relationship meeting note. The note is a terse to-do / next-steps list.
-
-Note title: "${note.title || ''}"
-Note body:
-"""
-${body}
-"""
+  const prompt = `You extract structured items from a sales/relationship meeting note. The note is a terse to-do / next-steps list. The note itself follows below, inside the marked block.
 
 Classify each meaningful line into exactly one type below. The type names the METHOD/action the bot should take (or INTEL for a fact):
 ${typeList}
@@ -72,10 +67,22 @@ Return ONLY a JSON array. Each element:
       'bot.note.extractActions',
       { projectId: note?.projectId || null, userId: note?.createdById || null },
     );
+    // Mike types these notes, so the note is *mostly* ours — but a meeting note
+    // routinely has a client's email pasted into it, and the old form wrapped the
+    // body in `"""`, which any pasted content containing `"""` closes for free.
+    // The output of this call schedules bot actions, so a line that reads as an
+    // instruction is worth fencing. See src/lib/agent/untrusted.js.
+    const sealed = buildUntrustedPrompt({
+      instructions: prompt,
+      documents:    [{ text: `${note.title || ''}\n\n${body}`, descriptor: 'meeting note', maxChars: 20000 }],
+    });
+    warnOnInjection('bot.note.extractActions', note?.projectId || null, sealed);
+
     const msg = await anthropic.messages.create({
       model: 'claude-haiku-4-5',
       max_tokens: 1500,
-      messages: [{ role: 'user', content: prompt }],
+      system:   sealed.system,
+      messages: [{ role: 'user', content: sealed.content }],
     });
     const raw = msg.content?.[0]?.text?.trim() || '[]';
     const cleaned = raw.replace(/```json|```/g, '').trim();

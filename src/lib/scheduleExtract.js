@@ -16,6 +16,7 @@ import '@/lib/pdfPolyfill';
  *     still pulls the core milestones, so a recognizable schedule never yields [].
  */
 import { getAnthropicKey } from '@/lib/anthropicKey';
+import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
 import path from 'path';
 import { createRequire } from 'module';
 
@@ -117,16 +118,26 @@ Rules:
 - Only milestones explicitly in the schedule — never invent dates.
 - Dates are usually "Day M/D/YY"; the FIRST date in a row is its start, the second is its finish. Use the start for start-type milestones and the finish for completion-type (tco, construction-end).
 - Return [] only if there are truly no recognizable milestones.
-
-Schedule rows:
 `;
 
-export async function aiExtractMilestones(text, anthropic) {
+export async function aiExtractMilestones(text, anthropic, ctx = {}) {
   if (!text) return [];
+
+  // The rows are the GC's schedule export. They used to be concatenated onto the
+  // end of PROMPT_HEAD under a "Schedule rows:" label — one string, two authors.
+  // See src/lib/agent/untrusted.js. 180k chars is a lot of stranger-written text
+  // to hand a model, which is exactly why it needs the fence rather than despite it.
+  const sealed = buildUntrustedPrompt({
+    instructions: PROMPT_HEAD,
+    documents:    [{ text, descriptor: 'construction schedule', maxChars: 180000 }],
+  });
+  warnOnInjection('schedule.construction.parse', ctx.projectId, sealed);
+
   const msg = await anthropic.messages.create({
     model: 'claude-haiku-4-5',
     max_tokens: 1500,
-    messages: [{ role: 'user', content: PROMPT_HEAD + text.slice(0, 180000) }],
+    system:   sealed.system,
+    messages: [{ role: 'user', content: sealed.content }],
   });
   const raw = msg.content.map(b => b.text || '').join('');
   const s = raw.indexOf('['), e = raw.lastIndexOf(']');
@@ -192,7 +203,7 @@ function withTimeout(promise, ms, label) {
  *    better labels) and wins when it returns a fuller set.
  * So an AI/network hiccup or Lambda timeout can never blank the dates.
  */
-export async function extractScheduleMilestones(buffer, anthropic, { aiTimeoutMs = 22000 } = {}) {
+export async function extractScheduleMilestones(buffer, anthropic, { aiTimeoutMs = 22000, ...ctx } = {}) {
   const { text, numPages, pagesRead, error } = await extractScheduleTextDiag(buffer);
   const diag = { numPages, pagesRead, error, textLen: text?.length ?? 0 };
   if (!text) return { text: null, milestones: [], source: 'none', diag };
@@ -200,7 +211,7 @@ export async function extractScheduleMilestones(buffer, anthropic, { aiTimeoutMs
   const keyword = keywordExtractMilestones(text);
 
   let ai = [];
-  try { ai = await withTimeout(aiExtractMilestones(text, anthropic), aiTimeoutMs, 'AI extraction'); }
+  try { ai = await withTimeout(aiExtractMilestones(text, anthropic, ctx), aiTimeoutMs, 'AI extraction'); }
   catch (e) { console.error('[extractScheduleMilestones] AI skipped:', e?.message ?? e); diag.aiError = e?.message ?? String(e); }
 
   // Prefer AI when it returns a fuller set; otherwise the reliable keyword floor.

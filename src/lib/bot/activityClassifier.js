@@ -14,6 +14,7 @@
 import { prisma }          from '@/lib/db';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient }      from '@/lib/agent/client';
+import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
 
 // ── In-person activity types ───────────────────────────────────────────────────
 export const IN_PERSON_TYPES = new Set([
@@ -95,15 +96,22 @@ async function classifyWithAI(event) {
     ? Math.max(0, event.attendeeCount - 1)
     : 'unknown';
 
+  // Counts and the organizer address are structured fields we derived, so they
+  // stay in the instructions. Title, location and description are free text an
+  // outside party wrote when they sent the invite — those go in the fence.
+  const eventText = [
+    `Title: ${event.title || ''}`,
+    `Location: ${event.location || 'not specified'}`,
+    event.body ? `Description snippet: ${event.body.slice(0, 200)}` : null,
+  ].filter(Boolean).join('\n');
+
   const prompt = `You are classifying a calendar event to determine if it's an in-person client relationship activity.
 
 Event:
-- Title: "${event.title || ''}"
-- Location: "${event.location || 'not specified'}"
 - Attendees: ${event.attendeeCount || 'unknown'} total (${externalCount} external estimated)
 - Duration: ${event.durationMinutes || 'unknown'} minutes
 - Organizer: ${event.organizerEmail || 'unknown'}
-${event.body ? `- Description snippet: "${event.body.slice(0, 200)}"` : ''}
+- Title, location and description: in the marked block below.
 
 Classify as exactly one:
 COFFEE - coffee shop meeting, cafe, informal chat (typically 30-90 min, 2-4 people)
@@ -129,10 +137,18 @@ Examples: LUNCH|88  or  SKIP|95  or  GOLF|72`;
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
     // Recorded: see src/lib/agent/ledger.js.
     const client = wrapClient(new Anthropic({ apiKey }), 'bot.activity.classify');
+
+    const sealed = buildUntrustedPrompt({
+      instructions: prompt,
+      documents:    [{ text: eventText, descriptor: 'calendar event', maxChars: 2000 }],
+    });
+    warnOnInjection('bot.activity.classify', null, sealed);
+
     const msg = await client.messages.create({
       model:      'claude-haiku-4-5',
       max_tokens: 20,
-      messages:   [{ role: 'user', content: prompt }],
+      system:     sealed.system,
+      messages:   [{ role: 'user', content: sealed.content }],
     });
     const raw = msg.content?.[0]?.text?.trim() || '';
     const [typeStr, confStr] = raw.split('|');

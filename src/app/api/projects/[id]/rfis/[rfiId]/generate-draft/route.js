@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { extractFixtureTypes } from '@/lib/extractFixtureTypes';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
+import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
 
 // POST /api/projects/[id]/rfis/[rfiId]/generate-draft
 // Assembles context, determines confidence tier, calls Claude, writes draft to DB.
@@ -152,14 +153,22 @@ Generate ONLY the response text. No preamble. No explanations. No markdown.`;
       { projectId: params.id, userId: user?.id || null },
     );
 
+    // The context is ours — project data we assembled. The question is the
+    // contractor's, so only it goes inside the fence. This route drafts text
+    // that ILC signs and sends, which makes being steered here expensive even
+    // though a human clicks send. See src/lib/agent/untrusted.js.
+    const sealed = buildUntrustedPrompt({
+      instructions: `Context:\n${contextJson}\n\nAnswer the RFI question in the marked block below.`,
+      system:       systemPrompt,
+      documents:    [{ text: questionText || '', descriptor: 'RFI question', maxChars: 8000 }],
+    });
+    warnOnInjection('rfi.draft', params.id, sealed);
+
     const msg = await anthropic.messages.create({
       model:      'claude-haiku-4-5',
       max_tokens: 1024,
-      system:     systemPrompt,
-      messages: [{
-        role:    'user',
-        content: `Context:\n${contextJson}\n\nQuestion:\n${questionText}`,
-      }],
+      system:     sealed.system,
+      messages:   [{ role: 'user', content: sealed.content }],
     });
 
     draftText = msg.content?.[0]?.text?.trim() ?? null;

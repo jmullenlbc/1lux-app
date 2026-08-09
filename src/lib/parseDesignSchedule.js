@@ -1,6 +1,7 @@
 import { getAnthropicKey } from '@/lib/anthropicKey.js';
 import Anthropic from '@anthropic-ai/sdk';
 import { wrapClient } from '@/lib/agent/client';
+import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
 
 // Recorded: see src/lib/agent/ledger.js. wrapClient is a synchronous Proxy, so a
 // module-level client can be wrapped in place without making this an await.
@@ -44,7 +45,12 @@ const DESIGN_MILESTONE_IDS = [
   },
 ];
 
-export async function extractDesignMilestonesWithAI(textContent) {
+/**
+ * @param {string} textContent  the architect's schedule export — their document.
+ * @param {object} [ctx]        `{ projectId }`, used only to label the warning if
+ *                              the schedule contains instruction-like text.
+ */
+export async function extractDesignMilestonesWithAI(textContent, ctx = {}) {
   const prompt = `You are reading a design/architecture project schedule (may be MS Project, Asta, or similar Gantt export).
 
 Extract milestone dates and return ONLY a valid JSON array — no markdown, no explanation.
@@ -58,15 +64,22 @@ Rules:
 - Only include milestones that are explicitly in the schedule — do NOT guess or invent dates
 - Use milestone/finish dates, not start dates for phase-duration rows
 - Return [] if no recognizable milestone dates are found
-- Dates may appear as M/D/YY, MM/DD/YYYY, or Mon D/D/YY format
+- Dates may appear as M/D/YY, MM/DD/YYYY, or Mon D/D/YY format`;
 
-Schedule text (first 8000 chars):
-${textContent.slice(0, 8000)}`;
+  // The schedule is the architect's export, not ours. It used to be appended to
+  // the prompt under a "Schedule text:" label, which is a label, not a boundary.
+  // See src/lib/agent/untrusted.js.
+  const sealed = buildUntrustedPrompt({
+    instructions: prompt,
+    documents:    [{ text: textContent, descriptor: 'design schedule', maxChars: 8000 }],
+  });
+  warnOnInjection('schedule.design.parse', ctx.projectId, sealed);
 
   const msg = await anthropic.messages.create({
     model:      'claude-haiku-4-5-20251001',
     max_tokens: 600,
-    messages:   [{ role: 'user', content: prompt }],
+    system:     sealed.system,
+    messages:   [{ role: 'user', content: sealed.content }],
   });
 
   const raw   = msg.content.map(b => b.text || '').join('');

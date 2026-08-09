@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
+import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
 
 // CATEGORY_CONTEXT — hints to the model about what each category means
 const CATEGORY_CONTEXT = {
@@ -71,9 +72,10 @@ ${manufacturer ? `Manufacturer: ${manufacturer}` : ''}${modelNumber ? ` · ${mod
 Reviewer: ${review.reviewerRole}${review.reviewerName ? ` (${review.reviewerName})` : ''}
 Review Status: ${review.status}
 Comment Type: ${catContext}
-Reviewer Comment: "${review.notes}"
 
-Write a concise, professional ILC Studios response to this reviewer comment (1-3 sentences).
+The reviewer's comment itself follows below, inside the marked block.
+
+Write a concise, professional ILC Studios response to that reviewer comment (1-3 sentences).
 
 Rules:
 - Directly address the specific concern raised
@@ -86,6 +88,17 @@ Rules:
 - If it's informational/acknowledged, confirm understanding concisely
 
 Respond with ONLY the response text. No subject line, no signature, no preamble.`;
+
+  // The reviewer is an outside party — a city plan reviewer, an architect, a GC.
+  // Their comment used to be interpolated straight into the prompt in quotes,
+  // which is a delimiter a comment can close by typing a quote mark. It is now
+  // fenced. This route drafts text that goes back out under ILC's name, so being
+  // steered here has a real cost even though a human sends it.
+  const sealed = buildUntrustedPrompt({
+    instructions: prompt,
+    documents:    [{ text: review.notes || '', descriptor: `reviewer comment (${review.reviewerRole})`, maxChars: 8000 }],
+  });
+  warnOnInjection('tracker.review.respond', params.id, sealed);
 
   let responseBody = '';
   try {
@@ -100,7 +113,8 @@ Respond with ONLY the response text. No subject line, no signature, no preamble.
     const msg = await anthropic.messages.create({
       model: 'claude-haiku-4-5',
       max_tokens: 200,
-      messages: [{ role: 'user', content: prompt }],
+      system:   sealed.system,
+      messages: [{ role: 'user', content: sealed.content }],
     });
 
     responseBody = msg.content?.[0]?.text?.trim() || '';

@@ -7,8 +7,8 @@ Write a new log entry into `.claude/coordination.md` summarising what's been acc
 ### 1. Identify the user
 
 Run `git config user.email`:
-- `operations@ilcstudios.com` → tag the entry as **Sean's Claude**
 - `mike@innovateilluminate.com` (or anything else mapping to Mike) → tag as **Mike's Claude**
+- anything else → tag with that user's name, e.g. **Manny's Claude**
 
 ### 2. Read the current coordination file
 

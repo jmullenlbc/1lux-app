@@ -40,5 +40,5 @@ A fresh codespace has a **seeded, empty-ish database** — not your laptop's pro
 | `.env` | Doesn't exist. Secrets are env vars from GitHub; non-secrets are set in `.devcontainer/devcontainer.json` |
 | Emails/notifications | `NOTIFY_DRY_RUN=true` is forced in the container env — a codespace can never accidentally notify a human |
 | `npm run build` | Works, same 13-asset runtime check. Chromium PDF generation actually works *better* here (Linux, same as the Lambda) |
-| Schema changes | Same rule as everywhere: Sean owns them, route through `.claude/coordination.md` |
+| Schema changes | Same rule as everywhere: additive only, never edit `prisma/schema.prisma` unilaterally |
 | Deploys | Only from Mike's explicit "Deploy", only after the full pass — never from a codespace as a test |

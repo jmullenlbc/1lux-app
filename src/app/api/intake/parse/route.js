@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
  * ProjectFile row, no disk write, no S3 object, no Project. Two reasons:
  *
  *   1. It sidesteps the schema that doesn't exist yet (ConceptualSubmission is
- *      still with Sean), so the UI can be finished and tested now.
+ *      not yet added), so the UI can be finished and tested now.
  *   2. It is the right shape regardless. A public form should not create
  *      durable records from anonymous input. Nothing persists until a human at
  *      ILC accepts the submission — which is exactly the review-queue model

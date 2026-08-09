@@ -12,7 +12,7 @@
  *   2. Field sensitivity is declared exactly once, on the property, and every
  *      consumer inherits it — the MCP read path today, share links and PDFs as
  *      they get folded on.
- *   3. Undeclared means `ilc_only`. A column Sean adds next week is invisible to
+ *   3. Undeclared means `ilc_only`. A column added next week is invisible to
  *      non-ILC callers until somebody deliberately widens it.
  *
  * Deliberately does NOT import @prisma/client. The registry is a description,

@@ -54,7 +54,7 @@ doc = SimpleDocTemplate(
     topMargin=0.6 * inch, bottomMargin=0.6 * inch,
     leftMargin=0.85 * inch, rightMargin=0.85 * inch,
     title="Manny — Task: Wizard dirty-field tracking",
-    author="Sean / ILC Studios",
+    author="ILC Studios",
 )
 
 story = []
@@ -63,7 +63,7 @@ story = []
 story.append(Paragraph("Wizard dirty-field tracking", title_style))
 story.append(Paragraph(
     "Make the conceptual-budget wizard's section forms only send fields the user actually changed. "
-    "Closes the underlying cause of a silent data-loss bug Sean caught on 2026-06-22. "
+    "Closes the underlying cause of a silent data-loss bug caught on 2026-06-22. "
     "Estimated effort: 1–2 hours of focused work.",
     subtitle_style,
 ))
@@ -71,7 +71,7 @@ story.append(Paragraph(
 # ── Background ────────────────────────────────────────────────────────
 story.append(Paragraph("Background", h1_style))
 story.append(Paragraph(
-    "On 2026-06-22, Sean re-ran a previously-validated project through the wizard and the budget total "
+    "On 2026-06-22, the tester re-ran a previously-validated project through the wizard and the budget total "
     "dropped from $494K to $373K. Investigation showed that the wizard's section forms send <b>every</b> "
     "field in their state on Save & Continue — including blank ones. The save endpoint treated blanks as "
     "<font face='Courier'>null</font> and overwrote the database, silently wiping fields that had been correctly "
@@ -79,7 +79,7 @@ story.append(Paragraph(
     body_style,
 ))
 story.append(Paragraph(
-    "Sean shipped a server-side guard (commit <font face='Courier'>896ded1</font>) that skips writes where the "
+    "Mike shipped a server-side guard (commit <font face='Courier'>896ded1</font>) that skips writes where the "
     "new value is blank but the existing value is meaningful. That guard prevents data loss today, but it has "
     "a side effect: users can no longer use the wizard to <i>clear</i> a value.",
     body_style,
@@ -120,7 +120,7 @@ story.append(Paragraph("Out of scope (do not touch)", h2_style))
 story.append(Paragraph(
     "• <font face='Courier'>src/lib/calculations.js</font> — the engine math is validated to within 2.3% of "
     "the source spreadsheet. Don't touch it.<br/>"
-    "• The save endpoints in <font face='Courier'>src/app/api/projects/[id]/</font> — Sean's server-side "
+    "• The save endpoints in <font face='Courier'>src/app/api/projects/[id]/</font> — the server-side "
     "guard stays in place.<br/>"
     "• The Project Overview Dashboard's <font face='Courier'>EditableStat</font> components — those already "
     "send one field at a time via PATCH.",
@@ -194,7 +194,7 @@ story.append(Paragraph(
     "<b>3. Commit ProjectDataSection alone.</b> Short message like \"wizard: dirty-track ProjectDataSection.\"<br/>"
     "<b>4. Repeat for the other six sections.</b> One commit per section is fine; one big commit is also fine.<br/>"
     "<b>5. Push the branch.</b> Open a PR titled \"Wizard: dirty-field tracking on all sections.\"<br/>"
-    "<b>6. Tell Sean</b> the PR is ready. He reviews and merges.",
+    "<b>6. Tell Mike</b> the PR is ready. He reviews and merges.",
     body_style,
 ))
 
@@ -248,8 +248,8 @@ story.append(Paragraph(
 story.append(Paragraph("Stuck?", h1_style))
 story.append(Paragraph(
     "If your Claude can't figure out where to thread the dirty tracking through a particular section "
-    "(some have unusual edit patterns), ping Sean. Better to ask after 30 minutes than to stay stuck. "
-    "Sean can give you the right shape for that one section and you continue from there.",
+    "(some have unusual edit patterns), ping Mike. Better to ask after 30 minutes than to stay stuck. "
+    "Mike can give you the right shape for that one section and you continue from there.",
     body_style,
 ))
 

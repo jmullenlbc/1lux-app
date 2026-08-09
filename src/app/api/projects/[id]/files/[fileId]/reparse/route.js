@@ -42,7 +42,7 @@ export async function POST(request, { params }) {
 
   let milestones = [], text = null, diag = null;
   try {
-    ({ milestones, text, diag } = await extractScheduleMilestones(buffer, anthropic));
+    ({ milestones, text, diag } = await extractScheduleMilestones(buffer, anthropic, { projectId: params.id }));
   } catch (e) {
     return NextResponse.json({ error: `Extraction failed: ${e.message}`, milestones: [] });
   }

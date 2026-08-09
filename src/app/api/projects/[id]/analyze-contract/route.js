@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db';
 import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
+import { buildUntrustedPrompt, ATTACHED_DOCUMENT_RULE } from '@/lib/agent/untrusted';
 import { readFile } from 'fs/promises';
 import path from 'path';
 import { CONTRACT_SYSTEM_PROMPT } from '@/lib/contractSystemPrompt';
@@ -101,14 +102,32 @@ export async function POST(request, { params }) {
     }
   }
 
+  const INSTRUCTIONS = 'Review this contract against ILC Studios standard positions. Return only the JSON. Flag every meaningful deviation, missing clause, and risk. Flag anything better than ILC standard as GREEN.';
+
+  // A contract is written by the other side. It is the single most likely
+  // document in this app to contain language aimed at whoever reads it, and the
+  // one where being talked into a softer reading costs the most. So the text
+  // path goes through the injection boundary rather than being pasted after a
+  // `---`. See src/lib/agent/untrusted.js.
+  const sealed = textContent
+    ? buildUntrustedPrompt({
+        instructions: INSTRUCTIONS,
+        system:       CONTRACT_SYSTEM_PROMPT,
+        documents:    [{ text: textContent, descriptor: fileName, maxChars: 200000 }],
+      })
+    : null;
+
+  if (sealed?.injection.found) {
+    // Visibility only — the parse proceeds unchanged. Something in a contract
+    // reading as an instruction to the reviewer is worth a human knowing about
+    // whether or not it was aimed at a model.
+    console.warn('[contract.analyze] third-party document contains instruction-like text',
+      { projectId: params.id, input: sealed.seals[0].summary, markers: sealed.injection.markers.length });
+  }
+
   // Build the Claude message — text path is much faster and cheaper
   const userContent = textContent
-    ? [
-        {
-          type: 'text',
-          text: `Review this contract against ILC Studios standard positions. Return only the JSON. Flag every meaningful deviation, missing clause, and risk. Flag anything better than ILC standard as GREEN.\n\n---\n\n${textContent}`,
-        },
-      ]
+    ? [{ type: 'text', text: sealed.content }]
     : [
         {
           type: 'document',
@@ -129,7 +148,9 @@ export async function POST(request, { params }) {
     message = await recorded.messages.create({
       model:      'claude-sonnet-4-6',
       max_tokens: 16000,
-      system:     CONTRACT_SYSTEM_PROMPT,
+      // Text path: the boundary rule is already folded in, naming the fence ids.
+      // PDF path: nothing to fence, so the attachment-shaped rule instead.
+      system:     sealed ? sealed.system : `${CONTRACT_SYSTEM_PROMPT}\n\n${ATTACHED_DOCUMENT_RULE}`,
       messages:   [{ role: 'user', content: userContent }],
     });
   } catch (err) {

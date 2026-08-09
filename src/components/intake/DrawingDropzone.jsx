@@ -1,6 +1,8 @@
 'use client';
 import { useState, useRef, useCallback } from 'react';
-import { mergeProposals } from '@/lib/drawingExtract';
+// From the standalone module, not '@/lib/drawingExtract' — that one reaches the
+// model and would pull server-only code (node:crypto) into the browser bundle.
+import { mergeProposals } from '@/lib/mergeProposals';
 
 /**
  * Multi-file drawing upload + parse for the conceptual-budget intake.

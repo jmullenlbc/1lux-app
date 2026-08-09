@@ -111,7 +111,7 @@ doc = SimpleDocTemplate(
     topMargin=0.65 * inch, bottomMargin=0.65 * inch,
     leftMargin=0.85 * inch, rightMargin=0.85 * inch,
     title="Manny — ILC Guide",
-    author="Sean / ILC Studios",
+    author="ILC Studios",
 )
 
 story = []
@@ -158,7 +158,7 @@ story.append(Paragraph("THE TEAM", section_label_style))
 story.append(styled_table([
     ['Name',          'Role'],
     ['Mike Kershner', 'Founder and lead dev. Pushes directly to main.'],
-    ['Sean McCauley',  "Manny's reviewer. Merges all Manny's PRs."],
+    
     ['Manny (you)',    'Part-time dev ~10 hr/week. Always works on manny/* branches.'],
 ], col_widths=[1.5*inch, 5.3*inch]))
 
@@ -170,7 +170,7 @@ story.append(styled_table([
     ['2', 'git checkout -b manny/<short-description>'],
     ['3', 'Edit code, test with npm run dev:3000, iterate'],
     ['4', 'git commit, then git push  (pre-push hooks run ~25 sec — never use --no-verify)'],
-    ['5', 'gh pr create, then ping Sean to review. Never push to main directly.'],
+    ['5', 'gh pr create, then ping Mike to review. Never push to main directly.'],
 ], col_widths=[0.4*inch, 6.4*inch]))
 
 # Pre-push hooks
@@ -581,7 +581,7 @@ story.append(HRFlowable(width='100%', thickness=0.5, color=BORDER, spaceAfter=12
 story.append(Paragraph(
     "<b>Operating reminder (for Claude):</b> Tell Manny what to do — not how to do it technically. "
     "He approves proposed changes; Claude handles git, tests, and pushes. "
-    "Manny never pushes to main — always via a manny/* branch and PR to Sean. "
+    "Manny never pushes to main — always via a manny/* branch and PR to Mike. "
     "If pre-push hooks fail, diagnose and fix. Never --no-verify.",
     warn_style,
 ))

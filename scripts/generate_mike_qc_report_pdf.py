@@ -74,14 +74,14 @@ doc = SimpleDocTemplate(
     topMargin=0.55 * inch, bottomMargin=0.55 * inch,
     leftMargin=0.7 * inch, rightMargin=0.7 * inch,
     title="Conceptual Budget Engine QC",
-    author="Sean / ILC Studios",
+    author="ILC Studios",
 )
 
 story = []
 
 # ── Header ────────────────────────────────────────────────────────────
 story.append(Paragraph("Conceptual Budget Engine QC", title_style))
-story.append(Paragraph("Tester: Sean &nbsp;·&nbsp; Date: 2026-06-22 &nbsp;·&nbsp; Vehicle: The Approach (recreated as THE APPROACH (SEAN&apos;S))", date_style))
+story.append(Paragraph("Tester: ILC &nbsp;·&nbsp; Date: 2026-06-22 &nbsp;·&nbsp; Vehicle: The Approach (recreated as THE APPROACH (QC))", date_style))
 
 # ── Verdict ──────────────────────────────────────────────────────────
 story.append(Paragraph(
@@ -95,7 +95,7 @@ story.append(styled_table([
     ['',                                  'Total',         'Delta vs sheet'],
     ['Source spreadsheet (The Approach)', '$512,883',      '—'],
     ['Your run last month',               '$500,118',      '-2.5%'],
-    ["THE APPROACH (SEAN'S) — re-run today", '$501,034',      '-2.3%'],
+    ["THE APPROACH (QC) — re-run today", '$501,034',      '-2.3%'],
 ], col_widths=[3.4 * inch, 1.6 * inch, 2.0 * inch], totals_row=3))
 story.append(Spacer(1, 4))
 story.append(Paragraph(
@@ -122,7 +122,7 @@ story.append(styled_table([
     ['#', 'Item',                          'Magnitude',  'Decision needed'],
     ['1', 'Exit signs pricing rate',       '~$926',      'Master pricing uses $0.025/SF; sheet uses ~$0.03/SF. Which is right?'],
     ['2', 'designUpgrades wiring',         '~$5,800',    'entryway12inch, boilerRoomDisk, etc. exist in pricing but aren\'t added to conceptual totals. Wire them in?'],
-    ['3', 'Long-term wizard refactor',     '—',          'Sean\'s server-side guard prevents the worst, but the wizard\'s forms should track dirty fields and only PATCH changed ones. Queued for Manny as his first real task.'],
+    ['3', 'Long-term wizard refactor',     '—',          'The server-side guard prevents the worst, but the wizard\'s forms should track dirty fields and only PATCH changed ones. Queued for Manny as his first real task.'],
 ], col_widths=[0.3 * inch, 2.0 * inch, 0.9 * inch, 3.8 * inch]))
 
 # ── Page 2 ───────────────────────────────────────────────────────────
@@ -151,7 +151,7 @@ story.append(styled_table([
     ['"Copy as JSON" button on every project (admin only)',                              'Top of breadcrumb on any project page'],
     ['"Missing inputs" warning when Project Data fields are blank',                       'Project Overview tab + Summary page'],
     ['Server-side guard against silent wizard data-wipe',                                 'Server-side, no UI'],
-    ['SUPER_ADMIN role correctly grants visibility to projects/clients',                  'Affects Sean and any future super admins'],
+    ['SUPER_ADMIN role correctly grants visibility to projects/clients',                  'Affects any future super admins'],
     ['Native Delete button for bug reports',                                              'Drawer on /admin/tasks bug card'],
 ], col_widths=[4.8 * inch, 2.2 * inch]))
 

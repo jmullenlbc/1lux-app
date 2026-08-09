@@ -45,6 +45,34 @@
  * @see scripts/tests/agentClient.test.mjs
  */
 import { recordRun } from './ledger.js';
+import { containsSealedDocument } from './untrusted.js';
+
+/**
+ * The injection boundary's enforceable half — Step 19.2, applied to every call.
+ *
+ * A request that carries stranger-authored text may not also carry tools. This
+ * is the control that survives the model being talked into something: an
+ * extraction call physically has no way to write, email, or approve anything,
+ * so the worst case is a wrong answer that a human or an auto-check catches,
+ * rather than an action nobody asked for.
+ *
+ * It throws rather than stripping `tools`. Silently removing them would leave a
+ * feature half-working in a way that looks like a model failure, and whoever
+ * debugged it would have no reason to suspect this file. The two capabilities
+ * have to be split across two calls, and that is a design decision the caller
+ * has to make deliberately.
+ */
+function assertNoToolsOverUntrustedInput(params, task) {
+  const tools = params?.tools;
+  if (!Array.isArray(tools) || tools.length === 0) return;
+  if (!containsSealedDocument(params?.messages) && !containsSealedDocument(params?.system)) return;
+
+  throw new Error(
+    `agent client ("${task}"): a request carrying third-party document text may not also carry tools. ` +
+    'Extraction returns JSON and a separate, non-model code path writes it — see src/lib/agent/untrusted.js. ' +
+    'Split this into a parse call and a write step.'
+  );
+}
 
 /**
  * Wrap an existing Anthropic client so its `messages.create` is recorded.
@@ -103,6 +131,13 @@ export function wrapClient(client, task, context = {}) {
  */
 async function recordedCreate(create, args, task, context) {
   const params  = args[0] || {};
+
+  // Before the call, and deliberately NOT recorded: this never reached the model,
+  // so it is not a model call, and folding it into the ledger would inflate the
+  // task's error rate with a developer mistake that the first test run catches
+  // anyway. The ledger records what the model did.
+  assertNoToolsOverUntrustedInput(params, task);
+
   const started = Date.now();
 
   try {
@@ -163,6 +198,7 @@ async function recordedCreate(create, args, task, context) {
  */
 function recordedStream(stream, args, task, context) {
   const params  = args[0] || {};
+  assertNoToolsOverUntrustedInput(params, task);   // same rule; streaming is not an exemption
   const started = Date.now();
   const streamer = stream(...args);
 

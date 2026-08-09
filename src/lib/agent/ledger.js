@@ -15,7 +15,7 @@
  * record has to be rows.
  *
  * ── The same sink problem as mcp/audit.js, and the same answer ───────────────
- * The natural home is an `AgentRun` table, and schema changes are Sean's:
+ * The natural home is an `AgentRun` table, and schema changes are risky here:
  * `amplify.yml` runs `prisma db push --accept-data-loss`, so a model added on
  * one side and absent on the other is permanent data loss. So the sink is
  * resolved at runtime, in this order:

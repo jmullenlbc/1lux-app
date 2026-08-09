@@ -7,6 +7,7 @@ import path from 'path';
 import { createRequire } from 'module';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
+import { buildUntrustedPrompt } from '@/lib/agent/untrusted';
 
 export const maxDuration = 120;
 
@@ -204,13 +205,24 @@ export async function POST(request, { params }) {
       'fixtureSchedule.parse',
       { projectId: params.id, userId: user.id },
     );
+    // A contractor's fixture schedule is third-party text, so the instructions
+    // and the document go in separate, labelled halves rather than either side
+    // of a `---`. The file name is inside the fence too — it arrives from the
+    // same upload. See src/lib/agent/untrusted.js.
+    const sealed = buildUntrustedPrompt({
+      instructions: AI_PARSE_PROMPT,
+      documents:    [{ text: extractedText, descriptor: file.name, maxChars: 40000 }],
+    });
+    if (sealed.injection.found) {
+      console.warn('[fixtureSchedule.parse] uploaded document contains instruction-like text',
+        { projectId: params.id, input: sealed.seals[0].summary, markers: sealed.injection.markers.length });
+    }
+
     const msg = await anthropic.messages.create({
       model:      'claude-haiku-4-5',
       max_tokens: 8192,
-      messages:   [{
-        role:    'user',
-        content: `${AI_PARSE_PROMPT}\n\nFile: ${file.name}\n\n---\n\n${extractedText.slice(0, 40000)}`,
-      }],
+      system:     sealed.system,
+      messages:   [{ role: 'user', content: sealed.content }],
     });
 
     const raw   = msg.content?.[0]?.text || '';

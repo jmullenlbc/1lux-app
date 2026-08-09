@@ -3,7 +3,7 @@
  * check-sensitivity-coverage — the ontology is a claim about the real schema.
  *
  * The registry in src/lib/ontology/ is hand-written; prisma/schema.prisma is
- * pushed by Sean. Nothing structurally prevents them from drifting apart, and
+ * pushed separately. Nothing structurally prevents them from drifting apart, and
  * both directions of drift are bad in different ways:
  *
  *   registry says a field exists, schema does not
@@ -92,7 +92,7 @@ for (const key of objectKeys) {
 // ─────────────────────────────────────────────────────────────────────────────
 // 3. Buy-price sweep across the WHOLE schema, registered or not.
 //
-// Patterns, not a list, because the point is to catch the column Sean adds next
+// Patterns, not a list, because the point is to catch the column added next
 // month that nobody told this file about. Explicit regexes rather than one broad
 // one — a single loose pattern produced three false positives on this schema
 // (`mustChangePassword`, `buildingFootprintSf`, `isAlternate`).

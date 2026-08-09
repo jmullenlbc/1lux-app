@@ -1,13 +1,13 @@
 # Manny — task queue & session orientation
 
 This file is read by the `/formanuel` slash command at session start.
-Sean and Sean's Claude maintain it. Manny does not edit it.
+the collaborator and the collaborator's Claude maintain it. Manny does not edit it.
 
 ## Who Manny is
 
 - **Manuel San Ramon** — part-time on the ILC team (~10 hr/week)
 - Role: developer focused on small well-scoped fixes and code-hygiene cleanup
-- Reviewer: Sean. Manny opens PRs on `manny/*` branches; Sean reviews and merges.
+- Reviewer: the collaborator. Manny opens PRs on `manny/*` branches; the collaborator reviews and merges.
 - AI tooling: Claude Pro for chat, Claude Code in the terminal for actual work
 
 ## Operating convention for Manny's sessions
@@ -17,7 +17,7 @@ When Manny opens a session:
 1. Greet him by name. Confirm what he was working on by checking the **Active tasks** section below and the latest commits on `manny/*` branches.
 2. If there's an active task, propose to resume it. Don't restart from zero — pick up where the branch and the commits left off.
 3. Tell Claude what to do; Claude handles git, tests, and pushes. Manny reviews proposed changes and approves.
-4. Open a PR when the work is ready for Sean's review. Never push to `main` without Sean's explicit say-so.
+4. Open a PR when the work is ready for the collaborator's review. Never push to `main` without the collaborator's explicit say-so.
 5. Pre-push hooks are sacred. If they fail, fix the underlying issue. Never bypass with `--no-verify`.
 
 ---
@@ -346,7 +346,7 @@ Reset `inviteResult` and `inviteError` when the selected row changes.
 
 ---
 
-## Recent guidance from Sean
+## Recent guidance from the collaborator
 
 - **(2026-08-04)** Task 27 queued. This is the last piece of the external intake flow — closes the loop between submission approval and the submitter getting portal access to view their budget. No schema changes needed.
 - **(2026-07-27)** Tasks 23–26 all shipped and deployed.

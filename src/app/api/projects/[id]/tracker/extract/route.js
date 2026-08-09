@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
+import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
 import {
   extractPdfPages,
   extractNotesFromPages,
@@ -214,13 +215,19 @@ export async function POST(req, { params }) {
         'FINISH|MODEL|ACCESSORY|VOLTAGE|LUMEN|WET_LOCATION|DRAWING_SYNC|DISCONTINUED|LED_TAPE|CODE|CRI|BOILERPLATE|OTHER';
 
       for (const review of otherReviews) {
+        // The note is an outside reviewer's text. The old form put it in double
+        // quotes, which any note containing a quote mark escapes for free.
+        const sealed = buildUntrustedPrompt({
+          instructions: `Classify this submittal reviewer note into exactly one category. Respond with ONLY the category name, nothing else.\n\nCategories: ${categories}`,
+          documents:    [{ text: review.notes || '', descriptor: 'reviewer note', maxChars: 4000 }],
+        });
+        warnOnInjection('tracker.review.classify', params.id, sealed);
+
         const msg = await anthropic.messages.create({
           model:      'claude-haiku-4-5',
           max_tokens: 30,
-          messages: [{
-            role:    'user',
-            content: `Classify this submittal reviewer note into exactly one category. Respond with ONLY the category name, nothing else.\n\nCategories: ${categories}\n\nNote: "${review.notes}"`,
-          }],
+          system:     sealed.system,
+          messages:   [{ role: 'user', content: sealed.content }],
         });
         const classified = msg.content?.[0]?.text?.trim().toUpperCase();
         if (classified && classified !== 'OTHER') {

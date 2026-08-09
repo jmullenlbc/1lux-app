@@ -117,7 +117,7 @@ story.append(Paragraph(
 story.append(Paragraph(
     "<b>How to use this template:</b> open a new document (Word, Google Doc, Markdown — your choice). "
     "Copy the section headers below into your document, fill in the contents, and send the result via Hive "
-    "to Sean. Do not modify this PDF — it is the reference. "
+    "to Mike. Do not modify this PDF — it is the reference. "
     "<br/><br/>"
     "<b>Filename convention:</b> <font face='Courier'>YY.MM.DD descriptive_name.pdf</font> "
     "(example: <font face='Courier'>26.06.16 the_approach_conceptual_budget_retest.pdf</font>).",
@@ -235,7 +235,7 @@ story.append(Preformatted(
 # ── 8. Open questions ──────────────────────────────────────────────────
 story.append(Paragraph("8. Open questions", section_h_style))
 story.append(Paragraph(
-    "Things you were unsure about during the QC. Surface them here rather than guessing — Sean or Mike can answer and the next tester benefits.",
+    "Things you were unsure about during the QC. Surface them here rather than guessing — Mike can answer and the next tester benefits.",
     prompt_style,
 ))
 story.append(Preformatted(
@@ -247,7 +247,7 @@ story.append(Preformatted(
 # ── 9. Recommendations ─────────────────────────────────────────────────
 story.append(Paragraph("9. Recommendations / next steps", section_h_style))
 story.append(Paragraph(
-    "What you would do about each finding, in priority order. Optional — Sean and Mike may overrule, but your perspective as the tester is useful input.",
+    "What you would do about each finding, in priority order. Optional — Mike may overrule, but your perspective as the tester is useful input.",
     prompt_style,
 ))
 story.append(Preformatted(
@@ -266,7 +266,7 @@ story.append(Preformatted(
     "QC completed by:   <tester name>\n"
     "Date completed:    YYYY-MM-DD\n"
     "Total findings:    <N total — Nb BLOCKER, Nm MAJOR, Nmi MINOR, Nc COSMETIC>\n"
-    "Sent via Hive to:  Sean",
+    "Sent via Hive to:  Mike",
     placeholder_style,
 ))
 

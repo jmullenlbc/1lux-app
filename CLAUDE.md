@@ -28,9 +28,14 @@ Each gate exists because something silently broke in production:
 
 **When you fix a bug that a gate could have caught, add the gate.** That is how this list grew.
 
-## Schema changes are Sean's
+## Schema changes are additive-only, and never silent
 
-Never edit `prisma/schema.prisma` unilaterally. Amplify runs `prisma db push --accept-data-loss` on deploy, so a removed or renamed field is a **dropped production column with no rollback**. Propose the change in `.claude/coordination.md` and route it to Sean.
+Amplify runs `prisma db push --accept-data-loss` on deploy, so a removed or renamed field in `prisma/schema.prisma` is a **dropped production column with no rollback**.
+
+- **Adding** a model or an optional field is safe — do it, with a migration, and say so in the session summary.
+- **Removing or renaming** anything is destructive. Never do it as a side effect of another change; surface it to Mike and get an explicit yes first.
+- Prefer a design that needs no schema change at all when one exists. `/admin/usage` is the worked example: a full operations dashboard built entirely on existing tables plus the `SystemConfig` k/v row.
+- Never edit a migration file under `prisma/migrations/` once it has been applied — Prisma checksums them, and a changed file fails `migrate deploy` in production. That includes comment-only edits.
 
 ## Commands
 
@@ -49,7 +54,7 @@ npm run db:studio     # Open Prisma Studio UI
 
 ## Where development happens: laptop OR Codespace
 
-Since 2026-07-22 this repo supports GitHub Codespaces (`.devcontainer/`, guide in `CODESPACES.md`). A codespace replaces the *laptop only* — Amplify, the deploy ritual, the sqlite-in-repo rule, and Sean's schema ownership are identical in both environments.
+Since 2026-07-22 this repo supports GitHub Codespaces (`.devcontainer/`, guide in `CODESPACES.md`). A codespace replaces the *laptop only* — Amplify, the deploy ritual, the sqlite-in-repo rule, and the schema rules are identical in both environments.
 
 Differences that matter to a session:
 - **Dev server:** `npm run dev:3000` on Windows laptops, `npm run dev:codespace` in a codespace (the .ps1 can't run on Linux). Same never-plain-`dev` rule in both.
@@ -283,11 +288,11 @@ These are upserted on every deploy — changing the password in-app won't be ove
 
 ## Cross-Session Claude Coordination
 
-Two humans (Mike and Sean) work on this repo, each running their own Claude Code sessions. To keep Claude sessions roughly oriented across users and time, every Claude session in this repo should:
+Mike may have more than one Claude Code session open on this repo at once. To keep sessions roughly oriented across time and windows, every Claude session in this repo should:
 
-1. **At session start:** read `.claude/coordination.md` to see what the other user's Claude has been doing recently.
-2. **After meaningful work:** append a brief entry at the top of the log section in `.claude/coordination.md`, tagged with date and user (Mike or Sean), summarizing what happened in 1–3 lines.
+1. **At session start:** read `.claude/coordination.md` to see what other sessions have been doing recently.
+2. **After meaningful work:** append a brief entry at the top of the log section in `.claude/coordination.md`, tagged with the date, summarizing what happened in 1–3 lines.
 
 Update the "Current State" block at the top of `coordination.md` only when something materially changes (active work area, what's deployed, what's blocked). The log itself is append-only and newest-first, so concurrent edits produce trivial conflicts.
 
-Append when something is worth the other Claude knowing: a feature landed, a decision was made, an open question surfaced, or a gotcha worth flagging. Skip routine micro-steps — this is a logbook, not a journal.
+Append when something is worth a later session knowing: a feature landed, a decision was made, an open question surfaced, or a gotcha worth flagging. Skip routine micro-steps — this is a logbook, not a journal.

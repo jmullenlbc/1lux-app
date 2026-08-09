@@ -1,6 +1,7 @@
 import { getAnthropicKey } from '@/lib/anthropicKey.js';
 import Anthropic from '@anthropic-ai/sdk';
 import { wrapClient } from '@/lib/agent/client';
+import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
 
 // Recorded: see src/lib/agent/ledger.js.
 const client = wrapClient(new Anthropic({ apiKey: getAnthropicKey() }), 'marketIntel.entityExtract');
@@ -30,13 +31,22 @@ Rules:
 - summary: 1–2 neutral sentences, max 200 characters`;
 
 export async function extractFromArticle(title, rawContent) {
-  const text = `TITLE: ${title}\n\nCONTENT: ${rawContent}`;
+  // A scraped news article is the least trusted text in the app — it is an
+  // arbitrary web page, and the headline is written by whoever published it.
+  // Both go inside the fence. See src/lib/agent/untrusted.js.
+  const sealed = buildUntrustedPrompt({
+    instructions: 'Extract the structured data described above from the article below.',
+    system:       SYSTEM_PROMPT,
+    documents:    [{ text: `TITLE: ${title}\n\nCONTENT: ${rawContent}`, descriptor: 'scraped article', maxChars: 40000 }],
+  });
+  warnOnInjection('marketIntel.entityExtract', null, sealed);
+
   try {
     const response = await client.messages.create({
       model:      'claude-haiku-4-5',
       max_tokens: 300,
-      system:     SYSTEM_PROMPT,
-      messages:   [{ role: 'user', content: text }],
+      system:     sealed.system,
+      messages:   [{ role: 'user', content: sealed.content }],
     });
     const raw     = response.content[0]?.text || '{}';
     const cleaned = raw.replace(/```json|```/g, '').trim();

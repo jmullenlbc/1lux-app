@@ -64,7 +64,7 @@ test('lookup is case-insensitive but never invents an object', () => {
 
 test('an undeclared property defaults to ilc_only', () => {
   assert.equal(DEFAULT_SENSITIVITY, SENSITIVITY.ILC_ONLY);
-  assert.equal(sensitivityOf('Project', 'someColumnSeanAddsNextWeek'), SENSITIVITY.ILC_ONLY);
+  assert.equal(sensitivityOf('Project', 'someColumnAddedNextWeek'), SENSITIVITY.ILC_ONLY);
   assert.equal(sensitivityOf('NotAnObject', 'anything'), SENSITIVITY.ILC_ONLY);
 });
 
@@ -153,7 +153,7 @@ test('an UNREGISTERED object is unreachable to non-ILC callers', () => {
   assert.equal(canReadObject('emailAccount', 'client'), false);
   assert.equal(canReadObject('emailAccount', 'public'), false);
   assert.equal(canReadObject('manufacturerProduct', 'client'), false);
-  assert.equal(canReadObject('somethingSeanAddsNextWeek', 'client'), false);
+  assert.equal(canReadObject('somethingAddedNextWeek', 'client'), false);
   // ILC is cleared for everything — that asymmetry IS the fail-closed guarantee.
   assert.equal(canReadObject('emailAccount', 'ilc'), true);
 });

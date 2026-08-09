@@ -6,6 +6,7 @@ import { readFile } from 'fs/promises';
 import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
+import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
 
 const anthropic = new Anthropic({ apiKey: getAnthropicKey() });
 
@@ -38,15 +39,21 @@ RULES:
 - Do NOT use: "Type", "Manufacturer", "Model", "Page", "RESUBMIT", "APPROVED" as type codes
 - If a type code appears more than once (e.g. in RESUBMIT and APPROVED sections), include it only ONCE
 - Include ALL fixture types — do NOT truncate
-- Return [] only if no fixture types exist at all
+- Return [] only if no fixture types exist at all`;
 
-Text (first 10000 chars):
-${text.slice(0, 10000)}`;
+  // The submittal package is the contractor's document. Fenced rather than
+  // appended after a "Text:" label — see src/lib/agent/untrusted.js.
+  const sealed = buildUntrustedPrompt({
+    instructions: prompt,
+    documents:    [{ text, descriptor: 'submittal TOC', maxChars: 10000 }],
+  });
+  warnOnInjection('tracker.toc.extract', ctx.projectId, sealed);
 
   const msg = await wrapClient(anthropic, 'tracker.toc.extract', ctx).messages.create({
     model:      'claude-haiku-4-5-20251001',
     max_tokens: 1500,
-    messages:   [{ role: 'user', content: prompt }],
+    system:     sealed.system,
+    messages:   [{ role: 'user', content: sealed.content }],
   });
 
   const raw   = msg.content.map(b => b.text || '').join('');

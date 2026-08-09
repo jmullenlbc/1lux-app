@@ -22,8 +22,8 @@
  *
  * ── Fail closed ──────────────────────────────────────────────────────────────
  * An object with no entry in SCOPES is UNREACHABLE to a non-ILC caller, not
- * unscoped. That is the same discipline as the field allowlist: when Sean adds a
- * model and someone writes its ontology definition, a client cannot read a single
+ * unscoped. That is the same discipline as the field allowlist: when a model is
+ * added and someone writes its ontology definition, a client cannot read a single
  * row of it until somebody also writes down how it relates to a project. The
  * failure mode of forgetting is "nobody can see it", never "everybody can".
  *

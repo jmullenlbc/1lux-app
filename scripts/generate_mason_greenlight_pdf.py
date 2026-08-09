@@ -70,14 +70,14 @@ doc = SimpleDocTemplate(
     topMargin=0.6 * inch, bottomMargin=0.6 * inch,
     leftMargin=0.8 * inch, rightMargin=0.8 * inch,
     title="Conceptual Budget Tool — Ready for Mason",
-    author="Sean / ILC Studios",
+    author="ILC Studios",
 )
 
 story = []
 
 # ── Header ────────────────────────────────────────────────────────────
 story.append(Paragraph("Conceptual Budget Tool — Ready for Mason", title_style))
-story.append(Paragraph("Tester: Sean &nbsp;·&nbsp; Date: 2026-06-22", date_style))
+story.append(Paragraph("Tester: ILC &nbsp;·&nbsp; Date: 2026-06-22", date_style))
 
 # ── Verdict ──────────────────────────────────────────────────────────
 story.append(Paragraph(
@@ -95,7 +95,7 @@ story.append(Paragraph(
 story.append(styled_table([
     ['',                                          'Total',         'Delta vs sheet'],
     ['Source spreadsheet',                        '$512,883',      '—'],
-    ["Tool re-run (THE APPROACH (SEAN'S), today)",          '$501,034',      '-2.3%'],
+    ["Tool re-run (THE APPROACH (QC), today)",          '$501,034',      '-2.3%'],
 ], col_widths=[3.6 * inch, 1.5 * inch, 2.0 * inch], totals_row=2))
 story.append(Spacer(1, 8))
 story.append(Paragraph(

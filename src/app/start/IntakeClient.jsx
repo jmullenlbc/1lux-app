@@ -8,7 +8,7 @@ import { classifyIntakeEmail } from '@/lib/intake';
  *
  * Scope of this pass: contact capture + work-email gating + the multi-file
  * drawing upload/parse step. Submission is NOT wired yet — it needs the
- * `ConceptualSubmission` model that is currently with Sean. The submit button
+ * `ConceptualSubmission` model that does not exist yet. The submit button
  * is deliberately disabled with a visible explanation rather than silently
  * dropping a stranger's work on the floor.
  *

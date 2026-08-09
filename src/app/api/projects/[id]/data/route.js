@@ -74,7 +74,7 @@ export async function PUT(request, { params }) {
   // "clear to null", which prevents stale wizard forms from silently
   // wiping saved data on Save & Continue.
   //
-  // Background: on 2026-06-22, Sean's APPROACH II project lost
+  // Background: on 2026-06-22, the APPROACH II project lost
   // exteriorAmenitySf=19909 and several other fields after he reopened
   // the wizard and clicked through. The wizard's Project Data form
   // sends every field in its payload, including blanks that hadn't been

@@ -47,7 +47,7 @@ export async function PUT(request, { params }) {
   // Preserve-on-blank semantics, same fix as /api/projects/[id]/data:
   // skip writes that would replace a meaningful existing value with a
   // blank one. Stale wizard sections were silently wiping responses
-  // like exterior.exteriorManualItems (Sean's $75K manual adder on
+  // like exterior.exteriorManualItems (the $75K manual adder on
   // APPROACH II, lost 2026-06-22) when the form re-mounted with empty
   // defaults and then sent everything on Save & Continue.
   //

@@ -16,7 +16,7 @@
  *                           response until someone declares it.
  *
  * The MCP server is a general-purpose read API over 116 models. A denylist there
- * would mean every new column Sean pushes is exposed by default and stays
+ * would mean every new column pushed is exposed by default and stays
  * exposed until someone notices. So the read path uses this one, and the
  * denylist stays where it belongs: catching known-dangerous names in payloads
  * that were assembled by hand.

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
+import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
 
 // POST /api/projects/[id]/rfi-extract
 // Body: { fileId } — extracts just the RFI question/request from a file's textContent
@@ -36,20 +37,23 @@ export async function POST(req, { params }) {
       return NextResponse.json({ question: existing.rfiQuestion });
     }
 
-    const msg = await wrapClient(raw, 'rfi.extractQuestion', ctx).messages.create({
-      model:      'claude-haiku-4-5',
-      max_tokens: 300,
-      messages: [{
-        role: 'user',
-        content: `You are reading an RFI (Request for Information) document from a construction project.
+    // An RFI is written by the contractor asking the question, so its text is
+    // third-party input and goes inside the fence. See src/lib/agent/untrusted.js.
+    const sealed = buildUntrustedPrompt({
+      instructions: `You are reading an RFI (Request for Information) document from a construction project.
 
 Extract ONLY the actual question or information being requested. Ignore all header information (project name, date, RFI number, addresses, from/to fields, company names, contractor info).
 
-Return only 1-3 sentences describing what is being asked. Be concise and specific. Start directly with the request content, not with "This RFI asks..." or similar.
+Return only 1-3 sentences describing what is being asked. Be concise and specific. Start directly with the request content, not with "This RFI asks..." or similar.`,
+      documents: [{ text: file.textContent, descriptor: file.originalName || 'RFI', maxChars: 6000 }],
+    });
+    warnOnInjection('rfi.extractQuestion', params.id, sealed);
 
-RFI text:
-${file.textContent.slice(0, 6000)}`,
-      }],
+    const msg = await wrapClient(raw, 'rfi.extractQuestion', ctx).messages.create({
+      model:      'claude-haiku-4-5',
+      max_tokens: 300,
+      system:     sealed.system,
+      messages:   [{ role: 'user', content: sealed.content }],
     });
 
     const question = msg.content[0]?.text?.trim() || null;
@@ -68,12 +72,10 @@ ${file.textContent.slice(0, 6000)}`,
 
   // ── Mode 2: Parse a pasted email and create an RFI record ────────────────
   if (body.emailContent) {
-    const msg = await wrapClient(raw, 'rfi.parseEmail', ctx).messages.create({
-      model:      'claude-haiku-4-5',
-      max_tokens: 500,
-      messages: [{
-        role: 'user',
-        content: `You are reading an email that contains or references an RFI (Request for Information) for a construction project.
+    // A pasted email is the most obviously attacker-shaped input in the app —
+    // it arrives from outside, unmodified, and a sender chooses every word of it.
+    const sealed = buildUntrustedPrompt({
+      instructions: `You are reading an email that contains or references an RFI (Request for Information) for a construction project.
 
 Extract the following and return as JSON only (no explanation):
 {
@@ -82,18 +84,29 @@ Extract the following and return as JSON only (no explanation):
   "question": "1-3 sentence summary of exactly what information is being requested — ignore headers/boilerplate",
   "from": "sender name or company if identifiable, else null",
   "date": "date string if found, else null"
-}
+}`,
+      documents: [{ text: body.emailContent, descriptor: 'pasted email', maxChars: 8000 }],
+    });
+    warnOnInjection('rfi.parseEmail', params.id, sealed);
 
-Email content:
-${body.emailContent.slice(0, 8000)}`,
-      }],
+    const msg = await wrapClient(raw, 'rfi.parseEmail', ctx).messages.create({
+      model:      'claude-haiku-4-5',
+      max_tokens: 500,
+      system:     sealed.system,
+      messages:   [{ role: 'user', content: sealed.content }],
     });
 
-    const raw  = msg.content[0]?.text?.trim() || '{}';
-    const start = raw.indexOf('{');
-    const end   = raw.lastIndexOf('}');
-    let parsed  = {};
-    try { parsed = JSON.parse(raw.slice(start, end + 1)); } catch {}
+    // Named `answer`, not `raw`. It used to be `const raw`, which shadowed the
+    // Anthropic client of the same name declared above — and because `const` is
+    // block-scoped, the `wrapClient(raw, …)` call earlier in THIS block was
+    // reading the shadowed binding while it was still in its temporal dead zone.
+    // Mode 2 threw `Cannot access 'raw' before initialization` on every pasted
+    // email, before any model call was made.
+    const answer = msg.content[0]?.text?.trim() || '{}';
+    const start  = answer.indexOf('{');
+    const end    = answer.lastIndexOf('}');
+    let parsed   = {};
+    try { parsed = JSON.parse(answer.slice(start, end + 1)); } catch {}
 
     // Create a ProjectFile record for this email-sourced RFI
     const rfiFile = await prisma.projectFile.create({

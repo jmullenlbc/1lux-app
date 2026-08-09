@@ -8,14 +8,13 @@
  * after the fact.
  *
  * The complication is that the natural home for this — an `McpQueryLog` table —
- * is a schema change, and schema changes are Sean's. `amplify.yml` runs
+ * is a schema change, and schema changes are risky here. `amplify.yml` runs
  * `prisma db push --accept-data-loss`, so a column added unilaterally on one
- * side and dropped on the other is permanent data loss. The proposal is queued
- * in .claude/coordination.md.
+ * side and dropped on the other is permanent data loss.
  *
  * So the sink is swappable, resolved once per process, in this order:
  *
- *   1. `prisma.mcpQueryLog` exists  → write rows. (After Sean pushes the model.)
+ *   1. `prisma.mcpQueryLog` exists  → write rows. (Once the model is pushed.)
  *   2. not production               → append JSONL to .mcp-audit/. Good enough
  *                                     for local development and for the tests.
  *   3. production, no table         → NO SINK. The server refuses every request

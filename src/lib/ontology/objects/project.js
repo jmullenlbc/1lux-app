@@ -8,7 +8,7 @@
  * negotiating hand.
  *
  * Anything not listed here is `ilc_only` by default and is simply absent from a
- * non-ILC response. That includes every field Sean adds tomorrow.
+ * non-ILC response. That includes every field added tomorrow.
  */
 export const Project = {
   key:   'Project',

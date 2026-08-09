@@ -10,6 +10,6 @@ You are answering "what's Mike been up to?" Pull from two sources:
 Synthesise into a tight summary (1–2 paragraphs max):
 - What Mike has completed or shipped recently (with commit SHAs)
 - What he's currently working on
-- Any open questions, requests, or decisions waiting on Sean (or on Mike to follow up)
+- Any open questions, requests, or decisions waiting on Mike to follow up
 
 Be specific but compact. This is a quick orientation, not a deep dive.

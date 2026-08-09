@@ -7,7 +7,6 @@
  *
  * Run with:   npx tsx _tests/budget-math.mjs
  *
- * Author: Sean (with Claude's help)
  * Status: scratch-space until promoted to a committed regression suite.
  */
 
@@ -114,7 +113,7 @@ const result1 = calculateBudget(baselinePD, {});
 console.log('  ── INPUTS: 150K gross SF, 120K units SF, 200 units, 400 vanities, 15K corridor,');
 console.log('             50 parking, midRise, 9.15% sales tax');
 summarize(result1);
-console.log('\n  ── SEAN: Does the total magnitude look right for a 200-unit midRise?');
+console.log('\n  ── REVIEW: Does the total magnitude look right for a 200-unit midRise?');
 console.log('     A typical such project ballpark? Per-unit and per-SF in sane range?');
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -296,7 +295,7 @@ assert(th.controls === 0, 'townHouses produces $0 controls (rate is 0)');
 
 // Verify the universal controls cap ($180K) is respected at very large grossSf.
 // (Per the Link+Pin sheet: "controls should never be over $180K". Replaced the old
-// per-building-type caps with a single $180K cap — coordinate with Sean.)
+// per-building-type caps with a single $180K cap.)
 const huge = calculateBudget({ ...baselinePD, grossSf: 5000000, buildingTypeKey: 'midRise' }, {});
 assert(huge.controls === 180000, 'controls capped at the universal $180,000 even at 5M SF');
 

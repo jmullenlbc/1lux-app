@@ -4,7 +4,7 @@
  * Everything here is deliberately dependency-free and DB-free so it can be
  * unit-tested without a database and called from an unauthenticated route.
  * The DB-backed wiring (Client.emailDomains, ConceptualSubmission) lands once
- * Sean adds the schema — see .claude/coordination.md.
+ * the schema is added.
  */
 
 // ─── WORK-EMAIL GATING ──────────────────────────────────────────────────────

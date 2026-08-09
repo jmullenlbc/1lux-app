@@ -11,7 +11,6 @@ ILC Lighting App -- internal tool for ILC Studios (lighting consultancy). Produc
 ## Team
 
 - **Mike Kershner** -- founder, lead dev, pushes directly to `main`
-- **Sean McCauley** -- Manny's reviewer, merges all Manny's PRs
 - **Manny (here now)** -- part-time dev ~10 hr/week, always uses `manny/*` branches + PRs
 
 ## Manny's mandatory workflow
@@ -20,7 +19,7 @@ ILC Lighting App -- internal tool for ILC Studios (lighting consultancy). Produc
 2. `git checkout -b manny/<description>` -- always a new branch
 3. Edit, test with `npm run dev:3000`, iterate
 4. Commit, then `git push` -- pre-push hooks run (~25 sec, never bypass with `--no-verify`)
-5. `gh pr create` -- open PR, ping Sean to review. Never push to `main` directly.
+5. `gh pr create` -- open PR, ping Mike to review. Never push to `main` directly.
 
 ## Pre-push hooks (never bypass)
 

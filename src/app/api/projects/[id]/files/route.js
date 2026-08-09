@@ -186,7 +186,7 @@ export async function POST(request, { params }) {
   if (tab === 'designInfo' && tags.includes('Design Schedule') && textContent) {
     try {
       const { extractDesignMilestonesWithAI } = await import('@/lib/parseDesignSchedule.js');
-      const milestones = await extractDesignMilestonesWithAI(textContent);
+      const milestones = await extractDesignMilestonesWithAI(textContent, { projectId: params.id });
       if (milestones && milestones.length > 0) {
         takeoffData          = JSON.stringify({ milestones });
         designScheduleUpdate = { milestones };
@@ -204,7 +204,7 @@ export async function POST(request, { params }) {
   let scheduleUpdate = null;
   if (tab === 'ca' && tags.includes('Construction Schedule')) {
     try {
-      const { text: schedText, milestones } = await extractScheduleMilestones(buffer, anthropic);
+      const { text: schedText, milestones } = await extractScheduleMilestones(buffer, anthropic, { projectId: params.id });
       if (schedText) textContent = schedText; // store the clean row text
       if (milestones && milestones.length > 0) {
         takeoffData    = JSON.stringify({ milestones });
