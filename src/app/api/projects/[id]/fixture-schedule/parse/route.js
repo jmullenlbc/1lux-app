@@ -6,6 +6,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { createRequire } from 'module';
 import { getAnthropicKey } from '@/lib/anthropicKey';
+import { wrapClient } from '@/lib/agent/client';
 
 export const maxDuration = 120;
 
@@ -197,7 +198,12 @@ export async function POST(request, { params }) {
       throw new Error('Anthropic API key not configured on the server. Set ANTHROPIC_API_KEY in the Amplify environment variables.');
     }
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
-    const anthropic  = new Anthropic({ apiKey });
+    // Recorded: see src/lib/agent/ledger.js.
+    const anthropic  = wrapClient(
+      new Anthropic({ apiKey }),
+      'fixtureSchedule.parse',
+      { projectId: params.id, userId: user.id },
+    );
     const msg = await anthropic.messages.create({
       model:      'claude-haiku-4-5',
       max_tokens: 8192,

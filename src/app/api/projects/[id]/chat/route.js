@@ -4,6 +4,10 @@ import { prisma } from '@/lib/db';
 import { calculateBudget } from '@/lib/calculations';
 import { responsesToSections } from '@/lib/utils';
 import { loadPricing } from '@/lib/pricingLoader';
+// Third route found with this same missing import — `getAnthropicKey` was used
+// below without being imported, so this one threw a ReferenceError too.
+import { getAnthropicKey } from '@/lib/anthropicKey';
+import { recordRun } from '@/lib/agent/ledger';
 
 const TAB_LABELS = {
   drawings:       'Drawings',
@@ -495,6 +499,13 @@ ${budgetLines.join('\n')}
     { role: 'user', content: question },
   ];
 
+  // Recorded: see src/lib/agent/ledger.js. Raw SSE, so the usage totals are
+  // read out of the event stream — `message_start` carries input_tokens,
+  // `message_delta` carries the running output_tokens and the stop reason.
+  const MODEL   = 'claude-sonnet-4-6';
+  const started = Date.now();
+  const ledger  = { inputTokens: null, outputTokens: null, stopReason: null };
+
   const stream = new ReadableStream({
     async start(controller) {
       const enc = new TextEncoder();
@@ -508,7 +519,7 @@ ${budgetLines.join('\n')}
             'anthropic-version': '2023-06-01',
           },
           body: JSON.stringify({
-            model:      'claude-sonnet-4-6',
+            model:      MODEL,
             max_tokens: 1024,
             stream:     true,
             system:     systemPrompt,
@@ -519,6 +530,12 @@ ${budgetLines.join('\n')}
         if (!res.ok) {
           const errText = await res.text();
           console.error('Anthropic API error:', res.status, errText);
+          await recordRun({
+            task: 'project.chat', model: MODEL, status: 'error',
+            durationMs: Date.now() - started,
+            projectId: params.id, userId: user?.id || null,
+            error: `HTTP ${res.status}: ${errText.slice(0, 300)}`,
+          });
           controller.enqueue(enc.encode(`Error: ${res.status} ${errText}`));
           controller.close();
           return;
@@ -543,6 +560,11 @@ ${budgetLines.join('\n')}
                 if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta') {
                   controller.enqueue(enc.encode(parsed.delta.text));
                   fullText += parsed.delta.text;
+                } else if (parsed.type === 'message_start') {
+                  ledger.inputTokens = parsed.message?.usage?.input_tokens ?? null;
+                } else if (parsed.type === 'message_delta') {
+                  ledger.outputTokens = parsed.usage?.output_tokens ?? ledger.outputTokens;
+                  ledger.stopReason   = parsed.delta?.stop_reason ?? ledger.stopReason;
                 }
               } catch {}
             }
@@ -557,8 +579,22 @@ ${budgetLines.join('\n')}
             });
           } catch {}
         }
+        await recordRun({
+          task: 'project.chat', model: MODEL, status: 'ok',
+          durationMs: Date.now() - started,
+          projectId: params.id, userId: user?.id || null,
+          inputTokens: ledger.inputTokens, outputTokens: ledger.outputTokens,
+          stopReason: ledger.stopReason,
+        });
       } catch (e) {
         console.error('Chat route error:', e);
+        await recordRun({
+          task: 'project.chat', model: MODEL, status: 'error',
+          durationMs: Date.now() - started,
+          projectId: params.id, userId: user?.id || null,
+          inputTokens: ledger.inputTokens, outputTokens: ledger.outputTokens,
+          error: e?.message || String(e),
+        });
         controller.enqueue(enc.encode(`Error: ${e.message}`));
       }
       controller.close();

@@ -6,6 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicKey } from '@/lib/anthropicKey';
+import { wrapClient } from '@/lib/agent/client';
 
 // ── Load code corpus (reuse same pattern as code-search route) ────────────────
 function parseFrontmatter(content) {
@@ -94,7 +95,8 @@ export async function GET(request, { params }) {
 
 // ── POST — AI-powered deep review ────────────────────────────────────────────
 export async function POST(request, { params }) {
-  const { error } = await requireAuth();
+  // `user` is destructured only so the ledger entry can name who ran the check.
+  const { user, error } = await requireAuth();
   if (error) return error;
 
   const apiKey = getAnthropicKey()?.trim();
@@ -205,7 +207,12 @@ Please perform a comprehensive code compliance review of this fixture schedule. 
 
 Return only the JSON object, no markdown, no explanation outside the JSON.`;
 
-  const client = new Anthropic({ apiKey });
+  // Recorded: see src/lib/agent/ledger.js.
+  const client = wrapClient(
+    new Anthropic({ apiKey }),
+    'codeCheck.review',
+    { projectId: params.id, userId: user?.id || null },
+  );
 
   const stream = new ReadableStream({
     async start(controller) {

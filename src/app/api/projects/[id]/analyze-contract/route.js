@@ -4,6 +4,7 @@ import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicKey } from '@/lib/anthropicKey';
+import { wrapClient } from '@/lib/agent/client';
 import { readFile } from 'fs/promises';
 import path from 'path';
 import { CONTRACT_SYSTEM_PROMPT } from '@/lib/contractSystemPrompt';
@@ -121,7 +122,11 @@ export async function POST(request, { params }) {
 
   let message;
   try {
-    message = await anthropic.messages.create({
+    // Recorded per request rather than at the module-level client, so the run
+    // carries the project and user it was for. wrapClient returns a Proxy, so
+    // wrapping the shared client again per call is free.
+    const recorded = wrapClient(anthropic, 'contract.analyze', { projectId: params.id, userId: user.id });
+    message = await recorded.messages.create({
       model:      'claude-sonnet-4-6',
       max_tokens: 16000,
       system:     CONTRACT_SYSTEM_PROMPT,

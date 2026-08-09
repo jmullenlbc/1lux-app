@@ -7,6 +7,7 @@
  */
 import { prisma } from '@/lib/db';
 import { getAnthropicKey } from '@/lib/anthropicKey';
+import { wrapClient } from '@/lib/agent/client';
 
 // Methods that belong in an outreach email to the contact.
 export const OUTREACH_EMAIL_METHODS = new Set(['EMAIL', 'SEND_MATERIALS', 'SCHEDULE']);
@@ -83,7 +84,10 @@ Return ONLY JSON: {"subject": "...", "body": "..."}`;
 
   try {
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
-    const anthropic = new Anthropic({ apiKey: key });
+    // Recorded: see src/lib/agent/ledger.js. Composing a whole email and
+    // appending to one already edited are separate tasks on purpose — they have
+    // different failure modes and the rollup should not average them together.
+    const anthropic = wrapClient(new Anthropic({ apiKey: key }), 'bot.outreach.compose');
     const msg = await anthropic.messages.create({ model: 'claude-haiku-4-5', max_tokens: 700, messages: [{ role: 'user', content: prompt }] });
     const raw = (msg.content?.[0]?.text || '').replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(raw);
@@ -109,7 +113,7 @@ ${askList}
 Rules: NO greeting, NO sign-off — these paragraphs are inserted into an email that already has them. Natural and concise, Mike's voice. Separate multiple paragraphs with a blank line. Return ONLY the paragraph text.`;
   try {
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
-    const anthropic = new Anthropic({ apiKey: key });
+    const anthropic = wrapClient(new Anthropic({ apiKey: key }), 'bot.outreach.appendParagraphs');
     const msg = await anthropic.messages.create({ model: 'claude-haiku-4-5', max_tokens: 500, messages: [{ role: 'user', content: prompt }] });
     const text = (msg.content?.[0]?.text || '').trim();
     return text || fallback();

@@ -37,6 +37,7 @@ const REQUIRED = [
   ['S3_REGION',            'the S3 client cannot resolve a region'],
   ['S3_ACCESS_KEY_ID',     'the AWS SDK throws CredentialsProviderError'],
   ['S3_SECRET_ACCESS_KEY', 'the AWS SDK throws CredentialsProviderError'],
+  ['MCP_API_TOKEN',        'the /api/mcp Librarian refuses every bearer request with 503'],
 ];
 
 // Present here without a deliberate decision = suspicious.

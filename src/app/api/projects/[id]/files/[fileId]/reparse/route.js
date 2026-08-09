@@ -6,6 +6,7 @@ import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { extractScheduleMilestones } from '@/lib/scheduleExtract';
+import { wrapClient } from '@/lib/agent/client';
 
 // POST /api/projects/[id]/files/[fileId]/reparse
 // Re-runs construction-schedule milestone extraction on an uploaded file.
@@ -13,7 +14,14 @@ export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
-  const anthropic = new Anthropic({ apiKey: getAnthropicKey() });
+  // Recorded: see src/lib/agent/ledger.js. Same extractor as the upload path,
+  // different task name — a reparse is a retry of something that already ran,
+  // and averaging the two hides how often the first attempt was not good enough.
+  const anthropic = wrapClient(
+    new Anthropic({ apiKey: getAnthropicKey() }),
+    'schedule.milestones.reparse',
+    { projectId: params.id, userId: user.id },
+  );
 
   const record = await prisma.projectFile.findUnique({
     where: { id: params.fileId },

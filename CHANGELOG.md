@@ -5,6 +5,161 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Governed AI Layer — Slice 3 ships: row-level scoping, and the criterion proven over the whole registry] · August 8, 2026
+
+**NOT DEPLOYED.** Local only, on top of Slices 1, 3 and 4a below.
+
+Slice 3's ship criterion was: *a `CLIENT_VIEWER` can query through MCP and cannot reach a single `ilc_only` field, proven by a test rather than by inspection.* That is now proven — and proving it turned up a second hole the criterion does not mention, because it is about fields and this one is about rows.
+
+### Fixed — a CLIENT_VIEWER could enumerate the entire book of business
+
+`/api/mcp` did field-level redaction with **no row-level scoping at all**. A logged-in `CLIENT_VIEWER` sending `{"tool":"query_records","params":{"model":"Project"}}` got back **all 25 projects and all 12 clients by name** — every field correctly redacted, the whole customer list enumerated. `count_records` gave the census, `search` gave a name lookup, and `get_record` fetched any row by id.
+
+It also defeated two intents already written into the code:
+- `tools.js` deliberately returns `clients: []` to a client audience from `search`, with the comment *"A client-audience caller has no business enumerating ILC's account list"* — and then `query_records model:'Client'` handed over all 12, one tool over.
+- `src/app/api/projects/route.js` says *"External Client Viewers stay scoped to their own — never widen this to CLIENT_VIEWER"*. `/api/mcp` widened exactly that.
+
+**Added `src/lib/mcp/scope.js`**, which mirrors the app's existing rule rather than inventing a second access model — `{ createdById: user.id }`, reached from each of the 10 registered non-`Client` objects by its relation path (`ChangeOrderLineItem` → `optionGroup` → `changeOrder` → `project`, and so on). Two properties it was built to have:
+
+- **Fails closed.** An object with no declared scope path is *unreachable* to a non-ILC caller, not unscoped. Same discipline as the field allowlist: when a model is added to the ontology, a client cannot read a row of it until someone also writes down how it relates to a project. `Client` is deliberately unmapped, so the generic tools now agree with `search`.
+- **Merged with `AND`, never a spread.** A spread lets a caller-chosen key overwrite the scope key when they collide, which is the one thing this merge must never do.
+
+`get_record` moved from `findUnique` to `findFirst` so the scope has somewhere to attach; an out-of-scope id now reads as *"no such record"* rather than *"not yours"*, since the latter confirms the id exists.
+
+Probe before: 25 projects, 12 clients. After: **0 projects, 0 clients, 403 on `Client`.**
+
+### Added — the tests that make the criterion real
+
+`scripts/tests/mcp.test.mjs` is now **48 live tests** over real HTTP (was 39). New this session:
+
+- **Two fixtures instead of one.** The old fixture project was ILC-owned, and every redaction test passed only because the client could read every row in the database. Now the data-carrying project is **owned by the viewer** (so redaction tests fail on redaction, not on an empty result — the harder version of the claim: *even on your own project you do not see the buy price*) and a second **ILC-owned** project exists for the scope tests to be refused from.
+- **`SHIP CRITERION: every registered object is scoped or refused — never open`** — imports `SCOPED_OBJECTS` from the source and asserts each registered object is either reachable-and-scoped or refused outright, with counts on both branches so the sweep cannot go vacuous in either direction.
+- Scope tests for the relation path three hops down, `count`, `get_record` by foreign id, `search`, and `get_project_360` by both id and a loose name (`name: { contains }` + `findFirst` was the most dangerous shape — a vague string returned whoever's project matched first).
+- **`redaction removes EXACTLY the ilc_only fields — not fewer, and not more`** — the anti-vacuity test for the whole file. Every other assertion here is "field X is absent for a client", and a redactor returning `{}` satisfies all of them at once. This pins the difference between the two audiences in both directions.
+- Registry-wide sweeps over `describe_model` and over returned rows, each with a floor on how much they checked.
+
+### Fixed — `npm run verify` was blocked by a false positive
+
+`scripts/check-shared-metrics.mjs` greps for the bare identifier `pipelineProbability`, and `src/lib/ontology/objects/project.js` *declares* that column in order to classify it `ilc_only`. The ontology contains no arithmetic; naming a field is the opposite of re-deriving it, and the rule was blocking us from ever marking the field sensitive. Added to the checker's existing ALLOW list, alongside the entries already there for Prisma selects and write-only persistence.
+
+### Debug pass — all green
+9 verify gates · 48/48 MCP · 13/13 smoke + DN-leak · 105/105 units · 38/38 budget math · 8,000-scenario fuzz · 12/12 bid matrix · **clean production build** (123 pages, 13 runtime assets traced).
+
+### Known gap, unchanged
+`prisma.mcpQueryLog` still does not exist, so in production the audit sink resolves to nothing and `/api/mcp` returns **503 by design** rather than serving unlogged. Schema is Sean's; the model spec is in `.claude/coordination.md`.
+
+### Files changed
+`src/lib/mcp/scope.js` (new), `src/lib/mcp/tools.js`, `scripts/tests/mcp.test.mjs`, `scripts/check-shared-metrics.mjs`, `.claude/coordination.md`, `.gitignore`.
+
+---
+
+## [Governed AI Layer — Slice 4a: the Ledger, and every call site wired to it] · August 8, 2026
+
+**NOT DEPLOYED.** Local only, stacked on Slices 1 and 3 below.
+
+The question this slice exists to answer: *what did the AI do last month, what did it cost, and what is quietly failing?* Before this, nothing in the app could answer any of the three — there were ~25 independent `new Anthropic(...)` constructions across ~30 files and four raw `fetch` calls to `api.anthropic.com`, none of them observable.
+
+### Added
+- **`src/lib/agent/client.js`** — the chokepoint. `wrapClient(client, task, context)` returns a `Proxy` over a real Anthropic client, so `messages.create` is recorded while streaming, `models`, `beta` and every SDK surface this repo does not use yet keep working untouched. Also `agentClient(task, ctx)` (a drop-in constructor) and `recordRawCall(...)` for the REST call sites.
+  - The wrapper **stores no prompts and no completions** — task, model, outcome, latency, token counts, project, user. There is a test that asserts a dealer-net marker string never appears in the raw ledger file.
+  - It does not block, throttle, gate, or retry. Trust tiers are Slice 4b and are unbuildable until this has run long enough to show which calls actually warrant a reviewer; a retry policy here would double-count runs and hide the very error rate the ledger exists to surface.
+  - `task` is the grouping key, not the model id — six features share `claude-haiku-4-5`, so a model-keyed rollup answers nothing. An un-named call **throws at wrap time** rather than defaulting to `'unknown'`, which would silently poison every average it landed in.
+- **Streaming support in the wrapper.** `messages.stream` returns synchronously and the caller iterates it, so there is no promise to sit in front of. The streamer is returned *untouched* and the record is attached through the SDK's own event API. Documented limitations, in the code: the record is a floating promise (a stream the caller abandons mid-way records nothing), and a stream that dies in flight records the failure with no token counts.
+- **Ledger coverage of the raw-SSE routes** (`/api/projects/[id]/chat`, `/api/knowledge-base/chat`). Neither the wrapper nor `recordRawCall` fits a hand-rolled SSE reader, so usage is picked out of the event stream directly — `message_start` carries `input_tokens`, `message_delta` carries the running `output_tokens` and the stop reason.
+- **6 new tests** in `scripts/tests/agentClient.test.mjs` covering the streaming path (returned untouched; recorded with usage on finish; recorded once and only once when a stream emits both `error` and `finalMessage`; an error listener is always attached so a mid-flight failure cannot crash the request the wrapper was only meant to observe). **16/16 pass; 105/105 across `verify:units`.**
+
+### Fixed — three routes threw `ReferenceError` on every call
+`getAnthropicKey` was *used* but never *imported* in three files. Each would have thrown `ReferenceError: getAnthropicKey is not defined` the moment the route was hit:
+- `src/app/api/projects/[id]/chat/route.js`
+- `src/app/api/knowledge-base/chat/route.js`
+- `src/app/api/projects/[id]/peer-review/parse-pdf/route.js`
+
+Found only because wiring the ledger meant reading every AI call site in the repo. Imports added.
+
+### Wired to the ledger (22 call sites, 20 files)
+`schedule.design.parse` · `marketIntel.entityExtract` · `bot.followUp.draft` · `bot.note.extractActions` · `bot.activity.classify` · `bot.outreach.compose` · `bot.outreach.appendParagraphs` · `contract.analyze` · `tracker.toc.extract` · `tracker.review.classify` · `tracker.review.respond` · `rfi.draft` · `rfi.extractQuestion` · `rfi.parseEmail` · `fixtureSchedule.parse` · `codeCheck.review` · `knowledge.codeSearch` · `user.toneProfile.build` · `intake.siteVision` · `intake.unitMatrix.parse` · `unitMatrix.parse` · `schedule.milestones.extract` · `schedule.milestones.reparse` · `peerReview.parsePdf` · `project.chat` · `knowledgeBase.chat`
+
+Route handlers wrap **per request** so the entry carries `projectId` and `userId`; module-level clients are wrapped in place. Helpers that receive an injected client (`parseUnitMatrix`, `extractSiteData`, `extractScheduleMilestones`) are wrapped at the *injection point* — the helper is handed a client precisely so it need not know where the call came from, and the task name is a property of the caller. That is also why the same helper appears under two task names in the list above.
+
+Deliberately **not** recorded: `/api/anthropic-models`, which calls `/v1/models`. It is a metadata listing — no tokens, no completion — and a row for it would dilute every per-task average it landed in. The ledger records inference, not every request that reaches `api.anthropic.com`.
+
+### Still open in Slice 4
+No `AgentRun` Prisma model exists yet (schema changes are Sean's), which is why the ledger has a swappable sink and degrades to a JSONL file in dev. Slice 4b — trust tiers and the review queue — is not started.
+
+---
+
+## [Governed AI Layer — Slice 3: the Librarian verified end-to-end] · August 8, 2026
+
+**NOT DEPLOYED.** Local only, on top of the undeployed Slice 1 below.
+
+`/api/mcp` and its nine read-only tools were already in the tree. This session put a live acceptance suite against them over real HTTP, driven by a real logged-in `CLIENT_VIEWER`, and that suite found three defects.
+
+### Added
+- **`scripts/tests/mcp.test.mjs`** (`npm run verify:mcp`) — 20 live acceptance tests against a running dev server. Creates a disposable project + CO + option group + line item (`originalDN = 6363.63`, `cnUnitPrice = 9191.91`) and a disposable `CLIENT_VIEWER`, then tries to reach the buy price nine ways: direct read, nested `include` two relations deep, a `select` inside an `include`, `where` filter, `where` filter nested inside `AND`/`OR`, `orderBy`, `count_records`, `describe_model`, and `search`. All fixture rows deleted afterward; verified zero left behind. 20/20 pass.
+  - **Every DN assertion is paired with an ILC positive control on the same row.** A test that only asserts "the client did not see 6363.63" also passes when the query returned nothing, when the model name was wrong, or when the endpoint 500'd — which is how a redaction test quietly stops testing redaction. The ILC half proves the value was there to leak.
+  - The tool list is asserted **whole**, not counted: a new tool fails this test until someone writes its guard tests, and a *write* tool appearing there fails it loudly.
+- **`clientDescription`** on `ChangeOrderLineItem` — the non-ILC prose description.
+
+### Fixed — `describe_model` disclosed the buy price in prose
+`originalDN` was correctly absent from `properties` for a client, but the object's `description` string was shipped verbatim and it reads *"originalDN is what ILC pays the manufacturer."* The property-level redaction withheld the field; the sentence next to it handed back the field name, its meaning, and the fact that a buy price is stored at all.
+
+`describeForAudience()` now resolves the description per audience: ILC gets `description`; anyone else gets `clientDescription` if declared, and otherwise gets **no description at all** if the ILC prose names a field they cannot read. Fail-closed, matching the rest of that module — losing a sentence of help costs an agent one extra call, leaking it costs the DN rule. The check is generic, so this cannot recur when a new object is added with careless prose.
+
+### Fixed — nested `include` was rejected outright
+`findForbiddenFields()` in `src/lib/mcp/guards.js` treated Prisma's relation-argument keywords as field names, so `include: { optionGroups: { include: { lineItems: true } } }` was refused as if it had named a forbidden column. Added `select`, `include`, `orderBy`, `take`, `skip`, `distinct`, `cursor` to `OPERATORS`. This does **not** widen results: the walker still descends through each one and checks every field name underneath against the audience's readable set, using the *linked* object's set once it crosses a relation. `select: { originalDN: true }` is still refused — one level deeper, which is where it was always meant to be.
+
+### Fixed — a caller's typo was reported as a server fault
+`parseObjectArg()` throws a plain `Error`, so `where: "{not valid json"` surfaced as a **500**. That blames the server for a client mistake and pollutes any error-rate check built on the audit log. `tools.js` now reclassifies it through a `parseClause()` wrapper as `McpError(400)`. (Guards cannot import `McpError` directly without a cycle, hence the wrapper at the boundary rather than at the throw site.)
+
+### Also
+- `scripts/tests/ontology.test.mjs` existed but was wired into **no** verification gate — it ran nowhere. Folded into `verify:units`, which is now 93 tests.
+
+### Files changed
+`scripts/tests/mcp.test.mjs` (new), `scripts/tests/_auth.mjs` (added `post()` supporting cookie *and* bearer auth), `src/lib/mcp/guards.js`, `src/lib/mcp/tools.js`, `src/lib/ontology/redact.js`, `src/lib/ontology/objects/changeOrder.js`, `package.json`.
+
+---
+
+## [Governed AI Layer — Slice 1: the redaction boundary (two live DN leaks closed)] · August 8, 2026
+
+**NOT DEPLOYED.** On `main` locally, not pushed. Two of these are production bugs — see "Deploy urgency" below.
+
+Slice 1 of the Governed AI Layer was meant to be a refactor: pull the DN/buy-price rule into one audited place instead of four hand-rolled ones. Auditing the four turned up two real leaks, both reproduced against the running app before being fixed.
+
+### Added
+- **`src/lib/redact.js`** — the single redaction boundary. `redact(data, audience)` deep-strips ILC-only fields by **name**, at any nesting depth, for `AUDIENCE.CLIENT` / `AUDIENCE.PUBLIC`; a no-op pass-through for `AUDIENCE.ILC`. Also exports `findIlcOnly()` / `assertNoIlcOnly()` (audit helpers that name the exact dotted path) and `audienceForRole()`.
+  - `audience` is **required and validated** — a forgotten argument throws rather than silently picking a policy. No session at all maps to `PUBLIC`, so a route that forgets its guard degrades to the *most* redacted view, not the least.
+  - Redaction is by field name rather than per-model on purpose: a per-model map has to be re-plumbed every time a route adds an `include`, and the miss is silent.
+  - Current `ILC_ONLY_FIELDS`: `originalDN`, `dnPerUnit`, `propUnitDN`, `marginPct`, `internalNotes`, `salesRep`, `rfqStatus`. **Adding a buy-price or ILC-internal column to `schema.prisma` means adding it here in the same commit.**
+- **`scripts/tests/redact.test.mjs`** — 14 unit tests, wired into the `unit tests` gate in `npm run verify` and into `verify:units`. Includes a drift test that reads `isClientViewer()` out of `src/lib/auth.js` and proves the repeated `'CLIENT_VIEWER'` literal hasn't diverged.
+- **`scripts/tests/dn-leak.test.mjs`** (`npm run verify:dn`) — live audit against a running dev server. Builds a disposable project + CO + share token + `CLIENT_VIEWER`, hits the real routes, and asserts DN is absent for every non-ILC caller **and still present for ILC staff** (so the negative assertions can't pass vacuously). All fixture rows deleted afterward; verified zero left behind. 8/8 pass.
+
+### Fixed — leak 1: the change-order PDF was completely unauthenticated
+`/api/projects/[id]/change-orders/[coId]/pdf` read `const { error } = await requireAuth().catch(() => ({ error: null }))` and **never checked `error`**. `requireAuth()` *returns* its 401, it doesn't throw, so the `.catch()` was dead code and nothing rejected the request. There is no app-level middleware, so no other layer caught it.
+
+Proved live: an `Invoke-WebRequest` with **no session cookie**, to `…/pdf?hideInternalDN=false`, returned **200** with the `Orig DN` column rendered. Anyone holding or forwarded that URL had ILC's buy price. Now `if (error) return error;`, and `?hideInternalDN=false` is only honored for an ILC audience — a logged-in `CLIENT_VIEWER` can no longer opt into the DN column. `redact()` is applied to the CO before templating as defense in depth.
+
+A repo-wide scan confirmed this was the **only** route that called an auth guard and ignored the result.
+
+### Fixed — leak 2: the public share link shipped the margin, which *is* the buy price
+`/api/share/co/[token]` carefully dropped `originalDN` from every line item, then returned `rates` — which contains `marginPct`. Since `cn = dn / (1 - marginPct)`, anyone with a share link could recover `dn = cn × (1 - marginPct)` exactly. The strip was arithmetic theatre. Now one `redact(…, AUDIENCE.PUBLIC)` pass over the whole response. Confirmed `SharedCOView.jsx` reads only `salesTaxPct` / `freightPct` / `warehousingPct` off `rates`, so nothing client-facing changes; footers and totals are still computed from the full rows *before* redaction.
+
+### Audited and found clean (no change needed)
+- Portal `budget` / `change-orders` / `conceptual-budget` — redact via Prisma `select` allowlists, so DN is never loaded at all. A legitimate second pattern; the audit test now pins their auth behavior too, since an added `include` would reopen the hole silently.
+- `design-bid-matrix/pdf` and `/export` — both correctly `if (error) return error;`.
+- No public or portal page renders `internalNotes`.
+- `share/fixture/[token]` returns `schedule.items` wholesale — would expose `internalNotes` if ever populated (0 rows locally). Flagged, not yet fixed.
+
+### Deploy urgency
+The unauthenticated PDF route is **live in production right now**. Leak 1 requires knowing a project ID and a CO ID; leak 2 requires only a share link that has already been sent to a contractor. Mike's call on whether this goes out on its own.
+
+### Verification
+`npm run verify` 8/8 · `npm run verify:units` 14/14 · `npm run verify:dn` 8/8 (live) · `npm run verify:smoke` 5/5. No schema change.
+
+### Files
+`src/lib/redact.js` (new) · `scripts/tests/redact.test.mjs` (new) · `scripts/tests/dn-leak.test.mjs` (new) · `src/app/api/projects/[id]/change-orders/[coId]/pdf/route.js` · `src/app/api/share/co/[token]/route.js` · `scripts/verify.mjs` · `package.json`
+
+---
+
 ## [Intake security review — prod approve/reject bug fixed] · August 8, 2026
 
 Mike approved Sean's Task 27 (portal invite bridge) after a DN check of the portal budget route (client-facing totals only — clean). Review of the 08-04 intake deploy found and fixed, live-tested:

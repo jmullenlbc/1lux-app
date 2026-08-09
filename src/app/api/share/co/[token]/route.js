@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getProjectRates, calcGroupFooter } from '@/lib/changeOrderRates';
+import { redact, AUDIENCE } from '@/lib/redact';
 
 // Public endpoint — no auth required
 // GET /api/share/co/[token]
@@ -32,17 +33,19 @@ export async function GET(req, { params }) {
   const co    = share.changeOrder;
   const rates = await getProjectRates(co.projectId);
 
-  // Strip DN/originalDN from line items (never expose buy price externally)
-  const sanitizedGroups = co.optionGroups.map(g => ({
+  // Footers and totals are computed from the FULL rows first — redaction is a
+  // transport concern, not a math one.
+  const groups = co.optionGroups.map(g => ({
     ...g,
-    lineItems: g.lineItems.map(li => {
-      const { originalDN: _dn, ...rest } = li;
-      return { ...rest, totalCN: li.qty * li.cnUnitPrice };
-    }),
+    lineItems: g.lineItems.map(li => ({ ...li, totalCN: li.qty * li.cnUnitPrice })),
     footer: calcGroupFooter(g.lineItems, rates),
   }));
 
-  return NextResponse.json({
+  // One redaction pass over the whole response. This covers `rates.marginPct`
+  // as well as every line item's `originalDN` — the previous per-item strip
+  // dropped the DN but shipped the margin, and `dn = cn × (1 - marginPct)`.
+  // The share page only reads salesTax/freight/warehousing off `rates`.
+  return NextResponse.json(redact({
     co: {
       id:          co.id,
       coNumber:    co.coNumber,
@@ -51,8 +54,8 @@ export async function GET(req, { params }) {
       status:      co.status,
       notes:       co.notes,
       project:     co.project,
-      optionGroups: sanitizedGroups,
+      optionGroups: groups,
     },
     rates,
-  });
+  }, AUDIENCE.PUBLIC));
 }

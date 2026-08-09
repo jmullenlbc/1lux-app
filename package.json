@@ -20,8 +20,11 @@
     "prepare": "husky",
     "verify": "node scripts/verify.mjs",
     "verify:smoke": "node --test scripts/tests/smoke.test.mjs",
-    "verify:units": "node --test scripts/tests/intake.test.mjs scripts/tests/drawingExtract.test.mjs scripts/tests/siteVision.test.mjs",
-    "check:runtime-assets": "node scripts/check-runtime-assets.mjs"
+    "verify:dn": "node --test scripts/tests/dn-leak.test.mjs",
+    "verify:units": "node --test scripts/tests/intake.test.mjs scripts/tests/drawingExtract.test.mjs scripts/tests/siteVision.test.mjs scripts/tests/redact.test.mjs scripts/tests/ontology.test.mjs scripts/tests/agentClient.test.mjs",
+    "check:runtime-assets": "node scripts/check-runtime-assets.mjs",
+    "verify:mcp": "node --test scripts/tests/mcp.test.mjs",
+    "check:sensitivity": "node scripts/check-sensitivity-coverage.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",

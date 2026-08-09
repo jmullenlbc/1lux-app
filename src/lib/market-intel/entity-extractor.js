@@ -1,7 +1,9 @@
 import { getAnthropicKey } from '@/lib/anthropicKey.js';
 import Anthropic from '@anthropic-ai/sdk';
+import { wrapClient } from '@/lib/agent/client';
 
-const client = new Anthropic({ apiKey: getAnthropicKey() });
+// Recorded: see src/lib/agent/ledger.js.
+const client = wrapClient(new Anthropic({ apiKey: getAnthropicKey() }), 'marketIntel.entityExtract');
 
 const SYSTEM_PROMPT = `You are a real estate intelligence parser for a lighting design company.
 Extract structured data from multifamily and senior housing industry news articles.

@@ -26,6 +26,11 @@ const ALLOW = new Set([
   'src/app/(app)/crm/page.jsx',                // Prisma select of the raw columns
   'src/app/api/pipeline/route.js',             // Prisma select of the raw columns
   'src/lib/dashboardEngine.js',                // legacy engine; maps the old deal shape (bridge only)
+  // Declares the column and classifies it ilc_only. The ontology is a
+  // DESCRIPTION of the schema — it has no arithmetic in it at all, and naming a
+  // field is the opposite of re-deriving it. Without this entry the rule blocks
+  // us from ever marking pipelineProbability as sensitive, which is backwards.
+  'src/lib/ontology/objects/project.js',
   'scripts/check-shared-metrics.mjs',
 ].map(p => p.split('/').join(path.sep)));
 

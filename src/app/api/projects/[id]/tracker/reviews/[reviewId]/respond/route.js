@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getAnthropicKey } from '@/lib/anthropicKey';
+import { wrapClient } from '@/lib/agent/client';
 
 // CATEGORY_CONTEXT — hints to the model about what each category means
 const CATEGORY_CONTEXT = {
@@ -89,7 +90,12 @@ Respond with ONLY the response text. No subject line, no signature, no preamble.
   let responseBody = '';
   try {
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
-    const anthropic = new Anthropic({ apiKey: getAnthropicKey() });
+    // Recorded: see src/lib/agent/ledger.js.
+    const anthropic = wrapClient(
+      new Anthropic({ apiKey: getAnthropicKey() }),
+      'tracker.review.respond',
+      { projectId: params.id, userId: user.id },
+    );
 
     const msg = await anthropic.messages.create({
       model: 'claude-haiku-4-5',

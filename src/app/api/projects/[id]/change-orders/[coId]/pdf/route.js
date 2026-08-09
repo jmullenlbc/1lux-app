@@ -1,6 +1,7 @@
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getProjectRates, calcGroupFooter, resolveLineItems } from '@/lib/changeOrderRates';
+import { redact, audienceForRole, AUDIENCE } from '@/lib/redact';
 
 function fmt(n, showSign = false) {
   if (n == null || isNaN(n)) return '—';
@@ -14,10 +15,18 @@ function pct(n) { return n != null ? `${(Number(n) * 100).toFixed(2).replace(/\.
 
 // GET /api/projects/[id]/change-orders/[coId]/pdf?hideInternalDN=true
 export async function GET(req, { params }) {
-  const { error } = await requireAuth().catch(() => ({ error: null }));
+  // This guard used to be `const { error } = await requireAuth().catch(...)` with
+  // `error` never checked — requireAuth() *returns* its 401, it doesn't throw, so
+  // the catch was dead code and the route served to anyone with the URL. Combined
+  // with `?hideInternalDN=false` that published ILC's buy price. Enforce it.
+  const { user, error } = await requireAuth();
+  if (error) return error;
 
   const { searchParams } = new URL(req.url);
-  const hideInternalDN = searchParams.get('hideInternalDN') !== 'false';
+  // DN stays hidden by default, and un-hiding is available to ILC staff only —
+  // a logged-in CLIENT_VIEWER must not be able to opt into the internal column.
+  const audience       = audienceForRole(user?.role);
+  const hideInternalDN = !(searchParams.get('hideInternalDN') === 'false' && audience === AUDIENCE.ILC);
 
   const [co, project, rates] = await Promise.all([
     prisma.changeOrder.findUnique({
@@ -48,8 +57,12 @@ export async function GET(req, { params }) {
   const location = [project?.address, project?.city && project?.state ? `${project.city}, ${project.state}` : (project?.city || project?.state)].filter(Boolean).join(', ');
   const phaseLabel = project?.phase ? project.phase.toUpperCase().replace('_', ' ') : '—';
 
+  // Defence in depth: when DN is hidden, strip it from the data too, so a future
+  // edit to the template physically cannot print it even if a guard is missed.
+  const safeCo = hideInternalDN ? redact(co, AUDIENCE.CLIENT) : co;
+
   // Build group sections
-  const groupSections = co.optionGroups.map(group => {
+  const groupSections = safeCo.optionGroups.map(group => {
     const footer     = calcGroupFooter(group.lineItems, rates);
     const isSelected = group.isSelected;
     const mainItems  = group.lineItems.filter(li => !li.isOptionRow);
@@ -107,7 +120,7 @@ export async function GET(req, { params }) {
   }).join('');
 
   // Calculate totals from selected group
-  const selected = co.optionGroups.find(g => g.isSelected) || co.optionGroups[0];
+  const selected = safeCo.optionGroups.find(g => g.isSelected) || safeCo.optionGroups[0];
   const selectedFooter = selected ? calcGroupFooter(selected.lineItems, rates) : { subtotal: 0, tax: 0, freight: 0, warehousing: 0, total: 0 };
 
   const html = `<!DOCTYPE html>

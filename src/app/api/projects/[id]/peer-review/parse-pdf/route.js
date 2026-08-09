@@ -2,6 +2,10 @@ import '@/lib/pdfPolyfill';
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+// `getAnthropicKey` was used below but never imported — this route threw a
+// ReferenceError on every call. Found while wiring the ledger, fixed here.
+import { getAnthropicKey } from '@/lib/anthropicKey';
+import { recordRawCall } from '@/lib/agent/client';
 
 export const maxDuration = 120;
 
@@ -81,32 +85,45 @@ export async function POST(request, { params }) {
     return NextResponse.json({ error: 'Failed to read PDF: ' + e.message }, { status: 422 });
   }
 
-  // Call Claude to parse
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key':         getAnthropicKey(),
-      'anthropic-version': '2023-06-01',
-      'content-type':      'application/json',
-    },
-    body: JSON.stringify({
-      model:      'claude-sonnet-4-6',
-      max_tokens: 4096,
-      system:     SYSTEM_PROMPT,
-      messages:   [{
-        role:    'user',
-        content: `Parse the lighting fixture schedule from this extracted PDF text. File: ${file.name}\n\n---\n\n${extractedText.slice(0, 40000)}`,
-      }],
-    }),
-  });
+  // Call Claude to parse. This site talks to the REST endpoint directly rather
+  // than through the SDK, so it is recorded via recordRawCall — otherwise it is
+  // invisible to the ledger and every cost total is quietly short.
+  const payload = {
+    model:      'claude-sonnet-4-6',
+    max_tokens: 4096,
+    system:     SYSTEM_PROMPT,
+    messages:   [{
+      role:    'user',
+      content: `Parse the lighting fixture schedule from this extracted PDF text. File: ${file.name}\n\n---\n\n${extractedText.slice(0, 40000)}`,
+    }],
+  };
 
-  if (!res.ok) {
-    const err = await res.text();
-    console.error('Claude API error:', res.status, err);
+  let aiData;
+  try {
+    aiData = await recordRawCall('peerReview.parsePdf', payload, { projectId: params.id, userId: user.id }, async () => {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key':         getAnthropicKey(),
+          'anthropic-version': '2023-06-01',
+          'content-type':      'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        // Thrown rather than returned so the ledger sees a failure. A non-2xx
+        // that returned normally would be recorded as a successful run with no
+        // tokens, which is worse than not recording it at all.
+        const err = await res.text();
+        throw new Error(`Claude API ${res.status}: ${err.slice(0, 300)}`);
+      }
+      return res.json();
+    });
+  } catch (e) {
+    console.error('Claude API error:', e.message);
     return NextResponse.json({ error: 'AI parsing failed' }, { status: 500 });
   }
 
-  const aiData = await res.json();
   const raw = aiData.content?.[0]?.text || '';
 
   let parsed;

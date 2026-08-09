@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+// Same missing import as peer-review/parse-pdf — `getAnthropicKey` was used
+// below without ever being imported, so this route threw a ReferenceError.
+import { getAnthropicKey } from '@/lib/anthropicKey';
+import { recordRun } from '@/lib/agent/ledger';
 
 const CATEGORY_LABELS = {
   UNIT:         'Unit (Residential Fixtures)',
@@ -92,6 +96,15 @@ ${kbText}
     { role: 'user', content: question },
   ];
 
+  // Recorded: see src/lib/agent/ledger.js. This site speaks raw SSE rather than
+  // going through the SDK, so neither wrapClient nor recordRawCall fits — the
+  // usage totals only exist inside the event stream. They are picked out of it
+  // below: `message_start` carries input_tokens, `message_delta` carries the
+  // running output_tokens and the stop reason.
+  const MODEL   = 'claude-haiku-4-5-20251001';
+  const started = Date.now();
+  const ledger  = { inputTokens: null, outputTokens: null, stopReason: null };
+
   const stream = new ReadableStream({
     async start(controller) {
       const enc = new TextEncoder();
@@ -104,7 +117,7 @@ ${kbText}
             'anthropic-version': '2023-06-01',
           },
           body: JSON.stringify({
-            model:      'claude-haiku-4-5-20251001',
+            model:      MODEL,
             max_tokens: 1024,
             stream:     true,
             system:     systemPrompt,
@@ -114,6 +127,11 @@ ${kbText}
 
         if (!res.ok) {
           const errText = await res.text();
+          await recordRun({
+            task: 'knowledgeBase.chat', model: MODEL, status: 'error',
+            durationMs: Date.now() - started, userId: user?.id || null,
+            error: `HTTP ${res.status}: ${errText.slice(0, 300)}`,
+          });
           controller.enqueue(enc.encode(`Error ${res.status}: ${errText}`));
           controller.close();
           return;
@@ -137,13 +155,30 @@ ${kbText}
                 const parsed = JSON.parse(data);
                 if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta') {
                   controller.enqueue(enc.encode(parsed.delta.text));
+                } else if (parsed.type === 'message_start') {
+                  ledger.inputTokens = parsed.message?.usage?.input_tokens ?? null;
+                } else if (parsed.type === 'message_delta') {
+                  ledger.outputTokens = parsed.usage?.output_tokens ?? ledger.outputTokens;
+                  ledger.stopReason   = parsed.delta?.stop_reason ?? ledger.stopReason;
                 }
               } catch {}
             }
           }
         }
+        await recordRun({
+          task: 'knowledgeBase.chat', model: MODEL, status: 'ok',
+          durationMs: Date.now() - started, userId: user?.id || null,
+          inputTokens: ledger.inputTokens, outputTokens: ledger.outputTokens,
+          stopReason: ledger.stopReason,
+        });
       } catch (e) {
         console.error('[kb-chat] error:', e);
+        await recordRun({
+          task: 'knowledgeBase.chat', model: MODEL, status: 'error',
+          durationMs: Date.now() - started, userId: user?.id || null,
+          inputTokens: ledger.inputTokens, outputTokens: ledger.outputTokens,
+          error: e?.message || String(e),
+        });
         controller.enqueue(enc.encode(`Error: ${e.message}`));
       }
       controller.close();

@@ -42,6 +42,17 @@ const nextConfig = {
           S3_ACCESS_KEY_ID:     process.env.S3_ACCESS_KEY_ID,
           S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY,
           ANTHROPIC_API_KEY:    process.env.ANTHROPIC_API_KEY,
+          // MCP_API_TOKEN: the bearer token for /api/mcp (the Librarian read
+          // server). Same Gen 1 trap, fourth case. src/lib/mcp/auth.js reads it
+          // from process.env in the SSR Lambda, so it must be baked in here.
+          //
+          // Unlike the cases above, the failure mode if this is missing is a
+          // LOUD one by construction: auth.js refuses every bearer request with
+          // 503 when the token is absent or shorter than 32 characters, rather
+          // than comparing against undefined. Baking it in is what makes the
+          // endpoint work; the fail-closed guard is what makes forgetting it
+          // safe. Both, not either.
+          MCP_API_TOKEN:        process.env.MCP_API_TOKEN,
     },
     experimental: {
           serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs', 'xlsx', '@napi-rs/canvas', 'tesseract.js', 'pdfjs-dist', 'pdf-parse', '@anthropic-ai/sdk', '@aws-sdk/client-s3', '@aws-sdk/s3-request-presigner', 'puppeteer-core', '@sparticuz/chromium'],

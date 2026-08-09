@@ -24,6 +24,27 @@ export async function get(path, cookie) {
   return { status: res.status, text, json };
 }
 
+/**
+ * POST JSON to a route. `auth` is either a session cookie string or
+ * `{ bearer: '<token>' }` — the MCP tests drive the same endpoint both ways.
+ */
+export async function post(path, body, auth) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (typeof auth === 'string') headers.cookie = auth;
+  else if (auth?.bearer) headers.authorization = `Bearer ${auth.bearer}`;
+
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body ?? {}),
+    redirect: 'manual',
+  });
+  const text = await res.text().catch(() => '');
+  let json = null;
+  try { json = JSON.parse(text); } catch {}
+  return { status: res.status, text, json };
+}
+
 export async function serverUp() {
   try { const r = await fetch(`${BASE}/login`, { redirect: 'manual' }); return r.status < 500; }
   catch { return false; }

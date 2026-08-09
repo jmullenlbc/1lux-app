@@ -5,10 +5,14 @@ import path from 'path';
 import { readFile } from 'fs/promises';
 import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicKey } from '@/lib/anthropicKey';
+import { wrapClient } from '@/lib/agent/client';
 
 const anthropic = new Anthropic({ apiKey: getAnthropicKey() });
 
-async function extractTOCWithAI(text) {
+// `ctx` carries the project and user this run was for — the module-level client
+// cannot know either, and a ledger entry without them cannot answer "what did we
+// spend on this project".
+async function extractTOCWithAI(text, ctx = {}) {
   const prompt = `You are reading a lighting fixture submittal package. The Table of Contents (TOC) lists every fixture type that was submitted.
 
 Return ONLY a valid JSON array — no markdown, no explanation:
@@ -39,7 +43,7 @@ RULES:
 Text (first 10000 chars):
 ${text.slice(0, 10000)}`;
 
-  const msg = await anthropic.messages.create({
+  const msg = await wrapClient(anthropic, 'tracker.toc.extract', ctx).messages.create({
     model:      'claude-haiku-4-5-20251001',
     max_tokens: 1500,
     messages:   [{ role: 'user', content: prompt }],
@@ -112,7 +116,7 @@ export async function POST(request, { params }) {
   // AI fallback when regex finds nothing
   if (items.length === 0 && rawText) {
     try {
-      items = await extractTOCWithAI(rawText);
+      items = await extractTOCWithAI(rawText, { projectId: params.id, userId: user.id });
     } catch {}
   }
 
@@ -196,7 +200,7 @@ export async function GET(request, { params }) {
 
   // AI fallback when regex finds nothing
   if (items.length === 0 && rawText) {
-    try { items = await extractTOCWithAI(rawText); } catch {}
+    try { items = await extractTOCWithAI(rawText, { projectId: params.id, userId: user.id }); } catch {}
   }
 
   return NextResponse.json({ items });

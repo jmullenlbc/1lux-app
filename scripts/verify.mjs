@@ -21,8 +21,11 @@ const GATES = [
   { name: 'migrations (postgres)', cmd: 'node scripts/check-migrations-postgres.js' },
   { name: 'schema ↔ migrations', cmd: 'node scripts/check-schema-migrations-sync.js' },
   { name: 'shared metrics',      cmd: 'node scripts/check-shared-metrics.mjs' },
+  // The ontology is a claim about prisma/schema.prisma. Sean pushes the schema;
+  // this catches the two of them drifting apart before the drift ships.
+  { name: 'sensitivity coverage', cmd: 'node scripts/check-sensitivity-coverage.mjs' },
   // Pure unit tests — no server, no DB, so they belong in the static run.
-  { name: 'unit tests',          cmd: 'node --test scripts/tests/intake.test.mjs scripts/tests/drawingExtract.test.mjs scripts/tests/siteVision.test.mjs' },
+  { name: 'unit tests',          cmd: 'node --test scripts/tests/intake.test.mjs scripts/tests/drawingExtract.test.mjs scripts/tests/siteVision.test.mjs scripts/tests/redact.test.mjs scripts/tests/ontology.test.mjs' },
   { name: 'secrets',             cmd: 'node scripts/check-secrets.js', optional: true },
   ...(FULL ? [
     { name: 'production build',  cmd: 'npm run build' },

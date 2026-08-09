@@ -4,6 +4,7 @@ import { getAnthropicKey } from '@/lib/anthropicKey';
 import { extractDrawingText, parseUnitMatrix, fileExt, ACCEPTED_EXTS, IMAGE_EXTS } from '@/lib/drawingExtract';
 import { renderPdfPages, extractSiteData } from '@/lib/siteVision';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
+import { wrapClient } from '@/lib/agent/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -100,7 +101,10 @@ export async function POST(request) {
   if (!extracted.ok) {
     if (extracted.code === 'no_text_layer' && ext === 'pdf') {
       const images = await renderPdfPages(buffer, { pages: 1 });
-      const vision = await extractSiteData(images, new Anthropic({ apiKey }));
+      // Recorded at the injection point rather than inside extractSiteData:
+      // the helper is handed a client precisely so it does not have to know
+      // where the call came from, and the task name is a property of the caller.
+      const vision = await extractSiteData(images, wrapClient(new Anthropic({ apiKey }), 'intake.siteVision'));
       if (vision.ok) {
         return NextResponse.json({
           kind: 'site_data',
@@ -116,7 +120,7 @@ export async function POST(request) {
     return NextResponse.json({ error: extracted.code, message: extracted.message }, { status: 422 });
   }
 
-  const result = await parseUnitMatrix(extracted.text, name, new Anthropic({ apiKey }));
+  const result = await parseUnitMatrix(extracted.text, name, wrapClient(new Anthropic({ apiKey }), 'intake.unitMatrix.parse'));
   if (!result.ok) {
     return NextResponse.json({ error: result.code, message: result.message }, { status: 502 });
   }

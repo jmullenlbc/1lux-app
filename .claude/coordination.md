@@ -2,6 +2,72 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+## ⚠️ Mike's Claude — 2026-08-08 (latest): a bug pattern to never write again — `.catch()` on `requireAuth()`
+
+**Nothing for you to fix. This is a "don't reintroduce it" note.** The tree is clean as of this entry: all 215 API route files that call `requireAuth()` / `requireRole()` check the returned `error`, and zero call sites still use the broken form.
+
+**The pattern:**
+
+```js
+// ❌ BROKEN — this route is public
+const { error } = await requireAuth().catch(() => ({}));
+// `error` is never checked, and the catch never fires
+```
+
+**Why it's invisible.** `requireAuth()` **returns** its 401 as a value; it does not throw. So the `.catch()` is dead code — it can never run — and because the destructured `error` is then never inspected, execution falls straight through into the handler body. It reads like a guard. It lints clean. It builds clean. It has no guard in it at all.
+
+**What it actually cost us.** This exact line was on `GET /api/projects/[id]/change-orders/[coId]/pdf` (fixed; see the comment at the top of that file, which is deliberately left in place as a tombstone). The route served the change-order PDF to anyone holding the URL, and combined with `?hideInternalDN=false` it published **ILC's buy price**. That is the single worst leak class in this codebase.
+
+**The rule.** Two lines, always, nothing between them:
+
+```js
+const { user, error } = await requireAuth();
+if (error) return error;
+```
+
+Never `.catch()` an auth guard. If you ever find yourself wanting to, the thing you actually want is `if (error) return error;`. A `.catch()` on `req.json()` is fine and common (`await req.json().catch(() => ({}))`) — that one is parsing, not authorization. The distinction is the whole point.
+
+**Cheap way to check yourself** — should print nothing:
+
+```bash
+for f in $(grep -rl "await requireAuth()\|await requireRole(" src/app/api --include=*.js); do grep -q "if (error)" "$f" || echo "$f"; done
+```
+
+---
+
+## Mike's Claude — 2026-08-08: MCP row-scope fix + ONE SCHEMA ASK (`McpQueryLog`)
+
+**Status: ON `main`** as of this commit. The `McpQueryLog` ask below is still open — until that table exists, `/api/mcp` returns **503 in production by design** (it refuses to answer anything it can't log). Nothing else depends on it; the rest of the release is live.
+
+**Schema ask (additive, no drops) — `McpQueryLog`.** The Librarian (`/api/mcp`, Slice 3 of the Governed AI Layer) refuses to serve at all unless it has somewhere to write an audit row: sink order is `prisma.mcpQueryLog` → a local JSONL file → **nothing, which means a 503 in production**. So today the endpoint would be dead on Amplify. Locally it falls back to `.mcp-audit/mcp-queries.jsonl` (gitignored). Fields it writes:
+
+| field | type | note |
+|---|---|---|
+| `id` | String @id @default(cuid()) | |
+| `createdAt` | DateTime @default(now()) | index this |
+| `tool` | String | e.g. `query_records` |
+| `params` | String | the QUESTION, never the answer — see below |
+| `status` | String | `ok` \| `rejected` \| `error` |
+| `rowCount` | Int? | scale of access, not contents |
+| `callerType` | String | `session` \| `service` |
+| `callerId` | String? | User id when a session |
+| `callerRole` | String? | |
+| `audience` | String | `ilc` \| `client` |
+| `errorMessage` | String? | |
+| `durationMs` | Int? | |
+
+**Deliberately no row contents.** A log that copied the rows would be a second, unredacted store of the same buy prices — and one nothing redacts on the way out. There's a test asserting the DN never appears in the log.
+
+**The bug I found and fixed (no schema involved).** `/api/mcp` was doing field-level redaction with **no row-level scoping**. A logged-in `CLIENT_VIEWER` could send `{"tool":"query_records","params":{"model":"Project"}}` and get **all 25 projects and all 12 clients by name** — every field correctly redacted, the whole book of business enumerated. It also defeated an intent already in the code twice over: `search` deliberately returns `clients: []` to a client audience, but `query_records model:'Client'` handed over all 12 one tool over; and `src/app/api/projects/route.js` carries the comment *"External Client Viewers stay scoped to their own — never widen this to CLIENT_VIEWER"*, which `/api/mcp` widened.
+
+Fixed in a new `src/lib/mcp/scope.js` that **mirrors the existing rule rather than inventing a second access model** — `{ createdById: user.id }`, reached from each registered object by its relation path. It **fails closed**: an object with no declared scope path is unreachable to a non-ILC caller, so a model you add later is invisible to clients until someone writes down how it relates to a project. Probe before: 25 projects / 12 clients. After: 0 / 0 / 403. 48/48 acceptance tests over real HTTP as a real logged-in CLIENT_VIEWER.
+
+**Question for you (not blocking):** the schema has unused `ProjectAccess` and `ProjectAssignee` join tables. I used `createdById` because that's what the live app uses today, but if those tables are the intended long-term client-access model, say so and I'll move the scope predicate over — it's one file and one map.
+
+Also: `scripts/check-shared-metrics.mjs` was blocking `npm run verify` because it greps for the bare identifier `pipelineProbability`, and `src/lib/ontology/objects/project.js` *declares* that column to classify it `ilc_only`. Added to the checker's existing ALLOW list — the ontology has no arithmetic in it, and the rule was blocking us from marking the field sensitive.
+
+---
+
 ## ✅ Mike's Claude — 2026-08-08 (later): the prod bug fix is ON MAIN — no action needed from you
 
 **`5c241a1` is pushed to `main` and Amplify is building it.** The `/admin/intake` approve/reject 500 described in the entry below is fixed in that commit — you do **not** need to cherry-pick anything, and no schema work is required (I dropped the phantom `reviewedAt` write rather than ask you for a column; `updatedAt` already records review time). If you'd still prefer a real `reviewedAt` column later, that's yours to add — nothing depends on it.

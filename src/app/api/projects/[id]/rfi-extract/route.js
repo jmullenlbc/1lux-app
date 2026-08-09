@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicKey } from '@/lib/anthropicKey';
+import { wrapClient } from '@/lib/agent/client';
 
 // POST /api/projects/[id]/rfi-extract
 // Body: { fileId } — extracts just the RFI question/request from a file's textContent
@@ -12,7 +13,11 @@ export async function POST(req, { params }) {
   if (error) return error;
 
   const body = await req.json().catch(() => ({}));
-  const anthropic = new Anthropic({ apiKey: getAnthropicKey() });
+  // Recorded: see src/lib/agent/ledger.js. The two modes below are named
+  // separately — one reads a stored file, the other parses a pasted email —
+  // and they fail for different reasons, so the rollup should keep them apart.
+  const raw = new Anthropic({ apiKey: getAnthropicKey() });
+  const ctx = { projectId: params.id, userId: user.id };
 
   // ── Mode 1: Extract question from existing file ──────────────────────────
   if (body.fileId) {
@@ -31,7 +36,7 @@ export async function POST(req, { params }) {
       return NextResponse.json({ question: existing.rfiQuestion });
     }
 
-    const msg = await anthropic.messages.create({
+    const msg = await wrapClient(raw, 'rfi.extractQuestion', ctx).messages.create({
       model:      'claude-haiku-4-5',
       max_tokens: 300,
       messages: [{
@@ -63,7 +68,7 @@ ${file.textContent.slice(0, 6000)}`,
 
   // ── Mode 2: Parse a pasted email and create an RFI record ────────────────
   if (body.emailContent) {
-    const msg = await anthropic.messages.create({
+    const msg = await wrapClient(raw, 'rfi.parseEmail', ctx).messages.create({
       model:      'claude-haiku-4-5',
       max_tokens: 500,
       messages: [{

@@ -13,6 +13,7 @@
 
 import { prisma }          from '@/lib/db';
 import { getAnthropicKey } from '@/lib/anthropicKey';
+import { wrapClient }      from '@/lib/agent/client';
 
 // ── In-person activity types ───────────────────────────────────────────────────
 export const IN_PERSON_TYPES = new Set([
@@ -126,7 +127,8 @@ Examples: LUNCH|88  or  SKIP|95  or  GOLF|72`;
 
   try {
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
-    const client = new Anthropic({ apiKey });
+    // Recorded: see src/lib/agent/ledger.js.
+    const client = wrapClient(new Anthropic({ apiKey }), 'bot.activity.classify');
     const msg = await client.messages.create({
       model:      'claude-haiku-4-5',
       max_tokens: 20,

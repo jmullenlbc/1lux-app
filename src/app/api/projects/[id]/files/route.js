@@ -8,6 +8,7 @@ import { logActivity, TAB_LABELS } from '@/lib/activity';
 import { sendNotification } from '@/lib/notify';
 import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicKey } from '@/lib/anthropicKey';
+import { wrapClient } from '@/lib/agent/client';
 import { extractScheduleMilestones } from '@/lib/scheduleExtract';
 
 // Anthropic client created per-request inside the POST handler so env vars are available
@@ -76,7 +77,13 @@ export async function POST(request, { params }) {
   if (error) return error;
   if (!await canAccess(params.id, user)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const anthropic = new Anthropic({ apiKey: getAnthropicKey() });
+  // Recorded: see src/lib/agent/ledger.js. Only used for the schedule-milestone
+  // extraction below, so it carries that task name rather than "file upload".
+  const anthropic = wrapClient(
+    new Anthropic({ apiKey: getAnthropicKey() }),
+    'schedule.milestones.extract',
+    { projectId: params.id, userId: user.id },
+  );
 
   const formData = await request.formData();
   const file     = formData.get('file');

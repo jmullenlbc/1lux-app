@@ -1,7 +1,10 @@
 import { getAnthropicKey } from '@/lib/anthropicKey.js';
 import Anthropic from '@anthropic-ai/sdk';
+import { wrapClient } from '@/lib/agent/client';
 
-const anthropic = new Anthropic({ apiKey: getAnthropicKey() });
+// Recorded: see src/lib/agent/ledger.js. wrapClient is a synchronous Proxy, so a
+// module-level client can be wrapped in place without making this an await.
+const anthropic = wrapClient(new Anthropic({ apiKey: getAnthropicKey() }), 'schedule.design.parse');
 
 const DESIGN_MILESTONE_IDS = [
   {

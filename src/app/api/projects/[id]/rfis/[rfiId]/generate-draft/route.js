@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { extractFixtureTypes } from '@/lib/extractFixtureTypes';
 import { getAnthropicKey } from '@/lib/anthropicKey';
+import { wrapClient } from '@/lib/agent/client';
 
 // POST /api/projects/[id]/rfis/[rfiId]/generate-draft
 // Assembles context, determines confidence tier, calls Claude, writes draft to DB.
@@ -144,7 +145,12 @@ Generate ONLY the response text. No preamble. No explanations. No markdown.`;
 
   try {
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
-    const anthropic  = new Anthropic({ apiKey: getAnthropicKey() });
+    // Recorded: see src/lib/agent/ledger.js.
+    const anthropic  = wrapClient(
+      new Anthropic({ apiKey: getAnthropicKey() }),
+      'rfi.draft',
+      { projectId: params.id, userId: user?.id || null },
+    );
 
     const msg = await anthropic.messages.create({
       model:      'claude-haiku-4-5',

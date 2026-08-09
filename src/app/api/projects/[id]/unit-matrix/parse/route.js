@@ -9,6 +9,7 @@ import { readFile } from 'fs/promises';
 // prompt and model choice live in ONE place so the internal tool and the
 // public tool can never disagree about the same document.
 import { xlsxToText, parseUnitMatrix } from '@/lib/drawingExtract';
+import { wrapClient } from '@/lib/agent/client';
 
 async function canAccess(projectId, user) {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
@@ -59,7 +60,11 @@ export async function POST(request, { params }) {
 
   // Truncation, model choice, the prompt, code-fence stripping and shape
   // validation all live in the shared core now.
-  const result = await parseUnitMatrix(contentText, file.originalName, new Anthropic({ apiKey }));
+  // Recorded: see src/lib/agent/ledger.js. Deliberately a different task name
+  // from the public intake route's call into the same helper — they share a
+  // prompt but not a caller, and the rollup should be able to tell them apart.
+  const client = wrapClient(new Anthropic({ apiKey }), 'unitMatrix.parse', { projectId: params.id, userId: user.id });
+  const result = await parseUnitMatrix(contentText, file.originalName, client);
   if (!result.ok) {
     // Preserve the original error strings — UnitMatrixUpload.jsx branches on them.
     const error = result.code === 'extraction_failed' ? 'Extraction failed' : 'Could not parse extraction output';

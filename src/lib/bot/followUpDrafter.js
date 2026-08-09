@@ -7,6 +7,7 @@
 
 import { prisma } from '@/lib/db';
 import { getAnthropicKey } from '@/lib/anthropicKey';
+import { wrapClient } from '@/lib/agent/client';
 import { inDesignPipeline, STAGE_LABEL } from '@/lib/pipeline';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -122,7 +123,12 @@ Respond with JSON only: { "subject": "...", "body": "..." }`;
   let body = '';
   try {
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
-    const anthropic = new Anthropic({ apiKey: getAnthropicKey() });
+    // Recorded: see src/lib/agent/ledger.js. Scheduled work, so no userId.
+    const anthropic = wrapClient(
+      new Anthropic({ apiKey: getAnthropicKey() }),
+      'bot.followUp.draft',
+      { projectId: project.id },
+    );
     const msg = await anthropic.messages.create({
       model: 'claude-haiku-4-5', max_tokens: 400,
       messages: [{ role: 'user', content: prompt }],

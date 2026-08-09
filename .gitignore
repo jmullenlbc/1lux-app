@@ -24,3 +24,14 @@ C\:*
 *temp-devserver*
 devserver.log
 dev-server.log
+
+# MCP audit log — the local JSONL fallback sink (src/lib/mcp/audit.js).
+# Records who queried what through /api/mcp. Never committed: it is a record of
+# real reads against the dev database, and in production the sink is a table.
+.mcp-audit/
+
+# AgentRun ledger — the local JSONL fallback sink (src/lib/agent/ledger.js).
+# One row per model call: task, model, tokens, latency, project and user ids.
+# No prompts or completions, but still an operational record of real activity
+# against the dev database. Same rule as above; in production the sink is a table.
+.agent-runs/

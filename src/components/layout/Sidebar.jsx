@@ -374,7 +374,8 @@ export default function Sidebar({ user }) {
   const preconRelated   = startsWith('/pre-con') || startsWith('/manufacturers') ||
                           startsWith('/sales-reps') || startsWith('/products') || startsWith('/dashboards/budget');
   const softwareRelated = startsWith('/admin/changelog') || startsWith('/admin/roadmap') ||
-                          startsWith('/admin/tasks') || startsWith('/admin/tech-stack');
+                          startsWith('/admin/tasks') || startsWith('/admin/tech-stack') ||
+                          startsWith('/admin/usage');
 
   // ── Collapsible open states ───────────────────────────────────────────────────
   const [homeOpen,     setHomeOpen]     = useState(true);
@@ -529,6 +530,7 @@ export default function Sidebar({ user }) {
                 <SubNavItem href="/admin/roadmap"    icon={<IconRoadmap />}    label="Roadmap"    expanded={expanded} active={startsWith('/admin/roadmap')} />
                 <SubNavItem href="/admin/tasks"      icon={<IconTask />}       label="Tasks & QC" expanded={expanded} active={startsWith('/admin/tasks')} />
                 <SubNavItem href="/admin/tech-stack" icon={<IconTechStack />}  label="Tech Stack" expanded={expanded} active={startsWith('/admin/tech-stack')} />
+                {isIlcAdmin && <SubNavItem href="/admin/usage" icon={<IconBarChart />} label="Usage & Health" expanded={expanded} active={startsWith('/admin/usage')} />}
               </div>
             )}
           </div>

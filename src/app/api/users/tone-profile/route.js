@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma }       from '@/lib/db';
 import { getAnthropicKey } from '@/lib/anthropicKey';
+import { wrapClient }      from '@/lib/agent/client';
 
 // ── mbox parser ───────────────────────────────────────────────────────────────
 // Extracts plain-text bodies from a .mbox file (string)
@@ -57,9 +58,16 @@ function parseMbox(mboxText, maxEmails = 200) {
 
 // ── Tone analysis via Claude Sonnet ──────────────────────────────────────────
 
-async function buildToneProfile(emails, userName) {
+// `userId` is passed separately from `userName` — the name is prompt content,
+// the id is what the ledger groups by.
+async function buildToneProfile(emails, userName, userId) {
   const Anthropic = (await import('@anthropic-ai/sdk')).default;
-  const client = new Anthropic({ apiKey: getAnthropicKey() });
+  // Recorded: see src/lib/agent/ledger.js.
+  const client = wrapClient(
+    new Anthropic({ apiKey: getAnthropicKey() }),
+    'user.toneProfile.build',
+    { userId: userId || null },
+  );
 
   // Sample up to 50 emails for analysis — enough to capture voice without huge cost
   const sample = emails.slice(0, 50);
@@ -134,7 +142,7 @@ export async function POST(req) {
   // Build tone profile via Sonnet
   let profile;
   try {
-    profile = await buildToneProfile(emails, user.name);
+    profile = await buildToneProfile(emails, user.name, user.id);
   } catch (e) {
     console.error('[tone-profile] Sonnet error:', e.message);
     return NextResponse.json({ error: 'AI analysis failed — try again' }, { status: 500 });

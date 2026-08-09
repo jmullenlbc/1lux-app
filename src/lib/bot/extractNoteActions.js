@@ -8,6 +8,7 @@
  * materials, Add to list, Internal task, Intel) so the bot knows what to do.
  */
 import { getAnthropicKey } from '@/lib/anthropicKey';
+import { wrapClient } from '@/lib/agent/client';
 import { DEFAULT_ACTION_TYPES } from '@/lib/noteActions';
 
 // Try to resolve a free-text person name to a CRM contact id.
@@ -65,7 +66,12 @@ Return ONLY a JSON array. Each element:
   let parsed = [];
   try {
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
-    const anthropic = new Anthropic({ apiKey: getAnthropicKey() });
+    // Recorded: see src/lib/agent/ledger.js.
+    const anthropic = wrapClient(
+      new Anthropic({ apiKey: getAnthropicKey() }),
+      'bot.note.extractActions',
+      { projectId: note?.projectId || null, userId: note?.createdById || null },
+    );
     const msg = await anthropic.messages.create({
       model: 'claude-haiku-4-5',
       max_tokens: 1500,

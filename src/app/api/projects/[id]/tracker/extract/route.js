@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getAnthropicKey } from '@/lib/anthropicKey';
+import { wrapClient } from '@/lib/agent/client';
 import {
   extractPdfPages,
   extractNotesFromPages,
@@ -200,7 +201,14 @@ export async function POST(req, { params }) {
   if (otherReviews.length > 0) {
     try {
       const Anthropic = (await import('@anthropic-ai/sdk')).default;
-      const anthropic  = new Anthropic({ apiKey: getAnthropicKey() });
+      // Recorded: see src/lib/agent/ledger.js. One ledger entry per note — the
+      // loop below is capped at 50, so the per-run cost is bounded and worth
+      // recording individually rather than as one opaque batch.
+      const anthropic  = wrapClient(
+        new Anthropic({ apiKey: getAnthropicKey() }),
+        'tracker.review.classify',
+        { projectId: params.id, userId: user.id },
+      );
 
       const categories = Object.keys(require('@/lib/submittalExtractor').NOTE_CATEGORIES || {}).join('|') ||
         'FINISH|MODEL|ACCESSORY|VOLTAGE|LUMEN|WET_LOCATION|DRAWING_SYNC|DISCONTINUED|LED_TAPE|CODE|CRI|BOILERPLATE|OTHER';
