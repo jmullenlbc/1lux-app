@@ -1,47 +1,57 @@
 {
-  "at": "2026-08-08T21:34:07.348Z",
-  "full": false,
+  "at": "2026-08-09T00:57:51.729Z",
+  "full": true,
   "failed": null,
   "results": [
     {
       "gate": "dynamic pages",
       "ok": true,
-      "ms": 165
+      "ms": 153
     },
     {
       "gate": "schema provider",
       "ok": true,
-      "ms": 101
+      "ms": 95
     },
     {
       "gate": "env contract",
       "ok": true,
-      "ms": 96
+      "ms": 97
     },
     {
       "gate": "migrations (postgres)",
       "ok": true,
-      "ms": 182
+      "ms": 159
     },
     {
       "gate": "schema ↔ migrations",
       "ok": true,
-      "ms": 143
+      "ms": 149
     },
     {
       "gate": "shared metrics",
       "ok": true,
-      "ms": 415
+      "ms": 502
     },
     {
       "gate": "unit tests",
       "ok": true,
-      "ms": 1086
+      "ms": 1083
     },
     {
       "gate": "secrets",
       "ok": true,
-      "ms": 286
+      "ms": 248
+    },
+    {
+      "gate": "production build",
+      "ok": true,
+      "ms": 126131
+    },
+    {
+      "gate": "runtime assets",
+      "ok": true,
+      "ms": 121
     }
   ]
 }

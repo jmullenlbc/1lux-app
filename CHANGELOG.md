@@ -9,13 +9,35 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 Mike approved Sean's Task 27 (portal invite bridge) after a DN check of the portal budget route (client-facing totals only — clean). Review of the 08-04 intake deploy found and fixed, live-tested:
 
-### Fixed (branch wip-pathway-rates-and-pagefinder — needs a deploy to reach prod)
+### Fixed (DEPLOYED to main August 8, 2026)
 - **Admin review queue was broken in production**: approve/reject 500'd on every click — the route wrote a reviewedAt field that does not exist on the model, so Prisma rejected every update since 08-04. Field dropped (updatedAt covers it).
 - **Client link wiped on approve**: PATCHes omitting clientId nulled an existing link, which would break the Task 27 invite bridge. Now only touched when explicitly sent.
 - **/api/intake/submit hardened**: work-email gate enforced server-side (was client-only — direct POSTs accepted gmail), per-IP rate limit (5/min), 200KB payload cap, and the proposedName bug fixed (company name was stored as the project name whenever a company was entered).
 - **Client.emailDomains finally used**: submissions auto-link clientId on an explicit domain match; reviewers can override.
 
 All five behaviors verified against the running API; 8 verify gates pass.
+
+### Also shipped in this deploy
+- **garageSf / corridorSf wired through** the unit-matrix commit allowlist — the extractor parsed both from day one and the commit route silently discarded them.
+- **Pricing:** landscape lighting capped at $3,000 (the source questionnaire's stated ceiling, previously unenforced), pathway floor + provisional per-building-type bollard rates recorded in master pricing (**not wired into `calculations.js`** — no budget moves), $300 wallpack-with-battery slot.
+- **PricingEditor dead control fixed** — the admin UI edited a `perStall` key nothing read; now `perFixture`.
+- **Codespaces:** `.devcontainer/devcontainer.json`, `CODESPACES.md`, `npm run dev:codespace`, `.claude/launch.json`.
+- **`scripts/prototypes/pagefinder.mts`** — site-page finder prototype (validated on 22 sets / 2,212 pages, $0 AI). Prototype only, not wired to a route.
+
+### Deploy debug pass (per the standing rule — run before, not after)
+| Gate | Result |
+|---|---|
+| verify (static, 8 gates) | pass |
+| production build + runtime assets (10 gates, `--full`) | pass |
+| budget regression suite | 38/38 assertions |
+| fuzz (8,000 scenarios) | 111,997 invariant checks, 0 failures |
+| bid-matrix logic | 12/12 |
+| engine vs **all 25 real projects** | no throws, no NaN/Infinity/negatives, `total = lighting + controls` on every one |
+| UI-vs-engine smoke (role-aware, ILC_ADMIN + COMPANY_ADMIN) | 5/5 |
+| intake edge cases (gmail/oversize/malformed/missing/rate-limit) | 6/6 |
+| review-queue gate (approve, reject, link retention, unauth) | 6/6 |
+
+One failure surfaced and was run to ground before shipping: `/dashboards/main|sales|meeting` returned 500 for both admin roles. Cause was a **stale local `.next`** left by an earlier build run against a live dev server — not a code defect. Confirmed by a clean production build of those same routes, then a `.next` wipe and a green re-run. No schema diff in this release, so `prisma db push --accept-data-loss` has nothing to drop.
 
 ## [Pathway research — what drawings can and cannot tell us] · July 19, 2026
 
