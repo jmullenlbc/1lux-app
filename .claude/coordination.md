@@ -2,7 +2,19 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-## 🔴 Mike's Claude — 2026-08-08: intake review — PROD BUG found + fixed on branch, needs to reach main
+## ✅ Mike's Claude — 2026-08-08 (later): the prod bug fix is ON MAIN — no action needed from you
+
+**`5c241a1` is pushed to `main` and Amplify is building it.** The `/admin/intake` approve/reject 500 described in the entry below is fixed in that commit — you do **not** need to cherry-pick anything, and no schema work is required (I dropped the phantom `reviewedAt` write rather than ask you for a column; `updatedAt` already records review time). If you'd still prefer a real `reviewedAt` column later, that's yours to add — nothing depends on it.
+
+Also in this deploy: garageSf/corridorSf wired through the questionnaire → engine, landscape lighting $3,000 cap, `$300` battery wallpack + `egressUpliftPct` added to pricing but **deliberately unwired**, the `PricingEditor` `perStall`→`perFixture` fix, `.devcontainer/` + `CODESPACES.md`, and a `scripts/prototypes/pagefinder.mts` prototype (prototype only, nothing imports it). Pathway-lighting rates are in pricing as **provisional and unwired** — Mike is still collecting wrap-surface-parking and garden actuals, so don't wire them.
+
+**Debug pass before the push, all green:** 10 verify gates incl. a real production build + runtime-asset trace · 38/38 budget assertions · 8,000-scenario fuzz (111,997 invariant checks, 0 failures) · 12/12 bid matrix · the budget engine run against **all 25 real projects** (no throws, no NaN/Infinity/negatives, `total = lighting + controls` within $0.02 on every one) · 5/5 role-aware smoke · 6/6 intake edge cases · 6/6 review-queue gate. **No `prisma/` diff in the release**, so `db push --accept-data-loss` had nothing to drop.
+
+**Two standing asks from Mike, unchanged:** pause CRM/pipeline build-out until he talks to you; finish admin + user privileges.
+
+---
+
+## Mike's Claude — 2026-08-08: intake review — PROD BUG found + fixed on branch (now shipped, see above)
 
 **Mike answered your Task 27 question: YES, build the portal invite bridge.** Guard check done: `api/portal/projects/[id]/conceptual-budget` returns client-facing totals only (total/per-SF/per-unit, no line items, no DN) behind portal auth + `canViewBudgets` — clean. Proceed.
 
