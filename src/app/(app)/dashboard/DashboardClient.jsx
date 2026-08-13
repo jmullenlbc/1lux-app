@@ -28,6 +28,19 @@ function initials(user) {
   return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 }
 
+function relativeTime(date) {
+  const now = new Date();
+  const d = new Date(date);
+  const secAgo = (now - d) / 1000;
+  if (secAgo < 60) return 'just now';
+  if (secAgo < 3600) return `${Math.floor(secAgo / 60)}m ago`;
+  if (secAgo < 86400) return `${Math.floor(secAgo / 3600)}h ago`;
+  const daysAgo = Math.floor(secAgo / 86400);
+  if (daysAgo === 1) return 'yesterday';
+  if (daysAgo < 30) return `${daysAgo}d ago`;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
+}
+
 function SortIcon({ col, sortCol, sortDir }) {
   const active = sortCol === col;
   return (
@@ -271,7 +284,13 @@ export default function DashboardClient({ projects = [], user }) {
 
                     {/* Client */}
                     <td className="px-3 py-2.5">
-                      <span className="text-sm text-slate-600">{project.client?.name || <span className="text-slate-300">—</span>}</span>
+                      {project.client ? (
+                        <Link href={`/clients/${project.client.id}`} className="text-sm text-blue-600 hover:underline">
+                          {project.client.name}
+                        </Link>
+                      ) : (
+                        <span className="text-slate-300">—</span>
+                      )}
                     </td>
 
                     {/* Location */}
@@ -318,9 +337,9 @@ export default function DashboardClient({ projects = [], user }) {
                     </td>
 
                     {/* Updated */}
-                    <td className="px-3 py-2.5 hidden xl:table-cell whitespace-nowrap">
-                      <span className="text-xs text-slate-400 tabular-nums">
-                        {new Date(project.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
+                    <td className="px-3 py-2.5 hidden xl:table-cell whitespace-nowrap" title={new Date(project.updatedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}>
+                      <span className="text-xs text-slate-400">
+                        {relativeTime(project.updatedAt)}
                       </span>
                     </td>
 
