@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 export default function PortalProjectsPage() {
@@ -40,9 +41,9 @@ export default function PortalProjectsPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {data.projects.map(p => (
-            <button
+            <Link
               key={p.projectId}
-              onClick={() => router.push(`/portal/projects/${p.projectId}`)}
+              href={`/portal/projects/${p.projectId}`}
               className="bg-white border border-slate-200 rounded-2xl p-5 text-left hover:border-amber-300 hover:shadow-sm transition-all group"
             >
               <div className="flex items-start justify-between mb-3">
@@ -57,7 +58,7 @@ export default function PortalProjectsPage() {
               </div>
               <h3 className="font-semibold text-slate-800 group-hover:text-amber-700 transition-colors">{p.projectName}</h3>
               <p className="text-xs text-slate-400 mt-1">{p.role}</p>
-            </button>
+            </Link>
           ))}
         </div>
       )}
