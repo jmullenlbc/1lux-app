@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 
 const STATUS_CONFIG = {
   PENDING: { color: 'bg-amber-100 text-amber-700 border border-amber-200', label: 'Pending' },
@@ -69,6 +70,9 @@ export default function IntakeClient({ submissions, clients, projects, currentUs
   return (
     <div className="min-h-screen bg-slate-50 p-6">
       <div className="max-w-7xl mx-auto">
+        <Link href="/admin" className="text-xs text-slate-400 hover:text-amber-600 transition-colors mb-4 inline-block">
+          ← Admin
+        </Link>
         <h1 className="text-3xl font-bold text-slate-900 mb-6">Conceptual Submissions</h1>
 
         <div className="grid grid-cols-3 gap-6">

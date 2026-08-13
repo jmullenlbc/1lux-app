@@ -685,7 +685,9 @@ export default function ProjectHubClient({ userId, userRole, project, budget, pe
               <span>›</span>
               {project.client && (
                 <>
-                  <span className="text-slate-500">{project.client.name}</span>
+                  <Link href={`/clients/${project.client.id}`} className="text-slate-500 hover:text-amber-600 transition-colors">
+                    {project.client.name}
+                  </Link>
                   <span>›</span>
                 </>
               )}
