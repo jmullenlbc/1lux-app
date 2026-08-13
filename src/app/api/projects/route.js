@@ -30,6 +30,10 @@ export async function POST(request) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
+  if (isClientViewer(user.role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   const body = await request.json();
   const { name, buildingType, location, contactEmail, budgetType, clientId, city, state, phase, serviceType } = body;
 
