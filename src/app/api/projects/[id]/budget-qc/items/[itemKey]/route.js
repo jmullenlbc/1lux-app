@@ -23,7 +23,7 @@ export async function PATCH(req, { params }) {
   if (!checklist) return NextResponse.json({ error: 'Checklist not found — load the QC strip first' }, { status: 404 });
 
   // Permission: ILC_ADMIN or assigned reviewer
-  const isAdmin = user.role === 'ILC_ADMIN' || user.role === 'SUPER_ADMIN';
+  const isAdmin = isSuperAdmin(user.role) || user.role === 'SUPER_ADMIN';
   if (!isAdmin && checklist.assignedToId && checklist.assignedToId !== user.id) {
     return NextResponse.json({ error: 'Only the assigned reviewer can check items' }, { status: 403 });
   }

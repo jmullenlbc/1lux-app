@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db';
 async function canAccess(projectId, user) {
   const p = await prisma.project.findUnique({ where: { id: projectId } });
   if (!p) return false;
-  return user.role === 'ILC_ADMIN' || p.createdById === user.id;
+  return isSuperAdmin(user.role) || p.createdById === user.id;
 }
 
 // GET — fetch full tracker with all items, submissions, versions, reviews

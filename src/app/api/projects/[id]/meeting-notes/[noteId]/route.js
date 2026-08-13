@@ -7,7 +7,7 @@ import { toMeetingNote } from '../route';
 async function canAccess(projectId, user) {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project) return false;
-  return user.role === 'ILC_ADMIN' || project.createdById === user.id;
+  return isSuperAdmin(user.role) || project.createdById === user.id;
 }
 
 export async function PATCH(request, { params }) {

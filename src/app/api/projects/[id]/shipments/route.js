@@ -7,7 +7,7 @@ import { enrichLineItem, LINE_ITEM_INCLUDE } from '@/lib/shipScheduleHelpers';
 async function canAccess(projectId, user) {
   const p = await prisma.project.findUnique({ where: { id: projectId } });
   if (!p) return false;
-  return user.role === 'ILC_ADMIN' || user.role === 'SUPER_ADMIN' || user.role === 'COMPANY_ADMIN' || p.createdById === user.id;
+  return isSuperAdmin(user.role) || user.role === 'SUPER_ADMIN' || user.role === 'COMPANY_ADMIN' || p.createdById === user.id;
 }
 
 // GET /api/projects/[id]/shipments

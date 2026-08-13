@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db';
 async function canAccess(projectId, user) {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project) return false;
-  if (user.role === 'ILC_ADMIN') return true;
+  if (isSuperAdmin(user.role)) return true;
   return project.createdById === user.id;
 }
 

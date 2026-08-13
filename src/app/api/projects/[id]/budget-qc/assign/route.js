@@ -8,7 +8,7 @@ export async function PATCH(req, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
-  const isAdmin = user.role === 'ILC_ADMIN' || user.role === 'SUPER_ADMIN';
+  const isAdmin = isSuperAdmin(user.role) || user.role === 'SUPER_ADMIN';
   if (!isAdmin) return NextResponse.json({ error: 'Admin only' }, { status: 403 });
 
   const { userId } = await req.json();
