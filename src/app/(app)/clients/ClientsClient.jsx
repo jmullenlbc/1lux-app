@@ -198,8 +198,8 @@ export default function ClientsClient({ clients: initial, user }) {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
           { label: 'Total Clients',   value: clients.length },
-          { label: 'Developers',      value: clients.filter(c => c.type === 'Developer').length },
-          { label: 'Architects',      value: clients.filter(c => c.type === 'Architect').length },
+          { label: 'Developers',      value: clients.filter(c => c.type === 'developer').length },
+          { label: 'Architects',      value: clients.filter(c => c.type === 'architect').length },
           { label: 'Linked Projects', value: clients.reduce((s, c) => s + (c._count?.projects || 0), 0) },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-xl border border-slate-200 p-5">

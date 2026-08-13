@@ -996,7 +996,7 @@ export default function PortalProjectPage({ params }) {
         {/* Section title (desktop) */}
         {active && (
           <div className="hidden md:block px-6 pt-5 pb-0 shrink-0">
-            <a href="/portal" className="text-xs text-slate-400 hover:text-amber-600 transition-colors">
+            <a href="/portal/projects" className="text-xs text-slate-400 hover:text-amber-600 transition-colors">
               ← Back to projects
             </a>
             <p className="text-sm text-slate-400 mt-1">{project.name}</p>
@@ -1023,7 +1023,7 @@ export default function PortalProjectPage({ params }) {
 
         {/* ── Mobile bottom nav ── */}
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex z-40">
-          {available.slice(0, 6).map(item => (
+          {available.slice(0, 7).map(item => (
             <button
               key={item.id}
               onClick={() => setActiveId(item.id)}
