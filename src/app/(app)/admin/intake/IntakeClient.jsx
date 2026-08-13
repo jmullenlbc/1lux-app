@@ -87,7 +87,23 @@ export default function IntakeClient({ submissions, clients, projects, currentUs
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {submissions.map(s => (
+                  {submissions.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" className="px-4 py-12 text-center text-slate-500">
+                        <p className="text-sm mb-3">No submissions yet.</p>
+                        <button
+                          onClick={() => {
+                            const url = `${window.location.origin}/start`;
+                            navigator.clipboard.writeText(url);
+                            alert('Copied: ' + url);
+                          }}
+                          className="text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1 rounded"
+                        >
+                          Copy /start link
+                        </button>
+                      </td>
+                    </tr>
+                  ) : submissions.map(s => (
                     <tr
                       key={s.id}
                       onClick={() => {
@@ -133,7 +149,9 @@ export default function IntakeClient({ submissions, clients, projects, currentUs
 
                 <div>
                   <label className="block text-sm font-semibold text-slate-900 mb-1">Email</label>
-                  <p className="text-slate-600">{selected.submitterEmail}</p>
+                  <a href={`mailto:${selected.submitterEmail}`} className="text-blue-600 hover:underline text-sm">
+                    {selected.submitterEmail}
+                  </a>
                 </div>
 
                 <div>
@@ -195,7 +213,16 @@ export default function IntakeClient({ submissions, clients, projects, currentUs
                     {saving ? 'Saving...' : 'Save'}
                   </button>
                   <button
-                    onClick={() => setSelectedId(null)}
+                    onClick={() => {
+                      setSelectedId(null);
+                      setStatus('PENDING');
+                      setReviewNote('');
+                      setClientId('');
+                      setLinkedProjectId('');
+                      setInviteResult(null);
+                      setInviteError(null);
+                      setCopied(false);
+                    }}
                     className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-900 font-semibold py-2 px-4 rounded-lg transition-colors"
                   >
                     Close
