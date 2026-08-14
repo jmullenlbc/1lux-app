@@ -783,9 +783,10 @@ export default function ProjectHubClient({ userId, userRole, project, budget, pe
               <div className="flex flex-wrap items-center gap-2 mt-2">
                 {/* Phase selector */}
                 <select
+                  disabled={savingPhase}
                   value={phase}
                   onChange={e => updatePhase(e.target.value)}
-                  className="text-xs font-semibold border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-700"
+                  className="text-xs font-semibold border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-700 disabled:opacity-50"
                 >
                   {PROJECT_PHASES.map(p => (
                     <option key={p.value} value={p.value}>{p.label} — {p.long}</option>
@@ -794,9 +795,10 @@ export default function ProjectHubClient({ userId, userRole, project, budget, pe
 
                 {/* Service type selector */}
                 <select
+                  disabled={savingSvc}
                   value={serviceType}
                   onChange={e => updateServiceType(e.target.value)}
-                  className="text-xs font-semibold border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-700"
+                  className="text-xs font-semibold border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-700 disabled:opacity-50"
                 >
                   <option value="">Service type…</option>
                   {SERVICE_TYPES.map(t => (

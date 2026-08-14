@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Badge from '@/components/ui/Badge';
 import { DIVISIONS } from '@/lib/divisions';
@@ -612,7 +613,9 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
               {projects.map(p => (
                 <tr key={p.id} className="hover:bg-slate-50">
                   <td className="px-6 py-4">
-                    <div className="font-medium text-slate-900">{p.name}</div>
+                    <Link href={`/project/${p.id}`} className="font-medium text-blue-600 hover:underline">
+                      {p.name}
+                    </Link>
                     {p.location && <div className="text-xs text-slate-400 mt-0.5">{p.location}</div>}
                   </td>
                   <td className="px-6 py-4 text-slate-600">
