@@ -227,6 +227,9 @@ function KanbanColumn({ stageCfg, projects, pipeline, onOpen, onAdd, draggingId,
         {isActiveDrop && projects.length === 0 && (
           <div className="flex items-center justify-center h-16 rounded-lg text-xs font-semibold text-orange-500">Drop here → {stageCfg.label}</div>
         )}
+        {!isActiveDrop && projects.length === 0 && (
+          <div className="flex items-center justify-center h-16 text-xs text-slate-400">No projects at this stage</div>
+        )}
         <button onClick={onAdd} className="w-full py-2 rounded-lg text-xs text-slate-400 hover:text-slate-600 hover:bg-white border border-dashed border-slate-300 hover:border-slate-400 transition-all flex items-center justify-center gap-1">
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
           New project
