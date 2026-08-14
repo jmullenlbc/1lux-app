@@ -400,6 +400,7 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
   const router          = useRouter();
   const [tab,           setTab]          = useState('users');
   const [users,         setUsers]        = useState(initialUsers);
+  const [userSearch,    setUserSearch]   = useState('');
   const [editUser,      setEditUser]     = useState(null);
   const [created,       setCreated]      = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -484,6 +485,21 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
             </div>
           )}
 
+          <div className="mb-4 flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="Search by name or email…"
+              value={userSearch}
+              onChange={e => setUserSearch(e.target.value)}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 w-72"
+            />
+            {userSearch && (
+              <button onClick={() => setUserSearch('')} className="px-3 py-2 text-sm text-slate-400 hover:text-slate-600">
+                Clear
+              </button>
+            )}
+          </div>
+
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
             <table className="w-full text-sm">
               <thead>
@@ -498,7 +514,10 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {users.map(u => {
+                {users.filter(u => {
+                  const q = userSearch.toLowerCase();
+                  return !q || u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q);
+                }).map(u => {
                   const badge = getRoleBadge(u.role);
                   const isMe  = u.id === currentUser.id;
                   return (
