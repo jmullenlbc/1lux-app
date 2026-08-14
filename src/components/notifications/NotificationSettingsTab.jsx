@@ -270,6 +270,7 @@ export default function NotificationSettingsTab({ projectId }) {
   const [configs,  setConfigs]  = useState({});
   const [contacts, setContacts] = useState([]);
   const [loading,  setLoading]  = useState(true);
+  const [dismissedDryRun, setDismissedDryRun] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -343,14 +344,25 @@ export default function NotificationSettingsTab({ projectId }) {
           </div>
 
           {/* Dry-run warning */}
-          <div className="mb-5 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
-            <svg className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-            </svg>
-            <p className="text-xs text-amber-800">
-              <strong>Email is in dry-run mode.</strong> Everything is tracked and logged, but no emails are actually sent until Microsoft Outlook is connected. Set up your contacts now — they'll be ready to go when email goes live.
-            </p>
-          </div>
+          {!dismissedDryRun && (
+            <div className="mb-5 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
+              <svg className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+              <p className="text-xs text-amber-800 flex-1">
+                <strong>Email is in dry-run mode.</strong> Everything is tracked and logged, but no emails are actually sent until Microsoft Outlook is connected. Set up your contacts now — they'll be ready to go when email goes live.
+              </p>
+              <button
+                onClick={() => setDismissedDryRun(true)}
+                className="p-1 text-amber-500 hover:text-amber-600 shrink-0"
+                title="Dismiss"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          )}
 
           {/* No contacts hint */}
           {!loading && contacts.length === 0 && (
