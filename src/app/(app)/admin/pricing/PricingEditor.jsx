@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Button from '@/components/ui/Button';
 
 // Flat definition of every editable pricing field
@@ -209,6 +209,19 @@ export default function PricingEditor({ initialPricing, initialPricingIntel }) {
   );
   const [piSaving, setPiSaving] = useState(false);
   const [piSaved,  setPiSaved]  = useState(false);
+  const [collapsed, setCollapsed] = useState({});
+
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (!saved) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [saved]);
 
   async function savePricingIntel() {
     setPiSaving(true); setPiSaved(false);
@@ -274,6 +287,14 @@ export default function PricingEditor({ initialPricing, initialPricingIntel }) {
 
   return (
     <div>
+      {!saved && (
+        <div className="bg-amber-50 border-b border-amber-200 px-6 py-3 flex items-center gap-3">
+          <svg className="w-5 h-5 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4v2m0-6a4 4 0 1 1 0 8 4 4 0 0 1 0-8z" />
+          </svg>
+          <p className="text-sm text-amber-800 flex-1">You have unsaved changes</p>
+        </div>
+      )}
       {/* Sticky save bar */}
       <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between">
         <div className="text-sm text-slate-500">
@@ -306,44 +327,54 @@ export default function PricingEditor({ initialPricing, initialPricingIntel }) {
 
       {/* Pricing table */}
       <div className="divide-y divide-slate-100">
-        {groupList.map(([groupName, fields]) => (
-          <div key={groupName} className="px-6 py-5">
-            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">
-              {groupName}
-            </h3>
-            <div className="space-y-0 border border-slate-200 rounded-lg overflow-hidden">
-              {fields.map((field, i) => {
-                const currentVal = getNestedValue(pricing, field.key);
-                return (
-                  <div
-                    key={field.key}
-                    className={`flex items-center px-4 py-2.5 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}
-                  >
-                    {/* Label + description */}
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-slate-800">{field.label}</div>
-                      {field.desc && <div className="text-xs text-slate-400 mt-0.5">{field.desc}</div>}
-                    </div>
-                    {/* Unit badge */}
-                    <div className="text-xs text-slate-400 font-mono mx-4 w-20 text-right shrink-0">
-                      {field.unit}
-                    </div>
-                    {/* Input */}
-                    <div className="w-32 shrink-0">
-                      <input
-                        type="number"
-                        step="any"
-                        value={currentVal ?? ''}
-                        onChange={e => handleChange(field.key, e.target.value)}
-                        className="w-full text-right text-sm font-mono border border-slate-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
-                      />
-                    </div>
-                  </div>
-                );
-              })}
+        {groupList.map(([groupName, fields]) => {
+          const isCollapsed = collapsed[groupName];
+          return (
+            <div key={groupName} className="px-6 py-5">
+              <button onClick={() => setCollapsed(c => ({ ...c, [groupName]: !c[groupName] }))} className="w-full text-left flex items-center gap-2 mb-3 group">
+                <svg className={`w-4 h-4 text-slate-400 transition-transform ${isCollapsed ? '' : 'rotate-90'}`} fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M8.5 15a.5.5 0 0 1-.5-.5V2.707L3.854 7.354a.5.5 0 1 1-.708-.708l5-5a.5.5 0 0 1 .708 0l5 5a.5.5 0 0 1-.708.708L8.5 2.707V14.5a.5.5 0 0 1-.5.5z" transform="rotate(-90)" />
+                </svg>
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest group-hover:text-slate-600">
+                  {groupName}
+                </h3>
+              </button>
+              {!isCollapsed && (
+                <div className="space-y-0 border border-slate-200 rounded-lg overflow-hidden">
+                  {fields.map((field, i) => {
+                    const currentVal = getNestedValue(pricing, field.key);
+                    return (
+                      <div
+                        key={field.key}
+                        className={`flex items-center px-4 py-2.5 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}
+                      >
+                        {/* Label + description */}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-slate-800">{field.label}</div>
+                          {field.desc && <div className="text-xs text-slate-400 mt-0.5">{field.desc}</div>}
+                        </div>
+                        {/* Unit badge */}
+                        <div className="text-xs text-slate-400 font-mono mx-4 w-20 text-right shrink-0">
+                          {field.unit}
+                        </div>
+                        {/* Input */}
+                        <div className="w-32 shrink-0">
+                          <input
+                            type="number"
+                            step="any"
+                            value={currentVal ?? ''}
+                            onChange={e => handleChange(field.key, e.target.value)}
+                            className="w-full text-right text-sm font-mono border border-slate-200 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="px-6 py-4 text-xs text-slate-400 border-t border-slate-100">
