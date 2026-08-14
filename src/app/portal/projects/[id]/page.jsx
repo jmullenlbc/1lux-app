@@ -651,7 +651,7 @@ function MeetingNotesView({ projectId }) {
                 onClick={() => setExpanded(e => ({ ...e, [n.id]: !e[n.id] }))}
                 className="text-[11px] text-orange-600 mt-1.5 inline-flex items-center gap-1 hover:text-orange-700"
               >
-                {expanded[n.id] ? 'Less ▲' : 'More ▼'}
+                {expanded[n.id] ? 'Show less' : 'Show more'}
               </button>
             </>
           )}
@@ -951,7 +951,8 @@ export default function PortalProjectPage({ params }) {
 
       {/* ── Desktop sidebar ── */}
       <aside className="hidden md:flex w-52 shrink-0 flex-col bg-white border-r border-slate-200 h-full">
-        <div className="px-4 py-4 border-b border-slate-200">
+        <div className="px-4 py-3 border-b border-slate-200">
+          <p className="text-[11px] font-medium text-amber-600 mb-1">ILC Studios</p>
           <p className="font-bold text-slate-800 text-sm leading-tight">{project.name}</p>
           {(project.city || project.state) && (
             <p className="text-xs text-slate-400 mt-0.5">{[project.city, project.state].filter(Boolean).join(', ')}</p>
