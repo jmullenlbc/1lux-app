@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 const STATUS_CONFIG = {
@@ -14,7 +15,9 @@ function fmtDate(d) {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-export default function IntakeClient({ submissions, clients, projects, currentUser }) {
+export default function IntakeClient({ submissions: initialSubmissions, clients, projects, currentUser }) {
+  const router = useRouter();
+  const [submissions, setSubmissions] = useState(initialSubmissions);
   const [selectedId, setSelectedId] = useState(null);
   const selected = submissions.find(s => s.id === selectedId);
   const [status, setStatus] = useState(selected?.status || 'PENDING');
@@ -42,9 +45,10 @@ export default function IntakeClient({ submissions, clients, projects, currentUs
         }),
       });
       if (!res.ok) throw new Error('Failed to save');
-      
+
+      setSubmissions(subs => subs.map(s => s.id === selected.id ? { ...s, status, reviewNote, clientId, duplicateMatchId: linkedProjectId } : s));
       setSelectedId(null);
-      window.location.reload();
+      router.refresh();
     } catch (err) {
       alert('Error: ' + err.message);
     } finally {
