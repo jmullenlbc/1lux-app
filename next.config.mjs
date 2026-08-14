@@ -1,5 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+    // Old public-intake URL — /start was shared externally before the page
+    // moved to /conceptual_budget, so keep the old link forwarding forever.
+    async redirects() {
+          return [
+                { source: '/start', destination: '/conceptual_budget', permanent: false },
+          ];
+    },
     // ── Environment variables ────────────────────────────────────────────────
     // DATABASE_URL is baked in at build time via webpack DefinePlugin.
     // This is required for Amplify SSR Lambda: @prisma/client is marked as an

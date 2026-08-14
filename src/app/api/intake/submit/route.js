@@ -6,7 +6,7 @@ import { rateLimit, clientIp } from '@/lib/rateLimit';
 export const dynamic = 'force-dynamic';
 
 /**
- * PUBLIC, UNAUTHENTICATED submission endpoint for /start.
+ * PUBLIC, UNAUTHENTICATED submission endpoint for /conceptual_budget.
  *
  * Hardening pass 2026-08-08 (review of the 08-04 deploy):
  *  1. Work-email gating was CLIENT-ONLY — a direct POST bypassed the free-mail
