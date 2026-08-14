@@ -198,6 +198,7 @@ export default function PricingEditor({ initialPricing, initialPricingIntel }) {
   const [saving,  setSaving]  = useState(false);
   const [saved,   setSaved]   = useState(false);
   const [error,   setError]   = useState('');
+  const [lastSavedAt, setLastSavedAt] = useState(null);
 
   // ── Pricing Intelligence config ──────────────────────────────────────────
   const [piThreshold, setPiThreshold] = useState(
@@ -245,6 +246,7 @@ export default function PricingEditor({ initialPricing, initialPricingIntel }) {
       });
       if (!res.ok) throw new Error('Save failed');
       setSaved(true);
+      setLastSavedAt(new Date());
     } catch (e) {
       setError('Failed to save. Please try again.');
     } finally {
@@ -279,14 +281,23 @@ export default function PricingEditor({ initialPricing, initialPricingIntel }) {
         </div>
         <div className="flex items-center gap-3">
           {error && <span className="text-sm text-red-600">{error}</span>}
-          {saved && !saving && (
-            <span className="text-sm text-green-600 flex items-center gap-1">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              Saved
-            </span>
-          )}
+          <div className="flex items-center gap-1">
+            {saved && !saving && (
+              <>
+                <span className="text-sm text-green-600 flex items-center gap-1">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  Saved
+                </span>
+                {lastSavedAt && (
+                  <span className="text-xs text-slate-400 ml-2">
+                    as of {lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                )}
+              </>
+            )}
+          </div>
           <Button variant="amber" loading={saving} onClick={handleSave}>
             Save All Changes
           </Button>
