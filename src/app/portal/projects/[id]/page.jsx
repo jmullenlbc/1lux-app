@@ -366,6 +366,13 @@ function BudgetView({ projectId }) {
 
   return (
     <div>
+      {/* Budget as-of date */}
+      {matrix.createdAt && (
+        <p className="text-xs text-slate-400 mb-3">
+          Budget as of {new Date(matrix.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+        </p>
+      )}
+
       {/* CO summary bar */}
       <div className="grid grid-cols-3 gap-3 mb-5">
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-2">
