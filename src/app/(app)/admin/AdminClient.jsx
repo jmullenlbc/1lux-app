@@ -1,7 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Badge from '@/components/ui/Badge';
 import { DIVISIONS } from '@/lib/divisions';
 
@@ -397,8 +397,9 @@ function canDeleteUser(actor, target) {
 }
 
 export default function AdminClient({ users: initialUsers, projects, currentUser }) {
-  const router          = useRouter();
-  const [tab,           setTab]          = useState('users');
+  const router = useRouter();
+  const params = useSearchParams();
+  const [tab, setTabState] = useState('users');
   const [users,         setUsers]        = useState(initialUsers);
   const [userSearch,    setUserSearch]   = useState('');
   const [editUser,      setEditUser]     = useState(null);
@@ -406,6 +407,18 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [deleting,      setDeleting]     = useState(null);
   const [deleteError,   setDeleteError]  = useState('');
+
+  useEffect(() => {
+    const tabParam = params.get('tab') || 'users';
+    setTabState(tabParam);
+  }, [params]);
+
+  function setTab(newTab) {
+    setTabState(newTab);
+    const newParams = new URLSearchParams(params);
+    newParams.set('tab', newTab);
+    router.replace(`?${newParams.toString()}`);
+  }
 
   function handleUserCreated(newUser) {
     setUsers(prev => [newUser, ...prev]);

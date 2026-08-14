@@ -15,6 +15,20 @@ function fmtDate(d) {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+function SortIcon({ col, sortCol, sortDir }) {
+  const active = sortCol === col;
+  return (
+    <span className="inline-flex flex-col ml-1 opacity-40 group-hover:opacity-70">
+      <svg className={`w-2.5 h-2.5 -mb-0.5 ${active && sortDir === 'asc' ? 'opacity-100 text-amber-500' : ''}`} viewBox="0 0 10 6" fill="currentColor">
+        <path d="M5 0L10 6H0z" />
+      </svg>
+      <svg className={`w-2.5 h-2.5 ${active && sortDir === 'desc' ? 'opacity-100 text-amber-500' : ''}`} viewBox="0 0 10 6" fill="currentColor">
+        <path d="M5 6L0 0h10z" />
+      </svg>
+    </span>
+  );
+}
+
 export default function IntakeClient({ submissions: initialSubmissions, clients, projects, currentUser }) {
   const router = useRouter();
   const [submissions, setSubmissions] = useState(initialSubmissions);
@@ -29,6 +43,28 @@ export default function IntakeClient({ submissions: initialSubmissions, clients,
   const [inviteResult, setInviteResult] = useState(null);
   const [inviteError, setInviteError] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [sortCol, setSortCol] = useState('createdAt');
+  const [sortDir, setSortDir] = useState('desc');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+
+  function toggleSort(col) {
+    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortCol(col); setSortDir('asc'); }
+  }
+
+  const filtered = submissions.filter(s => statusFilter === 'ALL' || s.status === statusFilter);
+  const sorted = [...filtered].sort((a, b) => {
+    let av, bv;
+    switch (sortCol) {
+      case 'createdAt': av = new Date(a.createdAt).getTime(); bv = new Date(b.createdAt).getTime(); break;
+      case 'name': av = (a.submitterName || '').toLowerCase(); bv = (b.submitterName || '').toLowerCase(); break;
+      case 'status': av = a.status; bv = b.status; break;
+      default: av = ''; bv = '';
+    }
+    if (av < bv) return sortDir === 'asc' ? -1 : 1;
+    if (av > bv) return sortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
 
   async function handleSave() {
     if (!selected) return;
@@ -82,36 +118,56 @@ export default function IntakeClient({ submissions: initialSubmissions, clients,
         <div className="grid grid-cols-3 gap-6">
           {/* List */}
           <div className="col-span-2">
+            <div className="flex gap-2 mb-4 pb-4 border-b border-slate-200">
+              {['ALL', 'PENDING', 'APPROVED', 'REJECTED'].map(s => (
+                <button key={s} onClick={() => setStatusFilter(s)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors ${
+                    statusFilter === s
+                      ? 'bg-amber-500 border-amber-500 text-white'
+                      : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                  }`}>
+                  {s}
+                </button>
+              ))}
+            </div>
             <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-700">Submitted</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-700">Name</th>
+                    <th onClick={() => toggleSort('createdAt')} className="px-4 py-3 text-left font-semibold text-slate-700 cursor-pointer select-none group hover:text-slate-900">
+                      Submitted <SortIcon col="createdAt" sortCol={sortCol} sortDir={sortDir} />
+                    </th>
+                    <th onClick={() => toggleSort('name')} className="px-4 py-3 text-left font-semibold text-slate-700 cursor-pointer select-none group hover:text-slate-900">
+                      Name <SortIcon col="name" sortCol={sortCol} sortDir={sortDir} />
+                    </th>
                     <th className="px-4 py-3 text-left font-semibold text-slate-700">Email</th>
                     <th className="px-4 py-3 text-left font-semibold text-slate-700">Company</th>
                     <th className="px-4 py-3 text-left font-semibold text-slate-700">Type</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-700">Status</th>
+                    <th onClick={() => toggleSort('status')} className="px-4 py-3 text-left font-semibold text-slate-700 cursor-pointer select-none group hover:text-slate-900">
+                      Status <SortIcon col="status" sortCol={sortCol} sortDir={sortDir} />
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {submissions.length === 0 ? (
+                  {sorted.length === 0 ? (
                     <tr>
                       <td colSpan="6" className="px-4 py-12 text-center text-slate-500">
-                        <p className="text-sm mb-3">No submissions yet.</p>
-                        <button
-                          onClick={() => {
-                            const url = `${window.location.origin}/start`;
-                            navigator.clipboard.writeText(url);
-                            alert('Copied: ' + url);
-                          }}
-                          className="text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1 rounded"
-                        >
-                          Copy /start link
-                        </button>
+                        <p className="text-sm mb-3">{statusFilter === 'ALL' ? 'No submissions yet.' : 'No ' + statusFilter.toLowerCase() + ' submissions.'}</p>
+                        {statusFilter === 'ALL' && (
+                          <button
+                            onClick={() => {
+                              const url = `${window.location.origin}/start`;
+                              navigator.clipboard.writeText(url);
+                              alert('Copied: ' + url);
+                            }}
+                            className="text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1 rounded"
+                          >
+                            Copy /start link
+                          </button>
+                        )}
                       </td>
                     </tr>
-                  ) : submissions.map(s => (
+                  ) : sorted.map(s => (
                     <tr
                       key={s.id}
                       onClick={() => {
