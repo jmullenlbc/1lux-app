@@ -7,6 +7,7 @@ export default function PortalProjectsPage() {
   const router = useRouter();
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(false);
 
   useEffect(() => {
     fetch('/api/portal/auth/me')
@@ -14,7 +15,17 @@ export default function PortalProjectsPage() {
         if (r.status === 401) { router.replace('/portal/login'); return null; }
         return r.json();
       })
-      .then(d => { if (d) setData(d); setLoading(false); })
+      .then(d => {
+        if (d) {
+          setData(d);
+          const hasVisited = localStorage.getItem('portal_visited');
+          if (!hasVisited && d.projects.length > 0) {
+            setShowWelcome(true);
+            localStorage.setItem('portal_visited', 'true');
+          }
+        }
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, [router]);
 
@@ -33,6 +44,21 @@ export default function PortalProjectsPage() {
         <h1 className="text-2xl font-bold text-slate-800">My Projects</h1>
         <p className="text-sm text-slate-400 mt-1">Welcome back, {data.user.name}</p>
       </div>
+
+      {showWelcome && (
+        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <svg className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div className="flex-1">
+              <h3 className="font-semibold text-blue-900 mb-1">Welcome to your ILC project portal</h3>
+              <p className="text-sm text-blue-800 mb-3">Here you'll find budgets, specifications, and updates for your lighting projects. Browse your projects below to view details and download documents.</p>
+              <button onClick={() => setShowWelcome(false)} className="text-xs text-blue-600 hover:text-blue-700 font-medium">Dismiss</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {data.projects.length === 0 ? (
         <div className="text-center py-16 text-slate-400">
