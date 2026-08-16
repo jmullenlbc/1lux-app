@@ -15,6 +15,12 @@ import { mergeProposals } from '@/lib/mergeProposals';
  *      silently picking a winner.
  */
 
+// Our own route accepts 25 MB, but Amplify's front door rejects request bodies
+// over ~4.4 MB with an empty 413 the UI can't explain (measured on prod
+// 2026-08-15: 4 MB reaches the route, 5 MB bounces). Check here, before the
+// upload, so the visitor gets an honest message instead of a generic failure.
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+
 const STATUS = {
   queued:  { label: 'Queued',    cls: 'bg-slate-100 text-slate-500 border-slate-200' },
   parsing: { label: 'Reading…',  cls: 'bg-amber-50 text-amber-700 border-amber-200' },
@@ -49,6 +55,18 @@ export default function DrawingDropzone({ onResults }) {
   }
 
   const parseOne = useCallback(async (item) => {
+    // Checked here rather than in addFiles so Retry can't sneak past it.
+    if (item.file?.size > MAX_UPLOAD_BYTES) {
+      setItems(prev => {
+        const next = prev.map(i => i.id === item.id
+          ? { ...i, status: 'error', error: `This file is ${fmtBytes(item.file.size)} — files over 4 MB can't be uploaded yet. Splitting the PDF or compressing it usually gets it under the limit.` }
+          : i);
+        publish(next);
+        return next;
+      });
+      return;
+    }
+
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'parsing' } : i));
 
     const body = new FormData();
@@ -121,7 +139,7 @@ export default function DrawingDropzone({ onResults }) {
             Include the sheet with the <strong>building square footage and unit count</strong> — that&apos;s what we read to
             fill in your budget. You can add several files.
           </p>
-          <p className="text-[11px] text-slate-400 mt-1.5">Vector PDF or Excel · up to 25 MB each · scans aren&apos;t readable yet</p>
+          <p className="text-[11px] text-slate-400 mt-1.5">Vector PDF or Excel · up to 4 MB each · scans aren&apos;t readable yet</p>
         </div>
         <span className="text-xs font-semibold text-amber-600 border border-amber-200 rounded-lg px-3 py-1.5 hover:bg-amber-50">
           Browse files

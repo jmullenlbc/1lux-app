@@ -83,7 +83,19 @@ export async function POST(request) {
     return NextResponse.json({ error: 'too_large', message: 'That file is larger than 25 MB.' }, { status: 413 });
   }
 
-  const extracted = await extractDrawingText(buffer, name);
+  // A damaged or mislabeled file makes the extractor throw, and an unhandled
+  // throw becomes a bare 500 with no message — the UI can only show its
+  // generic fallback. Catch it and say something a public visitor can act on.
+  let extracted;
+  try {
+    extracted = await extractDrawingText(buffer, name);
+  } catch (e) {
+    console.error('intake/parse: extractor threw for', name, e);
+    return NextResponse.json(
+      { error: 'unreadable', message: 'This file appears to be damaged or isn\'t really a PDF or Excel file. Try re-exporting it and uploading again.' },
+      { status: 422 },
+    );
+  }
 
   const apiKey = getAnthropicKey()?.trim();
   if (!apiKey) {
@@ -98,32 +110,50 @@ export async function POST(request) {
   // toward the site plans we most need. Vision is gated to this path rather
   // than run always: it is materially more expensive per call, and when a text
   // layer exists it is both cheaper and more accurate.
-  if (!extracted.ok) {
-    if (extracted.code === 'no_text_layer' && ext === 'pdf') {
-      const images = await renderPdfPages(buffer, { pages: 1 });
-      // Recorded at the injection point rather than inside extractSiteData:
-      // the helper is handed a client precisely so it does not have to know
-      // where the call came from, and the task name is a property of the caller.
-      const vision = await extractSiteData(images, wrapClient(new Anthropic({ apiKey }), 'intake.siteVision'));
-      if (vision.ok) {
-        return NextResponse.json({
-          kind: 'site_data',
-          fileName: name,
-          source: 'vision',
-          siteData: vision.data,
-          unitTypes: [],   // vision reads summary blocks, not per-type matrices
-        });
+  try {
+    if (!extracted.ok) {
+      if (extracted.code === 'no_text_layer' && ext === 'pdf') {
+        const images = await renderPdfPages(buffer, { pages: 1 });
+        // Recorded at the injection point rather than inside extractSiteData:
+        // the helper is handed a client precisely so it does not have to know
+        // where the call came from, and the task name is a property of the caller.
+        const vision = await extractSiteData(images, wrapClient(new Anthropic({ apiKey }), 'intake.siteVision'));
+        if (vision.ok) {
+          return NextResponse.json({
+            kind: 'site_data',
+            fileName: name,
+            source: 'vision',
+            siteData: vision.data,
+            unitTypes: [],   // vision reads summary blocks, not per-type matrices
+          });
+        }
+        return NextResponse.json({ error: vision.code, message: vision.message }, { status: 502 });
       }
-      return NextResponse.json({ error: vision.code, message: vision.message }, { status: 502 });
+      // Images and unsupported types are user-fixable, not server errors.
+      return NextResponse.json({ error: extracted.code, message: extracted.message }, { status: 422 });
     }
-    // Images and unsupported types are user-fixable, not server errors.
-    return NextResponse.json({ error: extracted.code, message: extracted.message }, { status: 422 });
-  }
 
-  const result = await parseUnitMatrix(extracted.text, name, wrapClient(new Anthropic({ apiKey }), 'intake.unitMatrix.parse'));
-  if (!result.ok) {
-    return NextResponse.json({ error: result.code, message: result.message }, { status: 502 });
-  }
+    const result = await parseUnitMatrix(extracted.text, name, wrapClient(new Anthropic({ apiKey }), 'intake.unitMatrix.parse'));
+    if (!result.ok) {
+      return NextResponse.json({ error: result.code, message: result.message }, { status: 502 });
+    }
 
-  return NextResponse.json({ ...result.proposal, fileName: name });
+    return NextResponse.json({ ...result.proposal, fileName: name });
+  } catch (e) {
+    // Same rationale as the extractor guard: never let a throw surface as a
+    // message-less 500 on a public page. A corrupt PDF can survive text
+    // extraction (it just reads as "no text layer") and only blow up when the
+    // vision path tries to render it — that's the visitor's file, not us.
+    if (e?.name === 'InvalidPDFException') {
+      return NextResponse.json(
+        { error: 'unreadable', message: 'This file appears to be damaged or isn\'t really a PDF. Try re-exporting it and uploading again.' },
+        { status: 422 },
+      );
+    }
+    console.error('intake/parse: parse failed for', name, e);
+    return NextResponse.json(
+      { error: 'parse_failed', message: 'Something went wrong reading this file on our side. Please try again in a minute.' },
+      { status: 502 },
+    );
+  }
 }

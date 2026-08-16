@@ -5,6 +5,37 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Honest upload errors on the public intake page] · August 15, 2026
+
+*Not deployed. Background: a 9.8 MB drawing upload on the live intake page failed with
+the unhelpful "Could not read this file." The real cause is AWS Amplify's front door —
+it rejects any request body over ~4.4 MB with an empty error before our code ever runs
+(measured on prod: 4 MB gets through, 5 MB bounces). This applies to every upload in the
+app, not just intake. The permanent fix (uploading straight to S3, skipping the front
+door) is planned separately; this change makes the intake page honest in the meantime.*
+
+### What changed
+
+- `src/components/intake/DrawingDropzone.jsx` — files over 4 MB are now blocked in the
+  browser **before** any upload, with a clear message: "This file is 5.0 MB — files over
+  4 MB can't be uploaded yet. Splitting the PDF or compressing it usually gets it under
+  the limit." Helper text under the dropzone now says "up to 4 MB each" (was 25 MB,
+  which prod could never actually accept).
+- `src/app/api/intake/parse/route.js` — damaged or mislabeled files now get a specific
+  message ("This file appears to be damaged or isn't really a PDF…") instead of a blank
+  server error. Covers both failure points: files that fail text extraction outright,
+  and corrupt PDFs that only blow up later in the vision-rendering step. Any other
+  unexpected failure now returns a friendly "try again in a minute" instead of nothing.
+
+### Verified locally (all three cases)
+
+1. Oversized: synthetic 5 MB file → blocked client-side with the honest message.
+2. Damaged: junk bytes named `.pdf` → 422 "appears to be damaged" message.
+3. Happy path: real Beckett Eastchase unit-mix Excel → parsed 3 unit types, 324 units,
+   295,446 SF, 100% confidence — unchanged behavior for good files.
+
+---
+
 ## [Public intake URL renamed to /conceptual_budget] · August 14, 2026
 
 *Deployed August 14, 2026 (this entry only — the August 12 work below remains local).
