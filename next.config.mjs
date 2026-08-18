@@ -60,6 +60,10 @@ const nextConfig = {
           // endpoint work; the fail-closed guard is what makes forgetting it
           // safe. Both, not either.
           MCP_API_TOKEN:        process.env.MCP_API_TOKEN,
+          // CRON_SECRET: shared secret for EventBridge → /api/cron/* routes.
+          // Same Gen 1 trap — must be baked in so the Lambda runtime can compare
+          // the x-cron-secret header. Without it, every cron call returns 401.
+          CRON_SECRET:          process.env.CRON_SECRET,
     },
     experimental: {
           serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs', 'xlsx', '@napi-rs/canvas', 'tesseract.js', 'pdfjs-dist', 'pdf-parse', '@anthropic-ai/sdk', '@aws-sdk/client-s3', '@aws-sdk/s3-request-presigner', 'puppeteer-core', '@sparticuz/chromium'],
