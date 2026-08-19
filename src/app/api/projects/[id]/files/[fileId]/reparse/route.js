@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { readFile } from 'fs/promises';
-import path from 'path';
+import { getProjectFileBuffer } from '@/lib/projectFileStorage';
 import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { extractScheduleMilestones } from '@/lib/scheduleExtract';
@@ -32,13 +31,8 @@ export async function POST(request, { params }) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  // Read the file from disk and run the row-structured, whole-document extractor.
-  let buffer;
-  try {
-    buffer = await readFile(path.join(process.cwd(), 'uploads', record.storedPath));
-  } catch {
-    return NextResponse.json({ error: 'File not found on disk' }, { status: 404 });
-  }
+  const buffer = await getProjectFileBuffer(record.storedPath);
+  if (!buffer) return NextResponse.json({ error: 'File not found — re-upload the document to reparse.' }, { status: 404 });
 
   let milestones = [], text = null, diag = null;
   try {

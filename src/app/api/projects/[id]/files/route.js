@@ -2,8 +2,7 @@ import '@/lib/pdfPolyfill';
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
+import { putProjectFile } from '@/lib/projectFileStorage';
 import { logActivity, TAB_LABELS } from '@/lib/activity';
 import { sendNotification } from '@/lib/notify';
 import Anthropic from '@anthropic-ai/sdk';
@@ -96,12 +95,9 @@ export async function POST(request, { params }) {
 
   const bytes    = await file.arrayBuffer();
   const buffer   = Buffer.from(bytes);
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-  const stored   = `${Date.now()}-${safeName}`;
-  const dir      = path.join(process.cwd(), 'uploads', params.id, tab);
-
-  await mkdir(dir, { recursive: true });
-  await writeFile(path.join(dir, stored), buffer);
+  const safeName  = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const stored    = `${Date.now()}-${safeName}`;
+  const storedKey = await putProjectFile(buffer, { projectId: params.id, tab, stored, contentType: file.type || 'application/octet-stream' });
 
   let textContent  = null;
   let takeoffData  = null;
@@ -249,7 +245,7 @@ export async function POST(request, { params }) {
       projectId:    params.id,
       tab,
       originalName: displayName,
-      storedPath:   path.join(params.id, tab, stored),
+      storedPath:   storedKey,
       size:         buffer.length,
       mimeType:     file.type || null,
       tags:         tagsRaw   || null,

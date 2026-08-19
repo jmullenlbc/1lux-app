@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import path from 'path';
-import { readFile } from 'fs/promises';
+import { getProjectFileBuffer } from '@/lib/projectFileStorage';
 import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
@@ -97,16 +96,15 @@ export async function POST(request, { params }) {
     return NextResponse.json({ error: 'File not found' }, { status: 404 });
   }
 
-  // Always re-extract from disk using Y-position-aware method (reconstructs proper table rows).
+  // Always re-extract using Y-position-aware method (reconstructs proper table rows).
   // The stored file.textContent uses naive join(' ') which collapses multi-column table rows
   // onto one line and breaks the regex parser.
   let items   = [];
   let rawText = file.textContent || null; // kept for AI fallback only
 
   try {
-    const { parseTOCFromBuffer, extractTOCText, parseTOCFromText } = await import('@/lib/parseTOC.js');
-    const filePath = path.join(process.cwd(), 'uploads', file.storedPath);
-    const buffer   = await readFile(filePath);
+    const { extractTOCText, parseTOCFromText } = await import('@/lib/parseTOC.js');
+    const buffer = await getProjectFileBuffer(file.storedPath);
 
     // Smart extraction: groups text items by Y position → proper tab-separated rows
     const smartText = await extractTOCText(buffer);
@@ -198,9 +196,8 @@ export async function GET(request, { params }) {
   let rawText = file.textContent || null;
   try {
     const { extractTOCText, parseTOCFromText } = await import('@/lib/parseTOC.js');
-    const filePath = path.join(process.cwd(), 'uploads', file.storedPath);
-    const buffer   = await (await import('fs/promises')).readFile(filePath);
-    const smartText = await extractTOCText(buffer);
+    const buffer    = await getProjectFileBuffer(file.storedPath);
+    const smartText = buffer ? await extractTOCText(buffer) : null;
     items = parseTOCFromText(smartText);
     if (items.length === 0 && !rawText) rawText = smartText;
   } catch {}

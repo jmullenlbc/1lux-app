@@ -6,8 +6,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
 import { buildUntrustedPrompt, ATTACHED_DOCUMENT_RULE } from '@/lib/agent/untrusted';
-import { readFile } from 'fs/promises';
-import path from 'path';
+import { getProjectFileBuffer } from '@/lib/projectFileStorage';
 import { CONTRACT_SYSTEM_PROMPT } from '@/lib/contractSystemPrompt';
 
 // Allow up to 5 minutes — large scanned PDFs can take 3–4 min
@@ -55,12 +54,8 @@ export async function POST(request, { params }) {
       textContent = file.textContent;
     } else {
       // Slow path: scanned/image PDF — send binary to Claude vision
-      let buffer;
-      try {
-        buffer = await readFile(path.join(process.cwd(), 'uploads', file.storedPath));
-      } catch {
-        return NextResponse.json({ error: 'File not found on disk — it may have been deleted.' }, { status: 404 });
-      }
+      const buffer = await getProjectFileBuffer(file.storedPath);
+      if (!buffer) return NextResponse.json({ error: 'File not found — it may have been deleted.' }, { status: 404 });
       pdfBase64 = buffer.toString('base64');
     }
 

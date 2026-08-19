@@ -1,7 +1,6 @@
 import { requirePortalAuth } from '@/lib/portalAuth';
 import { prisma } from '@/lib/db';
-import { readFile } from 'fs/promises';
-import path from 'path';
+import { getProjectFileBuffer } from '@/lib/projectFileStorage';
 
 /**
  * GET /api/portal/projects/[id]/files/[fileId]
@@ -47,18 +46,15 @@ export async function GET(req, { params }) {
     return new Response(JSON.stringify({ error: 'Not authorized' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
   }
 
-  // Stream the file
-  try {
-    const buffer      = await readFile(path.join(process.cwd(), 'uploads', record.storedPath));
-    const contentType = record.mimeType || 'application/octet-stream';
-    return new Response(buffer, {
-      headers: {
-        'Content-Type':        contentType,
-        'Content-Disposition': `inline; filename="${encodeURIComponent(record.originalName)}"`,
-        'Content-Length':      String(buffer.length),
-      },
-    });
-  } catch {
-    return new Response(JSON.stringify({ error: 'File not found on disk' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  const buffer = await getProjectFileBuffer(record.storedPath);
+  if (!buffer) {
+    return new Response(JSON.stringify({ error: 'File not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
   }
+  return new Response(buffer, {
+    headers: {
+      'Content-Type':        record.mimeType || 'application/octet-stream',
+      'Content-Disposition': `inline; filename="${encodeURIComponent(record.originalName)}"`,
+      'Content-Length':      String(buffer.length),
+    },
+  });
 }
