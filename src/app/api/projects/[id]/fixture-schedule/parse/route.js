@@ -1,4 +1,5 @@
 import '@/lib/pdfPolyfill';
+import { loadPdfjs } from '@/lib/pdfjsNode';
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
@@ -98,7 +99,7 @@ Return ONLY the JSON array. Example of expected output format:
 ]`;
 
 async function extractPdfText(buffer) {
-  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const pdfjsLib = await loadPdfjs();
   const doc      = await pdfjsLib.getDocument({
     data: new Uint8Array(buffer),
     ...(FONTS_URL ? { standardFontDataUrl: FONTS_URL } : {}),

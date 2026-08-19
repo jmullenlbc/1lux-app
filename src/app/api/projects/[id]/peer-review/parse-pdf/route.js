@@ -1,4 +1,5 @@
 import '@/lib/pdfPolyfill';
+import { loadPdfjs } from '@/lib/pdfjsNode';
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
@@ -51,7 +52,7 @@ If image-based PDF (too little text):
 {"fixtures": [], "warning": "This PDF appears to be image-based — text could not be extracted. Please use a text-based PDF or export as a searchable PDF."}`;
 
 async function extractPdfText(buffer) {
-  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const pdfjsLib = await loadPdfjs();
   const doc = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise;
   let text = '';
   for (let i = 1; i <= doc.numPages; i++) {

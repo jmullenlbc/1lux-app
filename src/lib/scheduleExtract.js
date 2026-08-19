@@ -1,4 +1,5 @@
 import '@/lib/pdfPolyfill';
+import { loadPdfjs } from './pdfjsNode.js';
 /**
  * scheduleExtract.js — robust construction-schedule milestone extraction.
  *
@@ -34,7 +35,7 @@ try {
 export async function extractScheduleTextDiag(buffer, maxPages = 120) {
   let numPages = 0, pagesRead = 0, error = null;
   try {
-    const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    const pdfjsLib = await loadPdfjs();
     const doc = await pdfjsLib.getDocument({
       data: new Uint8Array(buffer),
       ...(FONTS_URL ? { standardFontDataUrl: FONTS_URL } : {}),
@@ -207,7 +208,23 @@ export async function extractScheduleMilestones(buffer, anthropic, { aiTimeoutMs
   const { text, numPages, pagesRead, error } = await extractScheduleTextDiag(buffer);
   const diag = { numPages, pagesRead, error, textLen: text?.length ?? 0 };
   if (!text) return { text: null, milestones: [], source: 'none', diag };
+  return milestonesFromText(text, anthropic, { aiTimeoutMs, ...ctx }, diag);
+}
 
+/**
+ * Same two-tier extraction, but starting from row text we already have.
+ * Used when the original PDF is no longer on disk (each Lambda instance has its
+ * own ephemeral filesystem, so an uploaded file is unreadable minutes later) but
+ * ProjectFile.textContent from the upload-time parse survived in the database.
+ */
+export async function extractScheduleMilestonesFromText(text, anthropic, { aiTimeoutMs = 22000, ...ctx } = {}) {
+  if (!text || text.trim().length < 50) {
+    return { text: null, milestones: [], source: 'none', diag: { fromStoredText: true, textLen: text?.length ?? 0 } };
+  }
+  return milestonesFromText(text, anthropic, { aiTimeoutMs, ...ctx }, { fromStoredText: true, textLen: text.length });
+}
+
+async function milestonesFromText(text, anthropic, { aiTimeoutMs = 22000, ...ctx } = {}, diag = {}) {
   const keyword = keywordExtractMilestones(text);
 
   let ai = [];

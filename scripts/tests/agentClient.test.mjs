@@ -39,6 +39,34 @@ function fakeClient({ throws = null, response = null } = {}) {
 
 const tailSince = async (mark) => (await readLedgerTail(200)).filter(e => e.task?.startsWith(mark));
 
+/**
+ * Wait for a stream's ledger entry to land, then return the entries.
+ *
+ * The record is a floating promise by necessity — once the streamer is handed to
+ * the caller there is nothing left to await it into — so a test has to wait for
+ * it somehow. This used to be a single `await setImmediate`, which assumes the
+ * whole record path (sink resolution, then a real file append) completes inside
+ * one macrotask tick. It usually does, and under the parallel load of the full
+ * `verify:units` run it sometimes does not: the suite failed here once and passed
+ * on its own every time. A gate that fails one run in three teaches people to
+ * re-run it rather than read it, which is worse than no gate.
+ *
+ * Polling asserts the same claim — the finished stream IS recorded — without
+ * pinning it to a tick count. It returns as soon as the entry appears, so the
+ * passing path costs a millisecond, and the timeout is a real failure.
+ */
+async function waitForLedger(mark, { minCount = 1, timeoutMs = 3000 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const entries = await tailSince(mark);
+    if (entries.length >= minCount) return entries;
+    if (Date.now() > deadline) {
+      throw new Error(`no ledger entry for "${mark}" within ${timeoutMs}ms (found ${entries.length})`);
+    }
+    await new Promise(r => setTimeout(r, 10));
+  }
+}
+
 beforeEach(() => { _resetSinkForTests(); });
 
 after(async () => { await fs.rm(LEDGER_FILE, { force: true }).catch(() => {}); });
@@ -91,11 +119,7 @@ test('a stream that finishes is recorded with its usage totals', async () => {
     stop_reason: 'end_turn',
     usage: { input_tokens: 900, output_tokens: 30 },
   });
-  // The record is a floating promise by necessity — nothing is left to await it
-  // into once the stream is handed to the caller.
-  await new Promise(r => setImmediate(r));
-
-  const [entry] = await tailSince('test.stream.ok');
+  const [entry] = await waitForLedger('test.stream.ok');
   assert.ok(entry, 'the finished stream was never recorded');
   assert.equal(entry.status, 'ok');
   assert.equal(entry.inputTokens, 900);
@@ -111,7 +135,11 @@ test('a stream that errors is recorded as an error, exactly once', async () => {
   streamer.emit('error', new Error('upstream exploded'));
   // A stream can emit both — the record must not double-count.
   streamer.emit('finalMessage', { usage: { input_tokens: 1, output_tokens: 1 } });
-  await new Promise(r => setImmediate(r));
+
+  await waitForLedger('test.stream.err');
+  // Wait past the first entry before counting: "exactly once" is only meaningful
+  // if a second write had time to show up and didn't.
+  await new Promise(r => setTimeout(r, 50));
 
   const entries = await tailSince('test.stream.err');
   assert.equal(entries.length, 1, 'one stream produced more than one ledger entry');

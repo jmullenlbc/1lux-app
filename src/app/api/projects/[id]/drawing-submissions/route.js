@@ -1,4 +1,5 @@
 import '@/lib/pdfPolyfill';
+import { loadPdfjs } from '@/lib/pdfjsNode';
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
@@ -102,7 +103,7 @@ export async function POST(request, { params }) {
     // Try to get page count via pdfjs
     let pageCount = null;
     try {
-      const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+      const pdfjsLib = await loadPdfjs();
       const doc      = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise;
       pageCount      = doc.numPages;
     } catch {}

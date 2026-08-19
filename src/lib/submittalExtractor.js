@@ -1,4 +1,5 @@
 import '@/lib/pdfPolyfill';
+import { loadPdfjs } from './pdfjsNode.js';
 /**
  * Submittal Review Extractor — Phases 1–4
  *
@@ -163,7 +164,7 @@ export function extractTypeCodesFromText(text, knownTypeCodes) {
 // ── PDF TEXT EXTRACTION ───────────────────────────────────────────────────────
 
 export async function extractPdfPages(buffer) {
-  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const pdfjsLib = await loadPdfjs();
   const doc = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise;
   const pages = [];
 

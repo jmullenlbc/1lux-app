@@ -78,16 +78,14 @@ export async function PATCH(request, { params }) {
   const start = get('construction-start');
   const mep   = getEarliest('mep-rough');
   const end   = get('construction-end');
-  const cols = [], vals = [];
-  if (start !== undefined) { cols.push('"constructionStartDate" = ?'); vals.push(start); }
-  if (mep   !== undefined) { cols.push('"mepRoughInDate" = ?');        vals.push(mep); }
-  if (end   !== undefined) { cols.push('"constructionEndDate" = ?');   vals.push(end); }
-  if (cols.length > 0) {
-    try {
-      vals.push(record.projectId);
-      await prisma.$executeRawUnsafe(`UPDATE "Project" SET ${cols.join(', ')} WHERE "id" = ?`, ...vals);
-    } catch {}
-  }
+  const data = {
+    constructionStartDate: start,
+    mepRoughInDate:        mep,
+    constructionEndDate:   end,
+  };
+  try {
+    await prisma.project.update({ where: { id: record.projectId }, data });
+  } catch (e) { console.error('[milestone edit date sync] failed:', e?.message ?? e); }
 
   return NextResponse.json({ file });
 }

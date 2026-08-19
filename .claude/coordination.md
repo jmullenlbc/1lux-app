@@ -2,6 +2,142 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+## 🚨 FOR SEAN — 2026-08-19 (from Mike, via Mike's Claude): move project file storage to S3 — plus a prod-wide PDF outage just found and fixed
+
+**Context: Mike uploaded a construction schedule to Zenith on 25th (PRJ-0002) in production and no dates came out.** Diagnosing that turned up three separate production defects. Two are already fixed on Mike's side (local, undeployed). The third is yours, and it is the big one.
+
+### 🔴 YOUR ITEM — move project file storage off the Lambda disk and onto S3
+
+`POST /api/projects/[id]/files` writes uploads with `writeFile(path.join(process.cwd(), 'uploads', projectId, tab, stored))`, and every later read (`/files/[fileId]/reparse`, downloads, re-analysis) reads back from that same path. **In Amplify each Lambda instance has its own ephemeral filesystem**, so the database row survives and the bytes do not. Verified live today: a file uploaded the same morning already returned `{"error":"File not found on disk"}`.
+
+Consequences: no uploaded file is reliably re-openable or re-parsable in production, on ANY tab — not just construction schedules. The app effectively gets exactly one chance to read a document, at upload time.
+
+**The fix:** store to the permanent `ilc-qc-media` bucket instead of local disk, and read from S3 (presigned GET) everywhere `storedPath` is read today. Most of the plumbing already exists — the direct-to-S3 upload work is built and verified locally (`/api/intake/parse` + `DrawingDropzone`); this extends the same pattern to the general project-files path and adds the read side.
+
+**Blocked on:** the 3 S3 console steps below (2026-08-18 entry) — same bucket, same three settings. Those gate this too, so closing them out unblocks both.
+
+**Scope note:** these files are permanent records, not scratch — do NOT put them under the `uploads/` prefix that the 1-day expiry lifecycle rule targets. Use a separate prefix (e.g. `project-files/`) that the lifecycle rule does not match.
+
+### ✅ ALREADY FIXED on Mike's side (local only, NOT deployed) — for your awareness
+
+1. **pdfjs worker missing from every Lambda — this was the actual cause, and it broke far more than schedules.** `pdf.mjs` has a static block that does `GlobalWorkerOptions.workerSrc ||= "./pdf.worker.mjs"` on Node and then `await import(this.workerSrc)`. That dynamic import is invisible to Next's file tracer, so `pdf.worker.mjs` was never copied into any Lambda and `getDocument()` threw `Setting up fake worker failed` **before page 1** — the tell is `pages=0 read=0`. Audited against real build output: **all 11 PDF-reading API routes were affected** (intake parse, fixture schedule, contract analysis, tracker extract + import-toc, unit matrix, site parse, drawing submissions, peer review, files, reparse). Every server-side PDF read in production has been dead.
+   Fixed by force-including the worker (and `standard_fonts/`, which two routes were also missing) on all 11 routes in `next.config.mjs`, pinning `workerSrc` to an absolute `file://` path in a new `src/lib/pdfjsNode.js` that is now the only sanctioned way to load pdfjs server-side, and extending `scripts/check-runtime-assets.mjs` so a missing worker **blocks the build**. Verified end-to-end: the exact production error was reproduced locally in the dev server, and after the fix the real `/reparse` route pulled **13 milestones off a 96-page schedule PDF** and wrote all three project date columns. Build green, 26/26 runtime assets present in the traces, 321 unit tests + smoke + DN-leak all passing.
+   Two extra traps worth knowing if you touch this: `createRequire(import.meta.url)` resolves to a phantom `(rsc)` path inside a webpack server bundle (the finder now checks the file actually exists on disk), and pdfjs **memoizes the worker-load failure on the class** — once it fails, every later PDF in that process returns the same stale error until the process restarts.
+   *This is the same trap that previously bit the Chromium binary and then `standard_fonts/` — third instance. The build gate now covers all three.*
+
+2. **Project-level date columns could never save on Postgres.** Four call sites used `prisma.$executeRawUnsafe(... WHERE "id" = ?)`. `?` placeholders are SQLite-only — valid locally, invalid on prod Postgres — and all four were inside silent `catch {}`. Replaced with the typed Prisma client (the columns exist in `schema.prisma`), and the catches now log.
+
+3. **Reparse now falls back to stored text.** When the PDF is gone from disk, `/reparse` re-runs milestone extraction from `ProjectFile.textContent` saved at upload time instead of 404ing. This is a stopgap that makes the button work today; it is *not* a substitute for item 1 above.
+
+**Nothing here is deployed.** It ships on Mike's next explicit "Deploy," after the full pre-deploy debug pass.
+
+---
+
+## ⏰ FOR SEAN — 2026-08-18 (from Mike, via Mike's Claude): the 3 S3 steps are DUE TODAY — please close them out
+
+**Mike asked again today, directly: "Can you have Sean finish those 3 things for the S3 steps."** This is the same ask as the 2026-08-17 entry below — target date was today, and nothing has been noted back yet, so treating it as still open.
+
+All three are on bucket **`ilc-qc-media`** (us-east-2), all console-only, ~10 minutes total. Full click-by-click walkthrough: `G:\Shared drives\SOFTWARE\_MIKE's APP\Software engineering\2026.08.17 Direct-to-S3 Uploads — S3 Console Checklist.md`.
+
+1. **CORS** — S3 → `ilc-qc-media` → Permissions → CORS → Edit → paste:
+   ```json
+   [{"AllowedOrigins": ["https://app.ilcstudios.com"], "AllowedMethods": ["PUT"], "AllowedHeaders": ["Content-Type"], "MaxAgeSeconds": 3600}]
+   ```
+2. **Lifecycle** — Management tab → Create rule `expire-direct-uploads-1-day`, scoped to prefix `uploads/` (**trailing slash matters** — it protects the QC screenshots under `qc/`) → Expire current versions after 1 day → also enable "Delete incomplete multipart uploads" at 1 day.
+3. **IAM check** — IAM → Users → whichever user backs the app's `S3_ACCESS_KEY_ID` (likely `ilc-amplify-s3`) → check the policy Resource. If it's `arn:aws:s3:::ilc-qc-media/*`, nothing to do. If it's scoped to `.../qc/*`, add:
+   ```json
+   {"Effect": "Allow", "Action": ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"], "Resource": "arn:aws:s3:::ilc-qc-media/uploads/*"}
+   ```
+
+**Why it matters / what it's blocking:** Amplify's front door 413s any upload over ~4.4 MB on every production upload path, so real drawing sets cannot be parsed in prod at all today. The direct-to-S3 fix is **built and verified locally** and is sitting undeployed waiting on these three settings. Once you note them done here, Mike's Claude runs the full pre-deploy debug pass and it ships on Mike's next explicit "Deploy."
+
+**When done:** one line in this log is all we need. If any of the three is blocked (permissions, wrong account, can't find the IAM user), say which one and we'll unblock it rather than let the whole thing sit.
+
+---
+
+## 📋 FOR SEAN — 2026-08-17 (from Mike, via Mike's Claude): your consolidated backend to-do list
+
+**Mike asked for one master list of everything on your plate, backend-wise.** This gathers every open FOR-SEAN item scattered through this log into one place, newest asks first. Also emailed to operations@ilcstudios.com. When an item is done, a one-line note here is all we need.
+
+### A. Dated / quick
+1. **The 3 S3 console steps — tomorrow, 2026-08-18.** Full details in the next entry below (and in today's email + the checklist doc on the G drive). This is the gate on shipping direct-to-S3 uploads, which unblocks >4.4 MB drawing sets in production.
+2. **Codespaces `ANTHROPIC_API_KEY` secret** — ~2 minutes, asked 2026-08-13, still unconfirmed. GitHub → repo → Settings → Secrets and variables → Codespaces → new secret `ANTHROPIC_API_KEY` (same value as in Amplify env vars).
+
+### B. Schema (your lane)
+3. **`McpQueryLog` table** — additive, no drops. Until it exists, `/api/mcp` returns **503 in production by design** (it refuses to answer what it can't audit-log). Full field table is in the 2026-08-08 "MCP row-scope fix" entry further down.
+4. *(Optional)* **Real `reviewedAt` column on `ConceptualSubmission`** — nothing depends on it (`updatedAt` records review time today); only add it if you want it.
+
+### C. Feature work
+5. **Finish admin + user privileges** — Mike's standing #1 for your queue since 2026-07-18. Unchanged. (And the companion rule stands: **CRM/pipeline build-out stays paused until you and Mike talk.**)
+
+### D. AWS infra
+6. **EventBridge schedule rule for the nightly usage rollup** — the `/admin/usage` Usage & Health dashboard (built on Mike's side, local) has a nightly rollup job that needs an EventBridge rule to actually fire on a schedule in AWS. The console step is the missing piece; ping Mike's Claude here if you want the exact route/target when you pick it up.
+7. **Security-pass item you noted yourself (2026-06-15):** replace the `ilc-amplify-s3` IAM user + env-var access keys with a proper SSR compute role, then delete the `S3_*KEY*` lines from `next.config.mjs` and the console env vars. No date on this — your call when the security pass happens.
+
+### E. Answers Mike's Claude is waiting on
+8. **`ProjectAccess` / `ProjectAssignee`:** are those unused join tables the intended long-term client-access model? If yes, the MCP scope predicate moves off `createdById` — one file, one map. If no, we'll keep `createdById` and can drop the dead tables in some future cleanup you author.
+
+### F. Smaller backend follow-ups (flagged in recent reviews, not yet assigned — Mike is routing backend to you)
+These are headline-level; ask Mike's Claude here for file-and-line detail on any of them before starting:
+- **Possible DN/buy-price exposure via `ManufacturerProduct.cost`** in an API reachable by non-ILC users — verify and close. (Buy-price leakage is our worst leak class; see the 2026-08-08 `.catch()` entry.)
+- **Share-link / fixture-schedule tokens** possibly exposing more than intended to unauthenticated holders — verify and close.
+- **Build-time guard for `ANTHROPIC_API_KEY`** — fail the build loudly if the key is absent, so AI parsing can never again be silently dead in prod.
+- **Dashboard null-session crash** — `dashboard/page.jsx` can throw a TypeError when there's no session; needs a guard.
+- **Doc rot:** one false statement in `CLAUDE.md` (~line 106) and a stale comment block at the top of `IntakeClient.jsx` — both describe behavior that no longer exists.
+
+---
+
+## 🔑 FOR SEAN — 2026-08-17 (from Mike, via Mike's Claude): please do the 3 S3 console steps TOMORROW (2026-08-18)
+
+**Mike asked for you to own this — target: tomorrow, 2026-08-18.** (This supersedes the earlier plan of Mike doing it himself this afternoon.) An email notification was also sent to operations@ilcstudios.com.
+
+**Why:** Amplify's front door rejects any upload over ~4.4 MB (empty 413) on every prod upload path, so real drawing sets can't be parsed in production. The fix — browsers uploading straight to S3, bypassing Amplify — is **built and verified locally**, but it needs three one-time AWS console settings before it can be deployed. All three are on bucket **`ilc-qc-media`** (us-east-2). Full click-by-click walkthrough: `G:\Shared drives\SOFTWARE\_MIKE's APP\Software engineering\2026.08.17 Direct-to-S3 Uploads — S3 Console Checklist.md`.
+
+1. **CORS** — S3 → `ilc-qc-media` → Permissions → CORS → Edit → paste:
+   ```json
+   [{"AllowedOrigins": ["https://app.ilcstudios.com"], "AllowedMethods": ["PUT"], "AllowedHeaders": ["Content-Type"], "MaxAgeSeconds": 3600}]
+   ```
+2. **Lifecycle** — Management tab → Create rule `expire-direct-uploads-1-day`, scoped to prefix `uploads/` (**with the trailing slash** — protects the QC screenshots under `qc/`) → Expire current versions after 1 day → also enable Delete incomplete multipart uploads at 1 day.
+3. **IAM check** — IAM → Users → the user backing the app's `S3_ACCESS_KEY_ID` (likely `ilc-amplify-s3`, see your 2026-06-15 entry) → look at its policy Resource. If it's `arn:aws:s3:::ilc-qc-media/*`, do nothing. If it's scoped to `.../qc/*`, add:
+   ```json
+   {"Effect": "Allow", "Action": ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"], "Resource": "arn:aws:s3:::ilc-qc-media/uploads/*"}
+   ```
+
+**When done:** note it here (one line is fine). Mike's Claude will then run the full pre-deploy debug pass; the code ships on Mike's next explicit "Deploy". Proof after deploy: drop a >4 MB drawing set on app.ilcstudios.com/conceptual_budget and watch it parse instead of 413ing.
+
+---
+
+## 🔑 FOR SEAN — 2026-08-13 (from Mike, via Mike's Claude): please add the `ANTHROPIC_API_KEY` Codespaces secret
+
+**Mike asked for you to own this one.** The repo now supports GitHub Codespaces (`.devcontainer/` + `CODESPACES.md`, merged 2026-08-08), but a Codespace has no `.env` — AI features (drawing parsing, fixture-schedule parsing, Ask-AI) need the Anthropic key to come from a **GitHub Codespaces secret** instead.
+
+**What to do (one-time, ~2 minutes):**
+1. GitHub → the repo → **Settings → Secrets and variables → Codespaces → New repository secret**
+2. Name: `ANTHROPIC_API_KEY`
+3. Value: the same key that's in Amplify → Hosting → Environment variables (or the local `.env` / password manager)
+4. Save. Any new Codespace picks it up automatically as an env var; existing Codespaces need a rebuild.
+
+**When done:** note it here (one line is fine) so Mike's Claude can stop reminding Mike about it every session.
+
+---
+
+## 🔑 FOR SEAN — 2026-08-09: the `admin@ilcstudios.com` password was exposed and has been rotated
+
+**Action for you: none required, but your saved copy of that password is now wrong.** If you have it in a password manager, a note, or a script, delete it — don't try it. Ask Mike directly for the new one.
+
+**What happened.** A Claude Code permission file (`.claude/settings.local.json`) under Mike's `G:\My Drive\BUDGETING TOOL SOFTWARE` folder had the `admin@ilcstudios.com` password sitting in it in plain text as part of a pre-approved command. That folder is Google Drive, so the file had been syncing to the cloud — and every prior version of it was retained in Drive's version history, which meant deleting the line alone would not have removed the password.
+
+**What was done (2026-08-09, by Mike):**
+1. The credential line was stripped from the file.
+2. Drive version history for that file was purged back to same-day versions only.
+3. **The `admin@ilcstudios.com` password was rotated.** Treat the old one as burned.
+
+**Why you're being told.** Mike confirmed you have access to that Drive location, so the old password was readable by you and by anyone else on that share. Nothing suggests it was used — this is precautionary. Worth a look at your own side: if you keep any ILC credential inside a file under a synced Drive or Dropbox folder, the same version-history problem applies to it.
+
+**Related, same day:** the pre-approved-command lists in that file were tightened — blanket `git push` / `git add` / `git commit` / `deploy.ps1` approvals and a stored destructive-database consent were all removed, and the filesystem read scope was narrowed from the whole `C:\` drive to ILC paths only. Deploys now require Mike to say so explicitly, every time. If you maintain an equivalent file on your machine, the same three categories are worth auditing: standing deploy rights, standing destructive-DB consent, and drive-wide read scope.
+
+---
+
 ## ⚠️ Mike's Claude — 2026-08-08 (latest): a bug pattern to never write again — `.catch()` on `requireAuth()`
 
 **Nothing for you to fix. This is a "don't reintroduce it" note.** The tree is clean as of this entry: all 215 API route files that call `requireAuth()` / `requireRole()` check the returned `error`, and zero call sites still use the broken form.

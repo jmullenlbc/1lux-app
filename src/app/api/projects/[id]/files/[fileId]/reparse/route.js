@@ -5,7 +5,7 @@ import { readFile } from 'fs/promises';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicKey } from '@/lib/anthropicKey';
-import { extractScheduleMilestones } from '@/lib/scheduleExtract';
+import { extractScheduleMilestones, extractScheduleMilestonesFromText } from '@/lib/scheduleExtract';
 import { wrapClient } from '@/lib/agent/client';
 
 // POST /api/projects/[id]/files/[fileId]/reparse
@@ -33,16 +33,27 @@ export async function POST(request, { params }) {
   }
 
   // Read the file from disk and run the row-structured, whole-document extractor.
-  let buffer;
+  //
+  // In production the bytes are usually GONE: uploads are written to the Lambda's
+  // own ephemeral filesystem, so a later request lands on a different instance and
+  // the path 404s. The row text extracted at upload time is in the database though,
+  // so fall back to that — a reparse then still works without the original PDF.
+  let buffer = null;
   try {
     buffer = await readFile(path.join(process.cwd(), 'uploads', record.storedPath));
   } catch {
-    return NextResponse.json({ error: 'File not found on disk' }, { status: 404 });
+    if (!record.textContent || record.textContent.trim().length < 50) {
+      return NextResponse.json({
+        error: 'The original file is no longer available on the server, and no text was saved from it. Please re-upload the PDF.',
+      }, { status: 404 });
+    }
   }
 
   let milestones = [], text = null, diag = null;
   try {
-    ({ milestones, text, diag } = await extractScheduleMilestones(buffer, anthropic, { projectId: params.id }));
+    ({ milestones, text, diag } = buffer
+      ? await extractScheduleMilestones(buffer, anthropic, { projectId: params.id })
+      : await extractScheduleMilestonesFromText(record.textContent, anthropic, { projectId: params.id }));
   } catch (e) {
     return NextResponse.json({ error: `Extraction failed: ${e.message}`, milestones: [] });
   }
@@ -71,15 +82,14 @@ export async function POST(request, { params }) {
     const start = get('construction-start');
     const mep   = getEarliest('mep-rough');
     const end   = get('construction-end');
-    const cols = [], vals = [];
-    if (start) { cols.push('"constructionStartDate" = ?'); vals.push(start); }
-    if (mep)   { cols.push('"mepRoughInDate" = ?');        vals.push(mep); }
-    if (end)   { cols.push('"constructionEndDate" = ?');   vals.push(end); }
-    if (cols.length > 0) {
-      vals.push(params.id);
-      await prisma.$executeRawUnsafe(`UPDATE "Project" SET ${cols.join(', ')} WHERE "id" = ?`, ...vals);
+    const data = {};
+    if (start) data.constructionStartDate = start;
+    if (mep)   data.mepRoughInDate        = mep;
+    if (end)   data.constructionEndDate   = end;
+    if (Object.keys(data).length > 0) {
+      await prisma.project.update({ where: { id: params.id }, data });
     }
-  } catch {}
+  } catch (e) { console.error('[reparse date sync] failed:', e?.message ?? e); }
 
   return NextResponse.json({ milestones, count: milestones.length });
 }

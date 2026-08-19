@@ -1,4 +1,5 @@
 import '@/lib/pdfPolyfill';
+import { loadPdfjs } from '@/lib/pdfjsNode';
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
@@ -77,7 +78,7 @@ export async function POST(request, { params }) {
 
     // Try to extract text first
     try {
-      const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+      const pdfjsLib = await loadPdfjs();
       const doc      = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise;
       let   text     = '';
       for (let i = 1; i <= doc.numPages; i++) {
@@ -191,12 +192,11 @@ export async function POST(request, { params }) {
   // Persist analysis so it survives page refresh
   if (savedFileId) {
     try {
-      await prisma.$executeRawUnsafe(
-        `UPDATE "ProjectFile" SET "analysisData" = ? WHERE "id" = ?`,
-        JSON.stringify(analysis),
-        savedFileId
-      );
-    } catch {}
+      await prisma.projectFile.update({
+        where: { id: savedFileId },
+        data:  { analysisData: JSON.stringify(analysis) },
+      });
+    } catch (e) { console.error('[analyze-contract persist] failed:', e?.message ?? e); }
   }
 
   return NextResponse.json({ analysis, fileName });

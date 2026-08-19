@@ -1,4 +1,5 @@
 import '@/lib/pdfPolyfill';
+import { loadPdfjs } from './pdfjsNode.js';
 /**
  * parseBudgetLineItems.js
  *
@@ -146,7 +147,7 @@ function parseRow(cells) {
 /** Main entry — call with Buffer from file upload. */
 export async function parseBudgetLineItemsFromBuffer(buffer) {
   try {
-    const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    const pdfjsLib = await loadPdfjs();
     const uint8    = new Uint8Array(buffer);
     const doc      = await pdfjsLib.getDocument({ data: uint8 }).promise;
 

@@ -1,4 +1,5 @@
 import '@/lib/pdfPolyfill';
+import { loadPdfjs } from './pdfjsNode.js';
 import { createCanvas } from '@napi-rs/canvas';
 import Tesseract from 'tesseract.js';
 import path from 'path';
@@ -19,7 +20,7 @@ async function renderPageToBuffer(page) {
 }
 
 export async function extractTextFromPdf(buffer) {
-  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const pdfjsLib = await loadPdfjs();
   const doc      = await pdfjsLib.getDocument({
     data:                new Uint8Array(buffer),
     standardFontDataUrl: FONTS_URL,

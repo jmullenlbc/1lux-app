@@ -12,6 +12,7 @@
  * callable from an unauthenticated route where nothing should be written until
  * a human accepts the submission.
  */
+import { loadPdfjs, pdfDocOptions } from './pdfjsNode.js';
 // Relative, not `@/lib/...`, on purpose: scripts/tests/drawingExtract.test.mjs
 // imports this file under plain Node, which does not know the `@/` alias.
 import { buildUntrustedPrompt, warnOnInjection } from './agent/untrusted.js';
@@ -173,8 +174,8 @@ export async function xlsxToText(buffer) {
  */
 export async function extractPdfText(buffer, maxPages = 60) {
   try {
-    const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
-    const doc = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise;
+    const pdfjsLib = await loadPdfjs();
+    const doc = await pdfjsLib.getDocument(pdfDocOptions(buffer)).promise;
     let text = '';
     const pages = Math.min(doc.numPages, maxPages);
     for (let i = 1; i <= pages; i++) {

@@ -1,4 +1,11 @@
 /** @type {import('next').NextConfig} */
+// pdfjs-dist resolves both of these at RUNTIME, so Next's file tracer never sees
+// them and they silently vanish from the Lambda in production while local works.
+const PDFJS_RUNTIME_ASSETS = [
+        './node_modules/pdfjs-dist/standard_fonts/*',
+        './node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs',
+];
+
 const nextConfig = {
     // Old public-intake URL — /start was shared externally before the page
     // moved to /conceptual_budget, so keep the old link forwarding forever.
@@ -78,16 +85,26 @@ const nextConfig = {
                 '/api/projects/[id]/budget/pdf': ['./node_modules/@sparticuz/chromium/**/*'],
                 '/api/projects/[id]/peer-review/pdf': ['./node_modules/@sparticuz/chromium/**/*'],
                 '/api/projects/[id]/design-bid-matrix/pdf': ['./node_modules/@sparticuz/chromium/**/*'],
-                // Public conceptual-budget intake — same pdfjs runtime-font trap.
-                '/api/intake/parse': ['./node_modules/pdfjs-dist/standard_fonts/*'],
-                '/api/projects/[id]/fixture-schedule/parse': ['./node_modules/pdfjs-dist/standard_fonts/*'],
-                '/api/projects/[id]/files': ['./node_modules/pdfjs-dist/standard_fonts/*'],
-                '/api/projects/[id]/files/[fileId]/reparse': ['./node_modules/pdfjs-dist/standard_fonts/*'],
-                '/api/projects/[id]/peer-review/parse-pdf': ['./node_modules/pdfjs-dist/standard_fonts/*'],
-                '/api/projects/[id]/analyze-contract': ['./node_modules/pdfjs-dist/standard_fonts/*'],
-                '/api/projects/[id]/drawing-submissions': ['./node_modules/pdfjs-dist/standard_fonts/*'],
-                '/api/projects/[id]/tracker/extract': ['./node_modules/pdfjs-dist/standard_fonts/*'],
-                '/api/projects/[id]/tracker/import-toc': ['./node_modules/pdfjs-dist/standard_fonts/*'],
+                // Every route that reads a PDF server-side needs BOTH of these.
+                //   standard_fonts/  — resolved at runtime via a constructed file:// URL
+                //   pdf.worker.mjs   — pdfjs-dist's own static block sets
+                //                      GlobalWorkerOptions.workerSrc ||= './pdf.worker.mjs' on Node and
+                //                      then `await import(this.workerSrc)`. That dynamic import is
+                //                      invisible to the tracer, so without this line the worker is
+                //                      absent in the Lambda and getDocument() throws
+                //                      'Setting up fake worker failed' before page 1 (pages=0 read=0).
+                // Both are asserted against the real build output by scripts/check-runtime-assets.mjs.
+                '/api/intake/parse': PDFJS_RUNTIME_ASSETS,
+                '/api/projects/[id]/fixture-schedule/parse': PDFJS_RUNTIME_ASSETS,
+                '/api/projects/[id]/files': PDFJS_RUNTIME_ASSETS,
+                '/api/projects/[id]/files/[fileId]/reparse': PDFJS_RUNTIME_ASSETS,
+                '/api/projects/[id]/peer-review/parse-pdf': PDFJS_RUNTIME_ASSETS,
+                '/api/projects/[id]/analyze-contract': PDFJS_RUNTIME_ASSETS,
+                '/api/projects/[id]/drawing-submissions': PDFJS_RUNTIME_ASSETS,
+                '/api/projects/[id]/tracker/extract': PDFJS_RUNTIME_ASSETS,
+                '/api/projects/[id]/tracker/import-toc': PDFJS_RUNTIME_ASSETS,
+                '/api/projects/[id]/site/parse': PDFJS_RUNTIME_ASSETS,
+                '/api/projects/[id]/unit-matrix/parse': PDFJS_RUNTIME_ASSETS,
           },
           // Zero out the client-side router cache for dynamic pages so navigating
           // back to the dashboard (or any force-dynamic page) always re-fetches.

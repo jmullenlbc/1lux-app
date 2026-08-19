@@ -21,7 +21,14 @@ const TRACE_ROOT = '.next/server/app';
 
 // route path (as built) → asset substring that MUST appear in its Lambda trace
 const REQUIREMENTS = [
-  // pdfjs resolves standard_fonts/ at runtime for text extraction
+  // pdfjs resolves BOTH of these at runtime, so nft never traces them:
+  //   standard_fonts/ — via a constructed file:// URL. Missing → getTextContent
+  //                     yields nothing and every AI parse returns 0 rows.
+  //   pdf.worker.mjs  — via `await import(GlobalWorkerOptions.workerSrc)` inside
+  //                     pdf.mjs. Missing → getDocument() throws "Setting up fake
+  //                     worker failed" before page 1 (symptom: pages=0 read=0).
+  //                     This shipped broken to prod and killed EVERY server-side
+  //                     PDF read; found 2026-08-19 from the construction-schedule tab.
   ...[
     'api/intake/parse',
     'api/projects/[id]/fixture-schedule/parse',
@@ -32,7 +39,12 @@ const REQUIREMENTS = [
     'api/projects/[id]/drawing-submissions',
     'api/projects/[id]/tracker/extract',
     'api/projects/[id]/tracker/import-toc',
-  ].map(route => ({ route, asset: 'standard_fonts', why: 'pdfjs text extraction returns nothing without the standard fonts' })),
+    'api/projects/[id]/site/parse',
+    'api/projects/[id]/unit-matrix/parse',
+  ].flatMap(route => [
+    { route, asset: 'standard_fonts', why: 'pdfjs text extraction returns nothing without the standard fonts' },
+    { route, asset: 'pdf.worker.mjs', why: 'pdfjs cannot open a document at all without its worker — getDocument() throws before page 1' },
+  ]),
   // headless chromium binary is dynamically imported
   ...[
     'api/projects/[id]/budget/pdf',

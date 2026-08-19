@@ -1,4 +1,5 @@
 import '@/lib/pdfPolyfill';
+import { loadPdfjs } from '@/lib/pdfjsNode';
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
@@ -13,7 +14,7 @@ import { extractScheduleMilestones } from '@/lib/scheduleExtract';
 
 // Anthropic client created per-request inside the POST handler so env vars are available
 
-const VALID_TABS = ['drawings', 'correspondence', 'submittals', 'ca', 'contracts', 'meetings', 'designInfo', 'takeoffs', 'budgets', 'fixture-schedule', 'unit-matrix'];
+const VALID_TABS = ['drawings', 'correspondence', 'submittals', 'ca', 'contracts', 'meetings', 'designInfo', 'takeoffs', 'budgets', 'fixture-schedule', 'unit-matrix', 'site-plan'];
 
 async function canAccess(projectId, user) {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
@@ -23,7 +24,7 @@ async function canAccess(projectId, user) {
 
 async function extractPdfText(buffer) {
   try {
-    const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    const pdfjsLib = await loadPdfjs();
     const uint8    = new Uint8Array(buffer);
     const doc      = await pdfjsLib.getDocument({ data: uint8 }).promise;
     let text = '';
@@ -220,13 +221,14 @@ export async function POST(request, { params }) {
         const start = get('construction-start');
         const mep   = getEarliest('mep-rough');
         const end   = get('construction-end');
-        const cols = [], vals = [];
-        if (start) { cols.push('"constructionStartDate" = ?'); vals.push(start); }
-        if (mep)   { cols.push('"mepRoughInDate" = ?');        vals.push(mep); }
-        if (end)   { cols.push('"constructionEndDate" = ?');   vals.push(end); }
-        if (cols.length > 0) {
-          vals.push(params.id);
-          await prisma.$executeRawUnsafe(`UPDATE "Project" SET ${cols.join(', ')} WHERE "id" = ?`, ...vals);
+        // Typed client, not raw SQL: `?` placeholders are SQLite-only and throw on
+        // Postgres, which is what prod runs — this silently never saved a date there.
+        const data = {};
+        if (start) data.constructionStartDate = start;
+        if (mep)   data.mepRoughInDate        = mep;
+        if (end)   data.constructionEndDate   = end;
+        if (Object.keys(data).length > 0) {
+          await prisma.project.update({ where: { id: params.id }, data });
         }
       }
     } catch (e) { console.error('[upload schedule extraction] failed:', e?.message ?? e); }

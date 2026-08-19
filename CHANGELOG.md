@@ -5,9 +5,285 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [The server could not read ANY PDF in production] · August 19, 2026
+
+*Not deployed. Mike dropped a construction schedule on Zenith on 25th and got no
+dates, then re-dropped it and got an error on screen. That error turned out to be
+the visible corner of a much bigger problem: **every server-side PDF read in
+production has been failing**, silently, on every tab. Three separate defects.*
+
+### 1. The PDF engine was shipping without its engine (the real cause)
+
+`pdfjs-dist` has a static block that, on Node, sets
+`GlobalWorkerOptions.workerSrc ||= "./pdf.worker.mjs"` and then does
+`await import(this.workerSrc)`. Next's file tracer cannot see through a dynamic
+import, so `pdf.worker.mjs` was **never copied into any Lambda**. `getDocument()`
+threw `Setting up fake worker failed` before it ever opened page 1 — which is why
+the on-screen error read `pages=0 read=0`.
+
+Audited against the real build output: **all 11 PDF-reading API routes were
+affected** — conceptual-budget intake, fixture schedule, contract analysis, tracker
+extract, tracker import-toc, unit matrix, site parse, drawing submissions, peer
+review, project file upload, and reparse. Two of them (`site/parse`,
+`unit-matrix/parse`) were also missing `standard_fonts/`.
+
+- **New `src/lib/pdfjsNode.js`** — now the only sanctioned way to load pdfjs on the
+  server. It pins `workerSrc` to an absolute `file://` path resolved from the
+  installed package, and exports the standard-fonts URL and a shared
+  `pdfDocOptions()`. All 12 call sites converted. Three details that each cost a
+  round of debugging:
+  - **Locating the package is itself a trap.** `createRequire(import.meta.url)` —
+    the obvious way, and the way the old code did it — resolves to a *phantom*
+    path inside a webpack server bundle (an `(rsc)` segment that is not a real
+    directory). The finder now tries three strategies and keeps the first whose
+    file actually exists on disk.
+  - **The failure is permanently memoized.** pdfjs caches the worker-load promise
+    on the class, so once it fails, every later PDF in that same process fails
+    with the identical stale message. A page refresh cannot recover it; only a
+    restart can. Worth knowing when reading a prod error twice.
+  - **`buffer instanceof Uint8Array` is true for a Node Buffer**, and pdfjs
+    rejects Buffers outright, so `pdfDocOptions()` always re-wraps.
+
+  Reproduced the exact production error locally, then confirmed the fix
+  end-to-end through the real API route: 13 milestones off a 96-page schedule.
+- `next.config.mjs` — one shared `PDFJS_RUNTIME_ASSETS` list (worker + fonts)
+  force-included on all 11 routes, replacing the fonts-only list that covered 9.
+- `scripts/check-runtime-assets.mjs` — now asserts the worker too, on all 11
+  routes. **A missing worker fails the build.** Same gate that already covers the
+  Chromium binary and the standard fonts; this was the third instance of the exact
+  same runtime-resolution trap.
+
+Verified: build green, `✓ all 26 runtime assets present in their Lambda traces`.
+
+### 2. Project date columns could never save on Postgres
+
+Four call sites wrote dates with `prisma.$executeRawUnsafe(... WHERE "id" = ?)`.
+`?` placeholders are SQLite-only — fine on the dev machine, invalid on production
+Postgres — and all four sat inside silent `catch {}`, so the failure was invisible.
+Replaced with the typed Prisma client (the columns exist in `schema.prisma`); the
+catches now log.
+
+- `src/app/api/projects/[id]/files/route.js`
+- `src/app/api/projects/[id]/files/[fileId]/reparse/route.js`
+- `src/app/api/projects/[id]/files/[fileId]/route.js`
+- `src/app/api/projects/[id]/analyze-contract/route.js`
+
+### 3. Reparse no longer needs the original file
+
+Uploads are written to the Lambda's own ephemeral disk, so a later request lands on
+a different instance and the file is gone — verified live: a file uploaded that
+morning already returned "File not found on disk". `/reparse` now falls back to the
+row text saved in `ProjectFile.textContent` at upload time.
+
+- `src/lib/scheduleExtract.js` — extraction split so the two-tier keyword+AI pass
+  can start from stored text (`extractScheduleMilestonesFromText`).
+- `src/app/api/projects/[id]/files/[fileId]/reparse/route.js` — disk first, stored
+  text second, and a plain-English message if neither is available.
+
+**This is a stopgap, not the fix.** The real fix — storing project files in the
+permanent S3 bucket instead of on the Lambda disk — is logged for Sean in
+`.claude/coordination.md` and is blocked on the same 3 S3 console steps.
+
+---
+
+## [Finds the area sheet inside one big PDF, and knows net from gross] · August 18, 2026
+
+*Not deployed. Mike's ask: "can't we just get this out of the bigger PDF? I want them
+to be able to drop 1 pdf" — and when we can't tell net from gross, "fill the field,
+make red and give a confidence %". Both are built. Then it was run against the real
+Fox Park drawings, which broke it four different ways, and those are fixed too.*
+
+### What changed
+
+- **New `src/lib/areaSheet.js`** — the whole net-vs-gross problem in one place. An
+  architect publishes three different totals for the same building (net room
+  schedule, code-summary "actual area", gross program breakdown) and on Fox Park
+  they were 105,903 / 221,022 / 233,919 SF. Picking the wrong one is a silent 5–8%
+  budget error. This module scores every page of the PDF to find the area sheet,
+  reads the printed label next to the number to decide which of the three it is,
+  and uplifts net (+8% mid-rise, +5% garden walk-up) or code area (+5.4%) to gross.
+  Deterministic — no model call — so it gives the same answer every time and can
+  show its reasoning to the reviewer.
+- `src/lib/drawingExtract.js` — PDF text now comes back page by page (up to 400
+  pages, 20-second budget) instead of one blob, which is what makes finding the
+  sheet possible. The parser is also asked to copy the number's **literal printed
+  heading** ("BUILDING GROSS SF", "AVG AREA") and the sheet it came from, because
+  that label is what the decision is made from. Prompt version `unitMatrix-2026-08-18`.
+- `src/components/unitMatrix/UnitMatrixUpload.jsx`, `src/components/intake/DrawingDropzone.jsx`
+  — Gross Interior SF turns **red with a confidence percentage** and a plain-English
+  reason whenever the read is shaky, per Mike's rule. The field is always filled in;
+  red means "check this", not "we gave up".
+
+### Four defects the real drawings exposed, and the fixes
+
+Unit tests passed while all four were live. Only running the real 442-page set found them.
+
+1. **The sheet index scored as an area sheet.** G0.01 lists the title of every sheet
+   in the set, so it matched every marker we look for — and was classified as a code
+   area at 75% confidence, high enough to apply a 5.4% uplift *silently*, off a page
+   with no numbers on it. Drawing indexes are now detected and thrown out. The rule is
+   tight on purpose: the real index carries 345 sheet-number-shaped tokens, and every
+   real sheet in the set carries 14 or fewer (they turn out to be IBC occupancy groups
+   — A-1, S-1, R-1 — not sheet numbers at all).
+2. **Whole pages were judged instead of tables.** G0.02 carries a net guestroom mix
+   *and* a gross building-area table on the same sheet. Judged as one page it is a
+   coin flip. The verdict is now anchored to the label printed next to the number
+   itself, so 233,919 reads as gross at 97% and 105,903 reads as net off the same page.
+3. **Address fragments were reported as sheet numbers.** We told the reviewer to open
+   "sheet PL100", which came out of the architect's address block — "1001 17TH STREET
+   SUITE PL100 DENVER, CO". No such sheet exists.
+4. **Tables that are pictures were silently unreadable.** BECK's A-811 program
+   breakdown scores highest of any sheet and contains zero readable numbers — the
+   table is vector art, so only the Revit layer names survive as text. It now says so:
+   "The area sheet is a picture, not text — its table could not be read", names the
+   sheet, and flags red.
+
+### Verified
+
+- 321 unit tests pass (`npm run verify:units`), 38 of them in the new `areaSheet` suite,
+  including one fixture per real-world failure above.
+- `npm run build` clean, runtime-asset guard passing.
+- Re-run end to end against the real Fox Park 100% DD set (442 pages) and BECK's area
+  plans using the app's own shipping modules: G0.02 found and read as gross at 97%,
+  LS0.01 correctly read as a code area, G0.01 excluded, BECK's A-811 correctly
+  reported as unreadable rather than guessed at.
+
+---
+
+## [Mike's three parsing rules + the unit-count alarm] · August 17, 2026
+
+*Not deployed. After the Fox Park hotel and Trailhead apartment dry runs, Mike set
+three standing rules for how drawings are read, and asked "will it alert us?" when
+the parser's unit rows don't add up to the drawing's own stated total. All four are
+now in the code.*
+
+### What changed
+
+- `src/lib/drawingExtract.js` — the parser's instructions now carry two of the rules:
+  **hotel keys are units** (a room matrix with key counts is read exactly like a unit
+  matrix, "TOTAL KEYS" is the stated total), and **gross beats net** (prefer a stated
+  whole-building GROSS SF; never use NRSF/net-rentable figures, never self-sum
+  per-floor code-summary areas — those lean net and come out low, which is exactly
+  what happened on Fox Park's 233,919). Prompt version bumped to
+  `unitMatrix-2026-08-17` so the accuracy history restarts cleanly.
+- `src/components/intake/DrawingDropzone.jsx` — the public intake now shows a red
+  alert when the parsed unit rows don't add up to the total printed on the drawings
+  ("rows add up to 229, but the drawings state 260"). The logged-in upload panels
+  already had this check; the public form was the one place a shortfall could slip
+  through looking plausible.
+- `src/components/sections/ProjectDataSection.jsx` — questionnaire hints teach the
+  **stair-landing rule** (a 3-story stair = 3 floor landings + 2 in-between = 5,
+  every landing lit), note that hotel keys count as units, and say that Corridor SF
+  includes open-air breezeways on a walk-up.
+
+### Verified
+
+- `drawingExtract` (19), `autoChecks` (18), and `intake` (22) test suites all pass.
+- Conceptual intake page compiles and loads clean in the browser.
+
+---
+
+## [Direct-to-S3 uploads — the 4 MB wall comes down] · August 17, 2026
+
+*Not deployed. Amplify's front door rejects any upload over ~4.4 MB before our code
+runs, which made real drawing sets impossible on the live site. This is the permanent
+fix: instead of pushing the file THROUGH the app, the browser asks the app for a
+one-time "permission slip" (a presigned S3 URL, expires in 10 minutes), sends the file
+straight to S3, and then hands the app the claim ticket. The app fetches the bytes
+back from S3, parses them, and deletes the object — nothing is stored. Files up to
+50 MB. In local dev (no S3), everything silently falls back to the classic upload
+path, so nothing about local testing changes.*
+
+### What changed
+
+- `src/lib/uploadStorage.js` (new) — the S3 side: issue permission slips, validate
+  claim tickets (only keys under `uploads/` that we could have issued; hostile keys
+  rejected), fetch bytes with a real-size re-check, best-effort delete afterward.
+- `src/app/api/uploads/presign/route.js` (new) — the public permission-slip desk.
+  Rate-limited per IP (20/min). In dev it answers "not available" and the browser
+  falls back to the classic path.
+- `src/lib/uploadClient.js` (new) — the browser side: get a slip, PUT the file
+  straight to S3 with a live progress percentage, return the claim ticket.
+- `src/app/api/intake/parse/route.js` — now accepts either a file (classic) or a
+  claim ticket (S3). Also NEW: when a PDF has readable text but no unit matrix — a
+  vector site plan, the most common real case — it takes a second look with AI vision
+  and returns the site data (lot size, parking, buildings) instead of "nothing found."
+  The S3 object is always deleted when parsing ends, success or failure.
+- `src/lib/mergeProposals.js` — site-plan reads now survive the multi-file merge
+  (previously a parsed site plan was silently dropped when several files were
+  uploaded together). Disagreements between two site plans are flagged for review.
+- `src/components/intake/DrawingDropzone.jsx` — uploads go direct-to-S3 with a
+  progress bar; 50 MB honest limit up front; site-plan results render as their own
+  summary line and merge into the rollup chips.
+
+### Verified
+
+- `scripts/tests/uploadStorage.test.mjs` (new) — 9/9: slip validation (type, size,
+  50 MB ceiling), claim-ticket guard (traversal, wrong prefix, non-strings all
+  rejected), offline presign produces a properly signed URL pointing at our bucket.
+- `scripts/tests/drawingExtract.test.mjs` — 19/19 (5 new site-data merge tests).
+- Live dev checks against the running server: presign desk correctly says "not
+  available" locally; a REAL client unit mix (Beckett Eastchase) parsed to its exact
+  stated total of 324 units; a vector site-plan PDF fell through to vision and read
+  lot 435,600 SF / 96 stalls / buildings; claim tickets without S3 fail cleanly (400,
+  no crash); hostile claim tickets rejected.
+- `scripts/tests/uploadFlow.e2e.test.mjs` re-run after the parse-route rewrite —
+  4/4 pass (internal questionnaire flow unaffected).
+- `npm test` — 53/53 budget-math, 8,000-scenario fuzz (111,997 checks, 0 failures),
+  12/12 bid-matrix. Related suites (siteFields, intake, siteVision, diffs, checks) —
+  119/119. `npm run build` — clean, all 13 runtime assets present.
+- NOT yet proven: the actual S3 leg on production (needs deploy + the three S3
+  console steps — CORS, lifecycle rule, IAM permission — documented separately).
+
+---
+
+## [Drawing uploads inside both questionnaires + building count from site plans] · August 16, 2026
+
+*Not deployed. Until now, the drawing readers (unit mix table and site plan) lived only on
+the Project Hub's Takeoffs tab — someone filling out a questionnaire was never told
+uploading was possible, so they typed numbers a drawing already stated. This puts the
+same two uploaders at the top of the Project Data step in BOTH questionnaires
+(conceptual and design). Same parsers, same review-and-tick approval modal, same
+safety rails — a new front door, not a new pipeline.*
+
+### What changed
+
+- `src/components/wizard/QuestionnaireUploads.jsx` (new) — the "Have drawings? Upload
+  them instead of typing" panel. Open by default while the project has no unit count
+  yet (the blank-questionnaire moment); collapses to one line once numbers exist.
+- `src/app/(app)/project/[id]/WizardClient.jsx` + `DesignWizardClient.jsx` — mount the
+  panel on the Project Data step. When an upload is applied, the form fields and the
+  live budget sidebar update immediately — no page reload.
+- `src/components/sections/ProjectDataSection.jsx` — the form now reflects numbers
+  written from outside it (an applied upload), but never touches a field the user is
+  mid-typing in.
+- `src/lib/siteFields.js` — site plans now also propose **# of Buildings** (drives
+  building wallpack counts). The reviewer is warned to confirm it counts residential
+  buildings only, since site-data blocks often include the clubhouse in their total.
+- `src/components/site/SiteDataUpload.jsx` + `unitMatrix/UnitMatrixUpload.jsx` — accept
+  an optional "tell the questionnaire" callback; the Takeoffs tab omits it and behaves
+  exactly as before.
+
+### Verified
+
+- `scripts/tests/uploadFlow.e2e.test.mjs` (new) — full end-to-end proof against the live
+  dev server: log in → create a project → upload a unit-mix spreadsheet → AI reads it →
+  apply → project numbers update (240 units, 210,480 SF — exact); upload a site plan
+  PDF → AI vision reads lot area, parking, and # of buildings → apply a corrected
+  building count (the clubhouse trap) → correction recorded for the trust system →
+  delete the test project. 4/4 pass in ~25 seconds. Costs a few cents per run (real AI
+  calls), so it runs on demand, not inside `npm test`.
+- `scripts/tests/siteFields.test.mjs` — 21/21 pass (2 new tests for # of Buildings).
+- `npm test` — 53/53 budget-math assertions, 8,000-scenario fuzz (111,997 checks,
+  0 failures), 12/12 bid-matrix checks.
+- Dev server compiles the wizard page cleanly (755 modules, no errors). Logged-in
+  click-through of upload → review → Apply is Mike's to test.
+
+---
+
 ## [Honest upload errors on the public intake page] · August 15, 2026
 
-*Not deployed. Background: a 9.8 MB drawing upload on the live intake page failed with
+*Deployed August 16, 2026 (commit 27cc6c0). Background: a 9.8 MB drawing upload on the live intake page failed with
 the unhelpful "Could not read this file." The real cause is AWS Amplify's front door —
 it rejects any request body over ~4.4 MB with an empty error before our code ever runs
 (measured on prod: 4 MB gets through, 5 MB bounces). This applies to every upload in the

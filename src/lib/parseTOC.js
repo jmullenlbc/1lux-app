@@ -1,4 +1,5 @@
 import '@/lib/pdfPolyfill';
+import { loadPdfjs } from './pdfjsNode.js';
 /**
  * parseTOC.js
  *
@@ -118,7 +119,7 @@ export function parseTOCFromText(text) {
  * @returns {Promise<string>}
  */
 export async function extractTOCText(buffer) {
-  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const pdfjsLib = await loadPdfjs();
   const uint8    = new Uint8Array(buffer);
   const doc      = await pdfjsLib.getDocument({ data: uint8 }).promise;
 
