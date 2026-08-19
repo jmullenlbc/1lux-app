@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
 import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
+import { getProjectFileBuffer } from '@/lib/projectFileStorage';
 import {
   extractPdfPages,
   extractNotesFromPages,
@@ -65,15 +66,8 @@ export async function POST(req, { params }) {
     if (body.fileId) {
       const pf = await prisma.projectFile.findUnique({ where: { id: body.fileId } });
       if (!pf) return NextResponse.json({ error: 'File not found' }, { status: 404 });
-      // Read file from disk
-      const { readFile } = await import('fs/promises');
-      const path = await import('path');
-      const filePath = path.join(process.cwd(), 'uploads', pf.storedPath);
-      try {
-        buffer = await readFile(filePath);
-      } catch {
-        return NextResponse.json({ error: 'Could not read stored file' }, { status: 422 });
-      }
+      buffer = await getProjectFileBuffer(pf.storedPath);
+      if (!buffer) return NextResponse.json({ error: 'Could not read stored file' }, { status: 422 });
       fileName       = pf.originalName;
       submissionName = body.submissionName || pf.originalName.replace(/\.pdf$/i, '');
     } else {

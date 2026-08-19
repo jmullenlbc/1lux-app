@@ -3,8 +3,7 @@ import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import Anthropic from '@anthropic-ai/sdk';
-import path from 'path';
-import { readFile } from 'fs/promises';
+import { getProjectFileBuffer } from '@/lib/projectFileStorage';
 // Shared with the public intake route (/api/intake/parse). The extraction
 // prompt and model choice live in ONE place so the internal tool and the
 // public tool can never disagree about the same document.
@@ -41,9 +40,8 @@ export async function POST(request, { params }) {
   let contentText = null;
 
   if (ext === 'xlsx' || ext === 'xls') {
-    // Read from disk and convert to CSV text
-    const filePath = path.join(process.cwd(), 'uploads', file.storedPath);
-    const buffer = await readFile(filePath);
+    const buffer = await getProjectFileBuffer(file.storedPath);
+    if (!buffer) return NextResponse.json({ error: 'File not found — it may have been deleted.' }, { status: 404 });
     contentText = await xlsxToText(buffer);
   } else if (ext === 'pdf') {
     // Use pre-extracted text from upload (textContent stored on file record)

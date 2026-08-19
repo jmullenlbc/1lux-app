@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { unlink, readFile } from 'fs/promises';
-import path from 'path';
+import { getProjectFileBuffer, deleteProjectFile } from '@/lib/projectFileStorage';
 import { logActivity, TAB_LABELS } from '@/lib/activity';
 
 // GET — serve the file inline (for PDF viewer)
@@ -20,19 +19,15 @@ export async function GET(request, { params }) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  try {
-    const buffer      = await readFile(path.join(process.cwd(), 'uploads', record.storedPath));
-    const contentType = record.mimeType || 'application/octet-stream';
-    return new Response(buffer, {
-      headers: {
-        'Content-Type':        contentType,
-        'Content-Disposition': `inline; filename="${encodeURIComponent(record.originalName)}"`,
-        'Content-Length':      String(buffer.length),
-      },
-    });
-  } catch {
-    return NextResponse.json({ error: 'File not found on disk' }, { status: 404 });
-  }
+  const buffer = await getProjectFileBuffer(record.storedPath);
+  if (!buffer) return NextResponse.json({ error: 'File not found' }, { status: 404 });
+  return new Response(buffer, {
+    headers: {
+      'Content-Type':        record.mimeType || 'application/octet-stream',
+      'Content-Disposition': `inline; filename="${encodeURIComponent(record.originalName)}"`,
+      'Content-Length':      String(buffer.length),
+    },
+  });
 }
 
 export async function PATCH(request, { params }) {
@@ -104,11 +99,7 @@ export async function DELETE(request, { params }) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  try {
-    await unlink(path.join(process.cwd(), 'uploads', record.storedPath));
-  } catch {
-    // file already gone from disk — still delete the DB record
-  }
+  await deleteProjectFile(record.storedPath);
 
   await prisma.projectFile.delete({ where: { id: params.fileId } });
 

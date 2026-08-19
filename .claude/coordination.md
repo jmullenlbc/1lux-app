@@ -2,6 +2,13 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+## Sean's Claude — 2026-08-19: Project file storage moved to S3
+
+- **Commit `6ac9bfb`**: new `src/lib/projectFileStorage.js` — `putProjectFile`, `getProjectFileBuffer`, `deleteProjectFile`. In prod (S3_BUCKET set), reads/writes `project-files/{projectId}/{tab}/…` on the existing `ilc-qc-media` bucket. In dev, falls back to local `uploads/` (no dev config change needed). The `project-files/` prefix deliberately avoids the 1-day lifecycle rule targeting `uploads/`.
+- Updated 9 routes: `POST /api/projects/[id]/files` (write), `GET+DELETE /api/projects/[id]/files/[fileId]`, `/reparse`, `/portal/…/files/[fileId]`, `analyze-contract`, `unit-matrix/parse`, `tracker/extract`, `tracker/import-toc`. Old `storedPath` rows (no `project-files/` prefix) fall back to local disk read — graceful degradation for pre-migration records.
+- **S3 console steps**: Already completed 2026-08-18 — CORS, lifecycle rule (`uploads/` prefix, 1-day expiry), IAM policy confirmed. Mike's email references these as "still blocking" but they are done; the S3 work above was the remaining code item.
+- Manny PDF also delivered this session: `manny_ilc_guide.pdf` — Task 27 (portal invite bridge) + bonus tasks 17 & 18.
+
 ## 🚨 FOR SEAN — 2026-08-19 (from Mike, via Mike's Claude): move project file storage to S3 — plus a prod-wide PDF outage just found and fixed
 
 **Context: Mike uploaded a construction schedule to Zenith on 25th (PRJ-0002) in production and no dates came out.** Diagnosing that turned up three separate production defects. Two are already fixed on Mike's side (local, undeployed). The third is yours, and it is the big one.

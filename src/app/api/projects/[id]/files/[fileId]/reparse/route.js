@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { readFile } from 'fs/promises';
-import path from 'path';
+import { getProjectFileBuffer } from '@/lib/projectFileStorage';
 import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { extractScheduleMilestones, extractScheduleMilestonesFromText } from '@/lib/scheduleExtract';
@@ -32,21 +31,15 @@ export async function POST(request, { params }) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  // Read the file from disk and run the row-structured, whole-document extractor.
-  //
-  // In production the bytes are usually GONE: uploads are written to the Lambda's
-  // own ephemeral filesystem, so a later request lands on a different instance and
-  // the path 404s. The row text extracted at upload time is in the database though,
-  // so fall back to that — a reparse then still works without the original PDF.
-  let buffer = null;
-  try {
-    buffer = await readFile(path.join(process.cwd(), 'uploads', record.storedPath));
-  } catch {
-    if (!record.textContent || record.textContent.trim().length < 50) {
-      return NextResponse.json({
-        error: 'The original file is no longer available on the server, and no text was saved from it. Please re-upload the PDF.',
-      }, { status: 404 });
-    }
+  // Prefer the stored object — S3 since the file-storage migration. Files uploaded
+  // BEFORE that migration only ever lived on a Lambda's ephemeral disk, so their
+  // bytes are gone for good; fall back to the row text extracted at upload time so
+  // an old file can still be reparsed without asking for a re-upload.
+  const buffer = await getProjectFileBuffer(record.storedPath);
+  if (!buffer && (!record.textContent || record.textContent.trim().length < 50)) {
+    return NextResponse.json({
+      error: 'The original file is no longer available on the server, and no text was saved from it. Please re-upload the PDF.',
+    }, { status: 404 });
   }
 
   let milestones = [], text = null, diag = null;
