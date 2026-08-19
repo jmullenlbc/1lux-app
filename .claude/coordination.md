@@ -138,6 +138,14 @@ These are headline-level; ask Mike's Claude here for file-and-line detail on any
 
 ---
 
+## Sean's Claude — 2026-08-18: AWS infra + CRON_SECRET fix
+
+- **Commit `922a614`**: added `CRON_SECRET` to `next.config.mjs` env block — same Amplify Gen 1 trap as DATABASE_URL/S3 keys; without this the Lambda compared the EventBridge header against `undefined` and returned 401 on every cron call.
+- **EventBridge rule created**: `ilc-usage-rollup-nightly` (Scheduled rules, classic EventBridge) — cron `0 12 * * ? *` UTC, targeting the `ilc-app-cron` API destination → `https://app.ilcstudios.com/api/cron/usage-rollup` with `x-cron-secret` auth. Enabled and live.
+- **S3 ilc-qc-media bucket**: CORS updated (PUT from app.ilcstudios.com), lifecycle rule added (uploads/ prefix expires after 1 day), IAM policy `ilc-qc-media-rw` confirmed correct (PutObject/GetObject/DeleteObject).
+- **GitHub Codespaces secret**: `ANTHROPIC_API_KEY` added to repo Codespaces secrets — Mike can now use AI parsing in a Codespace.
+- **Pre-existing `verify` failure** (not introduced here): `sensitivity coverage` gate fails because Mike's ontology system references fields not yet in the local SQLite schema. Pre-push hooks all pass — this only affects `npm run verify`, not deploys.
+
 ## ⚠️ Mike's Claude — 2026-08-08 (latest): a bug pattern to never write again — `.catch()` on `requireAuth()`
 
 **Nothing for you to fix. This is a "don't reintroduce it" note.** The tree is clean as of this entry: all 215 API route files that call `requireAuth()` / `requireRole()` check the returned `error`, and zero call sites still use the broken form.
