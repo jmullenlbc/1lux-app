@@ -11,7 +11,10 @@ import assert from 'node:assert/strict';
 // getSignedUrl has something to sign with. Nothing here ever reaches AWS.
 process.env.S3_BUCKET = 'test-bucket';
 process.env.S3_REGION = 'us-east-1';
-process.env.S3_ACCESS_KEY_ID = 'AKIATESTFAKEKEY00000';
+// Deliberately NOT in AWS's real AKIA[0-9A-Z]{16} shape — that form trips the
+// pre-push secret scanner (scripts/check-secrets.js), and a guard that cries
+// wolf on a test fixture is a guard people learn to skip with --no-verify.
+process.env.S3_ACCESS_KEY_ID = 'fake-access-key-id-for-tests';
 process.env.S3_SECRET_ACCESS_KEY = 'testfakesecrettestfakesecrettestfakesec';
 
 const { validatePresignRequest, presignUpload, isUploadKey, MAX_DIRECT_UPLOAD_BYTES } =
