@@ -4,6 +4,7 @@ import Button from '@/components/ui/Button';
 import QuestionCard from '@/components/sections/QuestionCard';
 import StandardsHint from '@/components/wizard/StandardsHint';
 import { PRICING } from '@/lib/pricing';
+import { priceOverride } from '@/lib/calculations';
 
 // Static fallbacks — live values come from the master pricing prop (see P below).
 const DISK_RATES     = { 6: 0.40, 7: 0.35, 8: 0.30, 9: 0.28, 10: 0.25, 11: 0.23, 12: 0.23 };
@@ -27,6 +28,7 @@ export default function DesignCorridorsSection({
     elevatorLobby:     existing.elevatorLobby      || 'no',
     stairwellDesign:   existing.stairwellDesign    || 'code',
     unitSconce:        existing.unitSconce         || 'none',
+    unitSconcePrice:   existing.unitSconcePrice    ?? '', // blank = use the master price sheet
     // Manual accent qty entered right here; falls back to Project Data
     accentQty:         existing.accentQty ?? (projectData?.numAccentDownlights ?? ''),
     // Carry through keys so we don't wipe them on save
@@ -65,7 +67,13 @@ export default function DesignCorridorsSection({
     high:       P.corridorSconce?.high?.product       ?? 300,
     integrated: P.corridorSconce?.integrated?.product ?? 200,
   };
-  const sconceProduct = numUnits * (sconceRates[ans.unitSconce] ?? 0);
+  // Mirror the engine: an override replaces the master rate, but only while an
+  // actual sconce is selected.
+  const sconceMasterRate = sconceRates[ans.unitSconce] ?? 0;
+  const sconceEach    = ans.unitSconce !== 'none'
+    ? (priceOverride(ans.unitSconcePrice) ?? sconceMasterRate)
+    : 0;
+  const sconceProduct = numUnits * sconceEach;
 
   // Accent downlights
   const ACCENT_EACH = P.designCorridors?.accentDownlightEach ?? 120;
@@ -217,6 +225,12 @@ export default function DesignCorridorsSection({
         ]}
         value={ans.unitSconce}
         onChange={v => set('unitSconce', v)}
+        override={{
+          value:       ans.unitSconcePrice,
+          onChange:    v => set('unitSconcePrice', v),
+          masterPrice: sconceMasterRate,
+          disabled:    ans.unitSconce === 'none',
+        }}
       />
 
       {/* Recessed accents — manual quantity entered right here */}
@@ -250,7 +264,7 @@ export default function DesignCorridorsSection({
               { label: `Corridor fixtures (${corridorSf.toLocaleString()} SF × $${fixtureRate.toFixed(3)}/SF)`, value: corridorProduct,    show: corridorSf > 0 },
               { label: `Stairwells (${stairwells} landings × $${STAIR_EACH})`,                                             value: stairwellProduct,   show: stairwells > 0 },
               { label: `Stairwell elevated adder (${stairwells} × $50)`,                                         value: elevatedStairAdder, show: elevatedStairAdder > 0 },
-              { label: `Unit-entry sconces (${numUnits} × $${sconceRates[ans.unitSconce] ?? 0})`,               value: sconceProduct,      show: sconceProduct > 0 },
+              { label: `Unit-entry sconces (${numUnits} × $${sconceEach})${sconceEach !== sconceMasterRate ? ' — overridden' : ''}`, value: sconceProduct,      show: sconceProduct > 0 },
               { label: `Recessed accents (${numAccents} × $${ACCENT_EACH})`,                                                value: accentProduct,      show: accentProduct > 0 },
             ].filter(r => r.show).map(row => (
               <div key={row.label} className="flex justify-between text-slate-600">

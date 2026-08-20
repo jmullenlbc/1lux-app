@@ -15,6 +15,7 @@ import ExitSignsSection    from '@/components/sections/ExitSignsSection';
 import ControlsSection     from '@/components/sections/ControlsSection';
 import BudgetSidebar       from '@/components/wizard/BudgetSidebar';
 import SectionNav          from '@/components/wizard/SectionNav';
+import QuestionnaireUploads from '@/components/wizard/QuestionnaireUploads';
 
 export default function WizardClient({ project, projectData, initialSections, initialBudget, pricing, isDesign = false }) {
   const router = useRouter();
@@ -162,6 +163,15 @@ export default function WizardClient({ project, projectData, initialSections, in
     return saveResponses('corridors', { ...(sections['corridors'] || {}), ...r });
   }
 
+  // A drawing upload committed to Project Info. The commit route returns the
+  // fresh ProjectData row, so the form and the live budget pick it up here —
+  // no reload, and no second fetch.
+  const handleDrawingCommit = useCallback((newPD) => {
+    if (!newPD) return;
+    setLocalPD(newPD);
+    recalculate(newPD, sections);
+  }, [recalculate, sections]);
+
   return (
     <div className="flex h-screen overflow-hidden">
       {/* Left nav */}
@@ -207,11 +217,18 @@ export default function WizardClient({ project, projectData, initialSections, in
           )}
 
           {currentStep === 'project-data' && (
-            <ProjectDataSection
-              {...sharedSectionProps}
-              responses={sections['project-data'] || {}}
-              onSaveResponses={r => saveResponses('project-data', r)}
-            />
+            <>
+              <QuestionnaireUploads
+                projectId={project.id}
+                projectData={localPD}
+                onProjectData={handleDrawingCommit}
+              />
+              <ProjectDataSection
+                {...sharedSectionProps}
+                responses={sections['project-data'] || {}}
+                onSaveResponses={r => saveResponses('project-data', r)}
+              />
+            </>
           )}
 
           {currentStep === 'units' && (

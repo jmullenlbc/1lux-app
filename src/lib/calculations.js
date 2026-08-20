@@ -1,4 +1,7 @@
-import { PRICING as STATIC_PRICING } from './pricing';
+// Extension is explicit so plain Node (`node --test`) can load this file
+// directly, the same way Next's bundler does. Without it the test runner cannot
+// resolve './pricing'.
+import { PRICING as STATIC_PRICING } from './pricing.js';
 
 // Safely convert any value to a finite number
 function n(val, fallback = 0) {
@@ -21,6 +24,34 @@ const FAN_ROOMS = {
   masterSecondaryTertiary:       2.5,
   masterSecondaryTertiaryLiving: 2.75,
 };
+
+/**
+ * Per-project manual price override.
+ *
+ * Master pricing is the default. If someone types a number into the override box
+ * on a question, THAT number becomes the price the engine multiplies by the count.
+ * What you type is what you get — no credits, no adjustments applied on top of it.
+ * That matters most for vanities and fans, where master pricing carries a hidden
+ * credit ($45 bath bar, $35 disk); an override skips that math entirely, because
+ * a person typing "$200 per vanity" means $200, not $200 minus something.
+ *
+ * Returns the override price, or null meaning "no override — use master pricing".
+ *
+ * Blank is not an override. Neither is the string 'auto', which is what the form
+ * writes when someone CLEARS the box. It has to write something non-blank: the
+ * responses store deliberately refuses to overwrite a real value with a blank one
+ * (that rule exists because stale wizard sections were silently wiping answers),
+ * so a cleared field that sent '' would be skipped and the old override would
+ * survive forever. 'auto' is a real write that parses to no-override.
+ */
+export function priceOverride(raw) {
+  if (raw === null || raw === undefined) return null;
+  const s = String(raw).trim();
+  if (s === '' || s.toLowerCase() === 'auto') return null;
+  const num = Number(s);
+  if (!isFinite(num) || isNaN(num) || num < 0) return null;
+  return num;
+}
 
 export function calculateBudget(projectData, responses = {}, pricingOverride = null) {
   const PRICING = pricingOverride || STATIC_PRICING;
@@ -54,7 +85,6 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const surfaceParking = n(pd.numSurfaceParking);
   const numCarports    = n(pd.numCarports);
   const numGarages     = n(pd.numGarages);
-  const exteriorDoors  = n(pd.numExteriorDoors);
   const lotSf          = n(pd.lotSf);
   const footprintSf    = n(pd.buildingFootprintSf);
   // Accent qty: prefer the value entered in the Corridors section, else Project Data
@@ -71,8 +101,15 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const undercabinetProduct = n(ucPricing.product) * numUnits;
 
   // Kitchen pendants
+  // An override only applies to a selected upgrade. If the answer is "None" the
+  // line is zero no matter what price is sitting in the override box — otherwise
+  // a stale override would quietly charge for something the project said no to.
   const pendantPricing  = PRICING.kitchenPendants[units.kitchenPendants || 'none'] || PRICING.kitchenPendants.none;
-  const pendantsProduct = n(pendantPricing.product) * numUnits;
+  const pendantsChosen  = (units.kitchenPendants || 'none') !== 'none';
+  const pendantsUnit    = pendantsChosen
+    ? (priceOverride(units.kitchenPendantsPrice) ?? n(pendantPricing.product))
+    : 0;
+  const pendantsProduct = pendantsUnit * numUnits;
 
   // Ceiling fans: use explicit pd.numFans when set (from project data field),
   // otherwise fall back to ROUND(numUnits × room multiplier)
@@ -89,6 +126,10 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   if (PRICING.designFanLevels?.[fanLevelKey]) {
     fanPricePerFan = Math.max(0, PRICING.designFanLevels[fanLevelKey] - fanDiskCredit);
   }
+  // Override is the NET adder per fan — the $35 disk credit is NOT subtracted from
+  // it. Typing $200 means $200 per fan.
+  const fanOverride = (units.fans || 'none') !== 'none' ? priceOverride(units.fansPrice) : null;
+  if (fanOverride !== null) fanPricePerFan = fanOverride;
   const fansProduct = fanCount * fanPricePerFan;
 
   // Vanity lighting: master holds GROSS; subtract the bath-bar credit per vanity
@@ -96,12 +137,22 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const vanityCredit   = n(PRICING.vanityBathBarCredit, 45);
   const vanityPricing  = PRICING.vanity[units.vanity || 'bathBarLow'] || PRICING.vanity.bathBarLow;
   const vanityGross    = n(vanityPricing.product);
-  const vanityNet      = vanityGross > 0 ? Math.max(0, vanityGross - vanityCredit) : 0;
+  // Override is the NET adder per vanity — the $45 bath-bar credit is NOT taken off
+  // it. 'bathBarLow' IS the base (no upgrade selected), so no override applies there.
+  const vanityChosen   = (units.vanity || 'bathBarLow') !== 'bathBarLow';
+  const vanityOverride = vanityChosen ? priceOverride(units.vanityPrice) : null;
+  const vanityNet      = vanityOverride !== null
+    ? vanityOverride
+    : (vanityGross > 0 ? Math.max(0, vanityGross - vanityCredit) : 0);
   const vanityProduct  = vanityNet * numVanities;
 
   // Balcony fixtures
   const balconyPricing = PRICING.balcony[units.balcony || 'none'] || PRICING.balcony.none;
-  const balconyProduct = n(balconyPricing.product) * numBalconies;
+  const balconyChosen  = (units.balcony || 'none') !== 'none';
+  const balconyUnit    = balconyChosen
+    ? (priceOverride(units.balconyPrice) ?? n(balconyPricing.product))
+    : 0;
+  const balconyProduct = balconyUnit * numBalconies;
 
   // Manual adder
   const unitsManualAdder = n(units.manualAdder);
@@ -124,7 +175,11 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
 
   // Unit-entry sconces
   const sconcePricing    = PRICING.corridorSconce[corridors.unitSconce || 'none'] || PRICING.corridorSconce.none;
-  const sconceProduct    = n(sconcePricing.product) * numUnits;
+  const sconceChosen     = (corridors.unitSconce || 'none') !== 'none';
+  const sconceUnit       = sconceChosen
+    ? (priceOverride(corridors.unitSconcePrice) ?? n(sconcePricing.product))
+    : 0;
+  const sconceProduct    = sconceUnit * numUnits;
 
   // Stairwell LED strips + battery backup
   const stairwellProduct = stairwells * PRICING.corridors.stairwellPerLanding.product;
@@ -185,9 +240,42 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const carportProduct   = Math.floor(numCarports / 2) * PRICING.exterior.carport.diskEveryOther;
   const garageExtProduct = numGarages * PRICING.exterior.detachedGarage.sconcePerDoor;
 
-  // Exterior doors: every door gets one primary and one secondary sconce, averaged per door
-  const avgDoorCost    = (PRICING.exterior.exteriorDoor.primarySconce + PRICING.exterior.exteriorDoor.secondarySconce) / 2;
-  const extDoorProduct = exteriorDoors * avgDoorCost;
+  // Building wallpacks — per-BUILDING model, wired per Mike 2026-08-12: "Wire it
+  // but give us a manual override of quantity and unit price."
+  //
+  // This line REPLACED the old "exterior door sconces" line (doors × $212.50
+  // avg) on 2026-08-12 — Mike: "These are the same, so we need to use what we
+  // figured out today and delete the old one." One fixture, one line. The
+  // numExteriorDoors project field survives; drawing takeoffs will use it to
+  // refine the wallpack count.
+  //
+  //   wallpacks = buildings × perBuilding[type] (+ clubhouse on horizontal types)
+  //   dollars   = wallpacks × perFixture
+  //
+  // Building count: the # of Buildings project field wins; walk-up types fall
+  // back to units ÷ unitsPerBuilding; vertical types are one building. Validated
+  // on Lowell + I76: 7 buildings × 4 + 5 = 33 vs ILC's hand guess of 34.
+  //
+  // Both overrides go through priceOverride(): blank/'auto'/garbage → the model,
+  // a real number (including 0) → exactly that. A zero-scale project (no units
+  // AND no building count) prices at $0 rather than charging a phantom clubhouse.
+  const wp             = PRICING.exterior.wallpacks || {};
+  const wpBuildingType = pd.buildingTypeKey || controls.buildingType || controls.projectType || 'midRise';
+  const wpPerBuilding  = wp.perBuilding?.[wpBuildingType] ?? 0;
+  const wpIsWalkUp     = ['stackedFlats', 'garden', 'gurban'].includes(wpBuildingType);
+  const wpIsHorizontal = wpIsWalkUp || ['singleFamily', 'townHouses'].includes(wpBuildingType);
+  const wpBuildings    = n(pd.numBuildings) > 0
+    ? n(pd.numBuildings)
+    : wpIsWalkUp
+      ? Math.ceil(numUnits / (wp.unitsPerBuilding?.[wpBuildingType] ?? 24))
+      : 1;
+  const wpHasScale = n(pd.numBuildings) > 0 || numUnits > 0;
+  const wpAutoQty  = wpHasScale
+    ? wpBuildings * wpPerBuilding + (wpIsHorizontal ? (wp.clubhouse ?? 0) : 0)
+    : 0;
+  const wpQty          = priceOverride(exterior.wallpacksQty)   ?? wpAutoQty;
+  const wpEach         = priceOverride(exterior.wallpacksPrice) ?? (wp.perFixture ?? 350);
+  const wallpackProduct = wpQty * wpEach;
 
   // Landscape: 2% of total lot SF (Excel-verified formula).
   //
@@ -229,7 +317,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     + n(exteriorManualItems.manualExteriorAdder);
 
   // Misc buffer = 5% of formula-line subtotal + manual adder. Both contribute.
-  const extSubBeforeMisc     = extAmenityProduct + parkingProduct + carportProduct + garageExtProduct + extDoorProduct + landscapeFlat;
+  const extSubBeforeMisc     = extAmenityProduct + parkingProduct + carportProduct + garageExtProduct + wallpackProduct + landscapeFlat;
   const extBufferBase        = extSubBeforeMisc + exteriorManualTotal;
   const extMiscBuffer        = extBufferBase * PRICING.exterior.miscBufferPct;
   const exteriorFormulaTotal = extSubBeforeMisc + extMiscBuffer;
@@ -444,7 +532,16 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
         parking:   { product: parkingProduct       },
         carports:  { product: carportProduct       },
         garages:   { product: garageExtProduct     },
-        doors:     { product: extDoorProduct       },
+        // `doors` (sconce line) removed 2026-08-12 — same fixture as wallpacks.
+        wallpacks: {
+          product:       wallpackProduct,
+          qty:           wpQty,
+          autoQty:       wpAutoQty,
+          each:          wpEach,
+          buildings:     wpBuildings,
+          qtyOverridden:   priceOverride(exterior.wallpacksQty)   != null,
+          priceOverridden: priceOverride(exterior.wallpacksPrice) != null,
+        },
         landscape: { product: landscapeFlat        },
         misc:      { product: extMiscBuffer        },
         formulaTotal:     exteriorFormulaTotal,

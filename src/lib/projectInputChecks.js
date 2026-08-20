@@ -35,12 +35,10 @@ export const CRITICAL_PROJECT_INPUTS = [
     section: 'Exterior & Site',
     impact:  'Parking calc = $0',
   },
-  {
-    field:   'numExteriorDoors',
-    label:   '# Exterior Doors',
-    section: 'Exterior & Site',
-    impact:  'Exterior door sconces = $0',
-  },
+  // numExteriorDoors was removed 2026-08-12: the door-sconce line was deleted
+  // (same fixture as building wallpacks), so a blank door count no longer
+  // zeroes any dollars. Wallpacks have a safe fallback (units ÷ 24 on
+  // walk-ups), which per the rule above keeps numBuildings off this list too.
   {
     field:   'numEgressStairwells',
     label:   '# Egress Stairwell Landings',

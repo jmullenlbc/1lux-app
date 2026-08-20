@@ -39,12 +39,23 @@ export default function DesignUnitsSection({ responses, projectData, pricing, on
     vanity:           responses.vanity           || 'bathBarLow',
     balcony:          responses.balcony          || 'none',
     closetControl:    responses.closetControl    || 'switch',
+
+    // ── Per-project price overrides (blank = use the master price sheet) ──
+    kitchenPendantsPrice: responses.kitchenPendantsPrice ?? '',
+    fansPrice:            responses.fansPrice            ?? '',
+    vanityPrice:          responses.vanityPrice          ?? '',
+    balconyPrice:         responses.balconyPrice         ?? '',
   }));
   const [saving, setSaving] = useState(false);
 
   function set(k, v) { setAns(a => ({ ...a, [k]: v })); }
 
   const hasFans      = ans.fans !== 'none';
+  // The master net adder per fan, mirroring the engine: design levels are gross so
+  // the disk credit comes off; the conceptual adder is already net.
+  const fanMasterPerFan = P.designFanLevels?.[ans.fanLevel] != null
+    ? fanNet(ans.fanLevel)
+    : P.fans.adderPerFan;
   const hasUndercab120v = ans.undercabinet === 'lineVoltage';
   const numUnits     = Number(projectData?.numUnits)    || 0;
   const unitsSf      = Number(projectData?.unitsSf)     || 0;
@@ -224,6 +235,12 @@ export default function DesignUnitsSection({ responses, projectData, pricing, on
             ]}
             value={ans.kitchenPendants}
             onChange={v => set('kitchenPendants', v)}
+            override={{
+              value:       ans.kitchenPendantsPrice,
+              onChange:    v => set('kitchenPendantsPrice', v),
+              masterPrice: P.kitchenPendants[ans.kitchenPendants]?.product,
+              disabled:    ans.kitchenPendants === 'none',
+            }}
           />
 
         </div>
@@ -249,6 +266,13 @@ export default function DesignUnitsSection({ responses, projectData, pricing, on
             ]}
             value={ans.fans}
             onChange={v => set('fans', v)}
+            override={{
+              value:       ans.fansPrice,
+              onChange:    v => set('fansPrice', v),
+              masterPrice: fanMasterPerFan,
+              suffix:      '/fan',
+              disabled:    !hasFans,
+            }}
           />
 
           {hasFans && (
@@ -345,6 +369,12 @@ export default function DesignUnitsSection({ responses, projectData, pricing, on
             value={ans.vanity}
             onChange={v => set('vanity', v)}
             costSuffix="/vanity"
+            override={{
+              value:       ans.vanityPrice,
+              onChange:    v => set('vanityPrice', v),
+              masterPrice: vanNet(ans.vanity),
+              disabled:    ans.vanity === 'bathBarLow',
+            }}
           />
         </div>
       </div>
@@ -383,6 +413,12 @@ export default function DesignUnitsSection({ responses, projectData, pricing, on
             value={ans.balcony}
             onChange={v => set('balcony', v)}
             costSuffix="/balcony"
+            override={{
+              value:       ans.balconyPrice,
+              onChange:    v => set('balconyPrice', v),
+              masterPrice: P.balcony[ans.balcony]?.product,
+              disabled:    ans.balcony === 'none',
+            }}
           />
         </div>
       </div>

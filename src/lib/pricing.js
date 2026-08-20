@@ -98,26 +98,130 @@ export const PRICING = {
 
   // ─── EXTERIOR SITE LIGHTING ───────────────────────────────────────────────
   exterior: {
+    // CALIBRATION — Lowell + I76 (Mike, 2026-08-12): ~430 surface stalls.
+    // ILC's first gut guess was 80 area lights; the project landed at 45–50.
+    // This model predicts ceil(430 ÷ 9) = 48 — inside the landed range.
+    // Mike: "Wow we figured out that math well." Wired into calculations.js
+    // and shown on the Exterior step of both questionnaires.
     surfaceParking: {
       perFixture:      1325, // cost per area light + 30ft pole
       stallsPerFixture:   9, // approx 1 fixture covers 9 stalls
-      solarUpgrade:    3000,
     },
+
+    // Solar site lighting costs more than conventional because the fixture
+    // carries its own panel, battery and controller. This is a MULTIPLIER on the
+    // conventional rate, not a flat adder — it replaces the old
+    // `surfaceParking.solarUpgrade = 3000`, which was a flat $3,000 that was
+    // never wired to anything and did not scale with fixture type.
+    //
+    // Set to 2.3 by Mike, 2026-08-09, as a single blended figure. The Avilla
+    // actuals it is blended from:
+    //   solar area light $2,169.86–$2,297.57 + $1,030.52 pole  vs  $1,325
+    //     conventional  →  2.4–2.5x
+    //   solar bollard   $1,224.78                              vs  $800
+    //     conventional  →  1.53x
+    // Poles run higher than bollards; 2.3 sits between them and leans toward
+    // area lights, which carry most of the dollars on a typical site.
+    //
+    // NOT YET WIRED into calculations.js — nothing multiplies by this today.
+    solarMultiplier: 2.3,
+
     bollard: {
       perUnit: 800,
     },
+
+    // ─── BUILDING WALLPACKS ─────────────────────────────────────────────────
+    // WIRED into calculations.js 2026-08-12 (Mike: "Wire it but give us a manual
+    // override of quantity and unit price"). Overrides live on the wizard's
+    // Exterior step as exterior.wallpacksQty / exterior.wallpacksPrice.
+    //
+    // Mike, 2026-08-12. Wallpacks are mounted on BUILDINGS, so they are counted
+    // per building, not per unit. Counting them per unit was the source of the
+    // confusion: a small townhome project and a large one carry the same 5
+    // clubhouse fixtures, so dividing by units made the small project look three
+    // times more expensive for identical scope.
+    //
+    //   wallpacks = (buildings × perBuilding) + clubhouse
+    //   dollars   = wallpacks × perFixture
+    //
+    // Mike's field figures, which these encode:
+    //   • garden walk-up: ~4 per building; a 15-building project = 60 = $21,000
+    //   • wrap / podium / high-rise: ~15 for the project (10–20 on a podium)
+    //   • townhomes: 5, on the clubhouse only — nothing on the residences
+    // Top to bottom that is roughly $1,750 to $21,000. Mike: "not a huge
+    // discrepancy when you are talking hundreds of thousands of dollars" — so
+    // this is deliberately a coarse model, not a fixture-by-fixture count.
+    //
+    // CROSS-CHECK against the 21 real budgets: 4 wallpacks on a 12-unit walk-up
+    // building is 0.333 per unit. The measured walk-up median is 0.402 per unit.
+    // Mike's field estimate and the actual budgets agree within about 20%.
+    //
+    // CALIBRATION — Lowell + I76 (Mike, 2026-08-12): ILC's conceptual guess on
+    // the 5600 Lowell site plan (7 buildings, 300 units, garden walk-up) was
+    // 34 wallpacks, plus 80 area lights and 10 bollards near the exterior
+    // amenity spaces. This model predicts 7 × 4 + 5 (clubhouse) = 33 — a
+    // near-exact match to the human guess. (Avalon Arvada's DESIGN-SET actual
+    // of 216 is a separate data point from the extracted budgets; its original
+    // conceptual guess is unknown.)
+    wallpacks: {
+      // One rate for every building wallpack. Mike priced all 60 in his garden
+      // example at this figure, so the egress-rated fixture and the plain one
+      // are not split here. `exteriorDoor.wallpackWithBattery` is the same $350.
+      perFixture: 350,
+
+      // Wallpacks on EACH residential building.
+      perBuilding: {
+        // Horizontal products: nothing on the residences themselves, the
+        // clubhouse carries it all (see `clubhouse` below).
+        singleFamily: 0,
+        townHouses:   0,
+        // Walk-up family: separate buildings, each with its own exterior doors.
+        stackedFlats: 4,
+        garden:       4,
+        gurban:       4,   // Mike: gurban is a garden walk-up in every way but
+                           // corridors and elevators — see `elevatorShaft`
+        // Vertical products: one building, so "per building" IS the project total.
+        wrap:         15,
+        podium:       15,  // Mike's range was 10–20
+        midRise:      15,
+        highRise:     15,
+      },
+
+      // A standalone clubhouse building, which only the horizontal products have
+      // (on a wrap or podium the clubhouse is inside the main building and is
+      // already covered by its 15). Mike 2026-08-12: "Do 5."
+      clubhouse: 5,
+
+      // Fallback ONLY. Used to estimate the building count when # of Buildings
+      // has not been entered on the project. Mike 2026-08-12: "There is never a
+      // 33 bldg garden project, they just have more entrances in a building or
+      // two sides. so 8 units each floor." — 3 floors × 8 units = 24 per
+      // building. (The Lowell site plan runs even bigger: 36–48 per building.)
+      unitsPerBuilding: {
+        stackedFlats: 24,
+        garden:       24,
+        gurban:       24,
+      },
+    },
+
     pathway: {
       // Floor for sites with a minimal walkway network. Mike, 2026-07-18:
       // "small amount… for now enter $4000."
       minTotal: 4000,
 
-      // ── BOLLARDS PER UNIT, BY BUILDING TYPE ──────────────────────────────
+      // ── PATHWAY DOLLARS PER UNIT, BY BUILDING TYPE ───────────────────────
       // PROVISIONAL — not yet wired into calculations.js. Mike is gathering
       // more data to confirm before these drive a budget.
       //
+      // Mike, 2026-08-12: this table is now DOLLARS per unit, not bollards per
+      // unit. Multiply by the unit count to get the pathway lighting line —
+      // one step instead of two, and the admin screen shows a price rather than
+      // a fixture count, which is what everyone actually wants to argue about.
+      // Every value below is the old bollard count × $800 (`bollard.perUnit`),
+      // so nothing changed in dollar terms; only the shape did.
+      //
       // Derived from 16 real projects (10 multifamily conceptual budgets +
-      // 6 NexMetro Avilla BTR procurement budgets). Multiply by unit count to
-      // get bollard quantity, then by `bollard.perUnit` for dollars.
+      // 6 NexMetro Avilla BTR procurement budgets).
       //
       // ⚠ MEASUREMENT MISMATCH — READ BEFORE TRUSTING THE OBSERVED NUMBERS.
       // The multifamily figures come from CONCEPTUAL budgets (an up-front
@@ -149,25 +253,29 @@ export const PRICING = {
       // Echo Trail (the only non-NexMetro townhome) recorded ZERO pathway
       // bollards. Mike: "that was a really weird project." Excluded from
       // calibration; it also distorts every density fit it appears in.
-      bollardsPerUnit: {
+      dollarsPerUnit: {
         // ── Tier 1: horizontal product, long walks to individual doors ──
-        singleFamily: 0.40,  // grounded in BTR actuals
-        townHouses:   0.40,  // n=6 actuals, de-escalated 30%
-        stackedFlats: 0.35,  // NO DATA — horizontal-ish, just below townhome
-        garden:       0.30,  // Mike: "runs more like townhomes"; conceptual data says 0.062 — SEE MISMATCH NOTE
+        singleFamily: 320,  // 0.40 bollards/unit — grounded in BTR actuals
+        townHouses:   320,  // 0.40 — n=6 actuals, de-escalated 30%
+        stackedFlats: 240,  // 0.30 — NO DATA of its own; Mike 2026-08-09: match garden/walk-up "for now"
+        garden:       240,  // 0.30 — Mike: "runs more like townhomes"; conceptual data says 0.062 — SEE MISMATCH NOTE
+        // Mike 2026-08-12: "They are the same thing" — gurban carries the SAME
+        // pathway rate as garden. Kept as its own field because gurban is a real
+        // building type everywhere else in the app (4–5 levels, its own controls
+        // rate); only the pathway number is shared.
+        gurban:       240,
         // ── Tier 2: can carry surface parking, so varies widely ──
-        wrap:         0.12,  // Mike: higher when surface parking is present; observed 0.018–0.085
-        gurban:       0.12,  // NO DATA — grouped with wrap
+        wrap:          96,  // 0.12 — Mike: higher when surface parking is present; observed 0.018–0.085
         // ── Tier 3: structured parking, interior circulation, least site lighting ──
         // Mike 2026-07-21: keep podium / mid-rise / high-rise as SEPARATE fields
         // but with the SAME number for now. 0.06 ground fixtures/unit is the
         // median of five procurement actuals (Clermont 0.108, 95 Lincoln 0.000,
         // West Middle Creek 0.060, 38th+Huron 0.077, 40th+Walnut 0.062) —
-        // ~$60–80/unit at conventional rates. On these products most site
+        // ~$48–80/unit at conventional rates. On these products most site
         // lighting is building-mounted (wallpacks/steplights), not ground.
-        podium:       0.06,
-        midRise:      0.06,
-        highRise:     0.06,
+        podium:        48,
+        midRise:       48,
+        highRise:      48,
       },
     },
     landscape: {
@@ -186,16 +294,22 @@ export const PRICING = {
     detachedGarage: {
       sconcePerDoor: 80,
     },
+    // ── SUPERSEDED, no longer wired ─────────────────────────────────────────
+    // The exterior-door sconce line (doors × avg of primary+secondary) was
+    // DELETED from the engine 2026-08-12. Mike, confirming the door sconces
+    // and the building wallpacks are the same fixture: "These are the same,
+    // so we need to use what we figured out today and delete the old one."
+    // The `wallpacks` block above is now the only exterior-door fixture line.
+    // Fields kept (not deleted) so historical pricing snapshots and admin
+    // overrides that reference these keys don't break.
     exteriorDoor: {
       primarySconce:   350,
       secondarySconce: 75,
-      // Target model (not yet wired to the formula): count floor-1 egress doors,
-      // add 10%, and price one battery-backed wallpack each. Blocked on drawing
-      // parsing (phase 2) for the door count. Placeholder rate set by Mike
-      // 2026-07-18 — switching the formula to this will move the exterior door
-      // line from $212.50/door to $300/door on every existing project, so it is
-      // deliberately NOT live yet.
-      wallpackWithBattery: 300,
+      // Mike 2026-08-12: "a unit price of $350 with integrated battery.
+      // Typically needed for egress paths." Same figure as wallpacks.perFixture.
+      // The door-count-driven refinement (floor-1 egress doors + 10%) will feed
+      // the WALLPACK quantity once drawing parsing lands — not a separate line.
+      wallpackWithBattery: 350,
       egressUpliftPct:     0.10,
     },
     miscBufferPct: 0.05, // 5% of exterior subtotal before misc
@@ -203,6 +317,31 @@ export const PRICING = {
 
   // ─── EMERGENCY / EGRESS LIGHTING ─────────────────────────────────────────
   // $/SF rates per space type per strategy
+  // ─── ELEVATOR SHAFT VAPORTIGHT ────────────────────────────────────────────
+  // COUNT ONLY — never add dollars to a budget from this block. Mike,
+  // 2026-08-12: "The elevator shaft part we don't need to wire in, because
+  // it's caught in the $/SF for BOH." The BOH / Core+Shell $/SF rate already
+  // carries this fixture's cost; pricing it here too would double-charge it.
+  //
+  // What this block IS for: the fixture count. Mike: "We should have a basic
+  // count calculated of them. Eventually I want to have a count of all
+  // fixtures from our budget."
+  //
+  // The count is per SHAFT, per floor — Mike, correcting his earlier "2 per
+  // floor": "It's 1 per elevator shaft, but every shaft needs it. You could
+  // have 2 elevators next to each other and in turn need 2 per floor."
+  //
+  //   fixtures = shafts × floors × perShaftPerFloor
+  //
+  // perFixture ($200, set by Mike 2026-08-12) is the reference price of the
+  // fixture — kept for the eventual fixture-count/takeoff view, not for the
+  // budget total. Shaft count will come from drawing parsing (shafts are easy
+  // to spot on floor plans).
+  elevatorShaft: {
+    perShaftPerFloor: 1,   // 1 vaportight w/ integrated battery per shaft per floor
+    perFixture:       200, // reference price ONLY — dollars live in the BOH $/SF
+  },
+
   emergency: {
     strategies: {
       generator: {

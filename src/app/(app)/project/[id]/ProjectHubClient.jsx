@@ -7,9 +7,11 @@ import ProjectSidebar from '@/components/project/ProjectSidebar';
 import { formatCurrency } from '@/lib/calculations';
 import { buildingTypeLabel, phaseLabel, serviceTypeLabel, clientTypeLabel, locationTypeLabel, PROJECT_PHASES, SERVICE_TYPES, BUILDING_TYPES } from '@/lib/utils';
 import FileDropZone from '@/components/files/FileDropZone';
+import { oversizeMessage, uploadErrorMessage, uploadThrowMessage } from '@/lib/uploadErrorMessage';
 import ProjectChat from '@/components/ProjectChat';
 import TakeoffDashboard from '@/components/TakeoffDashboard';
 import UnitMatrixUpload from '@/components/unitMatrix/UnitMatrixUpload';
+import SiteDataUpload from '@/components/site/SiteDataUpload';
 import ContractWidgets from '@/components/ContractWidgets';
 import CAScheduleWidgets from '@/components/CAScheduleWidgets';
 import CAScheduleCard from '@/components/CAScheduleCard';
@@ -82,6 +84,7 @@ const TAB_LABELS = {
   'construction-schedule': 'Construction Schedule', rfis: 'RFIs', 'change-orders': 'Change Orders',
   contracts: 'Contracts', meetings: 'Meetings', code: 'Code', 'design-schedule': 'Design Schedule',
   'design-contracts': 'Design Contracts', takeoffs: 'Takeoffs', notifications: 'Client Portal Access',
+  'site-plan': 'Site Plan',
 };
 
 function ProjectSearch({ projectId }) {
@@ -216,15 +219,25 @@ function AutoTaggedFileTab({ title, subtitle, autoTag, files, projectId, tab, on
   const [viewingFile, setViewingFile] = useState(null);
   const [reparsing,   setReparsing]   = useState({}); // { fileId: true }
   const [reparseMsg,  setReparseMsg]  = useState({}); // { fileId: 'message' }
+  const [uploadErrors, setUploadErrors] = useState([]); // [{ id, msg }] — shown until dismissed
   const fileRef = useRef(null);
 
   async function upload(fileList) {
-    const arr = Array.from(fileList).filter(f => f.type === 'application/pdf' || f.name.endsWith('.pdf'));
+    const all = Array.from(fileList);
+    const arr = all.filter(f => f.type === 'application/pdf' || f.name.endsWith('.pdf'));
+    // Dropping a .docx here used to do nothing at all, with no explanation.
+    for (const f of all.filter(f => !arr.includes(f))) {
+      setUploadErrors(prev => [...prev, { id: `${f.name}-${prev.length}`, msg: `${f.name} isn't a PDF. This panel only accepts PDF files.` }]);
+    }
     if (!arr.length) return;
     // Run beforeUpload check (e.g. duplicate schedule warning)
     if (beforeUpload && !beforeUpload()) return;
     setUploading(prev => [...prev, ...arr.map(f => f.name)]);
     for (const file of arr) {
+      // Never let a failure be silent — say what went wrong and what to do about it.
+      const fail = (msg) => setUploadErrors(prev => [...prev, { id: `${file.name}-${prev.length}`, msg }]);
+      const tooBig = oversizeMessage(file);
+      if (tooBig) { fail(tooBig); continue; }
       try {
         const form = new FormData();
         form.append('file', file);
@@ -235,8 +248,12 @@ function AutoTaggedFileTab({ title, subtitle, autoTag, files, projectId, tab, on
           const data = await res.json();
           // API returns { file, contractUpdate, scheduleUpdate, designScheduleUpdate }
           onFileAdded?.(data.file, data.contractUpdate ?? null, data.scheduleUpdate ?? null, data.designScheduleUpdate ?? null);
+        } else {
+          fail(await uploadErrorMessage(res, file));
         }
-      } catch {}
+      } catch (e) {
+        fail(uploadThrowMessage(e, file));
+      }
     }
     setUploading(prev => prev.filter(n => !arr.map(f => f.name).includes(n)));
   }
@@ -311,6 +328,20 @@ function AutoTaggedFileTab({ title, subtitle, autoTag, files, projectId, tab, on
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
           </svg>
           <span className="truncate">Uploading {name}…</span>
+        </div>
+      ))}
+      {/* Upload failures — stay on screen until dismissed so nothing fails silently */}
+      {uploadErrors.map(err => (
+        <div key={err.id} className="flex items-start gap-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
+          <svg className="w-3.5 h-3.5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+          </svg>
+          <span className="flex-1">{err.msg}</span>
+          <button
+            onClick={() => setUploadErrors(prev => prev.filter(e => e.id !== err.id))}
+            className="shrink-0 text-red-400 hover:text-red-600 font-bold leading-none"
+            title="Dismiss"
+          >×</button>
         </div>
       ))}
       {/* File list */}
@@ -1557,6 +1588,7 @@ export default function ProjectHubClient({ userId, userRole, project, budget, pe
               </div>
             </div>
             <UnitMatrixUpload projectId={project.id} />
+            <SiteDataUpload projectId={project.id} />
             <div className="text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-2">Fixture Takeoffs</div>
             <FileDropZone projectId={project.id} tab="takeoffs" initialFiles={filesByTab('takeoffs')} onFileAdded={onFileAdded} onFileDeleted={onFileDeleted} />
             <TakeoffDashboard files={filesByTab('takeoffs')} />

@@ -4,6 +4,7 @@ node_modules/
 .env.local
 uploads/
 dev.log
+.dev.log
 sk-ant-api03*.txt
 *.db
 deploy-log.json

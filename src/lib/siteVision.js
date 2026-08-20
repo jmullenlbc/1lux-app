@@ -20,6 +20,7 @@
  * A missing number is visible to a reviewer; an invented one is not.
  */
 import { createCanvas } from '@napi-rs/canvas';
+import { loadPdfjs, pdfDocOptions } from './pdfjsNode.js';
 // Relative, not `@/lib/...`, on purpose: scripts/tests/siteVision.test.mjs
 // imports this file under plain Node, which does not know the `@/` alias.
 import { ATTACHED_DOCUMENT_RULE } from './agent/untrusted.js';
@@ -51,9 +52,9 @@ const MAX_PAGES = 3;
  * and is proven in prod.
  */
 export async function renderPdfPages(buffer, { pages = MAX_PAGES, maxEdge = MAX_EDGE } = {}) {
-  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const pdfjs = await loadPdfjs();
 
-  const doc = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
+  const doc = await pdfjs.getDocument(pdfDocOptions(buffer)).promise;
   const count = Math.min(doc.numPages, pages);
   const out = [];
 
@@ -109,6 +110,21 @@ CRITICAL RULES:
 - surfaceParking: only if the drawing distinguishes surface stalls from structured/garage parking.
 - confidence: how legible and unambiguous the source text was. Hand-lettered but clear = 0.8. Blurry or inferred layout = 0.3.
 - foundSiteDataBlock: true only if you found an explicit data/summary block, as opposed to scattered callouts.`;
+
+/**
+ * Bump this whenever SITE_VISION_SYSTEM changes.
+ *
+ * Same contract as EXTRACT_PROMPT_VERSION in drawingExtract.js: Step 18 keys a
+ * task type's accuracy history to the prompt version, so a rewritten prompt
+ * starts back at Tier 0 instead of inheriting a record it never earned.
+ *
+ * The render resolution belongs in this version string too, and not as
+ * decoration. MAX_EDGE is a measured accuracy floor — at 1600px this same prompt
+ * returned a plausible, wrong unit count — so a change to it changes the
+ * accuracy of the task, and the history from the old setting should not carry
+ * over to the new one.
+ */
+export const SITE_VISION_PROMPT_VERSION = `siteVision-2026-08-09-${MAX_EDGE}px`;
 
 /**
  * Run vision extraction over rendered pages.

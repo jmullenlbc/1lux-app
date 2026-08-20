@@ -226,6 +226,7 @@ export const ProjectData = {
     grossSf:              { type: 'float', sensitivity: 'client_ok' },
     unitsSf:              { type: 'float', sensitivity: 'client_ok' },
     numUnits:             { type: 'int',   sensitivity: 'client_ok' },
+    numBuildings:         { type: 'int',   sensitivity: 'client_ok' },
     numBedrooms:          { type: 'int',   sensitivity: 'client_ok' },
     numBalconies:         { type: 'int',   sensitivity: 'client_ok' },
     numBathrooms:         { type: 'int',   sensitivity: 'client_ok' },

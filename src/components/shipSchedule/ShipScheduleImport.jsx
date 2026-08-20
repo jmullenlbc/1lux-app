@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef } from 'react';
 import { STATUS_META } from '@/lib/shipmentStatus';
+import { oversizeMessage, uploadErrorMessage, uploadThrowMessage } from '@/lib/uploadErrorMessage';
 
 function fmt(date) {
   if (!date) return '—';
@@ -22,15 +23,23 @@ export default function ShipScheduleImport({ projectId, onClose, onImported }) {
     setPreview(null);
     setLoading(true);
 
+    const tooBig = oversizeMessage(f);
+    if (tooBig) { setError(tooBig); setLoading(false); return; }
+
     const fd = new FormData();
     fd.append('file', f);
 
-    const res  = await fetch(`/api/projects/${projectId}/shipments/import`, { method: 'POST', body: fd });
-    const data = await res.json();
-    setLoading(false);
-
-    if (!res.ok) { setError(data.error || 'Could not parse file.'); return; }
-    setPreview(data);
+    // Wrapped: this used to have no try/catch, so a rejected upload (whose body is
+    // empty) threw inside res.json() and the spinner span forever with no message.
+    try {
+      const res = await fetch(`/api/projects/${projectId}/shipments/import`, { method: 'POST', body: fd });
+      setLoading(false);
+      if (!res.ok) { setError(await uploadErrorMessage(res, f)); return; }
+      setPreview(await res.json());
+    } catch (e) {
+      setLoading(false);
+      setError(uploadThrowMessage(e, f));
+    }
   }
 
   async function commit() {
@@ -41,12 +50,15 @@ export default function ShipScheduleImport({ projectId, onClose, onImported }) {
     const fd = new FormData();
     fd.append('file', file);
 
-    const res  = await fetch(`/api/projects/${projectId}/shipments/import?commit=true`, { method: 'POST', body: fd });
-    const data = await res.json();
-    setImporting(false);
-
-    if (!res.ok) { setError(data.error || 'Import failed.'); return; }
-    onImported();
+    try {
+      const res = await fetch(`/api/projects/${projectId}/shipments/import?commit=true`, { method: 'POST', body: fd });
+      setImporting(false);
+      if (!res.ok) { setError(await uploadErrorMessage(res, file)); return; }
+      onImported();
+    } catch (e) {
+      setImporting(false);
+      setError(uploadThrowMessage(e, file));
+    }
   }
 
   return (

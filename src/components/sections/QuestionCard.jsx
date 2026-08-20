@@ -4,7 +4,83 @@ import { cn } from '@/lib/utils';
 /**
  * Reusable radio-group question card used by all questionnaire sections.
  */
-export default function QuestionCard({ question, note, options, value, onChange, highlight, costSuffix = '/unit' }) {
+/**
+ * Optional per-project price override.
+ *
+ * Pass `override` to put a small price box at the foot of the card. Leave it out
+ * and the card behaves exactly as before.
+ *
+ *   override = {
+ *     value,          // current stored value ('' / 'auto' / a number as a string)
+ *     onChange,       // (nextValue) => void — receives 'auto' when cleared
+ *     masterPrice,    // the master-pricing number this replaces, for the "was" text
+ *     suffix,         // '/unit', '/vanity', '/fan', '/balcony'
+ *     disabled,       // true when the answer is "None" — nothing to price
+ *   }
+ *
+ * The box writes 'auto' rather than '' when emptied. The responses store refuses
+ * to overwrite a real value with a blank one, so a cleared field sending '' would
+ * be silently ignored and the old override would stick forever.
+ */
+function OverrideBox({ value, onChange, masterPrice, suffix = '/unit', disabled }) {
+  const active = value != null && String(value).trim() !== '' && String(value).trim().toLowerCase() !== 'auto';
+
+  if (disabled) {
+    return (
+      <div className="mt-4 pt-3 border-t border-slate-100">
+        <p className="text-xs text-slate-300">Price override available once an option other than “None” is selected.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-4 pt-3 border-t border-slate-100">
+      <div className="flex items-center gap-2 flex-wrap">
+        <label className="text-xs font-medium text-slate-500 shrink-0">Override price</label>
+        <div className="relative">
+          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">$</span>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            inputMode="decimal"
+            value={active ? value : ''}
+            placeholder={masterPrice != null ? String(masterPrice) : ''}
+            onChange={e => onChange(e.target.value === '' ? 'auto' : e.target.value)}
+            className={cn(
+              'w-28 rounded-md border pl-5 pr-2 py-1 text-sm font-mono transition-colors',
+              active
+                ? 'border-amber-400 bg-amber-50 text-amber-900'
+                : 'border-slate-200 text-slate-700 focus:border-slate-300',
+            )}
+          />
+        </div>
+        <span className="text-xs text-slate-400 shrink-0">{suffix}</span>
+        {active && (
+          <>
+            <span className="text-xs text-amber-600 font-medium">
+              Using your price{masterPrice != null ? ` instead of $${Number(masterPrice).toLocaleString()}` : ''}
+            </span>
+            <button
+              type="button"
+              onClick={() => onChange('auto')}
+              className="text-xs text-slate-400 underline hover:text-slate-600"
+            >
+              reset
+            </button>
+          </>
+        )}
+      </div>
+      {!active && (
+        <p className="text-[11px] text-slate-400 mt-1.5">
+          Leave blank to use the master price sheet. A number here is used exactly as typed — no credits or adjustments are applied on top of it.
+        </p>
+      )}
+    </div>
+  );
+}
+
+export default function QuestionCard({ question, note, options, value, onChange, highlight, costSuffix = '/unit', override }) {
   return (
     <div className={cn(
       'bg-white rounded-xl border p-5 transition-all',
@@ -53,6 +129,8 @@ export default function QuestionCard({ question, note, options, value, onChange,
           </label>
         ))}
       </div>
+
+      {override && <OverrideBox {...override} suffix={override.suffix ?? costSuffix} />}
     </div>
   );
 }

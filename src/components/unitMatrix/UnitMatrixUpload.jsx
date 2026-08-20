@@ -1,5 +1,6 @@
 'use client';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { oversizeMessage, uploadErrorMessage, uploadThrowMessage } from '@/lib/uploadErrorMessage';
 
 // ── confidence → display tier ────────────────────────────────────────────────
 function confidenceTier(conf) {
@@ -9,9 +10,14 @@ function confidenceTier(conf) {
   return 'low';
 }
 
-function ConfChip({ tier }) {
-  if (tier === 'high')    return <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">High</span>;
-  if (tier === 'confirm') return <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">Confirm</span>;
+function ConfChip({ tier, pct }) {
+  // `check` is the red tier: we filled the number in, but we are not sure enough
+  // about it to let it slide past without a human looking. It shows the actual
+  // percentage rather than a word, because "we're 48% sure" and "we're 71% sure"
+  // deserve different amounts of squinting and a single label hides that.
+  if (tier === 'check')   return <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-300">{pct != null ? `${pct}%` : 'Check'}</span>;
+  if (tier === 'high')    return <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">{pct != null ? `${pct}%` : 'High'}</span>;
+  if (tier === 'confirm') return <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">{pct != null ? `${pct}%` : 'Confirm'}</span>;
   return                         <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 border border-slate-200">Manual</span>;
 }
 
@@ -34,6 +40,60 @@ function rollup(rows) {
 }
 
 function fmt(n) { return n == null ? '—' : Number(n).toLocaleString(); }
+
+// ── automatic checks ─────────────────────────────────────────────────────────
+// Results from the deterministic checks in src/lib/agent/autoChecks.js, shown at
+// the moment somebody is deciding whether to apply the extraction. Deliberately
+// here rather than only in /admin/agent-runs: a contradiction found after the
+// numbers are already in a budget is a correction, and a contradiction found
+// before they are is just a fix.
+function CheckList({ review }) {
+  if (!review || !Array.isArray(review.checks) || review.checks.length === 0) return null;
+
+  const failed  = review.checks.filter(c => c.status === 'FAIL');
+  const skipped = review.checks.filter(c => c.status === 'SKIP');
+  const passed  = review.checks.filter(c => c.status === 'PASS');
+
+  if (failed.length === 0) {
+    return (
+      <div className="rounded-xl bg-green-50 border border-green-200 px-4 py-2.5 text-xs text-green-800 flex items-start gap-2">
+        <svg className="w-4 h-4 shrink-0 mt-px" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
+        </svg>
+        <span>
+          <span className="font-semibold">{passed.length} automatic check{passed.length !== 1 ? 's' : ''} passed.</span>
+          {' '}The numbers add up against each other.
+          {skipped.length > 0 && <span className="text-green-700/70"> {skipped.length} check{skipped.length !== 1 ? 's' : ''} couldn&apos;t run — the document didn&apos;t give them anything to compare.</span>}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3">
+      <div className="flex items-center gap-2 mb-2">
+        <svg className="w-4 h-4 text-red-500 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/>
+        </svg>
+        <span className="text-sm font-semibold text-red-800">
+          {failed.length} automatic check{failed.length !== 1 ? 's' : ''} failed
+        </span>
+      </div>
+      <ul className="space-y-1.5 text-xs text-red-700">
+        {failed.map(c => (
+          <li key={c.key} className="flex gap-2">
+            <span className="text-red-400 shrink-0">•</span>
+            <span>{c.detail}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2.5 text-[11px] text-red-600/80 border-t border-red-200 pt-2">
+        These are arithmetic, not opinions — something in the extraction contradicts something else in it.
+        Fix the rows below before applying, or apply anyway if the document really is like this.
+      </p>
+    </div>
+  );
+}
 
 // ── inline-editable cell ─────────────────────────────────────────────────────
 function EditCell({ value, onChange, numeric, className = '' }) {
@@ -83,6 +143,30 @@ function ReviewModal({ proposal, fileName, onConfirm, onCancel }) {
   const [grossSf, setGrossSf]       = useState(proposal.projectTotals?.grossInteriorSf ?? null);
   const [garageSf, setGarageSf]     = useState(proposal.projectTotals?.garageSf ?? null);
   const [corridorSf, setCorridorSf] = useState(proposal.projectTotals?.corridorSf ?? null);
+
+  // The net-vs-gross verdict for the Gross Interior SF row. See src/lib/areaSheet.js.
+  //
+  // Once the reviewer types their own number the verdict stops applying — it was
+  // about the number we read off the drawing, not about theirs. Keeping the red
+  // flag on a hand-entered figure would be telling them we're unsure about their
+  // own input, and the flag would never clear no matter what they did.
+  const gross = useMemo(() => {
+    const pt = proposal.projectTotals ?? {};
+    const edited = pt.grossInteriorSf != null && grossSf !== pt.grossInteriorSf;
+    if (edited) return { needsReview: false, confidence: null, reviewNote: null };
+
+    const parts = [];
+    if (pt.grossSfSummary) parts.push(pt.grossSfSummary);
+    if (pt.grossSfSheet)   parts.push(`Read from sheet ${pt.grossSfSheet}.`);
+    if (pt.grossSfAdjusted && pt.grossSfStated != null) {
+      parts.push(`The drawing states ${fmt(pt.grossSfStated)} SF.`);
+    }
+    return {
+      needsReview: !!pt.grossSfNeedsReview,
+      confidence:  pt.grossSfConfidence ?? null,
+      reviewNote:  parts.join(' ') || null,
+    };
+  }, [proposal, grossSf]);
 
   // Which fields are checked for writing to ProjectData
   const totals = rollup(rows);
@@ -168,6 +252,8 @@ function ReviewModal({ proposal, fileName, onConfirm, onCancel }) {
         </div>
 
         <div className="px-6 py-5 space-y-7 max-h-[62vh] overflow-y-auto">
+
+          <CheckList review={proposal.review} />
 
           {/* ── Section 1: Unit Types ── */}
           <div>
@@ -270,7 +356,9 @@ function ReviewModal({ proposal, fileName, onConfirm, onCancel }) {
                     fieldKey="grossSf"
                     checked={checked}
                     setChecked={setChecked}
-                    tier={grossSf != null ? 'confirm' : 'manual'}
+                    tier={grossSf == null ? 'manual' : gross.needsReview ? 'check' : 'confirm'}
+                    pct={grossSf != null && gross.confidence != null ? Math.round(gross.confidence * 100) : null}
+                    note={gross.reviewNote}
                     available={grossSf != null}
                     alwaysConfirm
                     editable
@@ -380,8 +468,9 @@ function ReviewModal({ proposal, fileName, onConfirm, onCancel }) {
   );
 }
 
-function FieldRow({ label, value, fieldKey, checked, setChecked, tier, available, alwaysConfirm, editable, onEdit }) {
+function FieldRow({ label, value, fieldKey, checked, setChecked, tier, available, alwaysConfirm, editable, onEdit, pct, note }) {
   const isChecked = !!checked[fieldKey];
+  const isCheck = tier === 'check' && available;
 
   if (!available) {
     return (
@@ -395,28 +484,38 @@ function FieldRow({ label, value, fieldKey, checked, setChecked, tier, available
   }
 
   return (
-    <label className="flex items-center gap-3 py-1 cursor-pointer group">
-      <input
-        type="checkbox"
-        checked={isChecked}
-        onChange={e => setChecked(prev => ({ ...prev, [fieldKey]: e.target.checked }))}
-        className="accent-amber-500 w-4 h-4 shrink-0"
-      />
-      <span className="text-sm text-slate-600 flex-1">{label}{alwaysConfirm ? ' *' : ''}</span>
-      {editable && onEdit ? (
-        <EditCell
-          value={value}
-          onChange={onEdit}
-          numeric
-          className="font-mono text-sm text-slate-800 w-24 text-right"
+    <div className={isCheck ? 'rounded-lg border border-red-200 bg-red-50/60 px-2 -mx-2 py-1' : ''}>
+      <label className="flex items-center gap-3 py-1 cursor-pointer group">
+        <input
+          type="checkbox"
+          checked={isChecked}
+          onChange={e => setChecked(prev => ({ ...prev, [fieldKey]: e.target.checked }))}
+          className="accent-amber-500 w-4 h-4 shrink-0"
         />
-      ) : (
-        <span className="font-mono text-sm text-slate-800 group-hover:bg-slate-50 rounded px-1.5 py-0.5">
-          {fmt(value)}
+        <span className={`text-sm flex-1 ${isCheck ? 'text-red-800 font-semibold' : 'text-slate-600'}`}>
+          {label}{alwaysConfirm ? ' *' : ''}
         </span>
+        {editable && onEdit ? (
+          <EditCell
+            value={value}
+            onChange={onEdit}
+            numeric
+            className={`font-mono text-sm w-24 text-right ${isCheck ? 'text-red-700 font-semibold' : 'text-slate-800'}`}
+          />
+        ) : (
+          <span className={`font-mono text-sm rounded px-1.5 py-0.5 group-hover:bg-slate-50 ${isCheck ? 'text-red-700 font-semibold' : 'text-slate-800'}`}>
+            {fmt(value)}
+          </span>
+        )}
+        <span className="w-16"><ConfChip tier={tier} pct={pct} /></span>
+      </label>
+      {/* The reason, not just the flag. A red number with no explanation makes a
+          reviewer distrust the whole panel; a red number that says WHY tells them
+          exactly which sheet to open and what to look for. */}
+      {isCheck && note && (
+        <p className="text-[11px] text-red-700/80 leading-snug pl-7 pr-16 pb-1">{note}</p>
       )}
-      <span className="w-16"><ConfChip tier={tier} /></span>
-    </label>
+    </div>
   );
 }
 
@@ -432,7 +531,10 @@ function GreyRow({ label, note }) {
 }
 
 // ── main upload component ─────────────────────────────────────────────────────
-export default function UnitMatrixUpload({ projectId }) {
+// `onCommitted(projectData)` is optional: the questionnaires pass it so their
+// form and live budget refresh the moment an apply lands, without a reload.
+// The Takeoffs tab omits it and behaves exactly as before.
+export default function UnitMatrixUpload({ projectId, onCommitted }) {
   const [state, setState]         = useState('loading'); // loading|idle|uploading|parsing|reviewing|committed|error
   const [existingFile, setExistingFile] = useState(null);
   const [savedTypes, setSavedTypes]     = useState([]);
@@ -492,6 +594,12 @@ export default function UnitMatrixUpload({ projectId }) {
     setState('uploading');
     setErrMsg('');
 
+    // Check the size before sending — a 4 MB+ body is rejected by the host before
+    // it ever reaches us, and "Upload failed, please try again" is a lie there:
+    // retrying the same file never works.
+    const tooBig = oversizeMessage(file);
+    if (tooBig) { setErrMsg(tooBig); setState('error'); return; }
+
     // Upload
     const formData = new FormData();
     formData.append('file', file);
@@ -500,12 +608,12 @@ export default function UnitMatrixUpload({ projectId }) {
     let fileId, fileName;
     try {
       const r = await fetch(`/api/projects/${projectId}/files`, { method: 'POST', body: formData });
-      if (!r.ok) throw new Error('Upload failed');
+      if (!r.ok) throw new Error(await uploadErrorMessage(r, file));
       const d = await r.json();
       fileId   = d.file?.id;
       fileName = d.file?.originalName ?? file.name;
     } catch (e) {
-      setErrMsg('Upload failed. Please try again.');
+      setErrMsg(e.message || 'Upload failed. Please try again.');
       setState('error');
       return;
     }
@@ -545,7 +653,10 @@ export default function UnitMatrixUpload({ projectId }) {
       const r = await fetch(`/api/projects/${projectId}/unit-matrix/commit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileId: uploadedFile?.id, unitTypes, confirmedFields }),
+        // runId ties this apply back to the extraction that produced it, so the
+        // server can diff what was applied against what the model proposed and
+        // record the verdict. See src/lib/agent/unitMatrixDiff.js.
+        body: JSON.stringify({ fileId: uploadedFile?.id, unitTypes, confirmedFields, runId: proposal?.review?.runId ?? null }),
       });
       if (!r.ok) throw new Error('Commit failed');
       const d = await r.json();
@@ -556,6 +667,7 @@ export default function UnitMatrixUpload({ projectId }) {
       setState('committed');
       const count = Object.keys(confirmedFields).length;
       showToast(`${unitTypes.length} unit types saved · ${count} field${count !== 1 ? 's' : ''} written to Project Info`);
+      if (d.projectData) onCommitted?.(d.projectData);
     } catch {
       // Return to reviewing so the user can retry without re-uploading
       setState('reviewing');

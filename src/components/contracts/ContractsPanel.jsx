@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import PdfViewerModal from '@/components/ui/PdfViewerModal';
+import { oversizeMessage, uploadErrorMessage, uploadThrowMessage } from '@/lib/uploadErrorMessage';
 
 // ─── Tag definitions ──────────────────────────────────────────────────────────
 const CONTRACT_TAGS = [
@@ -659,6 +660,7 @@ export default function ContractsPanel({ projectId, initialFiles = [], onFileAdd
   const [dragging,    setDragging]    = useState(false);
   const [pendingFile, setPendingFile] = useState(null); // { file: File }
   const [uploading,   setUploading]   = useState([]);   // [{ id, name }]
+  const [uploadErrors, setUploadErrors] = useState([]);  // [{ id, msg }] — shown until dismissed
   const [newAnalyses, setNewAnalyses] = useState({});   // fileId → analysis
   const [activeTag,   setActiveTag]   = useState(null);
   const [viewingFile, setViewingFile] = useState(null); // PDF viewer
@@ -682,6 +684,12 @@ export default function ContractsPanel({ projectId, initialFiles = [], onFileAdd
   async function doUpload(file, tag, aiReview) {
     const uid = `${Date.now()}-${Math.random()}`;
     const label = aiReview ? `${file.name} · uploading + AI review…` : file.name;
+    // Never let a failure be silent — say what went wrong and what to do about it.
+    const fail = (msg) => setUploadErrors(prev => [...prev, { id: uid, msg }]);
+
+    const tooBig = oversizeMessage(file);
+    if (tooBig) { fail(tooBig); return; }
+
     setUploading(prev => [...prev, { id: uid, name: file.name, reviewing: aiReview }]);
 
     const form = new FormData();
@@ -691,14 +699,18 @@ export default function ContractsPanel({ projectId, initialFiles = [], onFileAdd
 
     let uploadedFile = null;
     try {
-      const res  = await fetch(`/api/projects/${projectId}/files`, { method: 'POST', body: form });
-      const data = await res.json();
+      const res = await fetch(`/api/projects/${projectId}/files`, { method: 'POST', body: form });
       if (res.ok) {
+        const data = await res.json();
         uploadedFile = data.file;
         setFiles(prev => [data.file, ...prev]);
         onFileAdded?.(data.file, data.contractUpdate ?? null);
+      } else {
+        fail(await uploadErrorMessage(res, file));
       }
-    } catch {}
+    } catch (e) {
+      fail(uploadThrowMessage(e, file));
+    }
 
     // Auto-run AI review for supply contracts
     if (aiReview && uploadedFile?.id) {
@@ -802,6 +814,22 @@ export default function ContractsPanel({ projectId, initialFiles = [], onFileAdd
               <span className="ml-auto shrink-0 text-amber-500">
                 {u.reviewing ? '⚡ Uploading + AI review in progress…' : 'Uploading…'}
               </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Upload failures — stay on screen until dismissed so nothing fails silently */}
+      {uploadErrors.length > 0 && (
+        <div className="space-y-1.5">
+          {uploadErrors.map(err => (
+            <div key={err.id} className="flex items-start gap-2.5 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
+              <svg className="w-3.5 h-3.5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              </svg>
+              <span className="flex-1">{err.msg}</span>
+              <button onClick={() => setUploadErrors(prev => prev.filter(e => e.id !== err.id))}
+                className="shrink-0 text-red-400 hover:text-red-600 font-bold leading-none" title="Dismiss">×</button>
             </div>
           ))}
         </div>

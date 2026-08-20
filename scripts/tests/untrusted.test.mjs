@@ -13,7 +13,7 @@
 // fence, ILC's instructions sit outside it, the attempt is visible in the
 // summary, and the call physically cannot carry a tool. If all five hold, the
 // worst case is a wrong extraction — never an action.
-import { test } from 'node:test';
+import { test, before } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
@@ -25,6 +25,25 @@ import {
   containsSealedDocument,
 } from '../../src/lib/agent/untrusted.js';
 import { wrapClient } from '../../src/lib/agent/client.js';
+import { _resetSinkForTests, _setPrismaForTests } from '../../src/lib/agent/ledger.js';
+
+// Send this file's ledger writes into a black hole.
+//
+// A few tests below complete a real (faked) call through wrapClient, and a
+// completed call is recorded. Left alone the ledger would resolve to its FILE
+// sink and append to `.agent-runs/agent-runs.jsonl` — the same file
+// agentClient.test.mjs reads and then deletes in its `after` hook. `node --test`
+// runs the two files in separate processes at the same time, so that test would
+// intermittently find its own record already gone. It failed exactly that way
+// once during this slice and passed on its own every time, which is the shape
+// of a flake people learn to re-run instead of trust.
+//
+// Injecting a no-op Prisma client keeps sink resolution on the PRISMA branch,
+// which never touches the shared file. Nothing here asserts on the ledger.
+before(() => {
+  _resetSinkForTests();
+  _setPrismaForTests({ agentRun: { create: async () => ({}) } });
+});
 
 const HOSTILE_PDF = `
 LIGHTING FIXTURE SCHEDULE — REV 3

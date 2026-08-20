@@ -12,10 +12,11 @@
  * callable from an unauthenticated route where nothing should be written until
  * a human accepts the submission.
  */
-import { loadPdfjs, pdfDocOptions } from './pdfjsNode.js';
 // Relative, not `@/lib/...`, on purpose: scripts/tests/drawingExtract.test.mjs
 // imports this file under plain Node, which does not know the `@/` alias.
 import { buildUntrustedPrompt, warnOnInjection } from './agent/untrusted.js';
+import { loadPdfjs, pdfDocOptions } from './pdfjsNode.js';
+import { findAreaSheets, resolveGrossSf, focusAroundNumber, sheetNumberOf } from './areaSheet.js';
 
 /** Files we can never read as text. */
 export const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'tif', 'tiff'];
@@ -59,6 +60,15 @@ const RELEVANCE_SIGNALS = [
   [/\b\d{1,4}\s*(units?|d\.?u\.?)\b/gi, 8],
   [/\b(avg|average)\s*(unit)?\s*(sf|size)\b/gi, 6],
   [/\b\d{3,5}\s*sf\b/gi, 3],
+  // Area-sheet signals. Weighted ABOVE the generic area phrases above because
+  // finding the sheet is only half the job — the window carrying the net/gross
+  // label has to survive into the 30k budget, or `classifyAreaBasis` gets handed
+  // text that never mentioned the basis and correctly answers "unknown".
+  [/\b(program|area)\s*breakdown\b/gi, 30],
+  [/\bbuilding\s*(gross|statistics)\b/gi, 28],
+  [/\barea\s*(schedule|summary|tabulation|plan)\b/gi, 22],
+  [/\b(actual|allowable)\s*area\b/gi, 12],
+  [/\b(boh|back\s*of\s*house|amenity|foh|stairwell)\b/gi, 6],
 ];
 
 /**
@@ -172,21 +182,57 @@ export async function xlsxToText(buffer) {
  * returns nothing in production while working perfectly in local dev. This has
  * already broken prod once — `scripts/check-runtime-assets.mjs` guards it.
  */
-export async function extractPdfText(buffer, maxPages = 60) {
+export async function extractPdfPages(buffer, opts = {}) {
+  const { maxPages = MAX_PDF_PAGES, timeBudgetMs = PDF_SCAN_BUDGET_MS } = opts;
+  const started = Date.now();
+
   try {
     const pdfjsLib = await loadPdfjs();
     const doc = await pdfjsLib.getDocument(pdfDocOptions(buffer)).promise;
-    let text = '';
-    const pages = Math.min(doc.numPages, maxPages);
-    for (let i = 1; i <= pages; i++) {
+
+    const limit = Math.min(doc.numPages, maxPages);
+    const pages = [];
+    let stoppedEarly = false;
+
+    for (let i = 1; i <= limit; i++) {
+      if (Date.now() - started > timeBudgetMs) { stoppedEarly = true; break; }
       const content = await (await doc.getPage(i)).getTextContent();
-      text += content.items.map(it => it.str).join(' ') + '\n';
+      pages.push({ page: i, text: content.items.map(it => it.str).join(' ') });
     }
-    const trimmed = text.trim();
-    return trimmed.length > 50 ? trimmed : null;
+
+    return {
+      pages,
+      totalPages: doc.numPages,
+      scannedPages: pages.length,
+      stoppedEarly: stoppedEarly || limit < doc.numPages,
+      ms: Date.now() - started,
+    };
   } catch {
-    return null;
+    return { pages: [], totalPages: 0, scannedPages: 0, stoppedEarly: false, ms: Date.now() - started };
   }
+}
+
+/**
+ * Page budget.
+ *
+ * Was a flat 60 for a long time, which quietly capped every large set: the
+ * Fox Park 100% DD set is 442 pages, so 86% of it was never read. Two bounds
+ * now, and the time one is the real one — a 400-page cap that takes four minutes
+ * is a timeout, not a feature. Whichever hits first wins, and the caller is told
+ * via `stoppedEarly` so it can say so instead of silently returning less.
+ *
+ * The good news for area sheets specifically: they live at the FRONT of a set.
+ * Fox Park's G0.02 "Building Statistics" is page 3 of 442. Head-first scanning
+ * finds them almost immediately; the budget only matters for unit matrices,
+ * which can sit anywhere.
+ */
+const MAX_PDF_PAGES = 400;
+const PDF_SCAN_BUDGET_MS = 20000;
+
+export async function extractPdfText(buffer, maxPages = MAX_PDF_PAGES) {
+  const { pages } = await extractPdfPages(buffer, { maxPages });
+  const trimmed = pages.map(p => p.text).join('\n').trim();
+  return trimmed.length > 50 ? trimmed : null;
 }
 
 /**
@@ -219,7 +265,8 @@ export async function extractDrawingText(buffer, fileName) {
   }
 
   if (ext === 'pdf') {
-    const text = await extractPdfText(buffer);
+    const scan = await extractPdfPages(buffer);
+    const text = scan.pages.map(p => p.text).join('\n').trim();
     if (!text || text.trim().length < 30) {
       // Overwhelmingly this means a scanned/plotted drawing with no text layer —
       // very common for site plans. Say so plainly rather than "parse failed".
@@ -228,7 +275,9 @@ export async function extractDrawingText(buffer, fileName) {
         message: 'This PDF has no readable text layer (it looks like a scan or an image-only plot). Please upload a vector PDF or the unit matrix as Excel.',
       };
     }
-    return { ok: true, text };
+    // `pages` rides along so the caller can find the area sheet without paying
+    // to extract the PDF a second time. See src/lib/areaSheet.js.
+    return { ok: true, text, pages: scan.pages, scan };
   }
 
   return {
@@ -242,6 +291,10 @@ export async function extractDrawingText(buffer, fileName) {
 export const EXTRACT_SYSTEM = `You are a structured data extractor for architectural unit matrix documents.
 Extract the residential unit type breakdown from the provided text. Ignore drawing indices, abbreviation
 legends, revision notes, and anything unrelated to unit types and square footage.
+
+Hotels: treat KEYS exactly like units. A hotel room matrix (KING, QUEEN/QUEEN, suites, with key counts)
+IS a unit matrix — room types are unit types, key quantities are unit quantities, and a printed
+"TOTAL KEYS" or "KEY COUNT" is the statedTotalUnits.
 
 Return ONLY valid JSON matching this exact schema — no markdown, no explanation:
 {
@@ -259,8 +312,11 @@ Return ONLY valid JSON matching this exact schema — no markdown, no explanatio
   ],
   "projectTotals": {
     "grossInteriorSf": number or null,
+    "grossSfLabel": "string or null",
+    "grossSfSheet": "string or null",
     "garageSf": number or null,
     "corridorSf": number or null,
+    "statedTotalUnits": number or null,
     "buildingType": "string or null"
   },
   "granularity": "PER_UNIT or PER_TYPE or PROJECT_TOTAL_ONLY",
@@ -274,7 +330,33 @@ Rules:
 - Bedrooms: use the bedroom column if present; otherwise infer from the type code (e.g. "2BR" → 2, "1BR" → 1, "STUDIO" → 0).
 - confidence per row: how confident you are in this row's data. 1.0 = exact numbers clearly stated; 0.5 = inferred/ambiguous.
 - If a column is missing entirely, set that field to null for all rows — do not guess.
-- grossInteriorSf: look for GSF, NRSF, GIA, "Total SF", or a summary total line. Only populate if explicitly stated.`;
+- grossInteriorSf: the best STATED whole-building square footage on the document. Prefer, in order:
+  (1) a program/area breakdown total ("BUILDING GROSS SF"), (2) a cover-sheet or code-summary grand
+  total ("TOTAL BUILDING GSF", "GBA", "ACTUAL AREA"), (3) a room/unit schedule total. Do NOT add up
+  per-floor areas yourself — report only what is printed.
+- grossSfLabel: the LITERAL heading printed above or beside that number, copied exactly as it appears
+  — "BUILDING GROSS SF", "TOTAL ACTUAL AREA", "NET RENTABLE", "AVG AREA". Copy it verbatim, including
+  abbreviations and punctuation. Do not normalise, expand, or interpret it.
+  This matters more than it looks: architects publish the same building at three different totals
+  (net room polygons, code area inside the exterior walls, and true gross to the outside face) and
+  they differ by 5–8%. Downstream code decides which one this is FROM THIS LABEL, so a paraphrased
+  label is worse than no label. If nothing is printed near the number, return null — never invent one.
+- grossSfSheet: the sheet number that figure came from (e.g. "G0.02", "A-811", "LS0.01"), or null.
+- statedTotalUnits: the total unit count as PRINTED on the document ("TOTAL UNITS: 364", a matrix total row,
+  a cover-sheet project summary). Do NOT add up the rows yourself to fill this in — null is the correct answer
+  when the document does not state a total. This field exists so the row quantities can be checked against
+  the document, and a value you computed cannot check anything.`;
+
+/**
+ * Bump this whenever EXTRACT_SYSTEM changes.
+ *
+ * Step 18 keys a task type's accuracy history to the prompt version, so a
+ * rewritten prompt starts back at Tier 0 rather than inheriting a record it
+ * never earned. Editing the prompt without touching this line is the one way
+ * to break that, which is why the constant lives here, next to the prompt,
+ * rather than at the call sites.
+ */
+export const EXTRACT_PROMPT_VERSION = 'unitMatrix-2026-08-18';
 
 /** Haiku handles clean tables; dense or "combined" sheets get Sonnet. */
 export function pickModel(text, fileName) {
@@ -336,7 +418,88 @@ export async function parseUnitMatrix(text, fileName, anthropic, ctx = {}) {
     return { ok: false, code: 'bad_output', message: 'Unexpected extraction shape.' };
   }
 
-  return { ok: true, proposal: { ...parsed, model } };
+  const proposal = attachAreaBasis({ ...parsed, model }, { pages: ctx.pages, text: truncated });
+  return { ok: true, proposal };
+}
+
+/**
+ * Decide whether the extracted square footage is gross, net, or code area, and
+ * correct it if it isn't gross.
+ *
+ * Split out from the model call on purpose. The model's job is to read numbers
+ * off a table; deciding what a number MEANS is a fixed-label lookup that regex
+ * does perfectly, for free, identically every time, and can show its work. See
+ * the header of src/lib/areaSheet.js for the measured 5–8% this is worth.
+ *
+ * Mutates nothing — returns a new proposal.
+ */
+export function attachAreaBasis(proposal, { pages, text } = {}) {
+  const totals = proposal?.projectTotals;
+  if (!totals) return proposal;
+
+  const candidates = Array.isArray(pages) && pages.length ? findAreaSheets(pages, 3) : [];
+  const byPage = new Map((pages ?? []).map(p => [p.page, p.text]));
+  const stated = Number(totals.grossInteriorSf);
+
+  // Which sheet do we judge? The one the number is actually printed on.
+  //
+  // Concatenating all three candidates was wrong: it blends up to three
+  // different bases into one string and the verdict becomes an average of pages
+  // that have nothing to do with each other. Whichever candidate carries this
+  // number is the one whose wording applies to it.
+  let sourcePage = null;
+  if (Number.isFinite(stated) && stated > 0) {
+    sourcePage = candidates.find(c => focusAroundNumber(byPage.get(c.page) ?? '', stated)) ?? null;
+    if (!sourcePage) {
+      // Not on any candidate sheet — check the rest of the set before giving up.
+      const anywhere = (pages ?? []).find(p => focusAroundNumber(p.text ?? '', stated));
+      if (anywhere) sourcePage = { page: anywhere.page, sheetNo: sheetNumberOf(anywhere.text), offSheet: true };
+    }
+  }
+
+  // What the classifier reads, most trustworthy first:
+  //   1. the label the model copied off the sheet — the closest thing to a
+  //      direct quote of the number's own heading,
+  //   2. the page the number is printed on,
+  //   3. the best-scoring area sheet, when we could not locate the number,
+  //   4. the selected extract, as a fallback when we have no page breakdown
+  //      (Excel uploads, and the internal route's pre-extracted textContent).
+  const pageText = sourcePage
+    ? byPage.get(sourcePage.page) ?? ''
+    : (candidates.length ? byPage.get(candidates[0].page) ?? '' : (text ?? ''));
+  const basisText = [totals.grossSfLabel ?? '', pageText].join('\n');
+
+  const resolved = resolveGrossSf(totals.grossInteriorSf, basisText, {
+    buildingType: totals.buildingType,
+  });
+
+  // Found the sheet but could not read the table. BECK's A-811 program breakdown
+  // scores 90 and yields nothing: the table is vector art, so only the Revit
+  // layer names survive as text. Saying "no area sheet" would be false and saying
+  // nothing would be worse — the reviewer is told which sheet to open by hand.
+  const unreadable = candidates.length > 0 && candidates.every(c => !c.readable);
+
+  return {
+    ...proposal,
+    projectTotals: {
+      ...totals,
+      grossInteriorSf: resolved.value,
+      grossSfStated:     resolved.statedValue,
+      grossSfBasis:      resolved.basis,
+      grossSfConfidence: resolved.confidence,
+      grossSfAdjusted:   resolved.adjusted,
+      grossSfNeedsReview: resolved.needsReview || unreadable,
+      grossSfNote:       resolved.note,
+      // Both screens append "Read from sheet X." after this, so it is left out here.
+      grossSfSummary:    unreadable
+        ? 'The area sheet is a picture, not text — its table could not be read. ' +
+          'Please check the square footage against that sheet.'
+        : resolved.summary,
+      grossSfUnreadable: unreadable,
+      grossSfSheet:      totals.grossSfSheet ?? sourcePage?.sheetNo ?? candidates[0]?.sheetNo ?? null,
+    },
+    areaSheets: candidates,
+  };
 }
 
 // ─── MERGING MULTIPLE DRAWINGS ──────────────────────────────────────────────

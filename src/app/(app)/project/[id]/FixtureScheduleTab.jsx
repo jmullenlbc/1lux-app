@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import PdfViewerModal from '@/components/ui/PdfViewerModal';
+import { oversizeMessage } from '@/lib/uploadErrorMessage';
 
 const PHASE_OPTIONS = ['SD', 'DD', 'CD', 'IFC', 'ASI'];
 
@@ -198,6 +199,8 @@ export default function FixtureScheduleTab({ projectId }) {
 
   async function parseFile(file, extraTags = []) {
     if (!file || file.type !== 'application/pdf') { setError('Please upload a PDF file.'); return; }
+    const tooBig = oversizeMessage(file);
+    if (tooBig) { setError(tooBig); return; }
     setFileName(file.name);
     setError(null);
     setStep('parsing');

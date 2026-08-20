@@ -81,7 +81,7 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
         { label: 'Surface parking',    value: sections?.exterior?.parking?.product   || 0 },
         { label: 'Carports',           value: sections?.exterior?.carports?.product  || 0 },
         { label: 'Garages',            value: sections?.exterior?.garages?.product   || 0 },
-        { label: 'Exterior doors',     value: sections?.exterior?.doors?.product     || 0 },
+        { label: 'Building wallpacks', value: sections?.exterior?.wallpacks?.product || 0 },
         { label: 'Landscape / adder',  value: sections?.exterior?.landscape?.product || 0 },
         { label: '5% misc buffer',     value: sections?.exterior?.misc?.product      || 0 },
       ],

@@ -3,6 +3,7 @@ import { useState, useRef, useCallback } from 'react';
 // From the standalone module, not '@/lib/drawingExtract' — that one reaches the
 // model and would pull server-only code (node:crypto) into the browser bundle.
 import { mergeProposals } from '@/lib/mergeProposals';
+import { uploadDirect } from '@/lib/uploadClient';
 
 /**
  * Multi-file drawing upload + parse for the conceptual-budget intake.
@@ -15,17 +16,18 @@ import { mergeProposals } from '@/lib/mergeProposals';
  *      silently picking a winner.
  */
 
-// Our own route accepts 25 MB, but Amplify's front door rejects request bodies
-// over ~4.4 MB with an empty 413 the UI can't explain (measured on prod
-// 2026-08-15: 4 MB reaches the route, 5 MB bounces). Check here, before the
-// upload, so the visitor gets an honest message instead of a generic failure.
-const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+// Files go straight to cloud storage via a presigned slip (see uploadClient.js),
+// which sidesteps Amplify's ~4.4 MB front-door cap entirely — the request that
+// does pass through our server carries only a short key. 50 MB is our own
+// ceiling, checked here so an oversized file is refused before any upload work.
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 const STATUS = {
-  queued:  { label: 'Queued',    cls: 'bg-slate-100 text-slate-500 border-slate-200' },
-  parsing: { label: 'Reading…',  cls: 'bg-amber-50 text-amber-700 border-amber-200' },
-  done:    { label: 'Read',      cls: 'bg-green-50 text-green-700 border-green-200' },
-  error:   { label: 'Failed',    cls: 'bg-red-50 text-red-600 border-red-200' },
+  queued:    { label: 'Queued',      cls: 'bg-slate-100 text-slate-500 border-slate-200' },
+  uploading: { label: 'Uploading…',  cls: 'bg-sky-50 text-sky-700 border-sky-200' },
+  parsing:   { label: 'Reading…',    cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+  done:      { label: 'Read',        cls: 'bg-green-50 text-green-700 border-green-200' },
+  error:     { label: 'Failed',      cls: 'bg-red-50 text-red-600 border-red-200' },
 };
 
 function fmtBytes(n) {
@@ -44,7 +46,7 @@ export default function DrawingDropzone({ onResults }) {
   const [dragging, setDrag] = useState(false);
   const inputRef = useRef(null);
 
-  const parsing = items.some(i => i.status === 'parsing' || i.status === 'queued');
+  const parsing = items.some(i => i.status === 'parsing' || i.status === 'uploading' || i.status === 'queued');
   const done    = items.filter(i => i.status === 'done');
 
   const merged = done.length ? mergeProposals(done.map(i => ({ fileName: i.name, proposal: i.proposal }))) : null;
@@ -59,7 +61,7 @@ export default function DrawingDropzone({ onResults }) {
     if (item.file?.size > MAX_UPLOAD_BYTES) {
       setItems(prev => {
         const next = prev.map(i => i.id === item.id
-          ? { ...i, status: 'error', error: `This file is ${fmtBytes(item.file.size)} — files over 4 MB can't be uploaded yet. Splitting the PDF or compressing it usually gets it under the limit.` }
+          ? { ...i, status: 'error', error: `This file is ${fmtBytes(item.file.size)} — the limit is 50 MB per file. Splitting the PDF usually gets each part under it.` }
           : i);
         publish(next);
         return next;
@@ -67,14 +69,47 @@ export default function DrawingDropzone({ onResults }) {
       return;
     }
 
-    setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'parsing' } : i));
+    // ── Step 1: get the file where the parser can reach it ──
+    // Preferred: straight to cloud storage via a presigned slip — no size cap
+    // that matters, with a progress bar. Fallback: the classic multipart POST
+    // (local dev, where presigning is off; or if the direct PUT fails and the
+    // file is small enough to fit through the ~4.4 MB front door).
+    setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'uploading', progress: 0 } : i));
 
-    const body = new FormData();
-    body.append('file', item.file);
+    let sent = null;
+    try {
+      sent = await uploadDirect(item.file, {
+        onProgress: pct => setItems(prev => prev.map(i => i.id === item.id ? { ...i, progress: pct } : i)),
+      });
+    } catch (err) {
+      if (item.file.size > 4 * 1024 * 1024) {
+        setItems(prev => {
+          const next = prev.map(i => i.id === item.id
+            ? { ...i, status: 'error', error: err.message || 'Upload failed. Please try again.' }
+            : i);
+          publish(next);
+          return next;
+        });
+        return;
+      }
+      sent = null; // small file — the multipart fallback below still works
+    }
+
+    // ── Step 2: parse ──
+    setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'parsing', progress: null } : i));
 
     let patch;
     try {
-      const r = await fetch('/api/intake/parse', { method: 'POST', body });
+      const r = sent
+        ? await fetch('/api/intake/parse', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ s3Key: sent.key, fileName: item.file.name }),
+          })
+        : await fetch('/api/intake/parse', {
+            method: 'POST',
+            body: (() => { const fd = new FormData(); fd.append('file', item.file); return fd; })(),
+          });
       const d = await r.json().catch(() => ({}));
       patch = r.ok
         ? { status: 'done', proposal: d, error: null }
@@ -136,10 +171,10 @@ export default function DrawingDropzone({ onResults }) {
         <div className="text-center">
           <p className="text-sm font-semibold text-slate-700">Drop your drawings here</p>
           <p className="text-xs text-slate-500 mt-1 max-w-md">
-            Include the sheet with the <strong>building square footage and unit count</strong> — that&apos;s what we read to
-            fill in your budget. You can add several files.
+            Most useful: the <strong>unit matrix</strong> (unit counts and square footage) and the{' '}
+            <strong>site plan</strong> (lot size, parking, buildings). You can add several files.
           </p>
-          <p className="text-[11px] text-slate-400 mt-1.5">Vector PDF or Excel · up to 4 MB each · scans aren&apos;t readable yet</p>
+          <p className="text-[11px] text-slate-400 mt-1.5">PDF or Excel · up to 50 MB each</p>
         </div>
         <span className="text-xs font-semibold text-amber-600 border border-amber-200 rounded-lg px-3 py-1.5 hover:bg-amber-50">
           Browse files
@@ -167,7 +202,9 @@ export default function DrawingDropzone({ onResults }) {
                     {s.label}
                   </span>
                   <span className="text-sm font-mono text-slate-700 truncate flex-1" title={item.name}>{item.name}</span>
-                  <span className="text-xs text-slate-400 shrink-0">{fmtBytes(item.size)}</span>
+                  <span className="text-xs text-slate-400 shrink-0">
+                    {item.status === 'uploading' && item.progress != null ? `${item.progress}%` : fmtBytes(item.size)}
+                  </span>
                   {item.status === 'error' && (
                     <button onClick={() => retry(item.id)} className="text-xs font-semibold text-amber-600 hover:text-amber-700 shrink-0">
                       Retry
@@ -184,9 +221,17 @@ export default function DrawingDropzone({ onResults }) {
 
                 {item.status === 'done' && (
                   <p className="text-xs text-slate-500 mt-1.5 pl-1">
-                    {types > 0
-                      ? <>Found <span className="font-semibold text-slate-700">{types}</span> unit type{types !== 1 ? 's' : ''}</>
-                      : 'No unit types found on this sheet'}
+                    {item.proposal?.kind === 'site_data'
+                      ? <>Read <span className="font-semibold text-slate-700">site data</span>
+                          {item.proposal.siteData?.totalUnits != null && <> · {fmt(item.proposal.siteData.totalUnits)} units</>}
+                          {item.proposal.siteData?.lotSf != null
+                            ? <> · {fmt(item.proposal.siteData.lotSf)} SF lot</>
+                            : item.proposal.siteData?.lotAcres != null && <> · {item.proposal.siteData.lotAcres} acres</>}
+                          {item.proposal.siteData?.buildingCount != null && <> · {fmt(item.proposal.siteData.buildingCount)} buildings</>}
+                        </>
+                      : types > 0
+                        ? <>Found <span className="font-semibold text-slate-700">{types}</span> unit type{types !== 1 ? 's' : ''}</>
+                        : 'No unit matrix or site data found on this sheet'}
                     {item.proposal?.overallConfidence != null && types > 0 &&
                       <> · {Math.round(item.proposal.overallConfidence * 100)}% confidence</>}
                   </p>
@@ -201,24 +246,97 @@ export default function DrawingDropzone({ onResults }) {
       )}
 
       {/* Merged rollup */}
-      {merged && merged.unitTypes.length > 0 && (
+      {merged && (merged.unitTypes.length > 0 || merged.siteData) && (
         <div className="rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3">
           <div className="text-[10px] font-bold text-amber-700 uppercase tracking-wider mb-2">
             Combined from {merged.sources.length} file{merged.sources.length !== 1 ? 's' : ''}
           </div>
           <div className="flex items-center gap-4 flex-wrap text-sm text-slate-700">
-            <span><span className="font-mono font-semibold">{merged.unitTypes.length}</span> unit types</span>
-            <span className="text-slate-300">·</span>
-            <span><span className="font-mono font-semibold">
-              {fmt(merged.unitTypes.reduce((s, r) => s + (Number(r.qty) || 0), 0))}
-            </span> units</span>
+            {merged.unitTypes.length > 0 && (
+              <>
+                <span><span className="font-mono font-semibold">{merged.unitTypes.length}</span> unit types</span>
+                <span className="text-slate-300">·</span>
+                <span><span className="font-mono font-semibold">
+                  {fmt(merged.unitTypes.reduce((s, r) => s + (Number(r.qty) || 0), 0))}
+                </span> units</span>
+              </>
+            )}
+            {merged.unitTypes.length === 0 && merged.siteData?.totalUnits != null && (
+              <span><span className="font-mono font-semibold">{fmt(merged.siteData.totalUnits)}</span> units</span>
+            )}
             {merged.projectTotals.grossInteriorSf != null && (
               <>
                 <span className="text-slate-300">·</span>
-                <span><span className="font-mono font-semibold">{fmt(merged.projectTotals.grossInteriorSf)}</span> gross SF</span>
+                <span className={merged.projectTotals.grossSfNeedsReview ? 'text-red-700' : undefined}>
+                  <span className="font-mono font-semibold">{fmt(merged.projectTotals.grossInteriorSf)}</span> gross SF
+                  {merged.projectTotals.grossSfConfidence != null && (
+                    <span className="ml-1 text-[11px] font-semibold">
+                      ({Math.round(merged.projectTotals.grossSfConfidence * 100)}%)
+                    </span>
+                  )}
+                </span>
+              </>
+            )}
+            {merged.siteData?.lotSf != null && (
+              <>
+                <span className="text-slate-300">·</span>
+                <span><span className="font-mono font-semibold">{fmt(merged.siteData.lotSf)}</span> SF lot</span>
+              </>
+            )}
+            {merged.siteData?.surfaceParking != null && (
+              <>
+                <span className="text-slate-300">·</span>
+                <span><span className="font-mono font-semibold">{fmt(merged.siteData.surfaceParking)}</span> surface stalls</span>
+              </>
+            )}
+            {merged.siteData?.buildingCount != null && (
+              <>
+                <span className="text-slate-300">·</span>
+                <span><span className="font-mono font-semibold">{fmt(merged.siteData.buildingCount)}</span> buildings</span>
               </>
             )}
           </div>
+
+          {/* Net-vs-gross is invisible to a visitor unless we say it out loud.
+              The three totals an architect publishes for one building differ by
+              5–8%, and the wrong one produces a budget that looks completely
+              normal. See src/lib/areaSheet.js. */}
+          {merged.projectTotals.grossSfNeedsReview && (
+            <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 leading-snug">
+              <span className="font-semibold">Check the square footage. </span>
+              {merged.projectTotals.grossSfSummary}
+              {merged.projectTotals.grossSfSheet ? ` Read from sheet ${merged.projectTotals.grossSfSheet}.` : ''}
+            </p>
+          )}
+          {!merged.projectTotals.grossSfNeedsReview && merged.projectTotals.grossSfAdjusted && (
+            <p className="mt-2 text-xs text-slate-500 leading-snug">{merged.projectTotals.grossSfNote}</p>
+          )}
+
+          {(() => {
+            // The document's own arithmetic check: the row quantities have to add
+            // up to the total printed on the drawing. Same rule as the
+            // 'stated-total' check in src/lib/agent/autoChecks.js — mirrored here
+            // because the public intake route is stateless and never runs the
+            // agent pipeline, so without this line a shortfall (rows sum to 229,
+            // cover sheet says 260) would reach the review queue looking plausible.
+            const rowSum = merged.unitTypes.reduce((s, r) => s + (Number(r.qty) || 0), 0);
+            const statedRaw = merged.projectTotals.statedTotalUnits ?? merged.siteData?.totalUnits;
+            const stated = Number(statedRaw);
+            if (!merged.unitTypes.length || !Number.isFinite(stated) || stated <= 0 || rowSum === stated) return null;
+            const diff = Math.abs(stated - rowSum);
+            return (
+              <div className="mt-3 rounded-lg bg-white border border-red-200 px-3 py-2">
+                <p className="text-xs font-semibold text-red-700">
+                  The unit rows add up to {fmt(rowSum)}, but the drawings state {fmt(stated)} total units.
+                </p>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  {fmt(diff)} unit{diff !== 1 ? 's are' : ' is'} {rowSum < stated ? 'missing from' : 'extra in'} the
+                  breakdown — a unit type may {rowSum < stated ? 'be missing' : 'be double-counted'}. Someone at ILC
+                  will reconcile this before anything is priced.
+                </p>
+              </div>
+            );
+          })()}
 
           {merged.conflicts.length > 0 && (
             <div className="mt-3 rounded-lg bg-white border border-amber-200 px-3 py-2">

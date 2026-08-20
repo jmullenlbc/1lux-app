@@ -77,6 +77,7 @@ export const TAB_LABELS = {
   designInfo:     'Design Info',
   takeoffs:       'Takeoffs',
   budgets:        'Budgets',
+  'site-plan':    'Site Plan',
 };
 
 export const PHASE_LABELS = {

@@ -532,6 +532,76 @@ assert(Math.abs((elevStair.sections.designAdder.product - baseAdder) - expectedS
   'stairwell elevated adder = $50 × numEgressStairwells');
 
 // ───────────────────────────────────────────────────────────────────────────
+// Scenario 14: Building wallpacks — per-building model + qty/price overrides
+// ───────────────────────────────────────────────────────────────────────────
+// Wired 2026-08-12. wallpacks = buildings × perBuilding[type] (+ clubhouse on
+// horizontal types) × $350. numBuildings wins; walk-ups fall back to
+// ceil(units / 24); vertical types are one building. Calibration: Lowell + I76
+// (7 garden buildings) predicts 33 vs ILC's hand guess of 34.
+
+section('SCENARIO 14: Building wallpacks (per-building model + overrides)');
+
+const wpSection = (pd, responses = {}) => calculateBudget(pd, responses).sections.exterior.wallpacks;
+
+// Lowell-shaped garden project: 7 buildings entered → 7 × 4 + 5 clubhouse = 33
+const lowellPD = { ...baselinePD, buildingTypeKey: 'garden', numBuildings: 7, numUnits: 300 };
+const wpLowell = wpSection(lowellPD);
+console.log(`  garden, 7 buildings entered:     qty=${wpLowell.qty}  ${$(wpLowell.product)}`);
+assert(wpLowell.qty === 33, 'garden w/ 7 buildings → 7 × 4 + 5 clubhouse = 33 wallpacks (Lowell calibration)');
+assert(Math.abs(wpLowell.product - 33 * 350) < 0.01, 'wallpack dollars = 33 × $350');
+
+// Walk-up fallback when no building count: ceil(300 / 24) = 13 → 13 × 4 + 5 = 57
+const wpFallback = wpSection({ ...baselinePD, buildingTypeKey: 'garden', numBuildings: 0, numUnits: 300 });
+console.log(`  garden, no building count:       buildings=${wpFallback.buildings} qty=${wpFallback.qty}`);
+assert(wpFallback.buildings === 13, 'garden fallback buildings = ceil(300 units / 24) = 13');
+assert(wpFallback.qty === 13 * 4 + 5, 'garden fallback qty = 13 × 4 + 5 = 57');
+
+// Vertical type = one building, no clubhouse: midRise → 15
+const wpMid = wpSection(baselinePD);
+console.log(`  midRise (one building):          qty=${wpMid.qty}`);
+assert(wpMid.qty === 15, 'midRise = one building × 15, no clubhouse adder');
+
+// Townhouses: nothing on the residences, clubhouse carries it all → 5
+const wpTown = wpSection({ ...baselinePD, buildingTypeKey: 'townHouses', numBuildings: 40 });
+console.log(`  townHouses, 40 buildings:        qty=${wpTown.qty}`);
+assert(wpTown.qty === 5, 'townHouses = clubhouse 5 only, regardless of building count');
+
+// Zero-scale project: no units AND no buildings → 0, not a phantom clubhouse
+const wpZero = wpSection({ buildingTypeKey: 'garden' });
+assert(wpZero.qty === 0 && wpZero.product === 0, 'no units + no buildings → 0 wallpacks, $0');
+
+// Quantity override: ILC's hand guess of 34 replaces the model's 33
+const wpQtyOv = wpSection(lowellPD, { exterior: { wallpacksQty: '34' } });
+console.log(`  qty override '34':               qty=${wpQtyOv.qty}  ${$(wpQtyOv.product)}`);
+assert(wpQtyOv.qty === 34 && wpQtyOv.qtyOverridden === true, 'qty override 34 replaces auto 33 and flags qtyOverridden');
+assert(wpQtyOv.autoQty === 33, 'auto qty still reported alongside the override');
+
+// Price override: unit price replaces $350; count stays automatic
+const wpPriceOv = wpSection(lowellPD, { exterior: { wallpacksPrice: '212.64' } });
+assert(Math.abs(wpPriceOv.product - 33 * 212.64) < 0.01, 'price override $212.64 × auto qty 33');
+assert(wpPriceOv.priceOverridden === true && wpPriceOv.qtyOverridden === false, 'price override flags only priceOverridden');
+
+// 'auto' sentinel clears an override back to the model
+const wpAuto = wpSection(lowellPD, { exterior: { wallpacksQty: 'auto', wallpacksPrice: 'auto' } });
+assert(wpAuto.qty === 33 && Math.abs(wpAuto.product - 33 * 350) < 0.01, "'auto' in both boxes = fully automatic");
+
+// The line lands in the exterior total (through the 5% misc buffer)
+const exWith    = calculateBudget(lowellPD, {}).sections.exterior.total.product;
+const exWithout = calculateBudget(lowellPD, { exterior: { wallpacksQty: '0' } }).sections.exterior.total.product;
+const expectedWpDelta = 33 * 350 * 1.05;
+console.log(`  exterior delta w/ vs w/o line:   ${$(exWith - exWithout)} (expected ${$(expectedWpDelta)})`);
+assert(Math.abs((exWith - exWithout) - expectedWpDelta) < 0.01, 'exterior total carries wallpacks × 1.05 misc buffer');
+
+// The old door-sconce line is GONE (2026-08-12, Mike: "These are the same...
+// delete the old one"). Doors must price $0 — the wallpack line covers them.
+const doorsPD   = { ...lowellPD, numExteriorDoors: 40 };
+const exDoors   = calculateBudget(doorsPD, {}).sections.exterior;
+const exNoDoors = calculateBudget({ ...doorsPD, numExteriorDoors: 0 }, {}).sections.exterior;
+console.log(`  40 doors vs 0 doors exterior:    ${$(exDoors.total.product)} vs ${$(exNoDoors.total.product)}`);
+assert(exDoors.doors === undefined, 'sections.exterior.doors no longer exists (sconce line deleted)');
+assert(Math.abs(exDoors.total.product - exNoDoors.total.product) < 0.01, 'door count moves NO exterior dollars — wallpacks are the one door-fixture line');
+
+// ───────────────────────────────────────────────────────────────────────────
 // Summary
 // ───────────────────────────────────────────────────────────────────────────
 

@@ -1,4 +1,4 @@
-import '@/lib/pdfPolyfill';
+import './pdfPolyfill.js';
 import { loadPdfjs } from './pdfjsNode.js';
 /**
  * scheduleExtract.js — robust construction-schedule milestone extraction.
@@ -16,8 +16,8 @@ import { loadPdfjs } from './pdfjsNode.js';
  *  3. DETERMINISTIC FALLBACK — if the AI returns nothing, a keyword+date scanner
  *     still pulls the core milestones, so a recognizable schedule never yields [].
  */
-import { getAnthropicKey } from '@/lib/anthropicKey';
-import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
+import { getAnthropicKey } from './anthropicKey.js';
+import { buildUntrustedPrompt, warnOnInjection } from './agent/untrusted.js';
 import path from 'path';
 import { createRequire } from 'module';
 
@@ -78,15 +78,39 @@ export async function extractScheduleText(buffer, maxPages = 120) {
 
 // ── Dates ─────────────────────────────────────────────────────────────────────
 function toIso(m, d, y) {
+  if (m === undefined || m === null) return null;   // unrecognised 3-letter month
   let yr = parseInt(y); if (yr < 100) yr += 2000;
   const mo = parseInt(m), dy = parseInt(d);
   if (yr < 2020 || yr > 2040 || mo < 1 || mo > 12 || dy < 1 || dy > 31) return null;
   return `${yr}-${String(mo).padStart(2, '0')}-${String(dy).padStart(2, '0')}`;
 }
+const MONTHS = { jan:1, feb:2, mar:3, apr:4, may:5, jun:6, jul:7, aug:8, sep:9, oct:10, nov:11, dec:12 };
+
+/**
+ * Two date shapes, because GCs export from two different tools:
+ *   M/D/YY      — MS Project / Excel exports
+ *   DD-Mon-YY   — Primavera P6, which is what most large GCs actually send
+ *                 ("07-Oct-24 A", "26-Aug-27*" — the A and asterisk are P6's
+ *                 actual/constraint markers, not part of the date)
+ *
+ * Only the slash form was matched until 2026-08-19, so on a P6 schedule this
+ * pass found its keyword rows, found no date on them, and returned zero
+ * milestones. It is meant to be the floor that survives an AI timeout — on the
+ * commonest schedule format the floor was nothing.
+ *
+ * One regex with an alternation, scanned left to right, so results stay in
+ * COLUMN order: callers rely on [start, finish].
+ */
 function datesInRow(row) {
   const out = [];
-  const re = /\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/g;
-  let m; while ((m = re.exec(row))) { const iso = toIso(m[1], m[2], m[3]); if (iso) out.push(iso); }
+  const re = /\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b|\b(\d{1,2})-([A-Za-z]{3})-(\d{2,4})\b/g;
+  let m;
+  while ((m = re.exec(row))) {
+    const iso = m[1] !== undefined
+      ? toIso(m[1], m[2], m[3])                        // M/D/YY
+      : toIso(MONTHS[m[5].toLowerCase()], m[4], m[6]); // DD-Mon-YY
+    if (iso) out.push(iso);
+  }
   return out; // [start, finish, ...] in column order
 }
 
@@ -154,8 +178,12 @@ export async function aiExtractMilestones(text, anthropic, ctx = {}) {
 // ── Deterministic fallback (keyword + date scan over rows) ─────────────────────
 const KW = {
   start: [/\bNTP\b/i, /notice to proceed/i, /mobiliz/i, /construction start/i],
-  mep:   [/meps?\s+trades/i, /\bMEP\b\s+rough/i, /mechanical rough/i, /overhead mechanical/i],
-  elec:  [/electrical rough/i, /overhead electrical/i],
+  // Both orders: schedules write "MEP Rough-In" and "Rough-In MEP" about equally.
+  // Deliberately still requires the word "rough" — matching bare "Electrical"
+  // would sweep up "Trench For Electrical" and "Submittals - Electrical Gear",
+  // which are not rough-ins.
+  mep:   [/meps?\s+trades/i, /\bMEP\b[\s-]*rough/i, /rough[\s-]*in\s+meps?\b/i, /mechanical rough/i, /overhead mechanical/i],
+  elec:  [/electrical rough/i, /rough[\s-]*in\s+electrical/i, /overhead electrical/i],
   tco:   [/\bTCO\b/i, /temp(?:orary)? c\.?o\.?/i, /temporary certificate of occupanc/i],
   end:   [/turnover keys/i, /owners?\s+walk/i, /final completion/i, /substantial completion/i, /owner move/i],
 };

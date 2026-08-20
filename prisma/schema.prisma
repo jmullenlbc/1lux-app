@@ -549,6 +549,7 @@ model ProjectData {
   grossSf             Float?
   unitsSf             Float?
   numUnits            Int?
+  numBuildings        Int?
   numBedrooms         Int?
   numBalconies        Int?
   numBathrooms        Int?
@@ -561,6 +562,12 @@ model ProjectData {
   numCarports       Int?
   numGarages        Int?
   numExteriorDoors  Int?
+
+  // Drawing-takeoff counts (Phase 1, 2026-08-12). Filled by the drawing
+  // parser (Phase 2), correctable on the Dashboard Counts panel — deliberately
+  // NOT wizard questions (Mike: "filled out in an automated way").
+  numElevatorShafts Int?
+  numFloors         Int?
 
   exteriorAmenitySf   Float?
   lotSf               Float?
@@ -2309,4 +2316,62 @@ model ConceptualSubmission {
   client      Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
   reviewedBy  User?    @relation("SubmissionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
   duplicateMatch Project? @relation("SubmissionDuplicateMatch", fields: [duplicateMatchId], references: [id], onDelete: SetNull)
+}
+
+// Governed AI Layer, Slice 4b — one row per reviewable AI run: what the model
+// said, what the auto-checks found, and what a person decided. The accuracy
+// record that agentTrust.js computes tiers from.
+//
+// Purely additive. Column names/types are the contract already enforced by
+// src/lib/agent/reviewStore.js (buildRow) — the store detects this model and
+// switches itself from the dev file stand-in to these rows automatically.
+//
+// projectId/userId are indexed strings, deliberately NOT hard relations: the
+// accuracy record must outlive the things it measured (a cascading delete of a
+// project must never erase verdict history the trust tiers are computed from).
+model AgentRun {
+  id            String  @id @default(cuid())
+  taskType      String            // "extract.unitMatrix", ...
+  feature       String?           // "unit-matrix", ...
+  model         String?
+  promptVersion String?           // trust history is keyed to this
+  via           String  @default("app")
+
+  projectId    String?
+  clientId     String?
+  userId       String?
+  sourceFileId String?
+
+  inputTokens  Int?
+  outputTokens Int?
+  cachedTokens Int?
+  costUsd      Float?
+  latencyMs    Int?
+
+  inputSummary String?           // hash + descriptor ONLY — never the document
+  outputJson   String?           // JSON: the model's proposal, stored for review
+  confidence   Float?
+  citations    String?           // JSON
+
+  reviewable    Boolean  @default(true)
+  autoChecks    String?          // JSON: per-check results from autoChecks.js
+  autoCheckPass Boolean?         // null = all checks skipped, never coerced to true
+
+  // Write-once verdict — a signature. Enforced in reviewStore.recordVerdict
+  // via updateMany({ where: { id, verdict: null } }).
+  verdict     String?            // accepted | corrected | rejected
+  verdictById String?
+  verdictAt   DateTime?
+  correction  String?            // what the reviewer changed, human-readable
+  note        String?
+
+  status       String  @default("PENDING") // PENDING | AUTO_PASSED | AWAITING_REVIEW | CLOSED | ERROR
+  errorMessage String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([taskType, promptVersion])
+  @@index([status])
+  @@index([projectId])
 }

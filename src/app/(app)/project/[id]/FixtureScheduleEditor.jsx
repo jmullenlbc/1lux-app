@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import FixtureImportModal from './FixtureImportModal';
 import PushToBidModal from './PushToBidModal';
+import { oversizeMessage, uploadErrorMessage } from '@/lib/uploadErrorMessage';
 
 // ── Location tags — matches Peer Review Matrix exactly ───────────────────────
 const LOCATION_TAGS = [
@@ -225,6 +226,8 @@ function ParseFromPdfModal({ projectId, onParsed, onClose }) {
 
   async function doParse() {
     if (!file) return;
+    const tooBig = oversizeMessage(file);
+    if (tooBig) { setError(tooBig); return; }
     setParsing(true);
     setError(null);
     try {
@@ -234,6 +237,7 @@ function ParseFromPdfModal({ projectId, onParsed, onClose }) {
         method: 'POST',
         body: fd,
       });
+      if (!res.ok) throw new Error(await uploadErrorMessage(res, file));
       const data = await res.json();
       if (data.error && data.importedCount === 0) {
         setError(data.error);

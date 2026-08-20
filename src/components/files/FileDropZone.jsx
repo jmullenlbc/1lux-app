@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, useCallback, useMemo } from 'react';
 import PdfViewerModal from '@/components/ui/PdfViewerModal';
+import { oversizeMessage, uploadErrorMessage, uploadThrowMessage } from '@/lib/uploadErrorMessage';
 
 // Flat tag list used for filter chips and ordering
 const TAB_TAGS = {
@@ -178,6 +179,7 @@ export default function FileDropZone({ projectId, tab, initialFiles = [], onFile
   const [activeTag,    setActiveTag]    = useState(null);
   const [aiFilter,     setAiFilter]     = useState(null); // null | 'readable' | 'unreadable'
   const [viewingFile,  setViewingFile]  = useState(null);
+  const [uploadErrors, setUploadErrors] = useState([]); // [{ id, msg }] — shown until dismissed
   const inputRef = useRef(null);
 
   const acceptsSpreadsheet = tab === 'takeoffs' || tab === 'contracts';
@@ -205,16 +207,29 @@ export default function FileDropZone({ projectId, tab, initialFiles = [], onFile
 
   async function doUpload(file, tags) {
     const uid  = `${Date.now()}-${Math.random()}`;
+    // Never let a failure be silent — say what went wrong and what to do about it.
+    const fail = (msg) => setUploadErrors(prev => [...prev, { id: uid, msg }]);
+
+    const tooBig = oversizeMessage(file);
+    if (tooBig) { fail(tooBig); return; }
+
     setUploading(prev => [...prev, { id: uid, name: file.name }]);
     const form = new FormData();
     form.append('file', file);
     form.append('tab',  tab);
     if (tags?.length) form.append('tags', JSON.stringify(tags));
     try {
-      const res  = await fetch(`/api/projects/${projectId}/files`, { method: 'POST', body: form });
-      const data = await res.json();
-      if (res.ok) { setFiles(prev => [data.file, ...prev]); onFileAdded?.(data.file, data.contractUpdate ?? null, data.scheduleUpdate ?? null, data.designScheduleUpdate ?? null); }
-    } catch {}
+      const res = await fetch(`/api/projects/${projectId}/files`, { method: 'POST', body: form });
+      if (res.ok) {
+        const data = await res.json();
+        setFiles(prev => [data.file, ...prev]);
+        onFileAdded?.(data.file, data.contractUpdate ?? null, data.scheduleUpdate ?? null, data.designScheduleUpdate ?? null);
+      } else {
+        fail(await uploadErrorMessage(res, file));
+      }
+    } catch (e) {
+      fail(uploadThrowMessage(e, file));
+    }
     setUploading(prev => prev.filter(u => u.id !== uid));
   }
 
@@ -331,6 +346,25 @@ export default function FileDropZone({ projectId, tab, initialFiles = [], onFile
               </svg>
               <span className="truncate">{u.name}</span>
               <span className="ml-auto shrink-0 text-amber-500">Extracting text…</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Upload failures — stay on screen until dismissed so nothing fails silently */}
+      {uploadErrors.length > 0 && (
+        <div className="mt-3 space-y-1">
+          {uploadErrors.map(err => (
+            <div key={err.id} className="flex items-start gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+              <svg className="w-3.5 h-3.5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              </svg>
+              <span className="flex-1">{err.msg}</span>
+              <button
+                onClick={() => setUploadErrors(prev => prev.filter(e => e.id !== err.id))}
+                className="shrink-0 text-red-400 hover:text-red-600 font-bold leading-none"
+                title="Dismiss"
+              >×</button>
             </div>
           ))}
         </div>

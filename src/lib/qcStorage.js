@@ -65,7 +65,10 @@ function getLocalUrl(key) {
 // If both env vars are absent, we fall back to the default chain — that's
 // the path that works once a proper SSR compute role is set up (planned
 // for the security pass).
-function s3Client() {
+// Exported for uploadStorage.js (direct-to-S3 uploads) — one place owns the
+// credential fallback logic, so a future switch to an SSR compute role is a
+// one-file change.
+export function s3Client() {
   const region = process.env.S3_REGION || 'us-east-2';
   const id     = process.env.S3_ACCESS_KEY_ID;
   const secret = process.env.S3_SECRET_ACCESS_KEY;

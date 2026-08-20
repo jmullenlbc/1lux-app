@@ -19,6 +19,7 @@ const TAB_LABELS = {
   designInfo:     'Design Info',
   takeoffs:       'Takeoffs',
   budgets:        'Budgets',
+  'site-plan':    'Site Plan',
 };
 
 function fmt(val) {
@@ -211,7 +212,7 @@ export async function POST(request, { params }) {
   budgetLines.push(`    Surface parking:  ${fmt(s.exterior?.parking?.product)}`);
   budgetLines.push(`    Carports:         ${fmt(s.exterior?.carports?.product)}`);
   budgetLines.push(`    Garages:          ${fmt(s.exterior?.garages?.product)}`);
-  budgetLines.push(`    Exterior doors:   ${fmt(s.exterior?.doors?.product)}`);
+  budgetLines.push(`    Bldg wallpacks:   ${fmt(s.exterior?.wallpacks?.product)}`);
   budgetLines.push(`    Landscape/adder:  ${fmt(s.exterior?.landscape?.product)}`);
   budgetLines.push(`    5% misc buffer:   ${fmt(s.exterior?.misc?.product)}`);
   budgetLines.push(`  Emergency Lighting: ${fmt(s.emergency?.product)}`);

@@ -122,9 +122,14 @@ export function detectInjection(text) {
  * keeping the document.
  */
 export function summariseInput(text, descriptor = 'document') {
-  const src = typeof text === 'string' ? text : '';
+  // Buffers are accepted so a vision input (a rendered drawing page) can be
+  // fingerprinted by its bytes. Before this, a Buffer fell through to '' and
+  // every image in the app hashed identically — a summary that cannot tell two
+  // documents apart is worse than no summary, because it looks like one.
+  const src = typeof text === 'string' || Buffer.isBuffer(text) ? text : '';
   const hash = createHash('sha256').update(src).digest('hex').slice(0, 16);
-  return `sha256:${hash} (${descriptor}, ${src.length} chars)`;
+  const unit = Buffer.isBuffer(src) ? 'bytes' : 'chars';
+  return `sha256:${hash} (${descriptor}, ${src.length} ${unit})`;
 }
 
 /**

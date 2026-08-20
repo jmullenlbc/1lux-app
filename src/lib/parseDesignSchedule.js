@@ -64,7 +64,7 @@ Rules:
 - Only include milestones that are explicitly in the schedule — do NOT guess or invent dates
 - Use milestone/finish dates, not start dates for phase-duration rows
 - Return [] if no recognizable milestone dates are found
-- Dates may appear as M/D/YY, MM/DD/YYYY, or Mon D/D/YY format`;
+- Dates may appear as M/D/YY, MM/DD/YYYY, Mon D/D/YY, or Primavera P6's DD-Mon-YY ("07-Oct-24"). A trailing "A" means the date is actual, and a trailing "*" is a constraint marker — neither is part of the date.`;
 
   // The schedule is the architect's export, not ours. It used to be appended to
   // the prompt under a "Schedule text:" label, which is a label, not a boundary.

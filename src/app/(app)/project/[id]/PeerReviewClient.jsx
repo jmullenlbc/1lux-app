@@ -4,6 +4,7 @@ import BudgetQCStrip from '@/components/budgetQC/BudgetQCStrip';
 import PriceAlertBadge from '@/components/pricing/PriceAlertBadge';
 import RetailPriceDot from '@/components/pricing/RetailPriceDot';
 import Link from 'next/link';
+import { oversizeMessage } from '@/lib/uploadErrorMessage';
 
 // ── Location Tags ─────────────────────────────────────────────────────────────
 
@@ -212,6 +213,8 @@ function ImportModal({ projectId, onImported, onClose }) {
       setError('Please upload a PDF file.');
       return;
     }
+    const tooBig = oversizeMessage(file);
+    if (tooBig) { setError(tooBig); return; }
     setFileName(file.name);
     setError(null);
     setStep('parsing');

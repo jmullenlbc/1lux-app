@@ -27,6 +27,11 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
     fans:               responses.fans               || 'none',
     vanity:             responses.vanity             || 'bathBarLow',
     balcony:            responses.balcony            || 'none',
+    // ── Per-project price overrides (blank = use the master price sheet) ──
+    kitchenPendantsPrice: responses.kitchenPendantsPrice ?? '',
+    fansPrice:            responses.fansPrice            ?? '',
+    vanityPrice:          responses.vanityPrice          ?? '',
+    balconyPrice:         responses.balconyPrice         ?? '',
     // ── Design-only questions ────────────────────────────────────────────
     diskType:           responses.diskType           || 'flatEdgeLit',
     diskSize:           responses.diskSize           || '5inch',
@@ -53,6 +58,13 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
   }
 
   const hasFans         = ans.fans !== 'none';
+  // The master net adder per fan, mirroring the engine: design levels are gross so
+  // the disk credit comes off; the conceptual adder is already net.
+  const fanDiskCredit   = P.fans?.diskCredit ?? 35;
+  const fanLevelKey     = (ans.fanLevel && P.designFanLevels?.[ans.fanLevel]) ? ans.fanLevel : 'medium';
+  const fanMasterPerFan = P.designFanLevels?.[fanLevelKey] != null
+    ? Math.max(0, P.designFanLevels[fanLevelKey] - fanDiskCredit)
+    : P.fans.adderPerFan;
   const hasUndercab120v = ans.undercabinet === 'lineVoltage';
 
   const numUnits     = Number(projectData?.numUnits)    || 0;
@@ -262,6 +274,12 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
             ]}
             value={ans.kitchenPendants}
             onChange={v => set('kitchenPendants', v)}
+            override={{
+              value:       ans.kitchenPendantsPrice,
+              onChange:    v => set('kitchenPendantsPrice', v),
+              masterPrice: P.kitchenPendants[ans.kitchenPendants]?.product,
+              disabled:    ans.kitchenPendants === 'none',
+            }}
           />
 
         </div>
@@ -287,6 +305,14 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
             ]}
             value={ans.fans}
             onChange={v => set('fans', v)}
+            costSuffix="/unit"
+            override={{
+              value:       ans.fansPrice,
+              onChange:    v => set('fansPrice', v),
+              masterPrice: fanMasterPerFan,
+              suffix:      '/fan',
+              disabled:    !hasFans,
+            }}
           />
 
           {isDesign && hasFans && (
@@ -387,6 +413,13 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
             ]}
             value={ans.vanity}
             onChange={v => set('vanity', v)}
+            override={{
+              value:       ans.vanityPrice,
+              onChange:    v => set('vanityPrice', v),
+              masterPrice: vanNet(ans.vanity),
+              suffix:      '/vanity',
+              disabled:    ans.vanity === 'bathBarLow',
+            }}
           />
         </div>
       </div>
@@ -437,6 +470,13 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
               ]}
               value={ans.balcony}
               onChange={v => set('balcony', v)}
+              override={{
+                value:       ans.balconyPrice,
+                onChange:    v => set('balconyPrice', v),
+                masterPrice: P.balcony[ans.balcony]?.product,
+                suffix:      '/balcony',
+                disabled:    ans.balcony === 'none',
+              }}
             />
           </div>
         </div>

@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Card, { CardHeader, CardBody } from '@/components/ui/Card';
@@ -11,12 +11,13 @@ const FIELDS = [
       { key: 'grossSf',              label: 'Total Gross SF',                  type: 'number', placeholder: '150,000',  hint: 'Total gross square footage of the entire building' },
       { key: 'lotSf',                label: 'Lot Size Gross SF',               type: 'number', placeholder: '40,000',   hint: 'Total lot square footage' },
       { key: 'buildingFootprintSf',  label: 'Building Footprint Total Gross SF', type: 'number', placeholder: '20,000', hint: 'Footprint of building on lot. Lot minus footprint = exterior site area.' },
-      { key: 'numUnits',             label: '# of Units / Rooms',              type: 'number', placeholder: '120',      hint: 'Total residential unit count' },
+      { key: 'numUnits',             label: '# of Units / Rooms',              type: 'number', placeholder: '120',      hint: 'Total residential unit count. On a hotel, keys count as units.' },
+      { key: 'numBuildings',         label: '# of Buildings',                  type: 'number', placeholder: '7',        hint: 'Residential buildings on the site (not counting a standalone clubhouse). Drives building wallpack counts.' },
       { key: 'numBedrooms',          label: '# of Bedrooms',                   type: 'number', placeholder: '200',      hint: 'Total bedroom count across all units' },
       { key: 'numBalconies',         label: '# of Balconies',                  type: 'number', placeholder: '100',      hint: 'Total balcony count' },
       { key: 'numBathrooms',         label: '# of Bathrooms',                  type: 'number', placeholder: '200',      hint: 'Total bathroom count across all units' },
       { key: 'numVanities',          label: '# of Vanities',                   type: 'number', placeholder: '200',      hint: 'Usually equal to # of bathrooms' },
-      { key: 'numEgressStairwells',  label: '# of Egress Stairwell Landings',  type: 'number', placeholder: '30',       hint: 'Each landing counts separately. Add 20% on top.' },
+      { key: 'numEgressStairwells',  label: '# of Egress Stairwell Landings',  type: 'number', placeholder: '30',       hint: 'Count every landing, including the half-landing between floors: a stair serving 3 floors has 3 floor landings + 2 in-between = 5. Every landing gets a light. Add 20% on top.' },
       { key: 'numFans',              label: '# of Ceiling Fans',               type: 'number', placeholder: '14',       hint: 'Total fan count — overrides unit-mix calculation. Leave blank to auto-calculate.' },
       { key: 'numAccentDownlights',  label: '# of Recessed Downlight Accents', type: 'number', placeholder: '40',       hint: 'Adjustable recessed accents in corridors. $160 ea (1-hr fire rated).' },
     ],
@@ -34,7 +35,7 @@ const FIELDS = [
       { key: 'unitsSf',           label: 'Units Gross SF',           type: 'number', placeholder: '95,000',  hint: 'Residential units only — used for base $0.38/SF calculation' },
       { key: 'garageSf',          label: 'Enclosed Garage SF',       type: 'number', placeholder: '25,000',  hint: '0 if no enclosed garage' },
       { key: 'bohSf',             label: 'BOH / Core + Shell SF',    type: 'number', placeholder: '8,000',   hint: 'Mechanical, storage, bike room, trash, etc.' },
-      { key: 'corridorSf',        label: 'Corridor SF',              type: 'number', placeholder: '18,000' },
+      { key: 'corridorSf',        label: 'Corridor SF',              type: 'number', placeholder: '18,000', hint: 'Enclosed corridors and stairwells — or open-air breezeways on a walk-up' },
       { key: 'interiorAmenitySf', label: 'Interior Amenity SF',      type: 'number', placeholder: '5,000',   hint: 'Lobby, clubhouse, fitness, co-working, etc.' },
       { key: 'exteriorAmenitySf', label: 'Exterior Amenity SF',      type: 'number', placeholder: '8,000',   hint: 'Pool deck, courtyards, terraces, and other outdoor gathering areas' },
     ],
@@ -72,6 +73,27 @@ export default function ProjectDataSection({ projectId, projectData, responses =
     return f;
   });
   const [dirty, setDirty] = useState(() => new Set());
+
+  // Reflect numbers written from OUTSIDE this form — a drawing upload
+  // committing to Project Info while this section is on screen. The form was
+  // initialized once from the mount-time prop, so without this an upload's
+  // numbers only appear after a full reload. Fields the user is mid-edit on
+  // (in `dirty`) are left alone: an extractor must not eat unsaved typing.
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
+  useEffect(() => {
+    setForm(f => {
+      const next = { ...f };
+      FIELDS.forEach(g => g.fields.forEach(field => {
+        if (dirtyRef.current.has(field.key)) return;
+        const raw = projectData?.[field.key];
+        next[field.key] = (PCT_FIELDS.has(field.key) && raw != null && raw !== '')
+          ? (parseFloat(raw) * 100).toFixed(1).replace(/\.0$/, '')
+          : raw ?? '';
+      }));
+      return next;
+    });
+  }, [projectData]);
   const [qAnswers, setQAnswers] = useState({
     buyHold:          responses.buyHold          || '',
     switchesDimmers:  responses.switchesDimmers  || '',

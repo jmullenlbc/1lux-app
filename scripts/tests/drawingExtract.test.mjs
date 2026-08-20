@@ -122,6 +122,59 @@ test('overall confidence averages across files', () => {
   assert.ok(Math.abs(m.overallConfidence - 0.9) < 1e-9);
 });
 
+// ─── SITE DATA IN THE MERGE ─────────────────────────────────────────────────
+// A vision-read site plan arrives as { kind: 'site_data', siteData, unitTypes: [] }.
+// Before 2026-08-16 the merge silently dropped siteData — the visitor was told
+// their site plan was read while its numbers went nowhere.
+
+const site = (fields, conf = 0.9) => ({
+  kind: 'site_data', unitTypes: [],
+  siteData: { confidence: conf, notes: '', ...fields },
+});
+
+test('a site-plan read survives the merge', () => {
+  const m = mergeProposals([
+    { fileName: 'site.pdf', proposal: site({ lotSf: 435600, surfaceParking: 96, buildingCount: 7 }) },
+  ]);
+  assert.equal(m.siteData.lotSf, 435600);
+  assert.equal(m.siteData.surfaceParking, 96);
+  assert.equal(m.siteData.buildingCount, 7);
+  assert.deepEqual(m.siteData.sources, ['site.pdf']);
+});
+
+test('site plan + unit matrix merge into one proposal carrying both', () => {
+  const m = mergeProposals([
+    { fileName: 'matrix.xlsx', proposal: p([{ code: 'A1', qty: 240, confidence: 0.9 }]) },
+    { fileName: 'site.pdf',    proposal: site({ lotSf: 435600 }) },
+  ]);
+  assert.equal(m.unitTypes[0].qty, 240);
+  assert.equal(m.siteData.lotSf, 435600);
+  assert.deepEqual(m.sources, ['matrix.xlsx', 'site.pdf']);
+});
+
+test('disagreeing site reads keep the first and record a conflict', () => {
+  const m = mergeProposals([
+    { fileName: 'a.pdf', proposal: site({ surfaceParking: 96 }) },
+    { fileName: 'b.pdf', proposal: site({ surfaceParking: 102 }) },
+  ]);
+  assert.equal(m.siteData.surfaceParking, 96, 'first non-null wins');
+  assert.equal(m.conflicts.filter(c => c.field === 'site surfaceParking').length, 1);
+});
+
+test('no site plan uploaded → siteData is null, not an empty object', () => {
+  const m = mergeProposals([
+    { fileName: 'matrix.xlsx', proposal: p([{ code: 'A1', qty: 10, confidence: 0.9 }]) },
+  ]);
+  assert.equal(m.siteData, null);
+});
+
+test('site-only uploads still produce an overall confidence', () => {
+  const m = mergeProposals([
+    { fileName: 'site.pdf', proposal: site({ lotSf: 1000 }, 0.8) },
+  ]);
+  assert.equal(m.overallConfidence, 0.8);
+});
+
 test('empty input and null proposals are safe', () => {
   const empty = mergeProposals([]);
   assert.deepEqual(empty.unitTypes, []);
@@ -130,4 +183,75 @@ test('empty input and null proposals are safe', () => {
   const withNull = mergeProposals([{ fileName: 'x.pdf', proposal: null }]);
   assert.deepEqual(withNull.unitTypes, []);
   assert.deepEqual(withNull.sources, []);
+});
+
+// ─── GROSS SF TRAVELS AS A BUNDLE ───────────────────────────────────────────
+// The number and the verdict about what the number MEANS have to stay attached.
+// Merging them field-by-field would pair one file's square footage with another
+// file's basis — a number and an explanation of a different number.
+
+const withGross = (sf, basis, conf, extra = {}) => ({
+  unitTypes: [],
+  projectTotals: {
+    grossInteriorSf: sf, grossSfBasis: basis, grossSfConfidence: conf,
+    grossSfStated: sf, grossSfAdjusted: false, grossSfNeedsReview: conf < 0.75,
+    grossSfSummary: `${basis} @ ${conf}`, garageSf: null, corridorSf: null,
+    statedTotalUnits: null, buildingType: null, ...extra,
+  },
+  overallConfidence: 0.9,
+});
+
+test('gross SF: the higher-confidence read wins, not the first one', () => {
+  const m = mergeProposals([
+    { fileName: 'bigset.pdf',  proposal: withGross(221022, 'code',  0.55) },
+    { fileName: 'areaplan.pdf', proposal: withGross(233050, 'gross', 0.95) },
+  ]);
+  assert.equal(m.projectTotals.grossInteriorSf, 233050, 'the confident sheet wins');
+  assert.equal(m.projectTotals.grossSfFile, 'areaplan.pdf');
+});
+
+test('gross SF: the whole verdict moves together with the value', () => {
+  const m = mergeProposals([
+    { fileName: 'bigset.pdf',   proposal: withGross(221022, 'code',  0.55) },
+    { fileName: 'areaplan.pdf', proposal: withGross(233050, 'gross', 0.95) },
+  ]);
+  // Every metadata field must describe the WINNING file, never a mix.
+  assert.equal(m.projectTotals.grossSfBasis, 'gross');
+  assert.equal(m.projectTotals.grossSfConfidence, 0.95);
+  assert.equal(m.projectTotals.grossSfNeedsReview, false);
+  assert.equal(m.projectTotals.grossSfSummary, 'gross @ 0.95');
+});
+
+test('gross SF: disagreement is still recorded as a conflict', () => {
+  const m = mergeProposals([
+    { fileName: 'a.pdf', proposal: withGross(221022, 'code',  0.55) },
+    { fileName: 'b.pdf', proposal: withGross(233050, 'gross', 0.95) },
+  ]);
+  assert.equal(m.conflicts.filter(c => c.field === 'grossInteriorSf').length, 1);
+});
+
+test('gross SF: agreeing files raise no conflict', () => {
+  const m = mergeProposals([
+    { fileName: 'a.pdf', proposal: withGross(233050, 'gross', 0.9) },
+    { fileName: 'b.pdf', proposal: withGross(233050, 'gross', 0.8) },
+  ]);
+  assert.equal(m.conflicts.filter(c => c.field === 'grossInteriorSf').length, 0);
+  assert.equal(m.projectTotals.grossInteriorSf, 233050);
+});
+
+test('gross SF: a low-confidence lone read still fills the field and stays flagged', () => {
+  const m = mergeProposals([
+    { fileName: 'only.pdf', proposal: withGross(180000, 'unknown', 0.2) },
+  ]);
+  assert.equal(m.projectTotals.grossInteriorSf, 180000, 'filled');
+  assert.equal(m.projectTotals.grossSfNeedsReview, true, 'and flagged');
+});
+
+test('gross SF: files without it do not clobber the file that has it', () => {
+  const m = mergeProposals([
+    { fileName: 'nogross.pdf', proposal: p([{ code: 'A1', qty: 10, confidence: 0.9 }]) },
+    { fileName: 'gross.pdf',   proposal: withGross(233050, 'gross', 0.9) },
+  ]);
+  assert.equal(m.projectTotals.grossInteriorSf, 233050);
+  assert.equal(m.projectTotals.grossSfBasis, 'gross');
 });

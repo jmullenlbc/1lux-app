@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import PdfViewerModal from '@/components/ui/PdfViewerModal';
 import DrawingMarkupModal from '@/components/drawing/DrawingMarkupModal';
+import { UPLOAD_LIMIT_BYTES } from '@/lib/uploadErrorMessage';
 
 const PHASE_TAGS = ['SD', 'DD', 'CD', 'IFC', 'ASI', 'RFI', 'OTHER'];
 
@@ -102,6 +103,13 @@ function UploadModal({ projectId, onUploaded, onClose }) {
 
   async function doUpload() {
     if (files.length === 0) { setError('Please select at least one PDF file.'); return; }
+    // All the files go up in ONE request, so it is the combined size that has to
+    // clear the server's 4 MB ceiling — not each file on its own.
+    const total = files.reduce((sum, f) => sum + f.size, 0);
+    if (total > UPLOAD_LIMIT_BYTES) {
+      setError(`These ${files.length} file${files.length !== 1 ? 's' : ''} add up to ${(total / (1024 * 1024)).toFixed(1)} MB. The server can only accept 4 MB at a time — upload them in smaller batches.`);
+      return;
+    }
     setUploading(true);
     setError(null);
     try {

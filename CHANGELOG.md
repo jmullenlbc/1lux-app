@@ -5,6 +5,181 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Primavera schedules, and the second file-storage gap] · August 19, 2026
+
+*Pre-deploy pass. Mike asked for full testing and debugging before shipping the
+drag-and-drop work. Three real bugs came out of it — one of them live in
+production right now — plus the resolution of a file that had two versions.*
+
+### Primavera P6 dates were invisible to the schedule reader — `scheduleExtract.js`
+
+`extractMilestones()` is the deterministic floor under the construction-schedule
+import: it scans the PDF text for keyword rows and pulls the dates off them, so
+that if the AI pass times out or is unavailable the import still returns
+something. It matched exactly one date shape:
+
+```js
+/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/g     // 8/26/27
+```
+
+That is the MS Project / Excel format. Most large GCs export from **Primavera
+P6**, which writes `07-Oct-24` — and appends `A` for an actual date or `*` for a
+constraint. On a P6 schedule the scan found its keyword rows, found no dates on
+them, and returned **zero milestones**. The safety floor was nothing, on the
+commonest schedule format in the industry.
+
+One regex with an alternation now matches both, scanned left to right so results
+stay in **column** order (callers depend on `[start, finish]`):
+
+```js
+const re = /\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b|\b(\d{1,2})-([A-Za-z]{3})-(\d{2,4})\b/g;
+```
+
+`toIso()` now returns `null` on an unrecognised three-letter month, so
+`12-Bld-25` is not silently read as a date. The AI prompt in
+`parseDesignSchedule.js` was given the same rule, including the meaning of the
+trailing `A` and `*`.
+
+Two smaller misses in the same file: the rough-in keyword sets only matched
+`MEP Rough-In` and not `Rough-In MEP` (schedules write it both ways about
+equally), and `scheduleExtract.js` imported through the `@/` alias, which is a
+Next.js/webpack feature — so the module could not be loaded by the plain test
+runner and had **no tests at all**. De-aliased, then covered:
+`scripts/tests/scheduleExtract.test.mjs`, 11 tests, including the negative case
+that bare "Electrical" must NOT count as a rough-in (it would sweep up
+"Trench For Electrical" and "Submittals - Electrical Gear").
+
+### Site-plan parsing was reading a disk that no longer holds the files — `site/parse`
+
+When project file storage moved to S3 (`6ac9bfb`), every reader had to switch
+from the Lambda's own disk to `getProjectFileBuffer()`. One did not:
+`src/app/api/projects/[id]/site/parse/route.js` still did
+`readFile(path.join(process.cwd(), 'uploads', file.storedPath))`. In production
+that path is empty, so site-plan parsing has been failing since that deploy.
+Fixed, and with a real message — "That file is no longer available. Re-upload the
+site plan and try again." — instead of a generic render failure. A sweep of
+every file that queries `prisma.projectFile` now shows **zero** remaining
+local-disk reads.
+
+### Unit-matrix parse route: two versions reconciled
+
+`unit-matrix/parse/route.js` had uncommitted local work that predated the S3
+migration, so it read from local disk, while the deployed version read from S3.
+Saving either one alone would have lost the other. Merged by hand: **Sean's
+storage layer** (`getProjectFileBuffer`) plus **both local features** — the
+page-boundary re-read that stops "ACTUAL AREA" / "AVG AREA" / "GROSS SF" from
+cancelling each other out in one flat blob, and the governance block that logs
+the run through `submitAgentOutput()` and returns a `review` handle.
+
+### Verified against real files before shipping
+
+Every server-side PDF path was exercised against PDFs already on disk — including
+the 84-page Marmalade construction schedule (309,972 characters read). Text
+extraction, page-boundary extraction, drawing text, and page rendering all pass.
+
+S3 was checked from outside the app the way a browser would: a preflight from
+`app.ilcstudios.com` with `PUT` returns 200 with the origin echoed back,
+`evil.example.com` returns 403, and an unauthenticated bucket listing returns
+403. **CORS is live and correctly scoped.** The bucket lifecycle rule and the IAM
+policy cannot be verified from this machine — no AWS credentials here — so those
+two remain unconfirmed rather than assumed.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| Production build | clean |
+| Runtime-asset guard | 26 / 26 present |
+| `check-dynamic-pages` | 55 / 55 pages OK |
+| `check-migrations-postgres` | 56 / 56 migrations Postgres-safe |
+| `check-schema-migrations-sync` | 117 / 117 models |
+| Full test suite | 417 / 417 passing |
+| Bid matrix logic | 12 / 12 |
+
+Pending migrations `0054`–`0056` are purely additive: a new `AgentRun` table and
+three nullable columns (`numBuildings`, `numElevatorShafts`, `numFloors`).
+
+### Files changed
+
+- `src/lib/scheduleExtract.js` — P6 dates, month validation, reversed rough-in wording, de-aliased imports
+- `src/lib/parseDesignSchedule.js` — P6 date format added to the AI prompt
+- `src/app/api/projects/[id]/site/parse/route.js` — S3 read (prod bug fix)
+- `src/app/api/projects/[id]/unit-matrix/parse/route.js` — merged storage + features
+- `scripts/tests/scheduleExtract.test.mjs` — new, 11 tests
+- `package.json` — new test registered in `verify:units`
+
+---
+
+## [Every drag-and-drop window audited — no more silent upload failures] · August 19, 2026
+
+*Follow-on to the PDF outage. Mike asked for a full pass over every drag-and-drop
+window in the app. 21 components were audited; 6 turned out to be card-reordering,
+not uploads (CRM kanban, dashboard widgets, home widgets, priority stack, markup
+modal, fixture-row reorder). The remaining 15 are real file drops, and the audit
+found a failure mode worse than the PDF bug: **most of them failed completely
+silently.***
+
+### The silent-failure bug
+
+The two most-used drop zones — the project Files panel (`FileDropZone`, used on
+Drawings / Submittals / Meetings / Takeoffs / Contracts / Budgets) and the
+Project Hub tabs — both did this:
+
+```js
+try {
+  const res = await fetch(...);
+  if (res.ok) { ...show the file... }   // ← no else
+} catch {}                              // ← swallowed
+```
+
+Every possible failure — the 4 MB host size cap, an expired session, a server
+error, a dropped connection — produced the exact same result on screen: the
+spinner disappeared and the file simply never showed up. There was nothing to
+read, nothing to retry, and no way to tell "too big" from "log back in", which
+need completely different responses from the user.
+
+Two more had no `try/catch` around the upload at all (`ShipScheduleImport`, both
+its parse and its commit), so a rejected upload threw inside `res.json()` — the
+body is empty on a 413 — and the spinner span forever with no message.
+
+Two others (`SiteDataUpload`, `UnitMatrixUpload`) said **"Upload failed. Please
+try again."** for a file over the cap, which is actively wrong advice: retrying
+the same file never works.
+
+### The fix
+
+- **New `src/lib/uploadErrorMessage.js`** — one place that turns a failed upload
+  into one honest sentence. Checks size *before* sending (so the user isn't made
+  to wait through an upload that was always going to fail), names the file and its
+  real size, distinguishes "too big" / "session expired" / "server said N", and
+  never returns an empty message.
+- Every upload drop zone now surfaces failures on screen in a dismissible red
+  banner instead of discarding them:
+  `FileDropZone`, `ProjectHubClient`, `ContractsPanel`, `DrawingsTab`,
+  `FixtureScheduleTab`, `FixtureScheduleEditor`, `PeerReviewClient`,
+  `SiteDataUpload`, `UnitMatrixUpload`, `ShipScheduleImport`,
+  `admin/import`, `knowledge-base/lpd-check`.
+- The multi-file drop zones (`DrawingsTab`, `admin/import`) check the **combined**
+  size, because all the files go up in one request — it is the total that has to
+  clear the cap, not each file.
+- Dropping a non-PDF on a PDF-only Project Hub tab used to do nothing at all with
+  no explanation; it now says so.
+- `scripts/tests/uploadErrorMessage.test.mjs` — 11 tests pinning the messages,
+  including "every message ends up a non-empty string", which is the bug itself.
+
+### Verified
+
+Production build clean · `check-runtime-assets` 26/26 · unit suite **406/406**
+(395 existing + 11 new) · budget math 53/53 · fuzz 0 failures · bid matrix 12/12.
+
+### Not changed
+
+`PipelineTab` and `FixtureImportModal` parse their spreadsheet in the browser and
+post rows as JSON — no file upload, nothing to guard. Card-reordering drag-drop
+was left alone.
+
+---
+
 ## [The server could not read ANY PDF in production] · August 19, 2026
 
 *Not deployed. Mike dropped a construction schedule on Zenith on 25th and got no

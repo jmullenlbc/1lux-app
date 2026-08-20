@@ -8,6 +8,7 @@ const QUESTIONNAIRE_SYNC = {
   grossSf:            { section: 'project-data', key: 'grossSf' },
   unitsSf:            { section: 'project-data', key: 'unitsSf' },
   numUnits:           { section: 'project-data', key: 'numUnits' },
+  numBuildings:       { section: 'project-data', key: 'numBuildings' },
   numBedrooms:        { section: 'project-data', key: 'numBedrooms' },
   numBathrooms:       { section: 'project-data', key: 'numBathrooms' },
   numVanities:        { section: 'project-data', key: 'numVanities' },
@@ -37,13 +38,21 @@ const QUESTIONNAIRE_SYNC = {
   exitSignsManualAdder: { section: 'project-data', key: 'exitSignsManualAdder' },
 };
 
+// Drawing-takeoff counts (Phase 1, 2026-08-12): saveable from the Dashboard's
+// Counts panel and (later) the drawing parser, but deliberately NOT wizard
+// questions — so they are not in QUESTIONNAIRE_SYNC and never sync to the
+// questionnaire. Mike: these get "filled out in an automated way".
+const NON_QUESTIONNAIRE_FIELDS = ['numElevatorShafts', 'numFloors'];
+
 const FIELD_LABELS = {
   grossSf: 'Total Gross SF', unitsSf: 'Units SF', numUnits: '# Units',
+  numBuildings: '# Buildings',
   numBedrooms: '# Bedrooms', numBalconies: '# Balconies', numBathrooms: '# Bathrooms',
   numVanities: '# Vanities', numEgressStairwells: '# Stairwell Landings',
   numFans: '# of Fans', numAccentDownlights: '# Accent Downlights',
   numSurfaceParking: '# Surface Parking',
   numCarports: '# Carports', numGarages: '# Garages', numExteriorDoors: '# Exterior Doors',
+  numElevatorShafts: '# Elevator Shafts', numFloors: '# Floors',
   corridorSf: 'Corridor SF', garageSf: 'Garage SF', interiorAmenitySf: 'Interior Amenity SF',
   exteriorAmenitySf: 'Exterior Amenity SF', bohSf: 'BOH SF', lotSf: 'Lot SF',
   buildingFootprintSf: 'Building Footprint SF',
@@ -67,7 +76,7 @@ export async function PUT(request, { params }) {
 
   const body = await request.json();
 
-  const numericFields = Object.keys(QUESTIONNAIRE_SYNC);
+  const numericFields = [...Object.keys(QUESTIONNAIRE_SYNC), ...NON_QUESTIONNAIRE_FIELDS];
 
   // Preserve-on-blank semantics: skip fields that arrive as undefined,
   // null, or empty string. Treats blanks as "no change" rather than

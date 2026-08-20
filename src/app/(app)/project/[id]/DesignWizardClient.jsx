@@ -10,6 +10,7 @@ import ExteriorSection                 from '@/components/sections/ExteriorSecti
 import ControlsSection                 from '@/components/sections/ControlsSection';
 import BudgetSidebar                   from '@/components/wizard/BudgetSidebar';
 import SectionNav                      from '@/components/wizard/SectionNav';
+import QuestionnaireUploads            from '@/components/wizard/QuestionnaireUploads';
 import DesignUnitsSection              from '@/components/sections/design/DesignUnitsSection';
 import DesignGarageSection             from '@/components/sections/design/DesignGarageSection';
 import DesignCorridorsSection          from '@/components/sections/design/DesignCorridorsSection';
@@ -76,6 +77,15 @@ export default function DesignWizardClient({ project, projectData, initialSectio
       setSaving(false);
     }
   }
+
+  // A drawing upload committed to Project Info. The commit route returns the
+  // fresh ProjectData row, so the form and the live budget pick it up here —
+  // no reload, and no second fetch.
+  const handleDrawingCommit = useCallback((newPD) => {
+    if (!newPD) return;
+    setLocalPD(newPD);
+    recalculate(newPD, sections);
+  }, [recalculate, sections]);
 
   async function saveResponses(section, responses) {
     setSaving(true);
@@ -189,13 +199,20 @@ export default function DesignWizardClient({ project, projectData, initialSectio
           {/* Section content */}
 
           {currentStep === 'project-data' && (
-            <ProjectDataSection
-              {...sharedProps}
-              responses={sections['project-data'] || {}}
-              allSections={sections}
-              onSaveData={saveProjectData}
-              onSaveResponses={(r) => saveResponses('project-data', r)}
-            />
+            <>
+              <QuestionnaireUploads
+                projectId={project.id}
+                projectData={localPD}
+                onProjectData={handleDrawingCommit}
+              />
+              <ProjectDataSection
+                {...sharedProps}
+                responses={sections['project-data'] || {}}
+                allSections={sections}
+                onSaveData={saveProjectData}
+                onSaveResponses={(r) => saveResponses('project-data', r)}
+              />
+            </>
           )}
 
           {currentStep === 'design-units' && (

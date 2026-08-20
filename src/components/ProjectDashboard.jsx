@@ -395,6 +395,7 @@ export default function ProjectDashboard({
           {/* ── Counts ── */}
           <Rule label="Counts" />
           <EditableStat label="# Units / Rooms"     displayValue={fmtNum(pd.numUnits)}            rawValue={pd.numUnits}            onSave={d('numUnits')} />
+          <EditableStat label="# Buildings"         displayValue={fmtNum(pd.numBuildings)}        rawValue={pd.numBuildings}        onSave={d('numBuildings')} />
           <EditableStat label="# Bedrooms"          displayValue={fmtNum(pd.numBedrooms)}         rawValue={pd.numBedrooms}         onSave={d('numBedrooms')} />
           <EditableStat label="# Bathrooms"         displayValue={fmtNum(pd.numBathrooms)}        rawValue={pd.numBathrooms}        onSave={d('numBathrooms')} />
           <EditableStat label="# Vanities"          displayValue={fmtNum(pd.numVanities)}         rawValue={pd.numVanities}         onSave={d('numVanities')} />
@@ -404,6 +405,11 @@ export default function ProjectDashboard({
           <EditableStat label="# Surface Parking"   displayValue={fmtNum(pd.numSurfaceParking)}   rawValue={pd.numSurfaceParking}   onSave={d('numSurfaceParking')} />
           <EditableStat label="# Carports"          displayValue={fmtNum(pd.numCarports)}         rawValue={pd.numCarports}         onSave={d('numCarports')} />
           <EditableStat label="# Exterior Doors"    displayValue={fmtNum(pd.numExteriorDoors)}    rawValue={pd.numExteriorDoors}    onSave={d('numExteriorDoors')} />
+          {/* Drawing-takeoff counts (Phase 1, 2026-08-12) — filled by the
+              drawing parser later; editable here, deliberately not wizard
+              questions. */}
+          <EditableStat label="# Elevator Shafts"   displayValue={fmtNum(pd.numElevatorShafts)}   rawValue={pd.numElevatorShafts}   onSave={d('numElevatorShafts')} />
+          <EditableStat label="# Floors"            displayValue={fmtNum(pd.numFloors)}           rawValue={pd.numFloors}           onSave={d('numFloors')} />
 
           {/* ── Budget / Rates ── */}
           <Rule label="Budget &amp; Rates" />

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import QuestionCard from './QuestionCard';
-import { formatCurrency } from '@/lib/calculations';
+import { formatCurrency, priceOverride } from '@/lib/calculations';
 import { PRICING } from '@/lib/pricing';
 import StandardsHint from '@/components/wizard/StandardsHint';
 
@@ -23,6 +23,11 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
     amenityLevel:      responses.amenityLevel      || 'medium',
     amenityHours:      responses.amenityHours      || 'beforeDusk',
     exteriorOverride:  responses.exteriorOverride  ?? '',
+    // Building wallpack overrides. 'auto' (not '') is the cleared state — see the
+    // OverrideBox note in QuestionCard.jsx: the responses store refuses to overwrite
+    // a real value with a blank, so clearing must write something non-blank.
+    wallpacksQty:      responses.wallpacksQty      ?? '',
+    wallpacksPrice:    responses.wallpacksPrice    ?? '',
     // Design-only
     exteriorEmergency: responses.exteriorEmergency || 'wallpack',
     exteriorPoleControl: responses.exteriorPoleControl || 'photocell',
@@ -77,12 +82,45 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
   const parkingProduct  = parkingFixtures * (sp.perFixture ?? 1325);
   const carportProduct  = Math.floor(carports / 2) * (P.exterior?.carport?.diskEveryOther ?? 30);
   const garageProduct   = numGarages * (P.exterior?.detachedGarage?.sconcePerDoor ?? 80);
-  // Every door averages one primary + one secondary sconce — matches the engine
-  // (avgDoorCost × doors) and the spreadsheet (doors/2 × primary + doors/2 × secondary).
-  const door = P.exterior?.exteriorDoor || {};
-  const doorProduct     = extDoors * ((door.primarySconce ?? 350) + (door.secondarySconce ?? 75)) / 2;
-  const subBeforeMisc   = amenityProduct + parkingProduct + carportProduct + garageProduct + doorProduct + autoLandscape;
-  const miscBuffer      = subBeforeMisc * (P.exterior?.miscBufferPct ?? 0.05);
+  // The old "exterior door sconces" line (doors × $212.50 avg) was deleted
+  // 2026-08-12 — Mike: same fixture as the building wallpacks below, so it was
+  // being counted twice. The door count itself still shows in the scope grid.
+
+  // Building wallpacks — mirrors the engine block in calculations.js exactly:
+  //   wallpacks = buildings × perBuilding[type] (+ clubhouse on horizontal types)
+  // The # of Buildings project field wins; walk-up types fall back to
+  // units ÷ unitsPerBuilding; vertical types are one building. Both overrides
+  // go through priceOverride(): blank/'auto' → the model, a real number → that.
+  const WPC             = P.exterior?.wallpacks || {};
+  const wpType          = projectData?.buildingTypeKey || 'midRise';
+  const wpPerBuilding   = WPC.perBuilding?.[wpType] ?? 0;
+  const wpIsWalkUp      = ['stackedFlats', 'garden', 'gurban'].includes(wpType);
+  const wpIsHorizontal  = wpIsWalkUp || ['singleFamily', 'townHouses'].includes(wpType);
+  const numBuildingsPD  = Number(projectData?.numBuildings) || 0;
+  const numUnitsPD      = Number(projectData?.numUnits)     || 0;
+  const wpBuildings     = numBuildingsPD > 0
+    ? numBuildingsPD
+    : wpIsWalkUp
+      ? Math.ceil(numUnitsPD / (WPC.unitsPerBuilding?.[wpType] ?? 24))
+      : 1;
+  const wpHasScale      = numBuildingsPD > 0 || numUnitsPD > 0;
+  const wpAutoQty       = wpHasScale
+    ? wpBuildings * wpPerBuilding + (wpIsHorizontal ? (WPC.clubhouse ?? 0) : 0)
+    : 0;
+  const wpQtyOv         = priceOverride(answers.wallpacksQty);
+  const wpPriceOv       = priceOverride(answers.wallpacksPrice);
+  const wpQty           = wpQtyOv   ?? wpAutoQty;
+  const wpEach          = wpPriceOv ?? (WPC.perFixture ?? 350);
+  const wallpackProduct = wpQty * wpEach;
+  const wpMath = !wpHasScale && wpQtyOv == null
+    ? 'no units or building count yet — $0'
+    : `${wpQtyOv != null ? `${wpQty} (manual)` : `${wpBuildings} bldg${wpBuildings === 1 ? '' : 's'} × ${wpPerBuilding}${wpIsHorizontal && (WPC.clubhouse ?? 0) > 0 ? ` + ${WPC.clubhouse} clubhouse` : ''} = ${wpQty}`} × $${wpEach.toLocaleString()}${wpPriceOv != null ? ' (manual)' : ''}`;
+
+  const subBeforeMisc   = amenityProduct + parkingProduct + carportProduct + garageProduct + wallpackProduct + autoLandscape;
+  // The buffer base includes the manual adder — matches the engine
+  // (extBufferBase = extSubBeforeMisc + exteriorManualTotal). This preview
+  // previously left the manual adder out of the buffer and understated it.
+  const miscBuffer      = (subBeforeMisc + manualTotal) * (P.exterior?.miscBufferPct ?? 0.05);
   const exteriorFormulaTotal = subBeforeMisc + miscBuffer;
 
   // Frozen formula breakdown lines (read-only, auto-calculated, math shown in text).
@@ -92,13 +130,13 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
     { label: 'Surface parking',       math: `${parking} stalls ÷ ${sp.stallsPerFixture ?? 9} = ${parkingFixtures} fixture${parkingFixtures === 1 ? '' : 's'} × $${(sp.perFixture ?? 1325).toLocaleString()}`, value: parkingProduct },
     { label: 'Carports',              math: `${carports} ÷ 2 = ${Math.floor(carports / 2)} disk${Math.floor(carports / 2) === 1 ? '' : 's'} × $${P.exterior?.carport?.diskEveryOther ?? 30}`, value: carportProduct },
     { label: 'Detached garages',      math: `${numGarages} × $${P.exterior?.detachedGarage?.sconcePerDoor ?? 80}/door`, value: garageProduct },
-    { label: 'Exterior door sconces', math: `${extDoors} × ($${door.primarySconce ?? 350} + $${door.secondarySconce ?? 75}) ÷ 2`, value: doorProduct },
+    { label: 'Building wallpacks',    math: wpMath, value: wallpackProduct },
     // Show the cap when it binds, otherwise the label reads as the uncapped
     // figure and silently contradicts the value next to it.
     { label: 'Landscape',             math: landscapeCapped
         ? `${lotSf.toLocaleString()} SF lot × ${(landscapePct * 100).toFixed(0)}% = $${Math.round(lotSf * landscapePct).toLocaleString()}, capped at $${landscapeCap.toLocaleString()}`
         : `${lotSf.toLocaleString()} SF lot × ${(landscapePct * 100).toFixed(0)}%`, value: autoLandscape },
-    { label: 'Miscellaneous',         math: `${((P.exterior?.miscBufferPct ?? 0.05) * 100).toFixed(0)}% buffer of full exterior (incl. amenities)`, value: miscBuffer },
+    { label: 'Miscellaneous',         math: `${((P.exterior?.miscBufferPct ?? 0.05) * 100).toFixed(0)}% buffer of full exterior (incl. amenities + manual adder)`, value: miscBuffer },
   ];
   // Subtotal of the breakdown box = everything in the formula EXCEPT amenities
   // (amenities are shown separately above). Lines above sum to this.
@@ -155,12 +193,13 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
       {/* Auto scope summary */}
       <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
         <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Scope Inputs from Project Data</div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">
           {[
             { label: 'Exterior Amenity SF',    value: extSf > 0 ? extSf.toLocaleString() : '—' },
             { label: 'Surface Parking Stalls', value: parking  || '—' },
             { label: 'Carports',               value: carports || '—' },
             { label: 'Exterior Doors',         value: extDoors || '—' },
+            { label: 'Buildings',              value: numBuildingsPD || '—' },
           ].map(item => (
             <div key={item.label} className="bg-white rounded-lg border border-slate-100 p-3">
               <div className="text-xl font-bold text-slate-900">{item.value}</div>
@@ -169,9 +208,9 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
           ))}
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-400">
-          <div>• Surface parking: 1 fixture per ~9 stalls × $1,325/fixture (area light + 30ft pole)</div>
-          <div>• Carports: 1 × 7" disk per every other bay ($30 ea)</div>
-          <div>• Exterior doors: $350 + $75 per door pair (sconces)</div>
+          <div>• Surface parking: 1 fixture per ~{sp.stallsPerFixture ?? 9} stalls × ${(sp.perFixture ?? 1325).toLocaleString()}/fixture (area light + 30ft pole)</div>
+          <div>• Carports: 1 × 7" disk per every other bay (${P.exterior?.carport?.diskEveryOther ?? 30} ea)</div>
+          <div>• Building wallpacks: per-building rate by building type × ${WPC.perFixture ?? 350} each — covers exterior doors too</div>
         </div>
       </div>
 
@@ -263,6 +302,67 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
             <span className="font-mono text-sm">{formatCurrency(formulaBreakdownSubtotal)}</span>
           </div>
         </div>
+      </div>
+
+      {/* ── Building Wallpacks — auto count with quantity + price overrides ── */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <div className="flex items-start justify-between gap-4 mb-1">
+          <div>
+            <p className="font-semibold text-slate-900">Building Wallpacks</p>
+            <p className="text-[11px] text-slate-400">
+              Auto-counted from buildings ({wpMath}) — override either number below if the site says otherwise.
+            </p>
+          </div>
+          <div className="text-right shrink-0">
+            <div className="text-[10px] uppercase tracking-widest text-slate-400">Line Total</div>
+            <div className="text-lg font-bold text-slate-900 font-mono">{formatCurrency(wallpackProduct)}</div>
+          </div>
+        </div>
+        <p className="text-xs text-slate-400 mb-4">
+          Egress wallpacks at the building exterior doors — this is the one line for exterior
+          door fixtures (the old separate door-sconce line was folded in here). The count comes
+          from the # of Buildings on Project Data and the building type&apos;s wallpacks-per-building
+          rate. Leave a box blank to keep the automatic number.
+        </p>
+        <div className="flex flex-wrap gap-4">
+          <div className="w-40">
+            <Input
+              label="Quantity (override)"
+              type="number"
+              placeholder={String(wpAutoQty)}
+              value={wpQtyOv != null ? answers.wallpacksQty : ''}
+              onChange={e => {
+                const v = e.target.value === '' ? 'auto' : e.target.value;
+                setAnswers(a => ({ ...a, wallpacksQty: v }));
+                setDirtyAnswers(d => new Set(d).add('wallpacksQty'));
+              }}
+              min={0}
+            />
+          </div>
+          <div className="w-40">
+            <Input
+              label="$ per wallpack (override)"
+              type="number"
+              prefix="$"
+              placeholder={String(WPC.perFixture ?? 350)}
+              value={wpPriceOv != null ? answers.wallpacksPrice : ''}
+              onChange={e => {
+                const v = e.target.value === '' ? 'auto' : e.target.value;
+                setAnswers(a => ({ ...a, wallpacksPrice: v }));
+                setDirtyAnswers(d => new Set(d).add('wallpacksPrice'));
+              }}
+              min={0}
+            />
+          </div>
+        </div>
+        {(wpQtyOv != null || wpPriceOv != null) && (
+          <p className="mt-2 text-xs text-amber-700">
+            Manual override in use
+            {wpQtyOv != null ? ` — quantity ${wpQty} instead of the automatic ${wpAutoQty}` : ''}
+            {wpPriceOv != null ? ` — $${wpEach.toLocaleString()} each instead of $${(WPC.perFixture ?? 350).toLocaleString()}` : ''}.
+            Clear the box to go back to automatic.
+          </p>
+        )}
       </div>
 
       {/* ── Section 2: Manual Adder (editable — items the formula doesn't cover) ── */}
