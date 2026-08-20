@@ -2,6 +2,23 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+## Mike's Claude — 2026-08-19 (later): DEPLOYED `2b0c52a` — P6 schedule dates, site/parse S3 gap, drag-and-drop audit
+
+**Everything listed as "local only, NOT deployed" in the entries below is now live.** Mike said "Do full testing, debugging and then deploy." Full pass run first; three new bugs came out of it.
+
+- **`scheduleExtract.js` only matched `M/D/YY` dates.** Most large GCs export from **Primavera P6**, which writes `DD-Mon-YY` (`07-Oct-24 A`, `26-Aug-27*` — the `A` is an actual, the `*` a constraint marker). On a P6 schedule the deterministic milestone floor found its keyword rows, found no dates on them, and returned **zero milestones** — the fallback under the AI pass was nothing, on the commonest schedule format in the industry. One regex with an alternation now matches both, scanned left to right so results stay in **column** order (callers rely on `[start, finish]`). `toIso()` rejects an unrecognised month so `12-Bld-25` is not read as a date. Rough-in keywords widened for reversed wording (`Rough-In MEP`), still deliberately requiring the word "rough" so `Trench For Electrical` is not swept in. The module imported through the `@/` alias, so it was unloadable outside Next and had **no tests at all** — de-aliased, then covered by `scripts/tests/scheduleExtract.test.mjs` (11 tests). The same P6 rule was added to the AI prompt in `parseDesignSchedule.js`.
+- **🔴 One route was missed by the S3 migration (`6ac9bfb`) and was broken in production.** `src/app/api/projects/[id]/site/parse/route.js` still did `readFile(path.join(process.cwd(), 'uploads', file.storedPath))`. Switched to `getProjectFileBuffer()` with an honest 404 message. **Sweep result: zero remaining local-disk reads across every file that queries `prisma.projectFile`.** Sean — worth a glance in case anything else you own reads `storedPath` directly.
+- **`unit-matrix/parse` had two divergent versions** — Mike's uncommitted local work (local-disk read + page-boundary re-read + governance logging) vs. Sean's deployed S3 read. Merged by hand: Sean's storage layer kept, both local features kept.
+- **Pre-push secret scanner false positive.** The fake AWS key in `uploadStorage.test.mjs` was written in the real `AKIA[0-9A-Z]{16}` shape and blocked the push. Renamed (`2b0c52a`) rather than bypassed with `--no-verify` — a guard that cries wolf is one people learn to skip.
+
+**Also shipped in `44240a9`:** the drag-and-drop audit (all 15 file-drop windows now size-check before sending and show a real error instead of failing silently), the governed AI review layer (`AgentRun` + `/admin/agent-runs`), the site-plan parse/commit routes, and the questionnaire upload panel. Migrations `0054`–`0056` are **purely additive** — new `AgentRun` table plus nullable `numBuildings` / `numElevatorShafts` / `numFloors`.
+
+**Verified before push:** production build clean · runtime-asset guard 26/26 · `check-dynamic-pages` 55/55 · `check-migrations-postgres` 56/56 · `check-schema-migrations-sync` 117/117 · full suite **417/417** · bid matrix 12/12. Every server-side PDF path exercised against real PDFs on disk, including the 84-page Marmalade schedule (309,972 chars).
+
+**S3 verification, honestly scoped.** CORS was checked from outside the app the way a browser would: a preflight from `app.ilcstudios.com` with `PUT` returns 200 with the origin echoed, `evil.example.com` returns 403, and an unauthenticated bucket listing returns 403 — **CORS is live and correctly scoped.** The **lifecycle rule and the IAM policy cannot be verified from Mike's machine** (no AWS credentials there), so those two are recorded as unconfirmed, not assumed. Sean — a screenshot or a one-line confirmation of those two closes it out.
+
+---
+
 ## Sean's Claude — 2026-08-19: Project file storage moved to S3
 
 - **Commit `6ac9bfb`**: new `src/lib/projectFileStorage.js` — `putProjectFile`, `getProjectFileBuffer`, `deleteProjectFile`. In prod (S3_BUCKET set), reads/writes `project-files/{projectId}/{tab}/…` on the existing `ilc-qc-media` bucket. In dev, falls back to local `uploads/` (no dev config change needed). The `project-files/` prefix deliberately avoids the 1-day lifecycle rule targeting `uploads/`.
