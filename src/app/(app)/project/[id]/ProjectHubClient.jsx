@@ -39,6 +39,7 @@ import CodeCheckPanel from '@/components/CodeCheckPanel';
 import HumanErrorRadar from '@/components/HumanErrorRadar';
 import ChangeOrdersTab from '@/components/changeOrders/ChangeOrdersTab';
 import ProposalTab from '@/components/proposals/ProposalTab';
+import { appendUpload } from '@/lib/uploadClient';
 
 const BUDGET_TYPE_META = {
   conceptual:  { label: 'Conceptual Budget',    color: 'bg-slate-100 text-slate-600' },
@@ -240,7 +241,7 @@ function AutoTaggedFileTab({ title, subtitle, autoTag, files, projectId, tab, on
       if (tooBig) { fail(tooBig); continue; }
       try {
         const form = new FormData();
-        form.append('file', file);
+        await appendUpload(form, file, { scope: 'project' });
         form.append('tab', tab);
         form.append('tags', JSON.stringify([autoTag]));
         const res  = await fetch(`/api/projects/${projectId}/files`, { method: 'POST', body: form });

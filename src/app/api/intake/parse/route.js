@@ -3,11 +3,20 @@ import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { extractDrawingText, parseUnitMatrix, fileExt, ACCEPTED_EXTS, IMAGE_EXTS } from '@/lib/drawingExtract';
 import { renderPdfPages, extractSiteData } from '@/lib/siteVision';
-import { getUploadedObject, deleteUploadedObject, MAX_DIRECT_UPLOAD_BYTES } from '@/lib/uploadStorage';
+import { buildSheetIndex, pickKeySheets, pagesToRender } from '@/lib/sheetIndex';
+import { openUploadedPdf } from '@/lib/pdfRange';
+import { getUploadedObject, deleteUploadedObject, putSheetImage, MAX_INTAKE_UPLOAD_BYTES } from '@/lib/uploadStorage';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
 import { wrapClient } from '@/lib/agent/client';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * Reading a 400 MB set takes longer than reading a 4 MB one, and the default
+ * ceiling would cut it off mid-scan. The budgets below are the real limits;
+ * this is the backstop behind them.
+ */
+export const maxDuration = 300;
 
 /**
  * PUBLIC, UNAUTHENTICATED drawing parse for the conceptual-budget intake.
@@ -27,9 +36,25 @@ export const dynamic = 'force-dynamic';
  *    on production Amplify's front door rejects bodies over ~4.4 MB before this
  *    code runs, so it effectively serves small files and local dev.
  * 2. JSON `{ s3Key, fileName }` — the direct-to-S3 path. The browser already
- *    PUT the file to S3 via a presigned slip (/api/uploads/presign); we fetch
- *    the bytes back, parse them, and DELETE the object — stateless stays
- *    stateless. Files to 50 MB.
+ *    PUT the file to S3 via a presigned slip (/api/uploads/presign); we read the
+ *    bytes back, parse them, and DELETE the object — stateless stays stateless.
+ *
+ * ── Reading a whole set, not a sheet (2026-08-21) ──
+ * The size ceiling is 400 MB because a GC sends the drawings he has, not the
+ * two sheets we want. Three things make a number that large safe:
+ *
+ *   - Nothing ever holds the file. The browser streams it straight to S3, and
+ *     a PDF that big is read back BY BYTE RANGE (src/lib/pdfRange.js), so peak
+ *     memory tracks the pages we touch rather than the size of the set.
+ *   - We read the sheet index, not the drawings. Fable 5 is shown one line per
+ *     sheet — number, title, snippet — and names the four sheets that matter
+ *     (src/lib/sheetIndex.js). Only those are rendered and read in full.
+ *   - Everything is time-budgeted and degrades instead of failing. A scan that
+ *     runs long returns what it has; a model that is unreachable falls back to
+ *     the deterministic sheet scan. "Never fails unless it is absurdly big."
+ *
+ * Spreadsheets keep a much smaller ceiling: an xlsx has to be read whole, so
+ * the argument above does not apply to it.
  *
  * ── Abuse surface ──
  * Every call costs an Anthropic request. Throttled per IP, size-capped, and
@@ -37,8 +62,17 @@ export const dynamic = 'force-dynamic';
  * `rateLimit.js` — the counter is per warm Lambda instance, not global.
  */
 
-const MAX_BYTES = MAX_DIRECT_UPLOAD_BYTES; // 50 MB, shared with the presign desk
+const MAX_BYTES = MAX_INTAKE_UPLOAD_BYTES;          // 400 MB, shared with the presign desk
+const MAX_SHEET_BYTES = 50 * 1024 * 1024;           // spreadsheets are read whole
 const LIMIT = { limit: 12, windowMs: 60_000 };
+
+/** Above this many sheets it is a SET, not a drawing, and worth paying to index. */
+const SET_PAGE_THRESHOLD = 4;
+
+/** Scanning budget for a big set. Well under maxDuration, above a normal scan. */
+const BIG_SET_SCAN_MS = 90_000;
+
+const mb = (n) => Math.round(n / (1024 * 1024));
 
 export async function POST(request) {
   const ip = clientIp(request);
@@ -80,9 +114,11 @@ export async function POST(request) {
       return NextResponse.json({ error: 'bad_request', message: 'No file received.' }, { status: 400 });
     }
     name = file.name || 'upload';
-    if (typeof file.size === 'number' && file.size > MAX_BYTES) {
+    // The multipart door is local dev and small files only — Amplify caps this
+    // path at ~4.4 MB regardless — so the modest ceiling is the right one here.
+    if (typeof file.size === 'number' && file.size > MAX_SHEET_BYTES) {
       return NextResponse.json(
-        { error: 'too_large', message: 'That file is larger than 50 MB. Please upload a smaller file.' },
+        { error: 'too_large', message: `That file is larger than ${mb(MAX_SHEET_BYTES)} MB.` },
         { status: 413 },
       );
     }
@@ -105,25 +141,40 @@ export async function POST(request) {
     );
   }
 
-  if (s3Key) {
-    const fetched = await getUploadedObject(s3Key); // re-checks the object's ACTUAL size
-    if (!fetched.ok) {
-      const status = fetched.code === 'too_large' ? 413 : fetched.code === 'not_found' ? 404 : 400;
-      return NextResponse.json({ error: fetched.code, message: fetched.message }, { status });
-    }
-    buffer = fetched.buffer;
-  }
-  if (buffer.length > MAX_BYTES) {
-    return NextResponse.json({ error: 'too_large', message: 'That file is larger than 50 MB.' }, { status: 413 });
-  }
+  // `source` is what the extractor and the renderer both read from: raw bytes
+  // for a spreadsheet or a small file, an open pdfjs document for a big set.
+  // Neither of them cares which, and that is the point — see pdfRange.js.
+  let source = buffer;
+  let opened = null;
 
   try {
+    if (s3Key) {
+      if (ext === 'pdf') {
+        opened = await openUploadedPdf(s3Key, { limit: MAX_BYTES });
+        if (!opened.ok) {
+          const status = opened.code === 'too_large' ? 413 : opened.code === 'not_found' ? 404 : 400;
+          return NextResponse.json({ error: opened.code, message: opened.message }, { status });
+        }
+        source = opened.doc;
+      } else {
+        const fetched = await getUploadedObject(s3Key, { limit: MAX_SHEET_BYTES });
+        if (!fetched.ok) {
+          const status = fetched.code === 'too_large' ? 413 : fetched.code === 'not_found' ? 404 : 400;
+          return NextResponse.json({ error: fetched.code, message: fetched.message }, { status });
+        }
+        source = fetched.buffer;
+      }
+    }
+
     // A damaged or mislabeled file makes the extractor throw, and an unhandled
     // throw becomes a bare 500 with no message — the UI can only show its
     // generic fallback. Catch it and say something a public visitor can act on.
     let extracted;
     try {
-      extracted = await extractDrawingText(buffer, name);
+      extracted = await extractDrawingText(
+        source, name,
+        opened?.ranged ? { timeBudgetMs: BIG_SET_SCAN_MS, shouldStop: opened.overBudget } : {},
+      );
     } catch (e) {
       console.error('intake/parse: extractor threw for', name, e);
       return NextResponse.json(
@@ -139,19 +190,79 @@ export async function POST(request) {
       console.error('intake/parse: ANTHROPIC_API_KEY not configured');
       return NextResponse.json({ error: 'unavailable', message: 'Parsing is temporarily unavailable.' }, { status: 503 });
     }
+    const client = (task) => wrapClient(new Anthropic({ apiKey }), task);
 
-    // Vision read of page 1 — used for scanned PDFs (no text layer) and as a
-    // second look when the text parse finds no unit matrix (a vector SITE PLAN
-    // has plenty of text but no unit types; its site-data block is exactly what
-    // vision extracts). Gated rather than run always: vision is materially more
+    // ── Which sheets are worth opening? ──
+    // On a one-sheet upload this is free and answers "page 1". On a 400-page set
+    // it is the difference between reading the site plan and reading the title
+    // page. The model is only paid for when there is actually a set to index.
+    const pageScan = extracted.pages ?? [];
+    const isSet = pageScan.length > SET_PAGE_THRESHOLD;
+    let sheets = null;
+    if (pageScan.length) {
+      sheets = await pickKeySheets(
+        buildSheetIndex(pageScan),
+        isSet ? client('intake.sheetPick') : null,
+      );
+    }
+    // Two sheets, not three: the site plan and the area summary are where the
+    // written site data lives, and each rendered page is paid for by the pixel.
+    const chosenPages = sheets ? pagesToRender(sheets.picks, { max: 2 }) : [];
+    const sheetsRead = chosenPages.length ? chosenPages : null;
+
+    // ── Keep a small copy of the sheets we read ──
+    // Mike, 2026-08-21: "keep the small, compressed version for sure. So they
+    // can reference." The original set is deleted the moment this route
+    // finishes — it is far too big to keep — so without this, a reviewer
+    // looking at a submission has the numbers we pulled and no way to see
+    // where they came from.
+    //
+    // Rendered ONCE, at the resolution the vision read already uses, and shared
+    // between the two: the reviewer sees exactly the image the model saw. The
+    // whole thing is best-effort — a set with no text layer has no picks yet,
+    // and a storage hiccup here must not cost the GC his upload.
+    let rendered = null;
+    let keptSheets = null;
+    if (ext === 'pdf' && chosenPages.length) {
+      try {
+        const render = renderPdfPages(source, {
+          pageNumbers: chosenPages, pages: chosenPages.length, alsoJpeg: true,
+        });
+        rendered = opened?.failed ? await Promise.race([render, opened.failed]) : await render;
+        const stored = await Promise.all(rendered.map(async img => {
+          const key = await putSheetImage(img.jpeg, 'image/jpeg');
+          return key ? { page: img.page, key, bytes: img.jpeg.length } : null;
+        }));
+        keptSheets = stored.filter(Boolean);
+        if (!keptSheets.length) keptSheets = null;
+      } catch (e) {
+        console.error('intake/parse: could not keep sheet images for', name, e?.message ?? e);
+      }
+    }
+
+    // Vision read — used for scanned PDFs (no text layer) and as a second look
+    // when the text parse finds no unit matrix (a vector SITE PLAN has plenty of
+    // text but no unit types; its site-data block is exactly what vision
+    // extracts). Gated rather than run always: vision is materially more
     // expensive per call, and when a text matrix exists it is both cheaper and
     // more accurate.
     const visionSiteRead = async () => {
-      const images = await renderPdfPages(buffer, { pages: 1 });
+      // Raced against `opened.failed` because rendering is the last place that
+      // pulls bytes. If storage stops answering mid-render, pdfjs waits for
+      // bytes that are not coming rather than raising anything — so without the
+      // race this sits until the 300-second ceiling and the visitor is left
+      // watching a spinner instead of being told to try again.
+      // Reuse the render from the keep step when there is one — same pixels,
+      // and a second render of a big sheet is not cheap.
+      if (rendered) return extractSiteData(rendered, client('intake.siteVision'));
+      const render = chosenPages.length
+        ? renderPdfPages(source, { pageNumbers: chosenPages, pages: chosenPages.length })
+        : renderPdfPages(source, { pages: 1 });
+      const images = opened?.failed ? await Promise.race([render, opened.failed]) : await render;
       // Recorded at the injection point rather than inside extractSiteData:
       // the helper is handed a client precisely so it does not have to know
       // where the call came from, and the task name is a property of the caller.
-      return extractSiteData(images, wrapClient(new Anthropic({ apiKey }), 'intake.siteVision'));
+      return extractSiteData(images, client('intake.siteVision'));
     };
 
     try {
@@ -165,6 +276,9 @@ export async function POST(request) {
               source: 'vision',
               siteData: vision.data,
               unitTypes: [],   // vision reads summary blocks, not per-type matrices
+              sheetsRead,
+              keptSheets,
+              totalPages: extracted.scan?.totalPages ?? null,
             });
           }
           return NextResponse.json({ error: vision.code, message: vision.message }, { status: 502 });
@@ -177,7 +291,7 @@ export async function POST(request) {
       // guessing from one flattened blob — that's what tells net from gross.
       const result = await parseUnitMatrix(
         extracted.text, name,
-        wrapClient(new Anthropic({ apiKey }), 'intake.unitMatrix.parse'),
+        client('intake.unitMatrix.parse'),
         { pages: extracted.pages },
       );
       if (!result.ok) {
@@ -201,6 +315,9 @@ export async function POST(request) {
               source: 'vision',
               siteData: vision.data,
               unitTypes: [],
+              sheetsRead,
+              keptSheets,
+              totalPages: extracted.scan?.totalPages ?? null,
             });
           }
         } catch (e) {
@@ -210,7 +327,13 @@ export async function POST(request) {
         }
       }
 
-      return NextResponse.json({ ...result.proposal, fileName: name });
+      return NextResponse.json({
+        ...result.proposal,
+        fileName: name,
+        sheetsRead,
+        keptSheets,
+        totalPages: extracted.scan?.totalPages ?? null,
+      });
     } catch (e) {
       // Same rationale as the extractor guard: never let a throw surface as a
       // message-less 500 on a public page. A corrupt PDF can survive text
@@ -229,8 +352,11 @@ export async function POST(request) {
       );
     }
   } finally {
-    // Stateless means stateless: the S3 object was a hand-off, not storage.
-    // Best-effort — the 1-day lifecycle rule on uploads/ catches any miss.
+    // Stateless means stateless: the S3 object was a hand-off, not storage. The
+    // 400 MB set is discarded the moment we are done with it — the only thing
+    // that survives this request is the handful of numbers we read off it.
+    // Best-effort; the 1-day lifecycle rule on uploads/ catches any miss.
+    if (opened?.destroy) await opened.destroy();
     if (s3Key) await deleteUploadedObject(s3Key);
   }
 }

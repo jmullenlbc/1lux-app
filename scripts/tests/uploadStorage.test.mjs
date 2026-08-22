@@ -17,7 +17,9 @@ process.env.S3_REGION = 'us-east-1';
 process.env.S3_ACCESS_KEY_ID = 'fake-access-key-id-for-tests';
 process.env.S3_SECRET_ACCESS_KEY = 'testfakesecrettestfakesecrettestfakesec';
 
-const { validatePresignRequest, presignUpload, isUploadKey, MAX_DIRECT_UPLOAD_BYTES } =
+const { validatePresignRequest, presignUpload, isUploadKey, rangeFetcherFor,
+        MAX_INTAKE_UPLOAD_BYTES, MAX_PROJECT_UPLOAD_BYTES, limitForScope,
+        isSheetKey, putSheetImage, presignSheetRead } =
   await import('../../src/lib/uploadStorage.js');
 
 // ─── validatePresignRequest ─────────────────────────────────────────────────
@@ -50,13 +52,31 @@ test('rejects missing, zero, and non-numeric sizes', () => {
   }
 });
 
-test('rejects files over the 50 MB ceiling, accepts exactly at it', () => {
-  const over = validatePresignRequest({ fileName: 'huge.pdf', size: MAX_DIRECT_UPLOAD_BYTES + 1 });
+test('rejects files over the intake ceiling, accepts exactly at it', () => {
+  const over = validatePresignRequest({ fileName: 'huge.pdf', size: MAX_INTAKE_UPLOAD_BYTES + 1 });
   assert.equal(over.ok, false);
   assert.equal(over.code, 'too_large');
 
-  const at = validatePresignRequest({ fileName: 'big.pdf', size: MAX_DIRECT_UPLOAD_BYTES });
-  assert.equal(at.ok, true, 'exactly 50 MB is allowed');
+  const at = validatePresignRequest({ fileName: 'big.pdf', size: MAX_INTAKE_UPLOAD_BYTES });
+  assert.equal(at.ok, true, 'exactly the ceiling is allowed');
+});
+
+test('the intake ceiling is 400 MB and the project ceiling is separate', () => {
+  // Mike, 2026-08-21, after a GC's 246 MB set was refused on the live site.
+  // A real DD/CD set runs 200-350 MB, so anything under 400 MB here would put
+  // us straight back in front of the same failure.
+  assert.equal(MAX_INTAKE_UPLOAD_BYTES, 400 * 1024 * 1024);
+  assert.equal(limitForScope('intake'), MAX_INTAKE_UPLOAD_BYTES);
+  // In-app uploads stay small on purpose — every megabyte there becomes parsed
+  // text we pay for. Raising the public cap must not drag this one along.
+  assert.equal(limitForScope('project'), MAX_PROJECT_UPLOAD_BYTES);
+  assert.ok(MAX_PROJECT_UPLOAD_BYTES < MAX_INTAKE_UPLOAD_BYTES);
+});
+
+test('a 246 MB set — the one that actually failed — is now accepted', () => {
+  const v = validatePresignRequest({ fileName: 'Broadston Drawings.pdf', size: 246.1 * 1024 * 1024 });
+  assert.equal(v.ok, true, 'the real upload from the GC must go through');
+  assert.equal(v.limit, MAX_INTAKE_UPLOAD_BYTES);
 });
 
 test('handles null/absent input without throwing', () => {
@@ -92,17 +112,100 @@ test('presigned slip points at our bucket, under uploads/, with an expiry', asyn
   const slip = await presignUpload({ scope: 'intake', ext: 'pdf', contentType: 'application/pdf' });
   assert.match(slip.key, /^uploads\/intake\/[a-z0-9]+\.pdf$/);
   assert.equal(isUploadKey(slip.key), true, 'issued keys must pass our own guard');
-  assert.equal(slip.expiresIn, 600);
+  // An hour, not ten minutes: a 400 MB set over a job-site connection can take
+  // ~27 minutes, and a slip that expires mid-transfer fails the upload at 90%
+  // with nothing the visitor can do about it.
+  assert.equal(slip.expiresIn, 3600);
 
   const url = new URL(slip.url);
   assert.match(url.hostname, /test-bucket/, 'URL targets the configured bucket');
   assert.ok(url.pathname.includes('uploads/intake/'), 'URL path carries the key');
   assert.ok(url.searchParams.get('X-Amz-Signature'), 'URL is actually signed');
-  assert.equal(url.searchParams.get('X-Amz-Expires'), '600');
+  assert.equal(url.searchParams.get('X-Amz-Expires'), '3600');
 });
 
 test('two slips never share a key', async () => {
   const a = await presignUpload({ scope: 'intake', ext: 'pdf', contentType: 'application/pdf' });
   const b = await presignUpload({ scope: 'intake', ext: 'pdf', contentType: 'application/pdf' });
   assert.notEqual(a.key, b.key);
+});
+
+
+// ─── rangeFetcherFor — the byte-range reader behind big-set parsing ─────────
+// The fetch itself needs S3, but the guard in front of it does not, and that
+// guard is the security-relevant half: it is what stops a caller-supplied
+// string from addressing an object outside uploads/.
+
+test('rangeFetcherFor refuses a key the presign route could not have issued', () => {
+  for (const key of ['../../etc/passwd', 'projects/1/secret.pdf', 'uploads/../x.pdf', '', null]) {
+    assert.throws(() => rangeFetcherFor(key), /not a valid upload key/,
+      `rangeFetcherFor should refuse ${JSON.stringify(key)}`);
+  }
+});
+
+test('rangeFetcherFor returns a fetcher for a legitimate key', () => {
+  const f = rangeFetcherFor('uploads/intake/abc123def456.pdf');
+  assert.equal(typeof f, 'function');
+  assert.equal(f.length, 2, 'the fetcher takes (begin, end)');
+});
+
+
+// ─── Kept sheets — the compressed copies a reviewer looks at later ──────────
+// The originals are deleted after parsing, so these images are the only record
+// of what the parser actually read. Two things matter: they must live somewhere
+// the 1-day lifecycle rule does not sweep, and the key that names one arrives
+// from a submission payload a member of the public wrote.
+
+test('a kept-sheet key is not an upload key, and vice versa', () => {
+  // The prefixes are deliberately separate: uploads/ is swept daily, sheets/ is
+  // not. If the guards overlapped, a kept sheet could be written where it would
+  // vanish overnight — and the reviewer would open an empty panel.
+  assert.equal(isSheetKey('sheets/abc123def456.jpg'), true);
+  assert.equal(isUploadKey('sheets/abc123def456.jpg'), false, 'sheets/ is not the upload prefix');
+  assert.equal(isSheetKey('uploads/intake/abc123def456.pdf'), false, 'uploads/ is not the sheet prefix');
+});
+
+test('isSheetKey refuses anything a reviewer could be tricked into fetching', () => {
+  for (const key of [
+    '../../etc/passwd',
+    'sheets/../uploads/intake/abc.pdf',
+    'sheets/abc/../../secret.jpg',
+    'sheets/nested/dir/abc.jpg',
+    'sheets/abc.pdf',                 // right prefix, wrong kind of file
+    'sheets/.jpg',
+    'sheets/',
+    '',
+    null,
+    undefined,
+    12345,
+    {},
+  ]) {
+    assert.equal(isSheetKey(key), false, `isSheetKey should refuse ${JSON.stringify(key)}`);
+  }
+});
+
+test('a signed view link points at the sheet and expires the same day it is issued', async () => {
+  const url = new URL(await presignSheetRead('sheets/abc123def456.jpg'));
+  assert.match(url.hostname, /test-bucket/);
+  assert.ok(url.pathname.includes('sheets/abc123def456.jpg'), 'the link addresses the sheet');
+  assert.ok(url.searchParams.get('X-Amz-Signature'), 'the link is actually signed');
+  // Short on purpose: the link is re-issued every time the submission is opened,
+  // so a five-minute life costs a reviewer nothing and means a link that leaks
+  // into a browser history or a pasted message is already dead.
+  assert.equal(url.searchParams.get('X-Amz-Expires'), '300');
+});
+
+test('presignSheetRead hands back nothing for a key it does not trust', async () => {
+  for (const key of ['uploads/intake/abc123def456.pdf', '../secret.jpg', '', null]) {
+    assert.equal(await presignSheetRead(key), null, `should refuse ${JSON.stringify(key)}`);
+  }
+});
+
+test('putSheetImage refuses junk before it reaches the network', async () => {
+  // Keeping a copy is a nice-to-have hung off the end of a parse that has
+  // already succeeded. It returns null instead of throwing, because nothing
+  // here is worth failing a GC's upload over.
+  assert.equal(await putSheetImage(Buffer.from('x'), 'application/pdf'), null, 'not an image type');
+  assert.equal(await putSheetImage(Buffer.alloc(0), 'image/jpeg'), null, 'nothing to store');
+  assert.equal(await putSheetImage(null, 'image/jpeg'), null, 'no buffer at all');
 });

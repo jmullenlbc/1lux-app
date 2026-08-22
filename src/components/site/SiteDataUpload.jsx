@@ -23,6 +23,7 @@
  */
 import { useState, useRef, useCallback } from 'react';
 import { oversizeMessage, uploadErrorMessage, uploadThrowMessage } from '@/lib/uploadErrorMessage';
+import { appendUpload } from '@/lib/uploadClient';
 
 function fmt(n) { return n == null ? '—' : Number(n).toLocaleString(); }
 
@@ -200,7 +201,6 @@ export default function SiteDataUpload({ projectId, onCommitted }) {
     if (tooBig) { setErrMsg(tooBig); setState('error'); return; }
 
     const formData = new FormData();
-    formData.append('file', file);
     // Its own tab, not 'drawings'. Uploading to 'drawings' fires the "new drawing
     // set" notification to everybody on the project, and a sheet read for its
     // site data block is not a drawing issue.
@@ -208,6 +208,9 @@ export default function SiteDataUpload({ projectId, onCommitted }) {
 
     let fileId;
     try {
+      // Straight to S3 for PDFs — site plans are routinely over the 4 MB
+      // front-door cap.
+      await appendUpload(formData, file, { scope: 'project' });
       const r = await fetch(`/api/projects/${projectId}/files`, { method: 'POST', body: formData });
       if (!r.ok) throw new Error(await uploadErrorMessage(r, file));
       fileId = (await r.json()).file?.id;

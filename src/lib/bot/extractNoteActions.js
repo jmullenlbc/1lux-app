@@ -9,6 +9,7 @@
  */
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
+import { modelParams, textFrom } from '@/lib/aiModels';
 import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
 import { DEFAULT_ACTION_TYPES } from '@/lib/noteActions';
 
@@ -79,12 +80,12 @@ Return ONLY a JSON array. Each element:
     warnOnInjection('bot.note.extractActions', note?.projectId || null, sealed);
 
     const msg = await anthropic.messages.create({
-      model: 'claude-haiku-4-5',
+      ...modelParams('bot.noteActions'),
       max_tokens: 1500,
       system:   sealed.system,
       messages: [{ role: 'user', content: sealed.content }],
     });
-    const raw = msg.content?.[0]?.text?.trim() || '[]';
+    const raw = textFrom(msg)?.trim() || '[]';
     const cleaned = raw.replace(/```json|```/g, '').trim();
     parsed = JSON.parse(cleaned);
     if (!Array.isArray(parsed)) parsed = [];

@@ -5,6 +5,538 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [A GC can send us the whole set] · August 21, 2026
+
+*Not deployed.* Mike sent a photo of the live intake page with a red FAILED row:
+a GC had tried to send a 246 MB drawing set and been told *"the limit is 50 MB
+per file."* His instruction: *"Raise the cap to handle up to 400mb, parse it with
+Fable 5 for drawings, compress it, discard the rest and upload… We have to make
+it so it never fails unless it is absurdly big… Up to 5 pdfs."*
+
+### 1. The cap is now 400 MB, and up to five files
+
+The 50 MB limit was ours, not a technical one — the browser refused before a
+single byte moved. It is now 400 MB per file and five files per drop, because a
+site or landscape package often arrives as its own PDF. The upload timeout was
+raised to an hour to match: a 400 MB set over a job-site connection at 2 Mbps
+takes about 27 minutes, and a shorter timeout would have killed transfers that
+were going fine.
+
+When something genuinely does not fit, the message no longer tells a GC standing
+on a job site to go split a PDF on his phone. It names the size, names the limit,
+and gives him budgets@ilcstudios.com.
+
+### 2. Big sets are read a slice at a time, and the read stops before it runs out of room
+
+A 400 MB file cannot be loaded into memory on the server — that ceiling is set by
+Amazon, not by us. So the reader now works the way a person does with a big
+drawing set: it reads the index at the back, then opens only the sheets it needs.
+
+**This section originally said something stronger, and it was wrong — corrected
+August 22 after testing against a real 231 MB set.** The claim was that what a
+read costs depends only on how many sheets we open and not at all on how big the
+set is. That was measured on an 11 MB file, which turns out to be too small to
+show the problem. On a genuinely large set two things happen that a small one
+hides: opening the file makes the PDF library set aside a space the size of the
+whole file before it reads a single page, and reading a sheet costs roughly two
+to three times the bytes it pulls once the page is unpacked. Scanning the 231 MB
+set peaked at 827 MB of memory having pulled only 108 MB. The old brake counted
+bytes pulled, so it never saw it coming.
+
+The brake now measures the thing that actually matters: how much memory the
+server is using, checked against how much memory the server actually has. Amazon
+tells the server its own size at runtime, so this is a measurement rather than a
+guess, and it follows automatically if the server is ever made bigger. When a
+read gets close to the line it stops early and keeps everything it has read so
+far. Same 231 MB set, same test, after the fix: it stops itself at 394 MB
+against a 384 MB line, having read 36 sheets — instead of running to 827 MB.
+
+The practical effect of a smaller server is a shorter read, not a failure. That
+is the trade we want, but it is a real trade: on the tightest server we can read
+about the first 35 sheets of a set, and on that particular 231 MB set the
+architectural site plan is sheet 33. **How far we get is decided entirely by how
+much memory Amazon has given this app, which we have not yet confirmed — it is
+one of the open questions with Sean.** If it is the small default, we are
+reading roughly the first 35 sheets; if it is larger, we read proportionally
+more.
+
+### 3. It picks the right sheets instead of always reading page 1
+
+This fixed a bug that had been quietly costing us accuracy on every large set:
+the site-data read was hardcoded to page 1. On a 442-page set page 1 is a
+vicinity map — the site plan is around page 30. So on exactly the big sets that
+matter most, we were reading the wrong page every time.
+
+The set is now indexed by sheet number and title, and the four sheets worth
+opening (site plan, area summary, unit matrix, cover) are chosen by **Fable 5**.
+On the real 24-sheet set this correctly picked the architectural site plan on
+page 10 and the gross-area summary on page 3.
+
+Only those sheets are read. The 400 MB original is deleted as soon as the read
+finishes — nothing large is kept.
+
+### 4. It degrades instead of failing
+
+Mike's requirement was *"it never fails unless it is absurdly big."* Four things
+now give way rather than break:
+
+- **If the AI is unavailable** — including the account running out of credit,
+  which happened live this month — a plain keyword scan picks the sheets instead.
+  A GC's upload does not depend on our billing.
+- **If the model names a page that does not exist**, it is discarded and the scan
+  fills the gap. Rendering page 900 of a 442-page set would throw, and by then
+  the uploaded file is already gone.
+- **If a set is too big to finish reading**, the read stops before it runs the
+  server out of memory and says so. The sheets we want sit at the front of every
+  set, so what gets skipped is the floor plans, which we were not going to use.
+  Confirmed on the 231 MB set: it stopped at sheet 123 of 212 on the old brake
+  and still found the site plan and the gross area.
+- **If storage stops answering**, the read now fails fast with a message the
+  visitor can act on.
+
+### 5. The sheets we read are kept, so a reviewer can check them
+
+Mike: *"Yes keep the small, compressed version for sure. So they can reference."*
+
+The GC's original set is still deleted the moment it has been read — that part
+does not change, and it is what keeps 400 MB uploads affordable. But the handful
+of pages we actually looked at are now saved as small compressed images, roughly
+a fifth the size of the originals, and they show up on the submission in the
+review queue. So when the parser reports 233,050 gross square feet, a reviewer
+can open the area summary sheet it read that off and see for himself, instead of
+taking the number on faith.
+
+They are staff-only: the images sit in private storage, and the only way to see
+one is from inside the review screen, through a link that expires five minutes
+after it is issued. Across a five-PDF drop each sheet is labelled with the file
+it came from, because "page 3" means nothing when there are five sets.
+
+Saving a copy is best-effort by design. If storage refuses, the parse still
+succeeds and the submission still comes through — the copies are a convenience,
+never a thing a GC's upload can fail on.
+
+### Bugs found and fixed while building this
+
+- **The ranged reader crashed on its first read.** The file's tail was being
+  handed to the PDF library before the library was ready to receive it. Found by
+  a dry run against a real 24-sheet set; it would otherwise have failed only in
+  production, only on big files.
+- **A storage failure hung instead of erroring.** The PDF library asks for bytes
+  and then waits for them with no timeout of its own, so a failed fetch was not
+  an error — it was a wait that ended when the server gave up five minutes later,
+  showing the visitor nothing but a spinner. Both the open and the page read are
+  now bounded.
+- **Memory tracked the size of the set, not the page.** Each page's parsed
+  contents were being kept alive after we had taken the text off it.
+- **The memory brake did not brake.** Found on the last day of this work, by
+  testing against a 231 MB set instead of the 11 MB one everything else had been
+  proven on. The brake counted bytes pulled out of storage on the assumption that
+  those were the bytes being held. They are not, by a factor of three, and the
+  file also costs memory the moment it is opened — a test that opened the 231 MB
+  set and read *no pages at all* still set aside 237 MB. The brake now measures
+  actual memory against the actual size of the server. This is the one bug in
+  this list that would have taken production down rather than degraded it, and
+  the claims it invalidated had already been written into this file, into the
+  note to Sean, and into a message to Mike; all three are corrected.
+- **The sheet chooser starved the area summary.** With two site-plan candidates
+  and room for two sheets, it rendered both site plans and never opened the area
+  summary — so square footage came back empty. It now gives every sheet type a
+  look before giving any of them a second.
+
+### Files changed
+
+- `src/lib/pdfRange.js` — read a PDF by byte range; memory ceiling measured
+  against the Lambda's own size; byte budget; error channel
+- `src/lib/sheetIndex.js` — index a set and pick the four sheets that matter
+- `src/lib/drawingExtract.js` — page cleanup, byte brake, bounded page reads
+- `src/app/api/intake/parse/route.js` — ranged open, sheet picking, cleanup
+- `src/lib/uploadStorage.js` — 400 MB intake ceiling, HEAD and range fetchers
+- `src/lib/uploadClient.js` — one-hour upload timeout
+- `src/components/intake/DrawingDropzone.jsx` — 400 MB, 5 files, new wording
+- `src/app/api/uploads/presign/route.js` — updated limits note
+- `src/lib/siteVision.js` — render a compressed JPEG alongside the model's image
+- `src/app/api/admin/sheets/route.js` — new; staff-only expiring link to a kept sheet
+- `src/app/(app)/admin/intake/IntakeClient.jsx` — kept sheets shown on the submission
+- `src/lib/mergeProposals.js` — carry kept sheets across a five-file drop
+- `scripts/tests/pdfRange.test.mjs` — new, 14 tests (4 on the memory ceiling)
+- `scripts/tests/sheetIndex.test.mjs` — new, 19 tests
+- `scripts/tests/uploadStorage.test.mjs` — 400 MB ceiling, one-hour expiry
+- `package.json`, `scripts/verify.mjs` — both new test files wired in
+
+**Verified:** 452/452 unit tests pass; `npm run verify` passes all 9 gates;
+production build passes; all 26 runtime assets present in their Lambda traces;
+end-to-end dry run against a real 24-sheet set picks the correct sheets (site
+plan p10, area summary p3); end-to-end dry run against a real 231 MB, 212-sheet
+set stops itself at 394 MB against a 384 MB ceiling and still returns a site
+plan and a gross-area sheet.
+
+**Known blocker, not a code problem:** the live sheet-picking test still comes
+back *"Your credit balance is too low to access the Anthropic API"* — so this
+has only ever been proven on the keyword-scan fallback, never on Fable 5.
+
+**Open before this can be deployed:** how much memory Amazon has given this
+app's server. It is the number that decides how much of a big set we can read,
+and it is currently unconfirmed — the code falls back to assuming the smallest
+plausible server, which is safe but pessimistic. Asked of Sean.
+
+---
+
+## [One milestone per building, and one place that picks the model] · August 19, 2026
+
+*Not deployed.* Mike: *"yes do it 1 per bldg. that is a big deal. do final
+inspection or tco per bldg too."* and *"can we somehow do this more efficiently
+and use opus 5 when it's not as complex and fable 5 for drawings or other
+complex things?"*
+
+### 1. Light fixtures, final inspection and TCO are now per building
+
+Before today the schedule card carried ONE light-fixture date, ONE TCO date, and
+no final-inspection date at all. On Marmalade the buildings turn over roughly six
+months apart, so a single line reading "light fixtures: 2026-02-26" answered the
+question for the parking garage and quietly gave the wrong answer for Buildings
+A, B, C and D. The fixture install date is the date material has to be **on
+site** — being wrong about it by six months is the difference between a delivery
+that lands and one that misses.
+
+Five families can now repeat, one entry per building: electrical rough-in, MEP
+rough-in, **light fixtures**, **final inspection** (new milestone) and **TCO**.
+Construction start, site lighting, electrical devicing and final completion stay
+single, because a site is a site.
+
+- **Nothing already parsed breaks.** Every schedule read before today stored a
+  bare `light-fixtures` / `tco`. Those still load, still show on the card, and
+  the next one you add is numbered 2 rather than colliding at 1.
+- **The dumb fallback got smarter.** The keyword scan — the pass that runs when
+  the AI read fails — now finds fixture installs and final inspections too, and
+  knows to ignore the dozen rows about submittals, procurement, delivery and
+  site poles that mention light fixtures without hanging one. Without this, a
+  failed AI read came back with rough-ins and no fixture date at all.
+- 8 new tests (25 total on the schedule extractor), all passing.
+
+### 2. One table decides which model reads what
+
+The model name used to be typed by hand at nineteen different places in the code,
+and three of them disagreed about the same kind of work. Nobody could answer
+"what are we paying to read a drawing?" without going through the code.
+
+Now every AI call names its **job**, and `src/lib/aiModels.js` answers with the
+model. Four tiers:
+
+| Tier | Model | What it reads |
+|---|---|---|
+| Deep read | Fable 5 | Whole schedules, drawing sets, fixture schedules, peer-review PDFs |
+| Read | Opus 5 (medium effort) | Contracts, RFIs, code summaries, tracker pages, tone profile |
+| Chat | Sonnet 4.6 | The two live chat boxes — no change, on purpose (see below) |
+| Quick | Haiku 4.5 | The bot's day-to-day: classify this note, draft this follow-up |
+
+Changing what reads a drawing is now a one-line edit. A job with no row in the
+table throws an error instead of quietly running on whatever model happened to be
+typed there, so a new feature cannot land on the wrong model by accident.
+
+**The high-volume bot calls deliberately stay on Haiku.** Handing a one-paragraph
+activity note to a million-token reader costs more and returns the same answer.
+Leaving those cheap is what pays for Fable on the documents that matter.
+
+**Live chat stays on a model that does not think first.** Fable 5 and Opus 5
+think before they answer. On a document read that is exactly what you want; in a
+chat box it is a silent pause before the first word appears.
+
+### 3. Two real bugs the tier change exposed — both found and fixed here
+
+**Bug A — the answer was being thrown away.** Fable 5 and Opus 5 put their
+thinking in the first block of the reply and the answer in a later one. Six
+places in the app read "the first block" and got the thinking — which has no text
+— so a perfectly good site-plan read came back as *"Could not read the extraction
+result."* Every one of those now goes through a single helper that takes the
+text and ignores everything else.
+
+**Bug B — the answer was being cut in half.** A thinking model spends part of its
+output allowance on the thinking before it writes a word. The first Marmalade
+read on the new tiers spent 3,417 of its 4,000 tokens thinking, ran out
+mid-sentence, and the app reported "no milestones found" on a read that was going
+fine. Nothing errored. Fourteen calls now ask the table how much room to leave,
+and any reply that still gets cut off writes a plain line in the log saying so
+instead of failing silently. Raising that ceiling costs nothing unless the model
+actually uses it.
+
+### Verified
+
+- 471 automated tests: 467 pass. The 4 failures are the live upload tests, and
+  they fail because **the Anthropic account ran out of credit mid-session** — the
+  same 4 passed on this exact code twenty minutes earlier. Nothing else to fix
+  there; the account needs topping up.
+- Production build clean; all five deploy guards pass.
+- Marmalade re-read end to end: all 84 pages, 309,972 characters, nothing
+  truncated. With the AI call unavailable (no credit) the keyword fallback still
+  returned a complete set of milestones on its own — which is exactly the job
+  that fallback exists to do.
+
+### Files changed
+
+`src/lib/aiModels.js` (new — the table, plus `textFrom`, `answerBudget`,
+`warnIfTruncated`), `src/lib/scheduleExtract.js`, `src/components/CAScheduleCard.jsx`,
+`src/lib/drawingExtract.js`, `src/lib/siteVision.js`, `src/lib/parseDesignSchedule.js`,
+and 20 AI call sites across `src/app/api/**` and `src/lib/bot/**`.
+Tests: `scripts/tests/aiModels.test.mjs` (new, 18), `scheduleExtract.test.mjs`,
+`drawingExtract.test.mjs`.
+
+---
+
+## [Schedules: read whole, read by Fable 5, and the good answer wins] · August 19, 2026
+
+*Mike asked me to run his real Modera Marmalade construction schedule through the
+app. I ran it against the exact same extraction code production runs (verified
+unmodified against the deployed commit). It found three real faults. Mike:
+"do it. we need things right always. all [schedules] should be read by fable 5."
+Faults 2 and 3 are now fixed; fault 1 is the 25 MB work in the entry below.*
+
+**The file:** `25.04.25 Marmalade - construction Schedule.pdf` — 84 pages,
+8.6 MB, ~310,000 characters of schedule rows, 3 buildings (A, B, C), running
+Jan 2025 → Aug 2027.
+
+**The reading part works.** All 84 pages read cleanly in 5 seconds, rows come out
+properly structured, and the milestone pass finishes in about 9 seconds. The
+pdfjs fix that shipped in `2b0c52a` is holding.
+
+### Fault 1 — the file cannot be uploaded in production at all
+
+8.6 MB is roughly double the host's ~4.4 MB front-door limit. Today the upload
+is rejected before the app sees it. **The 25 MB work in the entry below is
+exactly the fix for this**, and this schedule is the proof it was needed.
+
+### Fault 2 — the better answer loses to the worse one, at random
+
+Two passes run: a plain keyword scan (fast, dumb) and an AI read (slower, knows
+what the rows mean). The code then picks **whichever returned more rows**:
+
+```js
+if (ai.length >= keyword.length && ai.length >= 2) return { ...milestones: ai }
+```
+
+The keyword scan always pads out to 15 electrical + 15 MEP rough-ins, so on a big
+schedule it wins on count while being worse on substance. On two runs of the same
+file the AI returned 16 rows once and 22 the next — so this file lands on the
+good answer or the bad one depending on the run.
+
+When the keyword scan wins, what Mike loses:
+
+| Milestone | AI read | Keyword scan (what shipped) |
+|---|---|---|
+| Light fixture install | ✅ 2026-06-18 | ❌ **missing** |
+| Site / exterior lighting | ✅ found | ❌ **missing** |
+| Electrical devicing / trim | ✅ found | ❌ missing |
+| Rough-in labels | "Electrical Rough-In — Building A Level 3" | "Electrical Rough-In 3" |
+| Rough-in dates | per building/level, from the named rows | dates scraped in order, buildings not distinguished |
+
+The two dates a lighting company actually plans around — **when fixtures get set**
+and **when site lighting goes in** — are the ones the losing answer drops.
+
+### Fault 3 — 42% of the schedule is never read by the milestone pass
+
+The AI is handed the first 180,000 characters; this schedule is 309,972. Of 706
+rows mentioning lighting, fixtures, trim, TCO or turnover, **374 (53%) fall past
+the cut**, including every "Set Light Fixtures" row for the last building
+(25-Mar-2027) and the final owner move-in.
+
+### What actually came back
+
+19 milestones: construction start 2025-01-27, fifteen electrical rough-ins
+(Jan–Jun 2026), one MEP rough-in, TCO 2027-08-18, final completion 2027-08-26.
+The dates that are there are right. The lighting dates are the ones missing.
+
+---
+
+## The fixes
+
+### Fault 2 — the two passes are now combined instead of one being thrown away
+
+The rule was one line, and it was exactly backwards:
+
+```js
+// before — whichever list is longer wins
+if (ai.length >= keyword.length && ai.length >= 2) return { milestones: ai }
+```
+
+Now the AI is authoritative for everything it recognised, and the keyword scan
+only fills in what the AI did not return. Nothing is discarded, and the result
+no longer depends on which list happened to be longer — the same file gives the
+same answer every time.
+
+Rough-ins merge by **family**, not id-by-id. The AI numbers them per building
+(1–4 = Bldgs A–D); the keyword scan numbers by whatever order dates appeared.
+Filling gaps one id at a time would splice two incompatible numbering schemes
+together and invent buildings that do not exist — so if the AI produced any
+member of a family, that family is the AI's entirely.
+
+Output is also sorted into the order a job actually runs in — start, MEP
+rough-in, electrical rough-in, fixtures, site lighting, devicing, TCO, done.
+
+### Fault 3 — the whole schedule is read now, and Fable 5 reads it
+
+| | Before | After |
+|---|---|---|
+| Model | Claude Haiku 4.5 | **Claude Fable 5** |
+| Characters read | 180,000 | **600,000** |
+| Marmalade coverage | 58% | **100%** |
+| Answer budget | 1,500 tokens | 4,000 tokens |
+
+Fable 5 accepts a 1,000,000-token input — roughly 3.5 million characters. The
+PDF reader's own 120-page ceiling tops out near 450,000 characters, so at
+600,000 the cut can no longer bind on any schedule this app can read at all. It
+is still a hard number rather than "no limit" so a corrupt PDF costs one
+truncated call, not a runaway bill. If it ever does bind, `diag.truncated` now
+records it instead of the tail vanishing silently.
+
+The **design** schedule parser got the same treatment — Fable 5, and its cap
+raised from 8,000 characters to 200,000. Mike said *all* schedules.
+
+### Also fixed on the way: the request was being cut off before the answer arrived
+
+Reading all 84 pages with Fable takes ~46 seconds. The internal ceiling was 22
+seconds (sized for Haiku on a third of the text), and neither upload route
+declared a duration at all, so the request would have died first and the upload
+would have landed with no milestones and no error. Internal ceiling raised to 90
+seconds; `maxDuration = 120` added to both routes, matching the other AI parse
+routes.
+
+### What Marmalade returns now
+
+13 milestones, whole-document, deterministic — and the two dates that used to go
+missing are both there:
+
+| | Before | After |
+|---|---|---|
+| Light fixture install | ❌ missing | ✅ 2026-02-26 |
+| Site lighting | ❌ missing | ✅ 2025-09-29 — *Term Out Site Lighting* |
+| Electrical devicing | ❌ missing | ✅ 2026-07-29 |
+| MEP rough-in | 1 undated group | 3, one per building |
+| Electrical rough-in | 15 scraped dates | 4, labelled Bldg A / B / Garage / C&D |
+| Labels | "Electrical Rough-In 3" | "Electrical Rough-In (Overhead / In-Wall) — Bldg B" |
+| Start / TCO / completion | correct | unchanged |
+
+The lighting milestone definitions were tightened at the same time, because
+"right" is not the same as "present": site lighting used to land on *Excavate
+for Site Lighting* — trenching, months before a fixture exists. Excavation,
+ductbank, conduit and pour rows are now excluded, and the milestone is the row
+where poles are actually set or terminated. Light fixtures likewise excludes
+submittal, procurement, delivery and rough-in rows.
+
+### Files changed
+
+- `src/lib/scheduleExtract.js` — new `mergeMilestones()`, Fable 5, 600k read,
+  90s ceiling, truncation diagnostic, tightened lighting definitions
+- `src/lib/parseDesignSchedule.js` — Fable 5, 8k → 200k
+- `src/app/api/projects/[id]/files/route.js` — `maxDuration = 120`
+- `src/app/api/projects/[id]/files/[fileId]/reparse/route.js` — `maxDuration = 120`
+- `scripts/tests/scheduleExtract.test.mjs` — 6 new tests covering the merge
+
+### Verification
+
+Build clean · runtime assets 26/26 · dynamic pages 55/55 · migrations 56/56 ·
+models 117/117 · full suite **445/445** · budget math 53/53 · bid matrix 12/12 ·
+the real 84-page Marmalade PDF re-read end to end with `truncated: false`.
+
+**Not deployed.** Waiting on Mike to say the word.
+
+---
+
+## [The 4 MB ceiling is now 25 MB] · August 19, 2026
+
+*Mike: "we need that limit to go up to 25mb. schedules can be 50 pages long if
+detailed." Every in-app upload window now sends PDFs and spreadsheets straight
+to S3 instead of through the app, which is what the old 4 MB limit was really
+about — the host rejects big request bodies before our code ever sees them.*
+
+### The change, in one sentence
+
+Big files no longer travel *through* the app. The browser asks for a one-time
+permission slip, uploads the file directly to storage, and hands the app only a
+receipt — so the host's front door is never in the way.
+
+### What each window accepts now
+
+| Kind of file | Before | Now |
+|---|---|---|
+| PDF (schedules, drawings, fixture schedules, contracts) | 4 MB | **25 MB** |
+| Excel (unit matrix, ship schedule, budget import) | 4 MB | **25 MB** |
+| Everything else (images, Word, CSV) | 4 MB | 4 MB — unchanged |
+| Public conceptual-budget intake | 50 MB | 50 MB — unchanged |
+
+Images and Word docs stay at 4 MB because there is no direct-to-storage route
+for them; nothing in the app needs one today.
+
+**Multi-file windows changed shape.** Drawing sets and the admin budget import
+used to add every file up and compare the *total* against 4 MB. Now each PDF or
+spreadsheet leaves on its own with its own 25 MB, and only the leftover types
+still share a budget. A 60 MB drawing set of four PDFs now uploads; before, it
+was refused outright.
+
+### Bugs found and fixed on the way
+
+- **The oversize warning quoted the wrong number.** Every drop zone warned about
+  a 4 MB ceiling regardless of file type. A PDF now says 25 MB and an image says
+  4 MB — whichever limit actually applies to that file.
+- **The size check ran before the app knew which limit applied.** It now decides
+  from the file name, instantly, with no round trip to the server.
+- **Two windows sent the file outside their own error handling.** Ship Schedule
+  (both the preview and the import step) and the Contracts panel would have
+  crashed silently if the direct upload failed. Both now report it in the same
+  banner as every other failure.
+
+### Deliberate safety net
+
+If the direct upload fails — for instance because the storage bucket's settings
+are not finished yet — a file small enough to have gone the old way quietly goes
+the old way. Only a genuinely large file reports the failure, because retrying
+*that* would hit the 4 MB wall and blame the wrong thing.
+
+### Windows converted
+
+All 15 upload windows: project Files panel (Drawings, Submittals, Meetings,
+Takeoffs, Contracts, Budgets), Project Hub tabs, Unit Matrix, Site Data,
+Peer Review, Fixture Schedule (tab and editor), Ship Schedule (preview and
+import), LPD Check, Submittal Tracker, Drawing Sets, Admin budget import.
+
+### Files changed
+
+- `src/lib/uploadIntake.js` — **new.** The server-side seam: every route reads
+  its bytes through it and stops caring which way they arrived.
+- `src/lib/uploadClient.js` — `appendUpload` / `appendUploads`: the single call
+  every drop zone makes, plus the small-file fallback.
+- `src/lib/uploadStorage.js` — two named ceilings (25 MB in-app, 50 MB public
+  intake) and upload scopes.
+- `src/lib/uploadErrorMessage.js` — per-file ceilings and `batchOversizeMessage`
+  for the multi-file windows.
+- `src/app/api/uploads/presign/route.js` — carries the scope through.
+- 7 upload routes and 12 client components converted.
+- `scripts/tests/uploadIntake.test.mjs` — **new**, 13 tests.
+- `scripts/tests/uploadErrorMessage.test.mjs` — 5 new tests for the batch rule.
+- `package.json` — the three upload test files now run in `verify:units`.
+
+### Not yet true in production
+
+The direct-to-storage path needs three settings on the S3 bucket that only Sean
+can make (browser upload permission, the write policy, and the 1-day sweep of
+temporary files). Until those land, the fallback above means uploads behave
+exactly as they do today — nothing breaks, but nothing gets bigger either.
+Asked Sean to confirm through `.claude/coordination.md`.
+
+### Verified before hand-off
+
+| Check | Result |
+|---|---|
+| Production build | clean |
+| Published-file check | 26 / 26 present |
+| Dynamic-page check | 55 / 55 |
+| Migration checks | 56 / 56 · 117 / 117 models |
+| Full test suite | 439 / 439 passing |
+| Budget math · fuzz · bid matrix | 53 / 53 · 0 failures · 12 / 12 |
+| Live probe of all 7 converted routes | uploads land; every error path returns a clear message |
+
+**Not deployed.** Waiting on Mike to say the word.
+
+---
+
 ## [Primavera schedules, and the second file-storage gap] · August 19, 2026
 
 *Pre-deploy pass. Mike asked for full testing and debugging before shipping the

@@ -8,7 +8,9 @@ import path from 'path';
 import { createRequire } from 'module';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
+import { modelParams, textFrom, answerBudget, warnIfTruncated } from '@/lib/aiModels';
 import { buildUntrustedPrompt } from '@/lib/agent/untrusted';
+import { readUploadedFile } from '@/lib/uploadIntake';
 
 export const maxDuration = 120;
 
@@ -158,10 +160,12 @@ export async function POST(request, { params }) {
   } catch {
     return NextResponse.json({ error: 'No file provided' }, { status: 400 });
   }
-  const file = formData.get('file');
-  if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
-
-  const buffer = Buffer.from(await file.arrayBuffer());
+  const upload = await readUploadedFile(formData);
+  if (!upload.ok) return NextResponse.json({ error: upload.message }, { status: upload.status });
+  const buffer = upload.buffer;
+  // Keeps the rest of the route reading the same as before the direct-to-S3 split.
+  const file = { name: upload.name, type: upload.type };
+  await upload.cleanup();
 
   // Extract text (max 3 pages per spec)
   let extractedText = '';
@@ -220,13 +224,14 @@ export async function POST(request, { params }) {
     }
 
     const msg = await anthropic.messages.create({
-      model:      'claude-haiku-4-5',
-      max_tokens: 8192,
+      ...modelParams('fixtureSchedule.parse'),
+      max_tokens: answerBudget('fixtureSchedule.parse', 8192),
       system:     sealed.system,
       messages:   [{ role: 'user', content: sealed.content }],
     });
 
-    const raw   = msg.content?.[0]?.text || '';
+    warnIfTruncated(msg, 'fixtureSchedule.parse');
+    const raw   = textFrom(msg) || '';
     let   clean = raw.trim();
 
     // Strip markdown fences if present

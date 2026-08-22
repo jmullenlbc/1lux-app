@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
 import { wrapClient } from '@/lib/agent/client';
+import { modelParams, answerBudget } from '@/lib/aiModels';
 
 // ── Parse markdown frontmatter ────────────────────────────────────────────────
 function parseFrontmatter(content) {
@@ -270,8 +271,8 @@ Searching ${sections.length} of ${allSections.length} total sections (pre-filter
         // is written when the stream finishes rather than before it returns.
         const client   = wrapClient(new Anthropic({ apiKey }), 'knowledge.codeSearch', { userId: user?.id || null });
         const streamer = client.messages.stream({
-          model:      'claude-haiku-4-5',
-          max_tokens: 1500,
+          ...modelParams('code.search'),
+          max_tokens: answerBudget('code.search', 1500),
           system:     [instructionBlock, corpusBlock],
           messages,
         });

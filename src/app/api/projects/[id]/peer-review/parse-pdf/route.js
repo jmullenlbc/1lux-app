@@ -7,6 +7,8 @@ import { prisma } from '@/lib/db';
 // ReferenceError on every call. Found while wiring the ledger, fixed here.
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { recordRawCall } from '@/lib/agent/client';
+import { modelParams, answerBudget, textFrom, warnIfTruncated } from '@/lib/aiModels';
+import { readUploadedFile } from '@/lib/uploadIntake';
 
 export const maxDuration = 120;
 
@@ -73,10 +75,13 @@ export async function POST(request, { params }) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const formData = await request.formData();
-  const file = formData.get('file');
-  if (!file) return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
-
-  const buffer = Buffer.from(await file.arrayBuffer());
+  // Bytes may have come through the form or straight to S3 — see uploadIntake.js.
+  const upload = await readUploadedFile(formData);
+  if (!upload.ok) return NextResponse.json({ error: upload.message }, { status: upload.status });
+  const buffer = upload.buffer;
+  // Keeps the rest of the route reading the same as before the direct-to-S3 split.
+  const file = { name: upload.name, type: upload.type };
+  await upload.cleanup();
 
   // Extract text from PDF
   let extractedText = '';
@@ -90,8 +95,8 @@ export async function POST(request, { params }) {
   // than through the SDK, so it is recorded via recordRawCall — otherwise it is
   // invisible to the ledger and every cost total is quietly short.
   const payload = {
-    model:      'claude-sonnet-4-6',
-    max_tokens: 4096,
+    ...modelParams('peerReview.parsePdf'),
+    max_tokens: answerBudget('peerReview.parsePdf', 4096),
     system:     SYSTEM_PROMPT,
     messages:   [{
       role:    'user',
@@ -125,7 +130,8 @@ export async function POST(request, { params }) {
     return NextResponse.json({ error: 'AI parsing failed' }, { status: 500 });
   }
 
-  const raw = aiData.content?.[0]?.text || '';
+  warnIfTruncated(aiData, 'peerReview.parsePdf');
+  const raw = textFrom(aiData) || '';
 
   let parsed;
   try {

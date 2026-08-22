@@ -5,6 +5,7 @@ import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
+import { readUploadedFiles } from '@/lib/uploadIntake';
 
 async function canAccess(projectId, user) {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
@@ -66,14 +67,15 @@ export async function POST(request, { params }) {
   }
 
   const formData = await request.formData();
-  const files    = formData.getAll('files');
   const source   = formData.get('source') || 'EXTERNAL';
   const phaseTag = formData.get('phaseTag') || null;
   const notes    = formData.get('notes') || null;
 
-  if (!files || files.length === 0) {
-    return NextResponse.json({ error: 'No files provided' }, { status: 400 });
-  }
+  // A CD drawing set is the biggest thing anyone drops in the app, so these
+  // very often came straight to S3 rather than through the request body.
+  const got = await readUploadedFiles(formData);
+  if (!got.ok) return NextResponse.json({ error: got.message }, { status: got.status });
+  const files = got.files;
 
   // Create submission record first
   const submission = await prisma.drawingSubmission.create({
@@ -92,8 +94,7 @@ export async function POST(request, { params }) {
 
   const createdFiles = [];
   for (const file of files) {
-    if (!file || typeof file === 'string') continue;
-    const buffer   = Buffer.from(await file.arrayBuffer());
+    const buffer   = file.buffer;
     const ext      = path.extname(file.name) || '.pdf';
     const stored   = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
     const fileName = withDatePrefix(file.name); // ← YY.MM.DD prefix
@@ -120,6 +121,10 @@ export async function POST(request, { params }) {
     });
     createdFiles.push(drawingFile);
   }
+
+  // Staging copies under uploads/ have done their job; the 1-day lifecycle rule
+  // on that prefix is the backstop if this misses.
+  await got.cleanup();
 
   // ── Auto-advance project phase based on drawing tag ──────────────────────
   let phaseAdvanced = null;

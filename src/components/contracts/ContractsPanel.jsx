@@ -2,6 +2,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import PdfViewerModal from '@/components/ui/PdfViewerModal';
 import { oversizeMessage, uploadErrorMessage, uploadThrowMessage } from '@/lib/uploadErrorMessage';
+import { appendUpload } from '@/lib/uploadClient';
 
 // ─── Tag definitions ──────────────────────────────────────────────────────────
 const CONTRACT_TAGS = [
@@ -693,12 +694,14 @@ export default function ContractsPanel({ projectId, initialFiles = [], onFileAdd
     setUploading(prev => [...prev, { id: uid, name: file.name, reviewing: aiReview }]);
 
     const form = new FormData();
-    form.append('file', file);
     form.append('tab',  'contracts');
     form.append('tags', JSON.stringify([tag]));
 
     let uploadedFile = null;
     try {
+      // Inside the try: sending straight to S3 can fail too, and that message
+      // belongs in the same banner as everything else.
+      await appendUpload(form, file, { scope: 'project' });
       const res = await fetch(`/api/projects/${projectId}/files`, { method: 'POST', body: form });
       if (res.ok) {
         const data = await res.json();

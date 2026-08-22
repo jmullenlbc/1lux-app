@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db';
 // below without ever being imported, so this route threw a ReferenceError.
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { recordRun } from '@/lib/agent/ledger';
+import { modelFor } from '@/lib/aiModels';
 
 const CATEGORY_LABELS = {
   UNIT:         'Unit (Residential Fixtures)',
@@ -101,7 +102,7 @@ ${kbText}
   // usage totals only exist inside the event stream. They are picked out of it
   // below: `message_start` carries input_tokens, `message_delta` carries the
   // running output_tokens and the stop reason.
-  const MODEL   = 'claude-haiku-4-5-20251001';
+  const MODEL   = modelFor('chat.knowledgeBase');
   const started = Date.now();
   const ledger  = { inputTokens: null, outputTokens: null, stopReason: null };
 

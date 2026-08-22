@@ -5,6 +5,7 @@ import { getProjectFileBuffer } from '@/lib/projectFileStorage';
 import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
+import { modelParams, answerBudget } from '@/lib/aiModels';
 import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
 
 const anthropic = new Anthropic({ apiKey: getAnthropicKey() });
@@ -49,8 +50,8 @@ RULES:
   warnOnInjection('tracker.toc.extract', ctx.projectId, sealed);
 
   const msg = await wrapClient(anthropic, 'tracker.toc.extract', ctx).messages.create({
-    model:      'claude-haiku-4-5-20251001',
-    max_tokens: 1500,
+    ...modelParams('tracker.importToc'),
+    max_tokens: answerBudget('tracker.importToc', 1500),
     system:     sealed.system,
     messages:   [{ role: 'user', content: sealed.content }],
   });

@@ -21,9 +21,11 @@
  */
 import { createCanvas } from '@napi-rs/canvas';
 import { loadPdfjs, pdfDocOptions } from './pdfjsNode.js';
+import { isPdfDoc } from './drawingExtract.js';
 // Relative, not `@/lib/...`, on purpose: scripts/tests/siteVision.test.mjs
 // imports this file under plain Node, which does not know the `@/` alias.
 import { ATTACHED_DOCUMENT_RULE } from './agent/untrusted.js';
+import { modelFor, textFrom, answerBudget, warnIfTruncated } from './aiModels.js';
 
 /**
  * Long-edge pixels for the render handed to the model.
@@ -51,14 +53,22 @@ const MAX_PAGES = 3;
  * bug as the pdfjs standard_fonts omission. `src/lib/ocr.js` does it this way
  * and is proven in prod.
  */
-export async function renderPdfPages(buffer, { pages = MAX_PAGES, maxEdge = MAX_EDGE } = {}) {
-  const pdfjs = await loadPdfjs();
+export async function renderPdfPages(source, { pages = MAX_PAGES, maxEdge = MAX_EDGE, pageNumbers = null, alsoJpeg = false } = {}) {
+  // `source` may be the file's bytes OR a pdfjs document the caller already
+  // opened by byte range — see pdfRange.js. A 400 MB drawing set only ever
+  // arrives here as a doc, because holding one as a buffer is the thing we are
+  // avoiding. `pageNumbers` renders specific sheets instead of the first N,
+  // which is what makes rendering a set of that size worth doing at all.
+  const doc = isPdfDoc(source)
+    ? source
+    : await (await loadPdfjs()).getDocument(pdfDocOptions(source)).promise;
 
-  const doc = await pdfjs.getDocument(pdfDocOptions(buffer)).promise;
-  const count = Math.min(doc.numPages, pages);
+  const wanted = (pageNumbers?.length ? pageNumbers : null)
+    ?? Array.from({ length: Math.min(doc.numPages, pages) }, (_, i) => i + 1);
+  const list = wanted.filter(n => Number.isInteger(n) && n >= 1 && n <= doc.numPages).slice(0, Math.max(pages, wanted.length));
   const out = [];
 
-  for (let i = 1; i <= count; i++) {
+  for (const i of list) {
     const page = await doc.getPage(i);
     const base = page.getViewport({ scale: 1 });
     // Scale so the long edge lands near maxEdge. Rendering at native CAD size
@@ -73,7 +83,18 @@ export async function renderPdfPages(buffer, { pages = MAX_PAGES, maxEdge = MAX_
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, vp.width, vp.height);
     await page.render({ canvasContext: ctx, viewport: vp }).promise;
-    out.push({ page: i, png: canvas.toBuffer('image/png'), width: Math.round(vp.width), height: Math.round(vp.height) });
+    out.push({
+      page: i,
+      png: canvas.toBuffer('image/png'),
+      // A JPEG of the same render, when the caller wants a copy worth keeping.
+      // Same pixels the model saw, roughly a fifth the bytes — a 2200px sheet
+      // is a few megabytes as PNG and a few hundred kilobytes here. Quality is
+      // high because the subject is thin black linework, which is exactly what
+      // JPEG handles worst; below about 0.9 the dimension strings start to go.
+      ...(alsoJpeg ? { jpeg: canvas.toBuffer('image/jpeg', { quality: 0.9 }) } : {}),
+      width: Math.round(vp.width),
+      height: Math.round(vp.height),
+    });
   }
 
   return out;
@@ -134,7 +155,7 @@ export const SITE_VISION_PROMPT_VERSION = `siteVision-2026-08-09-${MAX_EDGE}px`;
  * hand-lettered SITE DATA block, and handwriting is where the cheaper model
  * misreads digits. A wrong unit count is worse than a slower call.
  */
-export async function extractSiteData(images, anthropic, { model = 'claude-sonnet-4-6' } = {}) {
+export async function extractSiteData(images, anthropic, { model = modelFor('drawing.siteData') } = {}) {
   if (!images?.length) return { ok: false, code: 'no_pages', message: 'Nothing to read.' };
 
   const content = [];
@@ -156,14 +177,15 @@ export async function extractSiteData(images, anthropic, { model = 'claude-sonne
   try {
     const msg = await anthropic.messages.create({
       model,
-      max_tokens: 1500,
+      max_tokens: answerBudget('drawing.siteData', 1500),
       // A drawing arrives as a native image block, so there is no string to
       // fence — the boundary here is the rule plus the tool ban in client.js.
       // See ATTACHED_DOCUMENT_RULE in src/lib/agent/untrusted.js.
       system: `${SITE_VISION_SYSTEM}\n\n${ATTACHED_DOCUMENT_RULE}`,
       messages: [{ role: 'user', content }],
     });
-    raw = msg.content[0]?.text ?? '';
+    warnIfTruncated(msg, 'drawing.siteData');
+    raw = textFrom(msg) ?? '';
   } catch (e) {
     console.error('site vision error:', e);
     return { ok: false, code: 'extraction_failed', message: 'Could not read the drawing.' };

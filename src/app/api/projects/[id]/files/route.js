@@ -4,12 +4,20 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { putProjectFile } from '@/lib/projectFileStorage';
+import { readUploadedFile } from '@/lib/uploadIntake';
 import { logActivity, TAB_LABELS } from '@/lib/activity';
 import { sendNotification } from '@/lib/notify';
 import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
 import { extractScheduleMilestones } from '@/lib/scheduleExtract';
+
+// Reading a full construction schedule with Fable 5 takes ~30s on an 84-page P6
+// export. Without this the request is cut off long before the answer arrives and
+// the upload silently lands with no milestones. Matches the ceiling already set
+// on the other AI parse routes.
+export const maxDuration = 120;
+
 
 // Anthropic client created per-request inside the POST handler so env vars are available
 
@@ -86,19 +94,29 @@ export async function POST(request, { params }) {
   );
 
   const formData = await request.formData();
-  const file     = formData.get('file');
   const tab      = formData.get('tab');
   let tagsRaw  = formData.get('tags') || null;
   const tags   = parseTags(tagsRaw);
 
-  if (!file || typeof file === 'string') return NextResponse.json({ error: 'No file provided' }, { status: 400 });
-  if (!VALID_TABS.includes(tab))         return NextResponse.json({ error: 'Invalid tab' },      { status: 400 });
+  if (!VALID_TABS.includes(tab)) return NextResponse.json({ error: 'Invalid tab' }, { status: 400 });
 
-  const bytes    = await file.arrayBuffer();
-  const buffer   = Buffer.from(bytes);
+  // The bytes arrive one of two ways — as a multipart body (small files, and
+  // local dev), or already sitting in S3 because the browser sent them straight
+  // there to get past Amplify's ~4.4 MB front door. readUploadedFile hides the
+  // difference; from here down nothing knows or cares which it was.
+  const upload = await readUploadedFile(formData);
+  if (!upload.ok) return NextResponse.json({ error: upload.message }, { status: upload.status });
+
+  const file = { name: upload.name, type: upload.type };
+  const buffer = upload.buffer;
+
   const safeName  = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
   const stored    = `${Date.now()}-${safeName}`;
   const storedKey = await putProjectFile(buffer, { projectId: params.id, tab, stored, contentType: file.type || 'application/octet-stream' });
+
+  // The staging copy under uploads/ has done its job. Best-effort — the 1-day
+  // lifecycle rule on that prefix is the backstop if this misses.
+  await upload.cleanup();
 
   let textContent  = null;
   let takeoffData  = null;

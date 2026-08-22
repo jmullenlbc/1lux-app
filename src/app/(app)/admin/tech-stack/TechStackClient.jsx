@@ -21,7 +21,7 @@ const STACK = [
   { label: 'DB (Local)',        value: 'SQLite',               note: 'dev.db · no Docker needed',              color: 'slate' },
   { label: 'DB (Production)',   value: 'PostgreSQL',           note: 'AWS RDS via Amplify env vars',           color: 'slate' },
   { label: 'Auth',             value: 'JWT (jose)',            note: 'httpOnly cookie · 7-day expiry',         color: 'slate' },
-  { label: 'AI',               value: 'Anthropic Claude API', note: '@anthropic-ai/sdk · claude-sonnet-4-6',  color: 'slate' },
+  { label: 'AI',               value: 'Anthropic Claude API', note: '@anthropic-ai/sdk · model per job (src/lib/aiModels.js)',  color: 'slate' },
   { label: 'Language',         value: 'JavaScript (JSX)',      note: 'No TypeScript — plain .js/.jsx',         color: 'slate' },
   { label: 'Version Control',  value: 'GitHub',               note: 'OperationsILC/ilc-lighting-app',         color: 'slate' },
 ];

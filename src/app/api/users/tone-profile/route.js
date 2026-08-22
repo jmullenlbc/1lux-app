@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth';
 import { prisma }       from '@/lib/db';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient }      from '@/lib/agent/client';
+import { modelParams, textFrom, answerBudget } from '@/lib/aiModels';
 
 // ── mbox parser ───────────────────────────────────────────────────────────────
 // Extracts plain-text bodies from a .mbox file (string)
@@ -99,12 +100,12 @@ Analyze their writing style and return a JSON object with this exact structure:
 Return ONLY the JSON object. No preamble, no explanation.`;
 
   const msg = await client.messages.create({
-    model:      'claude-sonnet-4-6',
-    max_tokens: 1000,
+    ...modelParams('user.toneProfile'),
+    max_tokens: answerBudget('user.toneProfile', 1000),
     messages:   [{ role: 'user', content: prompt }],
   });
 
-  const raw = msg.content?.[0]?.text?.trim() || '{}';
+  const raw = textFrom(msg)?.trim() || '{}';
   const cleaned = raw.replace(/```json|```/g, '').trim();
   return JSON.parse(cleaned);
 }

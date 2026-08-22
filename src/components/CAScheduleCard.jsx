@@ -1,7 +1,7 @@
 'use client';
 import { useState, useMemo, useEffect, useRef } from 'react';
 
-// ── Milestone type config (8 canonical types) ─────────────────────────────────
+// ── Milestone type config (9 canonical types) ─────────────────────────────────
 const MILESTONE_CONFIG = {
   'construction-start':  { label: 'Construction Start',         badge: 'START', color: '#3b82f6', badgeCss: 'bg-blue-100 text-blue-600' },
   'electrical-rough':    { label: 'Electrical Rough-In',        badge: 'ELEC',  color: '#6366f1', badgeCss: 'bg-indigo-100 text-indigo-600' },
@@ -9,6 +9,7 @@ const MILESTONE_CONFIG = {
   'light-fixtures':      { label: 'Interior Light Fixtures',    badge: 'LTNG',  color: '#f59e0b', badgeCss: 'bg-amber-100 text-amber-600' },
   'site-lighting':       { label: 'Exterior / Site Lighting',   badge: 'SITE',  color: '#f97316', badgeCss: 'bg-orange-100 text-orange-600' },
   'electrical-devicing': { label: 'Electrical Devicing / Trim', badge: 'TRIM',  color: '#a78bfa', badgeCss: 'bg-violet-100 text-violet-600' },
+  'final-inspection':    { label: 'Final Inspection',           badge: 'INSP',  color: '#0ea5e9', badgeCss: 'bg-sky-100 text-sky-600' },
   'tco':                 { label: 'TCO',                        badge: 'TCO',   color: '#10b981', badgeCss: 'bg-emerald-100 text-emerald-600' },
   'construction-end':    { label: 'Final Completion',           badge: 'END',   color: '#22c55e', badgeCss: 'bg-green-100 text-green-600' },
 };
@@ -21,8 +22,9 @@ const TYPE_PRIORITY = {
   'light-fixtures':     2,
   'site-lighting':      3,
   'electrical-devicing':4,
-  'tco':                5,
-  'construction-end':   6,
+  'final-inspection':   5,
+  'tco':                6,
+  'construction-end':   7,
 };
 
 // The 5 defaults always shown (even with no file uploaded)
@@ -30,12 +32,19 @@ const DEFAULT_MILESTONES = [
   { id: 'construction-start', label: 'Construction Start',       date: null },
   { id: 'electrical-rough-1', label: 'Electrical Rough-In',      date: null },
   { id: 'site-lighting',      label: 'Exterior / Site Lighting', date: null },
-  { id: 'tco',                label: 'TCO',                      date: null },
+  { id: 'tco-1',              label: 'TCO',                      date: null },
   { id: 'construction-end',   label: 'Final Completion',         date: null },
 ];
 
-// Singletons: only one instance allowed (no -N suffix)
-const SINGLETON_TYPES = new Set(['construction-start', 'light-fixtures', 'site-lighting', 'electrical-devicing', 'tco', 'construction-end']);
+// Singletons: only one instance allowed (no -N suffix).
+//
+// 2026-08-19: light fixtures, final inspection and TCO came OUT of this set.
+// They are per-building facts — on a four-building job the fixtures go in six
+// months apart — so the card now holds one row per building for each, the same
+// way it always has for rough-ins. Older projects that stored a bare
+// "light-fixtures" or "tco" still load and display normally: getBaseType()
+// strips the suffix, and a missing suffix is simply no suffix.
+const SINGLETON_TYPES = new Set(['construction-start', 'site-lighting', 'electrical-devicing', 'construction-end']);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -290,7 +299,7 @@ export default function CAScheduleCard({ files, projectId, onFileUpdated }) {
     const result = [...stored];
 
     // Ensure singleton defaults exist
-    const singletonDefaults = ['construction-start', 'site-lighting', 'tco', 'construction-end'];
+    const singletonDefaults = ['construction-start', 'site-lighting', 'construction-end'];
     for (const id of singletonDefaults) {
       if (!result.some(m => m.id === id)) {
         result.push({ id, label: MILESTONE_CONFIG[id].label, date: null });
@@ -301,6 +310,13 @@ export default function CAScheduleCard({ files, projectId, onFileUpdated }) {
     const hasRough = result.some(m => /^(electrical-rough|mep-rough)/.test(m.id));
     if (!hasRough) {
       result.push({ id: 'electrical-rough-1', label: 'Electrical Rough-In', date: null });
+    }
+
+    // TCO is per-building now, so it is matched by base type rather than by
+    // exact id — a bare "tco" stored by an older parse counts as present, and
+    // nothing gets added twice on a project that predates the change.
+    if (!result.some(m => getBaseType(m.id) === 'tco')) {
+      result.push({ id: 'tco-1', label: 'TCO', date: null });
     }
 
     return sortMilestones(result);
@@ -384,9 +400,12 @@ export default function CAScheduleCard({ files, projectId, onFileUpdated }) {
     // Multi-phase types get a numeric suffix
     if (!SINGLETON_TYPES.has(type)) {
       const existing = milestones.filter(m => getBaseType(m.id) === type);
+      // An un-suffixed entry (a "tco" or "light-fixtures" stored before these
+      // became per-building) counts as number 1, so the next one added is 2
+      // rather than colliding at 1.
       const maxN = existing.reduce((max, m) => {
         const match = m.id.match(/-(\d+)$/);
-        return match ? Math.max(max, parseInt(match[1])) : max;
+        return Math.max(max, match ? parseInt(match[1]) : 1);
       }, 0);
       newId = `${type}-${maxN + 1}`;
     }

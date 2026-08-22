@@ -3,8 +3,10 @@ import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
+import { modelParams, textFrom, answerBudget } from '@/lib/aiModels';
 import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
 import { getProjectFileBuffer } from '@/lib/projectFileStorage';
+import { readUploadedFile } from '@/lib/uploadIntake';
 import {
   extractPdfPages,
   extractNotesFromPages,
@@ -56,11 +58,12 @@ export async function POST(req, { params }) {
   const contentType = req.headers.get('content-type') || '';
   if (contentType.includes('multipart/form-data')) {
     const formData = await req.formData();
-    const file     = formData.get('file');
-    if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
-    buffer         = Buffer.from(await file.arrayBuffer());
-    fileName       = file.name;
-    submissionName = formData.get('submissionName') || file.name.replace(/\.pdf$/i, '');
+    const upload = await readUploadedFile(formData);
+    if (!upload.ok) return NextResponse.json({ error: upload.message }, { status: upload.status });
+    buffer         = upload.buffer;
+    fileName       = upload.name;
+    submissionName = formData.get('submissionName') || upload.name.replace(/\.pdf$/i, '');
+    await upload.cleanup();
   } else {
     const body = await req.json();
     if (body.fileId) {
@@ -218,12 +221,12 @@ export async function POST(req, { params }) {
         warnOnInjection('tracker.review.classify', params.id, sealed);
 
         const msg = await anthropic.messages.create({
-          model:      'claude-haiku-4-5',
-          max_tokens: 30,
+          ...modelParams('tracker.extract'),
+          max_tokens: answerBudget('tracker.extract', 30),
           system:     sealed.system,
           messages:   [{ role: 'user', content: sealed.content }],
         });
-        const classified = msg.content?.[0]?.text?.trim().toUpperCase();
+        const classified = textFrom(msg)?.trim().toUpperCase();
         if (classified && classified !== 'OTHER') {
           await prisma.submittalReview.update({
             where: { id: review.id },

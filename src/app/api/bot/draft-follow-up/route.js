@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { generateFollowUpDraft, getLastActivityDate } from '@/lib/bot/followUpDrafter';
+import { modelFor } from '@/lib/aiModels';
 
 // POST /api/bot/draft-follow-up
 // Manually generate a follow-up draft for a specific project.
@@ -49,7 +50,7 @@ export async function POST(req) {
       body:                result.body,
       reviewWindowMinutes,
       reviewExpiresAt:     reviewWindowMinutes > 0 ? new Date(Date.now() + reviewWindowMinutes * 60 * 1000) : null,
-      draftModel:          'claude-haiku-4-5',
+      draftModel:          modelFor('bot.followUp'),
       classificationReason: `Manual draft — ${daysSinceActivity}d stale`,
     },
     include: { project: { select: { id: true, name: true } } },

@@ -2,6 +2,7 @@
 import { useState, useRef } from 'react';
 import { STATUS_META } from '@/lib/shipmentStatus';
 import { oversizeMessage, uploadErrorMessage, uploadThrowMessage } from '@/lib/uploadErrorMessage';
+import { appendUpload } from '@/lib/uploadClient';
 
 function fmt(date) {
   if (!date) return '—';
@@ -27,11 +28,12 @@ export default function ShipScheduleImport({ projectId, onClose, onImported }) {
     if (tooBig) { setError(tooBig); setLoading(false); return; }
 
     const fd = new FormData();
-    fd.append('file', f);
 
     // Wrapped: this used to have no try/catch, so a rejected upload (whose body is
     // empty) threw inside res.json() and the spinner span forever with no message.
+    // appendUpload is inside the try for the same reason — it can throw too.
     try {
+      await appendUpload(fd, f, { scope: 'project' });
       const res = await fetch(`/api/projects/${projectId}/shipments/import`, { method: 'POST', body: fd });
       setLoading(false);
       if (!res.ok) { setError(await uploadErrorMessage(res, f)); return; }
@@ -48,9 +50,9 @@ export default function ShipScheduleImport({ projectId, onClose, onImported }) {
     setError('');
 
     const fd = new FormData();
-    fd.append('file', file);
 
     try {
+      await appendUpload(fd, file, { scope: 'project' });
       const res = await fetch(`/api/projects/${projectId}/shipments/import?commit=true`, { method: 'POST', body: fd });
       setImporting(false);
       if (!res.ok) { setError(await uploadErrorMessage(res, file)); return; }

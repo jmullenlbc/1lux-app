@@ -66,11 +66,20 @@ export function mergeProposals(results) {
   let grossBundle = null;
   const conflicts = [];
   const sources = [];
+  // The sheets we kept a picture of, gathered across every file in the drop so
+  // a reviewer can see what each number was read off. Carried by reference
+  // (a storage key and a page number), never by content — these ride in the
+  // submission payload, which has a size ceiling measured in kilobytes.
+  const keptSheets = [];
   let confSum = 0, confCount = 0;
 
   for (const { fileName, proposal } of results) {
     if (!proposal) continue;
     sources.push(fileName);
+
+    for (const sheet of proposal.keptSheets ?? []) {
+      if (sheet?.key) keptSheets.push({ ...sheet, file: fileName });
+    }
 
     for (const row of proposal.unitTypes ?? []) {
       const key = String(row.code ?? '').trim().toLowerCase();
@@ -173,6 +182,7 @@ export function mergeProposals(results) {
     siteData,
     conflicts,
     sources,
+    keptSheets: keptSheets.length ? keptSheets : null,
     overallConfidence: confCount ? confSum / confCount : null,
   };
 }

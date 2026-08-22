@@ -1,6 +1,7 @@
 import { getAnthropicKey } from '@/lib/anthropicKey.js';
 import Anthropic from '@anthropic-ai/sdk';
 import { wrapClient } from '@/lib/agent/client';
+import { modelParams, textFrom } from '@/lib/aiModels';
 import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
 
 // Recorded: see src/lib/agent/ledger.js.
@@ -43,12 +44,12 @@ export async function extractFromArticle(title, rawContent) {
 
   try {
     const response = await client.messages.create({
-      model:      'claude-haiku-4-5',
+      ...modelParams('market.entityExtract'),
       max_tokens: 300,
       system:     sealed.system,
       messages:   [{ role: 'user', content: sealed.content }],
     });
-    const raw     = response.content[0]?.text || '{}';
+    const raw     = textFrom(response) || '{}';
     const cleaned = raw.replace(/```json|```/g, '').trim();
     return JSON.parse(cleaned);
   } catch (err) {

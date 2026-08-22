@@ -2,7 +2,8 @@
 import { useState, useEffect, useRef } from 'react';
 import PdfViewerModal from '@/components/ui/PdfViewerModal';
 import DrawingMarkupModal from '@/components/drawing/DrawingMarkupModal';
-import { UPLOAD_LIMIT_BYTES } from '@/lib/uploadErrorMessage';
+import { batchOversizeMessage } from '@/lib/uploadErrorMessage';
+import { appendUploads } from '@/lib/uploadClient';
 
 const PHASE_TAGS = ['SD', 'DD', 'CD', 'IFC', 'ASI', 'RFI', 'OTHER'];
 
@@ -103,18 +104,16 @@ function UploadModal({ projectId, onUploaded, onClose }) {
 
   async function doUpload() {
     if (files.length === 0) { setError('Please select at least one PDF file.'); return; }
-    // All the files go up in ONE request, so it is the combined size that has to
-    // clear the server's 4 MB ceiling — not each file on its own.
-    const total = files.reduce((sum, f) => sum + f.size, 0);
-    if (total > UPLOAD_LIMIT_BYTES) {
-      setError(`These ${files.length} file${files.length !== 1 ? 's' : ''} add up to ${(total / (1024 * 1024)).toFixed(1)} MB. The server can only accept 4 MB at a time — upload them in smaller batches.`);
-      return;
-    }
+    // PDFs go to S3 one at a time (25 MB each); anything else still shares the
+    // request body and its combined size has to clear 4 MB. batchOversizeMessage
+    // applies whichever rule each file falls under.
+    const tooBig = batchOversizeMessage(files);
+    if (tooBig) { setError(tooBig); return; }
     setUploading(true);
     setError(null);
     try {
       const fd = new FormData();
-      files.forEach(f => fd.append('files', f));
+      await appendUploads(fd, files, { scope: 'project' });
       fd.append('source', source);
       if (phaseTag) fd.append('phaseTag', phaseTag);
       if (notes)    fd.append('notes', notes);

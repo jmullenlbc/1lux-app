@@ -5,6 +5,7 @@ import PriceAlertBadge from '@/components/pricing/PriceAlertBadge';
 import RetailPriceDot from '@/components/pricing/RetailPriceDot';
 import Link from 'next/link';
 import { oversizeMessage } from '@/lib/uploadErrorMessage';
+import { appendUpload } from '@/lib/uploadClient';
 
 // ── Location Tags ─────────────────────────────────────────────────────────────
 
@@ -220,9 +221,11 @@ function ImportModal({ projectId, onImported, onClose }) {
     setStep('parsing');
 
     const fd = new FormData();
-    fd.append('file', file);
 
     try {
+      // Inside the try: sending straight to S3 can fail too, and that message
+      // belongs in the same red banner as everything else.
+      await appendUpload(fd, file, { scope: 'project' });
       const res  = await fetch(`/api/projects/${projectId}/peer-review/parse-pdf`, { method: 'POST', body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Parse failed');

@@ -7,6 +7,13 @@ import { getAnthropicKey } from '@/lib/anthropicKey';
 import { extractScheduleMilestones, extractScheduleMilestonesFromText } from '@/lib/scheduleExtract';
 import { wrapClient } from '@/lib/agent/client';
 
+// Reading a full construction schedule with Fable 5 takes ~30s on an 84-page P6
+// export. Without this the request is cut off long before the answer arrives and
+// the upload silently lands with no milestones. Matches the ceiling already set
+// on the other AI parse routes.
+export const maxDuration = 120;
+
+
 // POST /api/projects/[id]/files/[fileId]/reparse
 // Re-runs construction-schedule milestone extraction on an uploaded file.
 export async function POST(request, { params }) {

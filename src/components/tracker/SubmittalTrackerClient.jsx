@@ -6,6 +6,7 @@ import TrackerPanel from './TrackerPanel';
 import ImportModal from './ImportModal';
 import NewSubmissionModal from './NewSubmissionModal';
 import TocImportModal from './TocImportModal';
+import { appendUpload } from '@/lib/uploadClient';
 
 const ALL_ROLES = [
   { key: 'ILC',       label: 'ILC Studios' },
@@ -67,7 +68,7 @@ export default function SubmittalTrackerClient({ projectId, projectName }) {
     setExtractResult(null);
     try {
       const fd = new FormData();
-      fd.append('file', file);
+      await appendUpload(fd, file, { scope: 'project' });
       fd.append('submissionName', file.name.replace(/\.pdf$/i, ''));
       const res  = await fetch(`/api/projects/${projectId}/tracker/extract`, { method: 'POST', body: fd });
       const data = await res.json();

@@ -2,6 +2,126 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+## ❓ FOR SEAN — 2026-08-22 (from Mike, via Mike's Claude): I got the memory story wrong yesterday, and I need one number from you
+
+**Correcting yesterday's entry below.** It says a 400 MB set "is never held in memory." That is not what happens, and I would rather you hear it from me than find it in a production alarm.
+
+### What I actually measured
+
+Everything about the big-set reader had been proven on an 11 MB drawing set. Yesterday I found a real 231 MB one on the G: drive — the same size class as the GC upload that started this — and ran the production path against it. Three results, in the order they landed:
+
+1. Scanning it peaked at **827 MB RSS** having fetched 108 MB. The byte budget was 96 MB and never fired usefully.
+2. External memory sat flat at ~250 MB from page 10, with only 22 MB fetched — which fits no theory in which "bytes fetched" predicts "bytes resident."
+3. The decisive one: open the document, read **zero pages**, and external memory grows **237 MB** on a 231 MB file. pdfjs's ChunkedStream allocates `new Uint8Array(length)` at open, regardless of `disableAutoFetch` / `disableStream`.
+
+So `SCAN_BYTE_BUDGET` bounded nothing that matters. Two mitigating facts: the up-front allocation is lazily backed (RSS only rose 42 MB at open — it reserves, it does not commit), and `page.cleanup()` genuinely works, `heapUsed` stayed at 20–28 MB across all 212 pages. The growth is `external`/ArrayBuffer, which `--max-old-space-size` does not govern.
+
+### What I changed
+
+`overBudget` no longer predicts memory from bytes — it measures `process.memoryUsage.rss()` against a ceiling, latched so a well-timed GC cannot un-apply it, sampled both inside the range fetcher and at each page boundary. The byte budget stays as a cheap second brake.
+
+The ceiling reads **`AWS_LAMBDA_FUNCTION_MEMORY_SIZE`** and takes 70% of it. Off Lambda it falls back to a deliberately tight 384 MB so a local dry run behaves like the smallest plausible production box. `PDF_SCAN_MEMORY_CEILING_MB` overrides both if we ever need to correct it without a deploy.
+
+Re-run on the same 231 MB set: stops itself at **394 MB peak against a 384 MB ceiling**, 36 of 212 sheets read, still returns a site plan and a gross-area sheet. Was 827 MB.
+
+(For the record, since it is the obvious next idea: periodic `doc.cleanup()` is **not** a fix. It bought no page reach and turned a 13-second scan into one still running after nine minutes.)
+
+### 🔴 The one thing I need from you
+
+**How much memory is the Amplify SSR Lambda configured with?**
+
+That single number decides how much of a big set we can read, and I have no AWS credentials to look it up. The code is safe either way — it degrades rather than dying — but the difference is material:
+
+| Lambda memory | Ceiling | Roughly how far we read a 231 MB set |
+|---|---|---|
+| 512 MB (Gen 1 default) | 358 MB | ~35 sheets |
+| 1769 MB | 1238 MB | most of it |
+
+On that particular set the architectural site plan is sheet 33, so at 512 MB we are clearing it by two sheets. That is too close for comfort. **If the SSR Lambda's memory is configurable on Amplify Gen 1, raising it is the cheapest fix available and I would like to.** If it is not configurable, tell me and I will solve the reach problem a different way — parsing the drawing index on sheet 1 to jump straight to the named sheet, instead of scanning linearly until memory runs out.
+
+### Still open from 2026-08-19 and 2026-08-21
+
+Unchanged and still needed: the lifecycle rule scoped to the `uploads/` prefix (not bucket-wide), what prefixes the IAM policy covers, and the new `sheets/` prefix needing `PutObject`/`GetObject` — see the entry below, including the silent-failure warning on that last one.
+
+Status: all local-only, **not deployed**. 452/452 unit tests, `npm run verify` green on all 9 gates, production build clean. No schema change.
+
+---
+
+## ❓ FOR SEAN — 2026-08-21 (from Mike, via Mike's Claude): still need those two confirmations — and there is now a third prefix
+
+Mike's words today: *"chase him on it."* Same two items from 2026-08-19, plus one new one that came out of today's work.
+
+### Still open from 2026-08-19 — two lines from you closes it
+
+| Setting | Status |
+|---|---|
+| Lifecycle rule — `uploads/` **prefix**, 1-day expiry | **your word needed** — and specifically that it is scoped to the `uploads/` prefix and not to the whole bucket |
+| IAM policy — `PutObject` / `GetObject` / `DeleteObject` for the app role | **your word needed** — and now: what prefixes does it cover? |
+
+CORS is confirmed live from outside; those two are not observable without AWS credentials, which Mike's machine does not have. Not doubting you — I just will not record something as verified when I could not see it.
+
+### 🆕 NEW — a third prefix, `sheets/`, needs to be in the IAM policy and out of the lifecycle rule
+
+Today the intake cap went from 50 MB to **400 MB, five files** (a GC tried to send a 246 MB set and was refused). A set that size is never held in memory — the browser puts it straight in S3 and the server reads it back by byte range, then deletes it.
+
+Mike then asked for the small compressed copies to be kept: *"Yes keep the small, compressed version for sure. So they can reference."* So the handful of sheets we actually read (site plan, area summary, unit matrix, cover) are now written as compressed JPEGs — a few hundred KB each, four at most per file — and shown on the submission in the review queue behind `requireAdmin`, via a GET link that expires in 5 minutes.
+
+> **Superseded 2026-08-22:** the sentence above — "A set that size is never held in memory" — is wrong. See the entry above this one for what actually happens and what changed. The `sheets/` asks below are unaffected and still stand.
+
+**They are deliberately written to a `sheets/` prefix, NOT `uploads/`,** for exactly the reason you flagged on `project-files/`: `uploads/` is swept daily and these have to outlive the upload they came from. Two things need to be true in the console:
+
+1. **IAM:** the app role needs `s3:PutObject` and `s3:GetObject` on `arn:aws:s3:::ilc-qc-media/sheets/*`. If the policy is scoped to `uploads/*` only, this feature fails **silently** — `putSheetImage` swallows the error and returns null by design, so the parse still succeeds and the reviewer just sees no sheets. Nothing breaks; it simply never works. That is the failure mode I want you to know about, because it will not show up in any log as an error.
+2. **Lifecycle:** confirm the 1-day expiry rule matches the `uploads/` prefix only. If it is bucket-wide, kept sheets vanish overnight — and so does everything under `project-files/`.
+
+If you would rather not add a third prefix, say so and I will move kept sheets under `project-files/` instead; the code cares about one constant. `uploads/` is the only prefix it must not be.
+
+### Where this stands
+
+All of the above is **built and local-only — NOT deployed.** 448/448 unit tests pass, production build clean, runtime assets 26/26. No schema change. It ships on Mike's next explicit "Deploy."
+
+**Also worth knowing:** the sheet-picking step calls Fable 5, and every live test of it today came back *"Your credit balance is too low to access the Anthropic API."* The code degrades to a plain keyword scan and picks the right sheets anyway — that fallback is deliberate and it is the only path that has ever been exercised live. Flagging it so nobody reads a working upload as proof the AI half works.
+
+Files, if you want to look: `src/lib/uploadStorage.js` (`putSheetImage` / `presignSheetRead` / `isSheetKey`), `src/app/api/admin/sheets/route.js`, `src/lib/pdfRange.js`.
+
+---
+
+## ❓ FOR SEAN — 2026-08-19 (from Mike, via Mike's Claude): two-line confirmation needed, plus the 25 MB upload work is built
+
+Mike asked me to put this to you here rather than by email — his words: *"just ask him to confirm through Claude. I trust him."*
+
+### The ask — two lines, that is all
+
+Your 2026-08-19 entry says the three S3 console steps were **completed 2026-08-18**. I could independently verify only one of them from Mike's machine (no AWS credentials there):
+
+| Setting | Verified from outside | Status |
+|---|---|---|
+| CORS on `ilc-qc-media` | ✅ yes — preflight from `app.ilcstudios.com` with `PUT` returns 200 with the origin echoed; `evil.example.com` returns 403; anonymous listing returns 403 | **confirmed live** |
+| Lifecycle rule — `uploads/` prefix, 1-day expiry | ❌ not observable without credentials | **your word needed** |
+| IAM policy — `PutObject` / `GetObject` / `DeleteObject` on `uploads/*` for the app role | ❌ not observable without credentials | **your word needed** |
+
+Not doubting you — I just will not record something as verified when I could not see it. A one-line "both confirmed" (or a console screenshot) closes it out and I will mark it verified here.
+
+**Why these two specifically matter now:** the work below makes them load-bearing on every upload window in the app, not just the public intake.
+
+### FYI — the 25 MB upload change is built (local only, NOT deployed)
+
+Mike: *"we need that limit to go up to 25mb. schedules can be 50 pages long if detailed."*
+
+Every in-app upload window now sends PDFs and spreadsheets **direct to S3** via the presign route, the same pattern the public intake already uses, and posts only a key to the API route. Amplify's ~4.4 MB front door is therefore never in the path for those types.
+
+- **New seam: `src/lib/uploadIntake.js`.** `readUploadedFile(formData)` / `readUploadedFiles(formData)`. Routes still parse `tab`, `tags`, `source`, `phaseTag` exactly as before — only the line that gets the *bytes* moved. If you add an upload route, use these rather than `formData.get('file')`.
+- **New client calls: `appendUpload` / `appendUploads`** in `src/lib/uploadClient.js`. One call per drop zone; it decides direct-vs-multipart and returns which it used.
+- **Two named ceilings** in `uploadStorage.js`: `MAX_PROJECT_UPLOAD_BYTES` (25 MB, in-app) and `MAX_DIRECT_UPLOAD_BYTES` (50 MB, public intake — unchanged). The presign route now takes a `scope` (`'project'` | `'intake'`) that selects the ceiling and nothing else; the key is still a fresh cuid under `uploads/`, so a scope cannot reach an existing object.
+- **Temp objects are copied into your `project-files/` prefix and then deleted** from `uploads/`. Your prefix separation holds — nothing permanent lands under the lifecycle rule. The rule is the backstop if a cleanup misses, which is the second reason I want it confirmed.
+- **7 routes and 12 components converted**, including `POST /api/projects/[id]/files`, which is yours. Its `putProjectFile` call is untouched; it just receives its buffer from a different place now.
+- **Graceful degradation is deliberate:** if the direct PUT fails, a file small enough to have fit through the front door quietly retries as multipart. So if the IAM policy is *not* actually in place, today's behaviour is preserved rather than broken — but nothing gets bigger either.
+
+**Verified:** build clean · runtime assets 26/26 · dynamic pages 55/55 · migrations 56/56 · models 117/117 · full suite **439/439** · budget math 53/53 · bid matrix 12/12 · live probe of all 7 converted routes against a running server (uploads land; every error path returns a clear message). No schema change.
+
+Ships on Mike's next explicit "Deploy."
+
+---
+
 ## Mike's Claude — 2026-08-19 (later): DEPLOYED `2b0c52a` — P6 schedule dates, site/parse S3 gap, drag-and-drop audit
 
 **Everything listed as "local only, NOT deployed" in the entries below is now live.** Mike said "Do full testing, debugging and then deploy." Full pass run first; three new bugs came out of it.

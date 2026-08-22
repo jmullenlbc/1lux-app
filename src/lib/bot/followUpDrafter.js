@@ -8,6 +8,7 @@
 import { prisma } from '@/lib/db';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
+import { modelParams, textFrom } from '@/lib/aiModels';
 import { inDesignPipeline, STAGE_LABEL } from '@/lib/pipeline';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -130,10 +131,10 @@ Respond with JSON only: { "subject": "...", "body": "..." }`;
       { projectId: project.id },
     );
     const msg = await anthropic.messages.create({
-      model: 'claude-haiku-4-5', max_tokens: 400,
+      ...modelParams('bot.followUp'), max_tokens: 400,
       messages: [{ role: 'user', content: prompt }],
     });
-    const raw = msg.content?.[0]?.text?.trim() || '';
+    const raw = textFrom(msg)?.trim() || '';
     const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
     subject = parsed.subject || subject;
     body    = parsed.body   || raw;

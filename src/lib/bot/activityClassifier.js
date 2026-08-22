@@ -12,6 +12,7 @@
  */
 
 import { prisma }          from '@/lib/db';
+import { modelParams, textFrom } from '@/lib/aiModels';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient }      from '@/lib/agent/client';
 import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
@@ -145,12 +146,12 @@ Examples: LUNCH|88  or  SKIP|95  or  GOLF|72`;
     warnOnInjection('bot.activity.classify', null, sealed);
 
     const msg = await client.messages.create({
-      model:      'claude-haiku-4-5',
+      ...modelParams('bot.activityClassify'),
       max_tokens: 20,
       system:     sealed.system,
       messages:   [{ role: 'user', content: sealed.content }],
     });
-    const raw = msg.content?.[0]?.text?.trim() || '';
+    const raw = textFrom(msg)?.trim() || '';
     const [typeStr, confStr] = raw.split('|');
     const type = typeStr?.trim().toUpperCase();
     const conf = parseInt(confStr?.trim()) || 50;

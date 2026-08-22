@@ -7,6 +7,7 @@ import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
+import { modelParams, textFrom, answerBudget } from '@/lib/aiModels';
 
 // ── Load code corpus (reuse same pattern as code-search route) ────────────────
 function parseFrontmatter(content) {
@@ -219,13 +220,13 @@ Return only the JSON object, no markdown, no explanation outside the JSON.`;
       const enc = new TextEncoder();
       try {
         const response = await client.messages.create({
-          model:      'claude-haiku-4-5',
-          max_tokens: 2000,
+          ...modelParams('code.check'),
+          max_tokens: answerBudget('code.check', 2000),
           system:     systemPrompt,
           messages:   [{ role: 'user', content: userMessage }],
         });
 
-        const text = response.content[0]?.text ?? '';
+        const text = textFrom(response) ?? '';
         // Extract JSON from response
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (jsonMatch) {

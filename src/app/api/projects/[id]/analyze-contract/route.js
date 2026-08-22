@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db';
 import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
+import { modelParams, answerBudget } from '@/lib/aiModels';
 import { buildUntrustedPrompt, ATTACHED_DOCUMENT_RULE } from '@/lib/agent/untrusted';
 import { getProjectFileBuffer } from '@/lib/projectFileStorage';
 import { CONTRACT_SYSTEM_PROMPT } from '@/lib/contractSystemPrompt';
@@ -142,8 +143,8 @@ export async function POST(request, { params }) {
     // wrapping the shared client again per call is free.
     const recorded = wrapClient(anthropic, 'contract.analyze', { projectId: params.id, userId: user.id });
     message = await recorded.messages.create({
-      model:      'claude-sonnet-4-6',
-      max_tokens: 16000,
+      ...modelParams('contract.analyze'),
+      max_tokens: answerBudget('contract.analyze', 16000),
       // Text path: the boundary rule is already folded in, naming the fence ids.
       // PDF path: nothing to fence, so the attachment-shaped rule instead.
       system:     sealed ? sealed.system : `${CONTRACT_SYSTEM_PROMPT}\n\n${ATTACHED_DOCUMENT_RULE}`,

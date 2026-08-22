@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { createRequire } from 'module';
+import { readUploadedFile } from '@/lib/uploadIntake';
 const require = createRequire(import.meta.url);
 
 // ASHRAE 90.1-2022 §9.5.1 interior LPD limits
@@ -109,17 +110,19 @@ export async function POST(request) {
   try { formData = await request.formData(); }
   catch { return NextResponse.json({ error: 'No file provided' }, { status: 400 }); }
 
-  const file = formData.get('file');
-  if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+  const upload = await readUploadedFile(formData);
+  if (!upload.ok) return NextResponse.json({ error: upload.message }, { status: upload.status });
 
-  const fileName = file.name || 'upload';
+  const fileName = upload.name || 'upload';
   const ext = fileName.split('.').pop().toLowerCase();
   const allowed = ['csv', 'xlsx', 'xls'];
   if (!allowed.includes(ext)) {
+    await upload.cleanup();
     return NextResponse.json({ error: `Unsupported format. Upload a CSV or Excel file (.csv, .xlsx, .xls)` }, { status: 400 });
   }
 
-  const buffer = Buffer.from(await file.arrayBuffer());
+  const buffer = upload.buffer;
+  await upload.cleanup();
 
   // Parse with xlsx
   const XLSX = require('xlsx');

@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, useCallback } from 'react';
 import { oversizeMessage, uploadErrorMessage } from '@/lib/uploadErrorMessage';
+import { appendUpload } from '@/lib/uploadClient';
 
 const ASHRAE_LIMITS = {
   corridor: 0.66, garage: 0.21, parking: 0.21, boh: 0.75,
@@ -229,7 +230,7 @@ export default function LPDCheckClient() {
 
     try {
       const fd = new FormData();
-      fd.append('file', file);
+      await appendUpload(fd, file, { scope: 'project' });
       const res = await fetch('/api/lpd-check', { method: 'POST', body: fd });
       if (!res.ok) throw new Error(await uploadErrorMessage(res, file));
       const data = await res.json();

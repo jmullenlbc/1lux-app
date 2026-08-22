@@ -2,6 +2,7 @@
 import { useState, useRef, useCallback, useMemo } from 'react';
 import PdfViewerModal from '@/components/ui/PdfViewerModal';
 import { oversizeMessage, uploadErrorMessage, uploadThrowMessage } from '@/lib/uploadErrorMessage';
+import { appendUpload } from '@/lib/uploadClient';
 
 // Flat tag list used for filter chips and ordering
 const TAB_TAGS = {
@@ -213,12 +214,18 @@ export default function FileDropZone({ projectId, tab, initialFiles = [], onFile
     const tooBig = oversizeMessage(file);
     if (tooBig) { fail(tooBig); return; }
 
-    setUploading(prev => [...prev, { id: uid, name: file.name }]);
+    setUploading(prev => [...prev, { id: uid, name: file.name, pct: null }]);
     const form = new FormData();
-    form.append('file', file);
     form.append('tab',  tab);
     if (tags?.length) form.append('tags', JSON.stringify(tags));
     try {
+      // PDFs and spreadsheets go straight to S3 (25 MB ceiling); everything
+      // else still rides in the form body (4 MB, Amplify's front door).
+      await appendUpload(form, file, {
+        scope: 'project',
+        onProgress: (pct) => setUploading(prev => prev.map(u => u.id === uid ? { ...u, pct } : u)),
+      });
+      setUploading(prev => prev.map(u => u.id === uid ? { ...u, pct: null } : u));
       const res = await fetch(`/api/projects/${projectId}/files`, { method: 'POST', body: form });
       if (res.ok) {
         const data = await res.json();
@@ -345,7 +352,9 @@ export default function FileDropZone({ projectId, tab, initialFiles = [], onFile
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
               </svg>
               <span className="truncate">{u.name}</span>
-              <span className="ml-auto shrink-0 text-amber-500">Extracting text…</span>
+              <span className="ml-auto shrink-0 text-amber-500">
+                {u.pct == null ? 'Extracting text…' : `Uploading… ${u.pct}%`}
+              </span>
             </div>
           ))}
         </div>

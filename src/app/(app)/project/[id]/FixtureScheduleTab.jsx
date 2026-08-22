@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import PdfViewerModal from '@/components/ui/PdfViewerModal';
 import { oversizeMessage } from '@/lib/uploadErrorMessage';
+import { appendUpload } from '@/lib/uploadClient';
 
 const PHASE_OPTIONS = ['SD', 'DD', 'CD', 'IFC', 'ASI'];
 
@@ -209,7 +210,7 @@ export default function FixtureScheduleTab({ projectId }) {
     try {
       const tags = ['Fixture Schedule', ...extraTags];
       const fd = new FormData();
-      fd.append('file', file);
+      await appendUpload(fd, file, { scope: 'project' });
       fd.append('tab',  'fixture-schedule');
       fd.append('tags', JSON.stringify(tags));
       const saveRes  = await fetch(`/api/projects/${projectId}/files`, { method: 'POST', body: fd });
@@ -222,7 +223,7 @@ export default function FixtureScheduleTab({ projectId }) {
     // 2. AI parse for Budget Matrix import
     try {
       const fd2 = new FormData();
-      fd2.append('file', file);
+      await appendUpload(fd2, file, { scope: 'project' });
       const res  = await fetch(`/api/projects/${projectId}/peer-review/parse-pdf`, { method: 'POST', body: fd2 });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Parse failed');

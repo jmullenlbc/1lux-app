@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { oversizeMessage, uploadErrorMessage, uploadThrowMessage } from '@/lib/uploadErrorMessage';
+import { appendUpload } from '@/lib/uploadClient';
 
 // ── confidence → display tier ────────────────────────────────────────────────
 function confidenceTier(conf) {
@@ -602,11 +603,13 @@ export default function UnitMatrixUpload({ projectId, onCommitted }) {
 
     // Upload
     const formData = new FormData();
-    formData.append('file', file);
     formData.append('tab', 'unit-matrix');
 
     let fileId, fileName;
     try {
+      // PDFs and spreadsheets go straight to S3, so a 25 MB matrix never meets
+      // Amplify's 4 MB front door.
+      await appendUpload(formData, file, { scope: 'project' });
       const r = await fetch(`/api/projects/${projectId}/files`, { method: 'POST', body: formData });
       if (!r.ok) throw new Error(await uploadErrorMessage(r, file));
       const d = await r.json();

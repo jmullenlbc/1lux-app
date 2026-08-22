@@ -6,6 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fileExt, pickModel, mergeProposals, IMAGE_EXTS, ACCEPTED_EXTS } from '../../src/lib/drawingExtract.js';
+import { modelFor } from '../../src/lib/aiModels.js';
 
 test('fileExt is case-insensitive and handles dotted names', () => {
   assert.equal(fileExt('matrix.PDF'), 'pdf');
@@ -20,11 +21,18 @@ test('accepted and image extension lists do not overlap', () => {
 });
 
 test('pickModel escalates on size and on telling filenames', () => {
-  assert.match(pickModel('x'.repeat(100), 'small.pdf'), /haiku/);
-  assert.match(pickModel('x'.repeat(7000), 'small.pdf'), /sonnet/, 'long text escalates');
-  assert.match(pickModel('x', 'FULL SET.pdf'), /sonnet/, '"full" escalates');
-  assert.match(pickModel('x', 'combined-drawings.pdf'), /sonnet/, '"combined" escalates');
-  assert.match(pickModel('x', 'Combined.PDF'), /sonnet/, 'case-insensitive');
+  // 2026-08-19: the two tiers moved up (Opus 5 for a clean table, Fable 5 for a
+  // dense or combined set) and now come from src/lib/aiModels.js. The SPLIT is
+  // what this test is about, so it asserts "the small one differs from the big
+  // one" rather than pinning two model names that will move again.
+  const clean = pickModel('x'.repeat(100), 'small.pdf');
+  const dense = pickModel('x'.repeat(7000), 'small.pdf');
+  assert.equal(clean, modelFor('drawing.unitMatrix.clean'));
+  assert.equal(dense, modelFor('drawing.unitMatrix'));
+  assert.notEqual(clean, dense, 'a dense set must not get the same model as a clean table');
+  assert.equal(pickModel('x', 'FULL SET.pdf'),          dense, '"full" escalates');
+  assert.equal(pickModel('x', 'combined-drawings.pdf'), dense, '"combined" escalates');
+  assert.equal(pickModel('x', 'Combined.PDF'),          dense, 'case-insensitive');
 });
 
 // ─── MERGE ──────────────────────────────────────────────────────────────────
@@ -254,4 +262,45 @@ test('gross SF: files without it do not clobber the file that has it', () => {
   ]);
   assert.equal(m.projectTotals.grossInteriorSf, 233050);
   assert.equal(m.projectTotals.grossSfBasis, 'gross');
+});
+
+// ─── KEPT SHEETS ────────────────────────────────────────────────────────────
+// The compressed images of the pages we read. A GC can send up to five PDFs in
+// one go, so the merge has to gather the kept sheets from all of them — and say
+// which file each one came from, because "page 3" means nothing across five sets.
+
+test('kept sheets are gathered from every file, labelled with the file', () => {
+  const m = mergeProposals([
+    { fileName: 'arch.pdf', proposal: { ...p([]), keptSheets: [{ page: 10, key: 'sheets/a.jpg', bytes: 900 }] } },
+    { fileName: 'site.pdf', proposal: { ...p([]), keptSheets: [{ page: 2,  key: 'sheets/b.jpg', bytes: 800 }] } },
+  ]);
+  assert.equal(m.keptSheets.length, 2);
+  assert.deepEqual(m.keptSheets.map(s => s.file), ['arch.pdf', 'site.pdf']);
+  assert.equal(m.keptSheets[0].key, 'sheets/a.jpg');
+  assert.equal(m.keptSheets[0].page, 10, 'the page number survives the merge');
+});
+
+test('a file whose sheets could not be stored does not sink the others', () => {
+  // Keeping a copy is best-effort: S3 can refuse one PUT and succeed on the
+  // next. The reviewer should still see whatever did land.
+  const m = mergeProposals([
+    { fileName: 'nostore.pdf', proposal: { ...p([]), keptSheets: null } },
+    { fileName: 'stored.pdf',  proposal: { ...p([]), keptSheets: [{ page: 1, key: 'sheets/c.jpg' }] } },
+  ]);
+  assert.equal(m.keptSheets.length, 1);
+  assert.equal(m.keptSheets[0].file, 'stored.pdf');
+});
+
+test('a sheet entry with no key is dropped, not passed on as a broken thumbnail', () => {
+  const m = mergeProposals([
+    { fileName: 'a.pdf', proposal: { ...p([]), keptSheets: [{ page: 1 }, null, { page: 2, key: 'sheets/d.jpg' }] } },
+  ]);
+  assert.deepEqual(m.keptSheets.map(s => s.key), ['sheets/d.jpg']);
+});
+
+test('no kept sheets at all comes back null, not an empty list', () => {
+  // The review UI hides the panel on null; an empty array would render a
+  // heading over nothing.
+  const m = mergeProposals([{ fileName: 'a.pdf', proposal: p([]) }]);
+  assert.equal(m.keptSheets, null);
 });

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { deriveShipmentStatus } from '@/lib/shipmentStatus';
+import { readUploadedFile } from '@/lib/uploadIntake';
 
 /**
  * POST /api/projects/[id]/shipments/import
@@ -25,10 +26,10 @@ export async function POST(req, { params }) {
   const commit = url.searchParams.get('commit') === 'true';
 
   const formData = await req.formData();
-  const file = formData.get('file');
-  if (!file) return NextResponse.json({ error: 'file required' }, { status: 400 });
-
-  const buffer = Buffer.from(await file.arrayBuffer());
+  const upload = await readUploadedFile(formData);
+  if (!upload.ok) return NextResponse.json({ error: upload.message }, { status: upload.status });
+  const buffer = upload.buffer;
+  await upload.cleanup();
 
   let rows;
   try {

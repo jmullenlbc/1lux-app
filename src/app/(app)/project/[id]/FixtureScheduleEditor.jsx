@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import FixtureImportModal from './FixtureImportModal';
 import PushToBidModal from './PushToBidModal';
 import { oversizeMessage, uploadErrorMessage } from '@/lib/uploadErrorMessage';
+import { appendUpload } from '@/lib/uploadClient';
 
 // ── Location tags — matches Peer Review Matrix exactly ───────────────────────
 const LOCATION_TAGS = [
@@ -232,7 +233,7 @@ function ParseFromPdfModal({ projectId, onParsed, onClose }) {
     setError(null);
     try {
       const fd = new FormData();
-      fd.append('file', file);
+      await appendUpload(fd, file, { scope: 'project' });
       const res  = await fetch(`/api/projects/${projectId}/fixture-schedule/parse`, {
         method: 'POST',
         body: fd,

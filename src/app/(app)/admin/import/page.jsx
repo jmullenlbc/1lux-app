@@ -2,7 +2,8 @@
 import { useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { UPLOAD_LIMIT_BYTES, uploadErrorMessage } from '@/lib/uploadErrorMessage';
+import { batchOversizeMessage, uploadErrorMessage } from '@/lib/uploadErrorMessage';
+import { appendUploads } from '@/lib/uploadClient';
 
 // ── Field display helpers ──────────────────────────────────────────────────────
 function fmt(v) { return v != null ? v.toLocaleString() : '—'; }
@@ -44,21 +45,18 @@ export default function ImportPage() {
       setParseError('Please upload .xlsx or .xls files only.');
       return;
     }
-    // Every file goes up in ONE request, so it is the combined size that has to
-    // clear the server's 4 MB ceiling — not each file on its own.
-    const total = xlsxFiles.reduce((sum, f) => sum + f.size, 0);
-    if (total > UPLOAD_LIMIT_BYTES) {
-      setParseError(`Those ${xlsxFiles.length} files add up to ${(total / (1024 * 1024)).toFixed(1)} MB. The server can only accept 4 MB at a time — import them in smaller batches.`);
-      return;
-    }
+    // Spreadsheets go to S3 one at a time now, so each gets its own 25 MB rather
+    // than the whole batch sharing 4 MB.
+    const tooBig = batchOversizeMessage(xlsxFiles);
+    if (tooBig) { setParseError(tooBig); return; }
 
     setParseError('');
     setStage('parsing');
 
     const fd = new FormData();
-    xlsxFiles.forEach(f => fd.append('files', f));
 
     try {
+      await appendUploads(fd, xlsxFiles, { scope: 'project' });
       const res = await fetch('/api/admin/import', { method: 'POST', body: fd });
       if (!res.ok) throw new Error(await uploadErrorMessage(res, xlsxFiles[0]));
       const data = await res.json();

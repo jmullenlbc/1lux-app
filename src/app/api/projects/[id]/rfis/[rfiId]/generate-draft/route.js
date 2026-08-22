@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { extractFixtureTypes } from '@/lib/extractFixtureTypes';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
+import { modelParams, textFrom } from '@/lib/aiModels';
 import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
 
 // POST /api/projects/[id]/rfis/[rfiId]/generate-draft
@@ -165,13 +166,13 @@ Generate ONLY the response text. No preamble. No explanations. No markdown.`;
     warnOnInjection('rfi.draft', params.id, sealed);
 
     const msg = await anthropic.messages.create({
-      model:      'claude-haiku-4-5',
+      ...modelParams('rfi.draft'),
       max_tokens: 1024,
       system:     sealed.system,
       messages:   [{ role: 'user', content: sealed.content }],
     });
 
-    draftText = msg.content?.[0]?.text?.trim() ?? null;
+    draftText = textFrom(msg)?.trim() ?? null;
 
     // ── STEP 5: MULTI_QUESTION — parse per-item confidence ──────────────────
     if (rfi.rfiType === 'MULTI_QUESTION' && draftText) {

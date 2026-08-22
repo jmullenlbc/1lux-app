@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
+import { modelParams, textFrom, answerBudget } from '@/lib/aiModels';
 import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
 
 // POST /api/projects/[id]/rfi-extract
@@ -50,13 +51,13 @@ Return only 1-3 sentences describing what is being asked. Be concise and specifi
     warnOnInjection('rfi.extractQuestion', params.id, sealed);
 
     const msg = await wrapClient(raw, 'rfi.extractQuestion', ctx).messages.create({
-      model:      'claude-haiku-4-5',
-      max_tokens: 300,
+      ...modelParams('rfi.extract'),
+      max_tokens: answerBudget('rfi.extract', 300),
       system:     sealed.system,
       messages:   [{ role: 'user', content: sealed.content }],
     });
 
-    const question = msg.content[0]?.text?.trim() || null;
+    const question = textFrom(msg)?.trim() || null;
 
     if (question) {
       // Cache in analysisData
@@ -90,8 +91,8 @@ Extract the following and return as JSON only (no explanation):
     warnOnInjection('rfi.parseEmail', params.id, sealed);
 
     const msg = await wrapClient(raw, 'rfi.parseEmail', ctx).messages.create({
-      model:      'claude-haiku-4-5',
-      max_tokens: 500,
+      ...modelParams('rfi.extract'),
+      max_tokens: answerBudget('rfi.extract', 500),
       system:     sealed.system,
       messages:   [{ role: 'user', content: sealed.content }],
     });
@@ -102,7 +103,7 @@ Extract the following and return as JSON only (no explanation):
     // reading the shadowed binding while it was still in its temporal dead zone.
     // Mode 2 threw `Cannot access 'raw' before initialization` on every pasted
     // email, before any model call was made.
-    const answer = msg.content[0]?.text?.trim() || '{}';
+    const answer = textFrom(msg)?.trim() || '{}';
     const start  = answer.indexOf('{');
     const end    = answer.lastIndexOf('}');
     let parsed   = {};

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { findStaleProjects, generateFollowUpDraft, hasDraftNote } from '@/lib/bot/followUpDrafter';
+import { modelFor } from '@/lib/aiModels';
 
 function verifyCronSecret(req) {
   return req.headers.get('x-cron-secret') === process.env.CRON_SECRET;
@@ -76,7 +77,7 @@ export async function POST(req) {
             body:                result.body,
             reviewWindowMinutes,
             reviewExpiresAt:     reviewWindowMinutes > 0 ? new Date(Date.now() + reviewWindowMinutes * 60 * 1000) : null,
-            draftModel:          'claude-haiku-4-5',
+            draftModel:          modelFor('bot.followUp'),
             classificationReason: `Project stale ${daysSinceActivity}d — rule: ${rule.name}`,
           },
         });

@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
+import { modelParams, textFrom } from '@/lib/aiModels';
 import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
 
 // CATEGORY_CONTEXT — hints to the model about what each category means
@@ -111,13 +112,13 @@ Respond with ONLY the response text. No subject line, no signature, no preamble.
     );
 
     const msg = await anthropic.messages.create({
-      model: 'claude-haiku-4-5',
+      ...modelParams('tracker.review.respond'),
       max_tokens: 200,
       system:   sealed.system,
       messages: [{ role: 'user', content: sealed.content }],
     });
 
-    responseBody = msg.content?.[0]?.text?.trim() || '';
+    responseBody = textFrom(msg)?.trim() || '';
   } catch (e) {
     console.error('Haiku response generation failed:', e.message);
     return NextResponse.json({ error: 'AI response generation failed. Try again.' }, { status: 500 });

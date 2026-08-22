@@ -15,6 +15,7 @@
 // Relative, not `@/lib/...`, on purpose: scripts/tests/drawingExtract.test.mjs
 // imports this file under plain Node, which does not know the `@/` alias.
 import { buildUntrustedPrompt, warnOnInjection } from './agent/untrusted.js';
+import { modelParams, textFrom, answerBudget, warnIfTruncated } from './aiModels.js';
 import { loadPdfjs, pdfDocOptions } from './pdfjsNode.js';
 import { findAreaSheets, resolveGrossSf, focusAroundNumber, sheetNumberOf } from './areaSheet.js';
 
@@ -182,13 +183,19 @@ export async function xlsxToText(buffer) {
  * returns nothing in production while working perfectly in local dev. This has
  * already broken prod once — `scripts/check-runtime-assets.mjs` guards it.
  */
-export async function extractPdfPages(buffer, opts = {}) {
-  const { maxPages = MAX_PDF_PAGES, timeBudgetMs = PDF_SCAN_BUDGET_MS } = opts;
+export async function extractPdfPages(source, opts = {}) {
+  const { maxPages = MAX_PDF_PAGES, timeBudgetMs = PDF_SCAN_BUDGET_MS, shouldStop } = opts;
   const started = Date.now();
 
   try {
-    const pdfjsLib = await loadPdfjs();
-    const doc = await pdfjsLib.getDocument(pdfDocOptions(buffer)).promise;
+    // `source` is either the file's bytes or a pdfjs document someone else
+    // already opened. The second form is what makes 400 MB sets readable: the
+    // caller opens them by byte range (see pdfRange.js) so the whole file is
+    // never in memory, and hands us the doc. Everything below is identical
+    // either way — a doc is a doc.
+    const doc = isPdfDoc(source)
+      ? source
+      : await (await loadPdfjs()).getDocument(pdfDocOptions(source)).promise;
 
     const limit = Math.min(doc.numPages, maxPages);
     const pages = [];
@@ -196,8 +203,36 @@ export async function extractPdfPages(buffer, opts = {}) {
 
     for (let i = 1; i <= limit; i++) {
       if (Date.now() - started > timeBudgetMs) { stoppedEarly = true; break; }
-      const content = await (await doc.getPage(i)).getTextContent();
-      pages.push({ page: i, text: content.items.map(it => it.str).join(' ') });
+      // A second brake, used by the ranged reader: stop once we have pulled
+      // more bytes than we are willing to hold. Time alone is not enough — a
+      // fast connection can drag a 400 MB set into memory well inside the time
+      // budget, which is the exact failure this whole path exists to prevent.
+      if (shouldStop?.()) { stoppedEarly = true; break; }
+
+      // Bounded, because a page read can hang rather than fail. When pages are
+      // fetched by byte range, pdfjs asks storage for bytes and then waits for
+      // them with no timeout of its own — so one bad fetch parks here forever
+      // and the budget check above, which only runs BETWEEN pages, never gets
+      // another turn. Whatever pages we already have are worth more than a
+      // request that dies on a Lambda timeout with nothing to show.
+      const left = timeBudgetMs - (Date.now() - started);
+      let page;
+      try {
+        page = await doc.getPage(i);
+        const content = await Promise.race([
+          page.getTextContent(),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('page read timed out')), left).unref?.()),
+        ]);
+        pages.push({ page: i, text: content.items.map(it => it.str).join(' ') });
+      } catch {
+        stoppedEarly = true;
+        break;
+      } finally {
+        // Release the parsed page. Without this, scanning a full set keeps
+        // every page's operator list and fonts alive at once, and memory
+        // tracks the size of the SET rather than the size of one page.
+        try { page?.cleanup(); } catch {}
+      }
     }
 
     return {
@@ -229,6 +264,11 @@ export async function extractPdfPages(buffer, opts = {}) {
 const MAX_PDF_PAGES = 400;
 const PDF_SCAN_BUDGET_MS = 20000;
 
+/** True for an already-open pdfjs document, as opposed to raw bytes. */
+export function isPdfDoc(x) {
+  return !!x && typeof x === 'object' && typeof x.getPage === 'function' && typeof x.numPages === 'number';
+}
+
 export async function extractPdfText(buffer, maxPages = MAX_PDF_PAGES) {
   const { pages } = await extractPdfPages(buffer, { maxPages });
   const trimmed = pages.map(p => p.text).join('\n').trim();
@@ -242,7 +282,7 @@ export async function extractPdfText(buffer, maxPages = MAX_PDF_PAGES) {
  * Codes are stable and safe to show a public user:
  *   unsupported_type | image_not_supported | no_text_layer
  */
-export async function extractDrawingText(buffer, fileName) {
+export async function extractDrawingText(buffer, fileName, opts = {}) {
   const ext = fileExt(fileName);
 
   if (IMAGE_EXTS.includes(ext)) {
@@ -265,7 +305,7 @@ export async function extractDrawingText(buffer, fileName) {
   }
 
   if (ext === 'pdf') {
-    const scan = await extractPdfPages(buffer);
+    const scan = await extractPdfPages(buffer, opts);
     const text = scan.pages.map(p => p.text).join('\n').trim();
     if (!text || text.trim().length < 30) {
       // Overwhelmingly this means a scanned/plotted drawing with no text layer —
@@ -358,11 +398,24 @@ Rules:
  */
 export const EXTRACT_PROMPT_VERSION = 'unitMatrix-2026-08-18';
 
-/** Haiku handles clean tables; dense or "combined" sheets get Sonnet. */
-export function pickModel(text, fileName) {
+/**
+ * Which JOB this drawing is, in src/lib/aiModels.js terms.
+ *
+ * A clean unit-matrix table is a small, bounded read. A dense or "combined" set
+ * is the case Mike means by "for drawings it is so much more accurate" — the
+ * numbers are buried in a wall of sheet text, and that is where the big reader
+ * earns its cost. The split is unchanged; only the two models it selects moved
+ * up a tier, and they now live in one table instead of in this line.
+ */
+export function pickJob(text, fileName) {
   const n = String(fileName ?? '').toLowerCase();
   const noisy = text.length > 6000 || n.includes('full') || n.includes('combined');
-  return noisy ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001';
+  return noisy ? 'drawing.unitMatrix' : 'drawing.unitMatrix.clean';
+}
+
+/** The model id chosen for a drawing — kept for logging and for the tests. */
+export function pickModel(text, fileName) {
+  return modelParams(pickJob(text, fileName)).model;
 }
 
 /**
@@ -376,7 +429,9 @@ export async function parseUnitMatrix(text, fileName, anthropic, ctx = {}) {
   if (sel.truncated) {
     console.log(`[drawingExtract] ${fileName}: ${text.length} chars -> ${truncated.length} (${sel.keptPct}%), kept ${sel.windowsKept}/${sel.windowsTotal} windows`);
   }
-  const model = pickModel(truncated, fileName);
+  const job    = pickJob(truncated, fileName);
+  const params = modelParams(job);
+  const model  = params.model;
 
   // This function is reachable from the PUBLIC intake route — anyone on the
   // internet can hand it a PDF, and the filename is theirs too. That makes it the
@@ -392,12 +447,13 @@ export async function parseUnitMatrix(text, fileName, anthropic, ctx = {}) {
   let raw;
   try {
     const msg = await anthropic.messages.create({
-      model,
-      max_tokens: 2048,
+      ...params,
+      max_tokens: answerBudget(job, 2048),
       system: sealed.system,
       messages: [{ role: 'user', content: sealed.content }],
     });
-    raw = msg.content[0]?.text ?? '';
+    warnIfTruncated(msg, job);
+    raw = textFrom(msg) ?? '';
   } catch (e) {
     console.error('unit matrix extraction error:', e);
     return { ok: false, code: 'extraction_failed', message: 'Extraction failed. Please try again.' };

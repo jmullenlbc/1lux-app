@@ -18,9 +18,20 @@ import { uploadDirect } from '@/lib/uploadClient';
 
 // Files go straight to cloud storage via a presigned slip (see uploadClient.js),
 // which sidesteps Amplify's ~4.4 MB front-door cap entirely — the request that
-// does pass through our server carries only a short key. 50 MB is our own
-// ceiling, checked here so an oversized file is refused before any upload work.
-const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+// does pass through our server carries only a short key.
+//
+// 400 MB is our own ceiling. Mike, 2026-08-21, after a GC's 246 MB set was
+// refused on the live site: "We have to make it so it never fails unless it is
+// absurdly big." A full DD/CD set is 200–350 MB and the server never holds one
+// — it reads the sheets it needs out of cloud storage a slice at a time. This
+// check exists so an absurd file is refused before the phone spends an hour
+// uploading it, not because the parser couldn't cope.
+const MAX_UPLOAD_BYTES = 400 * 1024 * 1024;
+
+// Landscape, site and architectural are often three separate exports, and a GC
+// sends what he has. Five covers that; past five it is someone dragging a whole
+// folder in, and every file is a paid read.
+const MAX_FILES = 5;
 
 const STATUS = {
   queued:    { label: 'Queued',      cls: 'bg-slate-100 text-slate-500 border-slate-200' },
@@ -44,6 +55,7 @@ let uid = 0;
 export default function DrawingDropzone({ onResults }) {
   const [items, setItems]   = useState([]);
   const [dragging, setDrag] = useState(false);
+  const [notice, setNotice] = useState(null);   // "we left some files out"
   const inputRef = useRef(null);
 
   const parsing = items.some(i => i.status === 'parsing' || i.status === 'uploading' || i.status === 'queued');
@@ -61,7 +73,9 @@ export default function DrawingDropzone({ onResults }) {
     if (item.file?.size > MAX_UPLOAD_BYTES) {
       setItems(prev => {
         const next = prev.map(i => i.id === item.id
-          ? { ...i, status: 'error', error: `This file is ${fmtBytes(item.file.size)} — the limit is 50 MB per file. Splitting the PDF usually gets each part under it.` }
+          // No instructions to a GC standing on a job site about how to split a
+          // PDF. Say the number, say what to do, and give him a person.
+          ? { ...i, status: 'error', error: `This file is ${fmtBytes(item.file.size)}, which is past what we can take (${fmtBytes(MAX_UPLOAD_BYTES)}). Send it to us at budgets@ilcstudios.com and we'll take it from there.` }
           : i);
         publish(next);
         return next;
@@ -130,7 +144,18 @@ export default function DrawingDropzone({ onResults }) {
     const incoming = Array.from(fileList ?? []);
     if (!incoming.length) return;
 
-    const fresh = incoming.map(file => ({
+    // The cap is on the LIST, not on one drop — dropping three files twice is
+    // the same as dropping six at once, and the second drop is where someone
+    // would otherwise be surprised. Take what fits, say plainly what didn't.
+    const room = Math.max(0, MAX_FILES - items.length);
+    const accepted = incoming.slice(0, room);
+    const turnedAway = incoming.length - accepted.length;
+    setNotice(turnedAway > 0
+      ? `We can read ${MAX_FILES} files at a time, so ${turnedAway} ${turnedAway === 1 ? 'file was' : 'files were'} left out. Remove one below to make room, or send the rest to budgets@ilcstudios.com.`
+      : null);
+    if (!accepted.length) return;
+
+    const fresh = accepted.map(file => ({
       id: `f${++uid}`, file, name: file.name, size: file.size,
       status: 'queued', proposal: null, error: null,
     }));
@@ -139,9 +164,10 @@ export default function DrawingDropzone({ onResults }) {
     // Sequential rather than parallel: each parse is a paid model call, and the
     // public route is rate-limited per IP. Firing ten at once would trip it.
     (async () => { for (const item of fresh) await parseOne(item); })();
-  }, [parseOne]);
+  }, [parseOne, items.length]);
 
   function removeItem(id) {
+    setNotice(null);   // removing one is exactly how you make room
     setItems(prev => {
       const next = prev.filter(i => i.id !== id);
       publish(next);
@@ -171,10 +197,13 @@ export default function DrawingDropzone({ onResults }) {
         <div className="text-center">
           <p className="text-sm font-semibold text-slate-700">Drop your drawings here</p>
           <p className="text-xs text-slate-500 mt-1 max-w-md">
-            Most useful: the <strong>unit matrix</strong> (unit counts and square footage) and the{' '}
-            <strong>site plan</strong> (lot size, parking, buildings). You can add several files.
+            Send the whole set if that's what you have — we'll find the sheets we need. Most useful are
+            the <strong>unit matrix</strong> (unit counts and square footage) and the{' '}
+            <strong>site plan</strong> (lot size, parking, buildings). Landscape or civil can be separate files.
           </p>
-          <p className="text-[11px] text-slate-400 mt-1.5">PDF or Excel · up to 50 MB each</p>
+          <p className="text-[11px] text-slate-400 mt-1.5">
+            PDF or Excel · up to {MAX_FILES} files, {Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB each
+          </p>
         </div>
         <span className="text-xs font-semibold text-amber-600 border border-amber-200 rounded-lg px-3 py-1.5 hover:bg-amber-50">
           Browse files
@@ -189,6 +218,12 @@ export default function DrawingDropzone({ onResults }) {
         />
       </div>
 
+      {notice && (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800 leading-snug">
+          {notice}
+        </p>
+      )}
+
       {/* Per-file status */}
       {items.length > 0 && (
         <ul className="space-y-2">
@@ -202,8 +237,13 @@ export default function DrawingDropzone({ onResults }) {
                     {s.label}
                   </span>
                   <span className="text-sm font-mono text-slate-700 truncate flex-1" title={item.name}>{item.name}</span>
-                  <span className="text-xs text-slate-400 shrink-0">
-                    {item.status === 'uploading' && item.progress != null ? `${item.progress}%` : fmtBytes(item.size)}
+                  <span className="text-xs text-slate-400 shrink-0 tabular-nums">
+                    {item.status === 'uploading' && item.progress != null
+                      // A percentage alone reads as frozen on a 250 MB set over a
+                      // job-site connection. Megabytes moved is the number that
+                      // visibly changes.
+                      ? `${fmtBytes(Math.round(item.size * item.progress / 100))} of ${fmtBytes(item.size)}`
+                      : fmtBytes(item.size)}
                   </span>
                   {item.status === 'error' && (
                     <button onClick={() => retry(item.id)} className="text-xs font-semibold text-amber-600 hover:text-amber-700 shrink-0">
@@ -218,6 +258,15 @@ export default function DrawingDropzone({ onResults }) {
                     &times;
                   </button>
                 </div>
+
+                {item.status === 'uploading' && item.progress != null && (
+                  <div className="mt-2 h-1 rounded-full bg-slate-100 overflow-hidden">
+                    <div
+                      className="h-full bg-sky-400 transition-[width] duration-300"
+                      style={{ width: `${Math.max(2, item.progress)}%` }}
+                    />
+                  </div>
+                )}
 
                 {item.status === 'done' && (
                   <p className="text-xs text-slate-500 mt-1.5 pl-1">
@@ -234,6 +283,16 @@ export default function DrawingDropzone({ onResults }) {
                         : 'No unit matrix or site data found on this sheet'}
                     {item.proposal?.overallConfidence != null && types > 0 &&
                       <> · {Math.round(item.proposal.overallConfidence * 100)}% confidence</>}
+                  </p>
+                )}
+                {/* On a full set, saying WHICH sheets we opened is the difference
+                    between "it read my drawings" and "it read something". */}
+                {item.status === 'done' && item.proposal?.totalPages > 1 && (
+                  <p className="text-[11px] text-slate-400 mt-1 pl-1">
+                    {item.proposal.sheetsRead?.length
+                      ? <>Read {item.proposal.sheetsRead.length === 1 ? 'page' : 'pages'}{' '}
+                          {item.proposal.sheetsRead.join(', ')} of {fmt(item.proposal.totalPages)}</>
+                      : <>Searched {fmt(item.proposal.totalPages)} pages</>}
                   </p>
                 )}
                 {item.status === 'error' && (
@@ -365,7 +424,9 @@ export default function DrawingDropzone({ onResults }) {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
-          Reading your drawings…
+          {items.some(i => i.status === 'uploading')
+            ? 'Sending your drawings… you can leave this page open, a full set takes a few minutes.'
+            : 'Reading your drawings…'}
         </p>
       )}
     </div>

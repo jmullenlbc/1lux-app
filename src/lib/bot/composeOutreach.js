@@ -8,6 +8,7 @@
 import { prisma } from '@/lib/db';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
+import { modelParams, textFrom } from '@/lib/aiModels';
 
 // Methods that belong in an outreach email to the contact.
 export const OUTREACH_EMAIL_METHODS = new Set(['EMAIL', 'SEND_MATERIALS', 'SCHEDULE']);
@@ -88,8 +89,8 @@ Return ONLY JSON: {"subject": "...", "body": "..."}`;
     // appending to one already edited are separate tasks on purpose — they have
     // different failure modes and the rollup should not average them together.
     const anthropic = wrapClient(new Anthropic({ apiKey: key }), 'bot.outreach.compose');
-    const msg = await anthropic.messages.create({ model: 'claude-haiku-4-5', max_tokens: 700, messages: [{ role: 'user', content: prompt }] });
-    const raw = (msg.content?.[0]?.text || '').replace(/```json|```/g, '').trim();
+    const msg = await anthropic.messages.create({ ...modelParams('bot.outreach.compose'), max_tokens: 700, messages: [{ role: 'user', content: prompt }] });
+    const raw = (textFrom(msg) || '').replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(raw);
     if (parsed?.subject && parsed?.body) return { subject: String(parsed.subject), body: String(parsed.body) };
   } catch (e) {
@@ -114,8 +115,8 @@ Rules: NO greeting, NO sign-off — these paragraphs are inserted into an email 
   try {
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
     const anthropic = wrapClient(new Anthropic({ apiKey: key }), 'bot.outreach.appendParagraphs');
-    const msg = await anthropic.messages.create({ model: 'claude-haiku-4-5', max_tokens: 500, messages: [{ role: 'user', content: prompt }] });
-    const text = (msg.content?.[0]?.text || '').trim();
+    const msg = await anthropic.messages.create({ ...modelParams('bot.outreach.subject'), max_tokens: 500, messages: [{ role: 'user', content: prompt }] });
+    const text = (textFrom(msg) || '').trim();
     return text || fallback();
   } catch (e) {
     console.error('[composeAppendParagraphs] failed, using fallback:', e?.message ?? e);

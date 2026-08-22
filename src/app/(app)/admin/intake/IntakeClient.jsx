@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const STATUS_CONFIG = {
   PENDING: { color: 'bg-amber-100 text-amber-700 border border-amber-200', label: 'Pending' },
@@ -11,6 +11,97 @@ const STATUS_CONFIG = {
 function fmtDate(d) {
   if (!d) return '';
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+/**
+ * The drawings a submitter sent are stored as JSON text written by the public
+ * intake page, so nothing here may assume a shape. A bad payload must show as
+ * "no drawings", never as a crashed review screen.
+ */
+function keptSheetsOf(submission) {
+  try {
+    const sheets = JSON.parse(submission?.rawPayload || '{}')?.drawings?.keptSheets;
+    return Array.isArray(sheets) ? sheets.filter(s => s && typeof s.key === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * The sheets we actually read, kept so a reviewer can check the numbers against
+ * the drawing instead of taking the parser's word for it.
+ *
+ * These are compressed images of a handful of pages — the site plan, the code
+ * summary, the unit matrix — not the GC's original 400 MB set, which is deleted
+ * as soon as it has been read. Each thumbnail is fetched through a link that
+ * expires in five minutes, so the links are requested when the submission is
+ * opened rather than baked into the page.
+ */
+function KeptSheets({ submission }) {
+  const sheets = keptSheetsOf(submission);
+  const [urls, setUrls] = useState({});
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (!sheets.length) return;
+    let live = true;              // a reviewer can click through the list faster
+    setUrls({});                  // than the links come back; late answers for a
+    setFailed(false);             // submission we have left must be dropped.
+    (async () => {
+      const pairs = await Promise.all(sheets.map(async s => {
+        try {
+          const res = await fetch(`/api/admin/sheets?key=${encodeURIComponent(s.key)}`);
+          if (!res.ok) return null;
+          const { url } = await res.json();
+          return url ? [s.key, url] : null;
+        } catch {
+          return null;
+        }
+      }));
+      if (!live) return;
+      const got = pairs.filter(Boolean);
+      setUrls(Object.fromEntries(got));
+      setFailed(got.length === 0);
+    })();
+    return () => { live = false; };
+    // Keyed on the submission, not on `sheets` — a fresh array every render
+    // would re-fetch every link forever.
+  }, [submission.id]);                              // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!sheets.length) return null;
+
+  return (
+    <div className="border-t border-slate-200 pt-4">
+      <label className="block text-sm font-semibold text-slate-900 mb-1">
+        Sheets we read ({sheets.length})
+      </label>
+      <p className="text-xs text-slate-500 mb-2">
+        Compressed copies of the pages the parser looked at. The original upload is not kept.
+      </p>
+      {failed ? (
+        <p className="text-xs text-slate-500">These sheets are no longer available.</p>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          {sheets.map(s => (
+            <a
+              key={s.key}
+              href={urls[s.key] || undefined}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`block border border-slate-200 rounded overflow-hidden bg-slate-50 ${urls[s.key] ? 'hover:border-orange-400' : 'pointer-events-none opacity-60'}`}
+            >
+              {urls[s.key]
+                ? <img src={urls[s.key]} alt={`Page ${s.page}`} className="w-full h-24 object-cover object-top" />
+                : <div className="w-full h-24" />}
+              <span className="block px-2 py-1 text-xs text-slate-600">
+                Page {s.page}{s.file ? ` · ${s.file}` : ''}
+              </span>
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function IntakeClient({ submissions, clients, currentUser }) {
@@ -120,6 +211,8 @@ export default function IntakeClient({ submissions, clients, currentUser }) {
                   <label className="block text-sm font-semibold text-slate-900 mb-1">Building Type</label>
                   <p className="text-slate-600">{selected.buildingType || '—'}</p>
                 </div>
+
+                <KeptSheets submission={selected} />
 
                 <div className="border-t border-slate-200 pt-4">
                   <label className="block text-sm font-semibold text-slate-900 mb-1">Status</label>

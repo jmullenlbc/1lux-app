@@ -8,6 +8,7 @@ import { loadPricing } from '@/lib/pricingLoader';
 // below without being imported, so this one threw a ReferenceError too.
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { recordRun } from '@/lib/agent/ledger';
+import { modelFor } from '@/lib/aiModels';
 
 const TAB_LABELS = {
   drawings:       'Drawings',
@@ -503,7 +504,7 @@ ${budgetLines.join('\n')}
   // Recorded: see src/lib/agent/ledger.js. Raw SSE, so the usage totals are
   // read out of the event stream — `message_start` carries input_tokens,
   // `message_delta` carries the running output_tokens and the stop reason.
-  const MODEL   = 'claude-sonnet-4-6';
+  const MODEL   = modelFor('chat.project');
   const started = Date.now();
   const ledger  = { inputTokens: null, outputTokens: null, stopReason: null };
 
