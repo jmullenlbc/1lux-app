@@ -940,6 +940,9 @@ model NoteAction {
   confirmedAt DateTime?                        // when a human confirmed it
   executedAt  DateTime?                        // when the bot acted (draft created / reminder fired)
   remindAt    DateTime?                        // for EXPECT_INTRO: when to remind if the intro hasn't happened
+  remindedAt  DateTime?                        // when the reminder was actually delivered — without this the
+                                               //   daily sweep re-alerts every day forever, because remindAt
+                                               //   stays in the past once it passes
   botDraftId  String?                          // loose ref to the BotDraft this action produced
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

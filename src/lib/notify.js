@@ -2,7 +2,18 @@
  * Notification dispatcher — single entry point for all notification logic.
  *
  * All triggers call sendNotification() or queueDigestEvent().
- * The actual email send is STUBBED until Microsoft Outlook is integrated.
+ *
+ * ── Two audiences, two channels ──
+ * EXTERNAL means email to the client. That is STUBBED until Microsoft Outlook
+ * is integrated, and there is no way around it — we cannot send mail we have no
+ * mailbox for.
+ *
+ * INTERNAL means us. It used to mean only a `NotificationLog` row: an audit
+ * trail nobody reads, written and forgotten, so every internal notification in
+ * the app told precisely nobody. It now also rings the bell in the sidebar for
+ * whoever owns the project. That channel needs no mailbox and works today,
+ * which is why the internal half of the notification plan is not blocked behind
+ * the Outlook integration.
  *
  * TODO (Outlook integration):
  *   Replace the stub in sendEmail() with Microsoft Graph API:
@@ -12,6 +23,7 @@
  */
 
 import { prisma } from '@/lib/db';
+import { notifyProjectOwners } from '@/lib/alerts';
 import {
   shipShipped, shipDelivered,
   submittalUploaded, submittalWithComments,
@@ -132,9 +144,42 @@ export async function sendNotification(projectId, notificationType, payload = {}
         dedupeKey:        dedupeKey || null,
       },
     });
+
+    // …and actually tell somebody. The audit row above is a record that the
+    // event happened; this is the part where a human finds out. Deliberately
+    // last and deliberately swallowed inside notifyProjectOwners: a bell that
+    // cannot be rung must never fail the thing that rang it.
+    const meta = NOTIFICATION_TYPES[notificationType];
+    await notifyProjectOwners(projectId, {
+      type:      notificationType,
+      title:     `${meta?.label || notificationType} — ${projectName}`,
+      message:   summarizePayload(payload),
+      link:      `/project/${projectId}`,
+      // Namespaced per project+type so the same event cannot ring twice, but
+      // the SAME event for a different project still rings. Threshold callers
+      // pass their own window-scoped key; everything else gets one per event.
+      dedupeKey: dedupeKey || null,
+    });
   } catch (err) {
     console.error('[NOTIFY] sendNotification failed:', err);
   }
+}
+
+/**
+ * Turn a payload into one readable line for the bell. Payload shapes differ per
+ * notification type, so this leans on the few keys that recur rather than
+ * pretending to understand all of them; an unrecognised payload produces an
+ * empty message and the title still carries the meaning.
+ */
+function summarizePayload(payload = {}) {
+  const bits = [];
+  if (payload.milestone)  bits.push(String(payload.milestone));
+  if (payload.date)       bits.push(String(payload.date));
+  if (payload.expiryDate) bits.push(`expires ${payload.expiryDate}`);
+  if (typeof payload.daysOut === 'number') bits.push(`${payload.daysOut} days out`);
+  if (payload.itemName)   bits.push(String(payload.itemName));
+  if (payload.note)       bits.push(String(payload.note));
+  return bits.join(' · ').slice(0, 400);
 }
 
 /**

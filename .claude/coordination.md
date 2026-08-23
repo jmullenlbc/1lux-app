@@ -2,6 +2,77 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+## 🔑 FOR SEAN — 2026-08-22: Admin + user privileges — the real state, the design, and your half of the build
+
+**Mike has assigned this jointly. I am building the foundation; you own a defined slice of the enforcement sweep. Details at the bottom.**
+
+### First, a correction to this log
+
+The 2026-07-27 entry records admin + user privileges as *"confirmed already done (Mike's commits 9097ba0, e3a3aa2, ad13051)."* I opened those three commits. They are a project-visibility bug fix and a role-aware smoke-test harness. Neither one builds a privileges system. **The item has been marked done for four weeks while being open.** No blame intended — flagging it because Mike's roadmap depends on this and it has been silently sitting.
+
+### What actually exists today (counted, not estimated)
+
+| Gate | Routes using it |
+|---|---|
+| `requireAuth` (logged in — that's all) | **219** |
+| `requireAdmin` | 12 |
+| `requireSalesAdmin` | 4 |
+| `requireSuperAdmin` / `requireILCAdmin` | **0** |
+| `requireRole` | does not exist |
+
+Four roles are declared (`SUPER_ADMIN | COMPANY_ADMIN | USER | CLIENT_VIEWER`) and `User.permissions` exists as a JSON string. But 219 doors ask only "are you logged in." **COMPANY_ADMIN, USER and CLIENT_VIEWER are the same privilege level almost everywhere.** There is also no `/admin/users` screen — the API routes exist (`/api/admin/users`, `/api/admin/users/[id]`), the page you would click does not.
+
+Caveat so this isn't overstated: many routes *do* scope rows once you're inside (your projects, not everyone's). Row scoping is largely fine. The missing piece is the door asking who you are.
+
+### The design (from Mike's spreadsheet, "Admin + Users" tab)
+
+Three tiers plus the portal role, and — this is the part that is new — **a per-module access grid on top of the role.**
+
+**SUPER_ADMIN** — modify code, access changelog, modify roadmap, modify software-development tasks, everything else in the app.
+
+**ADMIN** — invite users, invite another admin, deactivate a client / manufacturer / sales rep. Plus a set of **customizable privileges**, each independently grantable:
+- modify budgeting tool data
+- adjust sales dashboards
+- add or modify a client
+- add or modify a manufacturer
+- add or modify a sales rep
+- add, modify or remove a knowledge-base request
+
+**USER** — view roadmap, request an addition to the roadmap, and **per-module access**. Mike's example: *"Pre-con may not be able to access the design module."* There are 26 modules on his Modules tab (CRM, Projects, Proposals, Budgets, Fixture schedule, Takeoffs, Drawings, Design info, Meetings, Correspondence, Submittals, Ship schedule, Change orders, Project management, RFIs, Contracts, Design schedule, Construction schedule, Warehousing, Client portal, AI chat bot, Sales tax, Replacements, Templates, QC, Internal knowledgebase).
+
+**CLIENT_VIEWER** — portal only, unchanged.
+
+So the check on any given door is: *role tier* → *module access* → *specific capability*. Three questions, in that order.
+
+### The split
+
+**I am building (Mike's Claude):**
+1. The permission model — module keys, capability keys, and the shape stored on `User`.
+2. `requireModule(key)` and `requireCapability(key)` helpers next to the existing `requireAuth` / `requireAdmin`, so a route gate is a one-line change.
+3. The `/admin/users` screen — the grid where Mike ticks module and capability boxes per person.
+4. The enforcement sweep for: CRM / sales, projects, budgets, fixture schedule, takeoffs, drawings.
+
+**Yours, and why it's yours:** the sweep is ~219 routes and it parallelizes cleanly *if we split by folder and never touch each other's*. Once my helpers land I'll post the exact list. Your half:
+- `src/app/api/admin/**` (except `admin/users`, which is mine — I'm building the UI against it)
+- `src/app/api/knowledge-base/**` and `src/app/api/knowledge/**`
+- `src/app/api/tracker/**`, `src/app/api/shipments/**`, submittals and ship-schedule routes
+- `src/app/api/contracts/**` and the portal routes
+- `src/app/api/cron/**` — these need a different treatment: they authenticate by `CRON_SECRET`, not by user, and should reject a logged-in human entirely rather than fall through to a role check. You own `CRON_SECRET` already, so this one is naturally yours.
+
+**Please do not start the sweep yet.** The helpers do not exist. If you gate routes before they land we will both write the same thing differently and spend a day reconciling. I will post here the moment they are in.
+
+**What you can usefully do now, if you have time:** confirm whether anything in the AWS layer needs to know about roles — specifically whether any S3 prefix, CloudFront behaviour, or API route is currently reachable without going through the Next.js auth path. If there's a back door at the infrastructure level, no amount of route gating closes it, and I'd rather know before I build than after.
+
+### One open question for you
+
+Is there any production user today whose access we would *narrow* by doing this? Right now everyone effectively has admin reach. When the gates go on, someone who has been quietly relying on that will lose it. If you know of anyone, say so and Mike can decide their level up front instead of discovering it as a support call.
+
+### Also still open from earlier entries
+
+The Amplify SSR **Lambda memory size** (the entry below this one — one number, decides how far into a big drawing set we can read); the lifecycle rule scoped to the `uploads/` prefix; what prefixes the IAM policy covers; and `sheets/` needing `PutObject`/`GetObject` — that last one **fails silently** if missing.
+
+---
+
 ## ❓ FOR SEAN — 2026-08-22 (from Mike, via Mike's Claude): I got the memory story wrong yesterday, and I need one number from you
 
 **Correcting yesterday's entry below.** It says a 400 MB set "is never held in memory." That is not what happens, and I would rather you hear it from me than find it in a production alarm.

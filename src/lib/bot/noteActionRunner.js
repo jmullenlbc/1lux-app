@@ -84,14 +84,45 @@ export async function pauseNoteOnUnpublish(noteId) {
   return actions.length;
 }
 
-/** On publish: execute every confirmed action on the note. */
+/**
+ * On publish: fire the NOTE_PUBLISHED trigger, then execute every confirmed
+ * action on the note.
+ *
+ * The trigger goes first and deliberately so: a rule built on "a sales note is
+ * published" is usually about the note as a whole (log it, tell someone, tag
+ * it), and should not have to wait behind however many emails the actions
+ * queue. It was also, until 2026-08-22, never fired at all — the trigger was
+ * offered in the rule builder and nothing in the app raised it, so any rule
+ * anyone built on it sat there looking active and never ran once.
+ */
 export async function executeNotePublished(noteId) {
-  const actions = await prisma.noteAction.findMany({
-    where: { noteId, kind: 'ACTION', status: 'CONFIRMED' },
-    select: { id: true },
-    orderBy: { createdAt: 'asc' },
-  });
+  const [note, actions] = await Promise.all([
+    prisma.note.findUnique({
+      where:  { id: noteId },
+      select: { id: true, title: true, activityType: true, createdById: true },
+    }),
+    prisma.noteAction.findMany({
+      where: { noteId, kind: 'ACTION', status: 'CONFIRMED' },
+      select: { id: true },
+      orderBy: { createdAt: 'asc' },
+    }),
+  ]);
   const rw = await reviewWindow();
+
+  try {
+    await runTrigger('NOTE_PUBLISHED', {
+      noteTitle:    note?.title || '',
+      activityType: note?.activityType || '',
+    }, {
+      ownerUserId: note?.createdById,
+      reviewWindowMinutes: rw,
+      eventRef: noteId,
+    });
+  } catch (e) {
+    // A rule misbehaving must not stop the note's own actions from running.
+    console.error('[executeNotePublished] NOTE_PUBLISHED trigger failed:', e?.message ?? e);
+  }
+
   for (const a of actions) {
     try { await fireNoteActionConfirmed(noteId, a.id, { reviewWindowMinutes: rw }); }
     catch (e) { console.error('[executeNotePublished] action failed:', a.id, e?.message ?? e); }

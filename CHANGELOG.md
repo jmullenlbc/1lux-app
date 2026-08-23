@@ -5,6 +5,120 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [The app can finally tell you something] · August 22, 2026
+
+*Not deployed.* Mike, on the roadmap spreadsheet: *"The skeleton is very good,
+but we need to take this from 75% done to 95% done. We need to fire something
+with sales notes. That is the first thing I could start using."* This is steps
+1-3 of the five we agreed: a clock, a bell, and sales-note reminders that
+actually arrive.
+
+### The bug underneath the request
+
+The bot could already SET a reminder. Confirm an action on a sales note and it
+writes a date seven days out. **Nothing ever read that date back.** It was
+written in three places in the code and read in zero, so every reminder the bot
+has ever set has silently done nothing at all. Not failed — done nothing, with
+no error and no trace. That is why nothing has ever fired at you.
+
+The same shape of problem sat one level up. When the app decided something was
+worth telling us about internally, it wrote a row to an audit table and stopped.
+The row is real, the event is recorded, and no human is ever shown it. The bell
+in the sidebar already existed and already worked; five separate places wrote to
+it by hand, and the main notification system was not one of them.
+
+### 1. One door for telling a person something
+
+Everything that wants to reach a human now goes through a single small file
+instead of five hand-rolled copies. Ring the bell for one person, for several,
+or for whoever owns a project — the app knows the sales owner and the pre-con
+manager, so "tell the people responsible for this job" is now one line.
+
+There is a trap in the table behind the bell that this file exists to contain.
+Each alert can carry a key that means "you have already been told this, don't
+tell me twice" — and that key has to be unique across the **entire table**, not
+per person. So two people cannot be told the same thing under the same key: the
+first one gets told, the second is silently dropped, and nothing anywhere
+reports a problem. It looks exactly like it worked. Every key is now stamped
+with who it is for before it is stored, and there is a test whose only job is to
+fail if anyone ever undoes that.
+
+### 2. Sales note reminders now arrive
+
+A daily job wakes up, asks which reminders have come due, and rings the bell for
+whoever wrote the note. Clicking it opens the note.
+
+Three judgement calls in it worth knowing about:
+
+- **A reminder fires once, not every morning.** The due date stays in the past
+  once it passes, so a job that asks "is this due?" every day answers yes
+  forever. The reminder is now stamped when it is delivered. Belt and braces:
+  the bell would refuse the repeat anyway.
+- **A reminder more than 30 days late is retired quietly.** A three-month-old
+  nudge arriving as if it were new is noise, and noise is how a bell stops being
+  read.
+- **A note pulled back to draft goes quiet.** Someone is reworking it. Nudging
+  them about something they are already holding is nagging.
+
+### 3. Internal notifications now ring the bell
+
+The roughly 35 kinds of internal notification the app already understood — ship
+dates, submittals, budgets, drawings, contracts, change orders, insurance
+expiry — were being recorded and shown to nobody. They now reach the project's
+owners. Client-facing email is untouched and still waiting on Microsoft.
+
+### 4. The bot can create a real task
+
+"Create a task" in the automation builder used to log that it had created a task
+and create nothing. It now writes a real follow-up with a real due date, which
+means it lands in the reminder sweep above like any other. Separately, "add to
+list" is now shown as *not available yet* in the dropdown rather than silently
+doing nothing when picked — there are no contact lists to add anyone to.
+
+One trigger in the automation builder, "when a note is published," was also
+never wired to anything. It fires now.
+
+### Bugs found and fixed
+
+- **Every reminder the bot ever set did nothing.** The main one. Described above.
+- **Internal notifications reached nobody.** Also described above.
+- **A reminder with no date would have been thrown away.** Found by a test, not
+  by reading the code. A missing date read as January 1st 1970 — a perfectly
+  valid date, which is both due and 56 years overdue, so the row would have been
+  quietly retired as stale instead of skipped. Now a missing date is skipped and
+  stays visible.
+- **"Create task" and "add to list" both reported success while doing nothing.**
+
+### Files changed
+
+- `src/lib/alerts.js` — new. The one door to a human.
+- `src/lib/noteReminders.js` — new. What a due reminder says and when it is too
+  old to say it. Kept separate from the job that runs it so it can be tested.
+- `src/app/api/cron/note-reminders/route.js` — new. The daily sweep.
+- `src/lib/notify.js` — internal notifications now ring the bell.
+- `src/lib/bot/ruleEngine.js` — "create task" made real; "add to list" marked
+  unavailable.
+- `src/lib/bot/noteActionRunner.js` — the "note published" trigger now fires.
+- `src/app/api/automation/rule-meta/route.js`, `TriggersClient.jsx` — an
+  unavailable action is labelled as such in the dropdown.
+- `prisma/schema.prisma` + `prisma/migrations/0057_note_action_reminded_at/` —
+  one new column recording when a reminder was delivered. Additive only.
+- `scripts/tests/alerts.test.mjs` — new, 13 tests.
+- `scripts/tests/noteReminders.test.mjs` — new, 16 tests.
+- `.claude/coordination.md` — the permissions brief for Sean.
+
+**Verified:** 481/481 offline unit tests pass; `npm run verify` passes all 9
+gates; production build clean with all 26 runtime assets present. The three
+server-dependent suites (smoke, DN-leak, MCP) were not run — they need a dev
+server up.
+
+**Still open on this thread:** the daily sweep has no EventBridge rule yet, so
+today it only runs when an admin triggers it by hand. Market intel is still
+poll-on-button-click and still cannot tag a project name — there is no project
+field on a market signal at all. Permissions (step 5, with Sean) not started.
+
+---
+
 ## [A GC can send us the whole set] · August 21, 2026
 
 *Not deployed.* Mike sent a photo of the live intake page with a red FAILED row:

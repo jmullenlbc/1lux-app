@@ -284,7 +284,11 @@ export default function TriggersClient() {
             <div>
               <label className="text-xs font-bold uppercase tracking-wide text-orange-600">Then</label>
               <select className={input + ' mt-1'} value={draft.actionType} onChange={e => setDraft({ ...draft, actionType: e.target.value, action: {} })}>
-                {meta.actions.map(a => <option key={a.key} value={a.key}>{a.label}</option>)}
+                {meta.actions.map(a => (
+                  <option key={a.key} value={a.key} disabled={a.available === false}>
+                    {a.available === false ? `${a.label} — not available yet` : a.label}
+                  </option>
+                ))}
               </select>
               <div className="mt-2"><ActionConfig actionType={draft.actionType} action={draft.action} setAction={a => setDraft({ ...draft, action: a })} /></div>
             </div>

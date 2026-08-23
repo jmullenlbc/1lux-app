@@ -12,7 +12,15 @@ export async function GET() {
   const triggers = Object.entries(TRIGGERS).map(([key, t]) => ({
     key, label: t.label, source: t.source, live: !!t.live, fields: t.fields || [],
   }));
-  const actions = Object.entries(ACTIONS).map(([key, a]) => ({ key, label: a.label }));
+  // `available` travels to the builder so an action that cannot do anything is
+  // greyed out rather than offered. An action defaults to available — only one
+  // that opts out has to say so.
+  const actions = Object.entries(ACTIONS).map(([key, a]) => ({
+    key,
+    label: a.label,
+    available: a.available !== false,
+    unavailableReason: a.available === false ? (a.unavailableReason || 'Not available yet') : null,
+  }));
 
   const operators = [
     { key: 'eq', label: 'is' },

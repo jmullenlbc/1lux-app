@@ -149,11 +149,64 @@ export const ACTIONS = {
   },
   CREATE_TASK: {
     label: 'Create an internal task',
-    async run(payload) { return { detail: `task: ${payload.detail || payload.rawText || ''}`.slice(0, 200) }; },
+    // Until 2026-08-22 this returned a sentence and created nothing. A rule
+    // using it fired green, logged success, and left no task anywhere — the
+    // worst kind of broken, because it looks like it works.
+    //
+    // A task lives on the note that produced it: same row shape as any other
+    // note action, so it shows up wherever note actions already show up and
+    // does not need a parallel task system to exist first. `remindAt` is what
+    // makes it surface — the daily sweep in /api/cron/note-reminders nudges the
+    // note's owner when it comes due.
+    async run(payload, cfg, ctx) {
+      const noteId = ctx?.action?.noteId;
+      if (!noteId) return { detail: 'no note to attach the task to', created: false };
+
+      const days = Number.isFinite(Number(cfg?.days)) ? Number(cfg.days) : 3;
+      const due  = new Date(Date.now() + days * 86400000);
+      const text = (cfg?.text || payload.detail || payload.rawText || 'Follow up').slice(0, 400);
+
+      const task = await prisma.noteAction.create({
+        data: {
+          noteId,
+          kind:        'ACTION',
+          type:        'INTERNAL_TASK',
+          rawText:     text,
+          detail:      text,
+          contactId:   ctx?.action?.contactId || null,
+          contactName: payload.contactName || null,
+          company:     payload.company || null,
+          dueDate:     due,
+          // Same date in both: dueDate is what a human reads, remindAt is what
+          // the sweep queries. Keeping them equal means a task cannot be due
+          // without also being nudged.
+          remindAt:    due,
+          status:      'CONFIRMED',
+          source:      'bot',
+          confirmedAt: new Date(),
+          // Stamped so the note runner does not treat this generated task as a
+          // fresh confirmation and fire the whole trigger chain again off it.
+          executedAt:  new Date(),
+        },
+      });
+
+      return { detail: `task created, due in ${days}d`, noteActionId: task.id, created: true };
+    },
   },
   ADD_TO_LIST: {
     label: 'Add the contact to a list',
-    async run(payload, cfg) { return { detail: `add ${payload.contactName || '?'} to ${cfg?.list || 'list'}` }; },
+    // There are no lists in the app yet — no model, no screen. Rather than
+    // quietly do nothing and report success, this refuses and says why, and
+    // `available: false` greys it out in the rule builder so nobody can pick
+    // it in the first place.
+    available: false,
+    unavailableReason: 'Contact lists do not exist yet — nothing to add anyone to.',
+    async run(payload) {
+      return {
+        detail: `not run: contact lists are not built yet (would have added ${payload.contactName || 'the contact'})`,
+        created: false,
+      };
+    },
   },
 };
 
