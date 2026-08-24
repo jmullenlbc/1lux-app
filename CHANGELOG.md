@@ -67,6 +67,23 @@ whenever you say go.
 - **The `.mbox` upload** on the profile screen has the same front-door limit.
   Those files are large, so that path is not usable until it moves too.
 
+### Merged with Sean's work — and caught one bug doing it
+
+Sean had pushed 30 commits while this sat unpushed (auth cleanup, CRM CSV
+export, the Morning Brief page, a long UX and bug sweep). Those were already
+live; merging them here was about getting both histories to sit together
+cleanly. One screen — admin intake review — had been added to by both sides,
+and now has both: his column sorting, and the "Sheets we read" thumbnails.
+
+**The bug the merge surfaced:** the new CRM CSV export was written twice in the
+same file, and the second copy — the one that actually ran — exported the old
+raw probability field instead of the shared Average Probability the screen
+shows. So the CSV and the screen would have disagreed about every deal, with
+the spreadsheet looking just as authoritative. Duplicate removed; the export now
+uses the same number as everywhere else.
+
+That is precisely what the shared-metrics gate exists to catch, and it caught it.
+
 ### Verification before push
 
 521 unit tests, 53 budget-math assertions, the fuzz suite, 12 bid-matrix checks,
