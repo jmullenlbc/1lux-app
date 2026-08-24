@@ -310,6 +310,46 @@ function SignalCard({ signal, onUpdate }) {
             {signal.matchStatus === 'REJECTED' && (
               <span className="text-xs text-slate-300 italic">No match</span>
             )}
+            {/* Project match — a separate claim from the client match. "This is
+                Zocalo" and "this is Trailhead" can be right and wrong independently,
+                so each is confirmed or rejected on its own. */}
+            {signal.projectMatchStatus === 'AUTO_LINKED' && signal.linkedProject && (
+              <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1.5 group">
+                <Link href={`/projects/${signal.linkedProject.id}`} className="hover:underline">
+                  ✓ {signal.linkedProject.name}
+                </Link>
+                <button
+                  onClick={() => onUpdate(signal.id, { linkedProjectId: null })}
+                  className="opacity-0 group-hover:opacity-100 text-blue-400 hover:text-red-600 transition-all ml-0.5"
+                  title="Not this job — reject"
+                >✗</button>
+              </span>
+            )}
+            {signal.projectMatchStatus === 'CONFIRMED' && signal.linkedProject && (
+              <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1.5 group">
+                <Link href={`/projects/${signal.linkedProject.id}`} className="hover:underline">
+                  ✓ {signal.linkedProject.name}
+                </Link>
+                <button
+                  onClick={() => onUpdate(signal.id, { linkedProjectId: null })}
+                  className="opacity-0 group-hover:opacity-100 text-blue-400 hover:text-red-600 transition-all ml-0.5"
+                  title="Not this job — reject"
+                >✗</button>
+              </span>
+            )}
+            {signal.projectMatchStatus === 'SUGGESTED' && signal.linkedProject && (
+              <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                Our job: {signal.linkedProject.name}?
+                <button
+                  onClick={() => onUpdate(signal.id, { linkedProjectId: signal.linkedProjectId })}
+                  className="ml-1 hover:text-green-700" title="Yes, this is that job"
+                >✓</button>
+                <button
+                  onClick={() => onUpdate(signal.id, { linkedProjectId: null })}
+                  className="hover:text-red-600" title="No, different job"
+                >✗</button>
+              </span>
+            )}
             {developers.length > 0 && !signal.linkedClient && signal.matchStatus !== 'REJECTED' && (
               <span className="text-xs text-slate-400 italic">{developers.join(', ')}</span>
             )}

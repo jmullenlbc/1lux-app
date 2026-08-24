@@ -2,6 +2,47 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+## 🔑 FOR SEAN — 2026-08-24: Three scheduled jobs are BUILT and DELIBERATELY NOT SCHEDULED
+
+**Do not create these EventBridge rules yet. Mike's instruction, verbatim: *"Just make it ready to schedule, but don't launch it yet."*** This entry exists so the wiring is written down while it is fresh, not so it gets wired up. When Mike says go, everything you need is below.
+
+None of this is deployed either — it is committed locally on Mike's side and waiting on his word.
+
+### What exists now
+
+| Route | Cadence Mike wants | What it does |
+|---|---|---|
+| `/api/cron/note-reminders` | daily, ~8am ET | Delivers sales-note follow-up reminders that have come due. Rings the in-app bell. |
+| `/api/cron/weekly-roundup` | **Monday**, ~7am ET | One bell item per person: what THEY are on the hook for this week, linking to `/dashboards/meeting`. |
+| `/api/cron/market-intel` | daily, ~5am ET | Polls the news sources and tags each article with the client and, now, the job it names. |
+
+All three follow the pattern you already established on `usage-rollup`: `GET`, `x-cron-secret` header checked against `process.env.CRON_SECRET`, plus an admin-role fallback so an admin can run one by hand from the browser. That fallback is how they get proven before any rule exists — no schedule needed to test them.
+
+### The rules to create, when Mike says go
+
+Same shape as `ilc-usage-rollup-nightly` (classic EventBridge Scheduled rules → the `ilc-app-cron` API destination, `x-cron-secret` auth). **All cron expressions are UTC.** ET is UTC−4 through 2 Nov 2026, then UTC−5 — the times below drift by an hour at the changeover, which is fine for all three.
+
+| Rule name | Cron (UTC) | Target |
+|---|---|---|
+| `ilc-market-intel-daily` | `0 9 * * ? *` | `https://app.ilcstudios.com/api/cron/market-intel` |
+| `ilc-note-reminders-daily` | `0 12 * * ? *` | `https://app.ilcstudios.com/api/cron/note-reminders` |
+| `ilc-weekly-roundup-monday` | `0 11 ? * 2 *` | `https://app.ilcstudios.com/api/cron/weekly-roundup` |
+
+Ordering matters slightly: market-intel runs BEFORE the roundup, so Monday's "news on your clients" section sees the weekend's articles rather than last Thursday's.
+
+Existing live rules for reference — `ilc-usage-rollup-nightly` (`0 12 * * ? *`) and the client digest (`cron(0 14 ? * 4 *)`, Wednesday 9am ET, still email-only and still dry-run stubbed).
+
+### Two traps worth knowing before you wire anything
+
+1. **`CRON_SECRET` must be in the `next.config.mjs` env block**, not just in Amplify's environment variables — the same Gen 1 trap you hit and fixed in `922a614`. It is already there; just don't let it fall out.
+2. **Every one of these jobs is safe to run twice.** Each alert carries a `dedupeKey` and `UserAlert.dedupeKey` is unique, so a double-fire is silently dropped rather than double-nagging. Worth knowing if a rule ever needs a manual replay.
+
+### Nothing is asked of you right now
+
+This is a heads-up, not a ticket. Your open item is still the privileges enforcement sweep in the 2026-08-22 entry below.
+
+---
+
 ## 🔑 FOR SEAN — 2026-08-22: Admin + user privileges — the real state, the design, and your half of the build
 
 **Mike has assigned this jointly. I am building the foundation; you own a defined slice of the enforcement sweep. Details at the bottom.**

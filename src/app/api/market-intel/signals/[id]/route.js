@@ -19,6 +19,14 @@ export async function PATCH(request, { params }) {
   if (body.reviewStatus !== undefined) data.reviewStatus = body.reviewStatus;
   if (body.matchStatus  !== undefined) data.matchStatus  = body.matchStatus;
 
+  // A project link is confirmed or rejected independently of the client link.
+  // They are two different claims about the article — "this is Zocalo" and
+  // "this is Trailhead" — and one can be right while the other is wrong.
+  if ('linkedProjectId' in body) {
+    data.linkedProjectId    = body.linkedProjectId || null;
+    data.projectMatchStatus = body.linkedProjectId ? 'CONFIRMED' : 'REJECTED';
+  }
+
   if ('linkedClientId' in body) {
     data.linkedClientId = body.linkedClientId || null;
     if (body.linkedClientId) {
@@ -32,8 +40,9 @@ export async function PATCH(request, { params }) {
     where: { id: params.id },
     data,
     include: {
-      source:       { select: { name: true } },
-      linkedClient: { select: { id: true, name: true } },
+      source:        { select: { name: true } },
+      linkedClient:  { select: { id: true, name: true } },
+      linkedProject: { select: { id: true, name: true, projectNumber: true } },
     },
   });
 

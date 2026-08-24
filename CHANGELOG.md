@@ -5,6 +5,97 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [The news knows which job it is about] · August 24, 2026
+
+*Not deployed.* Steps 4 and 5 of the five we agreed. Mike: *"I havent seen the
+market data tagging clients or project names"* and *"Weekly roundup should be on
+Monday."* Both are now built. Also, per *"Just make it ready to schedule, but
+don't launch it yet"* — every scheduled job is written and reachable, and **no
+EventBridge rule has been created.**
+
+### Market intel now names the job, not just the developer
+
+Until now an article could be tagged with a client and stopped there. You could
+see *Zocalo did something* but not *this is about Trailhead*. Every signal now
+carries a project link too.
+
+**Why this is not the fuzzy matcher we already had.** Developer names are
+distinctive — "Zocalo Community Development" is nobody else. Project names are
+the opposite: Trailhead, Creekside, The Approach, Lowell are ordinary English,
+and fuzzy-matching those against arbitrary industry news would tag half the
+feed. A wrong link is worse than no link, because nobody re-reads a record they
+believe is already correct, so it sits on the job's page looking authoritative
+forever.
+
+So it does not fuzzy-match. It asks a narrower question — does the article
+actually **contain** this job's name, as whole words — with three guards:
+
+1. A name has to be distinctive enough to mean something alone. One short word
+   is not, however exactly it matches.
+2. If the article already matched that job's **client**, the bar drops. Two
+   independent things agreeing is evidence; a name alone is a suggestion.
+3. Names half the industry uses — "Phase 2", "The Residences", "Main Street" —
+   never claim an article by themselves.
+
+Confident matches link automatically. Everything else shows on the market intel
+page as *"Our job: Trailhead?"* with a ✓ and an ✗, and the project link is
+confirmed or rejected **separately from the client link** — they are two
+different claims about one article and either can be wrong on its own.
+
+### A Monday roundup, in the bell
+
+Mike asked where the digest was and how he'd see it. Short answer: the one that
+existed was addressed to clients, email-only, and had its send stubbed out — it
+was never a "here's your week" for us.
+
+The new one is not another dashboard. `/dashboards/meeting` already shows
+everything open for everybody and is the right thing to work down *in* the
+meeting; what was missing was the hour before it. So Monday morning each person
+gets **one** bell item — *"3 waiting on signature · 2 actions overdue · 1
+follow-up"* — that links into that same board. Six sections, all from fields
+that already exist: proposals out with nothing signed, your next actions,
+follow-ups you set, jobs you flagged, orders expected inside 30 days, and news
+on your clients from the last seven days.
+
+Two rules it is built around, both of which are mostly what the tests pin:
+
+- **Nobody gets an empty bell.** "Nothing this week" every week teaches people
+  to dismiss it unread — including the week it mattered.
+- **Only your own work.** Being told about a deal you don't own is somebody
+  else's homework arriving as your obligation. Every filter is an ownership
+  filter first and a date filter second.
+
+It is keyed to the ISO week, so running the job five times on Monday delivers
+one roundup, and next Monday delivers a new one.
+
+### Ready to schedule, deliberately not scheduled
+
+Three jobs now exist as proper scheduled endpoints: `/api/cron/market-intel`
+(daily), `/api/cron/note-reminders` (daily), `/api/cron/weekly-roundup`
+(Monday). Each is protected by the cron secret with an admin fallback, so an
+admin can run any of them by hand — which is the only way to prove they work
+before a schedule exists. The exact EventBridge rules are written down for Sean
+in `.claude/coordination.md`, with the instruction not to create them yet.
+
+### Files
+
+- **New** — `src/lib/market-intel/project-matcher.js`, `src/lib/roundup.js`,
+  `src/app/api/cron/market-intel/route.js`,
+  `src/app/api/cron/weekly-roundup/route.js`,
+  `prisma/migrations/0058_market_signal_project_link/migration.sql`
+- **New tests** — `scripts/tests/projectMatcher.test.mjs` (15),
+  `scripts/tests/roundup.test.mjs` (25)
+- **Changed** — `prisma/schema.prisma` (`MarketSignal.linkedProjectId`,
+  `projectMatchStatus`, `projectMatchScore`; `Project.marketSignals`),
+  `src/lib/market-intel/poller.js`, `src/app/api/market-intel/signals/route.js`,
+  `src/app/api/market-intel/signals/[id]/route.js`,
+  `src/app/(app)/market-intel/page.jsx`, `.claude/coordination.md`,
+  `package.json`
+
+**521 unit tests pass. Build clean.** Nothing pushed.
+
+---
+
 ## [The app can finally tell you something] · August 22, 2026
 
 *Not deployed.* Mike, on the roadmap spreadsheet: *"The skeleton is very good,

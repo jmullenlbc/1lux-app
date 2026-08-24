@@ -454,6 +454,7 @@ model Project {
   updatedAt                DateTime  @updatedAt
   createdById              String
   createdBy                User      @relation(fields: [createdById], references: [id])
+  marketSignals            MarketSignal[]
   clientId                 String?
   client                   Client?   @relation(fields: [clientId], references: [id])
 
@@ -1527,6 +1528,14 @@ model MarketSignal {
   developerNames String?           // JSON array of extracted org names
   linkedClientId String?
   linkedClient   Client?           @relation(fields: [linkedClientId], references: [id], onDelete: SetNull)
+  // A signal names a JOB as often as it names a company — "Trailhead breaks
+  // ground" is about a project, not about a developer. Without this the answer
+  // to "any news on The Approach?" is unreachable: the client is linked and the
+  // project never was.
+  linkedProjectId    String?
+  linkedProject      Project?      @relation(fields: [linkedProjectId], references: [id], onDelete: SetNull)
+  projectMatchStatus String        @default("UNREVIEWED") // AUTO_LINKED | SUGGESTED | UNREVIEWED | CONFIRMED | REJECTED
+  projectMatchScore  Float?
   matchScore     Float?
   matchStatus    String            @default("UNREVIEWED") // AUTO_LINKED | SUGGESTED | UNREVIEWED | CONFIRMED | REJECTED
   reviewStatus   String            @default("UNREVIEWED") // UNREVIEWED | REVIEWED | CONVERTED | DISMISSED
