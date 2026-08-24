@@ -2,6 +2,39 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+## 🚢 DEPLOYED — 2026-08-24: direct-to-S3 uploads are live, and a bug in the CRM CSV export
+
+**Pushed `804caf9..e78acec`.** Mike said deploy, so the upload work that had been sitting local since the 22nd went out: direct-to-S3 presigned uploads on every presignable path, the 400 MB × 5 intake ceiling, `pdfRange.js` / `sheetIndex.js` / `uploadIntake.js`, the RSS-based memory brake, the `sheets/` compressed-copy retention, and the immediate discard of the original in the parse route's `finally`. The two notification sessions (note reminders, market-intel project tagging, Monday roundup) rode along.
+
+**Your 30 commits were already live** — I merged rather than rebased so both histories keep their shape. One conflict, `src/app/(app)/admin/intake/IntakeClient.jsx`: we had both added to it. Resolved by keeping both — your `SortIcon` / router-driven refresh / `projects` prop, and my `KeptSheets` thumbnail block. Renders 200 for ILC_ADMIN; it is **not** in the smoke `PAGES` list, so I checked it by hand.
+
+### ⚠️ One bug found in your work, fixed on the way out
+
+`src/app/(app)/crm/CRMClient.jsx` declared `handleExportCSV` **twice** (lines 466 and 499). JS function declarations hoist, so the second one won — and the second one read `p.pipelineProbability` where the first read the shared `averageProbability(p)`. Net effect: the CSV export handed out a different probability than the CRM screen displayed, for every deal, in a spreadsheet that looks authoritative. `npm run verify` gate 6 (shared metrics) blocked the push over it.
+
+I deleted the duplicate and kept the correct one. Nothing else in that file changed. Flagging rather than silently fixing because a function declared twice usually means an edit landed in the wrong place, and you may want to check whether anything else from that change went astray.
+
+### S3 prerequisites — all three confirmed, closing them out
+
+Cross-checking your log before pushing: CORS verified live from outside (preflight from `app.ilcstudios.com` returns 200 with origin echoed, `evil.example.com` 403); the 1-day lifecycle rule scoped to `uploads/`; and the IAM policy `ilc-qc-media-rw` scoped at the **bucket** level, which means the `sheets/` prefix is already covered. That was the one with the silent-failure mode. **Nothing outstanding on S3.**
+
+Still open, and only you can answer it: **the Amplify SSR Lambda memory size.** It is not a blocker — it only decides how deep into a big drawing set the parser gets before the brake stops it, and stopping early means fewer sheets read, never a failed upload. But a bigger number means better reads on the 400 MB sets.
+
+### Two upload paths deliberately NOT fixed — they are yours
+
+Both still POST the file through the Amplify front door and both still write to Lambda local disk, so both are the storage move already delegated to you:
+
+- **`/api/tasks/[id]/attachments`** — the Admin › Tasks screen offers `.pdf/.xls/.xlsx` up to 25 MB. In prod anything over ~4.4 MB dies at the front door with an empty 413, and whatever does land is wiped when the Lambda recycles. The fix is `appendUpload` from `@/lib/uploadClient` on the client plus reading `uploadKey` on the route — the same shape as the other 14 call sites.
+- **The `.mbox` upload** on `admin/profile/ProfileClient.jsx`. Gmail Takeout files are large, so that path is effectively unusable until it moves. Not urgent — Mike has that feature parked.
+
+I did not touch either, because half-fixing the front door without moving the storage would make a 25 MB attachment *appear* to upload and then vanish, which is worse than failing honestly.
+
+### Verification before the push
+
+521 unit tests, 53 budget-math assertions, the fuzz suite, 12 bid-matrix checks, 5 smoke tests, 8 DN-leak tests, 48 MCP tests, all 9 verify gates, clean production build, 26/26 runtime assets traced. Run twice — once before the merge and again after, on the merged tree.
+
+---
+
 ## 🔑 FOR SEAN — 2026-08-24: Three scheduled jobs are BUILT and DELIBERATELY NOT SCHEDULED
 
 **Do not create these EventBridge rules yet. Mike's instruction, verbatim: *"Just make it ready to schedule, but don't launch it yet."*** This entry exists so the wiring is written down while it is fresh, not so it gets wired up. When Mike says go, everything you need is below.
