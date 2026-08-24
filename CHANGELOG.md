@@ -5,6 +5,78 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Any PDF, any size, gets in] · August 24, 2026 — DEPLOYED
+
+Mike: *"Deploy the whole compression and discard procedure and larger intake
+ceiling. Let's get it so any PDF can be uploaded into our system on the live app
+and not fail."* This ships that, together with the two notification sessions that
+had been sitting unpushed behind it.
+
+### The upload ceiling, and why it was never really 4 MB
+
+The live app sat behind a front door that quietly refused anything over about
+4.4 MB — not with a message, with an empty error. A 246 MB drawing set had no
+way in, and neither did a 6 MB fixture schedule. Locally everything worked,
+which is what made it hard to see.
+
+Files now go **straight from the browser to cloud storage** and the app is handed
+a receipt instead of the file. Nothing large passes through the front door at
+all, so the cap it enforced no longer applies to us. The intake ceiling is now
+**400 MB per file, five files at a time**.
+
+A phone on a job site can send a 300 MB set, because the browser streams it off
+disk rather than loading it into memory first. The only real limit left is time.
+
+### Read what we need, then throw the set away
+
+A 400 MB set is a hand-off, not something to store. The app reads the handful of
+sheets it needs, keeps small compressed copies of just those, and **deletes the
+original the moment it is done** — with a daily sweep as a backstop in case a
+delete is ever missed. The kept copies live under a separate prefix that the
+sweep does not touch, so they outlive the upload they came from.
+
+There is a brake on the reading, too. A large set cannot be opened without
+reserving room for the whole thing, so the app now watches its actual memory use
+against what the server has and stops early rather than falling over. Stopping
+early means fewer sheets read; it never means a failed upload.
+
+### Also going out with this
+
+Everything from the two prior sessions, which were built but never pushed:
+
+- **Sales note reminders that fire.** A follow-up written in a note now arrives
+  as a bell on the day it is due, once, and never twice.
+- **Market intel tags the job, not just the developer**, with the three guards
+  that keep a wrong link off a project page.
+- **A Monday roundup in the bell** — your own deals waiting on signature, your
+  own overdue actions, your own follow-ups. Nobody gets an empty bell.
+- **The model-tier table** (`src/lib/aiModels.js`), so each AI job runs on the
+  right-sized model instead of the largest one.
+
+**Still not scheduled.** Per *"Just make it ready to schedule, but don't launch
+it yet"* — all three cron jobs are live and reachable and **no EventBridge rule
+exists.** The exact rules are written down in `.claude/coordination.md` for
+whenever you say go.
+
+### Known gaps, deliberately not fixed here
+
+- **Task attachments** (Admin › Tasks) still send the file through the old
+  front door and still write to disk that the server wipes on restart. The
+  screen offers 25 MB; in practice anything over ~4.4 MB fails. This is the same
+  storage move already delegated to Sean, not a new problem.
+- **The `.mbox` upload** on the profile screen has the same front-door limit.
+  Those files are large, so that path is not usable until it moves too.
+
+### Verification before push
+
+521 unit tests, 53 budget-math assertions, the fuzz suite, 12 bid-matrix checks,
+5 smoke tests, 8 DN-leak tests, 48 MCP tests, all 9 verify gates, a clean
+production build, and 26/26 runtime assets traced into the Lambda bundle. All
+green. Every S3 prerequisite (CORS, the 1-day sweep, the storage permissions)
+confirmed live in Sean's log before pushing.
+
+---
+
 ## [The news knows which job it is about] · August 24, 2026
 
 *Not deployed.* Steps 4 and 5 of the five we agreed. Mike: *"I havent seen the
