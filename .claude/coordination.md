@@ -590,6 +590,16 @@ Per the boundary below you own budget/pricing math. Mike directed these three ch
 - `npm run build` now runs `scripts/check-runtime-assets.mjs`, asserting runtime-resolved assets are actually in the Lambda trace (this is what was silently breaking **all PDF/AI parsing in prod** — pdfjs `standard_fonts` were never traced; fixed for 8 routes).
 - `npm run verify` (static gates) and `npm run verify:smoke` (role-aware smoke tests). The smoke tests caught that **all seeded accounts are ILC_ADMIN**, so they stand up a disposable COMPANY_ADMIN — that role was seeing **zero projects** in production until today.
 
+## 2026-07-28 — Manny's Claude (Intake workflow: Tasks 23–26 complete; bonus tasks 13–14 in review)
+
+Four-part public intake workflow shipped and ready for review. ConceptualSubmission schema deployed 2026-07-27; all work lands on clean main.
+- **Task 23** (`manny/intake-wizard`, PR #19): Public `/start` page — unauthenticated intake form. Captures name, email, company, project name, building type, gross SF. Stores as ConceptualSubmission (PENDING). Dark navy + amber ILC branding. No force-dynamic needed (no cookies).
+- **Task 24** (`manny/intake-admin-queue`, PR #20): Admin `/admin/intake` page (ILC_ADMIN only) with list + detail panel. Status select (PENDING→APPROVED/REJECTED), review notes, optional client-link. PATCH endpoint sets reviewedById + reviewedAt. List columns: date, name, email, company, building type, status badge (amber/green/red).
+- **Task 25** (`manny/portal-ux-cleanup`, PR #21): Portal project page UX polish. Added back link to `/portal` + project name below it on desktop header. $/SF already visible in ConceptualBudgetView (perSf metric). Three lines changed.
+- **Task 26** (`manny/checkin-cadence-badge`, PR #22): Client page Contacts tab now shows cadence health banner above table. Colored pills: red (overdue), amber (due soon), green (current). Uses same getCheckinStatus logic as /crm/contacts. Banner only shows if ≥1 contact has cadence data.
+
+**Quality assurance:** All verify gates pass on all four PRs (8/8: dynamic-pages, schema-provider, env-contract, postgres-migrations, schema-sync, shared-metrics, unit tests, secrets). Pre-push hooks green on every branch (unit tests: 38 scenarios + 111,997 invariant checks = 0 failures). Zero schema changes; no new API routes beyond Task 24 PATCH. Bonus tasks 13 (auth-hygiene) + 14 (meeting-notes-badge) already in review from prior session.
+
 ## Current State
 
 - **Production:** live at https://app.ilcstudios.com, deploys flowing cleanly since 2026-05-26 PM. Mike pushed 5 commits on 2026-05-27 AM extending the defensive-guard pattern from seed.js to client/KB/master-types pages and routes — same approach the collaborator used in `0eda6d1`. Pipeline stable.

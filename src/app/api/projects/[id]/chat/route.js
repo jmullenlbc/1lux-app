@@ -59,7 +59,7 @@ async function canAccess(projectId, user) {
     include: { responses: true },   // wizard Q&A answers
   });
   if (!project) return null;
-  if (user.role === 'ILC_ADMIN' || project.createdById === user.id) return project;
+  if (isSuperAdmin(user.role) || project.createdById === user.id) return project;
   return null;
 }
 

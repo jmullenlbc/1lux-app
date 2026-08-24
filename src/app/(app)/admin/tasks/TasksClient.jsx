@@ -284,8 +284,8 @@ function TaskModal({ task, users, onSave, onDelete, onClose }) {
 
         <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between gap-3">
           {task ? (
-            <button onClick={handleDelete} disabled={deleting}
-              className="text-sm text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-2 rounded-lg transition-colors">
+            <button onClick={() => setDeleteConfirm(task.id)} disabled={deleting}
+              className="text-sm text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-2 rounded-lg transition-colors disabled:opacity-50">
               {deleting ? 'Deleting…' : 'Delete task'}
             </button>
           ) : <div />}
@@ -431,6 +431,8 @@ export default function TasksClient({ tasks: initialTasks, users, currentUser })
   const [modal,  setModal]  = useState(null);
   const [filter, setFilter] = useState('ALL');
   const [search, setSearch] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const filtered = tasks.filter(t => {
     if (filter === 'MY' && t.assigneeId !== currentUser.id) return false;
@@ -473,10 +475,16 @@ export default function TasksClient({ tasks: initialTasks, users, currentUser })
   }
 
   async function handleDelete(taskId) {
-    const res = await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
-    if (!res.ok) { alert('Failed to delete task'); return; }
-    setTasks(ts => ts.filter(t => t.id !== taskId));
-    setModal(null);
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+      if (!res.ok) { alert('Failed to delete task'); return; }
+      setTasks(ts => ts.filter(t => t.id !== taskId));
+      setModal(null);
+    } finally {
+      setDeleting(false);
+      setDeleteConfirm(null);
+    }
   }
 
   async function handleStatusChange(taskId, status) {
@@ -541,6 +549,34 @@ export default function TasksClient({ tasks: initialTasks, users, currentUser })
           onDelete={handleDelete}
           onClose={() => setModal(null)}
         />
+      )}
+
+      {/* Delete confirmation modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <h3 className="text-base font-bold text-slate-900 mb-2">Delete task?</h3>
+            <p className="text-sm text-slate-600 mb-6">
+              This will permanently delete the task and all its attachments. This action cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                disabled={deleting}
+                className="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDelete(deleteConfirm)}
+                disabled={deleting}
+                className="px-4 py-2 text-sm font-semibold rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
+              >
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

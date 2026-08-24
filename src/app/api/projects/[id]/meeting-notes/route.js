@@ -6,7 +6,7 @@ import { sendNotification } from '@/lib/notify';
 async function canAccess(projectId, user) {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project) return false;
-  return user.role === 'ILC_ADMIN' || project.createdById === user.id;
+  return isSuperAdmin(user.role) || project.createdById === user.id;
 }
 
 // Project meeting notes live in the unified Note table (noteType='PROJECT_MEETING').

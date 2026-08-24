@@ -366,6 +366,13 @@ function BudgetView({ projectId }) {
 
   return (
     <div>
+      {/* Budget as-of date */}
+      {matrix.createdAt && (
+        <p className="text-xs text-slate-400 mb-3">
+          Budget as of {new Date(matrix.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+        </p>
+      )}
+
       {/* CO summary bar */}
       <div className="grid grid-cols-3 gap-3 mb-5">
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-2">
@@ -644,7 +651,7 @@ function MeetingNotesView({ projectId }) {
                 onClick={() => setExpanded(e => ({ ...e, [n.id]: !e[n.id] }))}
                 className="text-[11px] text-orange-600 mt-1.5 inline-flex items-center gap-1 hover:text-orange-700"
               >
-                {expanded[n.id] ? 'Less ▲' : 'More ▼'}
+                {expanded[n.id] ? 'Show less' : 'Show more'}
               </button>
             </>
           )}
@@ -944,7 +951,8 @@ export default function PortalProjectPage({ params }) {
 
       {/* ── Desktop sidebar ── */}
       <aside className="hidden md:flex w-52 shrink-0 flex-col bg-white border-r border-slate-200 h-full">
-        <div className="px-4 py-4 border-b border-slate-200">
+        <div className="px-4 py-3 border-b border-slate-200">
+          <p className="text-[11px] font-medium text-amber-600 mb-1">ILC Studios</p>
           <p className="font-bold text-slate-800 text-sm leading-tight">{project.name}</p>
           {(project.city || project.state) && (
             <p className="text-xs text-slate-400 mt-0.5">{[project.city, project.state].filter(Boolean).join(', ')}</p>
@@ -996,7 +1004,7 @@ export default function PortalProjectPage({ params }) {
         {/* Section title (desktop) */}
         {active && (
           <div className="hidden md:block px-6 pt-5 pb-0 shrink-0">
-            <a href="/portal" className="text-xs text-slate-400 hover:text-amber-600 transition-colors">
+            <a href="/portal/projects" className="text-xs text-slate-400 hover:text-amber-600 transition-colors">
               ← Back to projects
             </a>
             <p className="text-sm text-slate-400 mt-1">{project.name}</p>
@@ -1023,7 +1031,7 @@ export default function PortalProjectPage({ params }) {
 
         {/* ── Mobile bottom nav ── */}
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex z-40">
-          {available.slice(0, 6).map(item => (
+          {available.slice(0, 7).map(item => (
             <button
               key={item.id}
               onClick={() => setActiveId(item.id)}

@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-export async function GET() {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function GET(request) {
+  const { user, error } = await requireAuth(request);
+  if (error) return error;
 
   const sources = await prisma.marketSource.findMany({ orderBy: { name: 'asc' } });
   return NextResponse.json(sources);
@@ -12,7 +12,7 @@ export async function GET() {
 
 export async function POST(request) {
   const session = await getSession();
-  if (!session || (session.role !== 'ILC_ADMIN' && session.role !== 'SUPER_ADMIN')) {
+  if (!user || (user.role !== 'ILC_ADMIN' && user.role !== 'SUPER_ADMIN')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

@@ -187,6 +187,9 @@ export default function WizardClient({ project, projectData, initialSections, in
       {/* Main content */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-3xl mx-auto px-6 py-8">
+          <button onClick={() => router.push(`/project/${project.id}`)} className="text-xs text-slate-400 hover:text-amber-600 transition-colors mb-4 inline-block">
+            ← Back to {project.name}
+          </button>
           {/* Step header */}
           <div className="mb-6">
             <div className="flex items-center gap-2 text-xs text-slate-400 mb-2">

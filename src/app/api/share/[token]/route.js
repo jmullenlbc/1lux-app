@@ -11,7 +11,12 @@ export async function POST(request, { params }) {
   const ip        = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
   const userAgent = headersList.get('user-agent') || '';
 
-  const log = JSON.parse(share.viewLog || '[]');
+  let log = [];
+  try {
+    log = JSON.parse(share.viewLog || '[]');
+  } catch {
+    log = [];
+  }
   log.push({ ip, userAgent: userAgent.slice(0, 120), at: new Date().toISOString() });
 
   await prisma.projectShare.update({

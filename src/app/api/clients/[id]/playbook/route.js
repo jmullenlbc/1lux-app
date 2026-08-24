@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-function perms(session) { try { return JSON.parse(session.permissions || '{}'); } catch { return {}; } }
-function isAdmin(session) { return session.role === 'ILC_ADMIN' || session.role === 'SUPER_ADMIN'; }
+function perms(session) { try { return JSON.parse(user.permissions || '{}'); } catch { return {}; } }
+function isAdmin(session) { return user.role === 'ILC_ADMIN' || user.role === 'SUPER_ADMIN'; }
 
 // Flat ClientPlaybook columns the client may write (no id/clientId/timestamps).
 const WRITABLE = [
@@ -20,8 +20,8 @@ const WRITABLE = [
 
 // ── GET — scalars + all normalized collections ────────────────────────────────
 export async function GET(req, { params }) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { user, error } = await requireAuth(request);
+  if (error) return error;
   const p = perms(session);
   if (!(isAdmin(session) || p.clients === true || p.clients === 'read'))
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -39,8 +39,8 @@ export async function GET(req, { params }) {
 // ── PUT — partial save: only the keys present in the body are touched ──────────
 // Body: { scalars?, relationships?, assignments?, distribution?, notes? }
 export async function PUT(req, { params }) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { user, error } = await requireAuth(request);
+  if (error) return error;
   if (!(isAdmin(session) || perms(session).clients === true))
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 

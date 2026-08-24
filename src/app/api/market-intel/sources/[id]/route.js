@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 export async function PATCH(request, { params }) {
   const session = await getSession();
-  if (!session || (session.role !== 'ILC_ADMIN' && session.role !== 'SUPER_ADMIN')) {
+  if (!user || (user.role !== 'ILC_ADMIN' && user.role !== 'SUPER_ADMIN')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -20,7 +20,7 @@ export async function PATCH(request, { params }) {
 
 export async function DELETE(request, { params }) {
   const session = await getSession();
-  if (!session || (session.role !== 'ILC_ADMIN' && session.role !== 'SUPER_ADMIN')) {
+  if (!user || (user.role !== 'ILC_ADMIN' && user.role !== 'SUPER_ADMIN')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

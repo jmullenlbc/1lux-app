@@ -35,6 +35,10 @@ export async function PATCH(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
+  if (isClientViewer(user.role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   const project = await getProjectForUser(params.id, user);
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
@@ -157,6 +161,10 @@ export async function PATCH(request, { params }) {
 export async function DELETE(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
+
+  if (isClientViewer(user.role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   const project = await getProjectForUser(params.id, user);
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });

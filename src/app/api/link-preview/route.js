@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
 import { putQcObject, getQcObjectUrl } from '@/lib/qcStorage';
 
 export const dynamic = 'force-dynamic';
@@ -31,10 +31,10 @@ function blocked(host) {
 // POST { url } → { imageKey, imageUrl, title, description }
 // Fetches a product page, extracts the Open Graph image + title, and stores the
 // image durably (so pasting a link populates the thumbnail — no manual upload).
-export async function POST(req) {
-  const s = await getSession();
-  if (!s) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (!(isAdmin(s) || perms(s).clients === true)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+export async function POST(request) {
+  const { user, error } = await requireAuth(request);
+  if (error) return error;
+  if (!(isAdmin(user) || perms(user).clients === true)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { url } = await req.json().catch(() => ({}));
   let u;

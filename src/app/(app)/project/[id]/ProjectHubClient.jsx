@@ -405,7 +405,7 @@ function AutoTaggedFileTab({ title, subtitle, autoTag, files, projectId, tab, on
   );
 }
 
-export default function ProjectHubClient({ userId, userRole, project, budget, peerReviewTotal, clients = [], allUsers = [], initialFiles = [], initialDesignInfo = {}, masterTypes = [] }) {
+export default function ProjectHubClient({ userId, userRole, project, budget, peerReviewTotal, clients = [], allUsers = [], initialFiles = [], initialDesignInfo = {}, masterTypes = [], meetingNotesCount = 0 }) {
   // Inline super-admin check — the auth helper module imports next/headers
   // which isn't usable in a client component, so we replicate the predicate
   // here. Mirrors isSuperAdmin() in src/lib/auth.js exactly.
@@ -465,6 +465,15 @@ export default function ProjectHubClient({ userId, userRole, project, budget, pe
   const [assigningClient, setAssigningClient] = useState(false);
   const [clientId,       setClientId]       = useState('');
   const [savingClient,   setSavingClient]   = useState(false);
+  const [showBudgetNudge, setShowBudgetNudge] = useState(false);
+
+  useEffect(() => {
+    const hasBudget = budget?.totalWithControls > 0 || peerReviewTotal > 0;
+    const hasSeenNudge = localStorage.getItem(`budget_nudge_${project.id}`);
+    if (!hasBudget && !hasSeenNudge) {
+      setShowBudgetNudge(true);
+    }
+  }, [budget, peerReviewTotal, project.id]);
   const [assignedClient, setAssignedClient] = useState(project.client || null);
 
   // Project info editing (city, state, buildingType)
@@ -686,7 +695,9 @@ export default function ProjectHubClient({ userId, userRole, project, budget, pe
               <span>›</span>
               {project.client && (
                 <>
-                  <span className="text-slate-500">{project.client.name}</span>
+                  <Link href={`/clients/${project.client.id}`} className="text-slate-500 hover:text-amber-600 transition-colors">
+                    {project.client.name}
+                  </Link>
                   <span>›</span>
                 </>
               )}
@@ -782,9 +793,10 @@ export default function ProjectHubClient({ userId, userRole, project, budget, pe
               <div className="flex flex-wrap items-center gap-2 mt-2">
                 {/* Phase selector */}
                 <select
+                  disabled={savingPhase}
                   value={phase}
                   onChange={e => updatePhase(e.target.value)}
-                  className="text-xs font-semibold border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-700"
+                  className="text-xs font-semibold border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-700 disabled:opacity-50"
                 >
                   {PROJECT_PHASES.map(p => (
                     <option key={p.value} value={p.value}>{p.label} — {p.long}</option>
@@ -793,9 +805,10 @@ export default function ProjectHubClient({ userId, userRole, project, budget, pe
 
                 {/* Service type selector */}
                 <select
+                  disabled={savingSvc}
                   value={serviceType}
                   onChange={e => updateServiceType(e.target.value)}
-                  className="text-xs font-semibold border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-700"
+                  className="text-xs font-semibold border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-700 disabled:opacity-50"
                 >
                   <option value="">Service type…</option>
                   {SERVICE_TYPES.map(t => (
@@ -804,6 +817,12 @@ export default function ProjectHubClient({ userId, userRole, project, budget, pe
                 </select>
 
                 {(savingPhase || savingSvc) && <span className="text-xs text-slate-400">Saving...</span>}
+
+                {budgetTotal > 0 && (
+                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${budgetMeta.color}`}>
+                    {formatCurrency(budgetTotal)} {budgetMeta.label}
+                  </span>
+                )}
 
                 {/* Building type + location — click pencil to edit */}
                 {!editingInfo ? (
@@ -994,10 +1013,24 @@ export default function ProjectHubClient({ userId, userRole, project, budget, pe
           activeTab={activeTab}
           onTabChange={setActiveTab}
           userId={userId}
+          badges={{ meetings: meetingNotesCount }}
         />
         <div className="flex-1 min-w-0">
           {/* Project Search */}
           <ProjectSearch projectId={project.id} />
+
+          {showBudgetNudge && (
+            <div className="bg-amber-50 border-b border-amber-200 px-8 py-4 flex items-start gap-3">
+              <svg className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div className="flex-1">
+                <p className="text-sm text-amber-900 font-medium">Your project is ready</p>
+                <p className="text-xs text-amber-800 mt-1">Open the Budgets tab to get started with budget calculations.</p>
+              </div>
+              <button onClick={() => { setShowBudgetNudge(false); localStorage.setItem(`budget_nudge_${project.id}`, 'true'); }} className="text-xs text-amber-600 hover:text-amber-700 font-medium shrink-0">Dismiss</button>
+            </div>
+          )}
 
           {/* Tab content — correspondence gets no padding (owns its own layout) */}
           <div className={activeTab === 'correspondence' ? '' : 'px-8 py-8'}>

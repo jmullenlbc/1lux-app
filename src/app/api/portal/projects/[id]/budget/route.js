@@ -28,6 +28,11 @@ export async function GET(req, { params }) {
         },
       },
     },
+    select: {
+      version: true,
+      items: true,
+      createdAt: true,
+    },
   });
 
   // Approved COs and their totals
@@ -69,6 +74,7 @@ export async function GET(req, { params }) {
       ? {
           version: matrix.version,
           items: matrix.items,
+          createdAt: matrix.createdAt,
           salesTaxRate:    projectData?.salesTaxPct    ?? 0,
           freightRate:     projectData?.freightPct     ?? 0,
           warehousingRate: projectData?.warehousingPct ?? 0,

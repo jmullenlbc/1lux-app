@@ -102,7 +102,10 @@ export function resolveClientByDomain(domain, clients = []) {
   if (!d) return miss;
 
   for (const c of clients) {
-    const domains = Array.isArray(c?.emailDomains) ? c.emailDomains : [];
+    let domains = Array.isArray(c?.emailDomains) ? c.emailDomains : [];
+    if (typeof domains === 'string') {
+      try { domains = JSON.parse(domains || '[]'); } catch { domains = []; }
+    }
     if (domains.some(x => String(x).trim().toLowerCase() === d)) {
       return { clientId: c.id, clientName: c.name, matchType: 'domain', confidence: 'high' };
     }

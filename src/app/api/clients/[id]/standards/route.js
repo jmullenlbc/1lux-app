@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { CASCADE_MAP } from '@/lib/standards-questions';
 
@@ -7,11 +7,11 @@ import { CASCADE_MAP } from '@/lib/standards-questions';
 // Returns ALL ClientStandardsAnswer rows for this client (all projectTypes + regions).
 // The client resolves the effective answer via resolveAnswer().
 export async function GET(req, { params }) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { user, error } = await requireAuth(request);
+  if (error) return error;
 
-  const perms = (() => { try { return JSON.parse(session.permissions || '{}'); } catch { return {}; } })();
-  const isAdmin = session.role === 'ILC_ADMIN' || session.role === 'SUPER_ADMIN';
+  const perms = (() => { try { return JSON.parse(user.permissions || '{}'); } catch { return {}; } })();
+  const isAdmin = user.role === 'ILC_ADMIN' || user.role === 'SUPER_ADMIN';
   const canView = isAdmin || perms.clientStandards === true;
   if (!canView) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
@@ -30,11 +30,11 @@ export async function GET(req, { params }) {
 // Cascade: if question_key is a CASCADE_MAP source, auto-creates answers for targets
 // that don't yet have ANY answer for the same (projectType, region).
 export async function POST(req, { params }) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { user, error } = await requireAuth(request);
+  if (error) return error;
 
-  const perms = (() => { try { return JSON.parse(session.permissions || '{}'); } catch { return {}; } })();
-  const isAdmin = session.role === 'ILC_ADMIN' || session.role === 'SUPER_ADMIN';
+  const perms = (() => { try { return JSON.parse(user.permissions || '{}'); } catch { return {}; } })();
+  const isAdmin = user.role === 'ILC_ADMIN' || user.role === 'SUPER_ADMIN';
   const canEdit = isAdmin || perms.clientStandards === true;
   if (!canEdit) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
@@ -67,7 +67,7 @@ export async function POST(req, { params }) {
       answer_value: answer_value ?? null,
       answer_note:  answer_note  ?? null,
       source:       'MANUAL',
-      answeredById: session.id,
+      answeredById: user.id,
       answered_at:  new Date(),
     },
     create: {
@@ -81,7 +81,7 @@ export async function POST(req, { params }) {
       answer_value: answer_value ?? null,
       answer_note:  answer_note  ?? null,
       source:       'MANUAL',
-      answeredById: session.id,
+      answeredById: user.id,
       answered_at:  new Date(),
     },
   });
@@ -118,7 +118,7 @@ export async function POST(req, { params }) {
               answer_value,
               answer_note:  null,
               source:       'CASCADE',
-              answeredById: session.id,
+              answeredById: user.id,
               answered_at:  new Date(),
             },
           });

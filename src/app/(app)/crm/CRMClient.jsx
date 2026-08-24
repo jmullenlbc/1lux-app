@@ -227,6 +227,9 @@ function KanbanColumn({ stageCfg, projects, pipeline, onOpen, onAdd, draggingId,
         {isActiveDrop && projects.length === 0 && (
           <div className="flex items-center justify-center h-16 rounded-lg text-xs font-semibold text-orange-500">Drop here → {stageCfg.label}</div>
         )}
+        {!isActiveDrop && projects.length === 0 && (
+          <div className="flex items-center justify-center h-16 text-xs text-slate-400">No projects at this stage</div>
+        )}
         <button onClick={onAdd} className="w-full py-2 rounded-lg text-xs text-slate-400 hover:text-slate-600 hover:bg-white border border-dashed border-slate-300 hover:border-slate-400 transition-all flex items-center justify-center gap-1">
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
           New project
@@ -475,6 +478,39 @@ export default function CRMClient({ initialProjects, users }) {
       revenueFor(p, pipeline)
         ? `$${revenueFor(p, pipeline).toLocaleString()}` : '',
       `${averageProbability(p) ?? 0}%`,
+      p.expectedOrderDate
+        ? new Date(p.expectedOrderDate).toLocaleDateString() : '',
+    ]);
+    const csv = [headers, ...rows]
+      .map(r => r.map(v =>
+        `"${String(v).replace(/"/g, '""')}"`
+      ).join(','))
+      .join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `crm-${pipeline.toLowerCase()}-`
+      + new Date().toISOString().slice(0, 10) + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleExportCSV() {
+    const sf = statusFieldFor(pipeline);
+    const stagef = stageFieldFor(pipeline);
+    const headers = [
+      'Project', 'Client', 'Stage', 'Status',
+      'Revenue', 'Probability', 'Expected Order',
+    ];
+    const rows = filtered.map(p => [
+      p.name,
+      p.client?.name || '',
+      p[stagef] || '',
+      p[sf] || '',
+      revenueFor(p, pipeline)
+        ? `$${revenueFor(p, pipeline).toLocaleString()}` : '',
+      `${p.pipelineProbability ?? 0}%`,
       p.expectedOrderDate
         ? new Date(p.expectedOrderDate).toLocaleDateString() : '',
     ]);

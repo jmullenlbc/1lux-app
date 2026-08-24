@@ -3,6 +3,8 @@
  * Translates a DashboardWidget config into Prisma queries and returns chart-ready data.
  */
 
+import { averageProbability } from './pipeline';
+
 // ── Native date helpers ────────────────────────────────────────────────────
 
 function sob(d) { const r = new Date(d); r.setHours(0,0,0,0);   return r; }  // start of day
@@ -239,7 +241,7 @@ export async function runWidget(widget, db) {
     ...p,
     owner:          p.salesOwner,
     stage:          p.procurementStage,
-    probability:    p.pipelineProbability,
+    probability:    averageProbability(p),
     dealStatus:     p.procurementStatus,
     totalRevenue:   p.contractValue,
     designFeeTotal: p.designContractValue,

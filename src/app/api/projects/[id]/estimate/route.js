@@ -1,19 +1,19 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { runParametricEstimate, deriveWizardCounts } from '@/lib/parametricEstimate';
 
 // GET /api/projects/[id]/estimate?tierPrefs=<json>
 export async function GET(req, { params }) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { user, error } = await requireAuth(request);
+  if (error) return error;
 
   const project = await prisma.project.findUnique({
     where: { id: params.id },
     include: { projectData: true },
   });
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  if (session.role !== 'ILC_ADMIN' && project.createdById !== session.id) {
+  if (user.role !== 'ILC_ADMIN' && project.createdById !== user.id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -64,12 +64,12 @@ export async function GET(req, { params }) {
 
 // POST /api/projects/[id]/estimate/apply — write wizard counts back to projectData
 export async function POST(req, { params }) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { user, error } = await requireAuth(request);
+  if (error) return error;
 
   const project = await prisma.project.findUnique({ where: { id: params.id } });
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  if (session.role !== 'ILC_ADMIN' && project.createdById !== session.id) {
+  if (user.role !== 'ILC_ADMIN' && project.createdById !== user.id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
