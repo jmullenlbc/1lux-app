@@ -2,6 +2,50 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+## 🚢 DEPLOYED — 2026-08-25: every ILC staff account now sees every record — READ THIS BEFORE THE PRIVILEGES BUILD
+
+**Pushed `43ac763..aaf8d45`, 91 files.** Sean — this one lands directly on top of your open item (the privileges enforcement sweep, 2026-08-22 entry below), so it needs a read before you write any of it.
+
+### What happened
+
+`maram@ilcstudios.com` signed in to production and saw an empty projects list and an empty clients list. Mike's instruction, verbatim: *"I want all projects, clients and people within clients to be seen by all users. Later we may change that, but right now all data is open to eveery user."*
+
+The cause was not a setting. Visibility was decided **per route** by "are you an admin OR did you create this", copied by hand into roughly sixty places. Projects had been opened up back in July (commits `9097ba0`/`e3a3aa2`/`ad13051` — the ones the 2026-07-27 entry mistook for a privileges system); **clients never were**. So a staff account could see the work and none of the companies it was for, and `/api/clients` narrowed to `ILC_ADMIN || ADMIN` specifically, which is why nobody with an admin login ever saw it.
+
+### What the shape is now, and what it means for your build
+
+There is **one function**: `canSeeAllData(user)` in `src/lib/auth.js`. Every internal role returns true. The external `CLIENT_VIEWER` role returns false and stays scoped to its own records — that one is not a preference, it is the DN/buy-price boundary, and `verify:dn` proves it still holds (8/8).
+
+All ~60 routes now call it instead of carrying their own copy. Ownership checks were **kept as the fallback behind the helper** rather than deleted, so the client-viewer path is provably unchanged and re-narrowing later is a one-line edit in one file.
+
+**Your half:** this is deliberately temporary and Mike has said so. When you build the module/capability model, `canSeeAllData` is the seam to grow into — replace its body, not the sixty call sites. Do not reintroduce per-route ownership tests; `scripts/tests/dataVisibility.test.mjs` scans `src/app` and fails the build if a new one appears.
+
+### 🔴 Seven routes were returning 500 to everyone, including you
+
+Found while sweeping. Each called an auth helper that was never imported, so the route threw a `ReferenceError` on the first real request:
+
+`clients/[id]/product-options`, `clients/[id]/standard-fixtures`, `clients/[id]/standards/concepts`, `market-intel/poll`, `projects/[id]/budget-qc/assign`, `projects/[id]/budget-qc/items/[itemKey]`, `projects/[id]/assignees`.
+
+**This class of bug has now shipped three separate times** — it is invisible, because the editor is quiet, the build is green, and the tests pass. `scripts/check-auth-imports.mjs` now blocks it in `npm run verify` and in `.husky/pre-push`. Worth knowing before the privileges sweep, since that work touches every one of these imports.
+
+### Also in this push
+
+- **The `.gitignore` fix from the 24th.** A bare `uploads/` line was hiding `src/app/api/uploads/` from git entirely, so the presign route had never been committed. It is in this push, which means the large-PDF upload path is live in production for the first time.
+- 15 local news sources + migration `0059_market_source_market` (additive column, `IF NOT EXISTS`, no drops).
+- Site-plan and unit-matrix readers now consult the sheet index before rendering instead of starting at page 1.
+- `smoke.test.mjs` now stands up a plain `USER` account, not just `ILC_ADMIN`/`COMPANY_ADMIN` — the Maram break only showed on `USER`, which is exactly why it got to production. It also checks the clients list and a client's contacts. Verified by reintroducing the old rule and watching it fail before restoring.
+
+**Gates:** 559 unit tests, 11 verify gates, dn-leak 8/8, mcp 48/48, smoke 7/7, clean build, 26/26 runtime assets.
+
+### Still open on your side, unchanged
+
+1. **The privileges enforcement sweep** (2026-08-22 entry) — still Mike's standing #1 for your queue.
+2. **The SSR Lambda memory size** (2026-08-22 entry) — one number, still unanswered.
+3. **The two remaining front-door upload paths** — `/api/tasks/[id]/attachments` and the `.mbox` profile upload.
+4. **Lifecycle rule + IAM policy confirmation** on `ilc-qc-media` — CORS was verified from outside; those two cannot be checked from Mike's machine.
+
+---
+
 ## 🚢 DEPLOYED — 2026-08-24: direct-to-S3 uploads are live, and a bug in the CRM CSV export
 
 **Pushed `804caf9..e78acec`.** Mike said deploy, so the upload work that had been sitting local since the 22nd went out: direct-to-S3 presigned uploads on every presignable path, the 400 MB × 5 intake ceiling, `pdfRange.js` / `sheetIndex.js` / `uploadIntake.js`, the RSS-based memory brake, the `sheets/` compressed-copy retention, and the immediate discard of the original in the parse route's `finally`. The two notification sessions (note reminders, market-intel project tagging, Monday roundup) rode along.
