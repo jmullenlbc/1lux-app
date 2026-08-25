@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { readFile } from 'fs/promises';
 import path from 'path';
@@ -16,7 +16,7 @@ export async function GET(request, { params }) {
 
   if (!file) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   const project = file.submission.project;
-  if (user.role !== 'ILC_ADMIN' && project.createdById !== user.id) {
+  if (!canSeeAllData(user) && project.createdById !== user.id) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 

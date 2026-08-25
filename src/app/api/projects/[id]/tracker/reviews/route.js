@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 async function canAccess(projectId, user) {
   const p = await prisma.project.findUnique({ where: { id: projectId } });
   if (!p) return false;
-  return isSuperAdmin(user.role) || p.createdById === user.id;
+  return canSeeAllData(user) || p.createdById === user.id;
 }
 
 // POST — add a review entry to a specific item version

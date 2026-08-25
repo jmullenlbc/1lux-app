@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { randomUUID } from 'crypto';
 import { portalInvite } from '@/lib/emailTemplates';
@@ -7,7 +7,7 @@ import { portalInvite } from '@/lib/emailTemplates';
 async function canAccess(projectId, user) {
   const p = await prisma.project.findUnique({ where: { id: projectId } });
   if (!p) return null;
-  if (user.role !== 'ILC_ADMIN' && p.createdById !== user.id) return null;
+  if (!canSeeAllData(user) && p.createdById !== user.id) return null;
   return p;
 }
 

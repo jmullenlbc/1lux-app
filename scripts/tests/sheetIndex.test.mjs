@@ -191,3 +191,43 @@ test('pagesToRender returns an empty list rather than throwing on nothing', () =
   assert.deepEqual(pagesToRender({}), []);
   assert.deepEqual(pagesToRender({ sitePlan: [] }), []);
 });
+
+// ── That the readers actually use it ────────────────────────────────────────
+//
+// The index was built, tested, and then wired into exactly one route. The two
+// in-app readers went on rendering from the front of the file for weeks — the
+// site reader opening a title page, the unit-matrix reader sampling 30,000
+// characters out of two million. Nothing failed; the answers were just wrong,
+// which is the expensive kind of quiet. These pin the wiring itself.
+
+test('every PDF reader jumps to the sheet index', async () => {
+  const { readFileSync } = await import('node:fs');
+  const READERS = [
+    'src/app/api/intake/parse/route.js',
+    'src/app/api/projects/[id]/site/parse/route.js',
+    'src/app/api/projects/[id]/unit-matrix/parse/route.js',
+  ];
+  for (const file of READERS) {
+    const src = readFileSync(file, 'utf8');
+    assert.match(src, /from '@\/lib\/sheetIndex'/, `${file} does not import the sheet index`);
+    assert.match(src, /pickKeySheets\(/, `${file} imports the index but never asks it anything`);
+  }
+});
+
+test('the threshold for paying to index a set lives in one place', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { SET_PAGE_THRESHOLD } = await import('../../src/lib/sheetIndex.js');
+  assert.equal(typeof SET_PAGE_THRESHOLD, 'number');
+  for (const file of [
+    'src/app/api/intake/parse/route.js',
+    'src/app/api/projects/[id]/site/parse/route.js',
+    'src/app/api/projects/[id]/unit-matrix/parse/route.js',
+  ]) {
+    const src = readFileSync(file, 'utf8');
+    assert.doesNotMatch(
+      src,
+      /const SET_PAGE_THRESHOLD\s*=/,
+      `${file} keeps its own copy of the threshold — three routes drifting apart`
+    );
+  }
+});

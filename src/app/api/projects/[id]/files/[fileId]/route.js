@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getProjectFileBuffer, deleteProjectFile } from '@/lib/projectFileStorage';
 import { logActivity, TAB_LABELS } from '@/lib/activity';
@@ -15,7 +15,7 @@ export async function GET(request, { params }) {
   });
 
   if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  if (user.role !== 'ILC_ADMIN' && record.project.createdById !== user.id) {
+  if (!canSeeAllData(user) && record.project.createdById !== user.id) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
@@ -40,7 +40,7 @@ export async function PATCH(request, { params }) {
   });
 
   if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  if (user.role !== 'ILC_ADMIN' && record.project.createdById !== user.id) {
+  if (!canSeeAllData(user) && record.project.createdById !== user.id) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
@@ -95,7 +95,7 @@ export async function DELETE(request, { params }) {
   });
 
   if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  if (user.role !== 'ILC_ADMIN' && record.project.createdById !== user.id) {
+  if (!canSeeAllData(user) && record.project.createdById !== user.id) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, getSession } from '@/lib/auth';
 import { runPoll } from '@/lib/market-intel/poller';
 
 export async function POST(request) {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import * as XLSX from 'xlsx';
 import { STANDARDS_SECTIONS, CCT_INTERIOR_AREAS, resolveAnswer } from '@/lib/standards-questions';
@@ -32,7 +32,7 @@ export async function GET(request, { params }) {
     include: { contacts: true },
   });
   if (!client) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  if (user.role !== 'ILC_ADMIN' && client.createdById !== user.id) {
+  if (!canSeeAllData(user) && client.createdById !== user.id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

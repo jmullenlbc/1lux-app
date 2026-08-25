@@ -15,6 +15,10 @@ import fs from 'fs';
 const FULL = process.argv.includes('--full');
 
 const GATES = [
+  // First, because a file git cannot see is a file production will not have,
+  // and every gate after this one would pass on it anyway.
+  { name: 'source is tracked',   cmd: 'node scripts/check-source-tracked.mjs' },
+  { name: 'auth imports',       cmd: 'node scripts/check-auth-imports.mjs' },
   { name: 'dynamic pages',       cmd: 'node scripts/check-dynamic-pages.js' },
   { name: 'schema provider',     cmd: 'node scripts/check-schema-provider.js' },
   { name: 'env contract',        cmd: 'node scripts/check-env-contract.js' },

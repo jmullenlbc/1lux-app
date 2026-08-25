@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getProjectFileBuffer } from '@/lib/projectFileStorage';
 import Anthropic from '@anthropic-ai/sdk';
@@ -34,7 +34,7 @@ export async function POST(request, { params }) {
     include: { project: true },
   });
   if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  if (user.role !== 'ILC_ADMIN' && record.project.createdById !== user.id) {
+  if (!canSeeAllData(user) && record.project.createdById !== user.id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

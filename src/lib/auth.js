@@ -26,6 +26,22 @@ export function isClientViewer(role) {
   return role === 'CLIENT_VIEWER';
 }
 
+// ── Who can see which records ────────────────────────────────────────────────
+// Mike, 2026-08-25: every ILC staff account sees every project, every client
+// and every contact inside a client. Ownership is still recorded on each
+// record (createdById) — it just no longer decides who is allowed to look.
+//
+// External Client Viewers are the one exception and must stay scoped to their
+// own records: they are contractors, and buy/DN pricing must never reach them.
+//
+// This is deliberately one function rather than sixty copies of the same
+// role test, so that narrowing visibility again later is a one-line change
+// here instead of a sweep through every route.
+export function canSeeAllData(user) {
+  const role = typeof user === 'string' ? user : user?.role;
+  return !isClientViewer(role);
+}
+
 // Parse a User.permissions value (JSON string or object) safely.
 export function parsePermissions(permissions) {
   if (!permissions) return {};

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
@@ -7,8 +7,7 @@ import path from 'path';
 async function authorizeSection(clientId, sectionId, user) {
   const client = await prisma.client.findUnique({ where: { id: clientId } });
   if (!client) return { err: NextResponse.json({ error: 'Not found' }, { status: 404 }) };
-  const isAdmin = user.role === 'ILC_ADMIN' || user.role === 'ADMIN';
-  if (!isAdmin && client.createdById !== user.id)
+  if (!canSeeAllData(user) && client.createdById !== user.id)
     return { err: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
   const section = await prisma.clientKBSection.findFirst({ where: { id: sectionId, clientId } });
   if (!section) return { err: NextResponse.json({ error: 'Not found' }, { status: 404 }) };

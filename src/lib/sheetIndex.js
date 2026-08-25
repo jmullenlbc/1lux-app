@@ -28,6 +28,16 @@ import { modelParams, textFrom, answerBudget, warnIfTruncated } from './aiModels
 import { sheetNumberOf } from './areaSheet.js';
 
 /** The four things a conceptual budget needs off a set. */
+/**
+ * Above this many sheets it is a SET, not a drawing, and worth paying to index.
+ *
+ * Lived in the public intake route until three routes needed it. Below the
+ * threshold the deterministic scan answers on its own for free, which on a
+ * single exported sheet means "page 1" — the same answer the old code assumed,
+ * arrived at honestly.
+ */
+export const SET_PAGE_THRESHOLD = 4;
+
 export const SHEET_ROLES = ['unitMatrix', 'sitePlan', 'areaSummary', 'cover'];
 
 /**

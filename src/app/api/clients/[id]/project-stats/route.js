@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { calculateBudget } from '@/lib/calculations';
 import { responsesToSections } from '@/lib/utils';
@@ -14,7 +14,7 @@ export async function GET(request, { params }) {
 
   const client = await prisma.client.findUnique({ where: { id: params.id } });
   if (!client) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  if (user.role !== 'ILC_ADMIN' && client.createdById !== user.id) {
+  if (!canSeeAllData(user) && client.createdById !== user.id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

@@ -3,7 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { extractDrawingText, parseUnitMatrix, fileExt, ACCEPTED_EXTS, IMAGE_EXTS } from '@/lib/drawingExtract';
 import { renderPdfPages, extractSiteData } from '@/lib/siteVision';
-import { buildSheetIndex, pickKeySheets, pagesToRender } from '@/lib/sheetIndex';
+import { buildSheetIndex, pickKeySheets, pagesToRender, SET_PAGE_THRESHOLD } from '@/lib/sheetIndex';
 import { openUploadedPdf } from '@/lib/pdfRange';
 import { getUploadedObject, deleteUploadedObject, putSheetImage, MAX_INTAKE_UPLOAD_BYTES } from '@/lib/uploadStorage';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
@@ -65,9 +65,6 @@ export const maxDuration = 300;
 const MAX_BYTES = MAX_INTAKE_UPLOAD_BYTES;          // 400 MB, shared with the presign desk
 const MAX_SHEET_BYTES = 50 * 1024 * 1024;           // spreadsheets are read whole
 const LIMIT = { limit: 12, windowMs: 60_000 };
-
-/** Above this many sheets it is a SET, not a drawing, and worth paying to index. */
-const SET_PAGE_THRESHOLD = 4;
 
 /** Scanning budget for a big set. Well under maxDuration, above a normal scan. */
 const BIG_SET_SCAN_MS = 90_000;

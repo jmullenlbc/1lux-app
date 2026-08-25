@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 const ITEM_ORDERBY = [{ sortOrder: 'asc' }, { createdAt: 'asc' }];
@@ -42,7 +42,7 @@ export async function POST(request, { params }) {
   // Load project to determine matrix type
   const project = await prisma.project.findUnique({ where: { id: params.id }, select: { serviceType: true, createdById: true } });
   if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
-  if (user.role !== 'ILC_ADMIN' && project.createdById !== user.id)
+  if (!canSeeAllData(user) && project.createdById !== user.id)
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const matrixType = ['peerReview', 'bidOnly'].includes(project.serviceType) ? 'PEER_REVIEW' : 'DESIGN_BID';

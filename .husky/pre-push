@@ -14,6 +14,17 @@ set -e
 
 echo "── Pre-push checks ────────────────────────────────"
 
+# 0. Nothing under src/ or prisma/migrations/ may be gitignored. Catches the
+#    presign route that lived in src/app/api/uploads/ and was swallowed by a
+#    ".gitignore" line reading "uploads/" — worked locally, 404 in production,
+#    and no other check could see it because it was never in the push.
+node scripts/check-source-tracked.mjs
+
+# 0b. No route may call an auth helper it never imported. Three separate
+#     features shipped broken this way: the call throws a ReferenceError and
+#     the user gets a bare 500, with a green build and passing tests.
+node scripts/check-auth-imports.mjs
+
 # 1. Every (app)/ page must export force-dynamic. Catches Sunday's layer 1.
 node scripts/check-dynamic-pages.js
 

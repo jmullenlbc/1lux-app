@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, isSuperAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 // PATCH /api/projects/[id]/budget-qc/assign

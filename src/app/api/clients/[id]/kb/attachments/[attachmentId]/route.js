@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { unlink } from 'fs/promises';
 import path from 'path';
@@ -15,8 +15,7 @@ export async function DELETE(request, { params }) {
 
   if (!attachment) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const isAdmin = user.role === 'ILC_ADMIN' || user.role === 'ADMIN';
-  if (!isAdmin && attachment.section.client.createdById !== user.id)
+  if (!canSeeAllData(user) && attachment.section.client.createdById !== user.id)
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   try {

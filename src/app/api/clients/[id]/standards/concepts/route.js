@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, getSession } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { putQcObject, getQcObjectUrl } from '@/lib/qcStorage';
 

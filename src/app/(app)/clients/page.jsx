@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getSession } from '@/lib/auth';
+import { getSession, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import ClientsClient from './ClientsClient';
 
@@ -9,10 +9,8 @@ export default async function ClientsPage() {
   const session = await getSession();
   if (!session) redirect('/login');
 
-  const isAdmin = session.role === 'ILC_ADMIN' || session.role === 'ADMIN';
-
   const clients = await prisma.client.findMany({
-    where: isAdmin ? {} : { createdById: session.id },
+    where: canSeeAllData(session) ? {} : { createdById: session.id },
     orderBy: { name: 'asc' },
     include: {
       _count: { select: { projects: true } },

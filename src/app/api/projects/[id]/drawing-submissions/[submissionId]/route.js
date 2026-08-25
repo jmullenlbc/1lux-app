@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { unlink } from 'fs/promises';
 import path from 'path';
@@ -7,7 +7,7 @@ import path from 'path';
 async function canAccess(projectId, user) {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project) return false;
-  return isSuperAdmin(user.role) || project.createdById === user.id;
+  return canSeeAllData(user) || project.createdById === user.id;
 }
 
 const VALID_PHASE_TAGS = ['SD', 'DD', 'CD', 'IFC', 'ASI', 'RFI', 'PERMIT', 'OTHER'];

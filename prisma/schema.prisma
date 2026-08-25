@@ -1505,6 +1505,11 @@ model MarketSource {
   feedUrl          String
   siteUrl          String
   sourceType       String         @default("RSS")
+  // Which town this paper reports from. National trade press names companies;
+  // only the local desk ever prints a project's name, so knowing which is which
+  // is the difference between "we have 35 sources" and "we have coverage in
+  // Houston". Keys live in src/lib/market-intel/sourceCatalog.js.
+  market           String         @default("NATIONAL")
   projectTypes     String         @default("[]") // JSON array: ["MARKET_RATE","AFFORDABLE","STUDENT_HOUSING","SENIOR_LIVING"]
   isActive         Boolean        @default(true)
   lastPolledAt     DateTime?

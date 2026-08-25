@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 async function authorizeContact(clientId, contactId, user) {
   const client = await prisma.client.findUnique({ where: { id: clientId } });
   if (!client) return { err: NextResponse.json({ error: 'Not found' }, { status: 404 }) };
-  const isAdmin = user.role === 'ILC_ADMIN' || user.role === 'ADMIN';
-  if (!isAdmin && client.createdById !== user.id)
+  if (!canSeeAllData(user) && client.createdById !== user.id)
     return { err: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
   const contact = await prisma.clientContact.findFirst({ where: { id: contactId, clientId } });
   if (!contact) return { err: NextResponse.json({ error: 'Not found' }, { status: 404 }) };

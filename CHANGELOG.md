@@ -5,6 +5,163 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Everyone can see everything] · August 25, 2026 — DEPLOYED
+
+Maram signed in to the live app and saw nothing. No projects, no clients. This
+entry is that fix, plus seven broken pages found while looking for it, plus the
+drawing readers finally learning to open the right sheet.
+
+### All the work is visible to all of the staff
+
+The app had been quietly deciding who may look at a record by asking *who
+created it*. If you did not make it, and you are not an admin, it was not
+yours to see — and since every client in the system was entered by somebody
+else, a new account saw an empty screen. It was not a permissions setting Mike
+could change; it was written into about sixty different pages, each with its
+own copy of the same rule.
+
+All sixty now ask one question in one place: **is this an ILC person?** If yes,
+they see everything — every project, every client, and every contact inside a
+client. Ownership is still recorded on each record, it just no longer decides
+who is allowed to look.
+
+The single exception is the external Client Viewer login used by contractors,
+which still only sees its own records. That one is deliberate and is not a
+setting: buy and DN pricing sits on these records, and it must never reach a
+contractor. The test suite proves it still cannot.
+
+When ILC does want to narrow this down again — Mike has said "later we may
+change that" — it is now a change in one place instead of a sweep through the
+whole app.
+
+### Seven pages that returned an error to everyone
+
+While opening things up, seven separate pages turned out to have been broken
+the whole time: client product options, client standard fixtures, client
+standards, the market-intel refresh button, two budget QC screens, and project
+assignees. Each one called a security check that had never been switched on
+properly, so the page failed instantly for every user, admin included.
+
+This exact mistake has now shipped three times. It is invisible: the build
+passes, the tests pass, nothing complains, and the page dies on the first real
+click. **A new check now blocks it before every push**, so it cannot be number
+four.
+
+### The drawing readers now open the right sheet
+
+The site-plan reader and the unit-matrix reader both used to start at the front
+of the file. That is correct for a single sheet somebody exported on its own,
+and wrong for a real set: page 1 of a drawing set is a title page with a
+vicinity map, and the site plan is somewhere around page 30.
+
+Both now read the sheet index first — the drawing set's own table of contents —
+and jump straight to the sheets that hold the numbers, exactly as the public
+upload page has done since it was built. On a 442-page set the unit matrix
+reader was previously being handed a keyword-picked 1.5% of the document and
+asked to find the unit table in it. It now gets the unit table.
+
+Cheap sets stay free: below five sheets the index is worked out without paying
+for a model at all. Each result now also reports which sheets it read, so the
+review panel can say where a number came from instead of leaving you to guess.
+
+### Files changed
+
+- `src/lib/auth.js` — the one visibility rule (`canSeeAllData`)
+- 60+ pages and routes under `src/app` — all now defer to it
+- `scripts/check-auth-imports.mjs` — new pre-push check for the seven-page bug
+- `scripts/tests/dataVisibility.test.mjs` — new; pins the rule and blocks a relapse
+- `scripts/tests/smoke.test.mjs` — now tests a plain staff account, and the clients list
+- `src/lib/sheetIndex.js`, `src/app/api/projects/[id]/site/parse/route.js`,
+  `src/app/api/projects/[id]/unit-matrix/parse/route.js` — sheet-index jump
+
+---
+
+## [Local papers, and the deploy that never happened] · August 24, 2026 — DEPLOYED August 25
+
+Two jobs in one session: find the newspapers that actually print our project
+names, and — while checking whether the upload fix was live — discover that it
+never shipped.
+
+### The upload fix was never in the commit
+
+The live app still refuses a large PDF. Not because the fix is wrong: because
+the fix was never sent. A single line in the repo's ignore list read
+`uploads/`, with no leading slash. Git reads that as "ignore any folder called
+uploads, anywhere", and the new upload code lives in a folder called uploads.
+So it was skipped by every commit, invisibly. It worked locally, passed every
+test, passed the build, and simply was not there in production.
+
+That is now fixed, and a new check runs before every push: **if any file under
+the source folders is invisible to git, the push stops and says which rule is
+hiding it.** This is the kind of failure that costs a week, because everything
+that would normally catch it reports success.
+
+Nothing new to do on Mike's side — this ships with the next deploy, and then a
+real drawing set can finally be tested on the live app.
+
+### Local news — fifteen papers that actually name buildings
+
+The market feed had twenty-one sources and had never once tagged one of our
+jobs across 191 collected articles. The reason was not the matching; it was the
+papers. National trade press writes about companies and portfolios — it does not
+print the words "Fulshear Lakes". Only the local city desk does.
+
+Fifteen local sources are now in, grouped by town:
+
+| Town | Papers |
+|---|---|
+| Denver & Colorado | Mile High CRE, BusinessDen, Bisnow Denver, Denverite, DenverUrbanism, The Colorado Sun |
+| Houston | Bisnow Houston, Community Impact – Houston |
+| Austin | Urbanize Austin, Austin Monitor, Community Impact – Austin |
+| Dallas–Fort Worth | Bisnow DFW, Urbanize Dallas, Community Impact – DFW |
+| Texas statewide | Virtual Builders Exchange |
+
+All fifteen were fetched live and all fifteen returned articles — 324 headlines
+in one pass. Adding another city later is a small edit in one file; the page
+sorts itself out from there.
+
+The Sources page now shows the list **grouped by town**, so "Houston · 2" is
+visible at a glance instead of buried in a list of thirty-five.
+
+### Jobs we lost still count
+
+Article matching used to skip anything marked Lost or Abandoned. Mike's call:
+include them. A job we lost is a building still going up with somebody else's
+fixtures in it, and hearing that it broke ground, stalled, or changed hands is
+worth more than hearing about a job we already have.
+
+### Twelve national feeds have gone dark
+
+Checking the feeds turned up twelve that no longer publish at all — GlobeSt,
+HUD, NMHC and nine others, returning 404s, blocks and broken files. Each one
+made every poll wait ten seconds for nothing, so between them they added two
+minutes to every run.
+
+They are recorded with the reason each one failed, so nobody re-adds them next
+year, and the Sources page now offers a single button to **switch off the dead
+ones**. It only touches those, it changes no data, and any row can be switched
+back on.
+
+### Three buttons on the Sources page did nothing
+
+Adding, enabling, disabling or deleting a source all failed with a server error
+— a genuine bug in the code behind those buttons, present since the page was
+built. Fixed.
+
+### Files changed
+
+- `.gitignore` — the `uploads/` rule now applies to the repo root only
+- `scripts/check-source-tracked.mjs` — new guard, wired into `verify` and pre-push
+- `src/lib/market-intel/sourceCatalog.js` — new; every feed, by town, plus the retired list
+- `src/lib/market-intel/poller.js` — lost and abandoned jobs included in matching
+- `src/app/(app)/market-intel/sources/page.jsx` — grouped by town, dead-feed banner and button
+- `src/app/api/market-intel/sources/route.js`, `.../[id]/route.js` — fixed the server error
+- `src/app/api/market-intel/sources/seed/route.js` — new; adds only what is missing
+- `prisma/schema.prisma` + `prisma/migrations/0059_market_source_market/` — a source knows its town
+- `scripts/tests/sourceCatalog.test.mjs` — 22 tests
+
+---
+
 ## [Any PDF, any size, gets in] · August 24, 2026 — DEPLOYED
 
 Mike: *"Deploy the whole compression and discard procedure and larger intake

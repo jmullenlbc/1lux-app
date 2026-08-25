@@ -2,7 +2,13 @@ node_modules/
 .next/
 .env
 .env.local
-uploads/
+# Runtime upload scratch at the repo root only. This rule used to read
+# "uploads/", with no leading slash, which git applies to a directory of that
+# name ANYWHERE in the tree — so src/app/api/uploads/ was silently excluded and
+# the direct-to-S3 presign route was never committed or deployed. The route
+# existed locally, worked locally, and returned 404 in production. Keep the
+# leading slash.
+/uploads/
 dev.log
 .dev.log
 sk-ant-api03*.txt

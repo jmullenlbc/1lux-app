@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 async function getTracker(projectId, user) {
   const p = await prisma.project.findUnique({ where: { id: projectId } });
   if (!p) return null;
-  if (user.role !== 'ILC_ADMIN' && p.createdById !== user.id) return null;
+  if (!canSeeAllData(user) && p.createdById !== user.id) return null;
   return prisma.submittalTracker.findUnique({ where: { projectId } });
 }
 

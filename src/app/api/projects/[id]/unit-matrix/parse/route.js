@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import Anthropic from '@anthropic-ai/sdk';
@@ -8,6 +8,7 @@ import { getProjectFileBuffer } from '@/lib/projectFileStorage';
 // prompt and model choice live in ONE place so the internal tool and the
 // public tool can never disagree about the same document.
 import { xlsxToText, parseUnitMatrix, extractPdfPages, EXTRACT_PROMPT_VERSION } from '@/lib/drawingExtract';
+import { buildSheetIndex, pickKeySheets, SET_PAGE_THRESHOLD } from '@/lib/sheetIndex';
 import { wrapClient } from '@/lib/agent/client';
 import { submitAgentOutput } from '@/lib/agent/review';
 import { summariseInput } from '@/lib/agent/untrusted';
@@ -15,7 +16,7 @@ import { summariseInput } from '@/lib/agent/untrusted';
 async function canAccess(projectId, user) {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project) return false;
-  return isSuperAdmin(user.role) || user.role === 'SUPER_ADMIN' || project.createdById === user.id;
+  return canSeeAllData(user) || project.createdById === user.id;
 }
 
 
@@ -41,6 +42,7 @@ export async function POST(request, { params }) {
 
   let contentText = null;
   let pages = null;
+  let sheetsRead = null;
 
   if (ext === 'xlsx' || ext === 'xls') {
     const buffer = await getProjectFileBuffer(file.storedPath);
@@ -69,6 +71,42 @@ export async function POST(request, { params }) {
       const buffer = await getProjectFileBuffer(file.storedPath);
       const scan = buffer ? await extractPdfPages(buffer) : { pages: [] };
       if (scan.pages.length) pages = scan.pages;
+
+      // ── On a full set, read the right sheets instead of the first 30,000
+      //    characters ──
+      //
+      // `textContent` is the whole document flattened. The relevance windowing
+      // in selectRelevantText keeps that honest on a handful of sheets, but a
+      // 442-page DD set is roughly two million characters, so the 30,000 that
+      // survive are 1.5% of the document chosen by keyword. If the unit matrix
+      // is on sheet A2.10 and a dozen other sheets say "UNIT TYPE" in a note,
+      // the real table can lose.
+      //
+      // The sheet index already knows which page the matrix is on. Narrowing
+      // the text to those pages costs one cheap model call on the index — sheet
+      // numbers and titles only — and hands the extractor the table rather than
+      // a keyword sample of the building.
+      //
+      // Best-effort throughout: any failure here leaves contentText exactly as
+      // it was, which is the behaviour this route had before.
+      if (pages && pages.length > SET_PAGE_THRESHOLD) {
+        const anthropicKey = getAnthropicKey()?.trim();
+        const picked = await pickKeySheets(
+          buildSheetIndex(pages),
+          anthropicKey
+            ? wrapClient(new Anthropic({ apiKey: anthropicKey }), 'unitMatrix.sheetPick', { projectId: params.id, userId: user.id })
+            : null,
+        );
+        // The matrix first, then the area summary: the net-vs-gross call needs
+        // the area table sitting next to the unit table, not instead of it.
+        const wanted = [...(picked.picks?.unitMatrix ?? []), ...(picked.picks?.areaSummary ?? [])];
+        const keep = pages.filter(pg => wanted.includes(pg.page));
+        if (keep.length) {
+          contentText = keep.map(pg => pg.text).join('\n\n');
+          pages       = keep;
+          sheetsRead  = keep.map(pg => pg.page);
+        }
+      }
     } catch (e) {
       console.warn('[unit-matrix/parse] page re-read unavailable for', file.originalName, e?.message ?? e);
     }
@@ -138,5 +176,7 @@ export async function POST(request, { params }) {
     console.error('[unit-matrix/parse] review submission failed:', e?.message || e);
   }
 
-  return NextResponse.json({ ...result.proposal, fileId, review });
+  // `sheetsRead` is null unless the sheet index narrowed a full set — the
+  // review panel uses it to say which sheets the numbers came off.
+  return NextResponse.json({ ...result.proposal, fileId, sheetsRead, review });
 }

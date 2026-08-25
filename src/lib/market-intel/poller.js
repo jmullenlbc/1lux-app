@@ -11,12 +11,22 @@ const BATCH_SIZE = 10;
 /**
  * Our jobs, for name-matching against article text. Loaded once per poll rather
  * than once per article — a poll reads hundreds of items and the list does not
- * change while it runs. Only live jobs: a project we finished two years ago
- * appearing in the news is not something anyone needs told about.
+ * change while it runs.
+ *
+ * ── Every job, including the ones we lost ──
+ * This used to skip LOST and ABANDONED on the reasoning that a dead job is not
+ * news. Mike's call, 2026-08-24: include them. A job we lost is a building that
+ * is still going up with somebody else's fixtures in it, and finding out it
+ * broke ground — or stalled, or changed hands — is worth more than finding out
+ * about a job we already have. The bid being over does not make the building
+ * uninteresting.
+ *
+ * The cost is a longer list to match against, which is a false-positive risk;
+ * project-matcher.js is what holds that line, by refusing names too short or
+ * too generic to claim an article on their own.
  */
 async function loadProjectsForMatching() {
   return prisma.project.findMany({
-    where:  { procurementStatus: { notIn: ['LOST', 'ABANDONED'] } },
     select: { id: true, name: true, clientId: true },
   }).catch(() => []);
 }

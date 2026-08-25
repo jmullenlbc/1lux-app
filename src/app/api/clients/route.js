@@ -1,16 +1,15 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-// GET /api/clients — list all clients (admin sees all, user sees own)
+// GET /api/clients — every ILC staff account sees every client.
 export async function GET() {
   const { user, error } = await requireAuth();
   if (error) return error;
 
-  const isAdmin = user.role === 'ILC_ADMIN' || user.role === 'ADMIN';
 
   const clients = await prisma.client.findMany({
-    where: isAdmin ? {} : { createdById: user.id },
+    where: canSeeAllData(user) ? {} : { createdById: user.id },
     orderBy: { clientNumber: 'asc' },
     include: {
       _count: { select: { projects: true } },

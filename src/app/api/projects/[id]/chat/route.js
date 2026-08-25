@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { calculateBudget } from '@/lib/calculations';
 import { responsesToSections } from '@/lib/utils';
@@ -59,7 +59,7 @@ async function canAccess(projectId, user) {
     include: { responses: true },   // wizard Q&A answers
   });
   if (!project) return null;
-  if (isSuperAdmin(user.role) || project.createdById === user.id) return project;
+  if (canSeeAllData(user) || project.createdById === user.id) return project;
   return null;
 }
 

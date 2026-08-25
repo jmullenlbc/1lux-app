@@ -1,6 +1,15 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { MARKETS, DEFAULT_MARKET, RETIRED, marketLabel, missingSources, isRetired, retiredStillActive } from '@/lib/market-intel/sourceCatalog';
+
+/**
+ * Market Sources.
+ *
+ * Grouped by the town a paper reports from, because that grouping is the whole
+ * finding: a list of thirty-five sources that is thirty-four national trade
+ * papers has no coverage anywhere. Seeing "Houston · 2" is seeing the gap.
+ */
 
 const PROJECT_TYPE_LABELS = {
   MARKET_RATE:     'Market Rate',
@@ -9,36 +18,14 @@ const PROJECT_TYPE_LABELS = {
   SENIOR_LIVING:   'Senior Living',
 };
 
-const SEED_SOURCES = [
-  { name: 'Multifamily Dive',           feedUrl: 'https://www.multifamilydive.com/feeds/news/',                         siteUrl: 'https://www.multifamilydive.com',           projectTypes: ['MARKET_RATE'],                                               pollingFrequency: 'DAILY'  },
-  { name: 'Multi-Housing News',         feedUrl: 'https://www.multihousingnews.com/feed/',                              siteUrl: 'https://www.multihousingnews.com',           projectTypes: ['MARKET_RATE','AFFORDABLE','STUDENT_HOUSING','SENIOR_LIVING'], pollingFrequency: 'DAILY'  },
-  { name: 'CRE Daily',                  feedUrl: 'https://www.credaily.com/feed/',                                      siteUrl: 'https://www.credaily.com',                  projectTypes: ['MARKET_RATE'],                                               pollingFrequency: 'DAILY'  },
-  { name: 'The Multifamily Journal',    feedUrl: 'https://themultifamilyjournal.com/feed/',                             siteUrl: 'https://themultifamilyjournal.com',          projectTypes: ['MARKET_RATE'],                                               pollingFrequency: 'DAILY'  },
-  { name: 'MultifamilyBiz',             feedUrl: 'https://www.multifamilybiz.com/feed/',                                siteUrl: 'https://www.multifamilybiz.com',            projectTypes: ['MARKET_RATE','AFFORDABLE'],                                   pollingFrequency: 'DAILY'  },
-  { name: 'NMHC News',                  feedUrl: 'https://www.nmhc.org/feed/',                                          siteUrl: 'https://www.nmhc.org',                      projectTypes: ['MARKET_RATE','STUDENT_HOUSING'],                             pollingFrequency: 'DAILY'  },
-  { name: 'GlobeSt Multifamily',        feedUrl: 'https://www.globest.com/feed/?channel=multifamily',                   siteUrl: 'https://www.globest.com',                   projectTypes: ['MARKET_RATE'],                                               pollingFrequency: 'DAILY'  },
-  { name: 'GlobeSt Student Housing',    feedUrl: 'https://www.globest.com/feed/?channel=student-housing',               siteUrl: 'https://www.globest.com',                   projectTypes: ['STUDENT_HOUSING'],                                           pollingFrequency: 'DAILY'  },
-  { name: 'GlobeSt Senior Housing',     feedUrl: 'https://www.globest.com/feed/?channel=senior-housing',                siteUrl: 'https://www.globest.com',                   projectTypes: ['SENIOR_LIVING'],                                             pollingFrequency: 'DAILY'  },
-  { name: 'Affordable Housing Finance', feedUrl: 'https://www.housingfinance.com/feed/',                                siteUrl: 'https://www.housingfinance.com',             projectTypes: ['AFFORDABLE'],                                                pollingFrequency: 'DAILY'  },
-  { name: 'Multifamily & Affordable',   feedUrl: 'https://multifamilyaffordablehousing.com/feed/',                      siteUrl: 'https://multifamilyaffordablehousing.com',  projectTypes: ['MARKET_RATE','AFFORDABLE','SENIOR_LIVING','STUDENT_HOUSING'], pollingFrequency: 'DAILY'  },
-  { name: 'NCSHA',                      feedUrl: 'https://www.ncsha.org/feed/',                                         siteUrl: 'https://www.ncsha.org',                     projectTypes: ['AFFORDABLE'],                                                pollingFrequency: 'WEEKLY' },
-  { name: 'HUD News',                   feedUrl: 'https://www.hud.gov/rss/hud_news_rss.xml',                            siteUrl: 'https://www.hud.gov',                       projectTypes: ['AFFORDABLE'],                                                pollingFrequency: 'WEEKLY' },
-  { name: 'NLIHC',                      feedUrl: 'https://nlihc.org/feed/',                                             siteUrl: 'https://nlihc.org',                         projectTypes: ['AFFORDABLE'],                                                pollingFrequency: 'WEEKLY' },
-  { name: 'Affordable Housing News',    feedUrl: 'https://www.affordablehousingnews.com/feed/',                         siteUrl: 'https://www.affordablehousingnews.com',     projectTypes: ['AFFORDABLE'],                                                pollingFrequency: 'WEEKLY' },
-  { name: "McKnight's Senior Living",   feedUrl: 'https://www.mcknightsseniorliving.com/feed/',                         siteUrl: 'https://www.mcknightsseniorliving.com',     projectTypes: ['SENIOR_LIVING'],                                             pollingFrequency: 'DAILY'  },
-  { name: 'Argentum',                   feedUrl: 'https://www.argentum.org/feed/',                                      siteUrl: 'https://www.argentum.org',                  projectTypes: ['SENIOR_LIVING'],                                             pollingFrequency: 'WEEKLY' },
-  { name: 'NIC Blog',                   feedUrl: 'https://www.nic.org/feed/',                                           siteUrl: 'https://www.nic.org',                       projectTypes: ['SENIOR_LIVING'],                                             pollingFrequency: 'WEEKLY' },
-  { name: 'LeadingAge',                 feedUrl: 'https://www.leadingage.org/feed/',                                    siteUrl: 'https://www.leadingage.org',                projectTypes: ['SENIOR_LIVING','AFFORDABLE'],                                pollingFrequency: 'WEEKLY' },
-  { name: 'REBusinessOnline',           feedUrl: 'https://rebusinessonline.com/feed/',                                  siteUrl: 'https://rebusinessonline.com',              projectTypes: ['STUDENT_HOUSING','MARKET_RATE'],                             pollingFrequency: 'DAILY'  },
-  { name: 'Mile High CRE',             feedUrl: 'https://milehighcre.com/feed/',                                       siteUrl: 'https://milehighcre.com',                   projectTypes: ['MARKET_RATE'],                                               pollingFrequency: 'DAILY'  },
-];
-
 export default function MarketSourcesPage() {
-  const [sources,   setSources]   = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [seeding,   setSeeding]   = useState(false);
-  const [polling,   setPolling]   = useState(false);
-  const [pollLog,   setPollLog]   = useState(null);
+  const [sources, setSources] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [seeding, setSeeding] = useState(false);
+  const [seedLog, setSeedLog] = useState(null);
+  const [polling, setPolling] = useState(false);
+  const [pollLog, setPollLog] = useState(null);
+  const [retiring, setRetiring] = useState(false);
 
   async function loadSources() {
     setLoading(true);
@@ -49,6 +36,56 @@ export default function MarketSourcesPage() {
 
   useEffect(() => { loadSources(); }, []);
 
+  // What the catalog knows about that this database does not.
+  const missing = useMemo(() => missingSources(sources.map(s => s.name)), [sources]);
+
+  // Sources we have given up on that are still switched on here. Each one costs
+  // the poller ten seconds of waiting and returns nothing.
+  const dead = useMemo(() => retiredStillActive(sources), [sources]);
+  const reasonFor = name => RETIRED.find(r => r.name.trim().toLowerCase() === String(name).trim().toLowerCase())?.reason;
+
+  // Markets in catalog order, then anything hand-added under a market we do not
+  // recognise, so a source can never become invisible by being mis-tagged.
+  const groups = useMemo(() => {
+    const known = MARKETS.map(m => ({
+      ...m,
+      rows: sources.filter(s => (s.market || DEFAULT_MARKET) === m.key),
+    }));
+    const knownKeys = new Set(MARKETS.map(m => m.key));
+    const strays = sources.filter(s => !knownKeys.has(s.market || DEFAULT_MARKET));
+    const extra = strays.length
+      ? [{ key: '_other', label: 'Unsorted', blurb: 'No market set.', rows: strays }]
+      : [];
+    return [...known, ...extra].filter(g => g.rows.length > 0);
+  }, [sources]);
+
+  async function seedSources() {
+    setSeeding(true);
+    setSeedLog(null);
+    const res  = await fetch('/api/market-intel/sources/seed', { method: 'POST' });
+    const data = await res.json();
+    setSeedLog(data.log || data);
+    await loadSources();
+    setSeeding(false);
+  }
+
+  // Switches the dead ones off, nothing else. Deliberately not part of the
+  // seeder: turning a source off is a decision, and a button that makes it is
+  // honest in a way a silent background edit is not. Every row keeps its
+  // Enable button, so this is reversible.
+  async function turnOffDead() {
+    setRetiring(true);
+    for (const s of dead) {
+      await fetch(`/api/market-intel/sources/${s.id}`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ isActive: false }),
+      });
+    }
+    await loadSources();
+    setRetiring(false);
+  }
+
   async function toggleActive(source) {
     await fetch(`/api/market-intel/sources/${source.id}`, {
       method:  'PATCH',
@@ -56,19 +93,6 @@ export default function MarketSourcesPage() {
       body:    JSON.stringify({ isActive: !source.isActive }),
     });
     loadSources();
-  }
-
-  async function seedSources() {
-    setSeeding(true);
-    for (const s of SEED_SOURCES) {
-      await fetch('/api/market-intel/sources', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(s),
-      });
-    }
-    await loadSources();
-    setSeeding(false);
   }
 
   async function runPoll() {
@@ -80,8 +104,11 @@ export default function MarketSourcesPage() {
     setPolling(false);
   }
 
+  const activeCount = sources.filter(s => s.isActive).length;
+  const localCount  = sources.filter(s => (s.market || DEFAULT_MARKET) !== DEFAULT_MARKET).length;
+
   return (
-    <div className="p-6 max-w-4xl">
+    <div className="p-6 max-w-5xl">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -92,22 +119,33 @@ export default function MarketSourcesPage() {
           </Link>
           <div>
             <h1 className="text-xl font-semibold text-slate-900">Market Sources</h1>
-            <p className="text-sm text-slate-500">{sources.length} sources · {sources.filter(s => s.isActive).length} active</p>
+            <p className="text-sm text-slate-500">
+              {sources.length} sources · {activeCount} active · {localCount} local
+            </p>
           </div>
         </div>
         <div className="flex gap-2">
-          {sources.length === 0 && (
+          {dead.length > 0 && (
+            <button
+              onClick={turnOffDead}
+              disabled={retiring}
+              className="px-4 py-2 text-sm font-medium border border-red-200 text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50"
+            >
+              {retiring ? 'Turning off…' : `Turn off ${dead.length} dead source${dead.length === 1 ? '' : 's'}`}
+            </button>
+          )}
+          {missing.length > 0 && (
             <button
               onClick={seedSources}
               disabled={seeding}
               className="px-4 py-2 text-sm font-medium bg-slate-800 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50"
             >
-              {seeding ? 'Seeding…' : 'Seed 20 Sources'}
+              {seeding ? 'Adding…' : `Add ${missing.length} missing source${missing.length === 1 ? '' : 's'}`}
             </button>
           )}
           <button
             onClick={runPoll}
-            disabled={polling || sources.filter(s => s.isActive).length === 0}
+            disabled={polling || activeCount === 0}
             className="px-4 py-2 text-sm font-medium bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50 flex items-center gap-2"
           >
             {polling ? (
@@ -123,6 +161,48 @@ export default function MarketSourcesPage() {
         </div>
       </div>
 
+      {/* Feeds that have stopped publishing */}
+      {!loading && dead.length > 0 && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-900">
+          {dead.length} source{dead.length === 1 ? '' : 's'} here stopped publishing — the feed is gone, blocked
+          or broken. Each one makes the poll wait ten seconds for nothing. Turning them off changes no data
+          and can be undone from the row.
+        </div>
+      )}
+
+      {/* Why local matters — the finding, stated once, where the decision is made */}
+      {!loading && localCount === 0 && sources.length > 0 && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900">
+          Every source here is national trade press. That press names companies, not buildings —
+          which is why no article has ever been tagged with one of our jobs. Adding the local
+          papers is what changes that.
+        </div>
+      )}
+
+      {/* Seed result */}
+      {seedLog && (
+        <div className="mb-4 p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700">
+          <div className="flex items-center gap-4">
+            <span className="font-medium">Sources updated</span>
+            <span>Added: {seedLog.added?.length ?? 0}</span>
+            <span>Already there: {seedLog.alreadyThere ?? 0}</span>
+            {seedLog.retagged?.length > 0 && <span>Re-tagged: {seedLog.retagged.length}</span>}
+            {seedLog.errors?.length > 0 && <span className="text-red-600">Errors: {seedLog.errors.length}</span>}
+            <button onClick={() => setSeedLog(null)} className="ml-auto text-slate-400 hover:text-slate-600">✕</button>
+          </div>
+          {seedLog.added?.length > 0 && (
+            <div className="mt-2 text-xs text-slate-500">
+              {seedLog.added.map(a => `${a.name} (${marketLabel(a.market)})`).join(' · ')}
+            </div>
+          )}
+          {seedLog.errors?.length > 0 && (
+            <div className="mt-2 text-xs text-red-600">
+              {seedLog.errors.map(e => `${e.name}: ${e.error}`).join(' · ')}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Poll result */}
       {pollLog && (
         <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800 flex items-center gap-4">
@@ -135,68 +215,87 @@ export default function MarketSourcesPage() {
         </div>
       )}
 
-      {/* Sources table */}
+      {/* Sources, grouped by market */}
       {loading ? (
         <div className="text-sm text-slate-400 py-8 text-center">Loading…</div>
       ) : sources.length === 0 ? (
         <div className="text-center py-16 text-slate-400">
           <p className="font-medium">No sources yet</p>
-          <p className="text-xs mt-1">Click "Seed 20 Sources" to add the default RSS feeds</p>
+          <p className="text-xs mt-1">Use the button above to add the full list</p>
         </div>
       ) : (
-        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Source</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Types</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Freq</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Last Poll</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {sources.map(source => {
-                const types = (() => { try { return JSON.parse(source.projectTypes || '[]'); } catch { return []; } })();
-                return (
-                  <tr key={source.id} className={source.isActive ? '' : 'opacity-50'}>
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-slate-800">{source.name}</div>
-                      <a href={source.siteUrl} target="_blank" rel="noreferrer"
-                        className="text-xs text-slate-400 hover:text-amber-600 truncate block max-w-xs">
-                        {source.siteUrl}
-                      </a>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {types.map(t => (
-                          <span key={t} className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">
-                            {PROJECT_TYPE_LABELS[t] || t}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-slate-500">{source.pollingFrequency}</td>
-                    <td className="px-4 py-3 text-slate-400 text-xs">
-                      {source.lastPolledAt ? new Date(source.lastPolledAt).toLocaleDateString() : 'Never'}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => toggleActive(source)}
-                        className={`text-xs px-3 py-1 rounded-lg border font-medium transition-colors ${
-                          source.isActive
-                            ? 'border-slate-200 text-slate-500 hover:bg-slate-50'
-                            : 'border-green-200 text-green-600 hover:bg-green-50'
-                        }`}
-                      >
-                        {source.isActive ? 'Disable' : 'Enable'}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div className="space-y-6">
+          {groups.map(group => (
+            <div key={group.key}>
+              <div className="flex items-baseline gap-2 mb-2 px-1">
+                <h2 className="text-sm font-semibold text-slate-800">{group.label}</h2>
+                <span className="text-xs text-slate-400">{group.rows.length}</span>
+                {group.blurb && <span className="text-xs text-slate-400">· {group.blurb}</span>}
+              </div>
+              <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50">
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Source</th>
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Types</th>
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Freq</th>
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Last Poll</th>
+                      <th className="px-4 py-2.5" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {group.rows.map(source => {
+                      const types = (() => { try { return JSON.parse(source.projectTypes || '[]'); } catch { return []; } })();
+                      return (
+                        <tr key={source.id} className={source.isActive ? '' : 'opacity-50'}>
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-slate-800">{source.name}</div>
+                            <a href={source.siteUrl} target="_blank" rel="noreferrer"
+                              className="text-xs text-slate-400 hover:text-amber-600 truncate block max-w-xs">
+                              {source.siteUrl}
+                            </a>
+                            {isRetired(source.name) && (
+                              <div className="text-xs text-red-600 mt-1">
+                                Stopped publishing — {reasonFor(source.name)}
+                              </div>
+                            )}
+                            {source.notes && (
+                              <div className="text-xs text-slate-400 mt-1 max-w-md">{source.notes}</div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap gap-1">
+                              {types.map(t => (
+                                <span key={t} className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">
+                                  {PROJECT_TYPE_LABELS[t] || t}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-slate-500">{source.pollingFrequency}</td>
+                          <td className="px-4 py-3 text-slate-400 text-xs">
+                            {source.lastPolledAt ? new Date(source.lastPolledAt).toLocaleDateString() : 'Never'}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <button
+                              onClick={() => toggleActive(source)}
+                              className={`text-xs px-3 py-1 rounded-lg border font-medium transition-colors ${
+                                source.isActive
+                                  ? 'border-slate-200 text-slate-500 hover:bg-slate-50'
+                                  : 'border-green-200 text-green-600 hover:bg-green-50'
+                              }`}
+                            >
+                              {source.isActive ? 'Disable' : 'Enable'}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

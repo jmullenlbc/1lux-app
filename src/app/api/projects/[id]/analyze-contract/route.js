@@ -1,7 +1,7 @@
 import '@/lib/pdfPolyfill';
 import { loadPdfjs } from '@/lib/pdfjsNode';
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicKey } from '@/lib/anthropicKey';
@@ -25,7 +25,7 @@ export async function POST(request, { params }) {
 
   const project = await prisma.project.findUnique({ where: { id: params.id } });
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  if (user.role !== 'ILC_ADMIN' && project.createdById !== user.id) {
+  if (!canSeeAllData(user) && project.createdById !== user.id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

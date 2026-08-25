@@ -1,5 +1,5 @@
 import { notFound, redirect } from 'next/navigation';
-import { getSession } from '@/lib/auth';
+import { getSession, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import ClientDetailClient from './ClientDetailClient';
 
@@ -9,7 +9,6 @@ export default async function ClientDetailPage({ params }) {
   const session = await getSession();
   if (!session) redirect('/login');
 
-  const isAdmin = session.role === 'ILC_ADMIN' || session.role === 'ADMIN';
   const sessionPerms = (() => { try { return JSON.parse(session.permissions || '{}'); } catch { return {}; } })();
   const canEditStandards = session.role === 'ILC_ADMIN' || session.role === 'SUPER_ADMIN' || sessionPerms.clientStandards === true;
   const canEditPlaybook  = session.role === 'ILC_ADMIN' || session.role === 'SUPER_ADMIN' || sessionPerms.clients === true;
@@ -32,7 +31,7 @@ export default async function ClientDetailPage({ params }) {
   });
 
   if (!client) notFound();
-  if (!isAdmin && client.createdById !== session.id) notFound();
+  if (!canSeeAllData(session) && client.createdById !== session.id) notFound();
 
   const standardsAnswers = (canEditStandards && prisma.clientStandardsAnswer)
     ? await prisma.clientStandardsAnswer.findMany({ where: { clientId: params.id }, orderBy: { question_key: 'asc' } })
@@ -41,7 +40,7 @@ export default async function ClientDetailPage({ params }) {
   const unlinkableProjects = await prisma.project.findMany({
     where: {
       clientId: null,
-      ...(isAdmin ? {} : { createdById: session.id }),
+      ...(canSeeAllData(session) ? {} : { createdById: session.id }),
     },
     orderBy: { name: 'asc' },
     select: { id: true, name: true, location: true, buildingType: true },

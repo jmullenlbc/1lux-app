@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getRun, recordVerdict, VERDICT } from '@/lib/agent/reviewStore';
 import { describeUnitMatrixCorrection } from '@/lib/agent/unitMatrixDiff';
@@ -7,7 +7,7 @@ import { describeUnitMatrixCorrection } from '@/lib/agent/unitMatrixDiff';
 async function canAccess(projectId, user) {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project) return false;
-  return isSuperAdmin(user.role) || user.role === 'SUPER_ADMIN' || project.createdById === user.id;
+  return canSeeAllData(user) || project.createdById === user.id;
 }
 
 export async function POST(request, { params }) {

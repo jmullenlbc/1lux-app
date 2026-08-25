@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 export async function POST(request, { params }) {
@@ -13,7 +13,7 @@ export async function POST(request, { params }) {
   });
 
   if (!original) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  if (user.role !== 'ILC_ADMIN' && original.createdById !== user.id) {
+  if (!canSeeAllData(user) && original.createdById !== user.id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

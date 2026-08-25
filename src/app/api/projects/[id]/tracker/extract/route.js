@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
@@ -49,7 +49,7 @@ export async function POST(req, { params }) {
 
   const project = await prisma.project.findUnique({ where: { id: params.id } });
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  if (user.role !== 'ILC_ADMIN' && project.createdById !== user.id) {
+  if (!canSeeAllData(user) && project.createdById !== user.id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
