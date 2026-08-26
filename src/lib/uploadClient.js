@@ -20,7 +20,7 @@ export async function uploadDirect(file, { onProgress, scope = 'intake' } = {}) 
 
   if (res.ok && slip && slip.available === false) return null; // dev fallback
   if (!res.ok || !slip?.url) {
-    throw new Error(slip?.message || 'Could not prepare the upload. Please try again.');
+    throw new Error(slip?.message || 'We could not start the upload. Please try again. (U1)');
   }
 
   // XMLHttpRequest instead of fetch for two reasons: upload progress events,
@@ -29,17 +29,28 @@ export async function uploadDirect(file, { onProgress, scope = 'intake' } = {}) 
   // browser never holds the file, so the only real constraint is time.
   await new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    let sentPct = null;   // how far it got, so a drop can say where it happened
     xhr.open('PUT', slip.url);
     xhr.setRequestHeader('Content-Type', slip.contentType);
     xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) onProgress?.(Math.round((e.loaded / e.total) * 100));
+      if (!e.lengthComputable) return;
+      sentPct = Math.round((e.loaded / e.total) * 100);
+      onProgress?.(sentPct);
     };
+    // ── Why these carry codes ────────────────────────────────────────────────
+    // Four different things can go wrong between picking a file and reading it,
+    // and they used to print the same sentence: "Upload failed, check your
+    // connection." That sentence is worse than useless -- it sends someone to
+    // check their wifi when the real problem was elsewhere, and it tells us
+    // nothing when a GC reports it. The codes are ugly but they are the only
+    // thing that survives a screenshot from a job site.
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) resolve();
-      else reject(new Error('The upload was rejected. Please try again.'));
+      else reject(new Error(`Storage would not accept the file (${xhr.status}). Please try again. (U2)`));
     };
-    xhr.onerror   = () => reject(new Error('Upload failed. Please check your connection and try again.'));
-    xhr.ontimeout = () => reject(new Error('The upload timed out. Please try again — a strong connection helps with a big set.'));
+    xhr.onerror   = () => reject(new Error(
+      `The connection dropped while sending the file${sentPct != null ? ` at ${sentPct}%` : ' before it started'}. Please try again. (U3)`));
+    xhr.ontimeout = () => reject(new Error('The upload timed out. Please try again — a strong connection helps with a big set. (U4)'));
     // Matches the slip's own expiry (PRESIGN_TTL_SECONDS in uploadStorage.js).
     // A 400 MB set over a job-site connection at 2 Mbps takes ~27 minutes; a
     // timeout shorter than the slip would kill a transfer that was going fine.

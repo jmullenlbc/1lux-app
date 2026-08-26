@@ -39,12 +39,25 @@ export const PARSE_STEPS = [
   { key: 'site',   label: 'Reading the site plan' },
 ];
 
-/** Post one stage. A non-2xx carries a message written for a public reader. */
-async function stage(body, signal) {
+/**
+ * Post one stage. A non-2xx carries a message written for a public reader.
+ *
+ * `file` is only ever set on the first step, and only when there was nowhere to
+ * upload to first -- a laptop with no bucket. The file rides along with that
+ * one short request and the server parks it; every step after works from the
+ * key it hands back, exactly as it does in production.
+ */
+async function stage(body, signal, file) {
   const r = await fetch('/api/intake/parse', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    ...(file
+      ? { body: (() => {
+          const fd = new FormData();
+          fd.append('file', file);
+          fd.append('stage', body.stage);
+          return fd;
+        })() }
+      : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
     signal,
   });
   const d = await r.json().catch(() => ({}));
@@ -61,6 +74,8 @@ async function stage(body, signal) {
  *
  * @param {object}   a
  * @param {string}   a.s3Key      where the browser already PUT the file
+ * @param {File}     [a.file]     the file itself, when there was nowhere to PUT
+ *                                it (local dev). Sent with the first step only.
  * @param {string}   a.fileName
  * @param {Function} a.onStep     (key, state, extra) — state is
  *                                'active' | 'done' | 'skipped'
@@ -68,9 +83,9 @@ async function stage(body, signal) {
  * @returns {Promise<object|null>} the proposal, or null if the server declined
  *          to stage this file and the caller should fall back to one request
  */
-export async function runStagedParse({ s3Key, fileName, onStep = () => {}, signal }) {
+export async function runStagedParse({ s3Key, file, fileName, onStep = () => {}, signal }) {
   onStep('scan', 'active');
-  const scan = await stage({ stage: 'scan', s3Key, fileName }, signal);
+  const scan = await stage({ stage: 'scan', s3Key, fileName }, signal, s3Key ? null : file);
 
   // The server can decline to stage — no bucket to park the scan in. That is
   // not a failure; it means "this one is small enough to do in one go".

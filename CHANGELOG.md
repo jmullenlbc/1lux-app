@@ -5,6 +5,54 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Four different failures, one useless sentence] - August 25, 2026 - DEPLOYED
+
+Mike uploaded a 11.6 MB Lowell architectural set from his phone, twice - once
+against his laptop and once against the live app - and both times got "Upload
+failed. Please check your connection and try again."
+
+His connection was fine. So was the file, and so was the reader: the same PDF,
+run through the live app end to end, reads clean - 300 units (12 studio, 156
+one-bed, 120 two-bed, 12 three-bed), 470 parking spaces (430 surface, 40
+garages), 7 buildings - with every step finishing well inside the ceiling.
+
+### Fixed: the laptop was still using the old one-long-request path
+A laptop has no cloud storage, so the direct upload has nothing to upload to. The
+page treated that as "can't do the steps" and fell back to a single long
+request - no steps, no progress, one connection held open for a minute. That is
+precisely the shape this whole change exists to remove, and the laptop is what
+Mike tests against from his phone.
+
+Now the file rides along with the first short step and the server parks it, so
+the laptop runs the same four steps production does. Two tests cover it.
+
+### Fixed: every failure said the same thing
+Four genuinely different problems - we could not start the upload, storage
+refused the file, the connection dropped mid-transfer, the read lost its
+connection - all printed one sentence blaming the visitor's wifi. It sends
+someone off to check their signal when the signal was never the problem, and it
+tells us nothing when a GC reports it.
+
+Each now says what actually happened and carries a short code (U1-U4 for the
+upload, R1/R2 for the read), and a dropped transfer says how far it got:
+"The connection dropped while sending the file at 62%." Ugly codes, but they are
+the only thing that survives a screenshot from a job site.
+
+### Note for whoever runs the checks next
+`npm run verify:dn` needs a dev server on port 3000, and `npm run build` kills
+one that is already running. Run the build first, then restart the dev server,
+then the DN checks - otherwise all 8 fail with "no dev server" and it looks like
+a buy-price leak.
+
+### Files changed
+- `src/lib/intake/stagedParse.js` - the first step can carry the file itself.
+- `src/components/intake/DrawingDropzone.jsx` - always staged; names the step it
+  was on when something breaks.
+- `src/lib/uploadClient.js` - distinct messages, codes, and how far it got.
+- `scripts/tests/stagedParse.test.mjs` - two more tests (15 total).
+
+---
+
 ## [The drawing reader never finishes on the live app] - August 25, 2026 - DEPLOYED
 
 **DEPLOYED.** Mike verified the four-step read on his phone against the local

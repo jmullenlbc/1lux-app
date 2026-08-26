@@ -20,17 +20,24 @@ import { runStagedParse, PARSE_STEPS } from '../../src/lib/intake/stagedParse.js
  */
 function fakeFetch(replies) {
   const calls = [];
+  const sent = [];
   const original = globalThis.fetch;
   globalThis.fetch = async (_url, opts) => {
-    const body = JSON.parse(opts.body);
+    // The first step may arrive as a form (a laptop with no bucket sends the
+    // file itself); every other step is JSON.
+    const isForm = typeof opts.body?.get === 'function';
+    const body = isForm
+      ? { stage: opts.body.get('stage'), file: opts.body.get('file') }
+      : JSON.parse(opts.body);
     calls.push(body.stage);
+    sent.push(body);
     const reply = typeof replies[body.stage] === 'function'
       ? replies[body.stage](body)
       : replies[body.stage];
     if (reply?.__status) return { ok: false, json: async () => ({ message: reply.message }) };
     return { ok: true, json: async () => reply ?? {} };
   };
-  return { calls, restore: () => { globalThis.fetch = original; } };
+  return { calls, sent, restore: () => { globalThis.fetch = original; } };
 }
 
 const MATRIX = { unitTypes: [{ name: 'A1', count: 12, sf: 750 }], overallConfidence: 0.9 };
@@ -209,4 +216,28 @@ test('a site read that errors after a failed unit-counts read is not swallowed',
     /site plan could not be read/,
   );
   f.restore();
+});
+
+test('with nowhere to upload first, the file rides along with the first step', async () => {
+  // A laptop has no bucket. Before this, that dropped the whole read back to
+  // one long request -- no steps, no progress, and one connection held open for
+  // a minute, which is the exact shape this change exists to remove. And the
+  // laptop is what Mike tests against from his phone.
+  const f = fakeFetch(CLEAN);
+  const file = new Blob(['%PDF-1.7 pretend drawing'], { type: 'application/pdf' });
+  const out = await runStagedParse({ file, fileName: 'set.pdf' });
+  f.restore();
+
+  assert.deepStrictEqual(f.calls, ['scan', 'render', 'matrix', 'done']);
+  assert.equal(f.sent[0].file?.size, file.size, 'the scan step has to carry the file itself');
+  assert.equal(f.sent[1].file, undefined, 'later steps work from the parked key, not the file');
+  assert.equal(out.unitTypes.length, 1);
+});
+
+test('when the file was uploaded first, the scan step sends only the key', async () => {
+  const f = fakeFetch(CLEAN);
+  await runStagedParse({ s3Key: 'uploads/intake/a.pdf', file: new Blob(['x']), fileName: 'set.pdf' });
+  f.restore();
+  assert.equal(f.sent[0].s3Key, 'uploads/intake/a.pdf');
+  assert.equal(f.sent[0].file, undefined, 'no reason to re-send bytes that are already up there');
 });

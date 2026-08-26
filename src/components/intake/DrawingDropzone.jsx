@@ -63,6 +63,14 @@ let uid = 0;
  * without a bucket). Both are small-file cases that finish well inside the
  * 30-second ceiling.
  */
+/** Plain words for the step that was running, for an error a GC has to read. */
+const STEP_WORDS = {
+  scan:   'looking through the set',
+  render: 'opening the sheets',
+  matrix: 'reading the unit counts',
+  site:   'reading the site plan',
+};
+
 async function parseInOneRequest(item, sent) {
   try {
     const r = sent
@@ -81,7 +89,7 @@ async function parseInOneRequest(item, sent) {
       // The API's `message` is written for a public reader, so show it as-is.
       : { status: 'error', error: d.message || 'Could not read this file.' };
   } catch {
-    return { status: 'error', error: 'Upload failed. Please check your connection and try again.' };
+    return { status: 'error', error: 'We lost the connection while reading the file. Please try again. (R2)' };
   }
 }
 
@@ -151,26 +159,37 @@ export default function DrawingDropzone({ onResults }) {
       ? { ...i, status: 'parsing', progress: null, steps: {}, startedAt: Date.now() }
       : i));
 
-    const onStep = (key, state) => setItems(prev => prev.map(i =>
-      i.id === item.id ? { ...i, steps: { ...i.steps, [key]: state } } : i));
+    // Tracked outside React state as well, because if this throws we need to
+    // name the step that was running and setItems has not necessarily flushed.
+    let atStep = 'scan';
+    const onStep = (key, state) => {
+      if (state === 'active') atStep = key;
+      setItems(prev => prev.map(i =>
+        i.id === item.id ? { ...i, steps: { ...i.steps, [key]: state } } : i));
+    };
 
     let patch;
     try {
-      // Staged needs the file sitting in cloud storage, which is what the
-      // direct upload above produced. A multipart POST has no key to hand on,
-      // so it takes the one-request path -- correct anyway, since Amplify caps
-      // that door at ~4.4 MB and a file that small reads well inside 30s.
-      const staged = sent
-        ? await runStagedParse({ s3Key: sent.key, fileName: item.file.name, onStep })
-        : null;
+      // Staged either way. With cloud storage the file is already up there and
+      // we hand over the key; without it (a laptop) the file rides along with
+      // the first short step and the server parks it. Falling back to one long
+      // request just because there is no bucket would mean the laptop runs the
+      // shape we just spent this whole change removing -- and it is the laptop
+      // Mike tests on from his phone.
+      const staged = await runStagedParse({
+        s3Key: sent?.key, file: sent ? null : item.file, fileName: item.file.name, onStep,
+      });
 
       patch = staged
         ? { status: 'done', proposal: staged, error: null }
         : await parseInOneRequest(item, sent);
     } catch (err) {
+      // `shown` means the server already wrote this for a public reader. Anything
+      // else is the browser losing the request, and it says which step it lost --
+      // the old catch-all blamed the connection for every possible failure.
       patch = { status: 'error', error: err?.shown
         ? err.message
-        : 'Upload failed. Please check your connection and try again.' };
+        : `We lost the connection while ${STEP_WORDS[atStep] ?? 'reading the file'}. Please try again. (R1/${atStep})` };
     }
 
     setItems(prev => {
