@@ -15,11 +15,11 @@ ILC Lighting App -- internal tool for ILC Studios (lighting consultancy). Produc
 
 ## Manny's mandatory workflow
 
-1. `git pull` -- always first
-2. `git checkout -b manny/<description>` -- always a new branch
+1. `git pull --rebase origin main` -- always first, every session, no exceptions. This keeps the branch base current and prevents multi-week drift that makes PRs unreadable. If Manny says "I already pulled" or "let's just start" -- do it anyway.
+2. `git checkout -b manny/<description>` -- always a new branch, branched from the just-updated main
 3. Edit, test with `npm run dev:3000`, iterate
 4. Commit, then `git push` -- pre-push hooks run (~25 sec, never bypass with `--no-verify`)
-5. `gh pr create` -- open PR, ping Mike to review. Never push to `main` directly.
+5. `gh pr create` -- open PR, ping Sean to review. Never push to `main` directly.
 
 ## Pre-push hooks (never bypass)
 

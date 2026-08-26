@@ -14,15 +14,80 @@ the collaborator and the collaborator's Claude maintain it. Manny does not edit 
 
 When Manny opens a session:
 
-1. Greet him by name. Confirm what he was working on by checking the **Active tasks** section below and the latest commits on `manny/*` branches.
-2. If there's an active task, propose to resume it. Don't restart from zero — pick up where the branch and the commits left off.
-3. Tell Claude what to do; Claude handles git, tests, and pushes. Manny reviews proposed changes and approves.
-4. Open a PR when the work is ready for the collaborator's review. Never push to `main` without the collaborator's explicit say-so.
-5. Pre-push hooks are sacred. If they fail, fix the underlying issue. Never bypass with `--no-verify`.
+1. **`git pull --rebase origin main` — always first, every session, no exceptions.** Do not wait for Manny to ask. Do not skip it even if Manny says he already pulled. Main moves fast and stale branches make PRs unreadable.
+2. Greet him by name. Confirm what he was working on by checking the **Active tasks** section below and the latest commits on `manny/*` branches.
+3. If there's an active task, propose to resume it. Don't restart from zero — pick up where the branch and the commits left off.
+4. Tell Claude what to do; Claude handles git, tests, and pushes. Manny reviews proposed changes and approves.
+5. Open a PR when the work is ready for the collaborator's review. Never push to `main` without the collaborator's explicit say-so.
+6. Pre-push hooks are sacred. If they fail, fix the underlying issue. Never bypass with `--no-verify`.
 
 ---
 
 ## Active tasks
+
+### Task 28: Agent-runs queue — project context + filters (~3 hrs)
+
+- **Branch:** `manny/agent-runs-filters`
+- **Why:** Mike just shipped the AgentRun governance layer (`/admin/agent-runs`). The review queue works, but each row card shows no project name — you can't tell which project a run belongs to without opening the record. Also, the API already supports `?taskType=…` filtering but the UI has no controls for it. As runs accumulate this will become unnavigable.
+
+**Files to touch:**
+
+1. **`src/lib/agent/reviewStore.js`** — The Prisma query is in the `allRows()` function (bottom of the file), not in `listRuns`. Find the `prismaClient.agentRun.findMany(...)` call inside `allRows()`. Add `include: { project: { select: { id: true, name: true } } }` to it:
+   ```js
+   const rows = await prismaClient.agentRun.findMany({
+     orderBy: { createdAt: 'desc' },
+     take: 1000,
+     include: { project: { select: { id: true, name: true } } },
+   });
+   ```
+   The existing `rows.map(r => ({ ...r, createdAt: ... }))` spread already passes the `project` field through — no other changes to `allRows`. The FILE and MEMORY sinks don't join (they're dev-only), so `r.project` will be `undefined` on those paths — the API and UI both guard with `?.`.
+
+2. **`src/app/api/admin/agent-runs/route.js`** — The `runs.map(…)` on line 56 already serializes the row. Add `projectName: r.project?.name ?? null` to the returned object.
+
+3. **`src/app/(app)/admin/agent-runs/ReviewQueue.jsx`** — Three additions:
+   - **Project name in each card**: In the card body, below `taskType`/`feature`, add a small grey line: `{run.projectName && <span className="text-xs text-slate-400">Project: <a href={…} className="underline">{run.projectName}</a></span>}`. Link to `/project/${run.projectId}`.
+   - **Project dropdown filter**: Above the status tabs, add a `<select>` populated from `[...new Set(data?.runs?.filter(r => r.projectName).map(r => ({ id: r.projectId, name: r.projectName })))]` (deduplicated). When changed, filter the client-side display (no new API call needed — `limit=200` already fetches enough). An empty option (`— all projects —`) resets the filter.
+   - **Task-type pill filters**: Below the status tabs, render a pill for each unique `taskType` present in the loaded runs. Clicking one filters the displayed list client-side. The `tiers` object (already in `data.tiers`) maps `taskType@version` to `{ label }` — use that label for the pill text. An "All types" pill resets.
+
+**Acceptance:**
+1. Each card shows the project name as a clickable link
+2. Project dropdown appears above the status tabs; selecting a project hides runs from other projects
+3. Task-type pills appear below status tabs; clicking one scopes the list
+4. "All projects" / "All types" resets the filter
+5. Runs with no project (null `projectId`) show "—" instead of crashing
+6. Pre-push hooks pass
+
+---
+
+### Task 29: Intake success message — portal invite mention (~30 min)
+
+- **Branch:** `manny/intake-success-copy`
+- **Why:** `src/app/conceptual_budget/IntakeClient.jsx` line 178-180 says "be in touch within 1–2 business days." Task 27's invite bridge is now live — the admin literally sends a portal link after approval. The success copy should reflect that so submitters know what to expect.
+
+**File to touch:** `src/app/conceptual_budget/IntakeClient.jsx`
+
+Find the success state block (around line 175):
+```jsx
+<p className="text-xs text-green-700 mt-1">
+  An ILC Studios team member will review your submission and be in touch within 1–2 business days.
+</p>
+```
+
+Replace with:
+```jsx
+<p className="text-xs text-green-700 mt-1">
+  An ILC Studios team member will review your submission and be in touch within 1–2 business days.
+  If your project is a fit, you'll receive a secure link to the ILC client portal to view your conceptual budget.
+</p>
+```
+
+**Acceptance:**
+1. Submit the form (use `admin@ilcstudios.com` flow or the public `/conceptual_budget` page)
+2. After submit, the green success box shows both sentences
+3. No other copy changes — do not touch any other text
+4. Pre-push hooks pass
+
+---
 
 ### Task 27: Intake → Portal Invite Bridge (~3 hrs)
 
@@ -42,6 +107,8 @@ When Manny opens a session:
 
 **New file:**
 - `src/app/api/admin/intake/[id]/invite/route.js` — POST: create ProjectExternalContact + send invite
+
+**Status: COMPLETE — merged to main 2026-08-24.**
 
 ---
 
@@ -297,7 +364,107 @@ Reset `inviteResult` and `inviteError` when the selected row changes.
 
 ## Bonus tasks (if Manny finishes early)
 
-### Task 17: Auth hygiene sweep — 19 API routes (~1.5 hrs)
+### Task 30: Agent-runs queue — CSV export (~1.5 hrs)
+
+- **Branch:** `manny/agent-runs-csv`
+- **Why:** The review queue at `/admin/agent-runs` has no export. Mike needs to pull runs into a spreadsheet for accuracy tracking. You already built CSV export for the CRM (Task 4, July 2026) — same pattern.
+
+**File:** `src/app/(app)/admin/agent-runs/ReviewQueue.jsx`
+
+Add a "Download CSV" button in the toolbar. On click, take the currently visible runs (post-filter from Task 28, or `data?.runs ?? []` if doing this standalone) and build a CSV client-side:
+
+```js
+function exportCsv(runs) {
+  const cols = ['Date','Task Type','Feature','Project','Model','Status','Verdict','Auto-check pass','Confidence','Correction'];
+  const escape = v => v == null ? '' : String(v).includes(',') ? `"${String(v).replace(/"/g,'""')}"` : String(v);
+  const rows = runs.map(r => [
+    r.createdAt?.slice(0,10) ?? '', r.taskType ?? '', r.feature ?? '', r.projectName ?? '',
+    r.model ?? '', r.status ?? '', r.verdict ?? '',
+    r.autoCheckPass == null ? '' : r.autoCheckPass ? 'yes' : 'no',
+    r.confidence ?? '', r.correction ?? '',
+  ].map(escape).join(','));
+  const csv = [cols.join(','), ...rows].join('\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  const a = document.createElement('a');
+  a.href = url; a.download = `agent-runs-${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+```
+
+**Acceptance:** Button downloads a correctly-structured CSV respecting active filters. Pre-push hooks pass.
+
+---
+
+### Task 31: Morning brief — client-side check-off (~2 hrs)
+
+- **Branch:** `manny/brief-checkoff`
+- **Why:** The morning brief you built (`/crm/brief`) shows today's action items but has no way to mark one done during the day. A checkbox with localStorage persistence requires no API or schema changes.
+
+**File:** `src/app/(app)/crm/brief/BriefClient.jsx`
+
+Add checked state, keyed by today's date so it auto-resets each morning:
+
+```js
+const TODAY = new Date().toISOString().slice(0, 10);
+const LS_KEY = `brief-checked-${TODAY}`;
+
+const [checkedIds, setCheckedIds] = useState(() => {
+  try { return new Set(JSON.parse(localStorage.getItem(LS_KEY)) || []); } catch { return new Set(); }
+});
+
+function toggle(id) {
+  setCheckedIds(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    localStorage.setItem(LS_KEY, JSON.stringify([...next]));
+    return next;
+  });
+}
+```
+
+Add a checkbox at the left of each action-item row. Use the deal's database `id` (not array index) as the stable identifier. Checked rows get `opacity-40 line-through` — keep them visible (context is useful even after handled).
+
+**Acceptance:** Checkbox toggles strikethrough, survives page refresh, auto-resets next day, no API calls. Pre-push hooks pass.
+
+---
+
+### Task 32: CRM deal cards — last-touch staleness badge (~2.5 hrs)
+
+- **Branch:** `manny/deal-staleness-badge`
+- **Why:** Deal cards don't show when a deal was last touched. A badge on stale cards lets Mike see neglected deals without opening each one.
+
+**Files:** `src/app/(app)/crm/CRMClient.jsx` (badge + helper), `src/app/(app)/crm/page.jsx` (confirm `updatedAt` is in the Prisma select — it probably already is).
+
+Add a helper:
+```js
+function daysSince(iso) {
+  if (!iso) return null;
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+}
+```
+
+On each deal card, render a badge below the deal name:
+```jsx
+{(() => {
+  const d = daysSince(deal.updatedAt);
+  if (d === null || d < 5) return null;
+  return (
+    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+      d >= 14 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+    }`}>{d}d ago</span>
+  );
+})()}
+```
+
+Thresholds: 5–13 days → amber, 14+ → red, < 5 → no badge.
+
+**Critical:** Do not touch any probability logic in this file. `averageProbability()` from `src/lib/pipeline.js` is the only canonical source — do not introduce `pipelineProbability`.
+
+**Acceptance:** Badge appears on stale cards, correct colors, no schema/API changes. Pre-push hooks pass.
+
+---
+
+### Task 17: Auth hygiene sweep — 19 API routes (~1.5 hrs) **[COMPLETE — merged 2026-08-24]**
 
 - **Branch:** `manny/auth-hygiene-sweep`
 - **Why:** 19 API routes use the older `getSession()` pattern instead of `requireAuth(request)`. Consistent pattern makes future logging/middleware apply everywhere.
@@ -324,7 +491,7 @@ Reset `inviteResult` and `inviteError` when the selected row changes.
 - **Do NOT touch page files** under `src/app/(app)/` — pages use `getSession()` to `redirect()`, which stays.
 - **Acceptance:** All 19 files changed. `grep -r "import.*getSession.*from '@/lib/auth'" src/app/api/` returns zero hits. App runs. Pre-push hooks pass.
 
-### Task 18: Meeting notes count badge in project hub sidebar (~1 hr)
+### Task 18: Meeting notes count badge in project hub sidebar (~1 hr) **[COMPLETE — merged 2026-08-24]**
 
 - **Branch:** `manny/meeting-notes-badge`
 - **Why:** `ProjectSidebar` already supports a `badges` prop — no infrastructure changes needed. Just wire a count to it.
@@ -337,6 +504,7 @@ Reset `inviteResult` and `inviteError` when the selected row changes.
 
 ## Completed tasks
 
+> **Completed 2026-08-24:** Tasks 27 (intake portal invite bridge), 17 (auth hygiene sweep), 18 (meeting notes badge) all merged to main and deployed.
 > **Completed 2026-08-04:** Tasks 23 (intake /start submit wiring), 24 (admin intake queue), 25 (portal nav UX), 26 (cadence health badge) all merged to main and deployed. Schema migration 0053 (ConceptualSubmission) was already live.
 > **Completed 2026-07-27:** Tasks 20 (global contacts + CRM links), 21 (budget contingency), 22 (portal conceptual budget) merged to main as PRs #16, #17, #18.
 > **Completed 2026-07-09:** Tasks 14–16 (security fixes, CRM list polish, win rate stats) merged (commits 206f1fb, 51968e7, 720fd55).
@@ -348,6 +516,7 @@ Reset `inviteResult` and `inviteError` when the selected row changes.
 
 ## Recent guidance from the collaborator
 
+- **(2026-08-24)** Tasks 28 + 29 queued. Tasks 27, 17, 18 all merged and deployed. Task 28 adds project context + filters to Mike's new AgentRun review queue. Task 29 is a 30-min copy fix on the intake success message.
 - **(2026-08-04)** Task 27 queued. This is the last piece of the external intake flow — closes the loop between submission approval and the submitter getting portal access to view their budget. No schema changes needed.
 - **(2026-07-27)** Tasks 23–26 all shipped and deployed.
 - **(2026-07-09)** Tasks 14–16 all merged. Good sprint.

@@ -176,6 +176,7 @@ export default function IntakeClient() {
               <p className="text-sm text-green-800 font-semibold">Request received — thanks!</p>
               <p className="text-xs text-green-700 mt-1">
                 An ILC Studios team member will review your submission and be in touch within 1–2 business days.
+                If your project is a fit, you'll receive a secure link to the ILC client portal to view your conceptual budget.
               </p>
             </div>
           ) : (
