@@ -4,6 +4,8 @@ import { useState, useRef, useCallback } from 'react';
 // model and would pull server-only code (node:crypto) into the browser bundle.
 import { mergeProposals } from '@/lib/mergeProposals';
 import { uploadDirect } from '@/lib/uploadClient';
+import { runStagedParse } from '@/lib/intake/stagedParse';
+import ReadingSteps from './ReadingSteps';
 
 /**
  * Multi-file drawing upload + parse for the conceptual-budget intake.
@@ -51,6 +53,37 @@ function fmtBytes(n) {
 function fmt(n) { return n == null ? '—' : Number(n).toLocaleString(); }
 
 let uid = 0;
+
+/**
+ * The whole read in one request.
+ *
+ * Still here for the two cases that genuinely want it: a multipart POST, which
+ * carries no storage key for the stages to work from, and a server that
+ * declined to stage because it had nowhere to park the working scan (local dev
+ * without a bucket). Both are small-file cases that finish well inside the
+ * 30-second ceiling.
+ */
+async function parseInOneRequest(item, sent) {
+  try {
+    const r = sent
+      ? await fetch('/api/intake/parse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ s3Key: sent.key, fileName: item.file.name }),
+        })
+      : await fetch('/api/intake/parse', {
+          method: 'POST',
+          body: (() => { const fd = new FormData(); fd.append('file', item.file); return fd; })(),
+        });
+    const d = await r.json().catch(() => ({}));
+    return r.ok
+      ? { status: 'done', proposal: d, error: null }
+      // The API's `message` is written for a public reader, so show it as-is.
+      : { status: 'error', error: d.message || 'Could not read this file.' };
+  } catch {
+    return { status: 'error', error: 'Upload failed. Please check your connection and try again.' };
+  }
+}
 
 export default function DrawingDropzone({ onResults }) {
   const [items, setItems]   = useState([]);
@@ -109,28 +142,35 @@ export default function DrawingDropzone({ onResults }) {
       sent = null; // small file — the multipart fallback below still works
     }
 
-    // ── Step 2: parse ──
-    setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'parsing', progress: null } : i));
+    // ── Step 2: read it ──
+    // Four short requests rather than one long one. The one-request version
+    // could not finish on the live site at all -- Amplify hangs up at ~30
+    // seconds and a set takes about a minute -- and short requests are also
+    // the only way to tell the visitor what is happening while he waits.
+    setItems(prev => prev.map(i => i.id === item.id
+      ? { ...i, status: 'parsing', progress: null, steps: {}, startedAt: Date.now() }
+      : i));
+
+    const onStep = (key, state) => setItems(prev => prev.map(i =>
+      i.id === item.id ? { ...i, steps: { ...i.steps, [key]: state } } : i));
 
     let patch;
     try {
-      const r = sent
-        ? await fetch('/api/intake/parse', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ s3Key: sent.key, fileName: item.file.name }),
-          })
-        : await fetch('/api/intake/parse', {
-            method: 'POST',
-            body: (() => { const fd = new FormData(); fd.append('file', item.file); return fd; })(),
-          });
-      const d = await r.json().catch(() => ({}));
-      patch = r.ok
-        ? { status: 'done', proposal: d, error: null }
-        // The API's `message` is written for a public reader, so show it as-is.
-        : { status: 'error', error: d.message || 'Could not read this file.' };
-    } catch {
-      patch = { status: 'error', error: 'Upload failed. Please check your connection and try again.' };
+      // Staged needs the file sitting in cloud storage, which is what the
+      // direct upload above produced. A multipart POST has no key to hand on,
+      // so it takes the one-request path -- correct anyway, since Amplify caps
+      // that door at ~4.4 MB and a file that small reads well inside 30s.
+      const staged = sent
+        ? await runStagedParse({ s3Key: sent.key, fileName: item.file.name, onStep })
+        : null;
+
+      patch = staged
+        ? { status: 'done', proposal: staged, error: null }
+        : await parseInOneRequest(item, sent);
+    } catch (err) {
+      patch = { status: 'error', error: err?.shown
+        ? err.message
+        : 'Upload failed. Please check your connection and try again.' };
     }
 
     setItems(prev => {
@@ -266,6 +306,10 @@ export default function DrawingDropzone({ onResults }) {
                       style={{ width: `${Math.max(2, item.progress)}%` }}
                     />
                   </div>
+                )}
+
+                {item.status === 'parsing' && (
+                  <ReadingSteps steps={item.steps ?? {}} startedAt={item.startedAt} />
                 )}
 
                 {item.status === 'done' && (

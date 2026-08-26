@@ -5,6 +5,127 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [The drawing reader never finishes on the live app] - August 25, 2026 - DEPLOYED
+
+**DEPLOYED.** Mike verified the four-step read on his phone against the local
+server first, then asked for the push. Full pre-deploy pass green: 11 verify
+gates, 571 unit tests, 8 DN-leak checks, 7 smoke tests, clean production build
+with all 26 runtime assets traced, and a live end-to-end run on a real Creekside
+sheet.
+
+Walked a real 245 MB, 120-sheet bid set (Creekside Gardens) through the live
+upload path from end to end, the way a GC would. Two findings, one of them the
+reason the conceptual budget tool cannot go out to GCs yet.
+
+### The upload half is healthy
+245 MB went straight to storage in 18.8 seconds, 14.4 MB a second, without
+touching the app server. The direct-to-S3 work shipped earlier holds up on a
+genuinely large set.
+
+### Fixed: the read is now four short steps instead of one long one
+
+The 30-second wall cannot be raised. Amazon runs that front door on our behalf;
+it does not appear in our console and cannot be edited, and a quota increase does
+not reach it. So the fix is to stop asking one long question.
+
+The read is now four separate requests, driven by the browser, each finishing
+well inside the ceiling:
+
+  Looking through the set        ~16s   reads the text, picks which sheets matter
+  Opening the sheets we need      ~8s   draws them, keeps a copy for reference
+  Reading the unit counts        ~16s
+  Reading the site plan          ~25s   only when the unit counts came up short
+
+Between steps the work is parked in cloud storage (2.7 MB of page text on a
+120-sheet set, squeezed to under 500 KB), because it is far too big to hand back
+and forth through the browser.
+
+The site plan step stays conditional, exactly as before - it is the expensive
+read and a sheet with a clean unit matrix never needs it. So the total time is
+roughly what it always was. The difference is that it now FINISHES, and that it
+can say what it is doing while it works.
+
+### The visitor can now watch it happen
+
+A minute of silence on a phone on a job site is indistinguishable from a hung
+page. Each step now reports as it lands: a filling progress bar, a live dot on
+the step that is running, green checks behind it, and steps that did not apply
+marked "not needed" rather than vanishing. Every mark is a real request that
+really finished - nothing here is a timer pretending to be progress - so if the
+read stalls, the display stalls on the step that stalled.
+
+### The staged path runs on a laptop too, not only in production
+
+Staging needs somewhere to park the work between steps, and local dev has no
+cloud bucket - which would have meant the new path could ONLY ever be exercised
+on the live public page. That is the exact arrangement that let the 30-second
+timeout go unnoticed for weeks. So local dev now falls back to a folder on disk,
+including reading big files a slice at a time, the way production does.
+
+### The read half has never once finished in production
+Every parse comes back empty with a 504 after 28 seconds. This is not the file
+and not the size - a single 472 KB sheet fails identically. It is Amazon's front
+door, which hangs up on any page that takes longer than about 30 seconds to
+answer. Ours takes far longer:
+
+  a single sheet, measured locally  ~49s  (two model reads, 15.7s + 25.2s)
+  a real 120-sheet set, measured    ~66s  (17.5s of PDF work, then THREE
+                                           model reads - a set adds a fourth
+                                           step, picking which sheets to open)
+
+The route was built against the 300-second limit further inside the system, and
+nobody knew a 30-second wall sat in front of it. So the public conceptual budget
+tool has never successfully read a drawing on the live app. Fix needs a design
+decision - see the note to Mike. Nothing changed here yet.
+
+### Fixed: the one-request read was keeping a working file it never used
+Splitting the read into steps meant each drawn sheet had to be saved twice - a
+JPEG for the reviewer to look at later, and a working PNG the "read the site
+plan" step picks up so it does not have to redraw the sheet. The one-request
+path shares that same code but never needs the PNG, because it still has the
+drawn sheet in hand. It was saving one anyway, on every upload, and nothing ever
+deleted it. Now only the stepped read saves one, and its last step deletes it.
+
+### Fixed: the AI usage ledger was recording nothing
+Every model call in production failed to save its record, silently. The ledger
+built each entry with one set of names (task, durationMs, error) and the table
+expects another (taskType, latencyMs, errorMessage), so the database rejected
+every row. The ledger is deliberately built to swallow its own failures - it must
+never break the feature it is watching - so this never surfaced anywhere except
+one line in a server log. Meanwhile the local file version used the matching
+names and looked perfectly fine, which is why it went unnoticed.
+
+Result: /admin/usage has been blind since the AgentRun table went in. No cost,
+speed, or failure-rate history exists for that period; it starts collecting now.
+
+### Files changed
+- `src/app/api/intake/parse/route.js` - the four steps, plus the original
+  all-in-one path kept intact for local dev and small files. Both paths share
+  every piece of work and the same rule for which read wins, so they cannot
+  disagree about the same PDF. No new routes, deliberately - a new PDF route has
+  to be registered in two build files or its assets vanish in production.
+- `src/lib/intake/stagedParse.js` - NEW. Drives the four steps from the browser
+  and reports each one.
+- `src/lib/intake/combineResult.js` - NEW. The one place that decides whether the
+  text read or the site-plan read won, shared by the server and the browser.
+- `src/components/intake/ReadingSteps.jsx` - NEW. The animated step display.
+- `src/components/intake/DrawingDropzone.jsx` - drives the steps and shows them.
+- `src/lib/uploadStorage.js` - park and retrieve the work between steps, read a
+  kept sheet back, and the whole local-disk fallback.
+- `scripts/tests/stagedParse.test.mjs` - NEW, 10 tests. The risk moved from "it
+  times out" to "the steps run in the wrong order and hand back confidently wrong
+  numbers", so these cover the sequence and which answer wins.
+- `package.json` - both new test suites added to the regression run (568 pass).
+- `src/lib/agent/ledger.js` - translate a ledger entry into the columns the
+  table actually has. Ledger rows are marked CLOSED and not reviewable, so they
+  do not bury the proposals genuinely waiting on a person.
+- `scripts/tests/agentLedger.test.mjs` - NEW. Checks what the ledger writes
+  against the real schema file, so any future drift between the two shapes fails
+  a test instead of silently dropping records. Confirmed it fails against the
+  old code.
+
+---
+
 ## [Everyone can see everything] · August 25, 2026 — DEPLOYED
 
 Maram signed in to the live app and saw nothing. No projects, no clients. This

@@ -42,3 +42,8 @@ dev-server.log
 # No prompts or completions, but still an operational record of real activity
 # against the dev database. Same rule as above; in production the sink is a table.
 .agent-runs/
+
+# Local stand-in for S3 while developing (drawing intake working files).
+# Rooted so it can only ever match the folder at the repo root -- a bare
+# "uploads/" line once swallowed src/app/api/uploads and shipped a 404 to prod.
+/.intake-dev/

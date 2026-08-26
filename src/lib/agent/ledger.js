@@ -149,7 +149,7 @@ export async function recordRun(run) {
     }
 
     if (sink === SINK.PRISMA) {
-      await prismaClient.agentRun.create({ data: entry });
+      await prismaClient.agentRun.create({ data: toRow(entry) });
     } else if (sink === SINK.FILE) {
       await fs.mkdir(LEDGER_DIR, { recursive: true });
       await fs.appendFile(LEDGER_FILE, JSON.stringify(entry) + '\n', 'utf8');
@@ -163,6 +163,42 @@ export async function recordRun(run) {
   } catch (err) {
     console.error('[agent/ledger] failed to record a run — the call itself still happened:', err?.message || err);
   }
+}
+
+/**
+ * Translate a ledger entry into an AgentRun row.
+ *
+ * These two shapes were written months apart and never lined up: the entry uses
+ * the JSONL names (task / durationMs / at / error), the table uses the review
+ * layer's names (taskType / latencyMs / createdAt / errorMessage), and taskType
+ * is REQUIRED. So every production write failed validation, got swallowed by the
+ * catch above -- exactly as designed, the parse kept working -- and the ledger
+ * silently recorded nothing while the dev JSONL sink looked perfectly healthy.
+ * Found 2026-08-25 in the dev log of a live intake parse.
+ *
+ * The entry shape is left alone on purpose: the JSONL file, readLedgerTail and
+ * the tests all read it, and it is the shape callers already pass.
+ *
+ * `stopReason` has no column and is dropped rather than smuggled into `note`,
+ * which belongs to the reviewer.
+ *
+ * Status: a ledger row is an observation, not a proposal, so it is CLOSED (or
+ * ERROR) and not reviewable. PENDING would park it in a queue nobody will ever
+ * work, and AUTO_PASSED would claim auto-checks ran when none did.
+ */
+function toRow(entry) {
+  return {
+    taskType:     entry.task,
+    model:        entry.model,
+    status:       entry.status === 'error' ? 'ERROR' : 'CLOSED',
+    reviewable:   false,
+    latencyMs:    entry.durationMs,
+    inputTokens:  entry.inputTokens,
+    outputTokens: entry.outputTokens,
+    projectId:    entry.projectId,
+    userId:       entry.userId,
+    errorMessage: entry.error,
+  };
 }
 
 /** Lazily resolve the Prisma client; null if unavailable (tests, scripts). */

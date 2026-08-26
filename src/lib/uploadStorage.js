@@ -15,6 +15,10 @@
 // Build plan: G:\Shared drives\SOFTWARE\_MIKE's APP\Software engineering\
 // 2026.08.15 Direct-to-S3 Uploads — Build Plan.md
 
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
+import { promisify } from 'node:util';
+import { gzip as gzipCb, gunzip as gunzipCb } from 'node:zlib';
 import { createId } from '@paralleldrive/cuid2';
 import { PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -127,7 +131,14 @@ export async function getUploadedObject(key, { limit = MAX_INTAKE_UPLOAD_BYTES }
     return { ok: false, code: 'bad_key', message: 'Not a valid upload reference.' };
   }
   if (!presignAvailable()) {
-    return { ok: false, code: 'unavailable', message: 'Direct uploads are not configured.' };
+    if (!devStoreOn()) {
+      return { ok: false, code: 'unavailable', message: 'Direct uploads are not configured.' };
+    }
+    try {
+      return { ok: true, buffer: await devGet(key) };
+    } catch {
+      return { ok: false, code: 'not_found', message: 'The uploaded file could not be found. Please try uploading again.' };
+    }
   }
   try {
     const head = await s3Client().send(new HeadObjectCommand({
@@ -154,7 +165,8 @@ export async function getUploadedObject(key, { limit = MAX_INTAKE_UPLOAD_BYTES }
  * this misses.
  */
 export async function deleteUploadedObject(key) {
-  if (!isUploadKey(key) || !presignAvailable()) return false;
+  if (!isUploadKey(key)) return false;
+  if (!presignAvailable()) return devStoreOn() ? devDel(key) : false;
   try {
     await s3Client().send(new DeleteObjectCommand({
       Bucket: process.env.S3_BUCKET, Key: key,
@@ -178,7 +190,14 @@ export async function headUploadedObject(key) {
     return { ok: false, code: 'bad_key', message: 'Not a valid upload reference.' };
   }
   if (!presignAvailable()) {
-    return { ok: false, code: 'unavailable', message: 'Direct uploads are not configured.' };
+    if (!devStoreOn()) {
+      return { ok: false, code: 'unavailable', message: 'Direct uploads are not configured.' };
+    }
+    try {
+      return { ok: true, size: (await fs.stat(devPath(key))).size, contentType: null };
+    } catch {
+      return { ok: false, code: 'not_found', message: 'The uploaded file could not be found. Please try uploading again.' };
+    }
   }
   try {
     const head = await s3Client().send(new HeadObjectCommand({
@@ -202,6 +221,21 @@ export async function headUploadedObject(key) {
  */
 export function rangeFetcherFor(key) {
   if (!isUploadKey(key)) throw new Error('rangeFetcherFor: not a valid upload key');
+  // Reading ranges off local disk is not an optimisation -- it is the only way
+  // the ranged path gets exercised before it reaches production. The staged
+  // read exists BECAUSE a production-only code path went unnoticed for weeks.
+  if (!presignAvailable()) {
+    return async (begin, end) => {
+      const fh = await fs.open(devPath(key), 'r');
+      try {
+        const buf = Buffer.alloc(end - begin);
+        const { bytesRead } = await fh.read(buf, 0, buf.length, begin);
+        return new Uint8Array(buf.subarray(0, bytesRead));
+      } finally {
+        await fh.close();
+      }
+    };
+  }
   return async (begin, end) => {
     const res = await s3Client().send(new GetObjectCommand({
       Bucket: process.env.S3_BUCKET,
@@ -246,8 +280,9 @@ export function isSheetKey(key) {
  */
 export async function putSheetImage(buffer, contentType = 'image/jpeg') {
   const ext = SHEET_TYPES[contentType];
-  if (!ext || !buffer?.length || !presignAvailable()) return null;
+  if (!ext || !buffer?.length || (!presignAvailable() && !devStoreOn())) return null;
   const key = `sheets/${createId()}.${ext}`;
+  if (!presignAvailable()) return devPut(key, buffer).catch(() => null);
   try {
     await s3Client().send(new PutObjectCommand({
       Bucket: process.env.S3_BUCKET,
@@ -259,6 +294,213 @@ export async function putSheetImage(buffer, contentType = 'image/jpeg') {
   } catch (err) {
     console.error('[uploadStorage] putSheetImage failed', err?.message ?? err);
     return null;
+  }
+}
+
+// ── The dev disk store ────────────────────────────────────────────────────────
+// There is no S3 bucket in local dev, which used to be harmless: the multipart
+// path handed the route a buffer and the route answered in one go.
+//
+// Staging broke that. The stages are separate HTTP requests, so the file and
+// the scan have to outlive a request, and with no bucket there was nowhere for
+// them to live -- which would have meant the staged path could ONLY be
+// exercised in production, on the public GC-facing page. That is exactly the
+// arrangement that let the 30-second timeout reach a live site unnoticed.
+//
+// So in dev the same three operations fall back to a folder, the way the agent
+// ledger already falls back to JSONL. Production never touches this: it is
+// gated on NODE_ENV, and if S3 is configured S3 wins regardless.
+const DEV_DIR = path.join(process.cwd(), '.intake-dev');
+const devStoreOn = () => !presignAvailable() && process.env.NODE_ENV !== 'production';
+
+/** Flatten a key to one safe filename. Never lets a key escape DEV_DIR. */
+const devPath = (key) => path.join(DEV_DIR, key.replace(/[^a-z0-9._-]/gi, '_'));
+
+async function devPut(key, body) {
+  await fs.mkdir(DEV_DIR, { recursive: true });
+  await fs.writeFile(devPath(key), body);
+  return key;
+}
+const devGet = (key) => fs.readFile(devPath(key));
+const devDel = (key) => fs.unlink(devPath(key)).then(() => true, () => false);
+
+/**
+ * Dev only: park uploaded bytes where a later stage can find them.
+ * In production the browser has already PUT them to S3 and this is never called.
+ */
+export async function putUploadedObjectDev(buffer, ext) {
+  if (!devStoreOn() || !buffer?.length) return null;
+  const key = `uploads/intake/${createId()}.${String(ext || 'pdf').toLowerCase()}`;
+  try {
+    return await devPut(key, buffer);
+  } catch (err) {
+    console.error('[uploadStorage] putUploadedObjectDev failed', err?.message ?? err);
+    return null;
+  }
+}
+
+/** True only for keys putScanState could have issued. */
+export function isScanKey(key) {
+  return typeof key === 'string'
+    && /^scans\/[a-z0-9]+\.json\.gz$/i.test(key)
+    && !key.includes('..');
+}
+
+const gzip   = promisify(gzipCb);
+const gunzip = promisify(gunzipCb);
+
+// A scan of a 120-sheet set is ~2.7 MB of JSON -- the text layer of every page,
+// which the unit-matrix read needs in full. Two things follow from that number:
+// it cannot travel back through the browser (Amplify's front door rejects
+// bodies over ~4.4 MB, and a GC on a job-site connection should not be made to
+// re-upload it), and it should not travel uncompressed either. It gzips to
+// ~490 KB, a 5x saving on every read, for a few milliseconds of CPU.
+const MAX_SCAN_BYTES = 25 * 1024 * 1024;   // compressed; ~10x that in raw JSON
+
+/**
+ * Park the result of a scan so the later stages can pick it up.
+ *
+ * This exists because the read had to be broken into stages: Amplify hangs up
+ * on any request over ~30 seconds, and a real set takes ~66. Each stage is now
+ * its own request, so the work between them has to live somewhere, and it is
+ * far too big to hand back to the browser.
+ *
+ * Same lifetime and same disposability as the upload it came from -- it holds
+ * text lifted off an anonymous submission, so it is swept by the same rule and
+ * deleted explicitly once the last stage is done.
+ *
+ * @returns {Promise<string|null>} the scan key, or null if it could not be kept
+ */
+export async function putScanState(state) {
+  return writeScan(`scans/${createId()}.json.gz`, state);
+}
+
+/**
+ * Update a parked scan, keeping the key the caller already handed out.
+ *
+ * The render stage learns something the scan stage could not know -- where the
+ * drawn sheets ended up -- and the site stage needs it. Minting a second key
+ * would mean the browser is holding a stale one, so this writes over the same
+ * object instead.
+ */
+export async function putScanStateAt(key, state) {
+  if (!isScanKey(key)) return null;
+  return writeScan(key, state);
+}
+
+/** The actual write, shared by both doors above. */
+async function writeScan(key, state) {
+  if (!state || (!presignAvailable() && !devStoreOn())) return null;
+  try {
+    const body = await gzip(Buffer.from(JSON.stringify(state), 'utf8'));
+    if (body.length > MAX_SCAN_BYTES) {
+      console.error('[uploadStorage] scan state too large to keep', body.length);
+      return null;
+    }
+    if (!presignAvailable()) return await devPut(key, body);
+    await s3Client().send(new PutObjectCommand({
+      Bucket: process.env.S3_BUCKET,
+      Key: key,
+      Body: body,
+      ContentType: 'application/gzip',
+    }));
+    return key;
+  } catch (err) {
+    console.error('[uploadStorage] putScanState failed', err?.message ?? err);
+    return null;
+  }
+}
+
+/**
+ * Read a parked scan back.
+ *
+ * Unlike the sheet helpers this one reports WHY it failed, because the caller
+ * has to tell a waiting visitor something true: a scan that has expired needs
+ * "start again", and a scan that never existed needs the same, but a storage
+ * fault needs "try in a minute".
+ *
+ * @returns {{ok: true, state} | {ok: false, code, message}}
+ */
+export async function getScanState(key) {
+  if (!isScanKey(key)) {
+    return { ok: false, code: 'bad_key', message: 'Not a valid scan reference.' };
+  }
+  if (!presignAvailable() && !devStoreOn()) {
+    return { ok: false, code: 'unavailable', message: 'Direct uploads are not configured.' };
+  }
+  try {
+    const raw = await gunzip(presignAvailable()
+      ? Buffer.from(await (await s3Client().send(new GetObjectCommand({
+          Bucket: process.env.S3_BUCKET, Key: key,
+        }))).Body.transformToByteArray())
+      : await devGet(key));
+    return { ok: true, state: JSON.parse(raw.toString('utf8')) };
+  } catch (err) {
+    console.error('[uploadStorage] getScanState failed for key', key, err?.name ?? err?.message ?? err);
+    return {
+      ok: false,
+      code: 'scan_expired',
+      message: 'This upload timed out before we finished reading it. Please upload the file again.',
+    };
+  }
+}
+
+/** Best-effort delete once the last stage is done. Never throws. */
+export async function deleteScanState(key) {
+  if (!isScanKey(key) || (!presignAvailable() && !devStoreOn())) return false;
+  if (!presignAvailable()) return devDel(key);
+  try {
+    await s3Client().send(new DeleteObjectCommand({
+      Bucket: process.env.S3_BUCKET, Key: key,
+    }));
+    return true;
+  } catch (err) {
+    console.error('[uploadStorage] deleteScanState failed', err?.message ?? err);
+    return false;
+  }
+}
+
+/**
+ * Read a stored sheet's bytes back.
+ *
+ * The vision read needs the PNG of a sheet, and rendering one costs ~4 seconds
+ * apiece. Doing that again inside the site-data stage would push it to ~33
+ * seconds and back over the front door's limit -- the exact wall this staging
+ * exists to get under. So the render stage stores what it made and this hands
+ * it back, turning a 4-second re-render into a sub-second fetch.
+ *
+ * @returns {Promise<Buffer|null>} null if it is gone; the caller decides whether
+ *          that is fatal (the site read) or cosmetic (a reviewer's thumbnail).
+ */
+export async function getSheetImage(key) {
+  if (!isSheetKey(key)) return null;
+  if (!presignAvailable()) {
+    if (!devStoreOn()) return null;
+    return devGet(key).catch(() => null);
+  }
+  try {
+    const res = await s3Client().send(new GetObjectCommand({
+      Bucket: process.env.S3_BUCKET, Key: key,
+    }));
+    return Buffer.from(await res.Body.transformToByteArray());
+  } catch (err) {
+    console.error('[uploadStorage] getSheetImage failed for key', key, err?.name ?? err?.message ?? err);
+    return null;
+  }
+}
+
+/** Best-effort delete of a stored sheet. Used for the render stage's working
+ *  PNGs, which are scaffolding -- the kept JPEGs a reviewer looks at survive. */
+export async function deleteSheetImage(key) {
+  if (!isSheetKey(key)) return false;
+  if (!presignAvailable()) return devStoreOn() ? devDel(key) : false;
+  try {
+    await s3Client().send(new DeleteObjectCommand({
+      Bucket: process.env.S3_BUCKET, Key: key,
+    }));
+    return true;
+  } catch {
+    return false;
   }
 }
 
