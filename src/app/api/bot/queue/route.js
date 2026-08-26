@@ -3,12 +3,13 @@ import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 export async function GET(req) {
-  const { user, error } = await requireAuth();
+  const { user, error } = await requireAuth(req);
   if (error) return error;
 
   const { searchParams } = new URL(req.url);
   const type = searchParams.get('type');
   const statusParam = searchParams.get('status');
+  const projectId = searchParams.get('projectId');
 
   const statusValues = statusParam
     ? statusParam.split(',').map((s) => s.trim())
@@ -20,6 +21,7 @@ export async function GET(req) {
   };
 
   if (type) where.type = type;
+  if (projectId) where.projectId = projectId;
 
   const drafts = await prisma.botDraft.findMany({
     where,

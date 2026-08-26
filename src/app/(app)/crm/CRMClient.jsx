@@ -113,6 +113,7 @@ function ProjectCard({ project, pipeline, onOpen, onDragStart, onDragEnd, isDrag
   const st       = STATUS_CONFIG[status] || STATUS_CONFIG.OPEN;
   const rev      = revenueFor(project, pipeline);
   const outSync  = stagesOutOfSync(project);
+  const isStale  = status === 'OPEN' && daysSince(project.updatedAt) >= 30;
   const didDrag  = useRef(false);
   const [noteOpen, setNoteOpen] = useState(false);
 
@@ -131,6 +132,11 @@ function ProjectCard({ project, pipeline, onOpen, onDragStart, onDragEnd, isDrag
             {project.projectNumber ? `PRJ-${String(project.projectNumber).padStart(4, '0')}` : '—'}
           </span>
           <div className="flex items-center gap-1 flex-wrap justify-end">
+            {isStale && (
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200" title="No updates in 30+ days">
+                Stale
+              </span>
+            )}
             {outSync && (
               <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200" title="Procurement and Design stages differ">
                 ⚠ stages differ

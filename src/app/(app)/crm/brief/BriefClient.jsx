@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { PIPELINE_STAGES, STAGE_LABEL } from '@/lib/pipeline';
 
 function fmtDate(str) {
@@ -14,6 +15,23 @@ function daysSince(dateStr) {
 }
 
 export default function BriefClient({ stale, procSnapshot, designSnapshot, recentWins }) {
+  const TODAY = new Date().toISOString().slice(0, 10);
+  const LS_KEY = `brief-checked-${TODAY}`;
+  const [checkedIds, setCheckedIds] = useState(() => {
+    try {
+      return new Set(JSON.parse(localStorage.getItem(LS_KEY)) || []);
+    } catch { return new Set(); }
+  });
+
+  function toggle(id) {
+    setCheckedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      localStorage.setItem(LS_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }
+
   return (
     <div className="flex flex-col h-screen bg-slate-50 overflow-hidden">
       {/* Header */}
@@ -45,6 +63,7 @@ export default function BriefClient({ stale, procSnapshot, designSnapshot, recen
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
+                      <th className="px-2 py-2.5 w-4"></th>
                       <th className="px-4 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase">Project</th>
                       <th className="px-4 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase">Client</th>
                       <th className="px-4 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase">Stage</th>
@@ -56,8 +75,17 @@ export default function BriefClient({ stale, procSnapshot, designSnapshot, recen
                       const procOpen = p.procurementStatus === 'OPEN';
                       const designOpen = p.designStatus === 'OPEN';
                       const stage = procOpen ? STAGE_LABEL[p.procurementStage] : STAGE_LABEL[p.designStage];
+                      const isChecked = checkedIds.has(p.id);
                       return (
-                        <tr key={p.id} className="hover:bg-slate-50">
+                        <tr key={p.id} className={`hover:bg-slate-50 ${isChecked ? 'opacity-40 line-through' : ''}`}>
+                          <td className="px-2 py-2.5">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggle(p.id)}
+                              className="shrink-0 accent-amber-500 w-4 h-4 cursor-pointer"
+                            />
+                          </td>
                           <td className="px-4 py-2.5 font-semibold text-slate-900">
                             <a
                               href={`/project/${p.id}`}
