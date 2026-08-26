@@ -25,7 +25,11 @@ When Manny opens a session:
 
 ## Active tasks
 
-### Task 28: Agent-runs queue — project context + filters (~3 hrs)
+_No tasks currently queued. Sean will add new tasks here before Manny's next session._
+
+---
+
+### Task 28: Agent-runs queue — project context + filters (~3 hrs) **[COMPLETE — merged 2026-08-26]**
 
 - **Branch:** `manny/agent-runs-filters`
 - **Why:** Mike just shipped the AgentRun governance layer (`/admin/agent-runs`). The review queue works, but each row card shows no project name — you can't tell which project a run belongs to without opening the record. Also, the API already supports `?taskType=…` filtering but the UI has no controls for it. As runs accumulate this will become unnavigable.
@@ -59,7 +63,7 @@ When Manny opens a session:
 
 ---
 
-### Task 29: Intake success message — portal invite mention (~30 min)
+### Task 29: Intake success message — portal invite mention (~30 min) **[COMPLETE — merged 2026-08-26]**
 
 - **Branch:** `manny/intake-success-copy`
 - **Why:** `src/app/conceptual_budget/IntakeClient.jsx` line 178-180 says "be in touch within 1–2 business days." Task 27's invite bridge is now live — the admin literally sends a portal link after approval. The success copy should reflect that so submitters know what to expect.
@@ -364,7 +368,7 @@ Reset `inviteResult` and `inviteError` when the selected row changes.
 
 ## Bonus tasks (if Manny finishes early)
 
-### Task 30: Agent-runs queue — CSV export (~1.5 hrs)
+### Task 30: Agent-runs queue — CSV export (~1.5 hrs) **[COMPLETE — merged 2026-08-26]**
 
 - **Branch:** `manny/agent-runs-csv`
 - **Why:** The review queue at `/admin/agent-runs` has no export. Mike needs to pull runs into a spreadsheet for accuracy tracking. You already built CSV export for the CRM (Task 4, July 2026) — same pattern.
@@ -395,7 +399,7 @@ function exportCsv(runs) {
 
 ---
 
-### Task 31: Morning brief — client-side check-off (~2 hrs)
+### Task 31: Morning brief — client-side check-off (~2 hrs) **[COMPLETE — merged 2026-08-26]**
 
 - **Branch:** `manny/brief-checkoff`
 - **Why:** The morning brief you built (`/crm/brief`) shows today's action items but has no way to mark one done during the day. A checkbox with localStorage persistence requires no API or schema changes.
@@ -428,7 +432,7 @@ Add a checkbox at the left of each action-item row. Use the deal's database `id`
 
 ---
 
-### Task 32: CRM deal cards — last-touch staleness badge (~2.5 hrs)
+### Task 32: CRM deal cards — last-touch staleness badge (~2.5 hrs) **[COMPLETE — merged 2026-08-26]**
 
 - **Branch:** `manny/deal-staleness-badge`
 - **Why:** Deal cards don't show when a deal was last touched. A badge on stale cards lets Mike see neglected deals without opening each one.
@@ -504,6 +508,7 @@ Thresholds: 5–13 days → amber, 14+ → red, < 5 → no badge.
 
 ## Completed tasks
 
+> **Completed 2026-08-26:** Tasks 28 (agent-runs project context + filters), 29 (intake success copy), 30 (agent-runs CSV export), 31 (morning brief check-off), 32 (CRM staleness badge) all merged to main in commits 265af44 (Task 29) and 060f2dd (Tasks 28/30/31/32). Branches deleted.
 > **Completed 2026-08-24:** Tasks 27 (intake portal invite bridge), 17 (auth hygiene sweep), 18 (meeting notes badge) all merged to main and deployed.
 > **Completed 2026-08-04:** Tasks 23 (intake /start submit wiring), 24 (admin intake queue), 25 (portal nav UX), 26 (cadence health badge) all merged to main and deployed. Schema migration 0053 (ConceptualSubmission) was already live.
 > **Completed 2026-07-27:** Tasks 20 (global contacts + CRM links), 21 (budget contingency), 22 (portal conceptual budget) merged to main as PRs #16, #17, #18.
@@ -516,6 +521,7 @@ Thresholds: 5–13 days → amber, 14+ → red, < 5 → no badge.
 
 ## Recent guidance from the collaborator
 
+- **(2026-08-26)** Tasks 28–32 all merged. Task 29 had to be applied to the correct file (`conceptual_budget/IntakeClient.jsx` — Manny had used the old `/start/` path). Tasks 30–32 were bonus tasks Manny completed. Branches deleted. No active tasks; Sean will queue new ones before next session.
 - **(2026-08-24)** Tasks 28 + 29 queued. Tasks 27, 17, 18 all merged and deployed. Task 28 adds project context + filters to Mike's new AgentRun review queue. Task 29 is a 30-min copy fix on the intake success message.
 - **(2026-08-04)** Task 27 queued. This is the last piece of the external intake flow — closes the loop between submission approval and the submitter getting portal access to view their budget. No schema changes needed.
 - **(2026-07-27)** Tasks 23–26 all shipped and deployed.

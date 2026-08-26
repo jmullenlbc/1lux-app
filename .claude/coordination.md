@@ -2,6 +2,16 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+### 2026-08-26 — Sean's Claude
+
+- Audited Manny's sprint summary (Tasks 28–32, PRs #21/#22/#24). All three PRs had a stale branch base (~3 weeks behind main), making diffs show 50+ files; Manny's actual changes were narrow.
+- Applied all changes directly to main rather than via GitHub merge (avoids `.claude/` conflicts): Task 29 fix to correct file (`conceptual_budget/IntakeClient.jsx` — Manny had edited the old `/start/` path, which is gone); Tasks 28/30/31/32 cherry-picked where safe, Task 32 (CRM staleness badge) manually applied to preserve Mike's `handleExportCSV` deletion (`e78acec`).
+- Also fixed a pre-existing `requireAuth()` missing-arg bug in `bot/queue/route.js` as part of Task 28 apply. Commits: `265af44` (Task 29), `060f2dd` (Tasks 28/30/31/32).
+- Pruned all three Manny branches from remote. manny-tasks.md and formanuel.md updated to reflect completed sprint. No active tasks queued.
+- PRs #21/#22/#24 closed by Sean manually (gh CLI auth doesn't reach the private org repo).
+
+---
+
 ## 🚢 DEPLOYED — 2026-08-25: every ILC staff account now sees every record — READ THIS BEFORE THE PRIVILEGES BUILD
 
 **Pushed `43ac763..aaf8d45`, 91 files.** Sean — this one lands directly on top of your open item (the privileges enforcement sweep, 2026-08-22 entry below), so it needs a read before you write any of it.

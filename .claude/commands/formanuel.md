@@ -33,18 +33,18 @@ Six checks: dynamic-pages, postgres-migrations, schema-sync, npm test (38 scenar
 - Every API route calls `requireAuth(request)` at the top
 - Local dev login: `admin@ilcstudios.com` / `ILCadmin2024!`
 
-## Current state (as of 2026-07-07)
+## Current state (as of 2026-08-26)
 
-- Tasks 1–9 all merged to main (last sprint finished 2026-07-07).
-- Now on Tasks 10–13: CRM polish sprint. All four are frontend-only changes, no schema or engine changes.
-- Key files for this sprint: `CRMClient.jsx`, `crm/page.jsx`, `crm/brief/BriefClient.jsx`.
+- Tasks 1–32 all merged to main. No active tasks queued.
+- Last sprint (Tasks 28–32): agent-runs queue filters + CSV, morning brief check-off, CRM staleness badge, intake success copy fix.
+- Sean will add new tasks to `.claude/manny-tasks.md` before next session. If the Active tasks section says "No tasks currently queued", ask Sean before starting anything.
 
 ## Key files
 
-- `src/app/(app)/crm/CRMClient.jsx` -- Tasks 11, 12, 13 live here
-- `src/app/(app)/crm/brief/BriefClient.jsx` -- Task 10 is here
-- `src/app/(app)/crm/page.jsx` -- needs one line added for Task 11
-- `src/app/api/projects/[id]/route.js` -- PATCH endpoint used by Task 12
+- `src/app/(app)/crm/CRMClient.jsx` -- CRM board
+- `src/app/(app)/crm/brief/BriefClient.jsx` -- morning brief
+- `src/app/(app)/admin/agent-runs/ReviewQueue.jsx` -- agent review queue
+- `src/app/conceptual_budget/IntakeClient.jsx` -- public intake form
 - `.claude/manny-tasks.md` -- Manny's live task queue (read this now)
 - `.claude/coordination.md` -- cross-team log (read top 40 lines)
 
