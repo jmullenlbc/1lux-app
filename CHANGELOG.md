@@ -5,6 +5,61 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [The 158-sheet set, read end to end in production] - August 28, 2026 - DEPLOYED
+
+Ran Mike's real 158-sheet, 60 MB Lowell architectural set through the LIVE site,
+which is the only test that counts. Two things came out of it.
+
+### The first attempt after a deploy fails, and always has
+
+The very first read after a push died on its first step with an empty 504 at
+28.1 seconds. Run again a minute later, the same step finished in 12.6.
+
+Nothing was wrong with the code. The first request after a deploy has to build
+the server up from cold - loading the app and the PDF reader - and that happens
+INSIDE the visitor's request, on top of the work. It is a one-off, and it lands
+on whoever happens to be first through the door. Worth knowing, and worth
+remembering the next time a read fails once and then works: that is the shape of
+a cold start, not a bad drawing.
+
+### The server was running itself out of memory cutting up the index
+
+With the set warm, the read got through looking at all 158 sheets - five short
+slices, twelve seconds each - and then died reading the drawing index. A 500
+with no message at all, which is never our code: ours always says something.
+
+The Lowell index is cut into fourteen close-ups. Measured on the real file,
+cutting those fourteen ran the process to **2,015 MB**, which is far past what
+the server is given, so it was simply killed mid-sentence.
+
+The cause is a detail worth writing down. A drawing's pixels do not sit in
+JavaScript's memory - they sit in a buffer alongside it, and JavaScript holds
+only a small handle to it. The automatic clean-up decides when to run by looking
+at how much JAVASCRIPT memory is in use, so it saw fourteen tiny handles,
+concluded there was no reason to hurry, and left fourteen full-size drawings
+sitting there.
+
+Each one is now handed back the moment its picture has been taken, and the same
+is done for the sheets the render step draws. **Peak memory on the same file:
+2,015 MB to 406 MB.** Cutting the close-ups also got faster - 2.7s to 1.8s -
+because the machine is no longer thrashing.
+
+Two tests hold it shut, and they were checked the only way worth checking: the
+fix was switched off and the test failed, reporting 1,619 MB of growth against
+its 600 MB ceiling. They render a blank 36x24 sheet, because the memory a
+drawing costs comes from the size of the PAPER, not from what is printed on it.
+
+### Files changed
+- `src/lib/siteVision.js` - `release()`, and both renderers now hand back each
+  canvas and drop the PDF reader's decoded images once a sheet is drawn.
+- `scripts/tests/siteVision.test.mjs` - two memory tests, plus a minimal
+  blank-sheet PDF written by hand so they need no fixture file.
+
+### Verification
+659 unit tests, 7 smoke, 8 DN, clean production build with all 26 runtime assets.
+
+---
+
 ## [Reading a set that is nothing but pictures] - August 28, 2026 - DEPLOYED
 
 Mike's Lowell set has 158 sheets and not one readable character on any of them.

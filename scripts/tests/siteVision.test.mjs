@@ -192,3 +192,112 @@ test('the cross-checks run on the merged answer, not on each drawing alone', () 
   assert.ok((validateSiteData(merged).warnings || []).some(w => w.field === 'totalUnits'),
     'a unit total that disagrees with the mix on another sheet went unflagged');
 });
+
+// ─── the memory the drawing renderer gives back ─────────────────────────────
+//
+// A canvas keeps its pixels OUTSIDE JavaScript's memory, so the garbage
+// collector -- which decides when to tidy by looking at how much JavaScript
+// memory is in use -- sees a tiny handle and feels no urgency, while a
+// full-size image sits there unreleased.
+//
+// That is not a theoretical worry. Cutting the fourteen close-ups of the index
+// on Mike's 158-sheet Lowell set ran the process to 2,015 MB and the server
+// died mid-read with no message at all. Freeing each one as it is finished
+// with peaks at 406 MB instead. These tests hold that shut.
+//
+// The sheet below is blank on purpose: the leak is in the canvases, whose size
+// comes from the PAPER, not from what is drawn on it. A 36x24 sheet is a 36x24
+// sheet whether or not there are any lines on it.
+
+/** The smallest thing that is legitimately a PDF: one page, no ink. */
+function blankSheetPdf({ widthPt = 2592, heightPt = 1728, pages = 1 } = {}) {
+  const objs = [];
+  const kids = [];
+  for (let i = 0; i < pages; i++) kids.push(`${4 + i} 0 R`);
+  objs[1] = '<</Type/Catalog/Pages 2 0 R>>';
+  objs[2] = `<</Type/Pages/Kids[${kids.join(' ')}]/Count ${pages}>>`;
+  objs[3] = '<</Length 0>>\nstream\n\nendstream';
+  for (let i = 0; i < pages; i++) {
+    objs[4 + i] = `<</Type/Page/Parent 2 0 R/MediaBox[0 0 ${widthPt} ${heightPt}]`
+      + '/Contents 3 0 R/Resources<</ProcSet[/PDF]>>>>';
+  }
+
+  let pdf = '%PDF-1.4\n';
+  const offsets = [];
+  for (let i = 1; i < objs.length; i++) {
+    offsets[i] = pdf.length;
+    pdf += `${i} 0 obj\n${objs[i]}\nendobj\n`;
+  }
+  const xref = pdf.length;
+  pdf += `xref\n0 ${objs.length}\n0000000000 65535 f \n`;
+  for (let i = 1; i < objs.length; i++) {
+    pdf += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
+  }
+  pdf += `trailer\n<</Size ${objs.length}/Root 1 0 R>>\nstartxref\n${xref}\n%%EOF\n`;
+  return Buffer.from(pdf, 'latin1');
+}
+
+/** Highest memory reached while fn runs, in MB above where it started. */
+async function peakGrowthMb(fn) {
+  const before = process.memoryUsage().rss;
+  let peak = before;
+  const watch = setInterval(() => {
+    const r = process.memoryUsage().rss;
+    if (r > peak) peak = r;
+  }, 15);
+  try {
+    await fn();
+  } finally {
+    clearInterval(watch);
+  }
+  const after = process.memoryUsage().rss;
+  return (Math.max(peak, after, before) - before) / 1e6;
+}
+
+// The real number with the bug present was ~1,600 MB of growth and ~70 MB
+// without it. 600 is far enough above the healthy figure that ordinary noise
+// cannot trip it, and far enough below the broken one that the bug cannot
+// come back unnoticed.
+const CROP_GROWTH_CEILING_MB = 600;
+
+test('cutting a full index worth of close-ups does not eat the server', async () => {
+  const { renderPdfCrops } = await import('../../src/lib/siteVision.js');
+  const pdf = blankSheetPdf();
+
+  // The same fourteen close-ups the Lowell index is cut into: two printed
+  // columns, seven strips down each.
+  const rects = [];
+  for (let c = 0; c < 2; c++) {
+    for (let r = 0; r < 7; r++) rects.push({ x: 0.05 + c * 0.19, y: 0.12 + r * 0.124, w: 0.185, h: 0.13 });
+  }
+
+  let crops;
+  const grew = await peakGrowthMb(async () => { crops = await renderPdfCrops(pdf, { page: 1, rects }); });
+
+  assert.strictEqual(crops.length, rects.length, 'a close-up went missing');
+  for (const c of crops) {
+    assert.ok(c.png.length > 100, 'a close-up came back empty - it was freed before it was read');
+    assert.ok(c.width > 8 && c.height > 8);
+  }
+  assert.ok(grew < CROP_GROWTH_CEILING_MB,
+    `cutting ${rects.length} close-ups grew memory by ${Math.round(grew)} MB (ceiling ${CROP_GROWTH_CEILING_MB} MB) - the canvases are not being given back`);
+});
+
+test('drawing several sheets in a row does not eat the server either', async () => {
+  const { renderPdfPages } = await import('../../src/lib/siteVision.js');
+  const pdf = blankSheetPdf({ pages: 6 });
+
+  let out;
+  const grew = await peakGrowthMb(async () => {
+    out = await renderPdfPages(pdf, { pageNumbers: [1, 2, 3, 4, 5, 6], pages: 6, alsoJpeg: true });
+  });
+
+  assert.strictEqual(out.length, 6);
+  for (const p of out) {
+    assert.ok(p.png.length > 100, 'a sheet came back empty - it was freed before it was read');
+    assert.ok(p.jpeg.length > 100, 'the keepable copy came back empty');
+    assert.strictEqual(p.ptWidth, 2592, 'the sheet lost its paper size');
+  }
+  assert.ok(grew < CROP_GROWTH_CEILING_MB,
+    `drawing 6 sheets grew memory by ${Math.round(grew)} MB (ceiling ${CROP_GROWTH_CEILING_MB} MB)`);
+});
