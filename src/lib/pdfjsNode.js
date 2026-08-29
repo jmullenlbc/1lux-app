@@ -58,6 +58,20 @@ export const WORKER_URL = PKG_DIR
   : null;
 
 /**
+ * file:// URL of pdfjs-dist/wasm/ (trailing slash required), or null.
+ *
+ * The third runtime-resolved asset, found 2026-08-29 on the Lowell set: pdfjs
+ * decodes fax-compressed (CCITT/JBIG2) and JPEG2000 images through WebAssembly
+ * helpers it loads from `wasmUrl` at decode time. With wasmUrl unset it does
+ * not throw -- it logs a warning and SKIPS the image. On drawings that come
+ * out as solid black or blank blocks exactly where a table or photo should be,
+ * because the paint underneath the missing stencil is what survives.
+ */
+export const WASM_URL = PKG_DIR
+  ? `${pathToFileURL(path.join(PKG_DIR, 'wasm')).href}/`
+  : null;
+
+/**
  * file:// URL of pdfjs-dist/standard_fonts/ (trailing slash required), or null.
  * pathToFileURL, not string concatenation: on Windows a bare `file://C:/...` is
  * not a well-formed URL (the drive letter lands in the host position).
@@ -97,6 +111,7 @@ export function pdfDocOptions(buffer, extra = {}) {
     // Buffers outright ("Please provide binary data as `Uint8Array`").
     data: new Uint8Array(buffer),
     ...(STANDARD_FONTS_URL ? { standardFontDataUrl: STANDARD_FONTS_URL } : {}),
+    ...(WASM_URL ? { wasmUrl: WASM_URL } : {}),
     disableFontFace: true,
     isEvalSupported: false,
     useSystemFonts: false,

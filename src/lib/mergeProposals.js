@@ -40,7 +40,7 @@
 const SITE_DATA_KEYS = [
   'lotAcres', 'lotSf', 'totalUnits', 'parkingProvided', 'parkingRequired',
   'surfaceParking', 'garages', 'carports', 'buildingCount', 'clubhouseSf',
-  'amenitySf', 'buildingType',
+  'amenitySf', 'grossSf', 'buildingType',
 ];
 
 /**

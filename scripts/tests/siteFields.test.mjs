@@ -166,3 +166,17 @@ test('the stall land-area constant stays at the conservative end', () => {
   // firing on efficiently laid-out sites.
   assert.ok(SURFACE_STALL_SF <= 320, 'must stay low enough to only catch impossibilities');
 });
+
+// ── total building gross SF ──────────────────────────────────────────────────
+
+test('a stated building gross SF is proposed into grossSf', () => {
+  const rows = byKey(proposeSiteFields({ grossSf: 299441, confidence: 0.7 }));
+  assert.equal(rows.grossSf.value, 299441);
+  assert.match(rows.grossSf.note, /GROSS/, 'the reviewer is told gross was preferred over net');
+  assert.ok(writableSiteKeys().includes('grossSf'), 'the commit route may write it');
+});
+
+test('no stated gross SF proposes nothing — never a zero', () => {
+  const rows = byKey(proposeSiteFields({ grossSf: null, totalUnits: 300 }));
+  assert.equal(rows.grossSf, undefined);
+});

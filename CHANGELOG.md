@@ -5,6 +5,101 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [The phone flow, fixed three ways] - August 29, 2026 - DEPLOYED
+
+Mike tried the public drawing-upload page from his phone and got nothing back.
+Three separate causes were found, fixed, and proven locally on the real
+158-sheet Lowell set. Built and tested, awaiting the word to deploy.
+
+### 1. The first visitor after a quiet spell always failed
+
+A server nobody has used for a while takes about fifteen seconds to wake up,
+that wake-up happens inside the visitor's own request, and the front door hangs
+up at thirty. First visitor pays the toll, everyone after sails through - which
+is exactly "works when we test it, fails when Mike tries it."
+
+Now the upload page rings the server's doorbell the moment it opens, so the
+wake-up is spent while the visitor is still choosing a file, where nobody
+feels it.
+
+### 2. The Lowell cover sheet lies about what's in the set
+
+The index on the cover lists 80 sheets; the set actually binds 158. Whole runs
+of sheets were added after the cover was drawn and never listed, so counting
+rows down the index to find a page could never work on this set - the map
+disagrees with the territory.
+
+Replaced counting with LOOKING. The sheet numbers run in strict order through
+the file, and reading the number off one page's corner takes about a second -
+so the reader now hunts like you'd find a page in a book: open the middle,
+see where you are, halve the search. Five to six quick looks find any sheet in
+158 pages. Proven twice end to end on the real file: site plan and
+code-data sheet found on the exact right pages both times.
+
+### 3. The one sheet with all the numbers rendered as two black boxes
+
+The hunt found the right sheet - "BLDG. CODE DATA & UNIT MIX" - but our
+renderer drew its two data tables as solid black rectangles, so the reader
+reported "blacked out / illegible" and every number came back empty.
+
+The tables on that sheet are stored as fax-compressed pictures (an old,
+space-saving format architects' plotting software still uses). Our PDF engine
+decodes that format with a helper it has to be told the location of - and it
+was never told, so it silently SKIPPED the pictures and left the black
+underpainting showing. One line points it at the helper now, the production
+build is taught to ship the helper (same trap as the fonts and worker before
+it), and the build guard refuses any future build that forgets it.
+
+### What the read returns now, from a phone, with no typing
+
+300 units. 170 one-bed / 118 two-bed / 12 three-bed. 404 surface stalls,
+47 garage stalls, 7 residential buildings plus clubhouse (~6,085 SF) and
+3 garage buildings. All checked against the sheet by eye - all correct.
+
+Still open, noted for later: the sheet-picker occasionally picks the
+neighbouring sheet on a re-run - model noise, right sheet two runs out of
+three, worst case is missing bed mix rather than wrong numbers.
+
+### 4. And now the biggest number on the sheet has somewhere to go
+
+Same session, Mike's call: the code-data sheet prints the total building
+square footage - 299,441 SF gross - and the reader had no field for it, so
+the single number that scales more budget dollars than any other was read
+and thrown away. The site reader now asks for the stated TOTAL BUILDING
+GROSS square footage (gross over net when the sheet prints both, which is
+Mike's standing rule; never summed up from per-floor areas; blank rather
+than guessed). It flows to the same review panel as the other site numbers
+and lands in the project's Gross SF field only when a human ticks the box.
+
+### Proof
+
+- 681 unit tests pass (76 of them on the new hunt logic and index stitching)
+- Budget math, fuzz, bid-matrix, smoke, and DN-leak suites all pass
+- Full production build passes; runtime-asset guard now checks 37 assets
+  including the new decoders
+- Two full end-to-end staged reads of the real Lowell PDF through the actual
+  route code on the local server
+
+### Files changed
+
+- src/lib/pdfjsNode.js - point the PDF engine at its wasm decoders (WASM_URL)
+- next.config.mjs - ship pdfjs-dist/wasm/ to the production server
+- scripts/check-runtime-assets.mjs - refuse a build missing the decoders
+- src/lib/sheetIndexVision.js - parseSheetNumber, rowNear, planHunt (the hunt)
+- src/app/api/intake/parse/route.js - warm stage, stageHunt, dead-reckoning
+  anchor probe deleted
+- src/components/intake/DrawingDropzone.jsx - wake-the-server ping on page open
+- scripts/tests/sheetIndexVision.test.mjs - 14 new hunt tests
+- src/lib/siteVision.js - grossSf field + gross-over-net rule, prompt
+  version bumped
+- src/lib/siteFields.js, src/lib/mergeProposals.js,
+  src/lib/intake/combineResult.js - carry grossSf through merge, combine,
+  and the review-panel proposal that writes it
+- scripts/tests/siteFields.test.mjs, scripts/tests/siteVision.test.mjs -
+  3 new grossSf tests
+
+---
+
 ## [The 158-sheet set, read end to end in production] - August 28, 2026 - DEPLOYED
 
 Ran Mike's real 158-sheet, 60 MB Lowell architectural set through the LIVE site,

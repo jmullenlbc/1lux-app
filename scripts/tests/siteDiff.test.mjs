@@ -80,8 +80,9 @@ test('the same number in a different type is not a change', () => {
 
 test('a field outside the site extractor says nothing about how it read', () => {
   // Somebody else's write landing in the payload must not be scored as this
-  // extraction inventing a number.
-  const d = describeSiteCorrection(VISION, { ...APPLIED_AS_READ, numUnits: 324, grossSf: 400000 });
+  // extraction inventing a number. (grossSf used to be the example here; it
+  // joined the extractor's own field list on 2026-08-29, so it no longer is.)
+  const d = describeSiteCorrection(VISION, { ...APPLIED_AS_READ, numUnits: 324, numBedrooms: 400 });
   assert.equal(d.changed, false);
   assert.equal(d.counts.added, 0);
 });

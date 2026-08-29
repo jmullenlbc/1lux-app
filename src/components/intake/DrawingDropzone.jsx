@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 // From the standalone module, not '@/lib/drawingExtract' — that one reaches the
 // model and would pull server-only code (node:crypto) into the browser bundle.
 import { mergeProposals } from '@/lib/mergeProposals';
@@ -87,6 +87,19 @@ async function parseInOneRequest(item, sent) {
 }
 
 export default function DrawingDropzone({ onResults }) {
+  // Ring the server's doorbell the moment the page opens. A server nobody has
+  // used for a while takes about fifteen seconds to wake, the front door hangs
+  // up at thirty, and both together mean the FIRST visitor's upload dies while
+  // later ones sail through. Waking it here spends those fifteen seconds while
+  // the visitor is still choosing a file, where nobody feels them.
+  useEffect(() => {
+    fetch('/api/intake/parse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stage: 'warm' }),
+    }).catch(() => {});
+  }, []);
+
   const [items, setItems]   = useState([]);
   const [dragging, setDrag] = useState(false);
   const [notice, setNotice] = useState(null);   // "we left some files out"
@@ -333,6 +346,7 @@ export default function DrawingDropzone({ onResults }) {
                     {item.proposal?.kind === 'site_data'
                       ? <>Read <span className="font-semibold text-slate-700">site data</span>
                           {item.proposal.siteData?.totalUnits != null && <> · {fmt(item.proposal.siteData.totalUnits)} units</>}
+                          {item.proposal.siteData?.grossSf != null && <> · {fmt(item.proposal.siteData.grossSf)} gross SF</>}
                           {item.proposal.siteData?.lotSf != null
                             ? <> · {fmt(item.proposal.siteData.lotSf)} SF lot</>
                             : item.proposal.siteData?.lotAcres != null && <> · {item.proposal.siteData.lotAcres} acres</>}
@@ -394,6 +408,15 @@ export default function DrawingDropzone({ onResults }) {
                     </span>
                   )}
                 </span>
+              </>
+            )}
+            {/* The text path's stated-GSF verdict wins the chip when it exists;
+                this one covers the vision path, where the total arrives as a
+                site-data field instead. Both never render at once. */}
+            {merged.projectTotals?.grossInteriorSf == null && merged.siteData?.grossSf != null && (
+              <>
+                <span className="text-slate-300">·</span>
+                <span><span className="font-mono font-semibold">{fmt(merged.siteData.grossSf)}</span> gross SF</span>
               </>
             )}
             {merged.siteData?.lotSf != null && (

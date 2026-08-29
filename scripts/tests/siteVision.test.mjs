@@ -301,3 +301,14 @@ test('drawing several sheets in a row does not eat the server either', async () 
   assert.ok(grew < CROP_GROWTH_CEILING_MB,
     `drawing 6 sheets grew memory by ${Math.round(grew)} MB (ceiling ${CROP_GROWTH_CEILING_MB} MB)`);
 });
+
+test('gross building SF merges like any other stated number', () => {
+  // The site plan rarely states a building total; the area summary does. The
+  // first sheet's blank must not block the second sheet's figure.
+  const merged = mergeSiteData(
+    { totalUnits: 300, grossSf: null, bedMix: {}, confidence: 0.8 },
+    { grossSf: 299441, bedMix: {}, confidence: 0.7 },
+  );
+  assert.strictEqual(merged.grossSf, 299441, 'the area summary filled what the site plan left blank');
+  assert.strictEqual(merged.totalUnits, 300);
+});

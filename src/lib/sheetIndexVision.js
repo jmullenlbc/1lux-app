@@ -348,6 +348,10 @@ export function indexTiles(box, {
         y,
         w: Math.min(1 - x, tw * (1 + hOverlap * 2)),
         h: Math.min(1 - y, th * (1 + vOverlap * 2)),
+        // Which column down the page this piece came out of. Carried so the
+        // reader can tell "blank because the list ended here" from "blank
+        // because something went wrong" -- see nextTileAfterBlank.
+        col: c,
       });
     }
   }
@@ -522,6 +526,35 @@ export function mergePicks(acc, next) {
 }
 
 /**
+ * Which close-up to read next, given the one just read came back empty.
+ *
+ * An index is set in columns and fills them top to bottom, so the bottom of the
+ * last column is usually blank paper. The close-ups are cut on a grid, which
+ * means those blanks get cut and queued like any other -- and each one is its
+ * own request and its own four or five seconds. On Mike's Lowell set the second
+ * column ended two thirds of the way up and five close-ups of nothing cost
+ * twenty seconds of a stranger's wait.
+ *
+ * So: an empty piece that is NOT the top of its column means the list ran out
+ * partway down, and everything below it in that column is blank too. Skip them.
+ *
+ * An empty piece that IS the top of its column is a different thing entirely --
+ * it may just mean the located block was padded a little high -- so that one is
+ * simply moved past, and the column gets its chance.
+ *
+ * @param {Array<number>} cols  the column each close-up came from, in order
+ * @param {number} done         index of the close-up just read
+ * @returns {number} the index to read next
+ */
+export function nextTileAfterBlank(cols, done) {
+  const col = cols?.[done];
+  if (col == null || cols[done - 1] !== col) return done + 1;
+  let next = done + 1;
+  while (next < cols.length && cols[next] === col) next++;
+  return next;
+}
+
+/**
  * Correct the offset using the sheet we actually landed on.
  *
  * The free anchor assumes the set is bound exactly as its index says. Progress
@@ -538,6 +571,147 @@ export function reanchor({ entries, seenSheetNumber, seenPage }) {
   if (pos == null || !Number.isInteger(seenPage)) return null;
   return seenPage - pos;
 }
+
+/** A sheet number taken apart: A1.04B -> discipline "A", value 104, rider "B". */
+export function parseSheetNumber(v) {
+  const m = /^([A-Z]+)(\d+)([A-Z]*)$/.exec(normalizeSheetNumber(v) ?? '');
+  return m ? { prefix: m[1], num: Number(m[2]), suffix: m[3] } : null;
+}
+
+/**
+ * Where a sheet number falls on the index, even when it is not listed.
+ *
+ * The index cannot be trusted to be complete. Mike's Lowell cover lists 80
+ * sheets over a set that binds 158: whole runs -- A1.05 through A1.19, an
+ * A1.04A and A1.04B, a CH series at the back -- were added after the cover was
+ * drawn and never listed. Hunting for a sheet by its number still works if an
+ * unlisted number can at least be PLACED: A1.09 is not a row, but it is
+ * certainly after A1.04 and before A1.20, and that is enough to steer by.
+ *
+ * A listed number returns its row. An unlisted one returns the half-row after
+ * its nearest listed neighbour in the same discipline -- or before the first,
+ * for a number smaller than anything listed. A number from a discipline the
+ * index has never heard of returns null: there is nothing to place it against.
+ */
+export function rowNear(entries, sheetNumber) {
+  const exact = positionOf(entries, sheetNumber);
+  if (exact != null) return exact;
+  const p = parseSheetNumber(sheetNumber);
+  if (!p) return null;
+
+  let before = null;
+  let after = null;
+  entries.forEach((e, i) => {
+    const q = parseSheetNumber(e.sheetNumber);
+    if (!q || q.prefix !== p.prefix) return;
+    const cmp = (q.num - p.num) || q.suffix.localeCompare(p.suffix);
+    if (cmp <= 0) before = i + 1;
+    else if (after == null) after = i + 1;
+  });
+  if (before != null) return before + 0.5;
+  if (after != null) return after - 0.5;
+  return null;
+}
+
+/**
+ * The next corner to look at, hunting the picked sheets through a set whose
+ * index cannot say where anything is.
+ *
+ * The positional mapping -- row N of the index plus a fixed offset -- assumes
+ * the index and the bound set agree. On Lowell they do not, in both directions
+ * at once: the set holds 78 sheets the cover never lists, and the site plan is
+ * plotted with no sheet number printed on it at all. Counting lands nowhere.
+ *
+ * But sheet numbers run in ORDER through a bound set, and a corner can be read
+ * in about a second. So hunt: look at a corner, place what it says on the index
+ * (rowNear), and now every picked sheet is known to be left or right of that
+ * page. A handful of looks brackets any sheet in a set of any size, however
+ * dishonest its cover.
+ *
+ * Pure and resumable: everything looked at so far arrives in `probes`
+ * (page -> sheet number, or null for a corner with nothing readable in it),
+ * and the answer is either the next page worth looking at or the finished
+ * targets. A sheet bracketed down to nothing but numberless pages is resolved
+ * to the first of them -- that is the Lowell site plan, bound right where the
+ * index implies, just mute -- and a sheet bracketed down to no pages at all is
+ * dropped as not actually in the set.
+ *
+ * @returns {{ targets: Array<{role, sheetNumber, position, page}>,
+ *             probePage: number|null, done: boolean }}
+ */
+export function planHunt({ entries, picks, probes = {}, totalPages = 0, max = MAX_VISION_PICKS }) {
+  const wants = [];
+  for (const role of VISION_ROLE_ORDER) {
+    const sheetNumber = picks?.[role];
+    if (!sheetNumber) continue;
+    const position = positionOf(entries, sheetNumber);
+    if (position == null) continue;
+    wants.push({ role, sheetNumber, position });
+  }
+  if (!wants.length || !entries?.length || totalPages < 1) {
+    return { targets: [], probePage: null, done: true };
+  }
+
+  // Corners already read, placed on the index. A corner that reads as a number
+  // the index cannot place tells us nothing about direction, so it counts as
+  // mute -- the hunt steers only by what it can place.
+  const marks = [{ page: 0, row: 0 }, { page: totalPages + 1, row: entries.length + 1 }];
+  const mute = new Set();
+  for (const [k, num] of Object.entries(probes)) {
+    const page = Number(k);
+    if (!Number.isInteger(page) || page < 1 || page > totalPages) continue;
+    const row = num == null ? null : rowNear(entries, num);
+    if (row == null) mute.add(page);
+    else marks.push({ page, row });
+  }
+  marks.sort((a, b) => a.page - b.page);
+  const probed = (page) => mute.has(page) || marks.some(m => m.page === page);
+
+  const targets = [];
+  for (const want of wants) {
+    if (targets.length >= max) break;
+
+    const hit = marks.find(m => m.row === want.position && m.page >= 1 && m.page <= totalPages);
+    if (hit) {
+      if (!targets.some(t => t.page === hit.page)) targets.push({ ...want, page: hit.page });
+      continue;
+    }
+
+    // Bracket the sheet between the nearest placed corners either side of it.
+    let lo = marks[0];
+    let hi = marks[marks.length - 1];
+    for (const m of marks) {
+      if (m.row < want.position && m.page > lo.page) lo = m;
+      if (m.row > want.position && m.page < hi.page) hi = m;
+    }
+    if (hi.page - lo.page < 2) continue; // no room left: the set does not bind this sheet
+
+    // Look in the middle of the bracket; if the middle has been looked at
+    // already, the nearest unlooked page inside the bracket.
+    const mid = Math.floor((lo.page + hi.page) / 2);
+    let probePage = null;
+    for (let d = 0; d <= hi.page - lo.page; d++) {
+      for (const c of [mid - d, mid + d]) {
+        if (c > lo.page && c < hi.page && !probed(c)) { probePage = c; break; }
+      }
+      if (probePage != null) break;
+    }
+    if (probePage != null) return { targets, probePage, done: false };
+
+    // Every page in the bracket has been looked at and none carries a number:
+    // the sheet is one of these mute pages, and the first is where the index's
+    // order puts it.
+    for (let pg = lo.page + 1; pg < hi.page; pg++) {
+      if (mute.has(pg) && !targets.some(t => t.page === pg)) {
+        targets.push({ ...want, page: pg });
+        break;
+      }
+    }
+  }
+  return { targets, probePage: null, done: true };
+}
+
+
 
 /**
  * Did we land where we aimed?

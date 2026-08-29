@@ -34,6 +34,7 @@
 export const SITE_NUMBER_KEYS = [
   'lotAcres', 'lotSf', 'totalUnits', 'parkingProvided', 'parkingRequired',
   'surfaceParking', 'garages', 'carports', 'buildingCount', 'clubhouseSf', 'amenitySf',
+  'grossSf',
 ];
 
 /** True when a vision read actually found a site number worth keeping. */

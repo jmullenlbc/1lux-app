@@ -4,6 +4,7 @@
 const PDFJS_RUNTIME_ASSETS = [
         './node_modules/pdfjs-dist/standard_fonts/*',
         './node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs',
+        './node_modules/pdfjs-dist/wasm/*',
 ];
 
 const nextConfig = {

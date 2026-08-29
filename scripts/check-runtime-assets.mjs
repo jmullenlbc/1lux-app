@@ -44,6 +44,7 @@ const REQUIREMENTS = [
   ].flatMap(route => [
     { route, asset: 'standard_fonts', why: 'pdfjs text extraction returns nothing without the standard fonts' },
     { route, asset: 'pdf.worker.mjs', why: 'pdfjs cannot open a document at all without its worker — getDocument() throws before page 1' },
+    { route, asset: 'jbig2.wasm', why: 'pdfjs skips fax-compressed (CCITT/JBIG2) images without its wasm decoders — tables render as solid black blocks (Lowell A1.03, 2026-08-29)' },
   ]),
   // headless chromium binary is dynamically imported
   ...[

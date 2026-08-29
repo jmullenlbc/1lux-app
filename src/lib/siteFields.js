@@ -114,6 +114,21 @@ export function stallBreakdown(vision) {
  */
 export const SITE_FIELD_DEFS = [
   {
+    key:   'grossSf',
+    label: 'Total Building Gross SF',
+    unit:  'sf',
+    read: (v) => {
+      const r = num(v?.grossSf);
+      if (!r) return null;
+      // The engine prices most interior scopes per square foot, so this one
+      // figure scales more dollars than any other field on this list. The
+      // prompt asks for the GROSS total when a sheet prints both gross and
+      // net, but the two labels sit a line apart on a crowded area summary --
+      // the reviewer confirms which one actually got read.
+      return { ...r, note: 'Read as the stated TOTAL BUILDING GROSS square footage, not net or rentable. Confirm the label on the drawing.' };
+    },
+  },
+  {
     key:   'lotSf',
     label: 'Lot Size SF',
     unit:  'sf',

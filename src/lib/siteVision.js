@@ -229,6 +229,7 @@ Return ONLY valid JSON — no markdown, no commentary:
   "buildingCount": number or null,
   "clubhouseSf": number or null,
   "amenitySf": number or null,
+  "grossSf": number or null,
   "buildingType": "string or null",
   "confidence": number (0.0-1.0),
   "foundSiteDataBlock": boolean,
@@ -242,6 +243,7 @@ CRITICAL RULES:
 - lotAcres/lotSf: use the site area if stated. If only acres are given, still fill lotAcres and leave lotSf null — do not convert.
 - parkingProvided is what the drawing says is PROVIDED; parkingRequired is what code REQUIRES. They differ, and both may appear in a parking table.
 - surfaceParking: only if the drawing distinguishes surface stalls from structured/garage parking.
+- grossSf: the TOTAL BUILDING gross square footage, only if a total is WRITTEN — look for a "TOTAL", "GROSS BUILDING AREA", "TOTAL BLDG", or "GSF" line in an area summary, code summary, or title block. If the sheet prints both a gross and a net (or rentable/leasable) total, report the GROSS figure. Do NOT add up per-floor or per-building areas yourself — a written total or null.
 - confidence: how legible and unambiguous the source text was. Hand-lettered but clear = 0.8. Blurry or inferred layout = 0.3.
 - foundSiteDataBlock: true only if you found an explicit data/summary block, as opposed to scattered callouts.
 - notes: two sentences at the outside. Name the block you read and flag anything you were unsure of. Do not restate the numbers you already reported, and do not walk through your arithmetic — a long note is time spent writing rather than reading, and this answer has thirty seconds to come back.`;
@@ -264,8 +266,15 @@ CRITICAL RULES:
  * returned a plausible, wrong unit count — so a change to it changes the
  * accuracy of the task, and the history from the old setting should not carry
  * over to the new one.
+ *
+ * 2026-08-29 adds grossSf — the stated total building gross square footage.
+ * The engine prices most interior scopes per square foot, so this is the
+ * single most dollar-heavy number a drawing can state, and until now the
+ * vision path had nowhere to put it (the Lowell area summary printed
+ * 299,441 GSF and the read had to drop it on the floor). Gross over net is
+ * deliberate: budgets here are priced on gross building area.
  */
-export const SITE_VISION_PROMPT_VERSION = `siteVision-2026-08-28-${MAX_EDGE}px`;
+export const SITE_VISION_PROMPT_VERSION = `siteVision-2026-08-29-${MAX_EDGE}px`;
 
 /**
  * Run vision extraction over rendered pages.
@@ -327,7 +336,7 @@ export async function extractSiteData(images, anthropic, { model = modelFor('dra
 const SITE_FIELDS = [
   'lotAcres', 'lotSf', 'totalUnits', 'parkingProvided', 'parkingRequired',
   'surfaceParking', 'garages', 'carports', 'buildingCount', 'clubhouseSf',
-  'amenitySf', 'buildingType',
+  'amenitySf', 'grossSf', 'buildingType',
 ];
 const BED_FIELDS = ['studio', 'oneBed', 'twoBed', 'threeBed'];
 

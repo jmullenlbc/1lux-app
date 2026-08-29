@@ -6,7 +6,7 @@ import { renderPdfPages, renderPdfCrops, extractSiteData, mergeSiteData, validat
 import {
   INDEX_CANDIDATE_PAGES, locateIndexBlock, readIndexTile, probeSheetNumber,
   padBox, indexTiles, offsetFromSelf, mapPicksToPages, reanchor, landedRight,
-  mergeIndexEntries, mergePicks, TITLE_BLOCK_BOX,
+  mergeIndexEntries, mergePicks, TITLE_BLOCK_BOX, nextTileAfterBlank, planHunt,
 } from '@/lib/sheetIndexVision';
 import { buildSheetIndex, pickKeySheets, pagesToRender, SET_PAGE_THRESHOLD } from '@/lib/sheetIndex';
 import { openUploadedPdf } from '@/lib/pdfRange';
@@ -215,6 +215,14 @@ export async function POST(request) {
       return bad('too_large', `That file is larger than ${mb(MAX_SHEET_BYTES)} MB.`, 413);
     }
     buffer = Buffer.from(await file.arrayBuffer());
+  }
+
+  // A visitor's first request lands on a server that may need fifteen seconds
+  // to wake, and the front door hangs up at thirty -- so the intake page rings
+  // the bell the moment it opens, while the visitor is still choosing a file.
+  // This does nothing on purpose; being asked is the point.
+  if (stage === 'warm') {
+    return NextResponse.json({ stage: 'warm', ok: true });
   }
 
   if (stage && !ALL_STAGES.includes(stage)) {
@@ -673,10 +681,17 @@ async function stageIndex(scanKey, state) {
     }
 
     const crops = await renderPdfCrops(opened.source, { page: sheet.page, rects });
+    // Parked all at once, not one after another. Fourteen close-ups stored in
+    // turn is fourteen round trips to S3 inside a single request, and this
+    // request is already the longest of the read -- measured at 24 seconds on
+    // Mike's Lowell set against a front door that hangs up at 30.
+    const stored = await Promise.all(crops.map(c => putSheetImage(c.png, 'image/png')));
     const tileKeys = [];
-    for (const c of crops) {
-      const key = await putSheetImage(c.png, 'image/png');
-      if (key) tileKeys.push(key);
+    const tileCols = [];
+    for (let i = 0; i < stored.length; i++) {
+      if (!stored[i]) continue;
+      tileKeys.push(stored[i]);
+      tileCols.push(crops[i].rect?.col ?? 0);
     }
     if (!tileKeys.length) return nothing('no_storage');
 
@@ -687,6 +702,7 @@ async function stageIndex(scanKey, state) {
         selfPage: sheet.page,
         selfSheetNumber,
         tileKeys,
+        tileCols,
         tilesDone: 0,
         entries: [],
         picks: null,
@@ -734,6 +750,9 @@ async function stageSheets(scanKey, state) {
   const client = anthropicClient();
   if (!client) return nothing('no_client');
 
+  // A hunt already under way continues; the tiles below are all read by now.
+  if (vi.hunt) return await stageHunt(scanKey, state, client, nothing);
+
   const done = vi.tilesDone ?? 0;
   const png = await getSheetImage(vi.tileKeys[done]);
   if (!png) return nothing('tiles_gone');
@@ -748,7 +767,12 @@ async function stageSheets(scanKey, state) {
 
     const entries = mergeIndexEntries(vi.entries ?? [], read.data.entries);
     const picks = mergePicks(vi.picks, read.data.picks);
-    const tilesDone = done + 1;
+    // An empty close-up partway down a column means the list ran out there, so
+    // the rest of that column is blank paper and reading it costs a request
+    // each for nothing. See nextTileAfterBlank.
+    const tilesDone = read.data.entries.length
+      ? done + 1
+      : nextTileAfterBlank(vi.tileCols, done);
 
     if (tilesDone < vi.tileKeys.length) {
       await putScanStateAt(scanKey, {
@@ -761,9 +785,24 @@ async function stageSheets(scanKey, state) {
       });
     }
 
+    // The cover usually lists itself, and that gives the offset for free --
+    // and when it does, counting down the list is one cheap step. When it does
+    // not, counting is abandoned for hunting: read sheet numbers out of
+    // corners and home in. Counting also quietly assumes the index is HONEST,
+    // which Lowell's is not -- 80 rows over 158 bound sheets -- and hunting is
+    // the only one of the two that survives that.
     const offset = offsetFromSelf({
       entries, selfSheetNumber: vi.selfSheetNumber, selfPage: vi.selfPage,
     });
+    if (offset == null) {
+      await putScanStateAt(scanKey, {
+        ...state,
+        visionIndex: { ...vi, entries, picks, tilesDone, offset: null, hunt: { probes: {} } },
+      });
+      return NextResponse.json({
+        stage: 'sheets', more: true, hunting: true, rows: entries.length,
+      });
+    }
     const { targets } = mapPicksToPages({
       entries, picks, offset, totalPages: state.totalPages ?? 0,
     });
@@ -793,6 +832,96 @@ async function stageSheets(scanKey, state) {
     console.error('intake/parse: index read failed for', state.fileName, e?.message ?? e);
     return nothing('failed');
   }
+}
+
+/**
+ * Which pages to look at when the index sheet does not list itself.
+ *
+ * The two sheets straight after it, because those are the ones the list is
+ * most likely to name: a set opens with its cover and then its first listed
+ * drawing. Two, not one, so a divider or a bound-in addendum on the first of
+ * them does not cost the whole read.
+ */
+/** Corners looked at per request; several requests may be spent hunting. */
+const HUNT_PROBES_PER_REQUEST = 5;
+/** Corners looked at per hunt, total. Three sheets should fall well inside it. */
+const MAX_HUNT_PROBES = 16;
+
+/**
+ * Find the picked sheets by looking, not counting.
+ *
+ * planHunt (sheetIndexVision.js) says which corner to look at next; this reads
+ * it and hands the answer back, a few corners per request so no single request
+ * outstays the front door. When the plan settles, the targets are parked
+ * exactly as the counting path would have parked them, and the read continues
+ * none the wiser about which of the two found its sheets.
+ */
+async function stageHunt(scanKey, state, client, nothing) {
+  const vi = state.visionIndex;
+  const probes = { ...(vi.hunt?.probes ?? {}) };
+  const spent = () => Object.keys(probes).length;
+
+  let plan = planHunt({
+    entries: vi.entries, picks: vi.picks, probes, totalPages: state.totalPages ?? 0,
+  });
+
+  if (plan.probePage != null && spent() < MAX_HUNT_PROBES) {
+    const opened = await openSource({ s3Key: state.s3Key, ext: state.ext || 'pdf' });
+    if (opened.error) return nothing('open_failed');
+    try {
+      for (let i = 0; i < HUNT_PROBES_PER_REQUEST
+        && plan.probePage != null && spent() < MAX_HUNT_PROBES; i++) {
+        const corner = await renderPdfCrops(opened.source, {
+          page: plan.probePage, rects: [TITLE_BLOCK_BOX],
+        });
+        probes[plan.probePage] = corner[0]?.png
+          ? await probeSheetNumber(corner[0].png, client('intake.sheetProbe'))
+          : null;
+        plan = planHunt({
+          entries: vi.entries, picks: vi.picks, probes, totalPages: state.totalPages ?? 0,
+        });
+      }
+    } catch (e) {
+      console.error('intake/parse: hunt failed for', state.fileName, e?.message ?? e);
+      return nothing('failed');
+    } finally {
+      if (opened.handle?.destroy) await opened.handle.destroy();
+    }
+  }
+
+  if (plan.probePage != null && spent() < MAX_HUNT_PROBES) {
+    await putScanStateAt(scanKey, {
+      ...state, visionIndex: { ...vi, hunt: { probes } },
+    });
+    return NextResponse.json({
+      stage: 'sheets', more: true, hunting: true, probed: spent(),
+    });
+  }
+
+  const targets = plan.targets;
+  if (!targets.length) {
+    await putScanStateAt(scanKey, {
+      ...state, visionIndex: { ...vi, hunt: { probes }, targets: [] },
+    });
+    return nothing('hunt_lost');
+  }
+
+  const chosenPages = targets.map(t => t.page);
+  console.warn('intake/parse: hunted', targets.map(t => `${t.sheetNumber}->p${t.page}`).join(' '),
+    'in', spent(), 'looks');
+  await putScanStateAt(scanKey, {
+    ...state,
+    chosenPages,
+    sheetsRead: chosenPages,
+    visionIndex: { ...vi, hunt: { probes }, offset: null, targets },
+  });
+  return NextResponse.json({
+    stage: 'sheets',
+    mapped: true,
+    rows: vi.entries?.length ?? 0,
+    sheetsRead: chosenPages,
+    picked: targets.map(({ role, sheetNumber, page }) => ({ role, sheetNumber, page })),
+  });
 }
 
 /**
