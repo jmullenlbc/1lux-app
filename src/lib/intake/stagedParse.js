@@ -40,6 +40,20 @@ export const PARSE_STEPS = [
 ];
 
 /**
+ * Plain words for the step that was running, for an error a GC has to read.
+ * Exported so the dropzone says the same thing this file does.
+ */
+export const STEP_WORDS = {
+  scan:   'looking through the set',
+  render: 'opening the sheets',
+  matrix: 'reading the unit counts',
+  site:   'reading the site plan',
+};
+
+/** How many slices the scan may take before we stop asking. See stageScan. */
+const MAX_SCAN_SLICES = 30;
+
+/**
  * Post one stage. A non-2xx carries a message written for a public reader.
  *
  * `file` is only ever set on the first step, and only when there was nowhere to
@@ -62,7 +76,13 @@ async function stage(body, signal, file) {
   });
   const d = await r.json().catch(() => ({}));
   if (!r.ok) {
-    const err = new Error(d.message || 'Could not read this file.');
+    // Every error this route returns carries a message, so a failure WITHOUT
+    // one did not come from our code: it is the front door hanging up at ~30
+    // seconds, or the Lambda dying. That used to print a bare "Could not read
+    // this file", which reads as "your drawing is bad" and names neither the
+    // step nor the status -- the two things that actually locate the fault.
+    const err = new Error(d.message
+      || `The read stopped while ${STEP_WORDS[body.stage] ?? 'reading the file'} (${r.status}). Please try again. (R3/${body.stage})`);
     err.shown = true;          // already public-readable; don't dress it up
     throw err;
   }
@@ -85,7 +105,23 @@ async function stage(body, signal, file) {
  */
 export async function runStagedParse({ s3Key, file, fileName, onStep = () => {}, signal }) {
   onStep('scan', 'active');
-  const scan = await stage({ stage: 'scan', s3Key, fileName }, signal, s3Key ? null : file);
+  let scan = await stage({ stage: 'scan', s3Key, fileName }, signal, s3Key ? null : file);
+
+  // A set can be too big to read inside one request even now: 158 sheets of a
+  // 60 MB architectural set took longer than the front door allows, and the
+  // whole read died on its first step. So the scan is allowed to come back and
+  // say "still reading" -- each slice is short, and together they finish.
+  for (let slice = 0; scan.staging && scan.more; slice++) {
+    if (slice >= MAX_SCAN_SLICES) {
+      const err = new Error(
+        'This set is taking longer to read than we can hold a line open for. '
+        + "Send it to budgets@ilcstudios.com and we'll take it from there.");
+      err.shown = true;
+      throw err;
+    }
+    onStep('scan', 'active', { totalPages: scan.totalPages, pagesRead: scan.pagesRead });
+    scan = await stage({ stage: 'scan', scanKey: scan.scanKey }, signal);
+  }
 
   // The server can decline to stage — no bucket to park the scan in. That is
   // not a failure; it means "this one is small enough to do in one go".

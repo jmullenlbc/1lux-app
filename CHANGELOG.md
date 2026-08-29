@@ -5,6 +5,86 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [The read that never got past the first step] - August 28, 2026 - DEPLOYED
+
+Mike dropped a 57.2 MB, 158-sheet Lowell architectural set into the public
+conceptual budget page and got a FAILED chip reading "Could not read this file."
+
+The file was fine. Reproduced against the live app: the FIRST step - looking
+through the set - came back as an empty 504 at 28.06 seconds, every time. A
+38.4 MB Summit set passed the same step at 21.19s, which is why the wall was not
+obvious: we were sitting just under it.
+
+### Fixed: the reading budget still assumed the old one-request path
+Splitting the read into four steps capped each REQUEST at about 30 seconds, but
+the text-extraction budget inside step one was left at 90 seconds - sized for
+the old single request under a 5-minute Lambda ceiling. Any set big enough to
+spend it dies at the front door with nothing to show.
+
+Step one now reads in 12-second slices: it reads for a while, parks the pages it
+banked, and asks the browser to call it again. Each request stays short no
+matter how large the set is. Verified over real HTTP on Mike's actual 60 MB
+file - 118 sheets in the first slice, the remaining 40 in the second, both well
+inside the ceiling - and proved separately that a sliced read returns output
+byte-identical to one long read, on a 24-page set and on the 158-page set.
+
+### Fixed: one honest upload tripped the abuse throttle
+The endpoint allowed 12 requests a minute per address, written when a read WAS
+one request. A staged read of a large set is a dozen-plus, so a GC got "Too many
+uploads. Please wait a moment and try again." partway through his own upload -
+caught the moment the slice loop was first driven over HTTP.
+
+Two counters now. The one that protects the wallet - 12 a minute - is charged
+only when a request STARTS a read, which is the only thing that can cost a model
+call. Continuations, which cannot be made without first paying for a scan key,
+sit under a loose 150-a-minute flood brake.
+
+### Fixed: running out of room was being treated as "call me back"
+The reader has a memory brake that stops a huge set from filling the box. Once
+step one could be resumed, that brake started saying "pause" when it meant
+"stop": the next slice re-opened the same file, met the same pressure, stopped
+in the same place, and the read went round in circles until it gave up. Running
+out of TIME is resumable; running out of ROOM is not. Five tests cover the loop.
+
+### Fixed: a slice that read nothing asked for itself again
+Opening a 60 MB set by byte range can outlast the slice budget on its own, which
+left a slice reading zero pages and handing back the same starting point it was
+given. Every slice now attempts at least one page, so the loop always moves
+forward. The memory brake keeps its no-first-page rule - a read already out of
+room must not read one more page to prove it.
+
+### Fixed: the error told a GC nothing
+"Could not read this file." reads as "your drawing is bad". It was printed
+whenever a failure arrived without a message of our own - which is exactly the
+signature of the front door hanging up, not of a bad file. A message-less
+failure now names the step and the status: "The read stopped while looking
+through the set (504). Please try again. (R3/scan)".
+
+### Found, not fixed: this particular set is pictures only
+Independently confirmed with two different PDF readers - all 158 sheets of the
+Lowell check set contain zero characters. It is a fully rasterised plot, so the
+only way in is looking at the sheets as images. With no text to work from, the
+reader falls back to sheet 1, which on a 158-sheet set is the cover and drawing
+index - no numbers on it. So this file now completes instead of failing, but
+comes back empty. Reading the index sheet as a picture to find the site plan and
+code summary is the next piece of work, and it is not built.
+
+### Files changed
+- `src/lib/drawingExtract.js` - resumable extraction: `fromPage`, `nextPage`,
+  `braked`; the first-page progress guarantee
+- `src/app/api/intake/parse/route.js` - 12-second scan slices, the scan-resume
+  branch, the split throttle
+- `src/lib/intake/stagedParse.js` - the slice loop, shared step wording, coded
+  message for a message-less failure
+- `src/components/intake/DrawingDropzone.jsx` - uses the shared step wording
+- `scripts/tests/drawingExtract.test.mjs` - five slice-loop tests
+
+### Verification
+578 unit tests pass, `verify` 11 gates pass, DN-leak 8 pass, smoke 7 pass, clean
+production build, all 26 runtime assets present in their Lambda traces.
+
+---
+
 ## [Four different failures, one useless sentence] - August 25, 2026 - DEPLOYED
 
 Mike uploaded a 11.6 MB Lowell architectural set from his phone, twice - once

@@ -110,10 +110,48 @@ export const maxDuration = 300;
 
 const MAX_BYTES = MAX_INTAKE_UPLOAD_BYTES;          // 400 MB, shared with the presign desk
 const MAX_SHEET_BYTES = 50 * 1024 * 1024;           // spreadsheets are read whole
-const LIMIT = { limit: 12, windowMs: 60_000 };
+/**
+ * Two throttles, because one read is now many requests.
+ *
+ * UPLOADS is the one that protects the wallet: it is charged only when a
+ * request STARTS a read, which is the only thing that can cost an Anthropic
+ * call. 12 fresh drawing sets a minute from one address is already generous.
+ *
+ * REQUESTS is a flood brake in front of it. A staged read of a large set is a
+ * dozen-plus short requests -- scan slices, then render/matrix/site/done -- so
+ * the old single 12-per-minute counter rejected an honest GC partway through
+ * his own upload with "Too many uploads. Please wait a moment." Continuations
+ * are cheap and cannot be made without first paying for a scan key, so they
+ * get the loose limit; the tight one still stands where the money is.
+ */
+const UPLOADS  = { limit: 12,  windowMs: 60_000 };
+const REQUESTS = { limit: 150, windowMs: 60_000 };
+
+const tooMany = (retryAfterSec) => NextResponse.json(
+  { error: 'rate_limited', message: 'Too many uploads. Please wait a moment and try again.' },
+  { status: 429, headers: { 'Retry-After': String(retryAfterSec) } },
+);
 
 /** Scanning budget for a big set. Well under maxDuration, above a normal scan. */
 const BIG_SET_SCAN_MS = 90_000;
+
+/**
+ * Scanning budget for ONE slice of a staged read.
+ *
+ * The staged path exists because CloudFront hangs up at about 30 seconds, so
+ * BIG_SET_SCAN_MS is not a budget it may ever spend -- a 60 MB, 158-sheet set
+ * used the whole 90s and died at 28.06s with nothing to show. A slice reads for
+ * this long, parks what it got, and asks to be called again, which keeps every
+ * request short no matter how large the set is.
+ *
+ * 12s rather than something closer to the wall because the LAST slice also pays
+ * for opening the file, the sheet-pick model call, and parking the result on
+ * top of its reading time.
+ */
+const SCAN_SLICE_MS = 12_000;
+
+/** A backstop on slices, so a set that never finishes cannot loop forever. */
+const MAX_SCAN_SLICES = 30;
 
 /**
  * Stages that resume from a parked scan rather than from a file.
@@ -130,13 +168,9 @@ const bad = (code, message, status = 400) =>
 
 export async function POST(request) {
   const ip = clientIp(request);
-  const { allowed, retryAfterSec } = rateLimit(`intake-parse:${ip}`, LIMIT);
-  if (!allowed) {
-    return NextResponse.json(
-      { error: 'rate_limited', message: 'Too many uploads. Please wait a moment and try again.' },
-      { status: 429, headers: { 'Retry-After': String(retryAfterSec) } },
-    );
-  }
+  // The flood brake goes first, before we agree to read a body off the wire.
+  const flood = rateLimit(`intake-parse-req:${ip}`, REQUESTS);
+  if (!flood.allowed) return tooMany(flood.retryAfterSec);
 
   // ── Get the bytes, or the scan key, from whichever door they came in ──
   let buffer = null;
@@ -180,6 +214,44 @@ export async function POST(request) {
 
   if (stage && !ALL_STAGES.includes(stage)) {
     return bad('bad_request', 'Unknown stage.');
+  }
+
+  // Now that we know which kind of request this is, charge the upload counter
+  // -- but only for one that begins a read. Everything carrying a scan key is
+  // continuing work already paid for.
+  if (!scanKey) {
+    const fresh = rateLimit(`intake-parse:${ip}`, UPLOADS);
+    if (!fresh.allowed) return tooMany(fresh.retryAfterSec);
+  }
+
+  // ── A scan that is being continued ──
+  // Reading a big set takes longer than one request is allowed to run, so the
+  // scan comes back for another slice. It carries a scan key like the stages
+  // below, but unlike them it still has to open the file to read more of it.
+  if (stage === 'scan' && scanKey) {
+    const parked = await getScanState(scanKey);
+    if (!parked.ok) return bad(parked.code, parked.message, parked.code === 'bad_key' ? 400 : 410);
+
+    const ext = parked.state.ext || 'pdf';
+    const opened = await openSource({ s3Key: parked.state.s3Key, ext });
+    if (opened.error) return opened.error;
+    try {
+      return await stageScan({
+        source:  opened.source,
+        opened:  opened.handle,
+        name:    parked.state.fileName,
+        ext,
+        s3Key:   parked.state.s3Key,
+        state:   parked.state,
+        scanKey,
+      });
+    } catch (e) {
+      return unexpected(e, parked.state?.fileName || 'upload');
+    } finally {
+      // The uploaded file stays put -- later slices and the render stage still
+      // have to read from it. Only `done` clears it.
+      if (opened.handle?.destroy) await opened.handle.destroy();
+    }
   }
 
   // ── Stages that resume from a parked scan ──
@@ -302,12 +374,22 @@ function unexpected(e, name) {
  * 400-page set it is the difference between reading the site plan and reading
  * the title page. The model is only paid for when there is actually a set.
  */
-async function readAndPick({ source, name, ext, opened, client }) {
+async function readAndPick({ source, name, ext, opened, client, slice = null }) {
   let extracted;
   try {
     extracted = await extractDrawingText(
       source, name,
-      opened?.ranged ? { timeBudgetMs: BIG_SET_SCAN_MS, shouldStop: opened.overBudget } : {},
+      {
+        ...(opened?.ranged ? { timeBudgetMs: BIG_SET_SCAN_MS, shouldStop: opened.overBudget } : {}),
+        // A staged read overrides the budget above: it is bounded by the front
+        // door, not by the Lambda. It also carries the pages earlier slices
+        // already read, and the page to pick up from.
+        ...(slice ? {
+          timeBudgetMs: SCAN_SLICE_MS,
+          fromPage:     slice.fromPage,
+          priorPages:   slice.priorPages ?? undefined,
+        } : {}),
+      },
     );
   } catch (e) {
     // A damaged or mislabeled file makes the extractor throw, and an unhandled
@@ -319,6 +401,11 @@ async function readAndPick({ source, name, ext, opened, client }) {
         'This file appears to be damaged or isn\'t really a PDF or Excel file. Try re-exporting it and uploading again.', 422),
     };
   }
+
+  // Not finished reading. There is nothing to judge yet and nothing to pick
+  // from, so this goes straight back to the caller, which parks it and asks
+  // for another slice.
+  if (extracted.partial) return { partial: true, extracted };
 
   // Images and unsupported types are user-fixable, not server errors. A missing
   // text layer is NOT one of those — it is the scanned-set case, which vision
@@ -384,25 +471,22 @@ async function renderAndKeep({ source, chosenPages, opened, keepPng = false }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Stage 1 — read the text layer, pick the sheets, park the result. */
-async function stageScan({ source, opened, name, ext, s3Key, buffer }) {
+async function stageScan({ source, opened, name, ext, s3Key, buffer, state = null, scanKey = null }) {
   const client = anthropicClient();
   if (!client) return unavailable();
 
-  const picked = await readAndPick({ source, name, ext, opened, client });
+  const picked = await readAndPick({
+    source, name, ext, opened, client,
+    // Always a slice here. A staged read is bounded by the front door, and the
+    // set may well be too big to read inside one request.
+    slice: { fromPage: state?.nextPage ?? 1, priorPages: state?.pages ?? null },
+  });
   if (picked.error) return picked.error;
 
-  // A scanned set has no text layer, so there is no sheet index to pick from
-  // and nothing lands in `chosenPages` -- but that is precisely the case where
-  // the vision read is the ONLY way in, so something has to be drawn. Page 1,
-  // matching what the single-request path falls back to.
-  const chosenPages = picked.chosenPages.length || ext !== 'pdf'
-    ? picked.chosenPages
-    : [1];
-
-  // Local dev has no bucket, so a multipart upload arrives as bytes with no key
-  // and the later stages would have nothing to open. Park it on disk instead.
-  // In production the browser has already PUT the file and `s3Key` is set.
-  const fileKey = s3Key || await putUploadedObjectDev(buffer, ext);
+  // Where the file lives, so the next slice and the later stages can reopen it.
+  // On a resume it was written down the first time round; on the first slice a
+  // local multipart upload has to be parked before anything can find it again.
+  const fileKey = state?.s3Key || s3Key || await putUploadedObjectDev(buffer, ext);
 
   // Nowhere to leave the file means the later stages have nothing to open. Only
   // reachable from a multipart POST in production -- which Amplify caps at
@@ -411,7 +495,53 @@ async function stageScan({ source, opened, name, ext, s3Key, buffer }) {
     return NextResponse.json({ stage: 'scan', staging: false, fileName: name });
   }
 
-  const scanKey = await putScanState({
+  // Resuming writes over the object the browser already has a key for. Minting
+  // a second key would leave it holding a stale one.
+  const park = async (next) => (scanKey ? putScanStateAt(scanKey, next) : putScanState(next));
+
+  // -- Still reading --
+  // Park the pages banked so far and the page to pick up from, then ask for
+  // another short request. Nothing is judged yet: a set is not "without a text
+  // layer" until every sheet has actually been looked at.
+  if (picked.partial) {
+    const key = await park({
+      fileName:    name,
+      ext,
+      s3Key:       fileKey,
+      text:        null,
+      pages:       picked.extracted.scan.pages,
+      hasText:     null,
+      totalPages:  picked.extracted.scan.totalPages ?? null,
+      nextPage:    picked.extracted.scan.nextPage,
+      chosenPages: null,
+      sheetsRead:  null,
+      keptSheets:  null,
+    });
+    if (!key) {
+      console.error('intake/parse: could not park partial scan for', name);
+      return NextResponse.json({ stage: 'scan', staging: false, fileName: name });
+    }
+    return NextResponse.json({
+      stage:      'scan',
+      staging:    true,
+      more:       true,
+      scanKey:    key,
+      fileName:   name,
+      totalPages: picked.extracted.scan.totalPages ?? null,
+      pagesRead:  picked.extracted.scan.pages.length,
+    });
+  }
+
+  // -- Finished reading --
+  // A scanned set has no text layer, so there is no sheet index to pick from
+  // and nothing lands in `chosenPages` -- but that is precisely the case where
+  // the vision read is the ONLY way in, so something has to be drawn. Page 1,
+  // matching what the single-request path falls back to.
+  const chosenPages = picked.chosenPages.length || ext !== 'pdf'
+    ? picked.chosenPages
+    : [1];
+
+  const key = await park({
     fileName:    name,
     ext,
     s3Key:       fileKey,
@@ -419,14 +549,15 @@ async function stageScan({ source, opened, name, ext, s3Key, buffer }) {
     pages:       picked.extracted.pages ?? null,
     hasText:     picked.extracted.ok === true,
     totalPages:  picked.extracted.scan?.totalPages ?? null,
+    nextPage:    null,
     chosenPages,
     sheetsRead:  picked.sheetsRead,
     keptSheets:  null,
   });
 
-  if (!scanKey) {
+  if (!key) {
     // Nowhere to park it means the staged read cannot continue. Rather than
-    // fail, tell the browser to fall back to the one-shot path — which is the
+    // fail, tell the browser to fall back to the one-shot path -- which is the
     // right answer for the small files that can still fit through it.
     console.error('intake/parse: could not park scan state for', name);
     return NextResponse.json({ stage: 'scan', staging: false, fileName: name });
@@ -435,7 +566,7 @@ async function stageScan({ source, opened, name, ext, s3Key, buffer }) {
   return NextResponse.json({
     stage:      'scan',
     staging:    true,
-    scanKey,
+    scanKey:    key,
     fileName:   name,
     totalPages: picked.extracted.scan?.totalPages ?? null,
     sheetsRead: picked.sheetsRead,

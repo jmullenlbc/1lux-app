@@ -5,7 +5,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fileExt, pickModel, mergeProposals, IMAGE_EXTS, ACCEPTED_EXTS } from '../../src/lib/drawingExtract.js';
+import { fileExt, pickModel, mergeProposals, extractPdfPages, IMAGE_EXTS, ACCEPTED_EXTS } from '../../src/lib/drawingExtract.js';
 import { modelFor } from '../../src/lib/aiModels.js';
 
 test('fileExt is case-insensitive and handles dotted names', () => {
@@ -303,4 +303,72 @@ test('no kept sheets at all comes back null, not an empty list', () => {
   // heading over nothing.
   const m = mergeProposals([{ fileName: 'a.pdf', proposal: p([]) }]);
   assert.equal(m.keptSheets, null);
+});
+
+
+// ── Reading a set in slices ──────────────────────────────────────────────────
+// A real set is too big to read inside one request: Amplify's front door hangs
+// up at ~30 seconds, so the scan reads for a few seconds, parks what it got,
+// and is called again. These cover the two ways that loop can go wrong.
+
+/** A stand-in pdfjs document. `delayMs` is how long each page takes to read. */
+function fakeDoc(numPages, delayMs = 0) {
+  return {
+    numPages,
+    async getPage(n) {
+      if (delayMs) await new Promise(r => setTimeout(r, delayMs));
+      return {
+        getTextContent: async () => ({ items: [{ str: `page ${n}` }] }),
+        cleanup() {},
+      };
+    },
+  };
+}
+
+test('slices resume where the last one stopped and cover the set exactly once', async () => {
+  const doc = fakeDoc(10, 6);
+  const all = [];
+  let from = 1;
+  for (let guard = 0; guard < 20; guard++) {
+    const r = await extractPdfPages(doc, { fromPage: from, timeBudgetMs: 20 });
+    all.push(...r.pages.map(p => p.page));
+    if (!r.nextPage) break;
+    assert.ok(r.nextPage > from, 'a slice that does not move forward would loop forever');
+    from = r.nextPage;
+  }
+  assert.deepEqual(all, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+});
+
+test('a slice whose budget is already gone still reads one page', async () => {
+  // Opening a 60 MB set by byte range can itself outlast the slice budget. If
+  // that meant reading nothing, the browser would ask again, get nothing again,
+  // and the read would never finish -- which is the bug this guards.
+  const r = await extractPdfPages(fakeDoc(5, 2), { fromPage: 2, timeBudgetMs: 0 });
+  assert.equal(r.pages.length, 1);
+  assert.equal(r.pages[0].page, 2);
+  assert.equal(r.nextPage, 3);
+});
+
+test('a read stopped by the memory brake is finished, not paused', async () => {
+  // Running out of TIME is resumable. Running out of ROOM is not: the next
+  // slice would re-open the same file, measure the same pressure and stop in
+  // the same place, forever. The pages worth having are at the front anyway.
+  const r = await extractPdfPages(fakeDoc(50), { shouldStop: () => true });
+  assert.equal(r.braked, true);
+  assert.equal(r.nextPage, null, 'a braked read must not ask to be resumed');
+  assert.equal(r.pages.length, 0, 'an over-ceiling read must not read one more page');
+});
+
+test('finishing the set reports nothing left to read', async () => {
+  const r = await extractPdfPages(fakeDoc(3), { timeBudgetMs: 5000 });
+  assert.equal(r.scannedPages, 3);
+  assert.equal(r.nextPage, null);
+  assert.equal(r.braked, false);
+});
+
+test('the page cap ends the read rather than asking for pages that do not exist', async () => {
+  const r = await extractPdfPages(fakeDoc(100), { maxPages: 4, timeBudgetMs: 5000 });
+  assert.equal(r.scannedPages, 4);
+  assert.equal(r.nextPage, null);
+  assert.equal(r.stoppedEarly, true);
 });

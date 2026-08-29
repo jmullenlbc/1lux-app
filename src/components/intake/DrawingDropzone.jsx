@@ -4,7 +4,7 @@ import { useState, useRef, useCallback } from 'react';
 // model and would pull server-only code (node:crypto) into the browser bundle.
 import { mergeProposals } from '@/lib/mergeProposals';
 import { uploadDirect } from '@/lib/uploadClient';
-import { runStagedParse } from '@/lib/intake/stagedParse';
+import { runStagedParse, STEP_WORDS } from '@/lib/intake/stagedParse';
 import ReadingSteps from './ReadingSteps';
 
 /**
@@ -63,14 +63,6 @@ let uid = 0;
  * without a bucket). Both are small-file cases that finish well inside the
  * 30-second ceiling.
  */
-/** Plain words for the step that was running, for an error a GC has to read. */
-const STEP_WORDS = {
-  scan:   'looking through the set',
-  render: 'opening the sheets',
-  matrix: 'reading the unit counts',
-  site:   'reading the site plan',
-};
-
 async function parseInOneRequest(item, sent) {
   try {
     const r = sent

@@ -184,7 +184,12 @@ export async function xlsxToText(buffer) {
  * already broken prod once — `scripts/check-runtime-assets.mjs` guards it.
  */
 export async function extractPdfPages(source, opts = {}) {
-  const { maxPages = MAX_PDF_PAGES, timeBudgetMs = PDF_SCAN_BUDGET_MS, shouldStop } = opts;
+  const {
+    maxPages = MAX_PDF_PAGES,
+    timeBudgetMs = PDF_SCAN_BUDGET_MS,
+    shouldStop,
+    fromPage = 1,
+  } = opts;
   const started = Date.now();
 
   try {
@@ -201,13 +206,32 @@ export async function extractPdfPages(source, opts = {}) {
     const pages = [];
     let stoppedEarly = false;
 
-    for (let i = 1; i <= limit; i++) {
-      if (Date.now() - started > timeBudgetMs) { stoppedEarly = true; break; }
+    // The first page this call has NOT read. A staged read resumes from it, so
+    // it has to move forward on every outcome except one -- see the catch.
+    let nextPage = fromPage;
+
+    // True when the read was cut short by the memory/byte brake rather than by
+    // this slice running out of time. The two are NOT the same thing and the
+    // caller must not confuse them -- see `nextPage` in the return below.
+    let braked = false;
+
+    for (let i = fromPage; i <= limit; i++) {
+      // `i > fromPage`, deliberately: every slice must attempt at least one
+      // page. Opening a big set by byte range can itself eat the whole slice
+      // budget, and a slice that reads nothing hands back the same `nextPage`
+      // it was given -- so the browser asks again, gets nothing again, and the
+      // read never finishes. One page per slice is the floor that guarantees
+      // the loop always moves forward.
+      if (i > fromPage && Date.now() - started > timeBudgetMs) { stoppedEarly = true; break; }
       // A second brake, used by the ranged reader: stop once we have pulled
       // more bytes than we are willing to hold. Time alone is not enough — a
       // fast connection can drag a 400 MB set into memory well inside the time
       // budget, which is the exact failure this whole path exists to prevent.
-      if (shouldStop?.()) { stoppedEarly = true; break; }
+      //
+      // No first-page exemption here, unlike the time check above: a read that
+      // is ALREADY out of room must not read one more page to prove it. It
+      // still cannot spin, because a braked read is finished, not paused.
+      if (shouldStop?.()) { stoppedEarly = true; braked = true; break; }
 
       // Bounded, because a page read can hang rather than fail. When pages are
       // fetched by byte range, pdfjs asks storage for bytes and then waits for
@@ -224,8 +248,15 @@ export async function extractPdfPages(source, opts = {}) {
           new Promise((_, rej) => setTimeout(() => rej(new Error('page read timed out')), left).unref?.()),
         ]);
         pages.push({ page: i, text: content.items.map(it => it.str).join(' ') });
-      } catch {
+        nextPage = i + 1;
+      } catch (e) {
         stoppedEarly = true;
+        // A page that ran out of THIS call's budget is not a broken page: a
+        // staged read gets a fresh budget on the next request and should try it
+        // again. A page that failed for any other reason never will, and one
+        // that times out having read nothing would resume onto itself forever.
+        // Both have to be stepped over or the scan can never finish.
+        if (e?.message !== 'page read timed out' || pages.length === 0) nextPage = i + 1;
         break;
       } finally {
         // Release the parsed page. Without this, scanning a full set keeps
@@ -239,11 +270,21 @@ export async function extractPdfPages(source, opts = {}) {
       pages,
       totalPages: doc.numPages,
       scannedPages: pages.length,
+      // What is left to read, or null when there is nothing more to ask for.
+      // Two ways to be finished:
+      //   - the document ran out. Measured against `limit`, not numPages: past
+      //     maxPages there is no more on offer, so asking again would spin.
+      //   - the brake came on. Another slice would re-open the file, meet the
+      //     same memory pressure and stop in the same place, forever. Running
+      //     out of TIME is resumable; running out of ROOM is not, and the
+      //     sheets worth having are at the front of the set anyway.
+      nextPage: braked || nextPage > limit ? null : nextPage,
+      braked,
       stoppedEarly: stoppedEarly || limit < doc.numPages,
       ms: Date.now() - started,
     };
   } catch {
-    return { pages: [], totalPages: 0, scannedPages: 0, stoppedEarly: false, ms: Date.now() - started };
+    return { pages: [], totalPages: 0, scannedPages: 0, nextPage: null, braked: false, stoppedEarly: false, ms: Date.now() - started };
   }
 }
 
@@ -305,19 +346,36 @@ export async function extractDrawingText(buffer, fileName, opts = {}) {
   }
 
   if (ext === 'pdf') {
-    const scan = await extractPdfPages(buffer, opts);
-    const text = scan.pages.map(p => p.text).join('\n').trim();
+    const slice = await extractPdfPages(buffer, opts);
+
+    // A staged read hands back the pages it banked on earlier requests, because
+    // no single request is allowed to run long enough to read a big set in one
+    // go. Every judgement below is about the WHOLE document, so it is made on
+    // the combined list rather than on this one slice.
+    const pages = opts.priorPages?.length ? [...opts.priorPages, ...slice.pages] : slice.pages;
+    const scan = { ...slice, pages, scannedPages: pages.length };
+
+    // "Does this set have a text layer" cannot be answered from a partial read.
+    // A 158-sheet set whose first forty sheets are title blocks would be called
+    // blank, and we would give up on a drawing we had barely opened.
+    if (scan.nextPage) return { ok: false, partial: true, code: 'more_pages', scan };
+
+    const text = pages.map(p => p.text).join('\n').trim();
     if (!text || text.trim().length < 30) {
       // Overwhelmingly this means a scanned/plotted drawing with no text layer —
       // very common for site plans. Say so plainly rather than "parse failed".
+      //
+      // `scan` rides along but `pages` deliberately does not: a caller that is
+      // handed a page list treats it as a sheet index worth spending a model
+      // call on, and every one of these pages is blank.
       return {
-        ok: false, code: 'no_text_layer',
+        ok: false, code: 'no_text_layer', scan,
         message: 'This PDF has no readable text layer (it looks like a scan or an image-only plot). Please upload a vector PDF or the unit matrix as Excel.',
       };
     }
     // `pages` rides along so the caller can find the area sheet without paying
     // to extract the PDF a second time. See src/lib/areaSheet.js.
-    return { ok: true, text, pages: scan.pages, scan };
+    return { ok: true, text, pages, scan };
   }
 
   return {
