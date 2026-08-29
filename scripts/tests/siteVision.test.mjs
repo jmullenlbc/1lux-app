@@ -11,7 +11,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateSiteData } from '../../src/lib/siteVision.js';
+import { validateSiteData, mergeSiteData } from '../../src/lib/siteVision.js';
 
 const base = {
   lotAcres: null, totalUnits: null, bedMix: {},
@@ -96,4 +96,99 @@ test('zero units cannot cause a divide-by-zero', () => {
 
 test('missing bedMix entirely is safe', () => {
   assert.doesNotThrow(() => validateSiteData({ totalUnits: 324 }));
+});
+
+// ─── stitching one drawing's answer onto another's ──────────────────────────
+//
+// Reading two drawings in one request measured 29.4 seconds against a front
+// door that hangs up at 30. So they are read one per request and merged as
+// they arrive -- and a merge is a new way to be wrong: a blank on the second
+// drawing must never wipe out a real number off the first.
+
+test('the first drawing to answer a field is the one that stands', () => {
+  const merged = mergeSiteData(
+    { totalUnits: 250, lotAcres: null, bedMix: {}, confidence: 0.9 },
+    { totalUnits: 12,  lotAcres: 14.2, bedMix: {}, confidence: 0.9 },
+  );
+  assert.strictEqual(merged.totalUnits, 250, 'a later sheet overwrote a real unit count');
+  assert.strictEqual(merged.lotAcres, 14.2, 'a field only the later sheet had was dropped');
+});
+
+test('a blank on the second drawing never erases a number off the first', () => {
+  const merged = mergeSiteData(
+    { totalUnits: 250, parkingProvided: 400, bedMix: { oneBed: 132 }, confidence: 0.9 },
+    { totalUnits: null, parkingProvided: null, bedMix: { oneBed: null }, confidence: 0.9 },
+  );
+  assert.strictEqual(merged.totalUnits, 250);
+  assert.strictEqual(merged.parkingProvided, 400);
+  assert.strictEqual(merged.bedMix.oneBed, 132);
+});
+
+test('the bed mix fills in field by field across drawings', () => {
+  // The unit matrix carries the mix; the site plan carries the total. Neither
+  // sheet has both, and the cross-checks need both together.
+  const merged = mergeSiteData(
+    { totalUnits: 250, bedMix: { oneBed: 132, twoBed: null }, confidence: 0.9 },
+    { totalUnits: null, bedMix: { oneBed: null, twoBed: 118 }, confidence: 0.9 },
+  );
+  assert.strictEqual(merged.bedMix.oneBed, 132);
+  assert.strictEqual(merged.bedMix.twoBed, 118);
+});
+
+test('confidence is the LOWEST of what went in, not the latest', () => {
+  const a = mergeSiteData({ totalUnits: 250, bedMix: {}, confidence: 0.9 }, { bedMix: {}, confidence: 0.4 });
+  assert.strictEqual(a.confidence, 0.4, 'a shaky drawing was averaged away');
+  const b = mergeSiteData({ totalUnits: 250, bedMix: {}, confidence: 0.4 }, { bedMix: {}, confidence: 0.9 });
+  assert.strictEqual(b.confidence, 0.4, 'a shaky first drawing was forgotten');
+});
+
+test('finding the site data block on ANY drawing counts as finding it', () => {
+  const merged = mergeSiteData(
+    { bedMix: {}, foundSiteDataBlock: false, confidence: 0.9 },
+    { bedMix: {}, foundSiteDataBlock: true,  confidence: 0.9 },
+  );
+  assert.strictEqual(merged.foundSiteDataBlock, true);
+});
+
+test('the notes off each drawing are kept, labelled with the sheet they came off', () => {
+  const merged = mergeSiteData(
+    { bedMix: {}, notes: 'Unit total taken from the matrix.', confidence: 0.9 },
+    { bedMix: {}, notes: 'No building count is printed.', confidence: 0.9 },
+    7,
+  );
+  assert.match(merged.notes, /Unit total taken from the matrix\./);
+  assert.match(merged.notes, /page 7/);
+  assert.match(merged.notes, /No building count is printed\./);
+});
+
+test('the first drawing merges onto nothing without being changed', () => {
+  const first = { totalUnits: 250, bedMix: { oneBed: 132 }, confidence: 0.9 };
+  const merged = mergeSiteData(null, first, 3);
+  assert.strictEqual(merged.totalUnits, 250);
+  assert.strictEqual(merged.bedMix.oneBed, 132);
+});
+
+test('a drawing that read as nothing leaves the answer alone', () => {
+  const acc = { totalUnits: 250, bedMix: { oneBed: 132 }, confidence: 0.9 };
+  assert.strictEqual(mergeSiteData(acc, null), acc);
+});
+
+test('merging does not mutate the answer already in hand', () => {
+  const acc = { totalUnits: 250, lotAcres: null, bedMix: { oneBed: 132, twoBed: null }, confidence: 0.9 };
+  mergeSiteData(acc, { lotAcres: 14.2, bedMix: { twoBed: 118 }, confidence: 0.5 });
+  assert.strictEqual(acc.lotAcres, null);
+  assert.strictEqual(acc.bedMix.twoBed, null);
+  assert.strictEqual(acc.confidence, 0.9);
+});
+
+test('the cross-checks run on the merged answer, not on each drawing alone', () => {
+  // This is the point of merging before validating: a bed mix off the unit
+  // matrix and a unit total off the site plan can only disagree once they are
+  // in the same object. Apart, each sheet looks fine and the mismatch is lost.
+  const merged = mergeSiteData(
+    { totalUnits: 264, bedMix: {}, parkingProvided: null, parkingRequired: null, confidence: 0.9 },
+    { totalUnits: null, bedMix: { oneBed: 162, twoBed: 113, threeBed: 44 }, confidence: 0.9 },
+  );
+  assert.ok((validateSiteData(merged).warnings || []).some(w => w.field === 'totalUnits'),
+    'a unit total that disagrees with the mix on another sheet went unflagged');
 });

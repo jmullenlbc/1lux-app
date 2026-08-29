@@ -6,6 +6,7 @@ import RetailPriceDot from '@/components/pricing/RetailPriceDot';
 import Link from 'next/link';
 import { oversizeMessage } from '@/lib/uploadErrorMessage';
 import { appendUpload } from '@/lib/uploadClient';
+import ReadingWait, { READING_TIME_HINT } from '@/components/ReadingWait';
 
 // ── Location Tags ─────────────────────────────────────────────────────────────
 
@@ -202,6 +203,9 @@ const SECTION_OPTIONS = LOCATION_TAGS;
 
 function ImportModal({ projectId, onImported, onClose }) {
   const [step,      setStep]      = useState('upload'); // 'upload' | 'parsing' | 'preview' | 'importing'
+  // When the read started, so the wait can be counted out loud rather than
+  // guessed at in the copy. A real schedule takes minutes, not seconds.
+  const [readingSince, setReadingSince] = useState(null);
   const [warning,   setWarning]   = useState(null);
   const [fixtures,  setFixtures]  = useState([]);
   const [fileName,  setFileName]  = useState('');
@@ -219,6 +223,7 @@ function ImportModal({ projectId, onImported, onClose }) {
     setFileName(file.name);
     setError(null);
     setStep('parsing');
+    setReadingSince(Date.now());
 
     const fd = new FormData();
 
@@ -281,7 +286,7 @@ function ImportModal({ projectId, onImported, onClose }) {
           <div>
             <h2 className="text-base font-bold text-slate-900">Import Fixture Schedule</h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              {step === 'upload'   && 'Upload an electrical drawing PDF to extract the fixture schedule'}
+              {step === 'upload'   && `Upload an electrical drawing PDF to extract the fixture schedule — ${READING_TIME_HINT.toLowerCase()}`}
               {step === 'parsing'  && `Analyzing "${fileName}" with AI…`}
               {step === 'preview'  && `${fixtures.length} fixture type${fixtures.length !== 1 ? 's' : ''} found in "${fileName}" — review and confirm`}
               {step === 'importing' && 'Importing…'}
@@ -314,7 +319,10 @@ function ImportModal({ projectId, onImported, onClose }) {
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
                     </svg>
                     <p className="text-sm font-semibold text-slate-600">Extracting & parsing with AI…</p>
-                    <p className="text-xs text-slate-400">This may take 15–30 seconds</p>
+                    {/* This used to promise 15-30 seconds, which is both wrong
+                        for a real schedule and almost exactly the point at
+                        which a request that runs long gets hung up on. */}
+                    <ReadingWait startedAt={readingSince} quietFor={0} />
                   </>
                 ) : (
                   <>

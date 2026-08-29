@@ -24,6 +24,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { oversizeMessage, uploadErrorMessage, uploadThrowMessage } from '@/lib/uploadErrorMessage';
 import { appendUpload } from '@/lib/uploadClient';
+import ReadingWait, { READING_TIME_HINT } from '@/components/ReadingWait';
 
 function fmt(n) { return n == null ? '—' : Number(n).toLocaleString(); }
 
@@ -167,6 +168,9 @@ function ReadOnlyEvidence({ site }) {
 // The Takeoffs tab omits it and behaves exactly as before.
 export default function SiteDataUpload({ projectId, onCommitted }) {
   const [state, setState]   = useState('idle');   // idle|uploading|parsing|reviewing|saving|error
+  // When the read started, purely so the wait can be counted out loud. A
+  // drawing is read by a model sheet by sheet; it is minutes, not a page load.
+  const [readingSince, setReadingSince] = useState(null);
   const [parsed, setParsed] = useState(null);
   const [picked, setPicked] = useState({});       // key → { on, value }
   const [errMsg, setErrMsg] = useState('');
@@ -221,6 +225,7 @@ export default function SiteDataUpload({ projectId, onCommitted }) {
     }
 
     setState('parsing');
+    setReadingSince(Date.now());
     try {
       const r = await fetch(`/api/projects/${projectId}/site/parse`, {
         method: 'POST',
@@ -306,6 +311,9 @@ export default function SiteDataUpload({ projectId, onCommitted }) {
             fields that price at $0 when they are left blank. Numbers are never counted off the drawing;
             only what is written on it is reported.
           </p>
+          {state === 'parsing'
+            ? <ReadingWait startedAt={readingSince} className="mt-1.5" />
+            : !busy && <p className="text-[11px] text-slate-400 mt-1.5">{READING_TIME_HINT}</p>}
           {!busy && (
             <>
               <button

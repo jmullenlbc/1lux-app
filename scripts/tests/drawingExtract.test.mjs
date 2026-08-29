@@ -21,15 +21,17 @@ test('accepted and image extension lists do not overlap', () => {
 });
 
 test('pickModel escalates on size and on telling filenames', () => {
-  // 2026-08-19: the two tiers moved up (Opus 5 for a clean table, Fable 5 for a
-  // dense or combined set) and now come from src/lib/aiModels.js. The SPLIT is
-  // what this test is about, so it asserts "the small one differs from the big
-  // one" rather than pinning two model names that will move again.
+  // 2026-08-19: the two tiers moved up and now come from src/lib/aiModels.js.
+  // 2026-08-28: they landed on the SAME model -- every drawing read is Fable 5
+  // now, by rule (see DRAWING_JOBS). So this no longer asserts that the two
+  // differ; the JOB split still exists and still matters, because the accuracy
+  // history is kept per job and a dense set is not the same task as a tidy
+  // table. It asserts the split routes correctly, and aiModels.test.mjs asserts
+  // where both ends of it land.
   const clean = pickModel('x'.repeat(100), 'small.pdf');
   const dense = pickModel('x'.repeat(7000), 'small.pdf');
   assert.equal(clean, modelFor('drawing.unitMatrix.clean'));
   assert.equal(dense, modelFor('drawing.unitMatrix'));
-  assert.notEqual(clean, dense, 'a dense set must not get the same model as a clean table');
   assert.equal(pickModel('x', 'FULL SET.pdf'),          dense, '"full" escalates');
   assert.equal(pickModel('x', 'combined-drawings.pdf'), dense, '"combined" escalates');
   assert.equal(pickModel('x', 'Combined.PDF'),          dense, 'case-insensitive');

@@ -35,6 +35,25 @@
  * Because most of these calls are not document reads. Handing a one-paragraph
  * activity note to a million-token reader costs more and returns the same label.
  * Fable earns its keep exactly where the document is big or the drawing is dense.
+ *
+ * ── The one place that is not a judgement call ──────────────────────────────
+ *
+ * Mike, 2026-08-28: "are you running all PDF drawing reviews through fable 5 as
+ * we agreed? make that a hard rule for PDF architectural and construction
+ * drawing sets."
+ *
+ * So it is a rule, not a preference: EVERY job that reads an architectural or
+ * construction drawing set is DEEP_READ, including the ones that look too small
+ * to be worth it. Two of them were on the cheapest model on exactly that
+ * reasoning -- "it is only a rectangle", "it is only four characters in a
+ * corner" -- and both were feeding the expensive read. The corner read is the
+ * clearest case: it is four characters, and getting them wrong sent the entire
+ * parse to the wrong drawing and reported that drawing's numbers as the answer.
+ * A cheap call that decides where an expensive call looks is not a cheap call.
+ *
+ * DRAWING_JOBS below is the list, and a test fails the build if any job on it
+ * is not DEEP_READ. Adding a job that reads a drawing set means adding it to
+ * that list too.
  */
 
 export const TIERS = {
@@ -56,16 +75,31 @@ export const JOB_TIERS = {
   'schedule.construction':   'DEEP_READ', // 84-page P6 export, ~310k chars
   'schedule.design':         'DEEP_READ', // Mike, 2026-08-19: all schedules read by Fable
   'drawing.unitMatrix':      'DEEP_READ', // dense / "combined" sheets
+  'drawing.unitMatrix.clean': 'DEEP_READ', // a tidy table is still a drawing — see the hard rule
   // Finding the four sheets that matter inside a 400-page set. Deep-read tier
   // because a wrong pick sends the vision read at the wrong page and the whole
   // parse comes back empty — with the file already deleted.
   'drawing.sheetPick':       'DEEP_READ',
+  // The same job on a set that has no text layer at all: the drawing index is
+  // read as a PICTURE off close-up tiles of the cover sheet. Harder than the
+  // text version, not easier -- a photographed table of a hundred sheet numbers
+  // where ORDER is what matters, and one row dropped shifts every sheet after
+  // it and sends the read to the wrong page.
+  'drawing.sheetIndexVision': 'DEEP_READ',
   'drawing.siteData':        'DEEP_READ', // rendered images, often hand-lettered
+  // Reads the sheet number out of a title block. Four characters -- and the
+  // four that anchor every other sheet to a page, so it is the last place to
+  // save money. On the cheapest model it misread A0-2.0.c as A0-0.0c about one
+  // time in three, and every drawing after it opened one page off.
+  'drawing.sheetProbe':       'DEEP_READ',
+  // Finds WHERE the drawing index sits on the cover sheet. No transcription,
+  // just a rectangle -- but a loose rectangle makes close-ups that read the
+  // same rows twice, and a row counted twice shifts every sheet after it.
+  'drawing.sheetIndexLocate': 'DEEP_READ',
   'fixtureSchedule.parse':   'DEEP_READ', // feeds the Bid Matrix — wrong here is wrong money
   'peerReview.parsePdf':     'DEEP_READ', // a full fixture schedule off someone else's set
 
   // ── Bounded document reads ───────────────────────────────────────────────
-  'drawing.unitMatrix.clean': 'READ',     // clean table, small — no need for the big reader
   'contract.analyze':         'READ',
   'rfi.extract':              'READ',
   'tracker.extract':          'READ',
@@ -77,7 +111,6 @@ export const JOB_TIERS = {
   // ── Live chat: someone is sitting there watching it type ─────────────────
   'chat.project':             'CHAT',
   'chat.knowledgeBase':       'QUICK',
-
   // ── Short text in, label or draft out ────────────────────────────────────
   'rfi.draft':                'QUICK',
   'tracker.review.respond':   'QUICK',
@@ -88,6 +121,25 @@ export const JOB_TIERS = {
   'bot.followUp':             'QUICK',
   'market.entityExtract':     'QUICK',
 };
+
+/**
+ * Every job that reads an architectural or construction drawing set.
+ *
+ * All of these are DEEP_READ and a test enforces it. If you are adding a job
+ * that puts a drawing -- as text, as a rendered image, or as a close-up of a
+ * corner of one -- in front of a model, it belongs on this list.
+ */
+export const DRAWING_JOBS = [
+  'drawing.unitMatrix',
+  'drawing.unitMatrix.clean',
+  'drawing.sheetPick',
+  'drawing.sheetIndexVision',
+  'drawing.sheetIndexLocate',
+  'drawing.sheetProbe',
+  'drawing.siteData',
+  'fixtureSchedule.parse',
+  'peerReview.parsePdf',
+];
 
 /**
  * The model id for a job. Use this when you only need the name (logging, tests).

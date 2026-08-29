@@ -32,8 +32,32 @@ import { combineIntakeResult, siteHasNumbers } from './combineResult.js';
  * still listed, and reported as skipped rather than quietly dropped — a step
  * that vanishes mid-read looks like something went wrong.
  */
+/**
+ * The runaway stop on the drawing-read loop.
+ *
+ * Above the most sheets the render stage will ever keep, for the same reason as
+ * the close-up stop: quitting with sheets unread throws away the drawing we
+ * came for and reports the answer as if it were complete.
+ */
+const MAX_SITE_SHEET_READS = 16;
+
+/** The runaway stop on the front-sheet loop; the server looks at very few. */
+const MAX_INDEX_LOOKS = 8;
+
+/**
+ * The runaway stop on the close-up loop.
+ *
+ * Kept ABOVE the most close-ups the server will ever cut (MAX_INDEX_TILES in
+ * sheetIndexVision.js) so this never ends a read early: a loop that quits with
+ * close-ups still unread drops the tail of the index, and the sheets it names
+ * are exactly the ones we came for. This is only here so a server that keeps
+ * saying "one more" cannot spin the visitor forever.
+ */
+const MAX_INDEX_TILE_READS = 24;
+
 export const PARSE_STEPS = [
   { key: 'scan',   label: 'Looking through the set' },
+  { key: 'index',  label: 'Reading the drawing index' },
   { key: 'render', label: 'Opening the sheets we need' },
   { key: 'matrix', label: 'Reading the unit counts' },
   { key: 'site',   label: 'Reading the site plan' },
@@ -45,6 +69,12 @@ export const PARSE_STEPS = [
  */
 export const STEP_WORDS = {
   scan:   'looking through the set',
+  // Two server stages sit behind the one step the visitor sees: finding the
+  // index on the cover, then reading it. Both name the same thing here, because
+  // "the read stopped while reading the drawing index" is what he needs to know
+  // and the split between them is our business, not his.
+  index:  'reading the drawing index',
+  sheets: 'reading the drawing index',
   render: 'opening the sheets',
   matrix: 'reading the unit counts',
   site:   'reading the site plan',
@@ -134,6 +164,45 @@ export async function runStagedParse({ s3Key, file, fileName, onStep = () => {},
     let keptSheets = null;
     let sheetsRead = scan.sheetsRead;
 
+    // A scanned set -- paper that was photographed, or a plot with the text
+    // stripped out -- has nothing to search, so the sheets to open have to be
+    // found by READING the drawing index off the cover as a picture. A run of
+    // short requests: look at the front sheets one at a time until one of them
+    // has an index on it, then read that index one close-up at a time. None of
+    // it is allowed to sink the read: if any of it comes up empty we open the
+    // front of the set, which is what happened before any of this existed.
+    if (scan.needsIndex) {
+      onStep('index', 'active');
+      try {
+        // One front sheet per request. Usually the first one answers and the
+        // rest are never drawn, so this is normally ONE call, not a loop.
+        let found = await stage({ stage: 'index', scanKey }, signal);
+        for (let i = 0; found?.more && i < MAX_INDEX_LOOKS; i++) {
+          found = await stage({ stage: 'index', scanKey }, signal);
+        }
+
+        // The index is transcribed one close-up at a time so no single request
+        // can outstay the front door's patience. The server says when it has
+        // run out of close-ups; the cap is only here so a server that never
+        // says so cannot spin forever.
+        let read = found.found ? await stage({ stage: 'sheets', scanKey }, signal) : null;
+        for (let i = 0; read?.more && i < MAX_INDEX_TILE_READS; i++) {
+          read = await stage({ stage: 'sheets', scanKey }, signal);
+        }
+
+        if (read?.mapped) {
+          sheetsRead = read.sheetsRead ?? sheetsRead;
+          onStep('index', 'done', { sheetsRead });
+        } else {
+          onStep('index', 'skipped');
+        }
+      } catch {
+        onStep('index', 'skipped');
+      }
+    } else {
+      onStep('index', 'skipped');
+    }
+
     if (scan.needsRender) {
       onStep('render', 'active');
       const r = await stage({ stage: 'render', scanKey }, signal);
@@ -152,7 +221,13 @@ export async function runStagedParse({ s3Key, file, fileName, onStep = () => {},
     if (m.needsSite) {
       onStep('site', 'active');
       try {
-        siteData = (await stage({ stage: 'site', scanKey }, signal)).siteData;
+        // One drawing per request, same reason as the index close-ups: both
+        // sheets in one call measured 29.4s against a ~30s front door.
+        let read = await stage({ stage: 'site', scanKey }, signal);
+        for (let i = 0; read?.more && i < MAX_SITE_SHEET_READS; i++) {
+          read = await stage({ stage: 'site', scanKey }, signal);
+        }
+        siteData = read.siteData;
         onStep('site', 'done');
       } catch (e) {
         // With a unit matrix in hand the answer is still good, and a failed

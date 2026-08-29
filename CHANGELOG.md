@@ -5,6 +5,262 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Reading a set that is nothing but pictures] - August 28, 2026 - DEPLOYED
+
+Mike's Lowell set has 158 sheets and not one readable character on any of them.
+It was plotted, so every line and every letter is a picture. Searching it finds
+nothing, which meant the read had no way to work out which sheets were worth
+opening and fell back to opening sheet 1 - the cover, which carries no numbers.
+A GC uploading a set like that got an answer with nothing in it.
+
+### Added: the drawing index is now READ off the cover, as a picture
+
+The cover of every set lists what is inside it. We now go and read that list.
+
+The obvious version of this does not work, and it is worth writing down why: the
+model shrinks any image to about 1568 pixels on its long edge before it looks at
+it. A 36-inch sheet therefore arrives at roughly 43 pixels per paper inch, so
+eighth-inch index lettering is about five pixels tall NO MATTER HOW BIG WE DRAW
+IT. A whole sheet in one image can never show an index.
+
+So it is two looks instead of one:
+
+1. A cheap model gets the front sheets whole and answers two small questions -
+   which sheet the index is on, and whereabouts on it. It does not read a word
+   of the index.
+2. We cut that rectangle into overlapping close-ups and hand those to the
+   strongest model, ONE PER REQUEST, and it transcribes the sheet numbers it can
+   see in printed order and names the site plan, the area summary, and the unit
+   matrix. The pieces are stitched back together as they arrive.
+
+### Why one close-up per request, and not all of them at once
+
+The first working version sent every close-up in a single request and read a
+127-row index in 32 seconds. The front door hangs up at 30, with no message, so
+that is not a slow answer - it is no answer.
+
+Rows are what cost the time, and rows come off the paper: an index prints about
+seven lines to the inch no matter what resolution we draw it at. So the height
+of a close-up is now capped in INCHES rather than pixels - six and a half of
+them, roughly forty rows - and each one is its own request. On the real set that
+turned one 32-second request into ten requests of four to sixteen seconds, all
+of them comfortably clear of the door.
+
+### The one thing that can silently ruin a stitched read
+
+Rows are counted, and the count is what turns a row into a page. So a row
+counted twice throws every sheet after it onto the wrong drawing.
+
+The close-ups deliberately overlap, so the repeat is expected and the seam is
+spliced out by matching the tail of what we have against the head of what just
+arrived. That is not enough on its own: a loose rectangle from step one can make
+two close-ups that cover the same rows without touching, and one run of this
+came back with 208 rows for a 127-row index. So on top of the splice, any row
+naming a sheet we already have is dropped outright - an index lists each sheet
+once - and step one is now told to hug the index rather than take in the notes
+and legends around it. Two runs since have returned exactly 127.
+
+### The sheet number is cut out of the corner, not read off the sheet
+
+Everything the index says hangs on one number: which sheet the index itself is
+printed on. That is what ties row 42 to a page.
+
+We were reading it off the whole shrunk sheet, and it is the same failure the
+index has - a 42-inch sheet at 1568 pixels puts the title block at about forty
+pixels per paper inch. It came back wrong about one time in three: `A0-0.0c` for
+a sheet plainly printed `A0-2.0.c`. Every picked sheet then landed one page off,
+and a wrong page does not look wrong - its numbers get reported as the answer.
+
+The bottom-right corner is now cut out and read on its own, where the number
+arrives an inch tall. Same fix applied to the landing check, which had the same
+flaw and could have re-aimed a read that had landed correctly.
+
+### Proved on a real plotted set
+
+The whole path was run over real HTTP against a genuinely plotted 120-page
+Creekside set - no text layer anywhere in it. The index read came back with 127
+rows in clean discipline order, no duplicates and no gaps; the anchor landed on
+the right sheet; and the two drawings it picked were opened and read for
+**250 units, 400 parking provided against 379 required, 132 one-bedrooms and
+118 two-bedrooms**, taken off a "PARKING CALCULATIONS" table that exists only as
+a picture.
+
+It also declined to give a building count, and that is the right answer, not a
+miss. The site plan labels buildings 1 through 12 plus four garages and a
+clubhouse, but nowhere writes down a total - and the read is under standing
+orders never to count things by eye, because a number arrived at by counting
+looks exactly like a number that was written down, and it becomes a budget. An
+earlier run of this same sheet answered 12. That was a guess wearing a fact's
+clothes.
+
+Worth writing down for whoever meets it next: our PDF reader draws
+CCITTFaxDecode - the black-and-white compression scanners and plotters like -
+as a BLANK page. A test set has to be built with a writer that avoids it, or the
+read looks broken when it is the file that cannot be drawn.
+
+### How a row in a list becomes a page in a file, for free
+
+The index lists the sheet it is printed on, and we already know which page that
+is because we just drew it. That gives the gap between a row's position in the
+list and its page in the file at no extra cost. Row 42 of the index plus that
+gap is page 42-plus-the-gap of the PDF.
+
+Two things guard it, because a wrong page is worse than no page - it looks
+exactly like a right one, and its numbers get reported as the answer:
+
+- A pick that lands outside the file is DROPPED, never nudged back inside. A
+  nudged pick quietly becomes some other drawing.
+- Progress sets are routinely bound a few sheets short of their own index, which
+  slides every page number after it. After drawing the sheet we aimed at, one
+  cheap look at its title block says whether we landed on it. If we plainly did
+  not, the gap is worked out again from the sheet we actually saw and the sheets
+  are drawn once more.
+
+### Nothing here can cost a GC his upload
+
+Every failure in this path - no index on the cover, an unreadable index, no way
+to anchor it, a model that errors outright - leaves the read doing exactly what
+it did before: opening the front of the set. The step shows as skipped rather
+than vanishing, because a step that disappears mid-read looks like a stall.
+
+A set that HAS a text layer never pays for any of this.
+
+### What the visitor sees
+One new line in the progress list, between "Looking through the set" and
+"Opening the sheets we need": **Reading the drawing index**.
+
+### Files changed
+- `src/lib/sheetIndexVision.js` - NEW. The whole picture-only reader: the three
+  prompts, the tile geometry, the anchoring, and the three model calls.
+- `src/lib/siteVision.js` - `renderPdfCrops`, which cuts close-ups out of one
+  sheet; `renderPdfPages` now also reports each sheet's size in paper units.
+- `src/app/api/intake/parse/route.js` - two new steps (`index`, `sheets`) and
+  the landing check folded into the render step.
+- `src/lib/intake/stagedParse.js` - the browser drives the two new steps.
+- `src/lib/aiModels.js` - the drawing-set rule and the list it is enforced
+  against, plus the new job registrations.
+- `scripts/tests/sheetIndexVision.test.mjs` - NEW, 54 tests.
+- `scripts/tests/stagedParse.test.mjs` - 12 more tests: the fallback and the
+  three request loops.
+- `scripts/tests/siteVision.test.mjs` - 10 more tests, all on the merge.
+- `scripts/tests/aiModels.test.mjs` - three tests that hold the rule shut.
+- `src/components/ReadingWait.jsx` - NEW. The one place the wait is described:
+  the up-front sentence, the short clause, and the counting-up clock.
+- `src/components/intake/DrawingDropzone.jsx`,
+  `src/components/intake/ReadingSteps.jsx`,
+  `src/components/site/SiteDataUpload.jsx`,
+  `src/components/unitMatrix/UnitMatrixUpload.jsx`,
+  `src/app/(app)/project/[id]/PeerReviewClient.jsx` - the five screens that read
+  a drawing now say how long it takes, before and during.
+
+### Every drawing set is read by the strongest model now - as a rule
+
+Mike, on the 28th: *"are you running all PDF drawing reviews through fable 5 as
+we agreed? make that a hard rule for PDF architectural and construction drawing
+sets."*
+
+It is a rule now, not a preference. Every job that looks at an architectural or
+construction drawing goes to the strongest model, **including the ones that look
+too small to be worth it** - finding where the index sits on the page, reading a
+sheet number out of a title block, tidying a unit matrix. Those looked like
+throwaway questions worth a cheap answer. They are not: a cheap call that
+decides where an expensive call looks is not a cheap call. Getting a sheet
+number wrong by one character sends the whole read to the wrong drawing and
+reports its numbers as the answer.
+
+Three of those jobs moved up. The rule is written into the model table with the
+list of jobs it covers, and three tests fail the build if any job on that list
+is ever quietly moved back down to save money.
+
+### Nothing waits longer than eighteen seconds now
+
+Mike, same message: *"how do we stop the hang up at 30 seconds? that is too
+slow."* and *"1. split to make sure it doesn't fail."*
+
+The 30 seconds is Amplify's front door, not our code, and it cannot be raised.
+It hangs up on any single request that runs long and returns an empty error, so
+the whole read is built as a series of short requests instead of one long one.
+Three places were still too close to it:
+
+- **Finding the index** looked at the first two front sheets in one request -
+  9.7 seconds before, 23.7 after the locate moved to the stronger model. Now one
+  front sheet per request.
+- **Reading the drawings we picked** read both sheets in one request and
+  measured 29.4 seconds - effectively at the door. Now one drawing per request,
+  with the answers stitched together as they arrive. A blank on the second sheet
+  can never wipe out a number read off the first, the confidence is the lowest
+  of the two, and the cross-checks deliberately run once on the finished
+  answer - so a bed mix off one drawing gets checked against a unit total off
+  another, which is impossible if each is checked alone.
+- **Explaining the answer** turned out to cost real seconds. The read was
+  writing a paragraph about where it got each number, and a reply is written a
+  word at a time. Capped at two sentences: 25 seconds became 17. What is READ
+  did not change, only how much of it gets narrated back.
+
+Measured end to end on the same plotted set, worst single request: **29.4
+seconds before, 17.4 seconds after.** The total wait is about two and a half
+minutes either way - splitting does not add meaningfully to it, it just means no
+single piece of it can time out.
+
+### The close-ups now follow the printed columns
+
+This one was caught by the splitting, and it would have been a wrong answer
+rather than a slow one.
+
+Cutting the index into shorter close-ups to keep each request quick meant
+cutting it into horizontal strips. On an index printed in two side-by-side
+columns, a strip shows the top of BOTH columns - and however it is read, the
+rows come back braided together. A real run came back general, general,
+structural, structural, general: the position of every row after that was wrong,
+and the picks mapped two pages late.
+
+Position is the whole mechanism here - the Nth row of the index is the Nth sheet
+of the set - so out of order is not a rough answer, it is a wrong one. The
+locate step now also reports how many columns the index prints in, and the block
+is cut down the column gutters FIRST, each piece full height, and only then into
+strips within a column. A close-up can no longer span two columns, and the
+pieces no longer reach sideways across a gutter into the neighbour's rows.
+
+Re-run on the same set: clean discipline order, the anchor at zero, and the two
+picks landing on pages 3 and 5 correctly on the first try - where before the
+landing check had to catch them and re-aim.
+
+### Anyone waiting on a drawing is now told how long it takes
+
+Mike: "we need a warning that a drawing could take a few minutes to read
+anywhere where we are doing that right? don't you think so the user understands
+the timing?"
+
+Reading a full set is minutes of work, not seconds, and nothing on screen said
+so. A GC who has not been told that watches a spinner for ninety seconds and
+concludes the page is broken - so he closes it, and we never hear from him. The
+old copy made it worse rather than better: one panel promised "about a minute"
+and another promised "15-30 seconds", both written back when a read WAS that
+fast, and both now wrong by minutes.
+
+The timing is now said twice on every screen that reads a drawing. Once before
+a file is even chosen, so the wait is expected rather than discovered, and once
+during the read, as a clock counting up beside the step being worked on. Past a
+minute and a half it stops repeating itself and says what is actually happening:
+still reading, and sets plotted as pictures take the longest.
+
+Five screens now say it - the public conceptual budget dropzone, the reading
+steps under it, the site data upload, the peer review fixture schedule read, and
+the unit matrix upload. The words themselves live in ONE file, so the next
+person to touch a panel cannot invent a third estimate: that is exactly how
+"about a minute" and "15-30 seconds" came to disagree in the first place.
+
+The fixture import on a project was deliberately left alone. It maps columns
+out of a spreadsheet, which is instant - a warning there would be a lie.
+
+### Verification
+657 unit tests, 7 smoke, 8 DN, clean production build with all 26 runtime assets
+present. The full staged read run over real HTTP against the plotted 120-page
+set: 19 requests, longest 17.4 seconds, 127 index rows, correct picks, correct
+numbers. The warning confirmed rendering on the live public page.
+
+---
+
 ## [The read that never got past the first step] - August 28, 2026 - DEPLOYED
 
 Mike dropped a 57.2 MB, 158-sheet Lowell architectural set into the public

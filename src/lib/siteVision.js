@@ -94,9 +94,86 @@ export async function renderPdfPages(source, { pages = MAX_PAGES, maxEdge = MAX_
       ...(alsoJpeg ? { jpeg: canvas.toBuffer('image/jpeg', { quality: 0.9 }) } : {}),
       width: Math.round(vp.width),
       height: Math.round(vp.height),
+      // The sheet's own size in PDF points (72 to the inch). A caller that
+      // wants to cut a close-up out of this sheet needs to know how big the
+      // block really is on paper -- "a fifth of the width" says nothing about
+      // whether the print in it can be read.
+      ptWidth: base.width,
+      ptHeight: base.height,
     });
   }
 
+  return out;
+}
+
+/**
+ * Render sub-rectangles of ONE page, big enough to read small print.
+ *
+ * `renderPdfPages` draws a whole sheet at 2200px. That is right for a site plan
+ * -- one big data block, large lettering -- and useless for a drawing index: a
+ * 36-inch sheet at 2200px is about 60 pixels per paper inch, and the model API
+ * downsamples anything over ~1568px on the long edge anyway, so eighth-inch
+ * index text lands at roughly four pixels tall. Unreadable, at any render size,
+ * as long as the whole sheet has to fit in one image.
+ *
+ * The way round it is to send PART of the sheet instead. The page is drawn ONCE
+ * at a scale chosen so that no requested rectangle exceeds `maxEdge`, and the
+ * rectangles are then copied out of that one canvas -- one render, N crops.
+ *
+ * @param {Buffer|object} source   bytes, or an already-open pdfjs document
+ * @param {number}  page           1-based page to draw
+ * @param {Array}   rects          {x,y,w,h} as FRACTIONS of the page, 0..1
+ * @param {number}  maxEdge        longest edge of any returned crop, px
+ * @param {number}  maxPagePx      ceiling on the intermediate full-page canvas
+ * @returns {Promise<Array<{png: Buffer, rect, width, height}>>}
+ */
+export async function renderPdfCrops(source, { page = 1, rects = [], maxEdge = 1500, maxPagePx = 26e6 } = {}) {
+  if (!rects.length) return [];
+
+  const doc = isPdfDoc(source)
+    ? source
+    : await (await loadPdfjs()).getDocument(pdfDocOptions(source)).promise;
+  if (page < 1 || page > doc.numPages) return [];
+
+  const pdfPage = await doc.getPage(page);
+  const base = pdfPage.getViewport({ scale: 1 });
+
+  // One scale for all of them: the tightest requirement wins, so every crop
+  // comes back at or under maxEdge and none is rendered smaller than asked.
+  let scale = Infinity;
+  for (const r of rects) {
+    const longEdgePts = Math.max(r.w * base.width, r.h * base.height);
+    if (longEdgePts > 0) scale = Math.min(scale, maxEdge / longEdgePts);
+  }
+  if (!Number.isFinite(scale) || scale <= 0) return [];
+
+  // A whole 36x24 sheet at index-reading resolution is a big canvas. Cap it --
+  // running the Lambda out of memory to read a table would cost the upload, and
+  // slightly softer crops cost only a little accuracy.
+  const px = base.width * scale * base.height * scale;
+  if (px > maxPagePx) scale *= Math.sqrt(maxPagePx / px);
+
+  const vp = pdfPage.getViewport({ scale });
+  const canvas = createCanvas(Math.round(vp.width), Math.round(vp.height));
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, vp.width, vp.height);
+  await pdfPage.render({ canvasContext: ctx, viewport: vp }).promise;
+
+  const out = [];
+  for (const r of rects) {
+    const sx = Math.max(0, Math.round(r.x * vp.width));
+    const sy = Math.max(0, Math.round(r.y * vp.height));
+    const sw = Math.min(Math.round(r.w * vp.width), Math.round(vp.width) - sx);
+    const sh = Math.min(Math.round(r.h * vp.height), Math.round(vp.height) - sy);
+    if (sw < 8 || sh < 8) continue;
+    const crop = createCanvas(sw, sh);
+    const cctx = crop.getContext('2d');
+    cctx.fillStyle = '#ffffff';
+    cctx.fillRect(0, 0, sw, sh);
+    cctx.drawImage(canvas, sx, sy, sw, sh, 0, 0, sw, sh);
+    out.push({ png: crop.toBuffer('image/png'), rect: r, width: sw, height: sh });
+  }
   return out;
 }
 
@@ -119,7 +196,7 @@ Return ONLY valid JSON — no markdown, no commentary:
   "buildingType": "string or null",
   "confidence": number (0.0-1.0),
   "foundSiteDataBlock": boolean,
-  "notes": "string - what you read it from, and anything ambiguous"
+  "notes": "string - what you read it from, and anything ambiguous. AT MOST TWO SENTENCES."
 }
 
 CRITICAL RULES:
@@ -130,7 +207,8 @@ CRITICAL RULES:
 - parkingProvided is what the drawing says is PROVIDED; parkingRequired is what code REQUIRES. They differ, and both may appear in a parking table.
 - surfaceParking: only if the drawing distinguishes surface stalls from structured/garage parking.
 - confidence: how legible and unambiguous the source text was. Hand-lettered but clear = 0.8. Blurry or inferred layout = 0.3.
-- foundSiteDataBlock: true only if you found an explicit data/summary block, as opposed to scattered callouts.`;
+- foundSiteDataBlock: true only if you found an explicit data/summary block, as opposed to scattered callouts.
+- notes: two sentences at the outside. Name the block you read and flag anything you were unsure of. Do not restate the numbers you already reported, and do not walk through your arithmetic — a long note is time spent writing rather than reading, and this answer has thirty seconds to come back.`;
 
 /**
  * Bump this whenever SITE_VISION_SYSTEM changes.
@@ -139,13 +217,19 @@ CRITICAL RULES:
  * task type's accuracy history to the prompt version, so a rewritten prompt
  * starts back at Tier 0 instead of inheriting a record it never earned.
  *
+ * The 2026-08-28 bump caps the notes field at two sentences. That looks
+ * cosmetic and is not: the reply is written a token at a time, so a paragraph
+ * of explanation is seconds on the clock, and this call measured 25 seconds
+ * against a front door that hangs up at 30 with an empty error. What is READ
+ * did not change — only how much of it gets narrated back.
+ *
  * The render resolution belongs in this version string too, and not as
  * decoration. MAX_EDGE is a measured accuracy floor — at 1600px this same prompt
  * returned a plausible, wrong unit count — so a change to it changes the
  * accuracy of the task, and the history from the old setting should not carry
  * over to the new one.
  */
-export const SITE_VISION_PROMPT_VERSION = `siteVision-2026-08-09-${MAX_EDGE}px`;
+export const SITE_VISION_PROMPT_VERSION = `siteVision-2026-08-28-${MAX_EDGE}px`;
 
 /**
  * Run vision extraction over rendered pages.
@@ -201,6 +285,75 @@ export async function extractSiteData(images, anthropic, { model = modelFor('dra
   }
 
   return { ok: true, data: { ...validateSiteData(data), model } };
+}
+
+/** The fields a site read reports, other than the ones merged by hand below. */
+const SITE_FIELDS = [
+  'lotAcres', 'lotSf', 'totalUnits', 'parkingProvided', 'parkingRequired',
+  'surfaceParking', 'garages', 'carports', 'buildingCount', 'clubhouseSf',
+  'amenitySf', 'buildingType',
+];
+const BED_FIELDS = ['studio', 'oneBed', 'twoBed', 'threeBed'];
+
+/**
+ * Fold one sheet's site read into what the earlier sheets gave.
+ *
+ * The sheets are read ONE PER REQUEST, because reading two of them together
+ * measured 29.4 seconds against a front door that hangs up at 30. So the
+ * answers now arrive in pieces and have to be put back together here.
+ *
+ * The rules, and why:
+ *
+ * - FIRST answer wins, per field. The sheets arrive in the order they were
+ *   picked, which is priority order: the site plan first, then the area
+ *   summary. Both may carry a unit count, and the site plan's is the one to
+ *   believe. Later sheets fill the gaps rather than argue.
+ * - A null never overwrites a number. A sheet that does not mention parking is
+ *   silent about parking, not evidence that there is none.
+ * - Confidence is the LOWEST of the sheets that actually contributed. Merged
+ *   numbers are only as trustworthy as the shakiest one in the set, and this
+ *   number decides whether a human is asked to check.
+ * - Notes are kept per sheet and labelled with the page, because "where did
+ *   this number come from" is the first question anyone asks about it.
+ *
+ * The cross-checks are deliberately NOT run here -- the caller runs them once
+ * on the finished merge, which is what makes them work across sheets: a bed mix
+ * off one drawing can now be checked against a unit total off another.
+ *
+ * @param {object|null} acc   what the earlier sheets gave, or null for the first
+ * @param {object} next       one sheet's read
+ * @param {number|null} page  which page `next` came from, for the notes
+ */
+export function mergeSiteData(acc, next, page = null) {
+  if (!next) return acc;
+  if (!acc) return { ...next, notes: labelNote(next.notes, page) };
+
+  const out = { ...acc };
+  for (const f of SITE_FIELDS) {
+    if (out[f] === null || out[f] === undefined) out[f] = next[f] ?? null;
+  }
+
+  const mix = { ...(acc.bedMix ?? {}) };
+  for (const f of BED_FIELDS) {
+    if (mix[f] === null || mix[f] === undefined) mix[f] = next.bedMix?.[f] ?? null;
+  }
+  out.bedMix = mix;
+
+  out.foundSiteDataBlock = Boolean(acc.foundSiteDataBlock || next.foundSiteDataBlock);
+  out.confidence = Math.min(
+    typeof acc.confidence  === 'number' ? acc.confidence  : 1,
+    typeof next.confidence === 'number' ? next.confidence : 1,
+  );
+
+  const note = labelNote(next.notes, page);
+  out.notes = [acc.notes, note].filter(Boolean).join(' ');
+  return out;
+}
+
+function labelNote(notes, page) {
+  const t = String(notes ?? '').trim();
+  if (!t) return '';
+  return page ? `Sheet on page ${page}: ${t}` : t;
 }
 
 /**

@@ -2,7 +2,12 @@ import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { extractDrawingText, parseUnitMatrix, fileExt, ACCEPTED_EXTS, IMAGE_EXTS } from '@/lib/drawingExtract';
-import { renderPdfPages, extractSiteData } from '@/lib/siteVision';
+import { renderPdfPages, renderPdfCrops, extractSiteData, mergeSiteData, validateSiteData } from '@/lib/siteVision';
+import {
+  INDEX_CANDIDATE_PAGES, locateIndexBlock, readIndexTile, probeSheetNumber,
+  padBox, indexTiles, offsetFromSelf, mapPicksToPages, reanchor, landedRight,
+  mergeIndexEntries, mergePicks, TITLE_BLOCK_BOX,
+} from '@/lib/sheetIndexVision';
 import { buildSheetIndex, pickKeySheets, pagesToRender, SET_PAGE_THRESHOLD } from '@/lib/sheetIndex';
 import { openUploadedPdf } from '@/lib/pdfRange';
 import {
@@ -158,7 +163,7 @@ const MAX_SCAN_SLICES = 30;
  * Kept as a list because "did the caller send a file or a scan key" is the
  * first branch in the route and it should read as one word.
  */
-const RESUME_STAGES = ['render', 'matrix', 'site', 'done'];
+const RESUME_STAGES = ['index', 'sheets', 'render', 'matrix', 'site', 'done'];
 const ALL_STAGES = ['scan', ...RESUME_STAGES];
 
 const mb = (n) => Math.round(n / (1024 * 1024));
@@ -263,9 +268,11 @@ export async function POST(request) {
     // side all three mean the same thing and have the same remedy.
     if (!parked.ok) return bad(parked.code, parked.message, parked.code === 'bad_key' ? 400 : 410);
     try {
+      if (stage === 'index')  return await stageIndex(scanKey, parked.state);
+      if (stage === 'sheets') return await stageSheets(scanKey, parked.state);
       if (stage === 'render') return await stageRender(scanKey, parked.state);
       if (stage === 'matrix') return await stageMatrix(parked.state);
-      if (stage === 'site')   return await stageSite(parked.state);
+      if (stage === 'site')   return await stageSite(scanKey, parked.state);
       return await stageDone(scanKey, parked.state);
     } catch (e) {
       return unexpected(e, parked.state?.fileName || 'upload');
@@ -541,6 +548,16 @@ async function stageScan({ source, opened, name, ext, s3Key, buffer, state = nul
     ? picked.chosenPages
     : [1];
 
+  // A plotted set has no text layer, so nothing landed in `chosenPages` and the
+  // fallback above is about to draw the cover -- which has no numbers on it.
+  // For a set that big it is worth going and READING the drawing index off the
+  // cover as a picture, which is what the two stages below do. Page 1 stays
+  // parked as the answer if that read comes back with nothing.
+  const needsIndex = ext === 'pdf'
+    && !picked.chosenPages.length
+    && picked.extracted.ok !== true
+    && (picked.extracted.scan?.totalPages ?? 0) > SET_PAGE_THRESHOLD;
+
   const key = await park({
     fileName:    name,
     ext,
@@ -575,7 +592,245 @@ async function stageScan({ source, opened, name, ext, s3Key, buffer, state = nul
     // Only a PDF with sheets to draw needs the render stage; a spreadsheet
     // goes straight to the matrix read.
     needsRender: ext === 'pdf' && chosenPages.length > 0,
+    needsIndex,
   });
+}
+
+/**
+ * Stage 1b — find the drawing index on the cover and cut close-ups of it.
+ *
+ * Only runs for a set with no text layer at all.
+ *
+ * ONE CANDIDATE SHEET PER REQUEST. Looking at both front sheets in one call and
+ * then cutting the close-ups measured 23.7 seconds against a front door that
+ * hangs up at 30 -- and it got slower, not faster, when the drawing jobs all
+ * moved to the strongest model. Asking about one sheet at a time also usually
+ * costs LESS in total, because the index is normally on the first sheet asked
+ * about and the rest are never drawn at all.
+ *
+ * So this returns `more: true` until it finds an index or runs out of front
+ * sheets to look at. The request that finds one goes on to read the anchor and
+ * cut the close-ups, and that request is the long one -- about eight seconds.
+ */
+async function stageIndex(scanKey, state) {
+  const nothing = (reason) => NextResponse.json({ stage: 'index', found: false, reason });
+  if (state.ext !== 'pdf' || !state.s3Key) return nothing('not_a_set');
+
+  const client = anthropicClient();
+  if (!client) return nothing('no_client');
+
+  // Which front sheet this request is about. Parked rather than passed, so a
+  // replayed or reordered call cannot make us skip one.
+  const at = state.indexLookedAt ?? 0;
+  if (at >= INDEX_CANDIDATE_PAGES.length) return nothing('no_index_found');
+  const candidate = INDEX_CANDIDATE_PAGES[at];
+
+  const opened = await openSource({ s3Key: state.s3Key, ext: 'pdf' });
+  if (opened.error) return opened.error;
+
+  try {
+    const fronts = await renderPdfPages(opened.source, {
+      pageNumbers: [candidate],
+      pages: 1,
+    });
+    if (!fronts.length) return nothing('nothing_to_draw');
+
+    const found = await locateIndexBlock(fronts.map(f => f.png), client('intake.indexLocate'));
+
+    // Nothing on THIS sheet. If there is another front sheet to try, say so and
+    // come back for it; if there is not, the read carries on against page 1,
+    // which is exactly what it did before any of this existed.
+    if (!found.box || found.imageIndex == null) {
+      const next = at + 1;
+      if (next < INDEX_CANDIDATE_PAGES.length) {
+        await putScanStateAt(scanKey, { ...state, indexLookedAt: next });
+        return NextResponse.json({ stage: 'index', found: false, more: true, lookedAt: next });
+      }
+      await putScanStateAt(scanKey, { ...state, indexLookedAt: next, visionIndex: null });
+      return nothing('no_index_found');
+    }
+
+    const sheet = fronts[found.imageIndex];
+    // columns matters as much as the box: a close-up that spans two printed
+    // columns of the index comes back with the rows braided together, and the
+    // position of a row is what tells us which page to open.
+    const rects = indexTiles(padBox(found.box), {
+      pageW: sheet.ptWidth,
+      pageH: sheet.ptHeight,
+      columns: found.columns ?? 1,
+    });
+    if (!rects.length) return nothing('no_tiles');
+
+    // The anchor. Locate has already guessed at it from a whole shrunk sheet,
+    // and on a real set that guess was wrong about one time in three — so the
+    // corner gets cut out and read properly, and the guess is only the
+    // fallback. Everything the index says hangs on this one number.
+    let selfSheetNumber = found.selfSheetNumber ?? null;
+    const corner = await renderPdfCrops(opened.source, { page: sheet.page, rects: [TITLE_BLOCK_BOX] });
+    if (corner[0]?.png) {
+      selfSheetNumber = await probeSheetNumber(corner[0].png, client('intake.sheetProbe'))
+        ?? selfSheetNumber;
+    }
+
+    const crops = await renderPdfCrops(opened.source, { page: sheet.page, rects });
+    const tileKeys = [];
+    for (const c of crops) {
+      const key = await putSheetImage(c.png, 'image/png');
+      if (key) tileKeys.push(key);
+    }
+    if (!tileKeys.length) return nothing('no_storage');
+
+    await putScanStateAt(scanKey, {
+      ...state,
+      indexLookedAt: at + 1,
+      visionIndex: {
+        selfPage: sheet.page,
+        selfSheetNumber,
+        tileKeys,
+        tilesDone: 0,
+        entries: [],
+        picks: null,
+      },
+    });
+    return NextResponse.json({ stage: 'index', found: true, tiles: tileKeys.length });
+  } catch (e) {
+    // Reading the index is an improvement on drawing the cover, never a
+    // requirement. A failure here leaves page 1 parked and the read carries on.
+    console.error('intake/parse: index locate failed for', state.fileName, e?.message ?? e);
+    return nothing('failed');
+  } finally {
+    if (opened.handle?.destroy) await opened.handle.destroy();
+  }
+}
+
+/**
+ * Stage 1c — read the index close-ups and work out which pages to draw.
+ *
+ * ONE close-up per request, the same way the scan reads a few sheets at a time.
+ * Reading a whole 127-row index in one go was measured at 32 seconds, and the
+ * front door hangs up around 30 — and the cost is the transcript, not the
+ * pictures, so a 158-sheet index would have failed with an empty 504 no matter
+ * how the images were packed. Split by tile, each request writes about forty
+ * rows and lands near ten seconds, whatever the size of the set.
+ *
+ * The rows are stitched back together in code rather than by the model, and the
+ * seam is checked: the tiles overlap, so the tail of what we have should be the
+ * head of what just arrived. Getting that wrong lists a row twice and shifts
+ * every sheet after it onto the wrong page.
+ *
+ * Once the last tile is in: the index lists the sheet it is printed on, and we
+ * know which page that is because we just drew it. That gives the offset
+ * between a row's position in the list and its page in the file, for free. A
+ * pick that lands outside the file is DROPPED, never clamped — a clamped pick
+ * quietly becomes some other drawing and its numbers get reported as answer.
+ */
+async function stageSheets(scanKey, state) {
+  const vi = state.visionIndex;
+  const nothing = (reason) => NextResponse.json({
+    stage: 'sheets', sheetsRead: state.sheetsRead ?? null, mapped: false, reason,
+  });
+  if (!vi?.tileKeys?.length) return nothing('no_tiles');
+
+  const client = anthropicClient();
+  if (!client) return nothing('no_client');
+
+  const done = vi.tilesDone ?? 0;
+  const png = await getSheetImage(vi.tileKeys[done]);
+  if (!png) return nothing('tiles_gone');
+
+  try {
+    const read = await readIndexTile(png, client('intake.sheetIndexVision'));
+    // A tile we cannot read is a hole in the MIDDLE of the list, and a hole
+    // shifts every sheet after it onto the wrong page. Better to give up on
+    // the index and open the front of the set than to answer confidently off
+    // the wrong drawing.
+    if (!read.ok) return nothing(read.code);
+
+    const entries = mergeIndexEntries(vi.entries ?? [], read.data.entries);
+    const picks = mergePicks(vi.picks, read.data.picks);
+    const tilesDone = done + 1;
+
+    if (tilesDone < vi.tileKeys.length) {
+      await putScanStateAt(scanKey, {
+        ...state,
+        visionIndex: { ...vi, entries, picks, tilesDone },
+      });
+      return NextResponse.json({
+        stage: 'sheets', more: true,
+        tilesDone, tiles: vi.tileKeys.length, rows: entries.length,
+      });
+    }
+
+    const offset = offsetFromSelf({
+      entries, selfSheetNumber: vi.selfSheetNumber, selfPage: vi.selfPage,
+    });
+    const { targets } = mapPicksToPages({
+      entries, picks, offset, totalPages: state.totalPages ?? 0,
+    });
+    if (!targets.length) {
+      await putScanStateAt(scanKey, {
+        ...state,
+        visionIndex: { ...vi, entries, picks, tilesDone, offset: offset ?? null, targets: [] },
+      });
+      return nothing(offset == null ? 'no_anchor' : 'no_targets');
+    }
+
+    const chosenPages = targets.map(t => t.page);
+    await putScanStateAt(scanKey, {
+      ...state,
+      chosenPages,
+      sheetsRead: chosenPages,
+      visionIndex: { ...vi, entries, picks, tilesDone, offset, targets },
+    });
+    return NextResponse.json({
+      stage: 'sheets',
+      mapped: true,
+      rows: entries.length,
+      sheetsRead: chosenPages,
+      picked: targets.map(({ role, sheetNumber, page }) => ({ role, sheetNumber, page })),
+    });
+  } catch (e) {
+    console.error('intake/parse: index read failed for', state.fileName, e?.message ?? e);
+    return nothing('failed');
+  }
+}
+
+/**
+ * Check a picture-read set landed on the sheet the index named, and re-aim if
+ * it did not.
+ *
+ * Returns null when there is nothing to correct — which covers every set that
+ * has a text layer, an unreadable title block, and a landing that was right.
+ * Only a title block that plainly disagrees produces a new set of pages, and
+ * only once: the corrected offset comes from a sheet number we have actually
+ * seen, so there is nothing further to learn by going round again.
+ */
+async function recheckLanding(state, rendered, source) {
+  const vi = state.visionIndex;
+  if (!vi?.entries?.length || !vi.targets?.length || !rendered?.length) return null;
+
+  const client = anthropicClient();
+  if (!client) return null;
+
+  const expected = vi.targets[0].sheetNumber;
+  // The corner, not the sheet: a title block read off a whole shrunk sheet is
+  // wrong often enough that checking the landing that way would sometimes
+  // re-aim a read that had landed correctly.
+  const corner = await renderPdfCrops(source, { page: rendered[0].page, rects: [TITLE_BLOCK_BOX] });
+  const seen = await probeSheetNumber(corner[0]?.png ?? rendered[0].png, client('intake.sheetProbe'));
+  if (landedRight(expected, seen)) return null;
+
+  const offset = reanchor({ entries: vi.entries, seenSheetNumber: seen, seenPage: rendered[0].page });
+  if (offset == null || offset === vi.offset) return null;
+
+  const { targets } = mapPicksToPages({
+    entries: vi.entries, picks: vi.picks, offset, totalPages: state.totalPages ?? 0,
+  });
+  const chosenPages = targets.map(t => t.page);
+  if (!chosenPages.length || chosenPages.join() === state.chosenPages.join()) return null;
+
+  console.warn('intake/parse: index off by', offset - vi.offset, 'sheets; re-aiming to', chosenPages);
+  return { chosenPages, targets, offset };
 }
 
 /** Stage 2 — draw the chosen sheets and keep them. */
@@ -588,15 +843,40 @@ async function stageRender(scanKey, state) {
   if (opened.error) return opened.error;
 
   try {
-    const { keptSheets } = await renderAndKeep({
-      source: opened.source, chosenPages: state.chosenPages, opened: opened.handle,
-      keepPng: true,
+    let chosenPages = state.chosenPages;
+    let { rendered, keptSheets } = await renderAndKeep({
+      source: opened.source, chosenPages, opened: opened.handle, keepPng: true,
     });
+
+    // Did we land where the index said? Only asked of a set whose pages were
+    // worked out by reading the index as a picture, and only worth asking
+    // because progress sets are routinely bound a few sheets short of their own
+    // index, which slides every page number after it. One cheap look at the
+    // title block catches that; without it a wrong sheet is indistinguishable
+    // from a right one, and its numbers get reported as the answer.
+    const fix = await recheckLanding(state, rendered, opened.source);
+    if (fix) {
+      for (const sheet of keptSheets ?? []) {
+        if (sheet.pngKey) await deleteSheetImage(sheet.pngKey);
+        if (sheet.key) await deleteSheetImage(sheet.key);
+      }
+      chosenPages = fix.chosenPages;
+      ({ rendered, keptSheets } = await renderAndKeep({
+        source: opened.source, chosenPages, opened: opened.handle, keepPng: true,
+      }));
+    }
+
     // Park the keys so the site stage can pick the images up without redrawing.
-    await putScanStateAt(scanKey, { ...state, keptSheets });
+    await putScanStateAt(scanKey, {
+      ...state,
+      keptSheets,
+      chosenPages,
+      sheetsRead: fix ? chosenPages : state.sheetsRead,
+      ...(fix ? { visionIndex: { ...state.visionIndex, offset: fix.offset, targets: fix.targets } } : {}),
+    });
     return NextResponse.json({
       stage: 'render',
-      sheetsRead: state.sheetsRead ?? null,
+      sheetsRead: (fix ? chosenPages : state.sheetsRead) ?? null,
       // `pngKey` is our scaffolding, not the visitor's business.
       keptSheets: keptSheets?.map(({ page, key, bytes }) => ({ page, key, bytes })) ?? null,
     });
@@ -651,8 +931,25 @@ async function stageMatrix(state) {
   });
 }
 
-/** Stage 4 — read the site plan. Only asked for when the matrix came up short. */
-async function stageSite(state) {
+/**
+ * Stage 4 — read the drawings we picked. Only asked for when the matrix came up
+ * short.
+ *
+ * ONE SHEET PER REQUEST. Handing the model both sheets together measured 29.4
+ * seconds against a front door that hangs up at 30 -- close enough that a
+ * denser set, or a slow afternoon, is an empty 504 and a GC who uploaded a file
+ * for nothing. A single sheet lands around fifteen.
+ *
+ * The pieces are folded together by mergeSiteData as they arrive: first answer
+ * wins per field, a null never overwrites a number, and the confidence is the
+ * lowest of the sheets that contributed anything.
+ *
+ * The cross-checks run ONCE, on the finished merge, and that is not just tidier
+ * -- it is what lets a bed mix read off one drawing be checked against a unit
+ * total read off another. Running them per sheet would only ever check a sheet
+ * against itself.
+ */
+async function stageSite(scanKey, state) {
   const client = anthropicClient();
   if (!client) return unavailable();
 
@@ -661,13 +958,29 @@ async function stageSite(state) {
     return bad('no_pages', 'We could not open the sheets from this file. Please try uploading it again.', 502);
   }
 
+  const done = state.siteRead?.done ?? 0;
+  const image = images[done];
+  if (!image) return bad('no_pages', 'We could not open the sheets from this file. Please try uploading it again.', 502);
+
   // Recorded at the injection point rather than inside extractSiteData: the
   // helper is handed a client precisely so it does not have to know where the
   // call came from, and the task name is a property of the caller.
-  const vision = await extractSiteData(images, client('intake.siteVision'));
-  if (!vision.ok) return bad(vision.code, vision.message, 502);
+  const vision = await extractSiteData([image], client('intake.siteVision'));
 
-  return NextResponse.json({ stage: 'site', siteData: vision.data });
+  // One unreadable sheet is not a failed read -- the others may hold everything
+  // we came for. It only fails if NO sheet gave us anything.
+  const merged = vision.ok
+    ? mergeSiteData(state.siteRead?.data ?? null, vision.data, image.page)
+    : (state.siteRead?.data ?? null);
+
+  const next = done + 1;
+  if (next < images.length) {
+    await putScanStateAt(scanKey, { ...state, siteRead: { done: next, data: merged } });
+    return NextResponse.json({ stage: 'site', more: true, sheetsDone: next, sheets: images.length });
+  }
+
+  if (!merged) return bad(vision.code ?? 'extraction_failed', vision.message ?? 'Could not read the drawing.', 502);
+  return NextResponse.json({ stage: 'site', siteData: validateSiteData(merged) });
 }
 
 /** Stage 5 — throw away everything the read was standing on. */
@@ -678,6 +991,8 @@ async function stageDone(scanKey, state) {
   for (const s of state.keptSheets ?? []) {
     if (s.pngKey) await deleteSheetImage(s.pngKey);
   }
+  // The index close-ups were scaffolding too, and nobody ever looks at them.
+  for (const key of state.visionIndex?.tileKeys ?? []) await deleteSheetImage(key);
   await deleteScanState(scanKey);
   return NextResponse.json({ stage: 'done', ok: true });
 }

@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { oversizeMessage, uploadErrorMessage, uploadThrowMessage } from '@/lib/uploadErrorMessage';
 import { appendUpload } from '@/lib/uploadClient';
+import ReadingWait, { READING_TIME_HINT } from '@/components/ReadingWait';
 
 // ── confidence → display tier ────────────────────────────────────────────────
 function confidenceTier(conf) {
@@ -537,6 +538,9 @@ function GreyRow({ label, note }) {
 // The Takeoffs tab omits it and behaves exactly as before.
 export default function UnitMatrixUpload({ projectId, onCommitted }) {
   const [state, setState]         = useState('loading'); // loading|idle|uploading|parsing|reviewing|committed|error
+  // When the read started, so the wait can be counted out loud. A matrix on a
+  // plotted sheet is read by a model, and that is minutes, not a page load.
+  const [readingSince, setReadingSince] = useState(null);
   const [existingFile, setExistingFile] = useState(null);
   const [savedTypes, setSavedTypes]     = useState([]);
   const [proposal, setProposal]         = useState(null);
@@ -622,6 +626,7 @@ export default function UnitMatrixUpload({ projectId, onCommitted }) {
     }
 
     setState('parsing');
+    setReadingSince(Date.now());
     setUploadedFile({ id: fileId, name: fileName });
 
     // Parse
@@ -797,6 +802,7 @@ export default function UnitMatrixUpload({ projectId, onCommitted }) {
           <p className="text-sm text-slate-500">
             {state === 'uploading' ? 'Uploading…' : state === 'parsing' ? 'Extracting unit data…' : state === 'saving' ? 'Saving…' : ''}
           </p>
+          {state === 'parsing' && <ReadingWait startedAt={readingSince} />}
         </div>
       ) : (
         <div
@@ -813,6 +819,7 @@ export default function UnitMatrixUpload({ projectId, onCommitted }) {
           <div className="text-center">
             <p className="text-sm font-semibold text-slate-600">Drop unit matrix here</p>
             <p className="text-xs text-slate-400 mt-0.5">Text PDF or Excel · PNG/JPG not yet supported</p>
+            <p className="text-[11px] text-slate-400 mt-1">{READING_TIME_HINT}</p>
           </div>
           <span className="text-xs font-semibold text-amber-600 border border-amber-200 rounded-lg px-3 py-1.5 hover:bg-amber-50">Browse file</span>
           <input

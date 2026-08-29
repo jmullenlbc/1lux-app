@@ -1,6 +1,6 @@
 'use client';
-import { useEffect, useState } from 'react';
 import { PARSE_STEPS } from '@/lib/intake/stagedParse';
+import ReadingWait from '@/components/ReadingWait';
 
 /**
  * What the read looks like while it is happening.
@@ -19,8 +19,6 @@ import { PARSE_STEPS } from '@/lib/intake/stagedParse';
  * disappearing mid-read reads as an error.
  */
 export default function ReadingSteps({ steps, startedAt }) {
-  const elapsed = useElapsed(startedAt);
-
   const finished = PARSE_STEPS.filter(s => steps[s.key] === 'done' || steps[s.key] === 'skipped').length;
   const pct = Math.round((finished / PARSE_STEPS.length) * 100);
 
@@ -59,13 +57,12 @@ export default function ReadingSteps({ steps, startedAt }) {
         })}
       </ol>
 
-      {/* Shown only once the wait is long enough to be worth explaining. A
-          number that visibly counts up is what tells someone it is not stuck. */}
-      {elapsed >= 8 && (
-        <p className="text-[11px] text-slate-400 mt-1.5 tabular-nums">
-          {elapsed}s · large sets take about a minute
-        </p>
-      )}
+      {/* Shown once the wait is long enough to be worth explaining. A number
+          that visibly counts up is what tells someone it is not stuck -- and it
+          used to say "about a minute", which a plotted set beats by well over a
+          minute. The words live in ReadingWait now, with every other place we
+          read a drawing. */}
+      <ReadingWait startedAt={startedAt} className="mt-1.5" />
     </div>
   );
 }
@@ -106,22 +103,6 @@ function Dots() {
       ))}
     </span>
   );
-}
-
-/**
- * Seconds since the read started.
- *
- * Its own hook so the once-a-second re-render stays inside this component and
- * does not drag the whole file list along with it.
- */
-function useElapsed(startedAt) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, []);
-  if (!startedAt) return 0;
-  return Math.max(0, Math.floor((now - startedAt) / 1000));
 }
 
 // Kept here rather than in the Tailwind config: these two keyframes exist for

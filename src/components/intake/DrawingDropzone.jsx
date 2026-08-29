@@ -4,6 +4,7 @@ import { useState, useRef, useCallback } from 'react';
 // model and would pull server-only code (node:crypto) into the browser bundle.
 import { mergeProposals } from '@/lib/mergeProposals';
 import { uploadDirect } from '@/lib/uploadClient';
+import { READING_TIME_HINT } from '@/components/ReadingWait';
 import { runStagedParse, STEP_WORDS } from '@/lib/intake/stagedParse';
 import ReadingSteps from './ReadingSteps';
 
@@ -255,6 +256,10 @@ export default function DrawingDropzone({ onResults }) {
           <p className="text-[11px] text-slate-400 mt-1.5">
             PDF or Excel · up to {MAX_FILES} files, {Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB each
           </p>
+          {/* Said before anything is chosen, not after. A set is read sheet by
+              sheet and takes minutes, and someone who was not told that reads a
+              working page as a broken one and closes it. */}
+          <p className="text-[11px] text-slate-500 mt-1">{READING_TIME_HINT}</p>
         </div>
         <span className="text-xs font-semibold text-amber-600 border border-amber-200 rounded-lg px-3 py-1.5 hover:bg-amber-50">
           Browse files

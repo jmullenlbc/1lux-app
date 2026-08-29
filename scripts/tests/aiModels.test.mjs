@@ -8,7 +8,7 @@
 //   3. a whole category of work drifting onto the wrong tier unnoticed.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { TIERS, JOB_TIERS, modelFor, modelParams, textFrom, answerBudget,
+import { TIERS, JOB_TIERS, DRAWING_JOBS, modelFor, modelParams, textFrom, answerBudget,
          THINKING_HEADROOM, warnIfTruncated } from '../../src/lib/aiModels.js';
 
 test('every job points at a tier that actually exists', () => {
@@ -143,4 +143,37 @@ test('textFrom ignores tool_use and other non-text blocks', () => {
   const msg = { content: [{ type: 'tool_use', id: 't1', name: 'x', input: {} },
                           { type: 'text', text: 'answer' }] };
   assert.equal(textFrom(msg), 'answer');
+});
+
+// ─── the hard rule on drawing sets ──────────────────────────────────────────
+//
+// Mike, 2026-08-28: every PDF architectural or construction drawing set is read
+// by Fable 5, with no exceptions for the small-looking jobs. These tests are the
+// enforcement -- the rule was previously a paragraph of prose, and under it two
+// drawing jobs sat on the cheapest model for months because each one, on its
+// own, looked too trivial to matter.
+
+test('EVERY drawing job reads on Fable 5 -- no exceptions for the small ones', () => {
+  for (const job of DRAWING_JOBS) {
+    assert.equal(JOB_TIERS[job], 'DEEP_READ', `${job} reads a drawing set and must be DEEP_READ`);
+    assert.equal(modelFor(job), 'claude-fable-5', `${job} must read on Fable 5`);
+  }
+});
+
+test('every job on the drawing list is a real job', () => {
+  // A typo here would pass the test above by testing nothing at all.
+  for (const job of DRAWING_JOBS) {
+    assert.ok(job in JOB_TIERS, `${job} is on the drawing list but not in JOB_TIERS`);
+  }
+});
+
+test('a new drawing.* job cannot be added without facing the rule', () => {
+  // The list is what the rule is enforced against, so a drawing job that never
+  // makes it onto the list is invisible to all of this. Anything NAMED like a
+  // drawing job has to be on it.
+  const named = Object.keys(JOB_TIERS).filter(j => j.startsWith('drawing.'));
+  for (const job of named) {
+    assert.ok(DRAWING_JOBS.includes(job),
+      `${job} looks like a drawing job -- add it to DRAWING_JOBS or rename it`);
+  }
 });

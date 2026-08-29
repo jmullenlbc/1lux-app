@@ -241,3 +241,178 @@ test('when the file was uploaded first, the scan step sends only the key', async
   assert.equal(f.sent[0].s3Key, 'uploads/intake/a.pdf');
   assert.equal(f.sent[0].file, undefined, 'no reason to re-send bytes that are already up there');
 });
+
+// ─── the picture-only path ──────────────────────────────────────────────────
+//
+// A plotted set has no text to search, so the sheets worth opening are found by
+// reading the drawing index off the cover as a picture. What these protect is
+// the fallback: this path is an improvement on opening the front of the set,
+// never a requirement, and no failure inside it may cost the visitor his read.
+
+/** A set that arrives as pictures: nothing to search, index read instead. */
+const PLOTTED = {
+  scan:   { staging: true, scanKey: 'scans/abc.json.gz', totalPages: 158, sheetsRead: [1], hasText: false, needsRender: true, needsIndex: true },
+  index:  { found: true, tiles: 3 },
+  sheets: { mapped: true, sheetsRead: [42, 9], picked: [{ role: 'sitePlan', sheetNumber: 'C2.1', page: 42 }] },
+  render: { keptSheets: [{ page: 42, key: 'sheets/x.jpg', bytes: 90000 }], sheetsRead: [42, 9] },
+  matrix: { matrix: null, needsSite: true },
+  site:   { siteData: { units: 180, buildings: 5 } },
+  done:   { ok: true },
+};
+
+test('a plotted set reads its drawing index before opening anything', async () => {
+  const f = fakeFetch(PLOTTED);
+  const steps = [];
+  const out = await runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'set.pdf', onStep: (k, st) => steps.push(k + ':' + st) });
+  f.restore();
+
+  assert.deepStrictEqual(f.calls, ['scan', 'index', 'sheets', 'render', 'matrix', 'site', 'done']);
+  assert.ok(steps.includes('index:done'));
+  assert.deepStrictEqual(out.sheetsRead, [42, 9],
+    'the sheets the index named are what we opened, not the cover');
+});
+
+test('a set with a text layer never pays for the picture read', async () => {
+  const f = fakeFetch(CLEAN);
+  const steps = [];
+  await runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'set.pdf', onStep: (k, st) => steps.push(k + ':' + st) });
+  f.restore();
+
+  assert.ok(!f.calls.includes('index'), 'two model calls for nothing');
+  assert.ok(steps.includes('index:skipped'), 'a step that vanishes looks like a stall');
+});
+
+test('no index on the cover means we open the front of the set anyway', async () => {
+  const f = fakeFetch({ ...PLOTTED, index: { found: false, reason: 'no_index_found' } });
+  const steps = [];
+  const out = await runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'set.pdf', onStep: (k, st) => steps.push(k + ':' + st) });
+  f.restore();
+
+  assert.ok(!f.calls.includes('sheets'), 'nothing to read, so nothing to ask');
+  assert.ok(f.calls.includes('render'), 'the read must carry on');
+  assert.ok(steps.includes('index:skipped'));
+  assert.ok(out.siteData, 'the visitor still gets an answer');
+});
+
+test('an index read that cannot be anchored does not stop the read', async () => {
+  // Anchoring is what turns a row in the index into a page in the file. Without
+  // it we know which sheet we want and not where it is -- and guessing would
+  // open some other drawing and report ITS numbers as the answer.
+  const f = fakeFetch({ ...PLOTTED, sheets: { mapped: false, reason: 'no_anchor', sheetsRead: [1] } });
+  const out = await runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'set.pdf' });
+  f.restore();
+
+  assert.ok(f.calls.includes('render'));
+  assert.ok(out.siteData, 'the visitor still gets an answer');
+});
+
+test('an index step that errors outright is survived, not raised', async () => {
+  const f = fakeFetch({ ...PLOTTED, index: { __status: 500, message: 'boom' } });
+  const steps = [];
+  const out = await runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'set.pdf', onStep: (k, st) => steps.push(k + ':' + st) });
+  f.restore();
+
+  assert.ok(steps.includes('index:skipped'));
+  assert.ok(out.siteData, 'a failed shortcut must never cost a GC his upload');
+});
+
+test('the index is read one close-up at a time until the server says it is done', async () => {
+  // Reading a 158-sheet index in one request would sail past the ~30s front
+  // door and come back as an empty 504 -- the exact failure this whole staged
+  // read exists to avoid. Each close-up is its own request.
+  let n = 0;
+  const f = fakeFetch({
+    ...PLOTTED,
+    index: { found: true, tiles: 3 },
+    sheets: () => (++n < 3
+      ? { more: true, tilesDone: n, tiles: 3 }
+      : { mapped: true, sheetsRead: [42, 9], picked: [] }),
+  });
+  const out = await runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'set.pdf' });
+  f.restore();
+
+  assert.strictEqual(f.calls.filter(c => c === 'sheets').length, 3);
+  assert.deepStrictEqual(out.sheetsRead, [42, 9]);
+});
+
+test('a server that never stops asking for another close-up is cut off', async () => {
+  const f = fakeFetch({ ...PLOTTED, sheets: () => ({ more: true }) });
+  const out = await runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'set.pdf' });
+  f.restore();
+
+  // The stop sits above the most close-ups the server will ever cut, so it
+  // never truncates a real index; all that matters here is that it exists.
+  assert.ok(f.calls.filter(c => c === 'sheets').length < 40, 'the read span the visitor forever');
+  assert.ok(f.calls.includes('render'), 'and it still has to finish');
+  assert.ok(out.siteData);
+});
+
+// ─── the other two loops the ~30s front door forced ─────────────────────────
+//
+// The index and the drawings are now looked at one request at a time for the
+// same reason the close-ups are: a request that runs past thirty seconds comes
+// back from Amplify as an empty 504 and the visitor gets nothing.
+
+test('the front sheets are looked at one at a time until an index turns up', async () => {
+  // Sheet 1 is often just a rendering or a vicinity map; the index is on the
+  // second sheet. Looking at both in one request cost 24 seconds.
+  let looked = 0;
+  const f = fakeFetch({
+    ...PLOTTED,
+    index: () => (++looked < 2
+      ? { found: false, more: true, lookedAt: looked }
+      : { found: true, tiles: 2 }),
+  });
+  const out = await runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'set.pdf' });
+  f.restore();
+
+  assert.strictEqual(f.calls.filter(c => c === 'index').length, 2);
+  assert.ok(f.calls.includes('sheets'), 'the index it eventually found was never read');
+  assert.deepStrictEqual(out.sheetsRead, [42, 9]);
+});
+
+test('front sheets that never show an index still let the read finish', async () => {
+  const f = fakeFetch({ ...PLOTTED, index: { found: false } });
+  const out = await runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'set.pdf' });
+  f.restore();
+
+  assert.ok(!f.calls.includes('sheets'), 'it went looking for an index it had not found');
+  assert.ok(f.calls.includes('render'), 'a set with no index should still be opened');
+  assert.ok(out.siteData, 'the visitor got nothing back');
+});
+
+test('a server that keeps asking for another front sheet is cut off', async () => {
+  const f = fakeFetch({ ...PLOTTED, index: () => ({ found: false, more: true }) });
+  const out = await runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'set.pdf' });
+  f.restore();
+
+  assert.ok(f.calls.filter(c => c === 'index').length < 20, 'it looked at front sheets forever');
+  assert.ok(f.calls.includes('render'), 'and it still has to finish');
+  assert.ok(out.siteData);
+});
+
+test('the drawings are read one sheet at a time, and the last answer is the merged one', async () => {
+  // Reading two sheets in one request measured 29.4 seconds against a 30
+  // second door. One sheet per request; the server merges as it goes.
+  let n = 0;
+  const f = fakeFetch({
+    ...PLOTTED,
+    site: () => (++n < 2
+      ? { more: true, sheetsDone: n, sheets: 2 }
+      : { siteData: { units: 250, buildings: 12 } }),
+  });
+  const out = await runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'set.pdf' });
+  f.restore();
+
+  assert.strictEqual(f.calls.filter(c => c === 'site').length, 2);
+  assert.strictEqual(out.siteData.units, 250);
+});
+
+test('a server that keeps asking for another drawing is cut off', async () => {
+  const f = fakeFetch({ ...PLOTTED, site: () => ({ more: true }) });
+  const out = await runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'set.pdf' });
+  f.restore();
+
+  assert.ok(f.calls.filter(c => c === 'site').length < 24, 'the read span the visitor forever');
+  assert.ok(f.calls.includes('done'), 'and it still has to finish');
+});
