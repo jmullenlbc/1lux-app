@@ -5,6 +5,129 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [The upload that dies at 10%] - August 30, 2026
+
+Mike: still U3, on WIFI, "like 10% in", a 12 MB set, at home. Two of those
+details killed the previous theory - a phone that can't find the bucket fails
+before the first byte, not partway through, and home wifi is not a carrier
+network. So the transfer started fine and the connection dropped mid-send.
+Nothing in the page aborts it, so that was a real drop, and a single long PUT
+has no unit smaller than the entire file to fall back on.
+
+One number is worth staring at: 10% of 12 MB is about 1.2 MB, which on home
+wifi is one or two seconds in. That is early enough that it may not be a flaky
+signal at all - it may be something refusing the transfer at a fixed size every
+single time. Those two causes look identical in the old error message and need
+opposite fixes, so this session builds the fix for one and the instrument that
+tells us whether it was the other.
+
+### 1. Big files now go up in 5 MB parts, each retried on its own
+
+New chunked upload path. Mike's 12 MB set becomes three requests instead of
+one; a drop costs one chunk, resent automatically, while the progress bar
+barely moves. 5 MB is storage's own floor for a non-final part - we sit exactly
+on it, because the smaller the unit of work, the more likely a retry clears it.
+Storage holds the parts until the server tells it they're all there
+(/api/uploads/complete), and the SERVER asks storage what landed rather than
+trusting the browser - so a missing part fails loudly instead of quietly
+assembling a truncated file. Files under 5 MB still take the old single-PUT
+path, which is simply better for them.
+
+Deliberate: all the part links are minted in ONE response. Asking for each one
+as we reach it would add a round trip per part through a front door that hangs
+up at 30 seconds - the exact fragility being removed.
+
+### 2. The upload now diagnoses itself
+
+U3 used to say only "the connection dropped." It now reports where it died,
+which part, how many MB went, over how long, and how many retries it burned -
+and, more usefully, it watches WHERE each retry stopped. If all four attempts
+die at the same point, that is a limit somewhere on the way, not a weak signal,
+and the message says so and tells the user to email the file instead of
+retrying forever. If they scatter, it is a weak connection and the message says
+to try again.
+
+That distinction is the whole point. Asking a GC on a job site to upload five
+times and report the percentages is not a diagnostic; measuring it inside the
+one failure they already had is. Chasing this bug without those numbers cost a
+day.
+
+### 3. Kept from the first attempt at this bug
+
+Presigned links now use the bucket's dual-network (IPv6-capable) address - the
+standard hostname has no IPv6 address at all, verified by DNS lookup, so this
+was a genuine hole for anyone on an IPv6-only carrier even though it was not
+Mike's failure. Staff download links got the same fix. The page also holds a
+screen wake lock during the upload.
+
+### Files changed
+
+- src/lib/uploadStorage.js - PART_BYTES (5 MB), partCountFor, presignMultipart,
+  completeMultipart, abortMultipart
+- src/app/api/uploads/presign/route.js - hands back part links on request
+- src/app/api/uploads/complete/route.js - NEW: stitches parts, or aborts
+- src/lib/uploadClient.js - chunked send, per-part retry, wall-vs-weak-signal
+  detection in the U3 message
+- src/lib/qcStorage.js, src/lib/projectFileStorage.js - dualstack endpoint
+- scripts/tests/uploadStorage.test.mjs - 4 new tests
+- scripts/tests/uploadRetry.test.mjs - NEW: 9 tests pinning the diagnosis
+- package.json - new test file added to the unit suite
+
+697/697 unit tests, bid matrix 12/12, smoke, DN-leak, 11 verify gates, clean
+build with 37/37 runtime assets.
+
+HONEST LIMIT: chunking fixes a flaky drop. It cannot fix a hard wall below
+5 MB, because storage refuses a non-final part smaller than that - so if
+something is cutting Mike off at 1.2 MB, part 1 still walks into it. The new
+message is what will tell us which one we have, on his next attempt, without
+another round of guessing.
+
+NOT YET PROVEN END TO END: the chunked path needs the live bucket to exercise
+(no S3 credentials locally), so it gets tested against production immediately
+after deploy, before Mike retries his phone.
+
+---
+
+## [The bucket the phone couldn't reach] - August 29, 2026
+
+Mike still hit the U3 error from his phone after the previous deploy. Testing
+from the live site proved the upload pipe itself works (a 60 MB test file went
+straight to storage in 2 seconds from a desktop) - so the failure is specific
+to the phone's network path. The smoking gun: the storage bucket's standard
+address has NO IPv6 address (verified by DNS lookup), while several US cell
+carriers run IPv6-only networks. On one of those, the page loads and the
+upload slip arrives fine (the site itself speaks IPv6), but the phone cannot
+reach the bucket at all - the upload dies before the first byte, which is
+exactly what U3 reports.
+
+### 1. Upload slips now point at the dual-network address
+
+The storage clients (src/lib/qcStorage.js, src/lib/projectFileStorage.js) now
+mint presigned links on the bucket's "dualstack" hostname, which answers on
+both IPv4 and IPv6. Verified locally: slips now come out as
+ilc-qc-media.s3.dualstack.us-east-2.amazonaws.com. Server-side reads are
+unaffected. This also fixes staff file-download links on the same networks.
+
+### 2. A dropped connection now gets two more tries
+
+The browser upload (src/lib/uploadClient.js) retries a network drop twice
+(2s / 5s pauses) before showing U3 - the slip stays valid for an hour, so a
+retry costs nothing. Only network drops retry; a storage rejection (U2) or
+timeout (U4) would just fail the same way again. While the transfer runs the
+page also holds a screen wake lock, so a phone that dims mid-send doesn't
+kill the upload.
+
+### Files changed
+
+- src/lib/qcStorage.js, src/lib/projectFileStorage.js - dualstack endpoint
+- src/lib/uploadClient.js - retry loop + wake lock, PUT extracted to putOnce()
+
+Full pass before hand-off: 684/684 unit tests, budget-math + bid-matrix,
+smoke, DN-leak, all 11 verify gates, clean production build with 37/37
+runtime assets.
+
+---
+
 ## [The phone flow, fixed three ways] - August 29, 2026 - DEPLOYED
 
 Mike tried the public drawing-upload page from his phone and got nothing back.

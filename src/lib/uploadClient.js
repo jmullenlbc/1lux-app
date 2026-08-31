@@ -10,55 +10,219 @@
 // Throws on real failures (oversized, unsupported type, network) with a
 // `message` written for a public visitor, so callers can show it as-is.
 
+// Matches PART_BYTES in uploadStorage.js, which is server-only (it reaches for
+// the AWS SDK) and so cannot be imported here. The server re-derives the part
+// count from the size it is given, so the two only have to agree on this
+// number. It sits on storage's 5 MiB floor for a non-final part.
+const PART_BYTES = 5 * 1024 * 1024;
+
+// How many times one request may be retried before we give up on it. A network
+// drop is the failure we are actually retrying: whatever caused it -- a wifi
+// handoff, a carrier timeout, a router with an itchy trigger on long uploads --
+// is almost always gone a few seconds later.
+const RETRY_DELAYS_MS = [2000, 5000, 12000];
+
 export async function uploadDirect(file, { onProgress, scope = 'intake' } = {}) {
   const res = await fetch('/api/uploads/presign', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fileName: file.name, size: file.size, scope }),
+    body: JSON.stringify({
+      fileName: file.name,
+      size: file.size,
+      scope,
+      multipart: (file.size || 0) >= PART_BYTES,
+    }),
   });
   const slip = await res.json().catch(() => null);
 
   if (res.ok && slip && slip.available === false) return null; // dev fallback
-  if (!res.ok || !slip?.url) {
+  if (!res.ok || !(slip?.url || slip?.partUrls?.length)) {
     throw new Error(slip?.message || 'We could not start the upload. Please try again. (U1)');
   }
 
-  // XMLHttpRequest instead of fetch for two reasons: upload progress events,
-  // and it STREAMS the File from disk rather than reading it into memory first.
-  // That second one is what lets a phone send a 300 MB drawing set at all — the
-  // browser never holds the file, so the only real constraint is time.
-  await new Promise((resolve, reject) => {
+  // A phone mid-upload is a hostile place: the screen dims, wifi hands off to
+  // cell in the parking lot, an elevator eats the signal. Hold a screen wake
+  // lock for the duration so the phone at least doesn't put the page to sleep
+  // in the middle of sending. Not every browser has this; going without it is
+  // exactly the behaviour we had before, so a failure here is ignored.
+  let wakeLock = null;
+  try { wakeLock = await navigator.wakeLock?.request('screen'); } catch { /* fine without it */ }
+
+  const stats = { pct: null, sentBytes: 0, startedAt: Date.now(), part: null, parts: null };
+  try {
+    if (slip.partUrls?.length) await sendInParts(slip, file, onProgress, stats);
+    else                       await sendWhole(slip, file, onProgress, stats);
+  } finally {
+    try { await wakeLock?.release(); } catch { /* already gone */ }
+  }
+
+  return { key: slip.key };
+}
+
+
+// ── Sending ───────────────────────────────────────────────────────────────
+//
+// Small file: one PUT, retried on a network drop.
+//
+// Big file: one PUT PER PART, each retried on its own. This is the difference
+// that matters. Mike's upload died about 10% into a set on wifi (2026-08-29) --
+// the transfer started fine and the connection dropped partway, which used to
+// kill the whole file because a single PUT has no smaller unit to fall back
+// to. In parts, that same drop costs one 8 MB chunk, which is resent
+// automatically while the progress bar barely moves.
+
+async function sendWhole(slip, file, onProgress, stats) {
+  stats.parts = 1;
+  await withRetry(() => putOnce(slip.url, file, slip.contentType, (pct) => {
+    stats.pct = pct;
+    stats.sentBytes = Math.round((file.size || 0) * pct / 100);
+    onProgress?.(pct);
+  }), stats);
+}
+
+async function sendInParts(slip, file, onProgress, stats) {
+  const total     = file.size || 1;
+  const partBytes = slip.partBytes || PART_BYTES;
+  stats.parts = slip.partUrls.length;
+  let doneBytes = 0;
+
+  try {
+    for (let i = 0; i < slip.partUrls.length; i++) {
+      const start = i * partBytes;
+      // A Blob sliced with no type makes the browser send no Content-Type
+      // header, which is what the part slips are signed for.
+      const chunk = file.slice(start, Math.min(start + partBytes, total));
+      stats.part  = i + 1;
+
+      const base = doneBytes;
+      await withRetry(() => putOnce(slip.partUrls[i], chunk, null, (pct) => {
+        stats.sentBytes = base + Math.round(chunk.size * pct / 100);
+        stats.pct = Math.round((stats.sentBytes / total) * 100);
+        onProgress?.(stats.pct);
+      }), stats);
+
+      doneBytes += chunk.size;
+      stats.sentBytes = doneBytes;
+      stats.pct = Math.round((doneBytes / total) * 100);
+      onProgress?.(stats.pct);
+    }
+  } catch (err) {
+    // Don't leave half a drawing set sitting in the bucket.
+    await tellServer({ ...slip, action: 'abort' }).catch(() => {});
+    throw err;
+  }
+
+  // Storage holds the parts separately until it is told that's all of them.
+  const done = await tellServer({ ...slip, parts: slip.partUrls.length });
+  if (!done.ok) {
+    const msg = done.message || 'The upload could not be finished. Please try again.';
+    throw new Error(`${msg} (U5)`);
+  }
+}
+
+async function tellServer({ key, uploadId, parts, action }) {
+  const res = await fetch('/api/uploads/complete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key, uploadId, parts, action }),
+  });
+  const out = await res.json().catch(() => null);
+  return { ok: res.ok && out?.ok === true, message: out?.message };
+}
+
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Retries only what retrying can fix. A storage rejection (U2) or a genuine
+// hour-long timeout (U4) would fail identically the second time, so those are
+// thrown straight through.
+async function withRetry(attempt, stats) {
+  const stops = [];   // how far each attempt got before it died
+  for (let n = 0; ; n++) {
+    try {
+      return await attempt();
+    } catch (err) {
+      stops.push(stats.sentBytes);
+      if (!err.retryable || n >= RETRY_DELAYS_MS.length) {
+        if (err.retryable) err.message = describeDrop(stats, stops);
+        throw err;
+      }
+      await wait(RETRY_DELAYS_MS[n]);
+    }
+  }
+}
+
+// Did every attempt die in the same place? That single question separates the
+// two causes, and they need opposite fixes:
+//
+//   same place every time  -> something is refusing the transfer at a fixed
+//                             point (a limit, a filter, a file the phone can
+//                             only partly read). Retrying will never help.
+//   a different place each -> a genuinely weak or busy connection, which is
+//                             exactly what the retries are for.
+//
+// Asking Mike to upload five times and eyeball the percentages is not a
+// diagnostic. Measuring it inside the one failure he already had is.
+export function stoppedAtTheSamePlace(stops) {
+  if (stops.length < 2) return false;
+  const hi = Math.max(...stops), lo = Math.min(...stops);
+  if (hi === 0) return false;
+  return (hi - lo) / hi < 0.15;
+}
+
+// ── Why the message is this specific ──────────────────────────────────────
+//
+// Four different things can go wrong between picking a file and reading it,
+// and they used to print the same sentence: "Upload failed, check your
+// connection." That sentence is worse than useless -- it sends someone to
+// check their wifi when the real problem was elsewhere, and it tells us
+// nothing when a GC reports it.
+//
+// The codes are ugly but they are the only thing that survives a screenshot
+// from a job site, and the numbers around them are what let us tell a weak
+// signal (dies at a random point, different every time) from a size or time
+// wall (dies at the same place every time). Chasing this bug without them
+// cost a day.
+export function describeDrop(stats, stops) {
+  const mb    = (n) => `${Math.round((n / (1024 * 1024)) * 10) / 10} MB`;
+  const secs  = Math.round((Date.now() - stats.startedAt) / 1000);
+  const where = stats.pct != null ? `${stats.pct}% in` : 'before it started';
+  const part  = stats.parts > 1 ? `, part ${stats.part} of ${stats.parts}` : '';
+  const verdict = stoppedAtTheSamePlace(stops)
+    ? `It stopped at the same point all ${stops.length} times, so this is a limit somewhere `
+      + `on the way — not a weak signal. Send the file to budgets@ilcstudios.com and we'll take it from there.`
+    : 'Please try again on a stronger connection.';
+  return `The connection dropped ${where}${part} — ${mb(stats.sentBytes)} sent over ${secs}s, `
+       + `across ${stops.length} tries. ${verdict} (U3)`;
+}
+
+// One PUT. XMLHttpRequest instead of fetch for two reasons: upload progress
+// events, and it STREAMS from disk rather than reading the whole thing into
+// memory first. That second one is what lets a phone send a 300 MB drawing set
+// at all -- the browser never holds the file.
+function putOnce(url, body, contentType, onProgress) {
+  return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    let sentPct = null;   // how far it got, so a drop can say where it happened
-    xhr.open('PUT', slip.url);
-    xhr.setRequestHeader('Content-Type', slip.contentType);
+    xhr.open('PUT', url);
+    if (contentType) xhr.setRequestHeader('Content-Type', contentType);
     xhr.upload.onprogress = (e) => {
-      if (!e.lengthComputable) return;
-      sentPct = Math.round((e.loaded / e.total) * 100);
-      onProgress?.(sentPct);
+      if (e.lengthComputable) onProgress?.(Math.round((e.loaded / e.total) * 100));
     };
-    // ── Why these carry codes ────────────────────────────────────────────────
-    // Four different things can go wrong between picking a file and reading it,
-    // and they used to print the same sentence: "Upload failed, check your
-    // connection." That sentence is worse than useless -- it sends someone to
-    // check their wifi when the real problem was elsewhere, and it tells us
-    // nothing when a GC reports it. The codes are ugly but they are the only
-    // thing that survives a screenshot from a job site.
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) resolve();
       else reject(new Error(`Storage would not accept the file (${xhr.status}). Please try again. (U2)`));
     };
-    xhr.onerror   = () => reject(new Error(
-      `The connection dropped while sending the file${sentPct != null ? ` at ${sentPct}%` : ' before it started'}. Please try again. (U3)`));
+    xhr.onerror = () => {
+      const err = new Error('The connection dropped while sending the file. Please try again. (U3)');
+      err.retryable = true;   // the one failure a retry can actually fix
+      reject(err);
+    };
     xhr.ontimeout = () => reject(new Error('The upload timed out. Please try again — a strong connection helps with a big set. (U4)'));
     // Matches the slip's own expiry (PRESIGN_TTL_SECONDS in uploadStorage.js).
     // A 400 MB set over a job-site connection at 2 Mbps takes ~27 minutes; a
     // timeout shorter than the slip would kill a transfer that was going fine.
     xhr.timeout = 60 * 60 * 1000;
-    xhr.send(file);
+    xhr.send(body);
   });
-
-  return { key: slip.key };
 }
 
 

@@ -20,7 +20,11 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { gzip as gzipCb, gunzip as gunzipCb } from 'node:zlib';
 import { createId } from '@paralleldrive/cuid2';
-import { PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import {
+  PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand,
+  CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand,
+  AbortMultipartUploadCommand, ListPartsCommand,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { s3Client } from './qcStorage.js';
 
@@ -112,6 +116,116 @@ export async function presignUpload({ scope = 'intake', ext, contentType }) {
   }), { expiresIn: PRESIGN_TTL_SECONDS });
   return { key, url, expiresIn: PRESIGN_TTL_SECONDS };
 }
+
+// ── Chunked uploads ─────────────────────────────────────────────────────────
+//
+// One long PUT is the wrong shape for a phone. Mike's upload died about 10%
+// into a set on wifi (2026-08-29): the transfer started fine and the
+// connection dropped partway, which kills the whole file because a single PUT
+// has no smaller unit to fall back to. Anything can cause that drop -- a wifi
+// access-point handoff walking across an office, a carrier NAT timing out an
+// idle-looking connection, a router with an itchy trigger on long uploads --
+// and none of it is worth diagnosing, because the fix is the same either way:
+// stop betting the whole file on one connection.
+//
+// So a large file goes up in parts. Each part is its own short request with
+// its own retry, so a drop costs one part instead of everything sent so far.
+//
+// Two deliberate choices:
+//   - ALL the part slips are minted in one response. The alternative (ask for
+//     each slip as we reach it) adds a round trip per part through a front
+//     door that hangs up at 30 seconds -- exactly the fragility we're removing.
+//   - The browser never reads the parts' ETags back. S3 needs them to reassemble
+//     the file, but a browser can only see a cross-origin response header if the
+//     bucket's CORS policy exposes it, and that is a console setting we don't
+//     control from here. Instead the server asks S3 what the parts were
+//     (ListParts) when it stitches them together. No bucket change required.
+
+// Storage's own floor for a non-final part is 5 MiB, and we sit exactly on it.
+// Smaller parts are strictly better for the failure we're chasing: Mike's
+// 12 MB file died about 1.2 MB in, so the smaller the unit of work, the more
+// likely a retry clears it and the sooner we learn where the trouble is. The
+// only cost is part count -- a 400 MB set becomes 80 parts, nowhere near the
+// 10,000 storage allows, and 80 links is a ~40 KB response minted once.
+export const PART_BYTES = 5 * 1024 * 1024;
+
+// Below this a single PUT is simply better: one request, no assembly step.
+export const MULTIPART_MIN_BYTES = PART_BYTES;
+
+export function partCountFor(bytes) {
+  return Math.max(1, Math.ceil(Number(bytes) / PART_BYTES));
+}
+
+/**
+ * Begin a chunked upload and mint a slip for every part up front.
+ * @returns { key, uploadId, partUrls, partBytes, expiresIn }
+ */
+export async function presignMultipart({ scope = 'intake', ext, contentType, size }) {
+  const safeScope = SCOPES.includes(scope) ? scope : 'intake';
+  const key = `uploads/${safeScope}/${createId()}.${ext}`;
+  const client = s3Client();
+
+  const { UploadId } = await client.send(new CreateMultipartUploadCommand({
+    Bucket: process.env.S3_BUCKET, Key: key, ContentType: contentType,
+  }));
+
+  const parts = partCountFor(size);
+  const partUrls = await Promise.all(
+    Array.from({ length: parts }, (_, i) => getSignedUrl(client, new UploadPartCommand({
+      Bucket: process.env.S3_BUCKET, Key: key, UploadId, PartNumber: i + 1,
+    }), { expiresIn: PRESIGN_TTL_SECONDS })),
+  );
+
+  return { key, uploadId: UploadId, partUrls, partBytes: PART_BYTES, expiresIn: PRESIGN_TTL_SECONDS };
+}
+
+/**
+ * Stitch the uploaded parts into one object. Asks S3 which parts landed rather
+ * than trusting the browser to report them, so a missing part fails here --
+ * loudly and before anything tries to read a half-written file.
+ * @returns { ok: true, key } | { ok: false, code, message }
+ */
+export async function completeMultipart({ key, uploadId, expectedParts }) {
+  if (!isUploadKey(key)) return { ok: false, code: 'bad_key', message: 'Not a valid upload reference.' };
+  const client = s3Client();
+
+  const listed = await client.send(new ListPartsCommand({
+    Bucket: process.env.S3_BUCKET, Key: key, UploadId: uploadId,
+  }));
+  const parts = (listed.Parts ?? [])
+    .map((p) => ({ PartNumber: p.PartNumber, ETag: p.ETag }))
+    .sort((a, b) => a.PartNumber - b.PartNumber);
+
+  if (!parts.length) {
+    return { ok: false, code: 'no_parts', message: 'The upload did not finish. Please try again.' };
+  }
+  if (Number.isFinite(expectedParts) && parts.length !== expectedParts) {
+    return {
+      ok: false, code: 'missing_parts',
+      message: 'Some of the file did not arrive. Please try uploading it again.',
+    };
+  }
+
+  await client.send(new CompleteMultipartUploadCommand({
+    Bucket: process.env.S3_BUCKET, Key: key, UploadId: uploadId,
+    MultipartUpload: { Parts: parts },
+  }));
+  return { ok: true, key };
+}
+
+/** Throw away a chunked upload the browser gave up on. Best effort. */
+export async function abortMultipart({ key, uploadId }) {
+  if (!isUploadKey(key)) return false;
+  try {
+    await s3Client().send(new AbortMultipartUploadCommand({
+      Bucket: process.env.S3_BUCKET, Key: key, UploadId: uploadId,
+    }));
+    return true;
+  } catch {
+    return false; // the bucket's lifecycle rule sweeps stragglers anyway
+  }
+}
+
 
 /** True only for keys our presign route could have issued. */
 export function isUploadKey(key) {

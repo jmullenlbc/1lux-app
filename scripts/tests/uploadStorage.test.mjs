@@ -19,7 +19,8 @@ process.env.S3_SECRET_ACCESS_KEY = 'testfakesecrettestfakesecrettestfakesec';
 
 const { validatePresignRequest, presignUpload, isUploadKey, rangeFetcherFor,
         MAX_INTAKE_UPLOAD_BYTES, MAX_PROJECT_UPLOAD_BYTES, limitForScope,
-        isSheetKey, putSheetImage, presignSheetRead } =
+        isSheetKey, putSheetImage, presignSheetRead,
+        PART_BYTES, MULTIPART_MIN_BYTES, partCountFor } =
   await import('../../src/lib/uploadStorage.js');
 
 // ─── validatePresignRequest ─────────────────────────────────────────────────
@@ -208,4 +209,39 @@ test('putSheetImage refuses junk before it reaches the network', async () => {
   assert.equal(await putSheetImage(Buffer.from('x'), 'application/pdf'), null, 'not an image type');
   assert.equal(await putSheetImage(Buffer.alloc(0), 'image/jpeg'), null, 'nothing to store');
   assert.equal(await putSheetImage(null, 'image/jpeg'), null, 'no buffer at all');
+});
+
+
+// ── chunked uploads ───────────────────────────────────────────────────────
+//
+// Mike's phone died ~10% into a set on wifi (2026-08-29). One long PUT has no
+// unit smaller than the whole file to retry, so a mid-transfer drop cost
+// everything. These pin the shape of the fix.
+
+test('a part is at least the 5 MB floor storage enforces on non-final parts', () => {
+  assert.ok(PART_BYTES >= 5 * 1024 * 1024, 'S3 rejects a non-final part under 5 MB');
+});
+
+test('part count covers the whole file, with a partial last part', () => {
+  assert.equal(partCountFor(PART_BYTES), 1, 'an exact single part is not split');
+  assert.equal(partCountFor(PART_BYTES + 1), 2, 'one byte over needs a second part');
+  assert.equal(partCountFor(PART_BYTES * 3), 3);
+  // The real case: a 400 MB set must stay well inside storage's 10,000-part cap.
+  const parts = partCountFor(MAX_INTAKE_UPLOAD_BYTES);
+  assert.ok(parts > 1 && parts < 10000, `400 MB should chunk sanely, got ${parts}`);
+});
+
+test('a small file is never chunked \u2014 one PUT is simply better', () => {
+  assert.equal(partCountFor(1024), 1);
+  assert.ok(MULTIPART_MIN_BYTES >= PART_BYTES,
+    'chunking below one part size would add an assembly step for nothing');
+});
+
+test('presigned links resolve on IPv6-only phone networks', async () => {
+  // The standard bucket hostname has no AAAA record (checked 2026-08-29), so a
+  // phone on an IPv6-only carrier cannot reach it at all. Every browser-facing
+  // link must be minted on the dualstack host.
+  const slip = await presignUpload({ scope: 'intake', ext: 'pdf', contentType: 'application/pdf' });
+  assert.match(new URL(slip.url).host, /\.s3\.dualstack\./,
+    'presigned uploads must use the dualstack endpoint');
 });

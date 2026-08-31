@@ -72,13 +72,21 @@ export function s3Client() {
   const region = process.env.S3_REGION || 'us-east-2';
   const id     = process.env.S3_ACCESS_KEY_ID;
   const secret = process.env.S3_SECRET_ACCESS_KEY;
+  // Dualstack matters for the PRESIGNED urls this client mints: the standard
+  // bucket hostname has no IPv6 address (checked 2026-08-29 -- no AAAA
+  // record), so a phone on an IPv6-only carrier network loads the site fine
+  // and then can't reach the bucket at all. The upload dies before the first
+  // byte (the U3 error) while the same page works on office wifi. The
+  // dualstack hostname answers on both protocols; server-side reads through
+  // this client are unaffected either way.
   if (id && secret) {
     return new S3Client({
       region,
+      useDualstackEndpoint: true,
       credentials: { accessKeyId: id, secretAccessKey: secret },
     });
   }
-  return new S3Client({ region });
+  return new S3Client({ region, useDualstackEndpoint: true });
 }
 
 async function putS3(buffer, { ext = 'png', contentType = 'image/png' } = {}) {

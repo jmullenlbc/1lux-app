@@ -27,8 +27,11 @@ function s3() {
   const region = process.env.S3_REGION || 'us-east-2';
   const id     = process.env.S3_ACCESS_KEY_ID;
   const secret = process.env.S3_SECRET_ACCESS_KEY;
-  if (id && secret) return new S3Client({ region, credentials: { accessKeyId: id, secretAccessKey: secret } });
-  return new S3Client({ region });
+  // Dualstack for the same reason as qcStorage.s3Client: the presigned GET
+  // links this module hands to browsers must resolve on IPv6-only phone
+  // networks (the standard bucket hostname has no IPv6 address).
+  if (id && secret) return new S3Client({ region, useDualstackEndpoint: true, credentials: { accessKeyId: id, secretAccessKey: secret } });
+  return new S3Client({ region, useDualstackEndpoint: true });
 }
 
 // Write a file and return the storedPath key to persist in the DB.

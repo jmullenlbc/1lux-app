@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
-import { presignAvailable, validatePresignRequest, presignUpload } from '@/lib/uploadStorage';
+import {
+  presignAvailable, validatePresignRequest, presignUpload, presignMultipart,
+  MULTIPART_MIN_BYTES,
+} from '@/lib/uploadStorage';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,6 +63,16 @@ export async function POST(request) {
   }
 
   try {
+    // A file big enough to be worth chunking gets a slip per part instead of
+    // one slip for the whole thing. The browser asks for this explicitly, so
+    // an older cached page keeps working exactly as it did.
+    const size = Number(body?.size);
+    if (body?.multipart === true && size >= MULTIPART_MIN_BYTES) {
+      const slip = await presignMultipart({
+        scope: check.scope, ext: check.ext, contentType: check.contentType, size,
+      });
+      return NextResponse.json({ available: true, ...slip, contentType: check.contentType });
+    }
     const slip = await presignUpload({ scope: check.scope, ext: check.ext, contentType: check.contentType });
     return NextResponse.json({ available: true, ...slip, contentType: check.contentType });
   } catch (err) {
