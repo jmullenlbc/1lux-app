@@ -12,7 +12,7 @@
 // fake fetch. The stages themselves are the route's business.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { runStagedParse, PARSE_STEPS } from '../../src/lib/intake/stagedParse.js';
+import { runStagedParse, PARSE_STEPS, stage, STAGE_RETRY_WAITS_MS, waitForVisible } from '../../src/lib/intake/stagedParse.js';
 
 /**
  * Stand in for the network.
@@ -415,4 +415,66 @@ test('a server that keeps asking for another drawing is cut off', async () => {
 
   assert.ok(f.calls.filter(c => c === 'site').length < 24, 'the read span the visitor forever');
   assert.ok(f.calls.includes('done'), 'and it still has to finish');
+});
+
+
+// ── The retry: a dropped request must not kill a minutes-long read ──────────
+// Every R1 Mike screenshotted was ONE thrown fetch ending the whole read. The
+// server parks its progress under a scanKey, so re-asking is always safe.
+
+// Real waits are 2s/6s; tests only care about the COUNT, not the pacing.
+STAGE_RETRY_WAITS_MS[0] = 1;
+STAGE_RETRY_WAITS_MS[1] = 1;
+
+function countingFetch(behaviours) {
+  let n = 0;
+  const original = globalThis.fetch;
+  globalThis.fetch = async () => {
+    const b = behaviours[Math.min(n++, behaviours.length - 1)];
+    if (b instanceof Error) throw b;
+    return { ok: b.ok !== false, status: b.status ?? 200, json: async () => b };
+  };
+  return { calls: () => n, restore: () => { globalThis.fetch = original; } };
+}
+
+test('a dropped request is re-asked and the read continues', async () => {
+  const f = countingFetch([new TypeError('Failed to fetch'), { staging: true, scanKey: 'k' }]);
+  try {
+    const d = await stage({ stage: 'scan', s3Key: 'x' });
+    assert.equal(d.scanKey, 'k');
+    assert.equal(f.calls(), 2, 'first attempt dropped, second answered');
+  } finally { f.restore(); }
+});
+
+test('three drops in a row give up with the original error', async () => {
+  const f = countingFetch([new TypeError('Failed to fetch')]);
+  try {
+    await assert.rejects(() => stage({ stage: 'scan', s3Key: 'x' }), TypeError);
+    assert.equal(f.calls(), 3, 'one ask plus two retries, then done');
+  } finally { f.restore(); }
+});
+
+test('an answer the server actually gave is never retried', async () => {
+  // A 4xx/5xx WITH a message is a decision, not a drop. Re-asking would repeat
+  // work the server already refused once.
+  const f = countingFetch([{ ok: false, status: 422, message: 'This file is not a PDF.' }]);
+  try {
+    await assert.rejects(() => stage({ stage: 'scan', s3Key: 'x' }), /not a PDF/);
+    assert.equal(f.calls(), 1);
+  } finally { f.restore(); }
+});
+
+test('the visitor leaving is not a failure to retry', async () => {
+  const gone = new Error('gone');
+  gone.name = 'AbortError';
+  const f = countingFetch([gone]);
+  try {
+    await assert.rejects(() => stage({ stage: 'scan', s3Key: 'x' }), /gone/);
+    assert.equal(f.calls(), 1);
+  } finally { f.restore(); }
+});
+
+test('waitForVisible is a no-op where there is no page to hide', async () => {
+  // Node has no document; the retry must not hang waiting for one.
+  await waitForVisible(50);
 });

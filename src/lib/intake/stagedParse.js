@@ -83,15 +83,67 @@ export const STEP_WORDS = {
 /** How many slices the scan may take before we stop asking. See stageScan. */
 const MAX_SCAN_SLICES = 30;
 
+/** How long to wait before re-asking a stage whose request never came back. */
+export const STAGE_RETRY_WAITS_MS = [2000, 6000];
+
 /**
- * Post one stage. A non-2xx carries a message written for a public reader.
+ * Wait for the page to be visible again, up to a limit.
+ *
+ * A hidden page is the worst place to retry from: the phone that just killed
+ * one request will kill the next the same way. When the visitor comes back --
+ * unlocks the phone, returns from a text -- the retry actually has a chance,
+ * and the read picks up exactly where the parked state says it left off.
+ */
+export function waitForVisible(limitMs = 5 * 60 * 1000) {
+  if (typeof document === 'undefined' || document.visibilityState !== 'hidden') {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    const done = () => {
+      document.removeEventListener('visibilitychange', onVis);
+      clearTimeout(cap);
+      resolve();
+    };
+    const onVis = () => { if (document.visibilityState === 'visible') done(); };
+    const cap = setTimeout(done, limitMs);
+    document.addEventListener('visibilitychange', onVis);
+  });
+}
+
+/**
+ * Post one stage, and do not give up on the first dropped request.
+ *
+ * The work is parked server-side under a scanKey, so re-asking a stage is
+ * always safe -- the server picks up wherever the parked state says it is.
+ * That makes a THROWN fetch (the phone dimmed its screen, the radio blinked
+ * on a job site) retryable for free, where it used to kill a minutes-long
+ * read on the spot: that was every R1 in every screenshot.
+ *
+ * Deliberate exceptions: an answer the server actually gave (err.shown) is a
+ * decision, not a drop; and an abort is the visitor leaving, not a failure.
+ */
+export async function stage(body, signal, file) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await stageOnce(body, signal, file);
+    } catch (err) {
+      if (err?.shown || err?.name === 'AbortError' || signal?.aborted) throw err;
+      if (attempt >= STAGE_RETRY_WAITS_MS.length) throw err;
+      await waitForVisible();
+      await new Promise(res => setTimeout(res, STAGE_RETRY_WAITS_MS[attempt]));
+    }
+  }
+}
+
+/**
+ * Post one stage, ONCE. A non-2xx carries a message written for a public reader.
  *
  * `file` is only ever set on the first step, and only when there was nowhere to
  * upload to first -- a laptop with no bucket. The file rides along with that
  * one short request and the server parks it; every step after works from the
  * key it hands back, exactly as it does in production.
  */
-async function stage(body, signal, file) {
+async function stageOnce(body, signal, file) {
   const r = await fetch('/api/intake/parse', {
     method: 'POST',
     ...(file

@@ -5,6 +5,67 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [The read that died when the screen did] - August 30, 2026
+
+Mike: still R1/scan, after both of yesterday's deploys. So the failure was
+re-tested from a desktop against the LIVE site, driving the exact same
+requests his phone makes: upload, scan, render, matrix -- every stage answered
+in one to two seconds. The server is healthy. The failure lives on the phone,
+and the code showed exactly where.
+
+The screen wake lock was held only during the UPLOAD -- seconds -- and
+released just as the READ began, which runs for minutes. A phone that dims
+its screen mid-read suspends the page and kills the request in flight; the
+browser reports that identically to a dropped connection, so it printed
+R1/scan every time. And a single killed request ended the entire read, even
+though the server keeps its progress parked and can resume from anywhere.
+
+Three changes, none deployed yet:
+
+### 1. The screen now stays awake for the whole read
+
+One wake lock held from the first byte of the upload to the last step of the
+read -- and re-grabbed automatically if the visitor flips to another app and
+back, because the browser silently drops the lock when the page is hidden and
+never brings it back on its own.
+
+### 2. A dropped request is re-asked instead of obeyed
+
+Every read request now retries up to two more times. The server parks its
+progress under a key, so re-asking is always safe -- the read picks up where
+it left off. If the page is hidden when the drop happens (the phone locked,
+the visitor took a call), the retry WAITS up to five minutes for the page to
+come back before asking again -- so a phone going dark mid-read now recovers
+by itself instead of failing. A refusal the server actually sent, and a
+visitor who left the page, are deliberately never retried.
+
+### 3. The failure finally says which of two things happened
+
+If the page went dark during the read, the error now says so -- "your phone
+put this page to sleep... keep the screen on" with an /slept marker -- instead
+of blaming the connection. A genuine repeated drop says it retried and gives
+budgets@ilcstudios.com on the second strike. The new wording also marks which
+build produced any future screenshot.
+
+### Files changed
+
+- src/lib/uploadClient.js - holdScreenAwake(): a wake lock that re-grabs
+  itself, exported; uploadDirect now uses it
+- src/lib/intake/stagedParse.js - stage() retries dropped requests (2s/6s),
+  waitForVisible() holds the retry until the page is back
+- src/components/intake/DrawingDropzone.jsx - one lock across upload AND
+  read; tracks whether the page went dark; the two-way R1 message
+- scripts/tests/stagedParse.test.mjs - 5 new tests pinning the retry rules
+- .claude/coordination.md - two asks routed to Sean (multipart cleanup rule,
+  CloudWatch pull on /api/intake/parse) -- pushed separately
+
+706/706 unit tests, budget math + fuzz + bid matrix 12/12, smoke, DN-leak,
+11 verify gates, clean build with 37/37 runtime assets.
+
+DEPLOYED August 31, 2026.
+
+---
+
 ## [The file that was never on the phone] - August 30, 2026 - DEPLOYED
 
 Mike's screenshot finally told the whole story. The failing file was 2.4 MB -

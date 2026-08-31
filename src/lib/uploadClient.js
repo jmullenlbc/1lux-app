@@ -60,6 +60,35 @@ export async function materialize(file) {
   return new Blob([buf]);
 }
 
+/**
+ * Keep the phone's screen on, and KEEP it on.
+ *
+ * A single wakeLock.request is not enough on a phone: the browser silently
+ * drops the lock the moment the page is hidden (the visitor checks a text,
+ * flips to another app) and it does NOT come back on its own. So this
+ * re-grabs the lock every time the page comes back into view, until the
+ * returned release function is called.
+ *
+ * Browsers without wake lock get exactly the old behaviour -- every failure
+ * here is swallowed on purpose.
+ */
+export function holdScreenAwake() {
+  let lock = null;
+  let released = false;
+  const grab = async () => {
+    if (released) return;
+    try { lock = await navigator.wakeLock?.request('screen'); } catch { /* fine without it */ }
+  };
+  const onVisible = () => { if (document.visibilityState === 'visible') grab(); };
+  grab();
+  if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisible);
+  return async () => {
+    released = true;
+    if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisible);
+    try { await lock?.release(); } catch { /* already gone */ }
+  };
+}
+
 export async function uploadDirect(file, { onProgress, scope = 'intake' } = {}) {
   const res = await fetch('/api/uploads/presign', {
     method: 'POST',
@@ -81,10 +110,9 @@ export async function uploadDirect(file, { onProgress, scope = 'intake' } = {}) 
   // A phone mid-upload is a hostile place: the screen dims, wifi hands off to
   // cell in the parking lot, an elevator eats the signal. Hold a screen wake
   // lock for the duration so the phone at least doesn't put the page to sleep
-  // in the middle of sending. Not every browser has this; going without it is
-  // exactly the behaviour we had before, so a failure here is ignored.
-  let wakeLock = null;
-  try { wakeLock = await navigator.wakeLock?.request('screen'); } catch { /* fine without it */ }
+  // in the middle of sending. (The intake dropzone holds its own lock across
+  // the whole upload-and-read journey; this one covers any other caller.)
+  const releaseWake = holdScreenAwake();
 
   const stats = { pct: null, sentBytes: 0, startedAt: Date.now(), part: null, parts: null };
   try {
@@ -92,7 +120,7 @@ export async function uploadDirect(file, { onProgress, scope = 'intake' } = {}) 
     if (slip.partUrls?.length) await sendInParts(slip, bytes, onProgress, stats);
     else                       await sendWhole(slip, bytes, onProgress, stats);
   } finally {
-    try { await wakeLock?.release(); } catch { /* already gone */ }
+    await releaseWake();
   }
 
   return { key: slip.key };

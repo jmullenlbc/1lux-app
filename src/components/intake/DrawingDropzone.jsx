@@ -3,7 +3,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 // From the standalone module, not '@/lib/drawingExtract' — that one reaches the
 // model and would pull server-only code (node:crypto) into the browser bundle.
 import { mergeProposals } from '@/lib/mergeProposals';
-import { uploadDirect } from '@/lib/uploadClient';
+import { uploadDirect, holdScreenAwake } from '@/lib/uploadClient';
 import { READING_TIME_HINT } from '@/components/ReadingWait';
 import { runStagedParse, STEP_WORDS } from '@/lib/intake/stagedParse';
 import ReadingSteps from './ReadingSteps';
@@ -130,6 +130,20 @@ export default function DrawingDropzone({ onResults }) {
       return;
     }
 
+    // ── The screen stays awake for the WHOLE journey, not just the upload ──
+    // The wake lock inside uploadDirect is released the moment the upload
+    // finishes -- and the read that follows is the LONG part. A phone dimming
+    // its screen two minutes into "looking through the set" suspends the page
+    // and kills the request in flight, which surfaced as R1/scan on every one
+    // of Mike's screenshots. Hold one lock across upload AND read, re-grabbed
+    // if the visitor flips away and back, and remember whether the page ever
+    // went dark so a failure can say what actually happened.
+    const releaseWake = holdScreenAwake();
+    let slept = false;
+    const sawHide = () => { if (document.visibilityState === 'hidden') slept = true; };
+    document.addEventListener('visibilitychange', sawHide);
+    const settle = () => { document.removeEventListener('visibilitychange', sawHide); releaseWake(); };
+
     // ── Step 1: get the file where the parser can reach it ──
     // Preferred: straight to cloud storage via a presigned slip — no size cap
     // that matters, with a progress bar. Fallback: the classic multipart POST
@@ -155,6 +169,7 @@ export default function DrawingDropzone({ onResults }) {
           publish(next);
           return next;
         });
+        settle();
         return;
       }
       sent = null; // small file — the multipart fallback below still works
@@ -194,14 +209,20 @@ export default function DrawingDropzone({ onResults }) {
         ? { status: 'done', proposal: staged, error: null }
         : await parseInOneRequest(item, sent);
     } catch (err) {
-      // `shown` means the server already wrote this for a public reader. Anything
-      // else is the browser losing the request, and it says which step it lost --
-      // the old catch-all blamed the connection for every possible failure.
+      // `shown` means the server already wrote this for a public reader.
+      // Anything else is the browser losing the same request three times over
+      // (stage() retries the dropped ones) -- and the two ways that happens on
+      // a phone deserve different words. If the page went dark mid-read, the
+      // phone cut the line, not the network, and "try again" alone would just
+      // send him around the same loop.
       patch = { status: 'error', error: err?.shown
         ? err.message
-        : `We lost the connection while ${STEP_WORDS[atStep] ?? 'reading the file'}. Please try again. (R1/${atStep})` };
+        : slept
+          ? `Your phone put this page to sleep while we were ${STEP_WORDS[atStep] ?? 'reading the file'}, and that cuts the line mid-read. Keep the screen on and this page in front until the read finishes, then try again. (R1/${atStep}/slept)`
+          : `We kept losing the connection while ${STEP_WORDS[atStep] ?? 'reading the file'}, even after retrying. Please try again — and if it happens twice, send the file to budgets@ilcstudios.com. (R1/${atStep})` };
     }
 
+    settle();
     setItems(prev => {
       const next = prev.map(i => i.id === item.id ? { ...i, ...patch } : i);
       publish(next);
