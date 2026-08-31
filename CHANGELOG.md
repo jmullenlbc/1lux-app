@@ -5,6 +5,85 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [The picture that would not fit through the door] - August 31, 2026
+
+**DEPLOYED August 31, 2026** (with the error-number system below).
+
+### Error numbers for every type of error
+
+Mike's rule after the field test: every error a visitor can see must end in a
+code. The letter says WHERE (F = file rejected before upload, U = upload,
+R = read connection, V = AI reader, S = everything else on the server), the
+number says WHICH.
+
+- New src/lib/intake/errorNumbers.js: one table mapping every server error
+  code to a stable number (S1-S19), and stampError(), which appends the number
+  to any message that does not already end in a code. An error code added in
+  the future without a number still ships as "(S-<name>)" - a blank error
+  message can no longer exist on these routes.
+- The parse route, the upload presign route, and the upload complete route now
+  stamp every answer automatically through that one helper.
+- The last uncoded client-side messages got codes too: R4 (set too big even
+  for sliced scanning), R0 (server answer arrived unreadable), F1 (file over
+  the 400 MB ceiling), U0 (upload failed with no recorded reason).
+- New reference doc for humans: "ERROR CODES REFERENCE.md" in the Software
+  engineering folder - every code, plain-English meaning, and what to do.
+
+Tests: 6 new in scripts/tests/errorNumbers.test.mjs (stamping, the
+already-coded guard so V-codes are not double-tagged, uniqueness, coverage of
+every code the pipeline uses). Suite: 714/714 units, smoke 7/7, DN 8/8,
+verify 11/11 gates, build clean with 37/37 runtime assets.
+
+Note: the site read stays down in production until the Anthropic account has
+credits again - that is a billing action only Mike can take. The moment
+credits are added, everything works with no further deploy.
+
+Mike's phone test on the new build got further than ever: upload, scan, index,
+render, and matrix all passed. The read then died at "reading site plan" with
+the server's own message, "Could not read the drawing." - no error code, which
+proves the request reached the server and the server's AI call itself failed on
+every kept sheet.
+
+The best-evidence cause: the AI service turns away any single picture over
+5 MB, and a dense plotted sheet rendered to PNG at 2200px can exceed that. The
+rejection is deterministic - the SDK's automatic retries re-send the same
+too-big picture - so the whole site read fails every time, on exactly the kind
+of scanned set a GC uploads.
+
+Changes (src/lib/siteVision.js):
+- New fitForVision(): a sheet PNG over 3.5 MB is re-encoded as JPEG (about a
+  fifth the bytes, quality 0.9 to protect thin linework), and scaled down if
+  even that is too big. Under the cap, the PNG passes through untouched.
+- Vision failures now carry codes: "(V1-<status>)" when the AI call fails
+  (the status names the kind - 400 is a picture problem, 529 is their
+  weather), "(V2)" when the answer could not be parsed. The server log line
+  now also records the image byte sizes.
+
+Tests: 2 new (oversized noise PNG comes back as fitting JPEG; small PNG passes
+untouched). Suite: 708/708 units green.
+
+PROVEN SAME DAY: Mike saved the actual ARCH set to the shared drive and the
+full staged read was reproduced locally - it failed at the site stage with
+V1-400, and the server log showed the real cause in plain text: "Your credit
+balance is too low to access the Anthropic API." The account that pays for
+AI drawing reads is out of credits. The sheet image was 1.38 MB (well under
+the 5 MB cap), so the fitForVision change was not the cause of this failure -
+it stays as hardening. The V-code did exactly its job: one failed run named
+the failure class instantly.
+
+Why every earlier stage "passed": scan/render/matrix make no AI calls on a
+scanned set, and the index read is designed to swallow its own failures and
+fall through. The site read is the only stage that MUST have the AI - so an
+empty credit balance surfaces there, disguised as a drawing problem.
+
+Follow-up change: a credit-balance failure now returns its own code (V3) and
+a message that says the outage is ours, not the visitor's file - billing
+words never belong on a public page.
+
+Fix for the actual outage: add credits to the Anthropic API account
+(console.anthropic.com -> Plans & Billing). Code cannot fix an empty tank.
+
+
 ## [The read that died when the screen did] - August 30, 2026
 
 Mike: still R1/scan, after both of yesterday's deploys. So the failure was

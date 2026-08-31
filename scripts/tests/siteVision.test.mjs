@@ -312,3 +312,39 @@ test('gross building SF merges like any other stated number', () => {
   assert.strictEqual(merged.grossSf, 299441, 'the area summary filled what the site plan left blank');
   assert.strictEqual(merged.totalUnits, 300);
 });
+
+// ── fitForVision: the picture must fit through the model's front desk ──────
+// A plotted sheet re-encoded as PNG can exceed the API's per-image limit, and
+// that rejection is deterministic — retries can't save it. These pin the fix.
+import { fitForVision } from '../../src/lib/siteVision.js';
+import { createCanvas } from '@napi-rs/canvas';
+
+function noisyPng(edge) {
+  // Random noise is PNG's worst case, which is exactly what a scan looks like
+  // to the encoder. 2200px of it lands well over the cap.
+  const canvas = createCanvas(edge, edge);
+  const ctx = canvas.getContext('2d');
+  const im = ctx.createImageData(edge, edge);
+  let seed = 0x9e3779b9;
+  for (let i = 0; i < im.data.length; i++) {
+    seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; seed >>>= 0;
+    im.data[i] = seed & 0xff;
+  }
+  ctx.putImageData(im, 0, 0);
+  return canvas.toBuffer('image/png');
+}
+
+test('a small PNG passes through untouched', async () => {
+  const png = Buffer.from('89504e470d0a1a0a', 'hex'); // tiny stand-in; size is all that matters here
+  const out = await fitForVision(png);
+  assert.equal(out.mediaType, 'image/png');
+  assert.equal(out.data, png, 'must be the same buffer, no re-encode');
+});
+
+test('an oversized PNG comes back as a JPEG under the cap', async () => {
+  const png = noisyPng(2200);
+  assert.ok(png.length > 3.5 * 1024 * 1024, `test premise: noise PNG must exceed the cap (got ${png.length})`);
+  const out = await fitForVision(png);
+  assert.equal(out.mediaType, 'image/jpeg');
+  assert.ok(out.data.length <= 3.5 * 1024 * 1024, `JPEG must fit under the cap (got ${out.data.length})`);
+});

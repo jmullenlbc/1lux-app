@@ -80,7 +80,7 @@ async function parseInOneRequest(item, sent) {
     return r.ok
       ? { status: 'done', proposal: d, error: null }
       // The API's `message` is written for a public reader, so show it as-is.
-      : { status: 'error', error: d.message || 'Could not read this file.' };
+      : { status: 'error', error: d.message || 'Could not read this file. (R0)' };
   } catch {
     return { status: 'error', error: 'We lost the connection while reading the file. Please try again. (R2)' };
   }
@@ -122,7 +122,7 @@ export default function DrawingDropzone({ onResults }) {
         const next = prev.map(i => i.id === item.id
           // No instructions to a GC standing on a job site about how to split a
           // PDF. Say the number, say what to do, and give him a person.
-          ? { ...i, status: 'error', error: `This file is ${fmtBytes(item.file.size)}, which is past what we can take (${fmtBytes(MAX_UPLOAD_BYTES)}). Send it to us at budgets@ilcstudios.com and we'll take it from there.` }
+          ? { ...i, status: 'error', error: `This file is ${fmtBytes(item.file.size)}, which is past what we can take (${fmtBytes(MAX_UPLOAD_BYTES)}). Send it to us at budgets@ilcstudios.com and we'll take it from there. (F1)` }
           : i);
         publish(next);
         return next;
@@ -164,7 +164,7 @@ export default function DrawingDropzone({ onResults }) {
       if (item.file.size > 4 * 1024 * 1024 || err.unreadable) {
         setItems(prev => {
           const next = prev.map(i => i.id === item.id
-            ? { ...i, status: 'error', error: err.message || 'Upload failed. Please try again.' }
+            ? { ...i, status: 'error', error: err.message || 'Upload failed. Please try again. (U0)' }
             : i);
           publish(next);
           return next;

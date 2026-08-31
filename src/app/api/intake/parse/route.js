@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { stampError } from '@/lib/intake/errorNumbers';
 import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { extractDrawingText, parseUnitMatrix, fileExt, ACCEPTED_EXTS, IMAGE_EXTS } from '@/lib/drawingExtract';
@@ -133,7 +134,7 @@ const UPLOADS  = { limit: 12,  windowMs: 60_000 };
 const REQUESTS = { limit: 150, windowMs: 60_000 };
 
 const tooMany = (retryAfterSec) => NextResponse.json(
-  { error: 'rate_limited', message: 'Too many uploads. Please wait a moment and try again.' },
+  { error: 'rate_limited', message: stampError('rate_limited', 'Too many uploads. Please wait a moment and try again.') },
   { status: 429, headers: { 'Retry-After': String(retryAfterSec) } },
 );
 
@@ -169,7 +170,7 @@ const ALL_STAGES = ['scan', ...RESUME_STAGES];
 const mb = (n) => Math.round(n / (1024 * 1024));
 
 const bad = (code, message, status = 400) =>
-  NextResponse.json({ error: code, message }, { status });
+  NextResponse.json({ error: code, message: stampError(code, message) }, { status });
 
 export async function POST(request) {
   const ip = clientIp(request);

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { stampError } from '@/lib/intake/errorNumbers';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
 import { presignAvailable, completeMultipart, abortMultipart } from '@/lib/uploadStorage';
 
@@ -41,20 +42,20 @@ export async function POST(request) {
   }
 
   if (!presignAvailable()) {
-    return NextResponse.json({ error: 'unavailable', message: 'Direct uploads are not configured.' }, { status: 409 });
+    return NextResponse.json({ error: 'unavailable', message: stampError('unavailable', 'Direct uploads are not configured.') }, { status: 409 });
   }
 
   let body;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: 'bad_request', message: 'Invalid request.' }, { status: 400 });
+    return NextResponse.json({ error: 'bad_request', message: stampError('bad_request', 'Invalid request.') }, { status: 400 });
   }
 
   const key      = String(body?.key ?? '');
   const uploadId = String(body?.uploadId ?? '');
   if (!key || !uploadId) {
-    return NextResponse.json({ error: 'bad_request', message: 'Missing upload reference.' }, { status: 400 });
+    return NextResponse.json({ error: 'bad_request', message: stampError('bad_request', 'Missing upload reference.') }, { status: 400 });
   }
 
   if (body?.action === 'abort') {
@@ -72,7 +73,7 @@ export async function POST(request) {
       // A part is missing — the object would be silently truncated if we
       // assembled it, so throw the whole thing away and say so.
       await abortMultipart({ key, uploadId });
-      return NextResponse.json({ error: res.code, message: res.message }, { status: 422 });
+      return NextResponse.json({ error: res.code, message: stampError(res.code, res.message) }, { status: 422 });
     }
     return NextResponse.json({ ok: true, key: res.key });
   } catch (err) {

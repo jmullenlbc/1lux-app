@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { stampError } from '@/lib/intake/errorNumbers';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
 import {
   presignAvailable, validatePresignRequest, presignUpload, presignMultipart,
@@ -54,12 +55,12 @@ export async function POST(request) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: 'bad_request', message: 'Invalid request.' }, { status: 400 });
+    return NextResponse.json({ error: 'bad_request', message: stampError('bad_request', 'Invalid request.') }, { status: 400 });
   }
 
   const check = validatePresignRequest({ fileName: body?.fileName, size: body?.size, scope: body?.scope });
   if (!check.ok) {
-    return NextResponse.json({ error: check.code, message: check.message }, { status: check.code === 'too_large' ? 413 : 422 });
+    return NextResponse.json({ error: check.code, message: stampError(check.code, check.message) }, { status: check.code === 'too_large' ? 413 : 422 });
   }
 
   try {
@@ -77,6 +78,6 @@ export async function POST(request) {
     return NextResponse.json({ available: true, ...slip, contentType: check.contentType });
   } catch (err) {
     console.error('uploads/presign failed:', err?.message ?? err);
-    return NextResponse.json({ error: 'presign_failed', message: 'Could not prepare the upload. Please try again.' }, { status: 502 });
+    return NextResponse.json({ error: 'presign_failed', message: stampError('presign_failed', 'Could not prepare the upload. Please try again.') }, { status: 502 });
   }
 }

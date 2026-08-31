@@ -19,7 +19,7 @@
  * written, return null for what is not, and never estimate from the drawing.**
  * A missing number is visible to a reviewer; an invented one is not.
  */
-import { createCanvas } from '@napi-rs/canvas';
+import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { loadPdfjs, pdfDocOptions } from './pdfjsNode.js';
 import { isPdfDoc } from './drawingExtract.js';
 // Relative, not `@/lib/...`, on purpose: scripts/tests/siteVision.test.mjs
@@ -284,14 +284,59 @@ export const SITE_VISION_PROMPT_VERSION = `siteVision-2026-08-29-${MAX_EDGE}px`;
  * hand-lettered SITE DATA block, and handwriting is where the cheaper model
  * misreads digits. A wrong unit count is worse than a slower call.
  */
+/**
+ * The model's front desk turns away any single picture over 5 MB, and a
+ * plotted (scanned) sheet re-encoded as PNG at 2200px can blow straight past
+ * that -- PNG is the wrong container for a scan. The rejection is
+ * deterministic: the SDK's own retries re-send the same too-big picture and
+ * fail the same way, so the whole read ends in "Could not read the drawing"
+ * every single time, which is exactly what Mike's 11.6 MB plotted ARCH set
+ * did from his phone on 2026-08-31 after every earlier stage passed.
+ *
+ * The cap is set well under the advertised limit because the picture travels
+ * base64-encoded (a third bigger on the wire) and the enforcement point is
+ * not ours to measure.
+ */
+const VISION_IMAGE_CAP = Math.floor(3.5 * 1024 * 1024);
+
+/**
+ * Hand back the same pixels in however many bytes the model will accept.
+ *
+ * A PNG under the cap goes as-is. Over it, the sheet is re-encoded as JPEG --
+ * roughly a fifth the bytes for the same render, quality 0.9 because thin
+ * linework is what JPEG damages first (same reasoning as renderPdfPages). If
+ * even the JPEG is too big, the sheet is scaled down until it fits: a
+ * slightly smaller readable sheet beats a full-size one the model never sees.
+ */
+export async function fitForVision(png) {
+  if (png.length <= VISION_IMAGE_CAP) return { data: png, mediaType: 'image/png' };
+  const img = await loadImage(png);
+  let w = img.width, h = img.height;
+  let jpeg = null;
+  for (let pass = 0; pass < 3; pass++) {
+    const canvas = createCanvas(Math.max(1, Math.round(w)), Math.max(1, Math.round(h)));
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    jpeg = canvas.toBuffer('image/jpeg', { quality: 0.9 });
+    release(canvas);
+    if (jpeg.length <= VISION_IMAGE_CAP) break;
+    const shrink = Math.sqrt(VISION_IMAGE_CAP / jpeg.length) * 0.95;
+    w *= shrink; h *= shrink;
+  }
+  return { data: jpeg, mediaType: 'image/jpeg' };
+}
+
 export async function extractSiteData(images, anthropic, { model = modelFor('drawing.siteData') } = {}) {
   if (!images?.length) return { ok: false, code: 'no_pages', message: 'Nothing to read.' };
 
   const content = [];
   for (const img of images) {
+    const fitted = await fitForVision(img.png);
     content.push({
       type: 'image',
-      source: { type: 'base64', media_type: 'image/png', data: img.png.toString('base64') },
+      source: { type: 'base64', media_type: fitted.mediaType, data: fitted.data.toString('base64') },
     });
   }
   // The instruction goes AFTER the images, not before. Trailing content is the
@@ -316,8 +361,18 @@ export async function extractSiteData(images, anthropic, { model = modelFor('dra
     warnIfTruncated(msg, 'drawing.siteData');
     raw = textFrom(msg) ?? '';
   } catch (e) {
-    console.error('site vision error:', e);
-    return { ok: false, code: 'extraction_failed', message: 'Could not read the drawing.' };
+    // The status and the image sizes are the two facts a log reader needs:
+    // a 400 with a big byte count is a picture problem, a 529 is their
+    // weather, and anything else is ours.
+    console.error('site vision error:', e?.status ?? 'no-status', 'image bytes:', images.map(i => i.png?.length), e);
+    // An empty credit balance is OUR outage, not the visitor's drawing -- and
+    // billing words have no business on a public page. Found the hard way
+    // 2026-08-31: it surfaced as "Could not read the drawing", which blames
+    // the drawing and sends everyone hunting phone bugs. V3 = pay the bill.
+    if (/credit balance/i.test(e?.message ?? '')) {
+      return { ok: false, code: 'ai_unavailable', message: 'Our drawing reader is temporarily unavailable — this is on our side, not your file. Please email the set to budgets@ilcstudios.com and we will run it for you. (V3)' };
+    }
+    return { ok: false, code: 'extraction_failed', message: `Could not read the drawing. (V1${e?.status ? '-' + e.status : ''})` };
   }
 
   const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
@@ -326,7 +381,7 @@ export async function extractSiteData(images, anthropic, { model = modelFor('dra
     data = JSON.parse(cleaned);
   } catch {
     console.error('site vision — bad JSON:', raw.slice(0, 400));
-    return { ok: false, code: 'bad_output', message: 'Could not read the extraction result.' };
+    return { ok: false, code: 'bad_output', message: 'Could not read the extraction result. (V2)' };
   }
 
   return { ok: true, data: { ...validateSiteData(data), model } };
