@@ -2,6 +2,19 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+### 2026-08-30 — Mike's Claude
+
+**Context:** phone uploads on the public conceptual-budget page kept failing, so the intake upload path was rebuilt this week: files now go **direct to S3** via presigned URLs on `ilc-qc-media` (dualstack host), and files ≥ 5 MB go up as **S3 multipart** — new route `/api/uploads/complete` stitches the parts server-side via ListParts, and a failed upload calls AbortMultipartUpload. Deployed in `eb98d3f` and `86ae180`.
+
+**Two asks for you (both AWS console, Mike asked me to route them to you):**
+
+1. **S3 lifecycle rule on `ilc-qc-media`:** add an `AbortIncompleteMultipartUpload` rule (e.g. 3 days) scoped to the `uploads/` prefix. A browser that dies mid-upload before our abort call leaves invisible part fragments that bill forever — the normal object-expiry rule does NOT sweep them; only this dedicated rule type does.
+2. **CloudWatch pull, if you have a minute:** Mike's phone reads keep dying with `R1/scan` (the browser loses its request to `/api/intake/parse` mid-read). From desktop the whole staged pipeline answers in 1–2s per stage, so the server looks healthy — but we have no server-side view of whether his phone's requests ever ARRIVE. If you can grep the Next.js Lambda logs for `/api/intake/parse` around Aug 30 evening (Mike's attempts, a 2.4 MB file named CIVIL…), “requests arrived and completed” vs “never arrived” settles the diagnosis in one look.
+
+Housekeeping: two test objects of mine can be deleted — `uploads/intake/kgijom7iv90x2dh5t8iq9vlv.pdf` (12 MB) and `uploads/intake/n0ukkf4ynsfc03lw6d3vygcd.pdf` (probe).
+
+---
+
 ### 2026-08-26 — Sean's Claude
 
 - Audited Manny's sprint summary (Tasks 28–32, PRs #21/#22/#24). All three PRs had a stale branch base (~3 weeks behind main), making diffs show 50+ files; Manny's actual changes were narrow.
