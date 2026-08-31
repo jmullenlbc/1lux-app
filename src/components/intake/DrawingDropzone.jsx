@@ -143,7 +143,11 @@ export default function DrawingDropzone({ onResults }) {
         onProgress: pct => setItems(prev => prev.map(i => i.id === item.id ? { ...i, progress: pct } : i)),
       });
     } catch (err) {
-      if (item.file.size > 4 * 1024 * 1024) {
+      // An unreadable file (a Google Drive pipe that never finished coming
+      // down) fails the multipart fallback identically, so falling back would
+      // just trade an honest message for a mystifying R1. Show it regardless
+      // of size.
+      if (item.file.size > 4 * 1024 * 1024 || err.unreadable) {
         setItems(prev => {
           const next = prev.map(i => i.id === item.id
             ? { ...i, status: 'error', error: err.message || 'Upload failed. Please try again.' }

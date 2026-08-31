@@ -5,7 +5,51 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [The upload that dies at 10%] - August 30, 2026
+## [The file that was never on the phone] - August 30, 2026 - DEPLOYED
+
+Mike's screenshot finally told the whole story. The failing file was 2.4 MB -
+too small for any size wall - and the error was R1/scan, which is not an
+upload code at all: the file had already left (or was riding along) and the
+connection died during the READING step. And the file lives in the ILC Google
+Drive, not on the phone.
+
+That last detail is the case-breaker. On Android, a file picked from Google
+Drive is not bytes on the phone - it is a live pipe to Drive, pulled down
+WHILE the upload runs. When that pipe stalls, the send dies partway, and it
+looks exactly like a dropped connection: same on wifi or cellular, same at
+home or on a job site. It explains the 12 MB set dying "10% in" on good home
+wifi, the 2.4 MB file failing the same way, and the 60 MB desktop test (file
+on disk) sailing through in 2 seconds.
+
+### The fix: read the whole file into memory BEFORE sending a byte
+
+New `materialize()` step in the upload client. Files up to 64 MB are pulled
+fully into the phone's memory first - which forces the Drive download to
+finish - and every later read, including each 5 MB part, comes from memory
+where nothing can stall underneath it. Past 64 MB we stream as before,
+because holding 400 MB in a phone's memory trades a broken upload for a
+crashed tab.
+
+If the read itself fails, the visitor now gets the honest answer instead of a
+phantom connection error: "Your phone couldn't read this file all the way
+through... Save it to your phone first (in Drive: three dots then Download),
+then try again. (U6)" - and the drop zone no longer falls back to the
+multipart path for an unreadable file, which would fail the same way and
+print a mystifying R1.
+
+### Files changed
+
+- src/lib/uploadClient.js - materialize() before every send, U6 message
+- src/components/intake/DrawingDropzone.jsx - unreadable files skip the
+  doomed fallback regardless of size
+- scripts/tests/uploadRetry.test.mjs - 4 new tests
+
+701/701 unit tests, bid matrix 12/12, smoke 7/7, DN-leak 8/8, 11 verify
+gates, clean build with 37/37 runtime assets.
+
+---
+
+## [The upload that dies at 10%] - August 30, 2026 - DEPLOYED
 
 Mike: still U3, on WIFI, "like 10% in", a 12 MB set, at home. Two of those
 details killed the previous theory - a phone that can't find the bucket fails

@@ -14,7 +14,7 @@
 // tests pin that measurement.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { stoppedAtTheSamePlace, describeDrop } from '../../src/lib/uploadClient.js';
+import { stoppedAtTheSamePlace, describeDrop, materialize } from '../../src/lib/uploadClient.js';
 
 const MB = 1024 * 1024;
 
@@ -78,4 +78,40 @@ test('a single-part upload does not talk about parts', () => {
 test('a drop before the first byte says so rather than claiming 0%', () => {
   const msg = describeDrop({ pct: null, sentBytes: 0, part: null, parts: 1, startedAt: Date.now() }, [0, 0]);
   assert.match(msg, /before it started/);
+});
+
+
+// ── Reading the file before sending it ──────────────────────────────────────
+// On Android, a file picked from Google Drive is a live pipe, not bytes on
+// disk. materialize() forces the download to finish before the upload starts.
+
+test('a readable file comes back as its exact bytes, from memory', async () => {
+  const data = new Uint8Array([1, 2, 3, 4, 5]);
+  const out = await materialize(new Blob([data]));
+  assert.equal(out.size, 5);
+  assert.deepEqual(new Uint8Array(await out.arrayBuffer()), data);
+});
+
+test('a file past the memory ceiling is passed through untouched', async () => {
+  // Never pull 400 MB into a phone's memory — that trades a broken upload for
+  // a crashed tab. Past the ceiling the stream-from-disk path stays.
+  const big = { size: 300 * 1024 * 1024, arrayBuffer: () => { throw new Error('must not be called'); } };
+  assert.equal(await materialize(big), big);
+});
+
+test('a file the phone cannot read all the way through says so, and says what to do', async () => {
+  const stalls = { size: 2.4 * 1024 * 1024, arrayBuffer: async () => { throw new Error('pipe broke'); } };
+  await assert.rejects(() => materialize(stalls), (err) => {
+    assert.match(err.message, /Google Drive/);
+    assert.match(err.message, /Save it to your phone/);
+    assert.match(err.message, /\(U6\)/);
+    assert.equal(err.unreadable, true,
+      'the dropzone needs this flag to skip the fallback that would fail the same way');
+    return true;
+  });
+});
+
+test('a short read is treated as unreadable, never sent as a truncated file', async () => {
+  const short = { size: 100, arrayBuffer: async () => new ArrayBuffer(40) };
+  await assert.rejects(() => materialize(short), /U6/);
 });

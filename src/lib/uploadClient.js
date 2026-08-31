@@ -22,6 +22,44 @@ const PART_BYTES = 5 * 1024 * 1024;
 // is almost always gone a few seconds later.
 const RETRY_DELAYS_MS = [2000, 5000, 12000];
 
+// ── Reading the file BEFORE sending it ──────────────────────────────────────
+//
+// On a phone, "the file" is often not on the phone. Android hands the browser
+// a live pipe to wherever it really lives -- Google Drive, most often -- and
+// the bytes are pulled down WHILE the upload runs. When that pipe stalls or
+// the cloud app hiccups, the send dies partway and it is indistinguishable
+// from a dropped connection: same on wifi or cellular, same at home or on a
+// job site. Mike's 12 MB set dying "10% in" on home wifi (2026-08-30) was
+// this, with the file sitting in the ILC Google Drive.
+//
+// So: pull the whole file into memory FIRST, when it is small enough to
+// afford. The cloud download has to finish before a single byte goes out, a
+// failure surfaces here with a message that says what to actually do, and
+// every later read (including each 5 MB part) comes from memory, where
+// nothing can change or stall underneath it. Past the ceiling we stream as
+// before -- holding hundreds of MB in a phone's memory is its own crash.
+const BUFFER_CEILING_BYTES = 64 * 1024 * 1024;
+
+export async function materialize(file) {
+  if ((file.size || 0) > BUFFER_CEILING_BYTES) return file;
+  let buf;
+  try {
+    buf = await file.arrayBuffer();
+  } catch {
+    buf = null;
+  }
+  if (!buf || buf.byteLength !== file.size) {
+    const err = new Error(
+      "Your phone couldn't read this file all the way through — that usually "
+      + 'means it lives in Google Drive or another cloud app and never finished '
+      + 'coming down. Save it to your phone first (in Drive: ⋮ → Download), '
+      + 'then try again. (U6)');
+    err.unreadable = true;   // the fallback path would fail the same way
+    throw err;
+  }
+  return new Blob([buf]);
+}
+
 export async function uploadDirect(file, { onProgress, scope = 'intake' } = {}) {
   const res = await fetch('/api/uploads/presign', {
     method: 'POST',
@@ -50,8 +88,9 @@ export async function uploadDirect(file, { onProgress, scope = 'intake' } = {}) 
 
   const stats = { pct: null, sentBytes: 0, startedAt: Date.now(), part: null, parts: null };
   try {
-    if (slip.partUrls?.length) await sendInParts(slip, file, onProgress, stats);
-    else                       await sendWhole(slip, file, onProgress, stats);
+    const bytes = await materialize(file);
+    if (slip.partUrls?.length) await sendInParts(slip, bytes, onProgress, stats);
+    else                       await sendWhole(slip, bytes, onProgress, stats);
   } finally {
     try { await wakeLock?.release(); } catch { /* already gone */ }
   }
