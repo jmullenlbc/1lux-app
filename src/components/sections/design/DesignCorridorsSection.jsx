@@ -218,10 +218,10 @@ export default function DesignCorridorsSection({
         costSuffix="/unit"
         options={[
           { value: 'none',       label: 'None',                              cost: sconceRates.none },
-          { value: 'low',        label: 'Sconce — Low Finish',     cost: sconceRates.low  },
-          { value: 'medium',     label: 'Sconce — Medium Finish',  cost: sconceRates.medium },
-          { value: 'high',       label: 'Sconce — High Finish',    cost: sconceRates.high },
-          { value: 'integrated', label: 'Integrated Unit # + Light', cost: sconceRates.integrated },
+          { value: 'low',        label: '1 sconce (Low finish)',     cost: sconceRates.low  },
+          { value: 'medium',     label: '1 sconce (Medium finish)',  cost: sconceRates.medium },
+          { value: 'high',       label: '1 sconce (High finish)',    cost: sconceRates.high },
+          { value: 'integrated', label: '1 Integrated unit number/light', cost: sconceRates.integrated },
         ]}
         value={ans.unitSconce}
         onChange={v => set('unitSconce', v)}

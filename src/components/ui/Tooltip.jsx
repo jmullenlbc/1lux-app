@@ -1,6 +1,6 @@
 'use client';
 import { useState, useRef } from 'react';
-import { formatCurrency } from '@/lib/calculations';
+import { formatCurrency } from '@/lib/format';
 
 /**
  * A row that shows a hover tooltip with a cost breakdown.

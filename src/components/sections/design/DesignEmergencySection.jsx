@@ -25,12 +25,12 @@ export default function DesignEmergencySection({
 
   // Strategy → rates
   const STRATEGIES = {
-    generator:            { corridorPerSf: 0,    amenityPerSf: 0,    garagePerSf: 0,    batteryGarage: false, label: 'Building Generator',                                                  tag: '' },
-    frogeyes:             { corridorPerSf: 0.15, amenityPerSf: 0.15, garagePerSf: 0.10, batteryGarage: false, label: 'Frogeyes Everywhere',                                                 tag: '' },
-    frogeyes_inv:         { corridorPerSf: 0.15, amenityPerSf: 1.25, garagePerSf: 0,    batteryGarage: false, label: 'Frogeyes (corridors) + Inverters (amenities)',                        tag: '' },
-    integrated_frogeyes:  { corridorPerSf: 0.15, amenityPerSf: 1.25, garagePerSf: 0,    batteryGarage: true,  label: 'Integrated Batteries (garage) + Frogeyes (corridors) + Inverters (amenity)', tag: '' },
-    integrated_inverters: { corridorPerSf: 0.50, amenityPerSf: 1.25, garagePerSf: 0,    batteryGarage: true,  label: 'Integrated Batteries (garage) + Inverters (corridors + amenity)',    tag: 'Recommended' },
-    inverters:            { corridorPerSf: 0.50, amenityPerSf: 1.25, garagePerSf: 0.25, batteryGarage: false, label: 'Central Inverter System Everywhere',                                  tag: 'Best optics' },
+    generator:            { corridorPerSf: 0,    amenityPerSf: 0,    garagePerSf: 0,    batteryGarage: false, label: 'Building generator',                                                  tag: '' },
+    frogeyes:             { corridorPerSf: 0.15, amenityPerSf: 0.15, garagePerSf: 0.10, batteryGarage: false, label: 'Frogeyes everywhere',                                                 tag: '' },
+    frogeyes_inv:         { corridorPerSf: 0.15, amenityPerSf: 1.25, garagePerSf: 0,    batteryGarage: false, label: 'Frogeyes in corridors + inverters in amenities',                        tag: '' },
+    integrated_frogeyes:  { corridorPerSf: 0.15, amenityPerSf: 1.25, garagePerSf: 0,    batteryGarage: true,  label: 'Integrated batteries in garage / frogeyes in corridors / inverters in amenity spaces', tag: '' },
+    integrated_inverters: { corridorPerSf: 0.50, amenityPerSf: 1.25, garagePerSf: 0,    batteryGarage: true,  label: 'Integrated batteries in garage / inverters in corridors + amenity spaces',    tag: 'Recommended' },
+    inverters:            { corridorPerSf: 0.50, amenityPerSf: 1.25, garagePerSf: 0.25, batteryGarage: false, label: 'Inverters everywhere',                                  tag: 'Best optics' },
   };
 
   function calcCost(key) {
@@ -127,7 +127,7 @@ export default function DesignEmergencySection({
             },
             {
               key:   'inverters',
-              label: 'Central inverter system everywhere',
+              label: 'Inverters everywhere',
               sub:   `Corridors $0.50/SF + amenity $1.25/SF + garage $0.25/SF${hasSf ? ` — est. $${calcCost('inverters').toLocaleString()}` : ''}`,
               tag:   'Best optics',
             },

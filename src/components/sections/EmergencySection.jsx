@@ -21,32 +21,32 @@ function calcEmergency(P, strategyKey, corridorSf, intAmenitySf, garageSf) {
 const STRATEGIES = [
   {
     value: 'generator',
-    label: 'Building Generator',
+    label: 'Building generator',
     sub:   'Generator covers all lighting circuits — no separate emergency fixtures required. Most cost-effective when a generator already exists.',
   },
   {
     value: 'frogeyes',
-    label: 'Frogeyes Everywhere',
+    label: 'Frogeyes everywhere',
     sub:   'Emergency combo units (light head + exit sign) in all spaces. Corridors $0.15/SF · Amenity $0.15/SF · Garage $0.10/SF.',
   },
   {
     value: 'frogeyes_inv',
-    label: 'Frogeyes in Corridors + Inverters in Amenity Spaces',
+    label: 'Frogeyes in corridors + inverters in amenities',
     sub:   'Frogeyes $0.15/SF in corridors. Central inverter $1.25/SF in interior amenity spaces.',
   },
   {
     value: 'integrated_frogeyes',
-    label: 'Integrated Batteries in Garage / Frogeyes in Corridors / Inverters in Amenity',
+    label: 'Integrated batteries in garage / frogeyes in corridors / inverters in amenity spaces',
     sub:   'Garage: battery-integrated fixtures ($120 ea, every other). Corridors: frogeyes $0.15/SF. Amenity: inverters $1.25/SF.',
   },
   {
     value: 'integrated_inverters',
-    label: 'Integrated Batteries in Garage / Inverters in Corridors + Amenity Spaces',
+    label: 'Integrated batteries in garage / inverters in corridors + amenity spaces',
     sub:   'Garage: battery-integrated fixtures ($120 ea, every other). Corridors: inverters $0.50/SF. Amenity: inverters $1.25/SF. Common for high-rise.',
   },
   {
     value: 'inverters',
-    label: 'Central Inverter System Everywhere',
+    label: 'Inverters everywhere',
     sub:   'Inverter units power existing fixtures. Corridors $0.50/SF · Amenity $1.25/SF · Garage $0.25/SF. Cost-effective at large scale.',
   },
 ];

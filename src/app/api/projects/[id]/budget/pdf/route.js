@@ -314,11 +314,13 @@ ${designDisclaimer}
 <!-- Budget Breakdown -->
 <div style="margin-bottom:4px;font-weight:700;font-size:8.5pt;color:#0f172a">Budget Breakdown</div>
 ${breakdownRows}
+${budget.energyCreditLighting > 0 ? row(`Energy Credit (${Math.round((budget.energyCreditPct || 0) * 100)}%)`, budget.energyCreditLighting) : ''}
 ${row('Lighting Subtotal', budget.lightingProductSubtotal, true)}
 ${row(`Freight (${freightPct}%)`, budget.freight || 0)}
 ${row(`Warehousing (${warehousingPct}%)`, budget.warehousing || 0)}
 ${row('Lighting Total', budget.subtotalLightingOnly, true)}
 ${row('Controls (IECC 2021)', budget.controls || 0)}
+${budget.energyCreditControls > 0 ? row(`Energy Credit (${Math.round((budget.energyCreditPct || 0) * 100)}%)`, budget.energyCreditControls) : ''}
 ${row(`Freight (${freightPct}%)`, budget.controlsFreight || 0)}
 ${row(`Warehousing (${warehousingPct}%)`, budget.controlsWarehousing || 0)}
 ${row('Total w/ Controls', budget.totalWithControls, true)}

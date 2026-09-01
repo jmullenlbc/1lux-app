@@ -72,6 +72,8 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
   const EA       = P.exteriorAmenities || {};
   const rateMap  = { low: EA.low ?? 1, lowMedium: EA.lowMedium ?? 2, medium: EA.medium ?? 3, high: EA.high ?? 5 };
   const baseRate = rateMap[answers.amenityLevel] ?? (rateMap.medium);
+  // Only '24hrs or after dark' doubles the line (Mike, 2026-09-01: Dusk to
+  // Dawn is as-is cost).
   const nightMult = answers.amenityHours === 'afterSunset' ? (EA.nighttimeMultiplier ?? 2) : 1;
   const extraFromNight = extSf * baseRate; // the adder shown in the question card
 
@@ -220,10 +222,10 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
         note="Exterior amenities include pool deck, courtyards, and outdoor gathering areas. Range: $1/SF (minimal) to $5/SF (high-end, may include façade lighting)."
         costSuffix=" total"
         options={[
-          { value: 'low',       label: `$${rateMap.low}/SF — Low`,             sub: 'Garden walk-up; minimal exterior amenity lighting',                cost: extSf * rateMap.low },
-          { value: 'lowMedium', label: `$${rateMap.lowMedium}/SF — Low-Medium`, sub: 'Simple mid-market exterior amenity package',                       cost: extSf * rateMap.lowMedium },
-          { value: 'medium',    label: `$${rateMap.medium}/SF — Medium`,        sub: 'Standard mid-market exterior amenity package',                     cost: extSf * rateMap.medium },
-          { value: 'high',      label: `$${rateMap.high}/SF — High`,            sub: 'High-end mid-rise / high-rise; may include façade accent lighting', cost: extSf * rateMap.high },
+          { value: 'low',       label: `$${rateMap.low}/SF — Low finish`,             sub: 'Garden walk-up; minimal exterior amenity lighting',                cost: extSf * rateMap.low },
+          { value: 'lowMedium', label: `$${rateMap.lowMedium}/SF — Low-Medium finish`, sub: 'Simple mid-market exterior amenity package',                       cost: extSf * rateMap.lowMedium },
+          { value: 'medium',    label: `$${rateMap.medium}/SF — Medium finish`,        sub: 'Standard mid-market exterior amenity package',                     cost: extSf * rateMap.medium },
+          { value: 'high',      label: `$${rateMap.high}/SF — High finish`,            sub: 'High-end mid-rise / high-rise; may include façade accent lighting', cost: extSf * rateMap.high },
         ]}
         value={answers.amenityLevel}
         onChange={val => {
@@ -234,21 +236,27 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
 
       {/* Amenity hours */}
       <QuestionCard
-        question="What will be the amenity operational hours?"
-        note="If amenity areas (e.g., pool) are open after sunset or before sunrise, lighting levels must be much higher, effectively doubling the exterior amenity budget."
+        question="What will be the amenity operational hours? If one exists, does the pool close at or before dusk?"
+        note="A pool area open after dark needs much higher light levels around the deck per code and in turn add 2x or more the cost."
         costSuffix=" total"
         options={[
           {
-            value: 'beforeDusk',
-            label: 'Closes at or before dusk',
-            sub:   'Standard exterior amenity budget applies',
+            value: 'afterSunset',
+            label: '24hrs or after dark',
+            sub:   `${EA.nighttimeMultiplier ?? 2}× the exterior amenity budget — much higher light levels required`,
+            cost:  extraFromNight,
+          },
+          {
+            value: 'duskToDawn',
+            label: 'Dusk to Dawn',
+            sub:   'Standard exterior amenity budget — lights run on the normal dusk-to-dawn schedule',
             cost:  0,
           },
           {
-            value: 'afterSunset',
-            label: 'Open after sunset or before sunrise',
-            sub:   '2× the exterior amenity budget — significantly higher light levels required',
-            cost:  extraFromNight,
+            value: 'beforeDusk',
+            label: 'Other',
+            sub:   'Standard exterior amenity budget applies (e.g., closes at or before dusk)',
+            cost:  0,
           },
         ]}
         value={answers.amenityHours}

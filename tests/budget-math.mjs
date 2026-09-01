@@ -148,45 +148,76 @@ assert(
 // Scenario 3: Energy credit — does it compound through F/W/T?
 // ───────────────────────────────────────────────────────────────────────────
 
-section('SCENARIO 3: Energy credit — applied as reduction pre-FWT (post Q1 refactor)');
+section('SCENARIO 3: Energy credit — 3% ADDER on lighting AND controls subtotals (Mike 2026-09-01)');
 
 const noCredit   = calculateBudget(baselinePD, { controls: { energyCredit: 'no'  } });
 const withCredit = calculateBudget(baselinePD, { controls: { energyCredit: 'yes' } });
 
-// Per Mike's intent: credit reduces lighting subtotal BEFORE F+W+T,
-// so savings = (3% × full subtotal) × (1 + freightRate + warehousingRate + salesTaxPct)
-const fullSubtotal       = noCredit.lightingProductSubtotal;
-const expectedCreditAmt  = fullSubtotal * 0.03;
-const fwtMultiplier      = 1 + 0.06 + 0.03 + baselinePD.salesTaxPct;
-const expectedSavings    = expectedCreditAmt * fwtMultiplier;
-const actualSavings      = noCredit.totalWithControls - withCredit.totalWithControls;
+// Per Mike (2026-09-01): pursuing an energy credit ADDS 3% to the lighting
+// subtotal and 3% to the controls subtotal, each its own line item, both
+// before freight/warehousing/tax on their side.
+const preCreditSubtotal   = noCredit.lightingProductSubtotal;
+const expectedLightingAdd = preCreditSubtotal * 0.03;
+const expectedControlsAdd = noCredit.controls * 0.03;
+const fwtMultiplier       = 1 + 0.06 + 0.03 + baselinePD.salesTaxPct;
+const expectedIncrease    = (expectedLightingAdd + expectedControlsAdd) * fwtMultiplier;
+const actualIncrease      = withCredit.totalWithControls - noCredit.totalWithControls;
 
-console.log(`  full lighting subtotal (no credit): ${$(fullSubtotal)}`);
-console.log(`  3% credit amount:                   ${$(expectedCreditAmt)}`);
+console.log(`  pre-credit lighting subtotal:       ${$(preCreditSubtotal)}`);
+console.log(`  3% lighting adder:                  ${$(expectedLightingAdd)}`);
+console.log(`  3% controls adder:                  ${$(expectedControlsAdd)}`);
 console.log(`  F+W+T multiplier (at ${(baselinePD.salesTaxPct*100).toFixed(2)}% tax): ${fwtMultiplier.toFixed(4)}`);
-console.log(`  expected savings:                   ${$(expectedSavings)}`);
-console.log(`  total without credit:               ${$(noCredit.totalWithControls)}`);
-console.log(`  total with credit:                  ${$(withCredit.totalWithControls)}`);
-console.log(`  actual savings:                     ${$(actualSavings)}`);
-console.log(`  withCredit.energyCreditAmount:      ${$(withCredit.energyCreditAmount)}`);
-console.log('');
-console.log('  Q1 (Mike): credit should reduce lighting subtotal before F+W+T, savings = credit × (1+F+W+T)');
+console.log(`  expected total increase:            ${$(expectedIncrease)}`);
+console.log(`  actual total increase:              ${$(actualIncrease)}`);
+console.log(`  withCredit.energyCreditLighting:    ${$(withCredit.energyCreditLighting)}`);
+console.log(`  withCredit.energyCreditControls:    ${$(withCredit.energyCreditControls)}`);
 
 assert(
-  Math.abs(actualSavings - expectedSavings) < 0.01,
-  `Energy credit reduces total by credit × (1+F+W+T): expected savings ${$(expectedSavings)}, got ${$(actualSavings)}`
+  Math.abs(withCredit.energyCreditLighting - expectedLightingAdd) < 0.01,
+  'energyCreditLighting = 3% of the pre-credit lighting subtotal'
 );
 assert(
-  Math.abs(withCredit.energyCreditAmount - expectedCreditAmt) < 0.01,
-  'withCredit.energyCreditAmount matches 3% of pre-credit subtotal'
+  Math.abs(withCredit.energyCreditControls - expectedControlsAdd) < 0.01,
+  'energyCreditControls = 3% of the controls product'
 );
 assert(
-  noCredit.energyCreditAmount === 0,
-  'noCredit.energyCreditAmount === 0 when energyCredit is not "yes"'
+  Math.abs(withCredit.lightingProductSubtotal - (preCreditSubtotal + expectedLightingAdd)) < 0.01,
+  'lighting subtotal INCLUDES the lighting-side adder'
 );
 assert(
-  withCredit.totalWithControls < noCredit.totalWithControls,
-  'Energy credit REDUCES total (Q1 intent — savings, not adder)'
+  Math.abs(actualIncrease - expectedIncrease) < 0.01,
+  `Energy credit raises total by (both adders) × (1+F+W+T): expected ${$(expectedIncrease)}, got ${$(actualIncrease)}`
+);
+assert(
+  noCredit.energyCreditLighting === 0 && noCredit.energyCreditControls === 0,
+  'no adders when energyCredit is not "yes"'
+);
+assert(
+  withCredit.totalWithControls > noCredit.totalWithControls,
+  'Energy credit INCREASES total (adder, not reduction — Mike 2026-09-01)'
+);
+
+// LEED no longer carries a special controls multiplier — any program prices
+// identically ("forget my controls 20% multiplier").
+const leedBudget = calculateBudget(baselinePD, { controls: { energyCredit: 'yes', energyCreditProgram: 'leed' } });
+assert(
+  Math.abs(leedBudget.totalWithControls - withCredit.totalWithControls) < 0.01,
+  'LEED prices the same as any other energy-credit program (20% adder removed)'
+);
+
+// Amenity hours: only afterSunset doubles the exterior amenity line;
+// duskToDawn is as-is cost (Mike 2026-09-01).
+const hoursPD  = { ...baselinePD, exteriorAmenitySf: 5000 };
+const hrsOther = calculateBudget(hoursPD, { exterior: { amenityLevel: '2', amenityHours: 'beforeDusk'  } });
+const hrsDusk  = calculateBudget(hoursPD, { exterior: { amenityLevel: '2', amenityHours: 'duskToDawn'  } });
+const hrsDark  = calculateBudget(hoursPD, { exterior: { amenityLevel: '2', amenityHours: 'afterSunset' } });
+assert(
+  Math.abs(hrsDusk.sections.exterior.amenities.product - hrsOther.sections.exterior.amenities.product) < 0.01,
+  'Dusk to Dawn does NOT multiply the exterior amenity line'
+);
+assert(
+  Math.abs(hrsDark.sections.exterior.amenities.product - hrsOther.sections.exterior.amenities.product * 2) < 0.01,
+  '24hrs/after dark doubles ONLY the exterior amenity line'
 );
 
 // ───────────────────────────────────────────────────────────────────────────

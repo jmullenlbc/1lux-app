@@ -1,18 +1,24 @@
 /**
  * The public conceptual-budget questionnaire.
  *
- * These are the 13 questions from the internal multifamily questionnaire
- * spreadsheet (first tab), reworded for a stranger on the public page:
- * internal pricing notes, adder math, and Drive links stay out; the
- * plain-English tradeoff each option carries stays in.
+ * QUESTIONS AND ANSWERS ARE VERBATIM from Mike's multifamily questionnaire
+ * spreadsheet (the dropdown validations on the first tab). Do not shorten,
+ * reword, or collapse options — the public page must read exactly like the
+ * questionnaire ILC hands out. (Rule set 2026-08-31 after the first pass
+ * paraphrased them: "Match these answers.")
  *
- * Answer VALUES are the spreadsheet's own answer strings wherever one exists
- * (e.g. "Mirror and bath bar (Low)"), so a submission's answers read
- * identically to a questionnaire filled in by hand and can be dropped into
- * the same downstream math without translation.
+ * Each question also carries its ENGINE WIRING: which calculateBudget()
+ * section/field it feeds and how each verbatim answer maps onto the engine's
+ * internal option keys. answersToEngine() below turns a submission's answers
+ * into the same `sections` shape the internal wizard saves, so the public
+ * estimate runs through the exact same math as an internal budget.
  *
- * Shared by the public page (renders it) and the submit route (validates
- * against it) — one definition, so the two can't drift.
+ * Shared by the public page (renders it), the submit route (validates
+ * against it), and the estimate route (maps it into the engine) — one
+ * definition, so the three can't drift.
+ *
+ * @see src/lib/calculations.js — the engine these map into
+ * @see src/lib/pricing.js      — the option keys the maps must hit
  */
 
 export const INTAKE_QUESTIONS = [
@@ -20,62 +26,164 @@ export const INTAKE_QUESTIONS = [
   {
     key: 'undercabinet',
     section: 'Residential units',
-    question: 'Do you want undercabinet lighting in kitchens?',
-    hint: 'Line voltage is the more cost-effective option with a larger profile; low voltage has a smaller profile but needs a remote power supply.',
-    options: ['None', 'Line voltage', 'Low voltage'],
+    question: 'Do you want undercabinet lighting?',
+    hint: '120v is the more cost-effective option with a larger profile; low voltage has a smaller profile but needs a remote power supply.',
+    options: ['None', '120v', 'Low voltage'],
     default: 'None',
+    engine: { section: 'units', field: 'undercabinet',
+      map: { 'None': 'none', '120v': 'lineVoltage', 'Low voltage': 'lowVoltage' } },
   },
   {
     key: 'islandPendants',
     section: 'Residential units',
     question: 'Are kitchen island pendants desired?',
-    hint: 'Pendants replace the standard disks over islands and range widely in cost depending on the fixture chosen.',
-    options: ['None', 'Yes'],
+    hint: 'Pendants replace the standard disks over islands; count and finish level drive the cost.',
+    options: [
+      'None',
+      '3 small pendants (Low finish)',
+      '3 small pendants (Medium finish)',
+      '2 medium pendants (Low finish)',
+      '2 medium pendants (Medium finish)',
+      '1 large pendant',
+      '1 linear pendant',
+    ],
     default: 'None',
+    engine: { section: 'units', field: 'kitchenPendants',
+      map: {
+        'None': 'none',
+        '3 small pendants (Low finish)': 'threeSmallLow',
+        '3 small pendants (Medium finish)': 'threeSmallMedium',
+        '2 medium pendants (Low finish)': 'twoMediumLow',
+        '2 medium pendants (Medium finish)': 'twoMediumMedium',
+        // Aliases — pre-2026-09 submissions stored the bare finish word.
+        '3 small pendants (Low)': 'threeSmallLow',
+        '3 small pendants (Medium)': 'threeSmallMedium',
+        '2 medium pendants (Low)': 'twoMediumLow',
+        '2 medium pendants (Medium)': 'twoMediumMedium',
+        '1 large pendant': 'oneLarge',
+        '1 linear pendant': 'oneLinear',
+      } },
   },
   {
     key: 'ceilingFans',
     section: 'Residential units',
-    question: 'Are ceiling fans desired, and in which rooms?',
+    question: 'Are ceiling fans desired and in what locations in the units?',
     hint: 'A typical fan adds meaningful product and installation cost per unit, so location matters.',
-    options: ['None', 'Master bed only', 'All bedrooms', 'Bedrooms and living room', 'Living room only'],
+    options: [
+      'None',
+      'Master bed only',
+      'Living room only',
+      'Master bed + Living room',
+      'Master bed + Secondary bed',
+      'Master bed/Secondary bed/Living room',
+      'Master bed/Secondary bed/Tertiary bed',
+      'Master bed/Secondary bed/Tertiary bed + Living room',
+    ],
     default: 'None',
+    engine: { section: 'units', field: 'fans',
+      map: {
+        'None': 'none',
+        'Master bed only': 'masterOnly',
+        'Living room only': 'livingRoomOnly',
+        'Master bed + Living room': 'masterAndLiving',
+        'Master bed + Secondary bed': 'masterAndSecondary',
+        'Master bed/Secondary bed/Living room': 'masterSecondaryLiving',
+        'Master bed/Secondary bed/Tertiary bed': 'masterSecondaryTertiary',
+        'Master bed/Secondary bed/Tertiary bed + Living room': 'masterSecondaryTertiaryLiving',
+      } },
   },
   {
     key: 'vanityLighting',
     section: 'Residential units',
-    question: 'How do you want to light unit bathroom vanities?',
-    hint: '"Mirror and bath bar (Low)" is already included in the base budget. Illuminated mirrors often cost the same or less overall and need less coordination between trades.',
-    options: ['Mirror and bath bar (Low)', 'Upgraded vanity fixture', 'Illuminated mirrors'],
-    default: 'Mirror and bath bar (Low)',
+    question: 'How do you want to light unit bathroom vanities? ("Mirror and bath bar (Low finish)" is already included in the budget if chosen or left blank.)',
+    hint: 'Illuminated mirrors often cost the same or less overall and need less coordination between trades.',
+    options: [
+      'Illuminated mirror (Medium finish)',
+      'Illuminated mirror (High finish)',
+      'Mirror and bath bar (Low finish)',
+      'Mirror and bath bar (Medium finish)',
+      'Mirror and bath bar (High finish)',
+    ],
+    default: 'Mirror and bath bar (Low finish)',
+    engine: { section: 'units', field: 'vanity',
+      map: {
+        'Illuminated mirror (Medium finish)': 'illuminatedMirrorMedium',
+        'Illuminated mirror (High finish)': 'illuminatedMirrorHigh',
+        'Mirror and bath bar (Low finish)': 'bathBarLow',
+        'Mirror and bath bar (Medium finish)': 'bathBarMedium',
+        'Mirror and bath bar (High finish)': 'bathBarHigh',
+        // Aliases — pre-2026-09 submissions stored the bare finish word.
+        'Illuminated mirror (Medium)': 'illuminatedMirrorMedium',
+        'Illuminated mirror (High)': 'illuminatedMirrorHigh',
+        'Mirror and bath bar (Low)': 'bathBarLow',
+        'Mirror and bath bar (Medium)': 'bathBarMedium',
+        'Mirror and bath bar (High)': 'bathBarHigh',
+      } },
   },
   {
     key: 'balconyLighting',
     section: 'Residential units',
     question: 'How do you want to light unit balconies?',
-    hint: 'A small recessed disk is the budget option; sconces range from builder-grade to decorative.',
-    options: ['Exterior balcony sconce (Low)', 'Recessed disk', 'Upgraded sconce', 'No balconies'],
-    default: 'Exterior balcony sconce (Low)',
+    hint: 'A small surface-mount disk is the budget option; sconces range from builder-grade to decorative.',
+    options: [
+      'None',
+      '5" surface mount disk',
+      'Exterior balcony sconce (Low finish)',
+      'Exterior balcony sconce (Medium finish)',
+      'Exterior balcony sconce (High finish)',
+    ],
+    default: 'Exterior balcony sconce (Low finish)',
+    engine: { section: 'units', field: 'balcony',
+      map: {
+        'None': 'none',
+        '5" surface mount disk': 'disk5inch',
+        'Exterior balcony sconce (Low finish)': 'sconcelow',
+        'Exterior balcony sconce (Medium finish)': 'sconceMedium',
+        'Exterior balcony sconce (High finish)': 'sconceHigh',
+        // Aliases — pre-2026-09 submissions stored the bare finish word.
+        'Exterior balcony sconce (Low)': 'sconcelow',
+        'Exterior balcony sconce (Medium)': 'sconceMedium',
+        'Exterior balcony sconce (High)': 'sconceHigh',
+      } },
   },
 
   // ── EMERGENCY ──────────────────────────────────────────────────────────────
   {
     key: 'egressLighting',
     section: 'Emergency',
-    question: 'How do you want to approach emergency egress lighting?',
-    hint: 'If the building has a generator that can carry lighting, separate emergency fixtures are mostly unnecessary. Code still requires integrated battery backup in certain areas like stairwells.',
-    options: ['Frogeyes everywhere', 'Building generator carries lighting', 'Not sure — recommend for me'],
+    question: 'How do you want to approach emergency egress lighting? (i.e. If you have a building generator that can be used for lighting then you do not need any other emergency lighting.)',
+    hint: 'Code still requires backup lighting on every egress path; the strategy decides where the backup power lives.',
+    options: [
+      'Building generator',
+      'Inverters everywhere',
+      'Frogeyes everywhere',
+      'Frogeyes in corridors + inverters in amenities',
+      'Integrated batteries in garage / frogeyes in corridors / inverters in amenity spaces',
+      'Integrated batteries in garage / inverters in corridors + amenity spaces',
+    ],
     default: 'Frogeyes everywhere',
+    engine: { section: 'emergency', field: 'strategy',
+      map: {
+        'Building generator': 'generator',
+        'Inverters everywhere': 'inverters',
+        'Frogeyes everywhere': 'frogeyes',
+        'Frogeyes in corridors + inverters in amenities': 'frogeyes_inv',
+        'Integrated batteries in garage / frogeyes in corridors / inverters in amenity spaces': 'integrated_frogeyes',
+        'Integrated batteries in garage / inverters in corridors + amenity spaces': 'integrated_inverters',
+      } },
   },
 
   // ── INTERIOR AMENITIES ─────────────────────────────────────────────────────
   {
     key: 'interiorAmenityFinish',
     section: 'Interior amenities',
-    question: 'What level of finish are the interior amenity spaces?',
-    hint: 'Clubhouse, leasing, fitness, lobby. Low is typical for a garden walk-up; High is a high-end mid-rise or high-rise.',
-    options: ['Low', 'Medium', 'High', 'No interior amenities'],
-    default: 'Medium',
+    question: 'Please choose what $/SF of interior amenity SF based on the level of finish of the project..',
+    hint: 'Interior amenities range from $6/SF on the low end (i.e. garden walk-up) to $15/SF (i.e. high-end mid-rise or high-rise).',
+    options: ['3', '6', '7', '8', '9', '10', '11', '12', '13', '14'],
+    default: '10',
+    format: 'perSf',
+    // Numeric answers pass straight through — the engine parseFloats them.
+    engine: { section: 'amenities', field: 'interiorLevel', map: null },
   },
 
   // ── CORRIDORS / STAIRWELLS ─────────────────────────────────────────────────
@@ -84,8 +192,26 @@ export const INTAKE_QUESTIONS = [
     section: 'Corridors and stairwells',
     question: 'Would you like a sconce at every unit entry?',
     hint: 'Options run from a simple builder-grade sconce up to an integrated unit-number light.',
-    options: ['None', '1 sconce (Low)', '1 sconce (Medium)', '1 sconce (High)', 'Integrated unit number/light'],
-    default: '1 sconce (Low)',
+    options: [
+      'None',
+      '1 sconce (Low finish)',
+      '1 sconce (Medium finish)',
+      '1 sconce (High finish)',
+      '1 Integrated unit number/light',
+    ],
+    default: '1 sconce (Low finish)',
+    engine: { section: 'corridors', field: 'unitSconce',
+      map: {
+        'None': 'none',
+        '1 sconce (Low finish)': 'low',
+        '1 sconce (Medium finish)': 'medium',
+        '1 sconce (High finish)': 'high',
+        '1 Integrated unit number/light': 'integrated',
+        // Aliases — pre-2026-09 submissions stored the bare finish word.
+        '1 sconce (Low)': 'low',
+        '1 sconce (Medium)': 'medium',
+        '1 sconce (High)': 'high',
+      } },
   },
 
   // ── EXTERIOR ───────────────────────────────────────────────────────────────
@@ -93,25 +219,35 @@ export const INTAKE_QUESTIONS = [
     key: 'siteDesignLevel',
     section: 'Exterior',
     question: 'What level of design would you like on the site?',
-    hint: 'Base design covers code-required site and parking lighting; enhanced adds landscape and architectural lighting.',
-    options: ['Base design', 'Enhanced design'],
+    hint: 'Base design covers code-required site and parking lighting; upgrades add landscape, path, or solar lighting.',
+    options: ['Base design', 'Upgraded landscape and/or path lighting', 'Solar lighting'],
     default: 'Base design',
+    // Recorded for the reviewer; the conceptual engine has no site-design knob yet.
+    engine: null,
   },
   {
     key: 'exteriorAmenityFinish',
     section: 'Exterior',
-    question: 'What level of finish are the exterior amenity spaces?',
-    hint: 'Pool area, courtyards. The high end may include facade lighting.',
-    options: ['Low', 'Medium', 'High', 'No exterior amenities'],
-    default: 'Low',
+    question: 'Please choose what $/SF of exterior amenity SF based on the level of finish of the project..',
+    hint: '$1/SF is the low end; $5/SF is the high end and may include facade lighting.',
+    options: ['1', '2', '3', '5'],
+    default: '1',
+    format: 'perSf',
+    engine: { section: 'exterior', field: 'amenityLevel', map: null },
   },
   {
     key: 'amenityHours',
     section: 'Exterior',
-    question: 'Will exterior amenities be open after dark? Does the pool close by dusk?',
-    hint: 'Areas not used at night can be lit to code minimum. A pool open after dark needs much higher light levels around the deck.',
-    options: ['Closed by dusk', 'Open after dark', 'No exterior amenities', 'Not sure'],
-    default: 'Not sure',
+    question: 'What will be the amenity operational hours? If one exists, does the pool close at or before dusk?',
+    hint: 'A pool area open after dark needs much higher light levels around the deck per code and in turn add 2x or more the cost.',
+    options: ['24hrs or after dark', 'Dusk to Dawn', 'Other'],
+    default: 'Other',
+    engine: { section: 'exterior', field: 'amenityHours',
+      map: {
+        '24hrs or after dark': 'afterSunset',
+        'Dusk to Dawn': 'duskToDawn',
+        'Other': 'beforeDusk',
+      } },
   },
 
   // ── CONTROLS ───────────────────────────────────────────────────────────────
@@ -120,18 +256,42 @@ export const INTAKE_QUESTIONS = [
     section: 'Controls',
     question: 'What type of project is this?',
     hint: 'Drives the common-area control system requirements (IECC 2021).',
-    options: ['Garden (3 Levels)', 'Garden (4 Levels)', 'Wrap', 'Podium', 'Mid-rise', 'High-rise', 'Townhomes', 'Other'],
+    options: [
+      'Single Family (1-2 Levels)',
+      'Town Houses (2-3 Levels)',
+      'Town House/Stacked Flats (3 Levels)',
+      'Garden (3 Levels)',
+      'Gurban (4-5 Levels)',
+      'Wrap (3-5 Levels)',
+      'Podium (3-8 Levels)',
+      'Mid Rise (9-12 Levels)',
+      'High Rise (12+ Levels)',
+    ],
     default: null, // prefilled from the drawing read when possible
+    engine: { target: 'buildingTypeKey',
+      map: {
+        'Single Family (1-2 Levels)': 'singleFamily',
+        'Town Houses (2-3 Levels)': 'townHouses',
+        'Town House/Stacked Flats (3 Levels)': 'stackedFlats',
+        'Garden (3 Levels)': 'garden',
+        'Gurban (4-5 Levels)': 'gurban',
+        'Wrap (3-5 Levels)': 'wrap',
+        'Podium (3-8 Levels)': 'podium',
+        'Mid Rise (9-12 Levels)': 'midRise',
+        'High Rise (12+ Levels)': 'highRise',
+      } },
   },
 
   // ── ENERGY CODES ───────────────────────────────────────────────────────────
   {
     key: 'energyCredit',
     section: 'Energy codes',
-    question: 'Are you trying to beat code-allowed lighting power densities for an energy credit?',
-    hint: 'If so, more of the budget should go toward controls and more efficient fixtures.',
-    options: ['No', 'Yes', 'Not sure'],
-    default: 'No',
+    question: 'Are you trying to achieve better than code allowed LPDs for a lighting energy credit?',
+    hint: 'If so, more of the budget goes toward controls and more efficient fixtures. Any program adds a 3% energy credit to the lighting and controls budgets automatically.',
+    options: ['None', 'LEED', 'NGBS', 'WELL', 'Other'],
+    default: 'None',
+    engine: { section: 'controls', field: 'energyCreditProgram',
+      map: { 'None': 'none', 'LEED': 'leed', 'NGBS': 'ngbs', 'WELL': 'well', 'Other': 'other' } },
   },
 ];
 
@@ -149,9 +309,66 @@ export function validateAnswers(input) {
   const rows = [];
   for (const q of INTAKE_QUESTIONS) {
     const raw = typeof given[q.key] === 'string' ? given[q.key].trim() : '';
-    const answer = q.options.includes(raw) ? raw : (q.default ?? '');
+    // Map keys count as valid too — they carry aliases for option strings a
+    // stored submission used before a wording change (still a fixed whitelist).
+    const known = q.options.includes(raw) ||
+      (q.engine?.map != null && Object.prototype.hasOwnProperty.call(q.engine.map, raw));
+    const answer = known ? raw : (q.default ?? '');
     if (!answer) continue; // no answer and no default (e.g. projectType left blank)
     rows.push({ section: q.section, questionKey: q.key, question: q.question, answer });
   }
   return rows;
+}
+
+/**
+ * Map a submission's answers into the engine's `sections` shape — the same
+ * shape the internal wizard saves — plus the buildingTypeKey the controls
+ * math keys off. Answers are clamped to known options first (this feeds
+ * calculateBudget on a public endpoint), and unanswered questions fall back
+ * to their default, so the result always runs.
+ *
+ * @param {object|Array} answers  {key: answer} map or ConceptualSubmissionAnswer rows
+ * @returns {{sections: object, buildingTypeKey: ?string}}
+ */
+export function answersToEngine(answers) {
+  // Normalize rows → map (same tolerance as quantities.answersToMap, kept
+  // local to avoid an import cycle).
+  const given = {};
+  if (Array.isArray(answers)) {
+    for (const a of answers) {
+      if (a && typeof a.questionKey === 'string' && typeof a.answer === 'string') given[a.questionKey] = a.answer;
+    }
+  } else if (answers && typeof answers === 'object') {
+    for (const [k, v] of Object.entries(answers)) {
+      if (typeof v === 'string') given[k] = v;
+    }
+  }
+
+  const sections = {};
+  let buildingTypeKey = null;
+  for (const q of INTAKE_QUESTIONS) {
+    if (!q.engine) continue;
+    const raw = typeof given[q.key] === 'string' ? given[q.key].trim() : '';
+    // Map keys count as valid too — they carry aliases for option strings a
+    // stored submission used before a wording change (still a fixed whitelist).
+    const known = q.options.includes(raw) ||
+      (q.engine?.map != null && Object.prototype.hasOwnProperty.call(q.engine.map, raw));
+    const answer = known ? raw : (q.default ?? '');
+    if (!answer) continue;
+    const value = q.engine.map ? q.engine.map[answer] : answer;
+    if (value == null) continue;
+    if (q.engine.target === 'buildingTypeKey') {
+      buildingTypeKey = value;
+    } else {
+      if (!sections[q.engine.section]) sections[q.engine.section] = {};
+      sections[q.engine.section][q.engine.field] = value;
+    }
+  }
+
+  // The engine reads the yes/no energy credit separately from the program.
+  if (sections.controls) {
+    sections.controls.energyCredit = sections.controls.energyCreditProgram === 'none' ? 'no' : 'yes';
+  }
+
+  return { sections, buildingTypeKey };
 }

@@ -308,11 +308,11 @@ export default function CorridorsSection({ responses, projectData, pricing, onSa
         note={`One sconce per unit, mounted at the unit door in the corridor. The integrated option includes the unit number plate. ${numUnits > 0 ? `(${numUnits} units)` : ''}`}
         costSuffix="/unit"
         options={[
-          { value: 'none',       label: 'None — no unit-entry sconce',         cost: 0   },
-          { value: 'low',        label: 'Sconce — Low Finish',    sub: '$55 ea',   cost: 55  },
-          { value: 'medium',     label: 'Sconce — Medium Finish', sub: '$125 ea',  cost: 125 },
-          { value: 'high',       label: 'Sconce — High Finish',   sub: '$300 ea',  cost: 300 },
-          { value: 'integrated', label: 'Integrated Unit # + Light', sub: '$200 ea', cost: 200 },
+          { value: 'none',       label: 'None',         cost: 0   },
+          { value: 'low',        label: '1 sconce (Low finish)',    sub: '$55 ea',   cost: 55  },
+          { value: 'medium',     label: '1 sconce (Medium finish)', sub: '$125 ea',  cost: 125 },
+          { value: 'high',       label: '1 sconce (High finish)',   sub: '$300 ea',  cost: 300 },
+          { value: 'integrated', label: '1 Integrated unit number/light', sub: '$200 ea', cost: 200 },
         ]}
         value={ans.unitSconce}
         onChange={v => set('unitSconce', v)}

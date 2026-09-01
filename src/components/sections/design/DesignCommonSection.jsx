@@ -108,10 +108,10 @@ export default function DesignCommonSection({
             note={`A sconce at each unit's front door creates a residential feel and helps tenants identify their unit. ${numUnits > 0 ? `(${numUnits} units)` : ''}`}
             options={[
               { value: 'none',       label: 'None',                               cost: 0   },
-              { value: 'low',        label: 'Sconce — Low Finish',     sub: '$55 ea',   cost: 55  },
-              { value: 'medium',     label: 'Sconce — Medium Finish',  sub: '$125 ea',  cost: 125 },
-              { value: 'high',       label: 'Sconce — High Finish',    sub: '$300 ea',  cost: 300 },
-              { value: 'integrated', label: 'Integrated Unit # + Light', sub: '$200 ea', cost: 200 },
+              { value: 'low',        label: '1 sconce (Low finish)',     sub: '$55 ea',   cost: 55  },
+              { value: 'medium',     label: '1 sconce (Medium finish)',  sub: '$125 ea',  cost: 125 },
+              { value: 'high',       label: '1 sconce (High finish)',    sub: '$300 ea',  cost: 300 },
+              { value: 'integrated', label: '1 Integrated unit number/light', sub: '$200 ea', cost: 200 },
             ]}
             value={corr.unitSconce}
             onChange={v => setC('unitSconce', v)}
@@ -166,7 +166,7 @@ export default function DesignCommonSection({
                 { value: 'frogeyes_inv',          label: 'Frogeyes in corridors + inverters in amenities', sub: 'Corridors $0.15/SF + amenity $1.25/SF',                 cost: 0 },
                 { value: 'integrated_frogeyes',   label: 'Integrated batteries (garage) + frogeyes (corridors) + inverters (amenity)', sub: 'Cleanest for garage',     cost: 0 },
                 { value: 'integrated_inverters',  label: 'Integrated batteries (garage) + inverters (corridors + amenity)',            sub: 'Best performance — recommended', cost: 0 },
-                { value: 'inverters',             label: 'Central inverter system everywhere',           sub: 'Highest cost, best optics',                             cost: 0 },
+                { value: 'inverters',             label: 'Inverters everywhere',           sub: 'Highest cost, best optics',                             cost: 0 },
               ]}
               value={emerg.strategy}
               onChange={v => setE('strategy', v)}

@@ -14,7 +14,8 @@ function Row({ label, value }) {
 }
 
 export default function SummaryBudgetBreakdown({ budget, freightPct, warehousingPct }) {
-  const { sections, freight, warehousing, lightingProductSubtotal, subtotalLightingOnly, controls, controlsFreight, controlsWarehousing, totalWithControls, contingencyRate, contingencyAmount, totalWithContingency } = budget;
+  const { sections, freight, warehousing, lightingProductSubtotal, subtotalLightingOnly, controls, controlsFreight, controlsWarehousing, totalWithControls, contingencyRate, contingencyAmount, totalWithContingency, energyCreditPct, energyCreditLighting, energyCreditControls } = budget;
+  const ecPctLabel = Math.round((energyCreditPct || 0) * 100);
   const contingencyPct = contingencyRate ? Math.round(contingencyRate * 100) : 0;
 
   const lineItems = [
@@ -128,6 +129,18 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
         ))}
       </div>
 
+      {/* Energy credit adder — inside the lighting subtotal, shown as its own line */}
+      {energyCreditLighting > 0 && (
+        <>
+          <div className="print:hidden">
+            <TooltipBudgetRow label={`Energy Credit (${ecPctLabel}%)`} value={energyCreditLighting} details={[]} />
+          </div>
+          <div className="hidden print:block">
+            <Row label={`Energy Credit (${ecPctLabel}%)`} value={energyCreditLighting} />
+          </div>
+        </>
+      )}
+
       {/* Lighting subtotal */}
       <div className="border-t-2 border-slate-900 pt-3 mt-2 pb-1">
         <div className="flex justify-between font-bold text-base print:text-sm">
@@ -161,6 +174,18 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
       <div className="hidden print:block">
         <Row label="Controls (IECC 2021)" value={controls || 0} />
       </div>
+
+      {/* Energy credit adder on the controls side */}
+      {energyCreditControls > 0 && (
+        <>
+          <div className="print:hidden">
+            <TooltipBudgetRow label={`Energy Credit (${ecPctLabel}%)`} value={energyCreditControls} details={[]} />
+          </div>
+          <div className="hidden print:block">
+            <Row label={`Energy Credit (${ecPctLabel}%)`} value={energyCreditControls} />
+          </div>
+        </>
+      )}
 
       {/* Controls freight + warehousing */}
       <div className="print:hidden space-y-0">

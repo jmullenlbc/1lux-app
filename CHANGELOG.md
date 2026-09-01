@@ -5,6 +5,245 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Public conceptual-budget page rebuilt as the internal wizard] - September 1, 2026
+
+Mike's rule: "Make sure the UI/UX is identical to the internal tool with
+different pages for different areas of the building with the side bar on the
+left for those different areas and a live budget summary on the right. I want
+them to have the exact same experience as us."
+
+### The public /conceptual_budget page is now the wizard
+
+- Rebuilt src/app/conceptual_budget/IntakeClient.jsx from a 4-step
+  scroll-and-dropdown form into a 9-step wizard with the internal tool's
+  exact shell: left sidebar step rail (same widths, numbered circles,
+  amber active / green completed states as the internal SectionNav), one
+  page per building area in the middle, and the SAME BudgetSidebar
+  component on the right showing the live budget with the current area's
+  rows highlighted.
+- Steps: About You -> Drawings -> Residential Units -> Corridors &
+  Stairwells -> Interior Amenities -> Exterior & Site -> Emergency
+  Lighting -> Controls & Energy -> Review & Send. Area pages render each
+  question as the internal wizard's QuestionCard radio cards (QuestionCard
+  imports no pricing, so it is safe in the public bundle).
+- The live budget still computes SERVER-SIDE via /api/intake/estimate —
+  the pricing model never ships to a public browser. Verified after the
+  production build: zero pricing-model markers in the public chunks.
+- Mobile: step chips row replaces the rail, sticky brand header shows the
+  live total; fixed a review-page overflow where long question text pushed
+  values off-screen on phones (flex items needed min-w-0 to truncate).
+- Stale copy fix: the energy-credit question hint said "LEED adds to the
+  controls budget automatically" — now says any program adds the 3% energy
+  credit to the lighting and controls budgets (matches the new engine rule).
+- Preserved unchanged: work-email gate, drawings upload + skip path,
+  project-type prefill from the drawing read (never overwrites a user's own
+  choice), debounced estimate, review summary, submit to /api/intake/submit,
+  48hr confirmation copy, and the no-live-duplicate-check security posture.
+
+### Verification
+
+- Browser-verified the full flow at desktop and mobile widths: rail
+  navigation with completion checkmarks, direct step jumps after contact
+  details, QuestionCard answers persisting through steps, review page,
+  estimate endpoint returning the budget with both 3% energy-credit lines
+  (checked via a synthetic drawings payload: 200k SF -> lighting credit
+  $3,675.38, controls credit $2,400.00, both = exactly 3%).
+- Full suite green: budget-math 58/58, fuzz 0 failures, bid-matrix-logic
+  12/12, questionnaire tests 25/25, npm run verify 11 gates, production
+  build clean with all 37 runtime assets traced.
+
+### Files changed
+
+- src/app/conceptual_budget/IntakeClient.jsx (rebuilt)
+- src/lib/intake/questionnaire.js (energy-credit hint text)
+
+---
+
+## [Energy credit becomes a 3% line-item adder; Dusk to Dawn back to standard cost] - September 1, 2026
+
+Mike's three answers from the finish-words round, turned into code.
+
+### Energy credit: 3% ADDER on both subtotals, shown as line items (was a 3% reduction)
+
+- calculations.js: when the controls answer says an energy credit is being
+  pursued (LEED, NGBS, WELL, or Other — all identical), the engine now ADDS
+  3% of the lighting product subtotal to the lighting side and 3% of the
+  controls product to the controls side. Each adder is its own line item and
+  sits before freight, warehousing, and tax on its side, so those percentages
+  compound on top of it — same as they always have on the base numbers.
+- The old LEED-only +20% controls multiplier is deleted entirely
+  (pricing.js leedAdderPct removed, PricingEditor row removed). Every
+  program now prices the same way: base + 3% + 3%.
+- New engine outputs: energyCreditPct, energyCreditLighting,
+  energyCreditControls, controlsSubtotal. Removed: energyCreditAmount,
+  leedControlsAdder.
+- The "Energy Credit (3%)" rows render in the wizard live-budget sidebar,
+  the project summary breakdown (screen + print), and the budget PDF —
+  verified end-to-end with a throwaway project (created, screenshotted,
+  deleted): lighting adder $3,810.38 = 3% of $127,012.50; controls adder
+  $4,050.00 = 3% of $135,000.00; controls freight correctly computed on the
+  post-adder controls subtotal.
+- ControlsSection option cards preview the combined dollar impact of both
+  adders and explain the rule in plain English.
+
+### Dusk to Dawn is standard cost again; only "24hrs or after dark" doubles
+
+- Per Mike: the 2x multiplier applies ONLY when exterior amenity lighting
+  runs 24hrs/after dark, and ONLY to the exterior amenity line item (which
+  is the only line it ever touched). Dusk to Dawn and Other are as-is cost.
+- calculations.js night multiplier now fires solely on afterSunset;
+  ExteriorSection's Dusk to Dawn card shows "Included" with standard-cost
+  wording; duskToDawn stays a stored value so the answer round-trips.
+
+### Tests
+
+- budget-math.mjs Scenario 3 rewritten for the adder math (58/58 passing):
+  both adders equal 3% of their pre-credit bases, the budget INCREASES when
+  the credit is on, LEED equals the generic credit exactly, duskToDawn does
+  not multiply the amenity product, afterSunset exactly doubles it.
+- fuzz-budget.mjs exercises all three amenityHours values. Full pipeline
+  green: verify 11 gates, fuzz 0 failures, bid-matrix 12/12, questionnaire
+  suite 25/25, production build clean.
+
+### Files changed
+
+- src/lib/calculations.js, src/lib/pricing.js
+- src/app/(app)/admin/pricing/PricingEditor.jsx
+- src/components/sections/ControlsSection.jsx
+- src/components/sections/ExteriorSection.jsx
+- src/components/wizard/BudgetSidebar.jsx
+- src/app/(app)/project/[id]/summary/SummaryBudgetBreakdown.jsx
+- src/app/api/projects/[id]/budget/pdf/route.js
+- tests/budget-math.mjs, tests/fuzz-budget.mjs
+
+---
+
+## [Finish words, Dusk to Dawn, and the answers Mike sent back] - September 1, 2026
+
+Mike's answers to the open questions from the spreadsheet-matching session,
+turned into code. Rule 4 verbatim: bare Low/Medium/High in any dropdown answer
+becomes "Low finish" / "Medium finish" / "High finish", everywhere — internal
+wizard, design wizard, and the public questionnaire.
+
+### "finish" wording across every dropdown
+
+- questionnaire.js, UnitsSection, DesignUnitsSection, CorridorsSection,
+  DesignCorridorsSection, DesignCommonSection, ExteriorSection: every option
+  that carried a bare finish word now reads "(Low finish)" style — island
+  pendants, vanity lighting, balcony sconces, ceiling fan finish, unit entry
+  sconces, amenity $/SF levels. Emergency egress labels set to the
+  spreadsheet's exact strings ("Frogeyes everywhere", "Inverters everywhere",
+  the three integrated-battery combinations).
+- pricing.js OPTION_LABELS updated to match, so the summary page, budget PDF,
+  and share links all print the new wording for stored answers.
+- Old stored answer strings still resolve: each question's engine map keeps
+  the pre-2026-09 bare-finish strings as alias keys, and validateAnswers /
+  answersToEngine now accept an answer that is either a listed option or an
+  alias key (still a fixed whitelist — public-endpoint security holds).
+
+### Dusk to Dawn gets its own value — and the 2x multiplier
+
+- Amenity operational hours is now the spreadsheet's three answers: "24hrs or
+  after dark", "Dusk to Dawn" (new stored value duskToDawn), "Other". BOTH
+  after-dark and dusk-to-dawn trigger the existing Nighttime Multiplier (2x
+  the exterior amenity product, editable in Master Pricing) — per Mike's
+  answer 2, the ~2x he remembered already existed in the model; this session
+  extended it to the new option. calculations.js, ExteriorSection card (3
+  options with live +$ deltas), excelImportParser ("dusk to dawn" detection).
+- Override behavior confirmed with Mike (answer 5): a manual controls
+  override beats everything; the LEED +20% applies only when no override.
+  No code change needed — verified in-browser on the Controls step.
+
+### Verified
+
+- questionnaire tests 25/25 (two new: alias acceptance, Dusk-to-Dawn engine
+  value), quantities 24/24, budget-math 53/53, fuzz 0 failures, bid-matrix
+  12/12. npm run verify: 11/11 gates. Production build clean, all 37 runtime
+  assets traced.
+- Browser: all 13 public dropdowns dumped and matched to the spreadsheet
+  wording; internal Exterior step shows the 3-option amenity-hours card with
+  both after-dark options at +$46,442 (2x) on Sheridan and Colfax — Option A
+  (view only, no answers changed).
+
+---
+
+## [Match the spreadsheet, word for word] - September 1, 2026
+
+Mike's correction: the public conceptual-budget questionnaire had paraphrased,
+shortened answers ("You are shortening everything!"), pendants had become a
+yes/no, Step 1 was uneven, everything lived on one long scrolling page, and
+there was no live budget sidebar. This session makes the 2026-08-13 Trailhead
+questionnaire spreadsheet the single source of truth for every answer option,
+internal AND external, and rebuilds the public page as a no-scroll wizard.
+
+### Verbatim answers everywhere (questionnaire.js)
+
+- All 13 public questions now carry the EXACT dropdown options from the
+  spreadsheet — pendants restored to the full option list (never yes/no),
+  ceiling fans/vanities/egress/amenity finishes/entry sconces all verbatim,
+  project type got its floor ranges and "Gurban (4-5 Levels)" back, energy
+  credit is None/LEED/NGBS/WELL/Other. A header comment forbids shortening.
+- answersToEngine() maps each verbatim string onto the same engine enums the
+  internal wizard saves, so one validated engine serves both sides. Garbage
+  input still clamps to defaults and never leaks free text.
+- Amenity-hours description replaced with Mike's pool sentence (after-dark
+  pool decks need much higher light levels per code — 2x or more the cost).
+
+### Public page is now a 4-step wizard (IntakeClient.jsx)
+
+- Steps: About you -> Drawings -> Design questions -> Review & send. Each step
+  is its own screen — no scrolling walls. Uploading drawings advances to a new
+  screen, matching the internal wizard's flow.
+- Step 1 fields are an even two-column grid with "Optional" inline to the
+  right of the Company label. All design questions render half-width,
+  side-by-side, like the internal kitchen-island / ceiling-fan pair.
+- Live budget sidebar (desktop) using the same BudgetSidebar as the internal
+  wizard, plus a mobile running total in the header. Both carry the promise:
+  "We will confirm all numbers are correct and send you a budget within
+  48hrs." — also shown on the review step and the post-submit screen.
+- Drawing parse pre-fills the project type with the new verbatim labels
+  (guessProjectType rewritten for the floor-range names).
+
+### LEED adds 20% to controls (calculations.js, PricingEditor.jsx)
+
+- New master-pricing field controls.leedAdderPct (default 0.20, editable at
+  /admin/pricing as "LEED Controls Adder"). When the energy-credit program is
+  LEED, the controls line grows by that percentage AFTER the building-type
+  cap; a manual controls override still wins. The existing 3% lighting credit
+  for any program is unchanged. Applies to conceptual AND design budgets —
+  both flow through the one engine.
+- Existing projects have no energy-credit program stored, so every current
+  budget is byte-identical (regression suite proves it).
+
+### The cost book stays off the public page (format.js, estimate route)
+
+- New public endpoint POST /api/intake/estimate computes the live estimate
+  SERVER-side: answers -> answersToEngine -> computeQuantities ->
+  calculateBudget, returns only the visitor's own numbers. Rate-limited
+  30/min per IP.
+- Caught and fixed a real leak: the public page imported formatCurrency from
+  calculations.js, which imports the entire PRICING model — the whole cost
+  book would have shipped in the public bundle. formatCurrency now lives in a
+  zero-import src/lib/format.js (calculations.js re-exports it), and a
+  manifest-chunk grep proves the public bundle contains no pricing keys.
+
+### Verification
+
+- npm test green (budget-math 53/53 incl. energy-credit scenario, fuzz 0
+  failures, bid-matrix 12/12); questionnaire tests extended with the full
+  verbatim->enum mapping; quantities tests cover the verbatim fan options
+  (24/24). npm run verify: all 11 gates ok. Prod build clean, all 37 runtime
+  assets traced.
+- Estimate endpoint proven by hand: podium 260,000 SF + LEED -> controls
+  124,800 = 104,000 x 1.20 exactly.
+- Browser E2E on the public wizard: even Step 1 grid, all 13 selects dumped
+  and matched verbatim against the spreadsheet, sidebar + 48hr note, full
+  submit round-trip (test row deleted). Internal wizard Controls step
+  eyeballed: 5 energy-credit options render with live LEED-adjusted totals
+  (+$127,512 = $106,260 x 1.20) and override-wins confirmed.
+
+---
+
 ## [Counting what the drawings only draw] - August 31, 2026
 
 **DEPLOYED 2026-08-31** — shipped in the August 31 deploy after the full debugging pass.

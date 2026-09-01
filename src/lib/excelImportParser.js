@@ -143,6 +143,7 @@ function mapExteriorAmenity(v) {
 
 function mapAmenityHours(v) {
   const s = low(v);
+  if (s.includes('dusk to dawn')) return 'duskToDawn';
   if (s.includes('24') || s.includes('after dark') || s.includes('after sunset') ||
       s.includes('open after') || s.includes('sunrise')) return 'afterSunset';
   return 'beforeDusk';

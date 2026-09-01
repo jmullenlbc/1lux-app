@@ -153,7 +153,7 @@ const PRICING_FIELDS = [
   { group: 'Controls — Building Type Rates', key: 'controls.rates.midRise.perSf',      label: 'Mid Rise (9–12 Lvl)',     unit: '$/SF' },
   { group: 'Controls — Building Type Rates', key: 'controls.rates.highRise.perSf',     label: 'High Rise (12+ Lvl)',     unit: '$/SF' },
   { group: 'Controls — Building Type Rates', key: 'controls.cap',                      label: 'Controls Cap (max $)',    desc: 'Controls never exceed this, regardless of SF', unit: '$' },
-  { group: 'Controls — Building Type Rates', key: 'controls.energyCreditAdderPct',     label: 'Energy Credit Adder',     desc: '% of lighting subtotal (0.03 = 3%)', unit: 'decimal' },
+  { group: 'Controls — Building Type Rates', key: 'controls.energyCreditAdderPct',     label: 'Energy Credit Adder',     desc: '% added to lighting + controls subtotals (0.03 = 3%)', unit: 'decimal' },
 
   // ── DESIGN-LEVEL PRICING ──────────────────────────────────────────────
   { group: 'Ceiling Fans — Design Levels (gross)', key: 'designFanLevels.low',    label: 'Fan (Low)',    desc: 'Gross, before disk credit', unit: '$/fan' },

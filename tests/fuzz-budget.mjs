@@ -67,7 +67,7 @@ function randomScenario() {
     units: { undercabinet: pick(UC), kitchenPendants: pick(PEND), fans: pick(FANS), vanity: pick(VAN), balcony: pick(BAL) },
     corridors: { unitSconce: pick(SCON) },
     amenities: { interiorLevel: pick(AMEN) },
-    exterior:  { amenityLevel: pick(EXT), amenityHours: pick(['beforeDusk','afterSunset']) },
+    exterior:  { amenityLevel: pick(EXT), amenityHours: pick(['beforeDusk','duskToDawn','afterSunset']) },
     emergency: { strategy: pick(EMG) },
     controls:  { energyCredit: pick(['yes','no']) },
     entryDisk: pick(['typical','12inch','decorative']),

@@ -203,9 +203,16 @@ export function computeQuantities(drawings, answers) {
   // ── CEILING FANS ───────────────────────────────────────────────────────────
   const fansAnswer = ans.ceilingFans || 'None';
   const bedroomTotal = beds ? beds.sum : (mix ? mix.bedrooms : null);
-  const unitsWithBed = beds
-    ? rows.reduce((s, r) => s + (Number(r.bedrooms) >= 1 ? qtyOf(r) : 0), 0)
-    : (mix ? mix.unitsWithBedroom : null);
+  // Units with at least N bedrooms — "Master + Secondary" means one fan in
+  // every unit with a bedroom plus a second in every unit with two or more.
+  const unitsWithBedAtLeast = (min) => beds
+    ? rows.reduce((s, r) => s + (Number(r.bedrooms) >= min ? qtyOf(r) : 0), 0)
+    : (mix ? [null,
+        mix.unitsWithBedroom,
+        (stated(site?.bedMix?.twoBed) ?? 0) + (stated(site?.bedMix?.threeBed) ?? 0),
+        stated(site?.bedMix?.threeBed) ?? 0,
+      ][min] ?? null : null);
+  const unitsWithBed = unitsWithBedAtLeast(1);
 
   let fans = null, fansHow = '', fansFlag = null;
   if (fansAnswer === 'None') {
@@ -226,6 +233,39 @@ export function computeQuantities(drawings, answers) {
       : 'Bedrooms plus living rooms was requested, but the bedroom or unit count is missing.';
   } else if (fansAnswer === 'Living room only') {
     fans = unitCount; fansHow = fans != null ? 'One fan per unit living room.' : 'One per living room was requested, but the unit count is missing.';
+  } else {
+    // The current questionnaire's combination answers ("Master bed + Living
+    // room", "Master bed/Secondary bed/Tertiary bed + Living room", ...).
+    // Bedrooms counted = one fan per unit with >= N bedrooms per named bed;
+    // "+ Living room" adds one per unit. The earlier literals above stay for
+    // old submissions, which are recomputed on view.
+    const bedTiers   = (fansAnswer.match(/Master bed/) ? 1 : 0)
+                     + (fansAnswer.match(/Secondary bed/) ? 1 : 0)
+                     + (fansAnswer.match(/Tertiary bed/) ? 1 : 0);
+    const livingRoom = /Living room/.test(fansAnswer);
+    if (bedTiers > 0 || livingRoom) {
+      const parts = [];
+      let total = 0, missing = false;
+      for (let t = 1; t <= bedTiers; t++) {
+        const c = unitsWithBedAtLeast(t);
+        if (c == null) { missing = true; break; }
+        total += c;
+        parts.push(`${fmt(c)} units with ${t}+ bedroom${t > 1 ? 's' : ''}`);
+      }
+      if (livingRoom && !missing) {
+        if (unitCount == null) { missing = true; }
+        else { total += unitCount; parts.push(`${fmt(unitCount)} living rooms`); }
+      }
+      if (!missing) {
+        fans = total;
+        fansHow = `One fan per room requested ("${fansAnswer}"): ${parts.join(' + ')}.`;
+        if (bedTiers > 0 && !beds && mix) {
+          fansFlag = 'Bedroom mix came from the site plan D.U. mix, not a unit matrix — spot-check the per-bedroom counts.';
+        }
+      } else {
+        fansHow = `"${fansAnswer}" was requested, but the bedroom mix or unit count needed to place the fans was not found on the drawings.`;
+      }
+    }
   }
   add('ceilingFans', '# Ceiling Fans', 'count', fans, fansAnswer === 'None' ? 'questionnaire' : 'derived', fansHow, fansFlag);
 

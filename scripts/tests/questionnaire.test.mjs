@@ -11,7 +11,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { INTAKE_QUESTIONS, validateAnswers } from '../../src/lib/intake/questionnaire.js';
+import { INTAKE_QUESTIONS, validateAnswers, answersToEngine } from '../../src/lib/intake/questionnaire.js';
 import { computeReviewFlags } from '../../src/lib/intake/reviewFlags.js';
 
 // ── questionnaire shape ──────────────────────────────────────────────────────
@@ -37,19 +37,19 @@ test('question keys are unique', () => {
 // ── validateAnswers ──────────────────────────────────────────────────────────
 
 test('valid answers pass through with section and question text attached', () => {
-  const rows = validateAnswers({ ceilingFans: 'All bedrooms', energyCredit: 'Yes' });
+  const rows = validateAnswers({ ceilingFans: 'Master bed + Secondary bed', energyCredit: 'LEED' });
   const fans = rows.find(r => r.questionKey === 'ceilingFans');
-  assert.equal(fans.answer, 'All bedrooms');
+  assert.equal(fans.answer, 'Master bed + Secondary bed');
   assert.equal(fans.section, 'Residential units');
   assert.ok(fans.question.length > 0);
-  assert.equal(rows.find(r => r.questionKey === 'energyCredit').answer, 'Yes');
+  assert.equal(rows.find(r => r.questionKey === 'energyCredit').answer, 'LEED');
 });
 
 test('unanswered questions fall back to their default so the reviewer sees a full set', () => {
   const rows = validateAnswers({});
   const withDefaults = INTAKE_QUESTIONS.filter(q => q.default != null).length;
   assert.equal(rows.length, withDefaults);
-  assert.equal(rows.find(r => r.questionKey === 'vanityLighting').answer, 'Mirror and bath bar (Low)');
+  assert.equal(rows.find(r => r.questionKey === 'vanityLighting').answer, 'Mirror and bath bar (Low finish)');
 });
 
 test('free text on an option question is rejected and clamped to the default', () => {
@@ -68,8 +68,8 @@ test('projectType with no answer and no default produces no row', () => {
 });
 
 test('projectType with a valid answer produces a row', () => {
-  const rows = validateAnswers({ projectType: 'Podium' });
-  assert.equal(rows.find(r => r.questionKey === 'projectType').answer, 'Podium');
+  const rows = validateAnswers({ projectType: 'Podium (3-8 Levels)' });
+  assert.equal(rows.find(r => r.questionKey === 'projectType').answer, 'Podium (3-8 Levels)');
 });
 
 test('non-object and garbage input behaves like an empty submission', () => {
@@ -77,6 +77,92 @@ test('non-object and garbage input behaves like an empty submission', () => {
     const rows = validateAnswers(bad);
     assert.ok(Array.isArray(rows) && rows.length > 0, `input ${JSON.stringify(bad)} should fall back to defaults`);
   }
+});
+
+// ── answersToEngine ───────────────────────────────────────────────────────────
+
+test('verbatim answers map onto the exact engine enums the internal wizard saves', () => {
+  const { sections, buildingTypeKey } = answersToEngine({
+    undercabinet: 'Low voltage',
+    islandPendants: '3 small pendants (Medium finish)',
+    ceilingFans: 'Master bed/Secondary bed/Tertiary bed + Living room',
+    vanityLighting: 'Illuminated mirror (High finish)',
+    balconyLighting: 'Exterior balcony sconce (Medium finish)',
+    egressLighting: 'Frogeyes everywhere',
+    interiorAmenityFinish: '12',
+    unitEntrySconce: '1 sconce (High finish)',
+    exteriorAmenityFinish: '3',
+    amenityHours: '24hrs or after dark',
+    projectType: 'Gurban (4-5 Levels)',
+    energyCredit: 'LEED',
+  });
+  assert.equal(buildingTypeKey, 'gurban');
+  assert.equal(sections.units.undercabinet, 'lowVoltage');
+  assert.equal(sections.units.kitchenPendants, 'threeSmallMedium');
+  assert.equal(sections.units.fans, 'masterSecondaryTertiaryLiving');
+  assert.equal(sections.units.vanity, 'illuminatedMirrorHigh');
+  assert.equal(sections.units.balcony, 'sconceMedium');
+  assert.equal(sections.emergency.strategy, 'frogeyes');
+  assert.equal(sections.amenities.interiorLevel, '12');
+  assert.equal(sections.corridors.unitSconce, 'high');
+  assert.equal(sections.exterior.amenityLevel, '3');
+  assert.equal(sections.exterior.amenityHours, 'afterSunset');
+  assert.equal(sections.controls.energyCreditProgram, 'leed');
+  assert.equal(sections.controls.energyCredit, 'yes');
+});
+
+test('the finish-word options map, and the old bare-finish strings still map (stored submissions)', () => {
+  const { sections } = answersToEngine({
+    islandPendants: '3 small pendants (Medium)',       // pre-2026-09 stored string
+    vanityLighting: 'Mirror and bath bar (High)',
+    balconyLighting: 'Exterior balcony sconce (Low)',
+    unitEntrySconce: '1 sconce (Medium)',
+  });
+  assert.equal(sections.units.kitchenPendants, 'threeSmallMedium');
+  assert.equal(sections.units.vanity, 'bathBarHigh');
+  assert.equal(sections.units.balcony, 'sconcelow');
+  assert.equal(sections.corridors.unitSconce, 'medium');
+});
+
+test('Dusk to Dawn keeps its own engine value so it also triggers the after-dark multiplier', () => {
+  const { sections } = answersToEngine({ amenityHours: 'Dusk to Dawn' });
+  assert.equal(sections.exterior.amenityHours, 'duskToDawn');
+  const other = answersToEngine({ amenityHours: 'Other' });
+  assert.equal(other.sections.exterior.amenityHours, 'beforeDusk');
+});
+
+test('energy credit None means program none and engine credit no', () => {
+  const { sections } = answersToEngine({ energyCredit: 'None' });
+  assert.equal(sections.controls.energyCreditProgram, 'none');
+  assert.equal(sections.controls.energyCredit, 'no');
+});
+
+test('NGBS/WELL/Other still flip the 3% credit on without being LEED', () => {
+  for (const program of ['NGBS', 'WELL', 'Other']) {
+    const { sections } = answersToEngine({ energyCredit: program });
+    assert.equal(sections.controls.energyCreditProgram, program.toLowerCase());
+    assert.equal(sections.controls.energyCredit, 'yes');
+  }
+});
+
+test('garbage answers clamp to defaults and never leak free text into sections', () => {
+  const { sections, buildingTypeKey } = answersToEngine({
+    ceilingFans: '<script>x</script>', projectType: 'Castle', energyCredit: 'yes please',
+  });
+  assert.equal(sections.units.fans, 'none');           // clamped to the default
+  assert.equal(buildingTypeKey, null);                 // no default for project type
+  assert.equal(sections.controls.energyCreditProgram, 'none');
+  const flat = JSON.stringify(sections);
+  assert.ok(!flat.includes('script') && !flat.includes('Castle'));
+});
+
+test('answersToEngine accepts stored rows as well as a plain map', () => {
+  const { sections } = answersToEngine([
+    { questionKey: 'undercabinet', answer: '120v' },
+    { questionKey: 'energyCredit', answer: 'WELL' },
+  ]);
+  assert.equal(sections.units.undercabinet, 'lineVoltage');
+  assert.equal(sections.controls.energyCreditProgram, 'well');
 });
 
 // ── computeReviewFlags ───────────────────────────────────────────────────────

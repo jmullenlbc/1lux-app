@@ -231,6 +231,8 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   }
 
   const amenityHours    = exterior.amenityHours || 'beforeDusk';
+  // Only '24hrs or after dark' doubles the exterior amenity line (Mike,
+  // 2026-09-01: "dusk to dawn does not get the 2x multiplier. it is as is cost").
   const nightMultiplier = amenityHours === 'afterSunset' ? PRICING.exteriorAmenities.nighttimeMultiplier : 1;
   const extAmenityProduct = extAmenitySf * extAmenityRate * nightMultiplier;
 
@@ -451,16 +453,15 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     designAdderTotal;
 
   // ─── ENERGY CREDIT ───────────────────────────────────────────────────────
-  // Per Mike: the energy credit REDUCES the lighting subtotal *before* freight,
-  // warehousing, and tax are calculated — matching Trackvia behavior. (Previously
-  // the credit was added to controlsProduct after lighting F+W+T, which caused
-  // the credit's dollar impact to compound through F+W+T.)
-  // PRICING.controls.energyCreditAdderPct retains its historical name but is
-  // now applied as a reduction.
-  const energyCreditAmount = controls.energyCredit === 'yes'
-    ? lightingProductSubtotal * PRICING.controls.energyCreditAdderPct
+  // Per Mike (2026-09-01): pursuing any energy credit program ADDS this % to
+  // BOTH the lighting and controls subtotals, each shown as its own line item
+  // (better-than-code LPDs need more efficient fixtures and more sophisticated
+  // controls). Applied before freight/warehousing/tax on each side.
+  const energyCreditPct = controls.energyCredit === 'yes'
+    ? n(PRICING.controls.energyCreditAdderPct, 0.03)
     : 0;
-  lightingProductSubtotal -= energyCreditAmount;
+  const energyCreditLighting = lightingProductSubtotal * energyCreditPct;
+  lightingProductSubtotal += energyCreditLighting;
 
   // ─── CONTROLS ─────────────────────────────────────────────────────────────
   // Controls apply to total gross SF (IECC 2021 — Excel-verified)
@@ -469,9 +470,13 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const controlsCap  = n(PRICING.controls.cap, ctrlRate.cap);
   let controlsProduct = Math.min(grossSf * ctrlRate.perSf, controlsCap);
 
-  // Manual override (the energy credit no longer touches controlsProduct)
+  // Manual override — an explicit override replaces the formula result.
   const controlsOverrideVal = n(controls.controlsOverride);
   if (controlsOverrideVal > 0) controlsProduct = controlsOverrideVal;
+
+  // Energy credit adds the same % to the controls side as its own line item.
+  // It sits on top of an override the way freight and tax do.
+  const energyCreditControls = controlsProduct * energyCreditPct;
 
   // Freight & warehousing rates
   const freightRate     = (pd.freightPct     != null && isFinite(pd.freightPct))     ? pd.freightPct     : PRICING.freight;
@@ -483,10 +488,11 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
 
   const subtotalLightingOnly = lightingProductSubtotal + freightAmount + warehousingAmount + lightingTaxAmount;
 
-  const controlsFreight     = controlsProduct * freightRate;
-  const controlsWarehousing = controlsProduct * warehousingRate;
-  const controlsTaxAmount   = controlsProduct * salesTaxPct;
-  const controlsTotal       = controlsProduct + controlsFreight + controlsWarehousing + controlsTaxAmount;
+  const controlsSubtotal    = controlsProduct + energyCreditControls;
+  const controlsFreight     = controlsSubtotal * freightRate;
+  const controlsWarehousing = controlsSubtotal * warehousingRate;
+  const controlsTaxAmount   = controlsSubtotal * salesTaxPct;
+  const controlsTotal       = controlsSubtotal + controlsFreight + controlsWarehousing + controlsTaxAmount;
 
   const totalWithControls = subtotalLightingOnly + controlsTotal;
 
@@ -561,9 +567,12 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     freightRate,
     warehousingRate,
     lightingProductSubtotal,
-    energyCreditAmount,
+    energyCreditPct,
+    energyCreditLighting,
+    energyCreditControls,
     subtotalLightingOnly,
     controls:               controlsProduct,
+    controlsSubtotal,
     controlsFreight,
     controlsWarehousing,
     controlsTotal,
@@ -577,9 +586,6 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   };
 }
 
-export function formatCurrency(val, compact = false) {
-  if (val == null || isNaN(val) || !isFinite(val)) return '$0';
-  if (compact && val >= 1000000) return `$${(val / 1000000).toFixed(1)}M`;
-  if (compact && val >= 1000)    return `$${(val / 1000).toFixed(0)}K`;
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
-}
+// Moved to format.js so public pages can print dollars without bundling
+// the PRICING model; re-exported here for the existing internal imports.
+export { formatCurrency } from './format.js';

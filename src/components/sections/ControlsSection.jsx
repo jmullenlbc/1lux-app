@@ -12,6 +12,9 @@ export default function ControlsSection({ responses, projectData, budget, pricin
   const P = pricing || PRICING;
   const [answers, setAnswers] = useState({
     energyCredit:       responses.energyCredit       || 'no',
+    // Program answer (None/LEED/NGBS/WELL/Other). Older projects only have
+    // the yes/no — map a bare 'yes' to 'other' so nothing silently gains LEED.
+    energyCreditProgram: responses.energyCreditProgram || (responses.energyCredit === 'yes' ? 'other' : 'none'),
     controlsOverride:   responses.controlsOverride   || '',
     // Design-only
     controlsSystem:     responses.controlsSystem     || 'standalone',
@@ -31,9 +34,14 @@ export default function ControlsSection({ responses, projectData, budget, pricin
   const selectedRate  = { ...baseRate, cap: controlsCap };
 
   const baseEst           = Math.min(grossSf * (selectedRate.perSf ?? 0), selectedRate.cap ?? 175000);
-  const lightingSubtotal  = budget?.lightingProductSubtotal ?? 0;
-  const energyCreditAdder = lightingSubtotal * (P.controls?.energyCreditAdderPct ?? 0.03);
-  const creditEst         = baseEst + energyCreditAdder;
+  // Preview the two energy-credit adder line items. The live budget's lighting
+  // subtotal already contains the lighting-side adder when the credit is on —
+  // back it out so the preview doesn't compound.
+  const ecPct             = P.controls?.energyCreditAdderPct ?? 0.03;
+  const lightingSubtotal  = (budget?.lightingProductSubtotal ?? 0) - (budget?.energyCreditLighting ?? 0);
+  const lightingAdder     = lightingSubtotal * ecPct;
+  const controlsAdder     = baseEst * ecPct;
+  const creditEst         = baseEst + controlsAdder;
   const isCapped          = grossSf * selectedRate.perSf >= selectedRate.cap;
 
   const overrideVal = parseFloat(answers.controlsOverride);
@@ -104,27 +112,45 @@ export default function ControlsSection({ responses, projectData, budget, pricin
 
       {/* Energy credit */}
       <QuestionCard
-        question="Are you targeting better-than-code LPDs for a lighting energy credit?"
-        note="Targeting better-than-code Lighting Power Densities requires more sophisticated controls and more efficient fixtures. The adder is 3% of the entire lighting product subtotal (excluding freight & warehousing)."
+        question="Are you trying to achieve better than code allowed LPDs for a lighting energy credit?"
+        note={`Targeting better-than-code Lighting Power Densities requires more sophisticated controls and more efficient fixtures. Any program adds ${Math.round(ecPct * 100)}% to the lighting and controls subtotals, shown as its own line item on the budget.`}
         costSuffix=" total"
         options={[
           {
-            value: 'no',
-            label: 'No — standard code-compliant LPDs',
-            sub:   'IECC 2021 minimum compliance',
+            value: 'none',
+            label: 'None',
+            sub:   'Standard code-compliant LPDs (IECC 2021 minimum)',
             cost:  grossSf > 0 ? baseEst : undefined,
           },
           {
-            value: 'yes',
-            label: 'Yes — targeting better-than-code LPDs (energy credit)',
-            sub:   `+3% of lighting subtotal (${lightingSubtotal > 0 ? formatCurrency(energyCreditAdder) + ' adder' : 'enter project data first'})`,
+            value: 'leed',
+            label: 'LEED',
+            sub:   `+${Math.round(ecPct * 100)}% on lighting + controls subtotals (${lightingSubtotal > 0 ? formatCurrency(lightingAdder + controlsAdder) : 'enter project data first'})`,
+            cost:  grossSf > 0 ? creditEst : undefined,
+          },
+          {
+            value: 'ngbs',
+            label: 'NGBS',
+            sub:   `+${Math.round(ecPct * 100)}% on lighting + controls subtotals (${lightingSubtotal > 0 ? formatCurrency(lightingAdder + controlsAdder) : 'enter project data first'})`,
+            cost:  grossSf > 0 ? creditEst : undefined,
+          },
+          {
+            value: 'well',
+            label: 'WELL',
+            sub:   `+${Math.round(ecPct * 100)}% on lighting + controls subtotals (${lightingSubtotal > 0 ? formatCurrency(lightingAdder + controlsAdder) : 'enter project data first'})`,
+            cost:  grossSf > 0 ? creditEst : undefined,
+          },
+          {
+            value: 'other',
+            label: 'Other',
+            sub:   `+${Math.round(ecPct * 100)}% on lighting + controls subtotals (${lightingSubtotal > 0 ? formatCurrency(lightingAdder + controlsAdder) : 'enter project data first'})`,
             cost:  grossSf > 0 ? creditEst : undefined,
           },
         ]}
-        value={answers.energyCredit}
+        value={answers.energyCreditProgram}
         onChange={val => {
-          setAnswers(a => ({ ...a, energyCredit: val }));
-          setDirty(d => new Set(d).add('energyCredit'));
+          setAnswers(a => ({ ...a, energyCreditProgram: val, energyCredit: val === 'none' ? 'no' : 'yes' }));
+          setDirty(d => new Set(d).add('energyCreditProgram').add('energyCredit'));
         }}
       />
 

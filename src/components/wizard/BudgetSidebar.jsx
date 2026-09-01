@@ -1,5 +1,5 @@
 'use client';
-import { formatCurrency } from '@/lib/calculations';
+import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { TooltipBudgetRow } from '@/components/ui/Tooltip';
 
@@ -35,7 +35,8 @@ function PlainRow({ label, value, indent, highlight, bold }) {
 export default function BudgetSidebar({ budget, projectData, currentStep }) {
   if (!budget) return null;
 
-  const { sections, freight, warehousing, freightRate, warehousingRate, lightingProductSubtotal, subtotalLightingOnly, controls, controlsFreight, controlsWarehousing, totalWithControls, perSf, perUnit } = budget;
+  const { sections, freight, warehousing, freightRate, warehousingRate, lightingProductSubtotal, subtotalLightingOnly, controls, controlsFreight, controlsWarehousing, totalWithControls, perSf, perUnit, energyCreditPct, energyCreditLighting, energyCreditControls } = budget;
+  const ecPctLabel = Math.round((energyCreditPct || 0) * 100);
   const hasData = (projectData?.grossSf || 0) > 0;
   const fPct = Math.round((freightRate ?? 0.06) * 100);
   const wPct = Math.round((warehousingRate ?? 0.03) * 100);
@@ -128,6 +129,9 @@ export default function BudgetSidebar({ budget, projectData, currentStep }) {
 
             <Divider />
 
+            {energyCreditLighting > 0 && (
+              <PlainRow label={`Energy Credit (${ecPctLabel}%)`} value={energyCreditLighting} indent />
+            )}
             <PlainRow label="Lighting Subtotal"   value={lightingProductSubtotal || 0} highlight />
             <PlainRow label={`Freight (${fPct}%)`}     value={freight     || 0} indent />
             <PlainRow label={`Whsg. (${wPct}%)`}       value={warehousing || 0} indent />
@@ -141,6 +145,9 @@ export default function BudgetSidebar({ budget, projectData, currentStep }) {
               highlight={currentStep === 'controls'}
               details={[{ label: 'Controls product', value: controls || 0 }]}
             />
+            {energyCreditControls > 0 && (
+              <PlainRow label={`Energy Credit (${ecPctLabel}%)`} value={energyCreditControls} indent />
+            )}
             <PlainRow label={`Freight (${fPct}%)`}     value={controlsFreight     || 0} indent />
             <PlainRow label={`Whsg. (${wPct}%)`}       value={controlsWarehousing || 0} indent />
 

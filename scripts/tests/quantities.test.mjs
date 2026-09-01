@@ -63,6 +63,21 @@ test('ceiling fans follow the questionnaire answer', () => {
   assert.equal(byKey(computeQuantities(d, null)).ceilingFans.value, 0);
 });
 
+test('ceiling fans: the verbatim spreadsheet options count per bedroom tier', () => {
+  // Fixture mix: 20 studios, 100 one-bed, 80 two-bed (no three-bed units).
+  const d = cleanDrawings();
+  const fans = (ans) => byKey(computeQuantities(d, { ceilingFans: ans })).ceilingFans;
+  assert.equal(fans('Master bed + Living room').value, 180 + 200);
+  assert.equal(fans('Master bed + Secondary bed').value, 180 + 80);
+  assert.equal(fans('Master bed/Secondary bed/Living room').value, 180 + 80 + 200);
+  // No 3-bed units in the mix, so the tertiary tier contributes zero.
+  assert.equal(fans('Master bed/Secondary bed/Tertiary bed').value, 180 + 80);
+  assert.equal(fans('Master bed/Secondary bed/Tertiary bed + Living room').value, 180 + 80 + 200);
+  // The how-sentence names each tier it counted.
+  assert.match(fans('Master bed + Secondary bed').how, /master/i);
+  assert.match(fans('Master bed + Secondary bed').how, /secondary/i);
+});
+
 test('stair landings = stairs × (2 × stories − 1)', () => {
   const q = byKey(computeQuantities(cleanDrawings(), {}));
   assert.equal(q.stairLandings.value, 2 * (2 * 4 - 1));      // 14
