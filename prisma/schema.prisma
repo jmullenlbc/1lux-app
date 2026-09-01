@@ -2333,6 +2333,25 @@ model ConceptualSubmission {
   client      Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
   reviewedBy  User?    @relation("SubmissionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
   duplicateMatch Project? @relation("SubmissionDuplicateMatch", fields: [duplicateMatchId], references: [id], onDelete: SetNull)
+  answers        ConceptualSubmissionAnswer[]
+}
+
+// One row per questionnaire answer on a public conceptual-budget submission.
+// Rows (not a JSON blob) so the review queue and bots can filter on any
+// answer ("everyone who asked for ceiling fans") — the queryable rule.
+model ConceptualSubmissionAnswer {
+  id           String   @id @default(cuid())
+  submissionId String
+  section      String   // spreadsheet section, e.g. RESIDENTIAL UNITS
+  questionKey  String   // stable machine key, e.g. ceilingFans
+  question     String   // the question text as asked, frozen at submit time
+  answer       String
+  createdAt    DateTime @default(now())
+
+  submission ConceptualSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId])
+  @@index([questionKey])
 }
 
 // Governed AI Layer, Slice 4b — one row per reviewable AI run: what the model

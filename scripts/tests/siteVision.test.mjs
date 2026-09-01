@@ -348,3 +348,23 @@ test('an oversized PNG comes back as a JPEG under the cap', async () => {
   assert.equal(out.mediaType, 'image/jpeg');
   assert.ok(out.data.length <= 3.5 * 1024 * 1024, `JPEG must fit under the cap (got ${out.data.length})`);
 });
+
+test('a stated figure disagreeing with its counted twin is warned, never rewritten', () => {
+  const r = validateSiteData({
+    ...base, totalUnits: 200,
+    stories: 4, storiesCounted: 5,
+    egressStairwells: 2, egressStairwellsCounted: 3,
+    exitDoors: 6, exitDoorsCounted: 6,
+  });
+  assert.ok(warn(r, 'stories'), 'stories disagreement must warn');
+  assert.ok(warn(r, 'egressStairwells'), 'stairwell disagreement must warn');
+  assert.ok(!warn(r, 'exitDoors'), 'agreeing counts must NOT warn');
+  assert.equal(r.stories, 4, 'stated value preserved');
+  assert.equal(r.storiesCounted, 5, 'counted value preserved');
+});
+
+test('a counted figure with no stated twin cannot trigger a disagreement warning', () => {
+  const r = validateSiteData({ ...base, totalUnits: 200, storiesCounted: 5, egressStairwellsCounted: 2 });
+  assert.ok(!warn(r, 'stories'));
+  assert.ok(!warn(r, 'egressStairwells'));
+});

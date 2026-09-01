@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { computeReviewFlags } from '@/lib/intake/reviewFlags';
+import { computeQuantities } from '@/lib/intake/quantities';
+import { INTAKE_QUESTIONS } from '@/lib/intake/questionnaire';
 
 const STATUS_CONFIG = {
   PENDING: { color: 'bg-amber-100 text-amber-700 border border-amber-200', label: 'Pending' },
@@ -20,6 +23,129 @@ function fmtDate(d) {
  * intake page, so nothing here may assume a shape. A bad payload must show as
  * "no drawings", never as a crashed review screen.
  */
+function drawingsOf(submission) {
+  try {
+    return JSON.parse(submission?.rawPayload || '{}')?.drawings || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * "Verify before trusting" warnings — recomputed here from the stored drawing
+ * data rather than stored at submit time, so tightening a rule immediately
+ * applies to old submissions too.
+ */
+function ReviewFlags({ submission }) {
+  const flags = computeReviewFlags(drawingsOf(submission));
+  if (!flags.length) return null;
+  return (
+    <div className="border-t border-slate-200 pt-4">
+      <label className="block text-sm font-semibold text-amber-700 mb-2">
+        ⚠ Verify before trusting ({flags.length})
+      </label>
+      <ul className="space-y-1.5">
+        {flags.map((f, i) => (
+          <li key={i} className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            {f}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * The full quantity takeoff — every count and square footage the budget math
+ * needs, each with where-it-came-from and a ⚠ when it should be verified.
+ * Recomputed on view (same reasoning as ReviewFlags): a rule fix in
+ * quantities.js immediately applies to every past submission.
+ */
+function QuantityTakeoff({ submission }) {
+  const drawings = drawingsOf(submission);
+  if (!drawings) return null;
+  let quantities;
+  try {
+    quantities = computeQuantities(drawings, submission?.answers);
+  } catch {
+    return null;
+  }
+  if (!quantities?.length) return null;
+  const found = quantities.filter(q => q.value != null).length;
+  return (
+    <div className="border-t border-slate-200 pt-4">
+      <label className="block text-sm font-semibold text-slate-900 mb-2">
+        Quantity takeoff ({found} of {quantities.length} found)
+      </label>
+      <div className="space-y-0.5">
+        {quantities.map(q => (
+          <div key={q.key} className={`rounded-lg px-2 py-1 ${q.flag ? 'bg-amber-50 border border-amber-200' : ''}`}>
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-xs text-slate-500">{q.flag ? '⚠ ' : ''}{q.label}</span>
+              <span className={`text-xs font-semibold text-right shrink-0 font-mono ${q.value == null ? 'text-slate-300' : 'text-slate-800'}`}>
+                {q.value == null ? 'not found' : q.value.toLocaleString('en-US')}
+                {q.value != null && q.source === 'derived' && <span className="ml-1 text-[10px] font-sans font-normal text-indigo-500">derived</span>}
+                {q.value != null && q.source === 'questionnaire' && <span className="ml-1 text-[10px] font-sans font-normal text-emerald-600">questionnaire</span>}
+              </span>
+            </div>
+            <p className={`text-[10px] leading-snug ${q.flag ? 'text-amber-800' : 'text-slate-400'}`}>
+              {q.flag || q.how}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Questionnaire answers, grouped by section in the questionnaire's own order.
+ * Answers matching the question's default are dimmed — the interesting ones
+ * are the choices the submitter actively made.
+ */
+function QuestionnaireAnswers({ submission }) {
+  const answers = Array.isArray(submission?.answers) ? submission.answers : [];
+  if (!answers.length) return null;
+  const byKey = new Map(answers.map(a => [a.questionKey, a]));
+  const sections = [];
+  for (const q of INTAKE_QUESTIONS) {
+    const a = byKey.get(q.key);
+    if (!a) continue;
+    let s = sections.find(x => x.name === q.section);
+    if (!s) { s = { name: q.section, rows: [] }; sections.push(s); }
+    s.rows.push({ ...a, isDefault: q.default != null && a.answer === q.default });
+  }
+  // Answers whose question key we no longer recognize still deserve a row.
+  for (const a of answers) {
+    if (INTAKE_QUESTIONS.some(q => q.key === a.questionKey)) continue;
+    let s = sections.find(x => x.name === a.section);
+    if (!s) { s = { name: a.section, rows: [] }; sections.push(s); }
+    s.rows.push({ ...a, isDefault: false });
+  }
+  return (
+    <div className="border-t border-slate-200 pt-4">
+      <label className="block text-sm font-semibold text-slate-900 mb-2">
+        Questionnaire ({answers.length} answers)
+      </label>
+      <div className="space-y-3">
+        {sections.map(sec => (
+          <div key={sec.name}>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-1">{sec.name}</p>
+            {sec.rows.map(a => (
+              <div key={a.questionKey} className="flex items-baseline justify-between gap-3 py-0.5">
+                <span className="text-xs text-slate-500">{a.question}</span>
+                <span className={`text-xs font-semibold text-right shrink-0 ${a.isDefault ? 'text-slate-400' : 'text-slate-800'}`}>
+                  {a.answer}
+                </span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function keptSheetsOf(submission) {
   try {
     const sheets = JSON.parse(submission?.rawPayload || '{}')?.drawings?.keptSheets;
@@ -318,6 +444,12 @@ export default function IntakeClient({ submissions: initialSubmissions, clients,
                   <label className="block text-sm font-semibold text-slate-900 mb-1">Building Type</label>
                   <p className="text-slate-600">{selected.buildingType || '—'}</p>
                 </div>
+
+                <ReviewFlags submission={selected} />
+
+                <QuantityTakeoff submission={selected} />
+
+                <QuestionnaireAnswers submission={selected} />
 
                 <KeptSheets submission={selected} />
 

@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { classifyIntakeEmail, resolveClientByDomain } from '@/lib/intake';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
+import { validateAnswers } from '@/lib/intake/questionnaire';
+import { computeReviewFlags } from '@/lib/intake/reviewFlags';
+import { notifyPrecon } from '@/lib/intake/notifyPrecon';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,7 +46,7 @@ export async function POST(req) {
   } catch {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
-  const { contactName, contactEmail, companyName, projectName, buildingType, grossSf, drawingsData } = body;
+  const { contactName, contactEmail, companyName, projectName, buildingType, grossSf, drawingsData, answers } = body;
 
   if (!contactName || !contactEmail || !projectName) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -81,6 +84,10 @@ export async function POST(req) {
     console.error('intake/submit client resolution failed (non-fatal):', e);
   }
 
+  // Questionnaire answers are clamped to the known question set — unknown keys
+  // and free text are dropped before anything touches the database.
+  const answerRows = validateAnswers(answers);
+
   const submission = await prisma.conceptualSubmission.create({
     data: {
       submitterName:   String(contactName).slice(0, 200),
@@ -90,8 +97,18 @@ export async function POST(req) {
       buildingType:    buildingType || null,
       clientId,
       rawPayload,
+      answers: answerRows.length ? { create: answerRows } : undefined,
     },
   });
+
+  // Notify the precon inbox. A failed email must never fail the submission —
+  // the row is already saved and the review queue is the source of truth.
+  const flags = computeReviewFlags(drawingsData || null);
+  try {
+    await notifyPrecon({ submission, answers: answerRows, flags, drawings: drawingsData || null });
+  } catch (e) {
+    console.error('intake/submit notify failed (non-fatal):', e);
+  }
 
   return NextResponse.json({ id: submission.id });
 }

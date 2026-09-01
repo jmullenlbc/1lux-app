@@ -436,9 +436,12 @@ async function readAndPick({ source, name, ext, opened, client, slice = null }) 
     ? await pickKeySheets(buildSheetIndex(pageScan), isSet ? client('intake.sheetPick') : null)
     : null;
 
-  // Two sheets, not three: the site plan and the area summary are where the
-  // written site data lives, and each rendered page is paid for by the pixel.
-  const chosenPages = sheets ? pagesToRender(sheets.picks, { max: 2 }) : [];
+  // Four sheets: the site plan and area summary carry the written site data,
+  // and — since Mike's 2026-08-31 takeoff ask — a floor plan for counting
+  // egress stairwells and exit doors, and an elevation for counting stories.
+  // Each rendered page is paid for by the pixel, and the site stage reads one
+  // sheet per request, so four sheets is four short requests, not one long one.
+  const chosenPages = sheets ? pagesToRender(sheets.picks, { max: 4 }) : [];
 
   return { extracted, isSet, chosenPages, sheetsRead: chosenPages.length ? chosenPages : null };
 }

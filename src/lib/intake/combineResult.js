@@ -34,7 +34,8 @@
 export const SITE_NUMBER_KEYS = [
   'lotAcres', 'lotSf', 'totalUnits', 'parkingProvided', 'parkingRequired',
   'surfaceParking', 'garages', 'carports', 'buildingCount', 'clubhouseSf', 'amenitySf',
-  'grossSf',
+  'grossSf', 'stories', 'storiesCounted', 'egressStairwells', 'egressStairwellsCounted',
+  'exitDoors', 'exitDoorsCounted', 'buildingFootprintSf', 'lotCoveragePct',
 ];
 
 /** True when a vision read actually found a site number worth keeping. */
@@ -44,26 +45,26 @@ export function siteHasNumbers(siteData) {
 
 /** True when the text read found a real unit matrix. */
 export function matrixHasTypes(matrix) {
-  return (matrix?.unitTypes?.length ?? 0) > 0;
+  // Array check matters: this shape arrives from an unauthenticated browser,
+  // and a string here has a .length too.
+  return Array.isArray(matrix?.unitTypes) && matrix.unitTypes.length > 0;
 }
 
 /**
  * Does the vision read need to run at all?
  *
- * Vision is materially more expensive per call than the text read, so it is
- * asked for, not run by default. Two cases need it:
+ * Always. The vision read used to be a fallback for when the text read found
+ * no matrix, but it is now the ONLY source of the site figures the quantity
+ * takeoff runs on -- stories, stairwells, exit doors, parking, lot size,
+ * footprint -- and a clean matrix answers none of those. Skipping it on
+ * matrix-successful sets meant every such project arrived with an empty
+ * takeoff.
  *
- *   - the PDF has no text layer at all (a scanned set) -- there is nothing for
- *     the text read to work with, so vision is the only way in;
- *   - the text read came back with no unit types -- the vector-site-plan case,
- *     where the sheet is full of text but none of it is a matrix.
- *
- * On a sheet whose matrix parses cleanly this returns false and the second
- * model call never happens, which is the whole point.
+ * The signature is kept so callers don't change and so the old inputs stay
+ * visible at the call sites; they just no longer decide anything.
  */
-export function needsSiteRead({ hasText, matrix }) {
-  if (!hasText) return true;
-  return !matrixHasTypes(matrix);
+export function needsSiteRead({ hasText, matrix } = {}) { // eslint-disable-line no-unused-vars
+  return true;
 }
 
 /**
@@ -104,5 +105,7 @@ export function combineIntakeResult({ fileName, totalPages = null, sheetsRead = 
     return { kind: 'nothing_found', unitTypes: [], siteData: siteData ?? null, ...common };
   }
 
-  return { ...matrix, ...common };
+  // A matrix win used to drop siteData on the floor. Now the takeoff needs the
+  // site figures on EVERY project, matrix or not, so they ride along.
+  return { ...matrix, siteData: siteData ?? null, ...common };
 }

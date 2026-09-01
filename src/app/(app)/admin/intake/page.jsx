@@ -15,6 +15,7 @@ export default async function IntakePage() {
       reviewedBy: { select: { name: true } },
       client: { select: { id: true, name: true } },
       duplicateMatch: { select: { id: true, name: true } },
+      answers: { orderBy: { createdAt: 'asc' } },
     },
   });
 

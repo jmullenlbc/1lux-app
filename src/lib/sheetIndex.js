@@ -38,7 +38,7 @@ import { sheetNumberOf } from './areaSheet.js';
  */
 export const SET_PAGE_THRESHOLD = 4;
 
-export const SHEET_ROLES = ['unitMatrix', 'sitePlan', 'areaSummary', 'cover'];
+export const SHEET_ROLES = ['unitMatrix', 'sitePlan', 'areaSummary', 'floorPlan', 'elevations', 'cover'];
 
 /**
  * How many sheets of each role we are willing to carry forward.
@@ -78,6 +78,26 @@ const ROLE_SIGNALS = {
     [/\b(area|program)\s+(summary|breakdown|schedule|tabulation)\b/i, 32],
     [/\bcode\s+(summary|analysis)\b/i, 18],
     [/\bgsf\b/i, 8],
+  ],
+  // The takeoff counts egress stairwells and exit doors off a plan view.
+  // A life-safety / egress plan is the best one — exits and rated stair
+  // shafts are explicitly tagged there — so it outranks an ordinary floor
+  // plan, and the ground floor beats a typical upper floor because exit
+  // discharge doors only exist at grade.
+  floorPlan: [
+    [/\b(life\s*safety|egress|exiting)\s+plan\b/i, 40],
+    [/\bcode\s+plan\b/i, 30],
+    [/\b(first|ground|1st)\s+(floor|level)\s+plan\b/i, 28],
+    [/\blevel\s*(1|one)\s+plan\b/i, 26],
+    [/\boverall\s+floor\s+plan\b/i, 22],
+    [/\btypical\s+(floor|level)\s+plan\b/i, 16],
+    [/\bfloor\s+plan\b/i, 10],
+  ],
+  // Stories are counted off a building elevation when no sheet states them —
+  // the floor lines and window rows are unambiguous in a straight-on view.
+  elevations: [
+    [/\b(exterior|building|overall)\s+elevations?\b/i, 40],
+    [/\belevations?\b/i, 14],
   ],
   cover: [
     [/\b(cover|title)\s+sheet\b/i, 40],
@@ -185,6 +205,8 @@ Identify the pages for each of these roles:
   "unitMatrix"  — the unit matrix / unit mix / room or key schedule: the table of unit types and quantities.
   "sitePlan"    — the overall site plan: the sheet showing the whole site, buildings, and parking. Prefer the architectural or overall site plan over enlarged, phased, or utility-only site sheets.
   "areaSummary" — the building area / gross area / program summary, sometimes called building statistics or a code summary.
+  "floorPlan"   — ONE plan view for counting egress stairwells and exit doors. Best: a life-safety / egress / code plan. Next best: the ground or first floor plan. Last resort: a typical floor plan. Prefer an overall plan over an enlarged partial one.
+  "elevations"  — the exterior / building elevations sheet, for counting stories. Prefer overall exterior elevations over enlarged, partial, or interior elevations.
   "cover"       — the cover or title sheet carrying project information and the sheet index.
 
 Rules:
@@ -198,6 +220,8 @@ Return ONLY valid JSON — no markdown, no commentary:
   "unitMatrix": [number],
   "sitePlan": [number],
   "areaSummary": [number],
+  "floorPlan": [number],
+  "elevations": [number],
   "cover": [number],
   "confidence": number (0.0-1.0),
   "notes": "string — anything ambiguous, or which sheets you rejected and why"
@@ -287,7 +311,7 @@ export async function pickKeySheets(index, anthropic, { job = 'drawing.sheetPick
  * never open the area summary, so the read would come back missing the square
  * footage entirely.
  */
-export function pagesToRender(picks, { order = ['sitePlan', 'areaSummary', 'unitMatrix', 'cover'], max = 3 } = {}) {
+export function pagesToRender(picks, { order = ['sitePlan', 'areaSummary', 'floorPlan', 'elevations', 'unitMatrix', 'cover'], max = 3 } = {}) {
   const seen = new Set();
   const out = [];
   const depth = Math.max(0, ...order.map(r => (picks?.[r] ?? []).length));

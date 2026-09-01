@@ -230,6 +230,14 @@ Return ONLY valid JSON — no markdown, no commentary:
   "clubhouseSf": number or null,
   "amenitySf": number or null,
   "grossSf": number or null,
+  "stories": number or null,
+  "storiesCounted": number or null,
+  "egressStairwells": number or null,
+  "egressStairwellsCounted": number or null,
+  "exitDoors": number or null,
+  "exitDoorsCounted": number or null,
+  "buildingFootprintSf": number or null,
+  "lotCoveragePct": number or null,
   "buildingType": "string or null",
   "confidence": number (0.0-1.0),
   "foundSiteDataBlock": boolean,
@@ -244,6 +252,17 @@ CRITICAL RULES:
 - parkingProvided is what the drawing says is PROVIDED; parkingRequired is what code REQUIRES. They differ, and both may appear in a parking table.
 - surfaceParking: only if the drawing distinguishes surface stalls from structured/garage parking.
 - grossSf: the TOTAL BUILDING gross square footage, only if a total is WRITTEN — look for a "TOTAL", "GROSS BUILDING AREA", "TOTAL BLDG", or "GSF" line in an area summary, code summary, or title block. If the sheet prints both a gross and a net (or rentable/leasable) total, report the GROSS figure. Do NOT add up per-floor or per-building areas yourself — a written total or null.
+- stories: the number of stories/levels, only if WRITTEN ("4 STORIES", "NO. OF STORIES: 5", "3-STORY WALK-UP") — a code summary or title block usually states it. If buildings differ in height, report the TALLEST and mention the range in notes.
+- egressStairwells: the number of exit/egress stair enclosures, only if STATED ("2 EXIT STAIRS", "STAIR ENCLOSURES: 2", an exit-stair line in a code summary).
+- exitDoors: the number of exits, only if STATED ("NUMBER OF EXITS: 4", an "EXITS REQUIRED / PROVIDED" table — report the PROVIDED figure).
+- buildingFootprintSf: the building footprint area, only if a footprint figure is WRITTEN ("BUILDING FOOTPRINT", "FOOTPRINT AREA"). Do NOT derive it from a lot-coverage percentage — report the percentage separately instead (below).
+- lotCoveragePct: the lot/building coverage percentage, only if WRITTEN ("LOT COVERAGE: 28%", "BUILDING COVERAGE 32.5%"). Report the number only (28, not 0.28).
+
+COUNTED FIGURES — the one deliberate exception to the no-counting rule. These three "...Counted" fields are the ONLY fields you may fill by counting what is drawn, they are kept separate from the stated fields precisely so a human can tell the difference, and each one may only come from the kind of view named for it:
+- storiesCounted: ONLY from a building ELEVATION view (a straight-on exterior view of the building face). Count the distinct floor levels — rows of windows, floor lines. Never count stories from a plan, a rendering, or a section you are unsure of. If no elevation view is in the image, null.
+- egressStairwellsCounted: ONLY from a floor plan or life-safety plan. Count the distinct enclosed stair shafts — stair-run symbols inside shaft walls, often tagged "STAIR 1", "ST-2". Count stairwells (shafts), NOT flights or runs; a switchback stair is one stairwell. If the image is not a plan view, null.
+- exitDoorsCounted: ONLY from a ground-floor or life-safety plan. Count doors marked as exits — EXIT tags, exit-sign symbols, egress arrows discharging to the exterior. Unmarked exterior doors do not count. If the image is not a plan view showing grade level, null.
+- When a counted figure and a stated figure are both available, report BOTH — never overwrite a stated number with your count.
 - confidence: how legible and unambiguous the source text was. Hand-lettered but clear = 0.8. Blurry or inferred layout = 0.3.
 - foundSiteDataBlock: true only if you found an explicit data/summary block, as opposed to scattered callouts.
 - notes: two sentences at the outside. Name the block you read and flag anything you were unsure of. Do not restate the numbers you already reported, and do not walk through your arithmetic — a long note is time spent writing rather than reading, and this answer has thirty seconds to come back.`;
@@ -273,8 +292,24 @@ CRITICAL RULES:
  * vision path had nowhere to put it (the Lowell area summary printed
  * 299,441 GSF and the read had to drop it on the floor). Gross over net is
  * deliberate: budgets here are priced on gross building area.
+ *
+ * 2026-08-31 adds stories, egressStairwells, exitDoors, buildingFootprintSf —
+ * the code-summary numbers the intake takeoff derives quantities from (stair
+ * landings = stairs x (2 x stories - 1) is Mike's rule and needs the first
+ * two). All four follow the same doctrine as every other field: report only
+ * what is WRITTEN, never count drawn objects by eye, null otherwise.
+ *
+ * 2026-08-31b relaxes that doctrine in exactly three places, on Mike's
+ * instruction ("stories will be seen in elevations. egress stairwells just
+ * find stairwells"): storiesCounted / egressStairwellsCounted /
+ * exitDoorsCounted may be COUNTED off an elevation or plan view. They are
+ * separate fields, never merged into the stated ones, so a counted number
+ * arrives labelled as a counted number and the takeoff can flag it for a
+ * human. Also adds lotCoveragePct (stated only) so the footprint can be
+ * derived in code from coverage x lot area instead of asking the model to
+ * do arithmetic.
  */
-export const SITE_VISION_PROMPT_VERSION = `siteVision-2026-08-29-${MAX_EDGE}px`;
+export const SITE_VISION_PROMPT_VERSION = `siteVision-2026-08-31b-${MAX_EDGE}px`;
 
 /**
  * Run vision extraction over rendered pages.
@@ -391,7 +426,9 @@ export async function extractSiteData(images, anthropic, { model = modelFor('dra
 const SITE_FIELDS = [
   'lotAcres', 'lotSf', 'totalUnits', 'parkingProvided', 'parkingRequired',
   'surfaceParking', 'garages', 'carports', 'buildingCount', 'clubhouseSf',
-  'amenitySf', 'grossSf', 'buildingType',
+  'amenitySf', 'grossSf', 'stories', 'storiesCounted', 'egressStairwells',
+  'egressStairwellsCounted', 'exitDoors', 'exitDoorsCounted',
+  'buildingFootprintSf', 'lotCoveragePct', 'buildingType',
 ];
 const BED_FIELDS = ['studio', 'oneBed', 'twoBed', 'threeBed'];
 
@@ -502,6 +539,23 @@ export function validateSiteData(data) {
       warnings.push({
         field: 'parkingProvided',
         message: `Parking works out to ${ratio.toFixed(2)} stalls per unit, outside the normal 0.3–4 range. Verify both numbers.`,
+      });
+    }
+  }
+
+  // A stated figure and a counted one disagreeing is exactly the situation the
+  // separate ...Counted fields exist to surface. Neither is rewritten — the
+  // warning hands the disagreement to a human, who has the drawing.
+  for (const [statedField, countedField, what] of [
+    ['stories', 'storiesCounted', 'stories'],
+    ['egressStairwells', 'egressStairwellsCounted', 'egress stairwells'],
+    ['exitDoors', 'exitDoorsCounted', 'exit doors'],
+  ]) {
+    if (typeof data[statedField] === 'number' && typeof data[countedField] === 'number'
+        && data[statedField] !== data[countedField]) {
+      warnings.push({
+        field: statedField,
+        message: `The drawings state ${data[statedField]} ${what} but ${data[countedField]} were counted off the drawn view. Confirm which is right.`,
       });
     }
   }

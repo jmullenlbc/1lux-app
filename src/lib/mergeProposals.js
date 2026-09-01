@@ -40,7 +40,9 @@
 const SITE_DATA_KEYS = [
   'lotAcres', 'lotSf', 'totalUnits', 'parkingProvided', 'parkingRequired',
   'surfaceParking', 'garages', 'carports', 'buildingCount', 'clubhouseSf',
-  'amenitySf', 'grossSf', 'buildingType',
+  'amenitySf', 'grossSf', 'stories', 'storiesCounted', 'egressStairwells',
+  'egressStairwellsCounted', 'exitDoors', 'exitDoorsCounted',
+  'buildingFootprintSf', 'lotCoveragePct', 'buildingType',
 ];
 
 /**
@@ -150,6 +152,14 @@ export function mergeProposals(results) {
     if (proposal.siteData) {
       if (!siteData) siteData = { _sources: [] };
       siteData._sources.push(fileName);
+      // bedMix is an object, so the scalar loop below can't referee it — the
+      // first drawing that states a mix wins, whole. Splicing studio counts
+      // from one file with 2BR counts from another would build a mix no
+      // drawing actually says.
+      if (siteData.bedMix == null && proposal.siteData.bedMix && typeof proposal.siteData.bedMix === 'object') {
+        const mix = proposal.siteData.bedMix;
+        if (Object.values(mix).some(v => v != null)) siteData.bedMix = mix;
+      }
       for (const field of SITE_DATA_KEYS) {
         const val = proposal.siteData[field];
         if (val == null) continue;

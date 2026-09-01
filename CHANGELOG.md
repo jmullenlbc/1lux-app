@@ -5,6 +5,199 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Counting what the drawings only draw] - August 31, 2026
+
+**DEPLOYED 2026-08-31** — shipped in the August 31 deploy after the full debugging pass.
+
+Mike's ask: "let's build out more intelligence for stories, egress stairwells,
+exit doors, and building footprint. stories will be seen in elevations. egress
+stairwells just find stairwells and multiply by levels and then do the extra
+landing between levels." Until now the reader only reported figures WRITTEN on
+the drawings (the anti-hallucination rule). This session adds the one
+deliberate exception: for exactly these four things, the model may now COUNT
+off the drawn views — and every counted number stays separate from stated
+numbers so a reviewer always knows which is which.
+
+### Counting off the drawings (siteVision.js, sheetIndex.js)
+
+- Three new counted fields next to their stated twins: stories counted off the
+  building elevation (floor levels / window rows), egress stairwells counted
+  as shafts on the floor plan (a switchback pair is ONE stairwell), exit doors
+  counted as marked exits on the ground-floor / life-safety plan. A counted
+  figure never overwrites a stated one — when both exist and disagree, the
+  reviewer gets a warning naming both numbers.
+- Building footprint: the model reports the stated lot-coverage percentage
+  (e.g. "28%"), and the CODE derives footprint = coverage × lot SF — the model
+  never does arithmetic. Derived footprints are flagged as derived; a coverage
+  over 100% becomes an alert instead of a number.
+- The sheet picker now knows two new sheet roles: a floor plan (life-safety /
+  egress plan preferred) and an exterior elevation. Each upload now renders up
+  to 4 sheets instead of 2 (site plan, area summary, floor plan, elevation) —
+  one short model call per sheet, so no single request gets longer.
+
+### The site read always runs now (combineResult.js)
+
+The vision site read used to be skipped whenever the unit matrix parsed —
+which meant matrix-successful projects arrived with NO site figures at all
+(no stories, no stairs, no parking, no lot) and an empty quantity takeoff.
+It now runs on every upload, and a matrix win carries the site figures along
+instead of dropping them. This is the biggest practical fix of the session:
+the takeoff finally fills in on normal projects, not just site-plan-only ones.
+
+### Takeoff fallbacks (quantities.js)
+
+Stories, stairwells, and exit doors prefer the stated figure and fall back to
+the counted one — always with a ⚠ "counted, not stated — confirm" flag. Stair
+landings (stairs × (2 × stories − 1)) compute off whichever resolved, flagged
+when built on a count. Footprint falls back to the coverage derivation.
+
+### Tests
+
+23 new/updated checks: counted-only fallbacks and their flags, stated-beats-
+counted, footprint from 28% and 0.28 forms, >100% coverage alert,
+stated-vs-counted disagreement warnings, the always-run site read, siteData
+riding along with a matrix win, and the new merge keys. New
+scripts/tests/combineResult.test.mjs registered in verify:units.
+Full suite: 764/764 passing, production build green.
+
+**Cost note:** every upload now makes up to 4 short vision calls instead of
+0–2. The site-vision prompt version bumped, so read-accuracy history resets.
+
+---
+
+## [The takeoff before the takeoff] - August 31, 2026
+
+**DEPLOYED 2026-08-31** — shipped in the August 31 deploy after the full debugging pass.
+
+Mike's Phase 2 ask: "I want the drawing to pull all the square footage, unit
+counts, egress door counts, parking space counts, etc. and build that into the
+tool before it ever gets to us and alert us if they think something doesnt
+have a high likelyhood of being right." Every quantity from the Project Data
+tab of the internal spreadsheet is now computed from the drawing read + the
+questionnaire, shown in the admin review panel, and included in the precon
+notification email — each with a plain-English note on where it came from and
+a ⚠ flag when it should be verified before it is trusted.
+
+### The quantity takeoff (new src/lib/intake/quantities.js)
+
+22 quantities per submission: units, bedrooms, bathrooms, vanities, balconies,
+ceiling fans, unit SF, garage SF, corridor/stairwell SF, interior + exterior
+amenity SF, gross SF, back-of-house SF, stories, egress stairwells, stair
+landings, exit doors, surface stalls, carports, garages, lot SF, and building
+footprint SF. Rules encoded exactly as Mike works:
+
+- **"Not found" is never zero.** A quantity the drawings don't state shows
+  "not found" and lands on the needs-a-human list — it is never silently 0.
+- Stair landings = stairs × (2 × stories − 1) (switchback rule), always
+  flagged to confirm the stair type on the plans.
+- One vanity per bathroom; ceiling fans follow the questionnaire answer
+  (e.g. "Master bed only" skips the studios).
+- Back of house = stated gross minus units, corridors, and interior amenity —
+  the arithmetic is spelled out on the row, and a remainder that goes
+  negative becomes an alert instead of a negative number.
+- Cross-checks flag disagreements: stated total units vs the unit matrix sum,
+  matrix balconies vs a "No balconies" answer, partial columns ("bathrooms
+  known for only 120 of 200 units"), acre→SF conversions (hand-lettering
+  risk), surface stalls exceeding total parking provided.
+- Recomputed on view in the admin panel, so a rule fix applies to old
+  submissions retroactively.
+
+### The drawing reader now looks for four more stated figures
+
+Stories, egress stairwells, exit doors, and building footprint SF — stated
+figures only (a code-summary line or title block), never counted off the
+plans, so a hallucinated count can't sneak in. Existing stored submissions
+predate this: those four fill in on the next real drawing parse. The vision
+prompt version was bumped, so parse-accuracy history restarts at Tier 0 as
+designed.
+
+### Bugs fixed along the way
+
+- The unit-matrix total in the review flags and the notification email summed
+  a column that doesn't exist (count vs qty) — it always came out 0, so the
+  matrix-vs-site-plan disagreement flag could never fire. Fixed in both.
+- A unit row with a blank bathrooms cell was being counted as zero bathrooms
+  instead of unknown (the Number(null)=0 trap), hiding the undercount flag.
+- Bed-mix from a site plan now merges as a whole (first file that states a
+  mix wins) — never spliced studio counts from one file with 2BR counts from
+  another.
+
+### Under the hood
+
+- New: src/lib/intake/quantities.js, scripts/tests/quantities.test.mjs
+  (15 tests, registered in verify:units). Modified: siteVision.js (4 new
+  stated-only fields + prompt version bump), mergeProposals.js,
+  combineResult.js, reviewFlags.js, notifyPrecon.js (takeoff section in the
+  email), admin IntakeClient.jsx (takeoff panel). No schema change.
+- Full pass: quantities 15/15, verify:units 747/747, budget-math + fuzz +
+  bid-matrix suites green, DN-leak 8/8, production build green (37 runtime
+  assets traced). End-to-end verified in the browser: a 252-unit test
+  submission rendered all 22 quantities with the expected derived values
+  (landings 27, fans 324, BOH 61,560), then was deleted.
+
+---
+
+## [The questions we forgot to ask] - August 31, 2026
+
+**DEPLOYED 2026-08-31** — shipped in the August 31 deploy after the full debugging pass.
+
+Broadstone Southglenn field test feedback: the public conceptual-budget page
+never asked the design questions, and nobody at ILC heard about the submission.
+Both fixed.
+
+### The 13-question design questionnaire (new Step 3 on /conceptual_budget)
+
+The questions from the internal multifamily questionnaire spreadsheet (first
+tab), reworded for a stranger: undercabinet, island pendants, ceiling fans,
+vanity lighting, balcony lighting, egress approach, interior amenity finish,
+unit entry sconce, site design level, exterior amenity finish, amenity hours,
+project type, energy credit. Answer values match the spreadsheet verbatim so
+they drop into the same downstream math.
+
+- Every question has a sensible default; the submitter can answer what they
+  know and skip the rest. Project type is pre-filled from the drawing read
+  when the AI recognized the building type ("change it if we got it wrong").
+- Answers are stored as one row per question (new ConceptualSubmissionAnswer
+  table, migration 0060, purely additive) — queryable by humans and bots,
+  never a JSON blob.
+- Free text and unknown keys are rejected server-side; the endpoint only
+  accepts the questionnaire's own option strings (it is public).
+- The success message now says it out loud: for now ILC reviews every budget
+  before the submitter sees the summary; self-serve print comes later.
+
+### Notification email to precon@ (new, Amazon SES)
+
+- Every submission now emails precon@ilcstudios.com: project, submitter, what
+  the drawings said (units, SF, buildings, parking, confidence), the verify
+  flags, and every questionnaire answer, with a link to the review queue.
+- A failed email can NEVER fail a submission — the row is saved first and the
+  send is wrapped twice. Locally (no AWS credentials) it logs and moves on.
+- NOT LIVE until the one-time SES console setup: verify the ilcstudios.com
+  domain (DNS records) and give the app's IAM user ses:SendEmail. Until then
+  every send fails gracefully and the review queue remains the source of truth.
+
+### "Verify before trusting" flags
+
+- New src/lib/intake/reviewFlags.js: plain-English warnings computed from the
+  drawing read — low AI confidence, unit-matrix vs site-plan disagreement over
+  10%, missing units / gross SF / parking, surface stalls exceeding total
+  provided, and cross-file conflicts. Shown in the admin review panel and the
+  notification email. Recomputed on view, so tightening a rule applies to old
+  submissions too.
+- The admin review panel now shows the flags and the questionnaire answers
+  (defaults dimmed so the submitter's actual choices stand out).
+
+### Under the hood
+
+- New files: src/lib/intake/questionnaire.js, reviewFlags.js, notifyPrecon.js;
+  scripts/tests/questionnaire.test.mjs (18 tests, registered in verify:units).
+- Migration 0060 written in PostgreSQL dialect (the build guard caught the
+  SQLite draft). @aws-sdk/client-ses added.
+- Full pass: 732/732 unit tests, production build green, end-to-end submission
+  verified in the browser (13 answer rows stored, cascade delete confirmed).
+
+---
+
 ## [The picture that would not fit through the door] - August 31, 2026
 
 **DEPLOYED August 31, 2026** (with the error-number system below).
