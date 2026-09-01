@@ -2,12 +2,17 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+### 2026-09-01 — Sean's Claude
+
+- Completed AWS SES setup for `ilcstudios.com`: 3 DKIM CNAMEs added to Namesilo DNS (Namesilo registrar, not Squarespace), `ses-send-email` inline policy added to `ilc-amplify-s3` IAM user, `precon@ilcstudios.com` created as SES email identity. Someone still needs to click the SES verification link in the precon@ inbox.
+- Queued Tasks 33–36 for Manny (~10 hrs): intake notify env wiring + live test (Task 33), task attachments → S3 migration (Task 34), CLIENT_VIEWER isolation bug hunt (Task 35), intake/portal invite edge cases (Task 36).
+
 ### 2026-08-31 — Mike's Claude
 
 **FOR SEAN — SES one-time console setup (emailed to you too).** The public
 conceptual-budget intake now sends an automatic notification email to
 precon@ilcstudios.com on every submission (code built + tested, local-only,
-awaiting Mike's "Deploy"). Delivery is blocked on three one-time SES console
+awaiting Mike's “Deploy”). Delivery is blocked on three one-time SES console
 steps that are yours: (1) verify the ilcstudios.com domain in SES (us-east-2,
 Easy DKIM → 3 CNAMEs into DNS), (2) attach `ses:SendEmail` to the same IAM
 user whose keys the app uses for S3 (the `S3_ACCESS_KEY_ID` one — no new

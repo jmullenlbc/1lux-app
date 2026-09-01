@@ -25,7 +25,117 @@ When Manny opens a session:
 
 ## Active tasks
 
-_No tasks currently queued. Sean will add new tasks here before Manny's next session._
+### Task 33: Intake notification — env wiring + live verification (~2 hrs)
+
+- **Branch:** `manny/intake-notify-wiring`
+- **Why:** Mike built `src/lib/intake/notifyPrecon.js` (2026-08-31) — the SES notification code is complete and tested. Sean completed the AWS SES console setup (2026-09-01): domain verified, DKIM records in DNS, `ses-send-email` IAM policy attached. The final wiring step is two small code changes so the Lambda can reach the env vars, plus a live send test to confirm the full chain works.
+
+**Step 1 — Add `INTAKE_NOTIFY_TO` and `INTAKE_NOTIFY_FROM` to `next.config.mjs`**
+
+Find the `env:` block (near the existing `S3_REGION` and `S3_ACCESS_KEY_ID` lines). Add:
+
+```js
+INTAKE_NOTIFY_TO:   process.env.INTAKE_NOTIFY_TO,
+INTAKE_NOTIFY_FROM: process.env.INTAKE_NOTIFY_FROM,
+```
+
+These have hardcoded defaults in `notifyPrecon.js` (`precon@` and `noreply@`) so a missing Amplify env var won't break anything — but they must be in the `env` block if we ever want to override them without a code push.
+
+**Step 2 — Confirm `@aws-sdk/client-ses` is in `serverComponentsExternalPackages`**
+
+In `next.config.mjs`, find `serverComponentsExternalPackages`. Add `'@aws-sdk/client-ses'` if it isn't already there. Then run `npm list @aws-sdk/client-ses` — if the package is missing, `npm install @aws-sdk/client-ses`.
+
+**Step 3 — Live-send test**
+
+Set `NOTIFY_DRY_RUN=false` in your local `.env` temporarily. Start the dev server. Submit the form at `http://localhost:3000/conceptual_budget` (use real-looking data). Check server logs for `[intake notify]` output, and check the `precon@ilcstudios.com` inbox for the email. Restore `NOTIFY_DRY_RUN` to default (remove the line or set it to `true`) after the test.
+
+**Acceptance:**
+1. The two env vars appear in `next.config.mjs`'s `env` block
+2. `@aws-sdk/client-ses` is listed in `serverComponentsExternalPackages`
+3. A real email arrived at `precon@ilcstudios.com` during the live test (screenshot the inbox for the PR)
+4. `NOTIFY_DRY_RUN` is restored before pushing — the live-send test must not be a permanent state
+5. `npm run verify` passes. Pre-push hooks pass.
+
+---
+
+### Task 34: Task attachments — migrate from filesystem to S3 (~3 hrs)
+
+- **Branch:** `manny/task-attachments-s3`
+- **Why:** `src/app/api/tasks/[id]/attachments/route.js` currently writes files to `process.cwd()/uploads/tasks/[id]/`. In the Amplify Lambda runtime, `process.cwd()` is read-only and any writes are lost between requests. This silently fails in production — a user uploads an attachment, the DB row is created, but the file is gone. Other upload paths use S3 presigned URLs; this one needs the same treatment.
+
+**Background — how the presign flow works:**
+The app has a two-step S3 upload pattern (added 2026-08-24):
+1. Client calls `POST /api/uploads/presign` → gets back a presigned `PUT` URL + a final `s3Key`
+2. Client PUTs the file directly to S3 (browser → S3, never through the server)
+3. Client records the `s3Key` in the app DB
+
+Read `src/app/api/uploads/presign/route.js` and `src/app/api/uploads/[...path]/route.js` before starting — understand the key structure and how the DB records a path. Then look at how an existing upload UI (e.g. the QC bug tracker) calls presign.
+
+**What to change:**
+
+1. **`src/app/api/tasks/[id]/attachments/route.js`** — Replace the `writeFile` logic. The POST route should instead return a presigned URL (call `getSignedUrl` from `@aws-sdk/s3-request-presigner`) so the client can PUT directly. Or: delete the server-side upload logic entirely and have it only record a `storedPath` that was pre-uploaded via the presign endpoint. Pick the pattern that matches how the existing presign flow works — consistency matters more than cleverness.
+
+2. **Client-side** — Find wherever the task attachment upload UI lives (search for `tasks/${id}/attachments` in the frontend). Update it to use the presign → PUT → record pattern instead of a single `fetch('/api/tasks/[id]/attachments', { method: 'POST', body: formData })`.
+
+3. **`src/app/api/tasks/attachments/[attachmentId]/route.js`** — Check if it serves the file from local disk. If so, update it to redirect to a presigned GET URL from S3 instead.
+
+**Acceptance:**
+1. Upload a PDF to a task in dev — it lands in the `ilc-qc-media` S3 bucket (verify in AWS console or by checking the `storedPath` value written to `TaskAttachment`)
+2. The attachment is accessible after upload (clicking it opens/downloads the file)
+3. Old local-filesystem code (`writeFile`, `mkdir`, `path.join(process.cwd(), 'uploads')`) is gone from both routes
+4. `npm run verify` passes. Pre-push hooks pass.
+
+---
+
+### Task 35: Bug hunt — CLIENT_VIEWER data isolation (~2 hrs)
+
+- **Branch:** `manny/client-viewer-isolation-check`
+- **Why:** The 2026-08-25 push added `canSeeAllData(user)` and wired it into ~60 routes. Every internal role gets `true`; `CLIENT_VIEWER` gets `false`. The change was correct at the helper level — but each route still has to handle the `false` case properly (scoping to the client's own records). With 60 routes touched, edge cases are likely.
+
+**What to check:**
+
+1. **Create a test CLIENT_VIEWER account** in local dev (Prisma Studio → User table, or via the seed). Set `role = 'CLIENT_VIEWER'` and assign it to a specific client via `permissions` JSON. Log in as that user.
+
+2. **Walk these routes as CLIENT_VIEWER** and verify the responses are scoped — not empty (which would mean the scoping is wrong) and not showing other clients' data:
+   - `GET /api/projects` — should return only projects linked to this client
+   - `GET /api/clients` — should return only this client's record
+   - `GET /api/crm/deals` (if it exists) — CLIENT_VIEWER should get a 403 or empty, not ILC's pipeline
+   - `GET /api/market-intel/signals` — CLIENT_VIEWER should not see internal market intelligence
+
+3. **Check `scripts/tests/dataVisibility.test.mjs`** — run it and read what it covers. Note any routes it doesn't test that you think it should.
+
+4. **Fix anything broken.** The fix is usually in the route itself: when `!canSeeAllData(user)`, add a `where: { clientId: user.clientId }` clause (or equivalent) to the Prisma query.
+
+**Acceptance:**
+1. Document what you tested in a brief comment in the PR description
+2. At least one broken scope (if found) is fixed and covered by a test assertion in `dataVisibility.test.mjs`
+3. If nothing is broken: confirm that in the PR description with the routes you walked. That's a valid outcome.
+4. `npm run verify` passes. Pre-push hooks pass.
+
+---
+
+### Task 36: Bug hunt — intake/portal invite edge cases (~2.5 hrs)
+
+- **Branch:** `manny/intake-portal-edge-cases`
+- **Why:** The intake submission flow (Task 23) and portal invite bridge (Task 27) both shipped recently. They haven't been tested for edge cases — only the happy path. Find real bugs, fix them.
+
+**Scenarios to test** (run through each in local dev):
+
+1. **Duplicate submission — same email, two submissions.** Submit `/conceptual_budget` twice with the same email address. Both should create separate `ConceptualSubmission` rows and behave independently. Admin should be able to approve and invite either one. Does anything crash or produce a confusing state?
+
+2. **Invite to two projects — same email.** Approve two submissions from the same email, link each to a different project, send both invites. The `ProjectExternalContact` table should have two rows (one per project). Does the second invite fail with a duplicate error, or does it correctly create a second record? (Look at the `findFirst` + `create` logic in `src/app/api/admin/intake/[id]/invite/route.js`.)
+
+3. **Expired invite token.** The token expires after 7 days (`inviteTokenExpiresAt`). Find where `/portal/invite/[token]` validates expiry — does it check `inviteTokenExpiresAt`? If not, expired tokens work forever. Add the check if missing. Show the user a clear "this link has expired, contact ILC Studios" message.
+
+4. **Already-accepted invite, re-sent.** Approve a submission, send invite, accept the invite (set a password). Then try to re-send the invite from the admin panel. The response should say `alreadyAccepted: true` and the UI should show the "already has portal access" state. Confirm this works end-to-end (not just in code — actually click through it).
+
+5. **Project unlinked after invite sent.** Link a submission to project A, send the invite, then change the linked project to project B (and save). The existing `ProjectExternalContact` for project A still has a valid token pointing to project A's budget. Is that correct behavior or a data hazard? If it's a hazard, add a warning to the UI: "Changing the linked project will not revoke any previously sent invite."
+
+**Acceptance:**
+1. Each bug you find: fixed in code (if fixable in this scope) or documented in the PR description with a clear explanation of why it's out of scope
+2. Expired invite token check must be added if it's missing — that's a security issue, not optional
+3. PR description lists every scenario you tested and what you found
+4. `npm run verify` passes. Pre-push hooks pass.
 
 ---
 
