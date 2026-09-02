@@ -53,6 +53,18 @@ const MAX_SITE_SHEET_READS = 16;
  */
 const MAX_RENDER_PASSES = 20;
 
+/**
+ * The unit-matrix read is ONE model call that can outlive the front door: the
+ * server kicks it off, parks the answer when it lands, and answers "still
+ * reading" (`more: true`) to every request in between. Each poll here is
+ * sub-second and free of model cost. The cap covers the server's worst case —
+ * three kicks of its in-flight window — with room to spare; the server parks
+ * an honest "could not finish" long before this runs out, so hitting the cap
+ * means a server that keeps saying "one more", same as the other stops.
+ */
+const MATRIX_POLL_WAIT_MS = 5_000;
+const MAX_MATRIX_POLLS = 110;
+
 /** The runaway stop on the front-sheet loop; the server looks at very few. */
 const MAX_INDEX_LOOKS = 8;
 
@@ -314,7 +326,18 @@ export async function runStagedParse({ s3Key, file, fileName, onStep = () => {},
     }
 
     onStep('matrix', 'active');
-    const m = await stage({ stage: 'matrix', scanKey }, signal);
+    let m = await stage({ stage: 'matrix', scanKey }, signal);
+    // "Still reading": the server kicked the model call off and is letting it
+    // finish behind the front door. Poll until the parked answer appears.
+    for (let i = 0; m?.more && i < MAX_MATRIX_POLLS; i++) {
+      await new Promise(res => setTimeout(res, MATRIX_POLL_WAIT_MS));
+      m = await stage({ stage: 'matrix', scanKey }, signal);
+    }
+    if (m?.more) {
+      const err = new Error('The read stopped while reading the unit counts. Please try again. (R6/matrix)');
+      err.shown = true;
+      throw err;
+    }
     onStep('matrix', 'done', { unitTypes: m.matrix?.unitTypes?.length ?? 0 });
 
     let siteData = null;

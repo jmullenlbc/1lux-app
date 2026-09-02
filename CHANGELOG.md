@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Skyline Ridge 504 fixes: hang-up retry, deferred sheet pick, open-time budgeting, retry-without-reupload] - September 2, 2026 (all four rounds DEPLOYED: 93f1502, 93b233a, e2b3568, round 4 below)
+## [Skyline Ridge 504 fixes, Rounds 1–7: hang-up retry, deferred sheet pick, open-time budgeting, retry-without-reupload, poison list, 4 MB render chunks, matrix park-and-poll] - September 2, 2026 (Rounds 1–6 DEPLOYED: 93f1502, 93b233a, e2b3568, fa24ac4, 7945b48, 7a8bdd9; Round 7 built local-only)
 
 Mike's prod test of the public wizard on the Skyline Ridge 50% DD set
 (334.5 MB, 294 sheets) failed with "The read stopped while looking through
@@ -268,6 +268,66 @@ swept marker + state. Full debug pass green: budget-math + fuzz + 12
 bid-matrix + 778 units + 7 smoke + 8 dn-leak + 48 mcp, verify's 11
 gates, production build with all 37 runtime assets traced.
 
+
+### Round 6 live verdict (E2E against prod build M_yN6B_ikBoOz4gnzS9_K): the render engine WORKS — the client ladder starved, and a brand-new wall appeared behind it
+
+The full live E2E (fresh 350 MB upload as
+uploads/intake/xzp136xv7irbyenwl0uynb09.pdf, scan 40 rounds/538.6s,
+picks [97,3,5,135]) again showed 3 render 504s and a dead ladder. But
+a forensic probe that CONTINUED the same parked scan proved Round 6's
+logic did exactly what it was built to do: render try 0 died at 28.3s,
+try 1 answered 200 in 26.2s with kept=[97,3,135] — page 5 (the census
+killer) correctly poisoned and skipped. Convergence took 5 render
+requests total; the deployed client allows only 3 with no 200 in
+between to reset the ladder. Two real root causes remained:
+
+1. EVERY render slice was slow — ~26s even for safe sheets — because
+   the ranged pdfjs transport fetched the file in 64 KB pieces.
+   Drawing one plotted sheet pulls its embedded raster images in
+   hundreds of SERIAL 64 KB S3 round-trips: 10–25s of pure network per
+   sheet. The local census (whole file in RAM) never saw this. 64 KB
+   is right for SCAN (sparse text touches); it is fatal for RENDER.
+2. Behind the render stage sat a wall no test had ever reached: the
+   MATRIX stage is ONE unsliceable AI call (the unit-table read, on
+   the deep-read model that thinks). On a dense set it runs past the
+   ~28s front door — the probe measured SIX deterministic empty 504s
+   in a row (28.1s each). No amount of retrying can fix a single call
+   that is simply longer than the wall.
+
+The probe also cemented the session's foundational discovery: the
+front door only drops the RESPONSE at ~28s — the Lambda keeps running
+("zombie"), finishes its work, and parks it. That is WHY render
+converged across "failed" requests, and it becomes the deliberate
+mechanism of the matrix fix below.
+
+### Round 7: 4 MB render chunks + the matrix goes park-and-poll (BUILT + fully verified locally — NOT yet deployed)
+
+- src/lib/pdfRange.js: openRangedPdf/openUploadedPdf accept
+  chunkBytes and pass it to pdfjs as rangeChunkSize (default 64 KB
+  untouched for scan).
+- src/app/api/intake/parse/route.js: stageRender opens the PDF with
+  4 MB chunks — the serial-fetch tax collapses and a one-sheet slice
+  stops flirting with the 28s wall. stageMatrix reworked to
+  park-and-poll: the first request writes a marker
+  {stage:'matrix', startedAt, kicks} and runs the model call; any
+  request landing while the marker is fresh (<150s) answers
+  {more:true} in under a second; the zombie Lambda finishes the call
+  and parks the FULL answer in state BEFORE responding, so the next
+  poll serves it instantly. A stale marker re-kicks; after 3 kicks it
+  parks an honest matrixError and falls through to the site read
+  (that graceful path already existed). The front door can no longer
+  kill the matrix — it only ever sees sub-second polls or a request
+  whose answer is already parked.
+- src/lib/intake/stagedParse.js: the client polls the matrix stage
+  every 5s (up to 110 polls ≈ 9 min) instead of making one long call.
+
+Round 7 testing: main suite + 845/845 unit tests, new local matrix
+E2E against the dev server (16/16 checks: fresh kick parks + downgrades
+marker; parked answer served byte-identical in 34ms; fresh in-flight
+marker answers more:true in 35ms with NO model call; stale marker at
+kick limit parks the honest error; stale marker below limit re-kicks
+successfully), production build (all 37 runtime assets traced), verify
+11 gates. Awaiting the word to deploy.
 ## [Public conceptual-budget page rebuilt as the internal wizard] - September 1, 2026
 
 Mike's rule: "Make sure the UI/UX is identical to the internal tool with

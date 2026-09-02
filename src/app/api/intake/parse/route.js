@@ -324,7 +324,7 @@ export async function POST(request) {
       if (stage === 'index')  return await stageIndex(scanKey, parked.state);
       if (stage === 'sheets') return await stageSheets(scanKey, parked.state);
       if (stage === 'render') return await stageRender(scanKey, parked.state);
-      if (stage === 'matrix') return await stageMatrix(parked.state);
+      if (stage === 'matrix') return await stageMatrix(scanKey, parked.state);
       if (stage === 'site')   return await stageSite(scanKey, parked.state);
       return await stageDone(scanKey, parked.state);
     } catch (e) {
@@ -377,11 +377,11 @@ export async function POST(request) {
  * `source` is raw bytes for a spreadsheet or a small file, and an open pdfjs
  * document for a big set. Neither caller cares which — see pdfRange.js.
  */
-async function openSource({ s3Key, buffer, ext }) {
+async function openSource({ s3Key, buffer, ext, chunkBytes }) {
   if (!s3Key) return { source: buffer, handle: null };
 
   if (ext === 'pdf') {
-    const handle = await openUploadedPdf(s3Key, { limit: MAX_BYTES });
+    const handle = await openUploadedPdf(s3Key, { limit: MAX_BYTES, chunkBytes });
     if (!handle.ok) {
       const status = handle.code === 'too_large' ? 413 : handle.code === 'not_found' ? 404 : 400;
       return { error: bad(handle.code, handle.message, status) };
@@ -1129,7 +1129,12 @@ async function stageRender(scanKey, state) {
   }
 
   const openStarted = Date.now();
-  const opened = await openSource({ s3Key: state.s3Key, ext: 'pdf' });
+  // 4 MB range chunks, not pdfjs's 64 KB default: drawing a plotted sheet
+  // pulls its embedded raster images through the ranged reader, and doing that
+  // in serial 64 KB bites cost ~26 s per sheet on the Skyline Ridge set —
+  // nearly the whole front-door budget spent on round trips to S3. Only the
+  // render opens this way; the scan's sparse text touches stay small.
+  const opened = await openSource({ s3Key: state.s3Key, ext: 'pdf', chunkBytes: 4 * 1024 * 1024 });
   if (opened.error) return opened.error;
   const openMs = Date.now() - openStarted;
   // ONE wall for the whole request, and every piece of work below is capped by
@@ -1355,16 +1360,63 @@ async function stageRender(scanKey, state) {
   }
 }
 
+/**
+ * How long a kicked-off matrix read is trusted to still be running.
+ *
+ * The matrix is ONE model call that cannot be sliced, and on a dense set it
+ * thinks for longer than the front door allows — measured on the 294-sheet
+ * Skyline Ridge set 2026-09-02: six requests, six empty 504s at ~28.1s, no
+ * convergence possible. But the front door only drops the RESPONSE; the
+ * compute behind it keeps running, finishes the call, and can park the
+ * answer. So the first request KICKS the read off, every request that
+ * arrives while the marker says one is in flight answers "still reading"
+ * in under a second, and the request that finds the parked answer hands it
+ * over. Past this age with nothing parked, the runner is presumed dead
+ * (the compute has a hard lifetime of its own) and the read is re-kicked.
+ */
+const MATRIX_INFLIGHT_MS = 150_000;
+
+/**
+ * How many kicks before giving up. A matrix that cannot finish inside the
+ * runner's lifetime three times running is not going to — and the read has
+ * a graceful next move (the site-plan read), so the honest answer is the
+ * same one a failed extraction gives: no matrix, go look at the drawings.
+ */
+const MATRIX_MAX_KICKS = 3;
+
 /** Stage 3 — read the unit matrix off the text layer. */
-async function stageMatrix(state) {
+async function stageMatrix(scanKey, state) {
   if (!state.hasText) {
     // A scanned set has no text to read. Not an error — the site stage is what
     // handles this, and the browser is told to go there next.
     return NextResponse.json({ stage: 'matrix', matrix: null, needsSite: true });
   }
 
+  // An earlier request already finished this — very possibly one whose
+  // response the front door had dropped. The parked answer IS the answer.
+  if (state.matrixParked) return NextResponse.json(state.matrixParked);
+
+  // The render stage is done with the marker by the time the matrix runs, so
+  // the same slot now tracks the in-flight model call.
+  const marker = await getScanAttempt(scanKey);
+  const inFlight = marker?.stage === 'matrix' && Number.isFinite(marker.startedAt);
+  if (inFlight && Date.now() - marker.startedAt < MATRIX_INFLIGHT_MS) {
+    return NextResponse.json({ stage: 'matrix', more: true });
+  }
+  const kicks = (inFlight ? marker.kicks : 0) ?? 0;
+  if (kicks >= MATRIX_MAX_KICKS) {
+    const payload = {
+      stage: 'matrix', matrix: null, needsSite: true,
+      matrixError: 'We could not finish reading the unit table in this set.',
+    };
+    await putScanStateAt(scanKey, { ...state, matrixParked: payload });
+    return NextResponse.json(payload);
+  }
+
   const client = anthropicClient();
   if (!client) return unavailable();
+
+  await putScanAttempt(scanKey, { stage: 'matrix', startedAt: Date.now(), kicks: kicks + 1 });
 
   // `pages` lets the area-sheet finder score sheet-by-sheet instead of guessing
   // from one flattened blob — that's what tells net from gross.
@@ -1383,17 +1435,19 @@ async function stageMatrix(state) {
   // site read. The error travels with it, and only becomes the answer if the
   // site read cannot produce numbers either -- because "we could not read this"
   // and "this drawing has no numbers on it" are different things to be told.
-  if (!result.ok) {
-    return NextResponse.json({
-      stage: 'matrix', matrix: null, needsSite: true, matrixError: result.message,
-    });
-  }
+  const payload = result.ok
+    ? {
+        stage:     'matrix',
+        matrix:    result.proposal,
+        needsSite: needsSiteRead({ hasText: true, matrix: result.proposal }),
+      }
+    : { stage: 'matrix', matrix: null, needsSite: true, matrixError: result.message };
 
-  return NextResponse.json({
-    stage:     'matrix',
-    matrix:    result.proposal,
-    needsSite: needsSiteRead({ hasText: true, matrix: result.proposal }),
-  });
+  // Park BEFORE answering: if the front door already hung up on this request,
+  // the park is the only way the answer survives — the next poll serves it.
+  await putScanStateAt(scanKey, { ...state, matrixParked: payload });
+  await putScanAttempt(scanKey, { stage: 'parked' });
+  return NextResponse.json(payload);
 }
 
 /**

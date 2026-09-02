@@ -105,7 +105,7 @@ export function memoryCeilingBytes() {
  * @returns {Promise<{ doc, stats, destroy }>}
  *   `stats` is live — read it after the work is done to see what the read cost.
  */
-export async function openRangedPdf({ size, fetchRange }) {
+export async function openRangedPdf({ size, fetchRange, chunkBytes }) {
   if (!Number.isFinite(size) || size <= 0) throw new Error('openRangedPdf: size is required');
   if (typeof fetchRange !== 'function') throw new Error('openRangedPdf: fetchRange is required');
 
@@ -183,6 +183,16 @@ export async function openRangedPdf({ size, fetchRange }) {
     // file into memory in the background, which would undo the whole exercise.
     disableAutoFetch: true,
     disableStream: true,
+    // How big each ranged request is. pdfjs defaults to 64 KB, which is right
+    // for the SCAN (text layers touch a page's objects sparsely, so small
+    // chunks keep the byte budget honest) and fatally wrong for the RENDER:
+    // drawing a plotted sheet pulls its embedded raster images through this
+    // pipe, tens of megabytes in hundreds of SERIAL 64 KB round trips to S3.
+    // Measured on the 334 MB Skyline Ridge set 2026-09-02: one safe sheet per
+    // request still took ~26 s against a ~28 s front door — nearly all of it
+    // this fetch. The render stage passes a multi-megabyte chunk instead; the
+    // RSS brake still guards memory either way.
+    ...(Number.isFinite(chunkBytes) && chunkBytes > 0 ? { rangeChunkSize: chunkBytes } : {}),
   });
 
   const doc = await Promise.race([task.promise, failed]);
@@ -228,7 +238,7 @@ export async function openRangedPdf({ size, fetchRange }) {
  *   `buffer` is null on the ranged path — nothing downstream may assume the
  *   whole file is in hand. Anything that needs bytes should ask the doc.
  */
-export async function openUploadedPdf(key, { limit } = {}) {
+export async function openUploadedPdf(key, { limit, chunkBytes } = {}) {
   const head = await headUploadedObject(key);
   if (!head.ok) return head;
   if (limit != null && head.size > limit) {
@@ -252,6 +262,6 @@ export async function openUploadedPdf(key, { limit } = {}) {
     };
   }
 
-  const opened = await openRangedPdf({ size: head.size, fetchRange: rangeFetcherFor(key) });
+  const opened = await openRangedPdf({ size: head.size, fetchRange: rangeFetcherFor(key), chunkBytes });
   return { ok: true, buffer: null, ranged: true, size: head.size, ...opened };
 }
