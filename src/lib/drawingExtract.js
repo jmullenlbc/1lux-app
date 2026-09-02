@@ -240,12 +240,19 @@ export async function extractPdfPages(source, opts = {}) {
       // another turn. Whatever pages we already have are worth more than a
       // request that dies on a Lambda timeout with nothing to show.
       const left = timeBudgetMs - (Date.now() - started);
+      // The mandatory page — the one every slice must attempt — always gets a
+      // full-size window, even when the slice's budget arrived shrunken (a
+      // staged read charges the file-open time against it). The step-over rule
+      // below treats "timed out with nothing read" as a broken page, and that
+      // judgement is only fair after a real attempt; on a short window it
+      // would silently skip a perfectly good page.
+      const window = pages.length === 0 ? Math.max(left, 12_000) : left;
       let page;
       try {
         page = await doc.getPage(i);
         const content = await Promise.race([
           page.getTextContent(),
-          new Promise((_, rej) => setTimeout(() => rej(new Error('page read timed out')), left).unref?.()),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('page read timed out')), window).unref?.()),
         ]);
         pages.push({ page: i, text: content.items.map(it => it.str).join(' ') });
         nextPage = i + 1;

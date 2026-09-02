@@ -150,14 +150,28 @@ const BIG_SET_SCAN_MS = 90_000;
  * this long, parks what it got, and asks to be called again, which keeps every
  * request short no matter how large the set is.
  *
- * 12s rather than something closer to the wall because the LAST slice also pays
- * for opening the file, the sheet-pick model call, and parking the result on
- * top of its reading time.
+ * 12s rather than something closer to the wall because a slice also pays for
+ * opening the file and parking the result on top of its reading time.
  */
 const SCAN_SLICE_MS = 12_000;
 
+/**
+ * The least a slice may spend reading, however long the open took.
+ *
+ * Opening a 300 MB set from S3 is dozens of range round-trips, and on the
+ * Skyline Ridge failure that unbudgeted open is part of what pushed one slice
+ * past the ~30s front door. So the open is charged against the slice
+ * (sliceBudgetMs below) — but never all the way to zero, because a slice that
+ * reads nothing parks nothing and the scan stops moving.
+ */
+const MIN_SLICE_READ_MS = 3_000;
+
+/** What a slice may spend READING, after what it already spent opening. */
+const sliceBudgetMs = (openMs = 0) =>
+  Math.max(MIN_SLICE_READ_MS, SCAN_SLICE_MS - Math.max(0, openMs));
+
 /** A backstop on slices, so a set that never finishes cannot loop forever. */
-const MAX_SCAN_SLICES = 30;
+const MAX_SCAN_SLICES = 40;
 
 /**
  * Stages that resume from a parked scan rather than from a file.
@@ -246,7 +260,21 @@ export async function POST(request) {
     const parked = await getScanState(scanKey);
     if (!parked.ok) return bad(parked.code, parked.message, parked.code === 'bad_key' ? 400 : 410);
 
+    // The reading is done and only the sheet pick is left. It works from the
+    // parked pages alone, so this request never pays to open the file at all —
+    // the pick used to ride on the FINAL reading slice, and on a big set that
+    // stack-up (open + read + model call + park) is what breached the front
+    // door's ~30 seconds.
+    if (parked.state.pickPending) {
+      try {
+        return await stageScanPick(scanKey, parked.state);
+      } catch (e) {
+        return unexpected(e, parked.state?.fileName || 'upload');
+      }
+    }
+
     const ext = parked.state.ext || 'pdf';
+    const openStarted = Date.now();
     const opened = await openSource({ s3Key: parked.state.s3Key, ext });
     if (opened.error) return opened.error;
     try {
@@ -258,6 +286,7 @@ export async function POST(request) {
         s3Key:   parked.state.s3Key,
         state:   parked.state,
         scanKey,
+        openMs:  Date.now() - openStarted,
       });
     } catch (e) {
       return unexpected(e, parked.state?.fileName || 'upload');
@@ -302,12 +331,14 @@ export async function POST(request) {
     return bad('unsupported_type', 'Unsupported file type. Please upload a PDF or Excel file.', 422);
   }
 
+  const openStarted = Date.now();
   const opened = await openSource({ s3Key, buffer, ext });
   if (opened.error) return opened.error;
 
   try {
     return stage === 'scan'
-      ? await stageScan({ source: opened.source, opened: opened.handle, name, ext, s3Key, buffer })
+      ? await stageScan({ source: opened.source, opened: opened.handle, name, ext, s3Key, buffer,
+                          openMs: Date.now() - openStarted })
       : await runWhole({ source: opened.source, opened: opened.handle, name, ext });
   } catch (e) {
     return unexpected(e, name);
@@ -398,10 +429,12 @@ async function readAndPick({ source, name, ext, opened, client, slice = null }) 
       {
         ...(opened?.ranged ? { timeBudgetMs: BIG_SET_SCAN_MS, shouldStop: opened.overBudget } : {}),
         // A staged read overrides the budget above: it is bounded by the front
-        // door, not by the Lambda. It also carries the pages earlier slices
-        // already read, and the page to pick up from.
+        // door, not by the Lambda — and what the slice already spent OPENING
+        // the file comes out of the same budget, because the front door's
+        // clock started at the request, not at the first page. It also carries
+        // the pages earlier slices already read, and the page to pick up from.
         ...(slice ? {
-          timeBudgetMs: SCAN_SLICE_MS,
+          timeBudgetMs: sliceBudgetMs(slice.openMs),
           fromPage:     slice.fromPage,
           priorPages:   slice.priorPages ?? undefined,
         } : {}),
@@ -432,6 +465,14 @@ async function readAndPick({ source, name, ext, opened, client, slice = null }) 
 
   const pageScan = extracted.pages ?? [];
   const isSet = pageScan.length > SET_PAGE_THRESHOLD;
+
+  // On a staged read of a real set, the sheet pick is a model call and this
+  // slice has already spent its budget reading. Hand the finished pages back
+  // to be parked; the pick runs as its OWN short request (stageScanPick),
+  // which never has to open the file. Only a set pays the model, so only a
+  // set is worth another round trip.
+  if (slice && isSet) return { deferPick: true, extracted, isSet };
+
   const sheets = pageScan.length
     ? await pickKeySheets(buildSheetIndex(pageScan), isSet ? client('intake.sheetPick') : null)
     : null;
@@ -490,7 +531,7 @@ async function renderAndKeep({ source, chosenPages, opened, keepPng = false }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Stage 1 — read the text layer, pick the sheets, park the result. */
-async function stageScan({ source, opened, name, ext, s3Key, buffer, state = null, scanKey = null }) {
+async function stageScan({ source, opened, name, ext, s3Key, buffer, state = null, scanKey = null, openMs = 0 }) {
   const client = anthropicClient();
   if (!client) return unavailable();
 
@@ -498,7 +539,7 @@ async function stageScan({ source, opened, name, ext, s3Key, buffer, state = nul
     source, name, ext, opened, client,
     // Always a slice here. A staged read is bounded by the front door, and the
     // set may well be too big to read inside one request.
-    slice: { fromPage: state?.nextPage ?? 1, priorPages: state?.pages ?? null },
+    slice: { fromPage: state?.nextPage ?? 1, priorPages: state?.pages ?? null, openMs },
   });
   if (picked.error) return picked.error;
 
@@ -548,6 +589,43 @@ async function stageScan({ source, opened, name, ext, s3Key, buffer, state = nul
       fileName:   name,
       totalPages: picked.extracted.scan.totalPages ?? null,
       pagesRead:  picked.extracted.scan.pages.length,
+    });
+  }
+
+  // -- Finished reading, sheet pick still to do --
+  // The pick is a model call, and this slice has already spent its budget
+  // reading. Park the finished pages and ask to be called once more; that
+  // request (stageScanPick) does the pick alone, without even opening the
+  // file. Stacking it onto the final reading slice is part of what pushed
+  // the Skyline Ridge read past the ~30s front door.
+  if (picked.deferPick) {
+    const key = await park({
+      fileName:    name,
+      ext,
+      s3Key:       fileKey,
+      text:        picked.extracted.text ?? null,
+      pages:       picked.extracted.pages ?? null,
+      hasText:     picked.extracted.ok === true,
+      totalPages:  picked.extracted.scan?.totalPages ?? null,
+      nextPage:    null,
+      pickPending: true,
+      chosenPages: null,
+      sheetsRead:  null,
+      keptSheets:  null,
+    });
+    if (!key) {
+      console.error('intake/parse: could not park finished scan for', name);
+      return NextResponse.json({ stage: 'scan', staging: false, fileName: name });
+    }
+    return NextResponse.json({
+      stage:      'scan',
+      staging:    true,
+      more:       true,
+      scanKey:    key,
+      fileName:   name,
+      totalPages: picked.extracted.scan?.totalPages ?? null,
+      pagesRead:  picked.extracted.pages?.length ?? null,
+      picking:    true,
     });
   }
 
@@ -605,6 +683,57 @@ async function stageScan({ source, opened, name, ext, s3Key, buffer, state = nul
     // goes straight to the matrix read.
     needsRender: ext === 'pdf' && chosenPages.length > 0,
     needsIndex,
+  });
+}
+
+/**
+ * Stage 1a½ — the sheet pick, as its own short request.
+ *
+ * Runs when a staged scan finished its reading and parked with `pickPending`.
+ * Everything it needs — the text of every page — is in the parked state, so
+ * this request never opens the file: it is one model call and one park,
+ * comfortably inside the front door on its own. The response is exactly the
+ * one the finishing scan slice used to send, so the browser's loop does not
+ * know or care that the pick moved.
+ */
+async function stageScanPick(scanKey, state) {
+  const client = anthropicClient();
+  if (!client) return unavailable();
+
+  const pageScan = state.pages ?? [];
+  const sheets = pageScan.length
+    ? await pickKeySheets(buildSheetIndex(pageScan), client('intake.sheetPick'))
+    : null;
+  const picks = sheets ? pagesToRender(sheets.picks, { max: 4 }) : [];
+  const sheetsRead = picks.length ? picks : null;
+  // Same fallback as the finished-reading branch of stageScan: a PDF with
+  // nothing picked still opens its front sheet.
+  const chosenPages = picks.length || state.ext !== 'pdf' ? picks : [1];
+
+  const key = await putScanStateAt(scanKey, {
+    ...state,
+    pickPending: false,
+    chosenPages,
+    sheetsRead,
+  });
+  if (!key) {
+    console.error('intake/parse: could not park sheet pick for', state.fileName);
+    return NextResponse.json({ stage: 'scan', staging: false, fileName: state.fileName });
+  }
+
+  return NextResponse.json({
+    stage:      'scan',
+    staging:    true,
+    scanKey,
+    fileName:   state.fileName,
+    totalPages: state.totalPages ?? null,
+    sheetsRead,
+    isSet:      true,
+    hasText:    state.hasText === true,
+    needsRender: state.ext === 'pdf' && chosenPages.length > 0,
+    // The pick is only ever deferred when the text layer answered, and the
+    // picture-read of the index exists for sets where it did not.
+    needsIndex: false,
   });
 }
 

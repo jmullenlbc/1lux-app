@@ -12,7 +12,7 @@
 // fake fetch. The stages themselves are the route's business.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { runStagedParse, PARSE_STEPS, stage, STAGE_RETRY_WAITS_MS, waitForVisible } from '../../src/lib/intake/stagedParse.js';
+import { runStagedParse, PARSE_STEPS, stage, STAGE_RETRY_WAITS_MS, HANGUP_RETRY_WAITS_MS, waitForVisible } from '../../src/lib/intake/stagedParse.js';
 
 /**
  * Stand in for the network.
@@ -422,9 +422,12 @@ test('a server that keeps asking for another drawing is cut off', async () => {
 // Every R1 Mike screenshotted was ONE thrown fetch ending the whole read. The
 // server parks its progress under a scanKey, so re-asking is always safe.
 
-// Real waits are 2s/6s; tests only care about the COUNT, not the pacing.
+// Real waits are 2s/6s (drops) and 3s/10s (hang-ups); tests only care about
+// the COUNT, not the pacing.
 STAGE_RETRY_WAITS_MS[0] = 1;
 STAGE_RETRY_WAITS_MS[1] = 1;
+HANGUP_RETRY_WAITS_MS[0] = 1;
+HANGUP_RETRY_WAITS_MS[1] = 1;
 
 function countingFetch(behaviours) {
   let n = 0;
@@ -477,4 +480,64 @@ test('the visitor leaving is not a failure to retry', async () => {
 test('waitForVisible is a no-op where there is no page to hide', async () => {
   // Node has no document; the retry must not hang waiting for one.
   await waitForVisible(50);
+});
+
+// ── The front-door hang-up: an empty non-2xx is a drop, not a decision ──────
+// Amplify's front door hangs up on any request past ~30s and returns a 504
+// with NO body. The work is parked server-side under the scanKey, so this is
+// as retryable as a thrown fetch — but it used to be treated as a server
+// decision, and one hang-up killed the whole read. That was the R3 on the
+// 294-sheet Skyline Ridge set.
+
+test('a front-door hang-up (empty 504) is re-asked and the read continues', async () => {
+  const f = countingFetch([{ ok: false, status: 504 }, { staging: true, scanKey: 'k' }]);
+  try {
+    const d = await stage({ stage: 'scan', s3Key: 'x' });
+    assert.equal(d.scanKey, 'k');
+    assert.equal(f.calls(), 2, 'first attempt hung up, second answered');
+  } finally { f.restore(); }
+});
+
+test('hang-ups on every attempt give up with the R3 message', async () => {
+  const f = countingFetch([{ ok: false, status: 504 }]);
+  try {
+    await assert.rejects(
+      () => stage({ stage: 'scan', s3Key: 'x' }),
+      (e) => e.shown === true && /\(R3\/scan\)/.test(e.message) && /504/.test(e.message),
+    );
+    assert.equal(f.calls(), 1 + HANGUP_RETRY_WAITS_MS.length, 'one ask plus the hang-up retries');
+  } finally { f.restore(); }
+});
+
+test('an answer the server wrote is still never retried, and carries its code', async () => {
+  const f = countingFetch([{ ok: false, status: 410, error: 'scan_expired', message: 'This upload timed out before we finished reading it.' }]);
+  try {
+    await assert.rejects(
+      () => stage({ stage: 'scan', scanKey: 'k' }),
+      (e) => e.shown === true && !e.hangUp && e.code === 'scan_expired',
+    );
+    assert.equal(f.calls(), 1, 'a served message is a decision, not a drop');
+  } finally { f.restore(); }
+});
+
+// ── The sheet pick as its own round ─────────────────────────────────────────
+// The finishing scan slice used to pay for its reading AND the sheet-pick
+// model call in one request. The server now parks the finished pages and says
+// `more: true` once more; the pick request is short and never opens the file.
+
+test('the sheet pick arrives as its own round, and the loop just keeps asking', async () => {
+  let n = 0;
+  const f = fakeFetch({
+    ...CLEAN,
+    scan: () => (++n === 1
+      ? { staging: true, more: true, scanKey: 'k', totalPages: 294, pagesRead: 294, picking: true }
+      : { staging: true, scanKey: 'k', totalPages: 294, sheetsRead: [4, 7], hasText: true, needsRender: true }),
+  });
+  const out = await runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'set.pdf' });
+  f.restore();
+
+  assert.strictEqual(f.calls.filter(c => c === 'scan').length, 2,
+    'one finishing slice, then the pick round');
+  assert.deepStrictEqual(out.sheetsRead, [4, 7]);
+  assert.equal(out.totalPages, 294);
 });

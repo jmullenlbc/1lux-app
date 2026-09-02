@@ -80,11 +80,28 @@ export const STEP_WORDS = {
   site:   'reading the site plan',
 };
 
-/** How many slices the scan may take before we stop asking. See stageScan. */
-const MAX_SCAN_SLICES = 30;
+/**
+ * How many slices the scan may take before we stop asking. See stageScan.
+ *
+ * Sized for the biggest set we have actually seen (294 full-size plotted
+ * sheets, 334 MB): at production pace that is well over twenty slices, and a
+ * slice that spends part of its budget opening the file reads fewer pages, so
+ * the count runs higher than the desktop suggests. This stop only exists so a
+ * server that never finishes cannot spin the visitor forever.
+ */
+const MAX_SCAN_SLICES = 40;
 
 /** How long to wait before re-asking a stage whose request never came back. */
 export const STAGE_RETRY_WAITS_MS = [2000, 6000];
+
+/**
+ * How long to wait before re-asking a stage the front door hung up on.
+ *
+ * Longer than the dropped-request waits on purpose: a hang-up means the server
+ * may STILL be working on that very slice (the front door gave up on the
+ * connection, not the Lambda), and asking again too soon just races it.
+ */
+export const HANGUP_RETRY_WAITS_MS = [3000, 10000];
 
 /**
  * Wait for the page to be visible again, up to a limit.
@@ -119,18 +136,26 @@ export function waitForVisible(limitMs = 5 * 60 * 1000) {
  * on a job site) retryable for free, where it used to kill a minutes-long
  * read on the spot: that was every R1 in every screenshot.
  *
- * Deliberate exceptions: an answer the server actually gave (err.shown) is a
- * decision, not a drop; and an abort is the visitor leaving, not a failure.
+ * The front door hanging up (an empty non-2xx at ~30 seconds) is retried the
+ * same way, just more patiently: it is a drop with a status code stapled on,
+ * not an answer, and one hang-up used to kill a fully-resumable read — that
+ * was the R3 on the 294-sheet Skyline Ridge set.
+ *
+ * Deliberate exceptions: an answer the server actually WROTE (a message meant
+ * for the visitor) is a decision, not a drop; and an abort is the visitor
+ * leaving, not a failure.
  */
 export async function stage(body, signal, file) {
   for (let attempt = 0; ; attempt++) {
     try {
       return await stageOnce(body, signal, file);
     } catch (err) {
-      if (err?.shown || err?.name === 'AbortError' || signal?.aborted) throw err;
-      if (attempt >= STAGE_RETRY_WAITS_MS.length) throw err;
+      if (err?.name === 'AbortError' || signal?.aborted) throw err;
+      if (err?.shown && !err.hangUp) throw err;
+      const waits = err?.hangUp ? HANGUP_RETRY_WAITS_MS : STAGE_RETRY_WAITS_MS;
+      if (attempt >= waits.length) throw err;
       await waitForVisible();
-      await new Promise(res => setTimeout(res, STAGE_RETRY_WAITS_MS[attempt]));
+      await new Promise(res => setTimeout(res, waits[attempt]));
     }
   }
 }
@@ -166,6 +191,10 @@ async function stageOnce(body, signal, file) {
     const err = new Error(d.message
       || `The read stopped while ${STEP_WORDS[body.stage] ?? 'reading the file'} (${r.status}). Please try again. (R3/${body.stage})`);
     err.shown = true;          // already public-readable; don't dress it up
+    err.code = d.error ?? null; // machine-readable, for callers that can act on it
+    // No message means no decision: the front door hung up mid-request. The
+    // work is parked under the scanKey, so stage() may safely ask again.
+    if (!d.message) err.hangUp = true;
     throw err;
   }
   return d;

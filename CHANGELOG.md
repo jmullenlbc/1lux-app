@@ -5,6 +5,66 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Skyline Ridge 504 fixes: hang-up retry, deferred sheet pick, open-time budgeting, retry-without-reupload] - September 2, 2026 (LOCAL ONLY — NOT DEPLOYED)
+
+Mike's prod test of the public wizard on the Skyline Ridge 50% DD set
+(334.5 MB, 294 sheets) failed with "The read stopped while looking through
+the set (504). Please try again. (R3/scan)". Root cause: one scan slice's
+unbudgeted extras (per-slice S3 file open, cold Lambda wake, the last
+slice's AI sheet-pick call) stacked past Amplify's ~30-second front-door
+wall, which answers with an EMPTY 504. Compounded by two client bugs: a
+504 was treated as a final answer (no retry), and the Retry button
+re-uploaded all 334.5 MB. Four fixes, all built and tested locally:
+
+### 1. A front-door hang-up is now retried automatically
+
+- src/lib/intake/stagedParse.js: an empty non-2xx (no server-authored
+  message) is flagged err.hangUp and retried with longer waits
+  (HANGUP_RETRY_WAITS_MS = 3s, 10s — the Lambda may still be chewing the
+  same slice). Safe because the work is parked under the scanKey; asking
+  again at worst repeats one slice. A served error message is still final
+  and never retried. err.code now carries the machine-readable error code.
+
+### 2. The AI sheet pick is its own short request
+
+- src/app/api/intake/parse/route.js: on a sliced set read, the final scan
+  slice no longer also runs the sheet-pick model call. It parks the state
+  with pickPending and answers { staging, more, picking } — the client's
+  existing loop just asks once more, and the new stageScanPick() runs the
+  pick WITHOUT opening the 334 MB file at all. Backward compatible with
+  old parked states.
+
+### 3. File-open time is charged against the slice budget
+
+- The route times openSource() and passes openMs into the scan; the page
+  read budget is now max(3s, 12s − openMs) so a slow S3 open can't push
+  the total past the wall. src/lib/drawingExtract.js: the mandatory first
+  page of a slice always keeps a full 12s window, so a shrunken budget can
+  never falsely trigger the skip-on-timeout rule.
+- MAX_SCAN_SLICES raised 30→40 on both sides (thinner slices need more
+  rounds for a 294-sheet set).
+
+### 4. Retry reuses the uploaded file
+
+- src/components/intake/DrawingDropzone.jsx: a failed read keeps its S3
+  key; Retry skips the upload and re-asks the parse directly. If the
+  server says the file is gone (not_found), it falls back to one fresh
+  upload. No more re-sending 334.5 MB to retry a read.
+
+### Testing (full pre-deploy debugging pass)
+
+- 4 new tests in scripts/tests/stagedParse.test.mjs (36/36 green):
+  hang-up retried then continues; hang-ups exhausted → R3 message; served
+  errors never retried + carry code; pick round rides the existing loop.
+- Full scripts/tests suite: no new failures vs a clean-tree baseline
+  (the 64 pre-existing failures are env/DB-dependent suites, identical
+  with and without these changes). npm test, questionnaire suite,
+  npm run verify (11 gates), and the production build all green.
+- Real-file simulation on the actual Skyline PDF with the new budget
+  rule: slices finished in 12.1s and 9.1s total — well inside the wall.
+
+---
+
 ## [Public conceptual-budget page rebuilt as the internal wizard] - September 1, 2026
 
 Mike's rule: "Make sure the UI/UX is identical to the internal tool with

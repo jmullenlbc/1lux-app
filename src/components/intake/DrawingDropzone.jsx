@@ -149,30 +149,41 @@ export default function DrawingDropzone({ onResults }) {
     // that matters, with a progress bar. Fallback: the classic multipart POST
     // (local dev, where presigning is off; or if the direct PUT fails and the
     // file is small enough to fit through the ~4.4 MB front door).
-    setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'uploading', progress: 0 } : i));
-
+    //
+    // A retry after a failed READ skips this step entirely: the file is
+    // already up there under the key we kept, and re-sending 300 MB because a
+    // 30-second request hiccupped is the wrong end of the stick. If the
+    // parked copy turns out to have been swept, the read comes back
+    // `not_found` and we start over with a fresh upload below.
     let sent = null;
-    try {
-      sent = await uploadDirect(item.file, {
-        onProgress: pct => setItems(prev => prev.map(i => i.id === item.id ? { ...i, progress: pct } : i)),
-      });
-    } catch (err) {
-      // An unreadable file (a Google Drive pipe that never finished coming
-      // down) fails the multipart fallback identically, so falling back would
-      // just trade an honest message for a mystifying R1. Show it regardless
-      // of size.
-      if (item.file.size > 4 * 1024 * 1024 || err.unreadable) {
-        setItems(prev => {
-          const next = prev.map(i => i.id === item.id
-            ? { ...i, status: 'error', error: err.message || 'Upload failed. Please try again. (U0)' }
-            : i);
-          publish(next);
-          return next;
+    let reusedKey = false;
+    if (item.s3Key) {
+      sent = { key: item.s3Key };
+      reusedKey = true;
+    } else {
+      setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'uploading', progress: 0 } : i));
+      try {
+        sent = await uploadDirect(item.file, {
+          onProgress: pct => setItems(prev => prev.map(i => i.id === item.id ? { ...i, progress: pct } : i)),
         });
-        settle();
-        return;
+      } catch (err) {
+        // An unreadable file (a Google Drive pipe that never finished coming
+        // down) fails the multipart fallback identically, so falling back
+        // would just trade an honest message for a mystifying R1. Show it
+        // regardless of size.
+        if (item.file.size > 4 * 1024 * 1024 || err.unreadable) {
+          setItems(prev => {
+            const next = prev.map(i => i.id === item.id
+              ? { ...i, status: 'error', error: err.message || 'Upload failed. Please try again. (U0)' }
+              : i);
+            publish(next);
+            return next;
+          });
+          settle();
+          return;
+        }
+        sent = null; // small file — the multipart fallback below still works
       }
-      sent = null; // small file — the multipart fallback below still works
     }
 
     // ── Step 2: read it ──
@@ -209,13 +220,24 @@ export default function DrawingDropzone({ onResults }) {
         ? { status: 'done', proposal: staged, error: null }
         : await parseInOneRequest(item, sent);
     } catch (err) {
+      // A retry that reused the kept key, on a file that has since been swept:
+      // nothing is wrong with the file HE has, so "could not be found" would
+      // only mystify. Start over with a fresh upload.
+      if (reusedKey && err?.code === 'not_found') {
+        settle();
+        return parseOne({ ...item, s3Key: null });
+      }
       // `shown` means the server already wrote this for a public reader.
       // Anything else is the browser losing the same request three times over
       // (stage() retries the dropped ones) -- and the two ways that happens on
       // a phone deserve different words. If the page went dark mid-read, the
       // phone cut the line, not the network, and "try again" alone would just
       // send him around the same loop.
-      patch = { status: 'error', error: err?.shown
+      //
+      // Either way the uploaded file is still parked, so keep its key on the
+      // item: Retry then re-asks the READ without re-sending a third of a
+      // gigabyte over a job-site connection.
+      patch = { status: 'error', s3Key: sent?.key ?? null, error: err?.shown
         ? err.message
         : slept
           ? `Your phone put this page to sleep while we were ${STEP_WORDS[atStep] ?? 'reading the file'}, and that cuts the line mid-read. Keep the screen on and this page in front until the read finishes, then try again. (R1/${atStep}/slept)`
