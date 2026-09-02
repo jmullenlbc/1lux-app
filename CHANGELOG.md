@@ -300,7 +300,7 @@ front door only drops the RESPONSE at ~28s — the Lambda keeps running
 converged across "failed" requests, and it becomes the deliberate
 mechanism of the matrix fix below.
 
-### Round 7: 4 MB render chunks + the matrix goes park-and-poll (BUILT + fully verified locally — NOT yet deployed)
+### Round 7: 4 MB render chunks + the matrix goes park-and-poll (DEPLOYED 14c0c2b — and PROVEN by the post-deploy live E2E: the FULL 334.5 MB / 294-sheet Skyline read completed end-to-end on prod for the first time, 13.3 min total: upload 12s, scan 40 rounds/9.2min, render slices now 5–8s each (were ~26s), matrix parked by the zombie and served on poll 17 with 3 unit types, site read done)
 
 - src/lib/pdfRange.js: openRangedPdf/openUploadedPdf accept
   chunkBytes and pass it to pdfjs as rangeChunkSize (default 64 KB
