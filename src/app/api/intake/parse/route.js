@@ -1081,9 +1081,9 @@ async function stageHunt(scanKey, state, client, nothing) {
  * only once: the corrected offset comes from a sheet number we have actually
  * seen, so there is nothing further to learn by going round again.
  */
-async function recheckLanding(state, rendered, source) {
+async function recheckLanding(state, landedPage, fallbackPng, source) {
   const vi = state.visionIndex;
-  if (!vi?.entries?.length || !vi.targets?.length || !rendered?.length) return null;
+  if (!vi?.entries?.length || !vi.targets?.length || !landedPage) return null;
 
   const client = anthropicClient();
   if (!client) return null;
@@ -1092,11 +1092,13 @@ async function recheckLanding(state, rendered, source) {
   // The corner, not the sheet: a title block read off a whole shrunk sheet is
   // wrong often enough that checking the landing that way would sometimes
   // re-aim a read that had landed correctly.
-  const corner = await renderPdfCrops(source, { page: rendered[0].page, rects: [TITLE_BLOCK_BOX] });
-  const seen = await probeSheetNumber(corner[0]?.png ?? rendered[0].png, client('intake.sheetProbe'));
+  const corner = await renderPdfCrops(source, { page: landedPage, rects: [TITLE_BLOCK_BOX] });
+  const shot = corner[0]?.png ?? fallbackPng;
+  if (!shot) return null;
+  const seen = await probeSheetNumber(shot, client('intake.sheetProbe'));
   if (landedRight(expected, seen)) return null;
 
-  const offset = reanchor({ entries: vi.entries, seenSheetNumber: seen, seenPage: rendered[0].page });
+  const offset = reanchor({ entries: vi.entries, seenSheetNumber: seen, seenPage: landedPage });
   if (offset == null || offset === vi.offset) return null;
 
   const { targets } = mapPicksToPages({
@@ -1129,39 +1131,65 @@ async function stageRender(scanKey, state) {
   const opened = await openSource({ s3Key: state.s3Key, ext: 'pdf' });
   if (opened.error) return opened.error;
   const openMs = Date.now() - openStarted;
-  // Opening the file already spent part of this request's stay, so the
-  // drawing budget is what's left of the slice — same rule as the scan.
-  const budgetMs = sliceBudgetMs(openMs);
-  // One sheet per request is as thin as this stage can slice, so a single
-  // slow sheet gets a hard ceiling instead: past it the sheet is SKIPPED and
-  // the read carries on without its copy. Losing one drawn sheet degrades the
-  // site read; sitting on it past the front door kills the whole read.
-  const sheetCapMs = Math.max(8_000, 24_000 - openMs);
+  // ONE wall for the whole request, and every piece of work below is capped by
+  // what REMAINS of it — never by a fixed per-piece constant. Round 3 learned
+  // this the hard way on Skyline Ridge: the loop asked "is there budget left?"
+  // (~12s) before starting a sheet, then gave that sheet its own ~23s ceiling,
+  // so two quick sheets followed by one slow one answered at ~30s — past the
+  // front door, deterministically, three times. A cap that ignores the clock
+  // already spent is no cap at all.
+  const wallMs = Math.max(8_000, 24_000 - openMs);
+  // Below this remainder, don't START anything new — park and answer. Starting
+  // work that can't finish inside the wall is how Round 3 died.
+  const FLOOR_MS = 6_000;
+  const RECHECK_CAP_MS = 10_000;
   const drawStarted = Date.now();
+  const remaining = () => wallMs - (Date.now() - drawStarted);
+  const raceMs = (p, ms) => Promise.race([
+    p, new Promise((res) => setTimeout(() => res('timeout'), ms).unref?.()),
+  ]);
 
   try {
     let chosenPages = state.chosenPages;
     let kept = state.renderKept ?? [];
     let next = state.renderNext ?? 0;
-    let recheckDone = state.renderRecheckDone ?? false;
+    // A set read from its text layer has no picture-read index to second-guess,
+    // so the landing check is already "done" before it starts.
+    const checkable = !!(state.visionIndex?.entries?.length && state.visionIndex?.targets?.length);
+    let recheckDone = state.renderRecheckDone ?? !checkable;
     let reAimed = state.renderReAimed ?? false;
     let fix = null;
+    let firstOfSlice = true;
+    let landed = null; // { page, png } of a sheet drawn THIS slice, for the recheck
 
     while (next < chosenPages.length) {
-      const one = await Promise.race([
-        renderAndKeep({
-          source: opened.source, chosenPages: [chosenPages[next]], opened: opened.handle, keepPng: true,
-        }),
-        new Promise((res) => setTimeout(() => res('timeout'), sheetCapMs).unref?.()),
-      ]);
+      // One sheet per request is as thin as this stage can slice, so the FIRST
+      // sheet of a slice always runs (with the whole wall as its ceiling) —
+      // otherwise a monster sheet could stall the read forever. Later sheets
+      // only start if the remainder gives them a fair chance.
+      if (!firstOfSlice && remaining() < FLOOR_MS) break;
+      const capMs = firstOfSlice ? Math.max(8_000, remaining()) : remaining();
+      const fullCap = firstOfSlice;
+
+      const one = await raceMs(renderAndKeep({
+        source: opened.source, chosenPages: [chosenPages[next]], opened: opened.handle, keepPng: true,
+      }), capMs);
       if (one === 'timeout') {
         // The abandoned render is still chewing this Lambda's one CPU, so
         // nothing more useful can happen in THIS request — park and answer.
-        console.warn('intake/parse: sheet render timed out, skipping page', chosenPages[next], 'of', state.fileName);
-        next += 1;
+        // A sheet that blew a FULL ceiling is skipped for good (losing one
+        // drawn copy degrades the site read; sitting on it kills the whole
+        // read). A sheet that merely hit the wall's remainder gets retried
+        // next slice, where it is first and the ceiling is honest.
+        if (fullCap) {
+          console.warn('intake/parse: sheet render timed out, skipping page', chosenPages[next], 'of', state.fileName);
+          next += 1;
+        }
         break;
       }
+      firstOfSlice = false;
       kept = kept.concat(one.keptSheets ?? []);
+      landed = { page: one.rendered?.[0]?.page ?? chosenPages[next], png: one.rendered?.[0]?.png ?? null };
       next += 1;
 
       // Did we land where the index said? Only asked of a set whose pages were
@@ -1170,12 +1198,21 @@ async function stageRender(scanKey, state) {
       // own index, which slides every page number after it. One cheap look at
       // a drawn title block catches that; without it a wrong sheet is
       // indistinguishable from a right one, and its numbers get reported as
-      // the answer. Deferred to a later slice when this one's budget is
-      // already spent — any of the chosen sheets can anchor the check — but
-      // never past the last sheet.
-      if (!recheckDone && (Date.now() - drawStarted < budgetMs || next >= chosenPages.length)) {
+      // the answer. The look costs a crop render plus an AI probe, so it obeys
+      // the wall like everything else: raced against the remainder, deferred
+      // to a later slice when there is no room, and if it blows its own
+      // ceiling the landing is simply accepted — a rare mis-aim is better
+      // than a killed read.
+      if (!recheckDone && remaining() >= FLOOR_MS) {
         recheckDone = true;
-        fix = await recheckLanding(state, one.rendered, opened.source);
+        fix = await raceMs(
+          recheckLanding(state, landed.page, landed.png, opened.source),
+          Math.min(RECHECK_CAP_MS, remaining()),
+        );
+        if (fix === 'timeout') {
+          console.warn('intake/parse: landing recheck timed out, accepting landing for', state.fileName);
+          fix = null;
+        }
         if (fix) {
           for (const sheet of kept) {
             if (sheet.pngKey) await deleteSheetImage(sheet.pngKey);
@@ -1187,11 +1224,35 @@ async function stageRender(scanKey, state) {
           reAimed = true;
         }
       }
-
-      if (next < chosenPages.length && Date.now() - drawStarted >= budgetMs) break;
     }
 
-    const more = next < chosenPages.length;
+    // All sheets drawn but the landing never had room to be checked: a slice
+    // that arrives with nothing left to draw does the recheck as ITS one unit
+    // of work. The crop is re-rendered from the source, so no drawn copy is
+    // needed in hand — any chosen page anchors it.
+    if (!recheckDone && next >= chosenPages.length && (firstOfSlice || remaining() >= FLOOR_MS)) {
+      recheckDone = true;
+      fix = await raceMs(
+        recheckLanding(state, landed?.page ?? chosenPages[0], landed?.png ?? null, opened.source),
+        Math.min(RECHECK_CAP_MS, Math.max(5_000, remaining())),
+      );
+      if (fix === 'timeout') {
+        console.warn('intake/parse: landing recheck timed out, accepting landing for', state.fileName);
+        fix = null;
+      }
+      if (fix) {
+        for (const sheet of kept) {
+          if (sheet.pngKey) await deleteSheetImage(sheet.pngKey);
+          if (sheet.key) await deleteSheetImage(sheet.key);
+        }
+        chosenPages = fix.chosenPages;
+        kept = [];
+        next = 0;
+        reAimed = true;
+      }
+    }
+
+    const more = next < chosenPages.length || !recheckDone;
     const keptSheets = kept.length ? kept : null;
     const sheetsRead = reAimed ? chosenPages : state.sheetsRead;
 

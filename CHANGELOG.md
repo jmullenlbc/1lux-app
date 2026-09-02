@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Skyline Ridge 504 fixes: hang-up retry, deferred sheet pick, open-time budgeting, retry-without-reupload] - September 2, 2026 (rounds 1–2 DEPLOYED 93f1502 + 93b233a; round 3 local-only)
+## [Skyline Ridge 504 fixes: hang-up retry, deferred sheet pick, open-time budgeting, retry-without-reupload] - September 2, 2026 (all four rounds DEPLOYED: 93f1502, 93b233a, e2b3568, round 4 below)
 
 Mike's prod test of the public wizard on the Skyline Ridge 50% DD set
 (334.5 MB, 294 sheets) failed with "The read stopped while looking through
@@ -85,7 +85,7 @@ can't save it. Also measured: prod reads only 5–8 pages per slice
 - Real-file simulation on the actual Skyline PDF with the new budget
   rule: slices finished in 12.1s and 9.1s total — well inside the wall.
 
-### Round 3: the render stage sliced (LOCAL ONLY — NOT DEPLOYED)
+### Round 3: the render stage sliced (DEPLOYED as e2b3568)
 (after Round 2 DEPLOYED as 93b233a and the post-deploy E2E proved the
 scan now completes — all 294 pages in 38 slices, 8.4 min — but the READ
 then died at the next stage)
@@ -118,6 +118,47 @@ affected suites; npm run verify 11 gates green; production build green
 with all 37 runtime assets traced; per-sheet render simulation on the
 real Skyline file (fresh ranged open per slice, the four sheets prod
 actually picked) all drew cleanly one per slice, 0.4–5.9s each.
+
+### Round 4: one wall, everything capped by what remains of it (DEPLOYED)
+(after Round 3 DEPLOYED as e2b3568 and the post-deploy E2E proved the
+scan again — all 294 pages in 40 slices — but the render STILL died
+28.1s empty ×3, deterministically)
+
+Round 3's flaw: the loop asked "is there budget left?" (~12s) before
+starting each sheet, then gave that sheet its own ~23s ceiling. On
+Skyline, sheets 97 (~5s) and 3 (~2s) drew fine, then sheet 5 — 5.9s
+locally, so 18–30s at prod's 3–5x pace — was STARTED at ~7s elapsed and
+allowed to run toward its full cap, putting the request at 30s+. The
+front-door kill also kills the Lambda before progress parks, so every
+retry replayed the identical path. A per-piece cap that ignores the
+clock already spent is no cap at all.
+
+- src/app/api/intake/parse/route.js: stageRender now has ONE wall per
+  request (24s minus open time, floor 8s) and every piece of work is
+  raced against what REMAINS of it. A new sheet only starts with ≥6s of
+  wall left (except the first of a slice, which always runs — one sheet
+  is the minimum unit of progress). A sheet that times out against a
+  FULL ceiling is skipped for good; one that merely hit the wall's
+  remainder is retried as the first sheet of the next slice, where the
+  ceiling is honest. Worst-case answer time: open + 23s + park ≈ 25s.
+- The landing recheck (crop render + AI probe — an unbounded await in
+  Rounds 1–3, the same disease) is now raced too: capped at
+  min(10s, remaining), deferred when there's no room, run as its own
+  recheck-only slice if the sheets finish first, and on timeout the
+  landing is simply accepted. recheckLanding takes a page number
+  instead of a rendered sheet, so the recheck-only slice re-renders the
+  corner from the source without needing a drawn copy in hand. Text-
+  layer sets (like Skyline) skip the recheck entirely from the start.
+- src/lib/intake/stagedParse.js: MAX_RENDER_PASSES 12 → 20 (each sheet
+  can now cost up to two requests, plus one recheck-only pass; worst
+  case 17).
+
+Round 4 testing: full regression 846/846 (incl. the 56 live-server
+DN-leak/MCP tests against the dev server); npm run verify 11 gates
+green; production build green, all 37 runtime assets traced; wall math
+replayed against the measured Skyline prod timings — slice 1 now parks
+sheet 5 at the wall and answers at ~24s, slice 2 gives it a full 23s
+ceiling, slice 3 draws 135.
 
 ---
 

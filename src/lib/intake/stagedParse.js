@@ -45,10 +45,13 @@ const MAX_SITE_SHEET_READS = 16;
  * The runaway stop on the sheet-drawing loop.
  *
  * The server draws at most four sheets, plus four more after a landing
- * re-aim, one or two per request. Kept well above that so this never ends a
- * render early; it only stops a server that keeps saying "one more".
+ * re-aim, one or two per request — and a sheet that hits the wall's remainder
+ * mid-slice is retried once as the first sheet of the next, so each sheet can
+ * cost up to two requests, plus one recheck-only pass. Kept well above that
+ * worst case (4×2 + 1 + 4×2 = 17) so this never ends a render early; it only
+ * stops a server that keeps saying "one more".
  */
-const MAX_RENDER_PASSES = 12;
+const MAX_RENDER_PASSES = 20;
 
 /** The runaway stop on the front-sheet loop; the server looks at very few. */
 const MAX_INDEX_LOOKS = 8;
