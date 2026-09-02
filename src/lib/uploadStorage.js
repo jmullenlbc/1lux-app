@@ -574,6 +574,75 @@ export async function deleteScanState(key) {
   }
 }
 
+// ── The "last risky thing started" marker ────────────────────────────────────
+// pdfjs draws a sheet in one synchronous bite, and one Skyline Ridge sheet
+// proved that bite can run ~4 seconds on a laptop — 3-5x that at Lambda pace —
+// during which the event loop never turns. A timeout raced against that render
+// cannot fire: the race needs the event loop, and the event loop is the thing
+// that is blocked. So the front door hangs up at ~28s, the Lambda dies
+// mid-bite, nothing gets parked, and the retry replays the identical death —
+// measured at 28.1s three times in a row, twice, under two different rounds of
+// guard logic that never got to run.
+//
+// The marker is the answer that doesn't need to preempt anything: the render
+// stage writes the NAME of each risky piece of work here, a few dozen bytes,
+// BEFORE starting it, and overwrites it before the next one. It is never
+// deleted mid-read. Whether the work finished is not the marker's business —
+// the parked scan state records completion — so a retry that finds the marker
+// naming the exact piece it is ABOUT to start knows that piece already ate a
+// whole request alive, and skips it. The 504 itself becomes the probe.
+
+/** One marker per scan, parked beside the scan state. */
+const attemptKeyFor = (scanKey) =>
+  isScanKey(scanKey) ? scanKey.replace(/\.json\.gz$/i, '.attempt.json') : null;
+
+/** @returns {Promise<boolean>} false means no protection this attempt — never fatal. */
+export async function putScanAttempt(scanKey, attempt) {
+  const key = attemptKeyFor(scanKey);
+  if (!key || !attempt || (!presignAvailable() && !devStoreOn())) return false;
+  try {
+    const body = Buffer.from(JSON.stringify(attempt), 'utf8');
+    if (!presignAvailable()) { await devPut(key, body); return true; }
+    await s3Client().send(new PutObjectCommand({
+      Bucket: process.env.S3_BUCKET, Key: key, Body: body,
+      ContentType: 'application/json',
+    }));
+    return true;
+  } catch (err) {
+    console.error('[uploadStorage] putScanAttempt failed', err?.message ?? err);
+    return false;
+  }
+}
+
+/** @returns {Promise<object|null>} null is the normal case — no attempt parked. */
+export async function getScanAttempt(scanKey) {
+  const key = attemptKeyFor(scanKey);
+  if (!key || (!presignAvailable() && !devStoreOn())) return null;
+  try {
+    const raw = presignAvailable()
+      ? Buffer.from(await (await s3Client().send(new GetObjectCommand({
+          Bucket: process.env.S3_BUCKET, Key: key,
+        }))).Body.transformToByteArray())
+      : await devGet(key);
+    return JSON.parse(raw.toString('utf8'));
+  } catch {
+    return null;
+  }
+}
+
+/** Best-effort sweep alongside deleteScanState. Never throws. */
+export async function deleteScanAttempt(scanKey) {
+  const key = attemptKeyFor(scanKey);
+  if (!key || (!presignAvailable() && !devStoreOn())) return false;
+  if (!presignAvailable()) return devDel(key);
+  try {
+    await s3Client().send(new DeleteObjectCommand({ Bucket: process.env.S3_BUCKET, Key: key }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Read a stored sheet's bytes back.
  *

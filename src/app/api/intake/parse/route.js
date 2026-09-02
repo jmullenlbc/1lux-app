@@ -15,6 +15,7 @@ import {
   getUploadedObject, deleteUploadedObject, putUploadedObjectDev,
   putSheetImage, getSheetImage, deleteSheetImage,
   putScanState, putScanStateAt, getScanState, deleteScanState,
+  putScanAttempt, getScanAttempt, deleteScanAttempt,
   MAX_INTAKE_UPLOAD_BYTES,
 } from '@/lib/uploadStorage';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
@@ -1149,6 +1150,16 @@ async function stageRender(scanKey, state) {
     p, new Promise((res) => setTimeout(() => res('timeout'), ms).unref?.()),
   ]);
 
+  // The wall and the races above only work when the event loop turns. One
+  // Skyline Ridge sheet proved it can NOT turn: pdfjs drew that sheet in one
+  // synchronous 12-20-second bite, no timer fired, the front door hung up,
+  // the Lambda died with nothing parked, and every retry replayed the same
+  // death. So each render below writes its page number to a tiny marker
+  // BEFORE starting. Finding that marker here, naming the very page we are
+  // about to draw, means the last attempt at it ate a whole request alive —
+  // and the only winning move is not to draw it again.
+  const prior = await getScanAttempt(scanKey);
+
   try {
     let chosenPages = state.chosenPages;
     let kept = state.renderKept ?? [];
@@ -1170,6 +1181,18 @@ async function stageRender(scanKey, state) {
       if (!firstOfSlice && remaining() < FLOOR_MS) break;
       const capMs = firstOfSlice ? Math.max(8_000, remaining()) : remaining();
       const fullCap = firstOfSlice;
+
+      // The page that killed the last request gets skipped, not retried — a
+      // lost drawn copy degrades the site read; replaying the death kills the
+      // whole read. Skipping costs nothing off the wall, so it does not
+      // consume this slice's first-sheet privilege.
+      if (prior?.stage === 'render' && prior.page === chosenPages[next]) {
+        console.warn('intake/parse: page', chosenPages[next], 'of', state.fileName,
+          'ate a whole request last attempt — skipping it');
+        next += 1;
+        continue;
+      }
+      await putScanAttempt(scanKey, { stage: 'render', page: chosenPages[next] });
 
       const one = await raceMs(renderAndKeep({
         source: opened.source, chosenPages: [chosenPages[next]], opened: opened.handle, keepPng: true,
@@ -1205,10 +1228,20 @@ async function stageRender(scanKey, state) {
       // than a killed read.
       if (!recheckDone && remaining() >= FLOOR_MS) {
         recheckDone = true;
-        fix = await raceMs(
-          recheckLanding(state, landed.page, landed.png, opened.source),
-          Math.min(RECHECK_CAP_MS, remaining()),
-        );
+        // The recheck crop-renders a sheet corner, so it carries the same
+        // synchronous-bite risk as a full sheet — same marker, same rule: a
+        // recheck that ate a whole request is not retried, the landing is
+        // simply accepted.
+        if (prior?.stage === 'recheck') {
+          console.warn('intake/parse: landing recheck ate a whole request — accepting landing for', state.fileName);
+          fix = null;
+        } else {
+          await putScanAttempt(scanKey, { stage: 'recheck', page: landed.page });
+          fix = await raceMs(
+            recheckLanding(state, landed.page, landed.png, opened.source),
+            Math.min(RECHECK_CAP_MS, remaining()),
+          );
+        }
         if (fix === 'timeout') {
           console.warn('intake/parse: landing recheck timed out, accepting landing for', state.fileName);
           fix = null;
@@ -1232,10 +1265,16 @@ async function stageRender(scanKey, state) {
     // needed in hand — any chosen page anchors it.
     if (!recheckDone && next >= chosenPages.length && (firstOfSlice || remaining() >= FLOOR_MS)) {
       recheckDone = true;
-      fix = await raceMs(
-        recheckLanding(state, landed?.page ?? chosenPages[0], landed?.png ?? null, opened.source),
-        Math.min(RECHECK_CAP_MS, Math.max(5_000, remaining())),
-      );
+      if (prior?.stage === 'recheck') {
+        console.warn('intake/parse: landing recheck ate a whole request — accepting landing for', state.fileName);
+        fix = null;
+      } else {
+        await putScanAttempt(scanKey, { stage: 'recheck', page: landed?.page ?? chosenPages[0] });
+        fix = await raceMs(
+          recheckLanding(state, landed?.page ?? chosenPages[0], landed?.png ?? null, opened.source),
+          Math.min(RECHECK_CAP_MS, Math.max(5_000, remaining())),
+        );
+      }
       if (fix === 'timeout') {
         console.warn('intake/parse: landing recheck timed out, accepting landing for', state.fileName);
         fix = null;
@@ -1389,6 +1428,7 @@ async function stageDone(scanKey, state) {
   }
   // The index close-ups were scaffolding too, and nobody ever looks at them.
   for (const key of state.visionIndex?.tileKeys ?? []) await deleteSheetImage(key);
+  await deleteScanAttempt(scanKey);
   await deleteScanState(scanKey);
   return NextResponse.json({ stage: 'done', ok: true });
 }

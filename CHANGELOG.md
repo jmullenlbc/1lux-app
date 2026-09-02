@@ -119,7 +119,7 @@ with all 37 runtime assets traced; per-sheet render simulation on the
 real Skyline file (fresh ranged open per slice, the four sheets prod
 actually picked) all drew cleanly one per slice, 0.4–5.9s each.
 
-### Round 4: one wall, everything capped by what remains of it (DEPLOYED)
+### Round 4: one wall, everything capped by what remains of it (DEPLOYED as fa24ac4 — and DISPROVEN by the post-deploy E2E: render died 28.1s empty ×3, byte-identical to Round 3)
 (after Round 3 DEPLOYED as e2b3568 and the post-deploy E2E proved the
 scan again — all 294 pages in 40 slices — but the render STILL died
 28.1s empty ×3, deterministically)
@@ -160,7 +160,64 @@ replayed against the measured Skyline prod timings — slice 1 now parks
 sheet 5 at the wall and answers at ~24s, slice 2 gives it a full 23s
 ceiling, slice 3 draws 135.
 
----
+### Round 5: the "last risky thing started" marker — because no timer can preempt pdfjs
+
+Why Rounds 3 AND 4 died byte-identically (28.099/28.172/28.107 vs
+28.105/28.157/28.107) despite completely different guard logic: the
+guards never ran. pdfjs draws a sheet in one SYNCHRONOUS bite, and
+sheet 5 of Skyline measured a ~3.9s event-loop stall locally (12–20s at
+prod Lambda pace) — a Promise.race against a setTimeout cannot fire
+while the event loop is blocked, because the race IS event-loop work.
+Two more local experiments closed the escape routes: the stall is
+resolution-INDEPENDENT (3.8–3.9s at maxEdge 2200/1600/1000/600 — it's
+decode-like work, not painting, so rendering smaller doesn't help) and
+the crop path pays it equally (5585ms/3860ms stall), so a re-render at
+any size dies the same death. Even a kill-able worker thread would only
+skip the sheet more politely — it can never complete inside the wall.
+
+The fix costs nothing and preempts nothing: park the sheet's NAME
+before drawing it, and let the 504 itself be the probe.
+
+- src/lib/uploadStorage.js: putScanAttempt/getScanAttempt/
+  deleteScanAttempt — a few-dozen-byte marker parked beside the scan
+  state (scans/<id>.attempt.json, dev-store fallback included). Never
+  deleted mid-read; each risky piece of work overwrites it before
+  starting. Whether the work FINISHED is the parked state's business,
+  so a retry that finds the marker naming the very piece it is about
+  to start knows that piece ate a whole request alive — and skips it.
+- src/app/api/intake/parse/route.js: stageRender reads the marker once
+  per slice; a page matching it is skipped (one lost drawn copy
+  degrades the site read; replaying the death kills the whole read),
+  costing nothing off the wall. Every render writes the marker first.
+  Both landing-recheck sites (crop render = same synchronous-bite
+  bomb, live for scanned sets) get the same treatment: a recheck that
+  ate a request is not retried, the landing is accepted. stageDone
+  sweeps the marker with the scan state.
+- No client change needed: the deployed hang-up retry (3 attempts per
+  stage call) already re-asks after an empty 504, and the retry is
+  what finds the marker. Worst case per toxic sheet: exactly one dead
+  ~28s request, then the read walks past it. stageSite and stageMatrix
+  never re-render from source (site reads the kept PNGs), so a skipped
+  sheet degrades one vision input and nothing else.
+
+Locally verified on the real 350 MB Skyline file, render stage driven
+with a hand-crafted parked state carrying prod's real picks
+[97,3,5,135] (the dev server's own scan can't build one — see the
+dev-only note below): a plain run drew all 4 sheets including 5 and
+left the marker naming the last page started; a run with an injected
+marker naming page 5 skipped it and kept [97,3,135]; stageDone swept
+marker and state. Full debug pass green: 853 checks (budget-math +
+fuzz + 12 bid-matrix + 778 units + 7 smoke + 8 dn-leak + 48 mcp
+against the live dev server), verify's 11 gates, production build
+with all 37 runtime assets traced.
+
+Dev-only anomaly found en route (not a prod bug, not fixed this
+round): the staged scan in the DEV server reads zero pages —
+memoryCeilingBytes() falls back to 384 MB when
+AWS_LAMBDA_FUNCTION_MEMORY_SIZE is unset and the dev server's RSS
+already exceeds it, so the brake trips on page 1 and the scan reports
+finished-with-no-text. Set PDF_SCAN_MEMORY_CEILING_MB when a local
+staged scan of a big file is needed.
 
 ## [Public conceptual-budget page rebuilt as the internal wizard] - September 1, 2026
 
