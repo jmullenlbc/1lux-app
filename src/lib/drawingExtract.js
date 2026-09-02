@@ -249,9 +249,16 @@ export async function extractPdfPages(source, opts = {}) {
       const window = pages.length === 0 ? Math.max(left, 12_000) : left;
       let page;
       try {
-        page = await doc.getPage(i);
+        // getPage is INSIDE the race, not before it: resolving a page's
+        // dictionary is itself a run of range fetches, and on the Skyline
+        // Ridge set one page's fetches sat past the front door's ~28s with
+        // the old race guarding only getTextContent. The window has to cover
+        // everything between "ask for the page" and "have its text".
         const content = await Promise.race([
-          page.getTextContent(),
+          (async () => {
+            page = await doc.getPage(i);
+            return page.getTextContent();
+          })(),
           new Promise((_, rej) => setTimeout(() => rej(new Error('page read timed out')), window).unref?.()),
         ]);
         pages.push({ page: i, text: content.items.map(it => it.str).join(' ') });

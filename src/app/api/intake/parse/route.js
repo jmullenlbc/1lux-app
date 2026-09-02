@@ -171,7 +171,21 @@ const sliceBudgetMs = (openMs = 0) =>
   Math.max(MIN_SLICE_READ_MS, SCAN_SLICE_MS - Math.max(0, openMs));
 
 /** A backstop on slices, so a set that never finishes cannot loop forever. */
-const MAX_SCAN_SLICES = 40;
+const MAX_SCAN_SLICES = 80;
+
+// Closing a ranged document is best-effort, never load-bearing. pdfjs's
+// destroy() waits for in-flight work, and a page read that was raced out by
+// the slice budget can leave a range fetch stuck underneath it — awaiting
+// that would hold the RESPONSE hostage until the front door hangs up, which
+// is the exact 504 the staged read exists to avoid. Two seconds of grace,
+// then the response leaves; a leaked handle dies with the Lambda instance.
+const closeQuietly = (handle) => {
+  if (!handle?.destroy) return Promise.resolve();
+  return Promise.race([
+    Promise.resolve(handle.destroy()).catch(() => {}),
+    new Promise((res) => setTimeout(res, 2_000).unref?.()),
+  ]);
+};
 
 /**
  * Stages that resume from a parked scan rather than from a file.
@@ -293,7 +307,7 @@ export async function POST(request) {
     } finally {
       // The uploaded file stays put -- later slices and the render stage still
       // have to read from it. Only `done` clears it.
-      if (opened.handle?.destroy) await opened.handle.destroy();
+      await closeQuietly(opened.handle);
     }
   }
 
@@ -347,7 +361,7 @@ export async function POST(request) {
     // key, not by holding it — so the handle is always closed here. What is NOT
     // always deleted is the uploaded object: `scan` leaves it in place because
     // `render` still has to draw from it, and `done` clears it.
-    if (opened.handle?.destroy) await opened.handle.destroy();
+    await closeQuietly(opened.handle);
     if (s3Key && stage !== 'scan') await deleteUploadedObject(s3Key);
   }
 }
@@ -848,7 +862,7 @@ async function stageIndex(scanKey, state) {
     console.error('intake/parse: index locate failed for', state.fileName, e?.message ?? e);
     return nothing('failed');
   } finally {
-    if (opened.handle?.destroy) await opened.handle.destroy();
+    await closeQuietly(opened.handle);
   }
 }
 
@@ -1018,7 +1032,7 @@ async function stageHunt(scanKey, state, client, nothing) {
       console.error('intake/parse: hunt failed for', state.fileName, e?.message ?? e);
       return nothing('failed');
     } finally {
-      if (opened.handle?.destroy) await opened.handle.destroy();
+      await closeQuietly(opened.handle);
     }
   }
 
@@ -1148,7 +1162,7 @@ async function stageRender(scanKey, state) {
     console.error('intake/parse: could not keep sheet images for', state.fileName, e?.message ?? e);
     return NextResponse.json({ stage: 'render', keptSheets: null, sheetsRead: state.sheetsRead ?? null });
   } finally {
-    if (opened.handle?.destroy) await opened.handle.destroy();
+    await closeQuietly(opened.handle);
   }
 }
 

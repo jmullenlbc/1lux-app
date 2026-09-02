@@ -84,12 +84,13 @@ export const STEP_WORDS = {
  * How many slices the scan may take before we stop asking. See stageScan.
  *
  * Sized for the biggest set we have actually seen (294 full-size plotted
- * sheets, 334 MB): at production pace that is well over twenty slices, and a
- * slice that spends part of its budget opening the file reads fewer pages, so
- * the count runs higher than the desktop suggests. This stop only exists so a
- * server that never finishes cannot spin the visitor forever.
+ * sheets, 334 MB): measured on production 2026-09-02, a slice reads only 5-8
+ * pages there — the Lambda's CPU and its trip to storage are both a fraction
+ * of a desktop's — so that set needs on the order of sixty slices, not the
+ * dozen the desktop suggests. This stop only exists so a server that never
+ * finishes cannot spin the visitor forever.
  */
-const MAX_SCAN_SLICES = 40;
+const MAX_SCAN_SLICES = 80;
 
 /** How long to wait before re-asking a stage whose request never came back. */
 export const STAGE_RETRY_WAITS_MS = [2000, 6000];

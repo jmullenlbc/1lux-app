@@ -51,6 +51,28 @@ re-uploaded all 334.5 MB. Four fixes, all built and tested locally:
   server says the file is gone (not_found), it falls back to one fresh
   upload. No more re-sending 334.5 MB to retry a read.
 
+### Round 2: the real stall, found by an E2E test against prod
+(after the first batch DEPLOYED as 93f1502 and Mike's field test still 504'd)
+
+Ran the full staged read against production with the actual Skyline PDF,
+timing every request. The deployed hang-up retry WORKED (one 504 was
+retried and the read continued), but one slice — starting at page 36 —
+died at exactly ~28s three times in a row: deterministic, so retries
+can't save it. Also measured: prod reads only 5–8 pages per slice
+(desktop reads 35), so 294 pages needs ~60 slices — over the 40 cap.
+
+- src/lib/drawingExtract.js: `doc.getPage()` sat OUTSIDE the per-page
+  timeout race, which guarded only getTextContent. Resolving a page is
+  itself a run of storage range fetches and can hang past the front
+  door with nothing to stop it. The race now covers the whole page,
+  from "ask for it" to "have its text". New test pins it.
+- src/app/api/intake/parse/route.js: every `await opened.handle.destroy()`
+  ran in a `finally` BEFORE the response could leave, and pdfjs's
+  destroy() waits on in-flight work — a raced-out page could hold the
+  response hostage until the 504. Replaced with closeQuietly(): destroy
+  gets 2 seconds, then the response goes out regardless.
+- MAX_SCAN_SLICES 40 → 80 on both sides, sized to prod's measured pace.
+
 ### Testing (full pre-deploy debugging pass)
 
 - 4 new tests in scripts/tests/stagedParse.test.mjs (36/36 green):

@@ -374,3 +374,24 @@ test('the page cap ends the read rather than asking for pages that do not exist'
   assert.equal(r.nextPage, null);
   assert.equal(r.stoppedEarly, true);
 });
+
+test('a page whose fetches never answer is raced out, not waited on forever', async () => {
+  // Measured on production with the Skyline Ridge set (2026-09-02): one
+  // page's range fetches sat past the front door's ~28s and the request died
+  // as an empty 504 — because getPage() sat OUTSIDE the timeout race, which
+  // guarded only getTextContent. The window has to cover the whole page,
+  // from "ask for it" to "have its text".
+  const doc = {
+    numPages: 5,
+    async getPage(n) {
+      if (n === 3) return new Promise(() => {});   // storage never answers
+      return { getTextContent: async () => ({ items: [{ str: `page ${n}` }] }), cleanup() {} };
+    },
+  };
+  const t0 = Date.now();
+  const r = await extractPdfPages(doc, { fromPage: 1, timeBudgetMs: 300 });
+  assert.ok(Date.now() - t0 < 5_000, 'the hung page must be cut off by the window');
+  assert.deepEqual(r.pages.map(p => p.page), [1, 2]);
+  assert.equal(r.nextPage, 3, 'a page that ran out of THIS slice gets a fresh try next slice');
+  assert.equal(r.stoppedEarly, true);
+});
