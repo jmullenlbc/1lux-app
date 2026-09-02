@@ -1155,9 +1155,15 @@ async function stageRender(scanKey, state) {
   // synchronous 12-20-second bite, no timer fired, the front door hung up,
   // the Lambda died with nothing parked, and every retry replayed the same
   // death. So each render below writes its page number to a tiny marker
-  // BEFORE starting. Finding that marker here, naming the very page we are
-  // about to draw, means the last attempt at it ate a whole request alive —
-  // and the only winning move is not to draw it again.
+  // BEFORE starting, and a slice that lives long enough to park downgrades
+  // the marker to "parked" — so a marker still reading "render" here is
+  // proof the last request died mid-draw of that page.
+  //
+  // The marker carries a LIST of such pages, not just the latest one. Skyline
+  // Ridge killed the single-slot version: with TWO killer sheets, each death
+  // overwrote the other page's name, the retries alternated between them, and
+  // the read never converged. The list only grows, so every observed killer
+  // stays skipped forever.
   const prior = await getScanAttempt(scanKey);
 
   try {
@@ -1173,6 +1179,19 @@ async function stageRender(scanKey, state) {
     let firstOfSlice = true;
     let landed = null; // { page, png } of a sheet drawn THIS slice, for the recheck
 
+    // Every page the front door has ever caught mid-draw, plus — if the last
+    // request's marker still says "render" — the page it died on. A marker
+    // that says "parked" or "recheck" contributes only its list.
+    const poisoned = Array.isArray(prior?.skip) ? [...prior.skip] : [];
+    if (prior?.stage === 'render' && Number.isFinite(prior.page) && !poisoned.includes(prior.page)) {
+      poisoned.push(prior.page);
+    }
+    // A scan that has already fed the front door one request is drawing
+    // dangerous sheets. From here on: ONE sheet per slice, park after each.
+    // Every risky sheet gets a whole fresh request to itself, and each
+    // survivor is parked before the next sheet can kill anything.
+    const cautious = poisoned.length > 0;
+
     while (next < chosenPages.length) {
       // One sheet per request is as thin as this stage can slice, so the FIRST
       // sheet of a slice always runs (with the whole wall as its ceiling) —
@@ -1186,13 +1205,13 @@ async function stageRender(scanKey, state) {
       // lost drawn copy degrades the site read; replaying the death kills the
       // whole read. Skipping costs nothing off the wall, so it does not
       // consume this slice's first-sheet privilege.
-      if (prior?.stage === 'render' && prior.page === chosenPages[next]) {
+      if (poisoned.includes(chosenPages[next])) {
         console.warn('intake/parse: page', chosenPages[next], 'of', state.fileName,
-          'ate a whole request last attempt — skipping it');
+          'ate a whole request on an earlier attempt — skipping it');
         next += 1;
         continue;
       }
-      await putScanAttempt(scanKey, { stage: 'render', page: chosenPages[next] });
+      await putScanAttempt(scanKey, { stage: 'render', page: chosenPages[next], skip: poisoned });
 
       const one = await raceMs(renderAndKeep({
         source: opened.source, chosenPages: [chosenPages[next]], opened: opened.handle, keepPng: true,
@@ -1206,6 +1225,9 @@ async function stageRender(scanKey, state) {
         // next slice, where it is first and the ceiling is honest.
         if (fullCap) {
           console.warn('intake/parse: sheet render timed out, skipping page', chosenPages[next], 'of', state.fileName);
+          // It blew a FULL ceiling — remember that, so a later re-aim that
+          // resets the walk can never draw it again.
+          if (!poisoned.includes(chosenPages[next])) poisoned.push(chosenPages[next]);
           next += 1;
         }
         break;
@@ -1214,6 +1236,9 @@ async function stageRender(scanKey, state) {
       kept = kept.concat(one.keptSheets ?? []);
       landed = { page: one.rendered?.[0]?.page ?? chosenPages[next], png: one.rendered?.[0]?.png ?? null };
       next += 1;
+      // One survivor is this slice's whole job once the scan is in cautious
+      // mode — park it (below) before risking the next sheet.
+      if (cautious) break;
 
       // Did we land where the index said? Only asked of a set whose pages were
       // worked out by reading the index as a picture, and only worth asking
@@ -1236,7 +1261,7 @@ async function stageRender(scanKey, state) {
           console.warn('intake/parse: landing recheck ate a whole request — accepting landing for', state.fileName);
           fix = null;
         } else {
-          await putScanAttempt(scanKey, { stage: 'recheck', page: landed.page });
+          await putScanAttempt(scanKey, { stage: 'recheck', page: landed.page, skip: poisoned });
           fix = await raceMs(
             recheckLanding(state, landed.page, landed.png, opened.source),
             Math.min(RECHECK_CAP_MS, remaining()),
@@ -1269,7 +1294,7 @@ async function stageRender(scanKey, state) {
         console.warn('intake/parse: landing recheck ate a whole request — accepting landing for', state.fileName);
         fix = null;
       } else {
-        await putScanAttempt(scanKey, { stage: 'recheck', page: landed?.page ?? chosenPages[0] });
+        await putScanAttempt(scanKey, { stage: 'recheck', page: landed?.page ?? chosenPages[0], skip: poisoned });
         fix = await raceMs(
           recheckLanding(state, landed?.page ?? chosenPages[0], landed?.png ?? null, opened.source),
           Math.min(RECHECK_CAP_MS, Math.max(5_000, remaining())),
@@ -1294,6 +1319,11 @@ async function stageRender(scanKey, state) {
     const more = next < chosenPages.length || !recheckDone;
     const keptSheets = kept.length ? kept : null;
     const sheetsRead = reAimed ? chosenPages : state.sheetsRead;
+
+    // This slice lived: whatever its marker says was STARTED also finished.
+    // Downgrade the marker (keeping the poison list) so the next request
+    // doesn't mistake an honest park for a death.
+    await putScanAttempt(scanKey, { stage: 'parked', skip: poisoned });
 
     // Park the keys so the site stage can pick the images up without
     // redrawing — and, mid-set, so the next slice knows where to resume.

@@ -160,7 +160,7 @@ replayed against the measured Skyline prod timings — slice 1 now parks
 sheet 5 at the wall and answers at ~24s, slice 2 gives it a full 23s
 ceiling, slice 3 draws 135.
 
-### Round 5: the "last risky thing started" marker — because no timer can preempt pdfjs
+### Round 5: the "last risky thing started" marker — because no timer can preempt pdfjs (DEPLOYED as 7945b48 — and DISPROVEN by the post-deploy E2E: render died 28.111/28.101/28.185s empty ×3 against the new build; see Round 6 for why)
 
 Why Rounds 3 AND 4 died byte-identically (28.099/28.172/28.107 vs
 28.105/28.157/28.107) despite completely different guard logic: the
@@ -218,6 +218,55 @@ AWS_LAMBDA_FUNCTION_MEMORY_SIZE is unset and the dev server's RSS
 already exceeds it, so the brake trips on page 1 and the scan reports
 finished-with-no-text. Set PDF_SCAN_MEMORY_CEILING_MB when a local
 staged scan of a big file is needed.
+
+### Round 6: the marker becomes a poison LIST, and a wounded scan turns cautious
+
+Why Round 5 died: the marker held only ONE page, and Skyline has TWO
+killer sheets (5 and, at Lambda pace, 135). Attempt 0 died drawing 5
+(marker = 5). Attempt 1 skipped 5 — then died drawing 135, OVERWRITING
+the marker (marker = 135). Attempt 2 skipped 135 and redrew 5, whose
+protection was gone. The retries alternated between the two killers
+forever, the browser's 3-attempt ladder ran out, and every death
+measured the same ~28.1s because that is the FRONT DOOR's clock, not
+ours. A second flaw compounded it: state only parked at slice end, so
+a mid-slice death also threw away every sheet drawn before it — the
+same two easy sheets (97, 3) were redrawn inside every doomed request.
+
+Two changes, both in the same two files as Round 5:
+
+- The marker now carries `skip: [...]` — every page the front door has
+  EVER caught mid-draw. The list only grows; a page once poisoned stays
+  skipped no matter what dies later. And a slice that survives long
+  enough to park its state downgrades the marker to `stage:'parked'`
+  (keeping the list), so a marker still reading `stage:'render'` on
+  the next request is PROOF of a death, with no guessing about which
+  pages remain. Rechecks carry the list too; a sheet that blows a full
+  raced ceiling is also added (so a later re-aim can never redraw it).
+- Cautious mode: once the list is non-empty — this scan has already
+  fed the front door one request — every slice draws AT MOST ONE sheet
+  and parks immediately. Each risky sheet gets a whole fresh ~28s
+  request to itself (its best possible chance: open + one draw), and
+  every survivor is parked before the next sheet can kill anything.
+  Each successful park answers 200/more:true, which RESETS the
+  browser's 3-attempt ladder — so the read converges no matter how
+  many killer sheets a set holds: each one costs at most one dead
+  request, ever.
+
+Skyline walk-through: request 1 dies on 5 → request 2 poisons 5, draws
+97 alone, parks → request 3 draws 3, parks → request 4 skips 5, draws
+135 with a full fresh window (likely survives — it only ever died with
+the clock half-spent) → request 5 answers done. No alternation
+possible.
+
+Locally verified on the real 350 MB Skyline file (render stage,
+hand-crafted state with prod's picks [97,3,5,135]): RUN A plain — all
+4 drawn, marker downgraded to {parked, skip:[]}; RUN B injected death
+on 5 — cautious one-per-slice (3 slices), kept [97,3,135], list [5];
+RUN C the exact prod alternation (death on 135 with 5 already
+poisoned) — BOTH skipped, kept [97,3], list [5,135], converged. Done
+swept marker + state. Full debug pass green: budget-math + fuzz + 12
+bid-matrix + 778 units + 7 smoke + 8 dn-leak + 48 mcp, verify's 11
+gates, production build with all 37 runtime assets traced.
 
 ## [Public conceptual-budget page rebuilt as the internal wizard] - September 1, 2026
 
