@@ -41,6 +41,15 @@ import { combineIntakeResult, siteHasNumbers } from './combineResult.js';
  */
 const MAX_SITE_SHEET_READS = 16;
 
+/**
+ * The runaway stop on the sheet-drawing loop.
+ *
+ * The server draws at most four sheets, plus four more after a landing
+ * re-aim, one or two per request. Kept well above that so this never ends a
+ * render early; it only stops a server that keeps saying "one more".
+ */
+const MAX_RENDER_PASSES = 12;
+
 /** The runaway stop on the front-sheet loop; the server looks at very few. */
 const MAX_INDEX_LOOKS = 8;
 
@@ -287,7 +296,13 @@ export async function runStagedParse({ s3Key, file, fileName, onStep = () => {},
 
     if (scan.needsRender) {
       onStep('render', 'active');
-      const r = await stage({ stage: 'render', scanKey }, signal);
+      // A monster set's sheets are drawn a slice at a time, same reason as the
+      // site reads: all four in one request sat past the front door on prod.
+      // A normal set still answers in one pass, so this is usually ONE call.
+      let r = await stage({ stage: 'render', scanKey }, signal);
+      for (let i = 0; r?.more && i < MAX_RENDER_PASSES; i++) {
+        r = await stage({ stage: 'render', scanKey }, signal);
+      }
       keptSheets = r.keptSheets;
       sheetsRead = r.sheetsRead ?? sheetsRead;
       onStep('render', 'done', { keptSheets });

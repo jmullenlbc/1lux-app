@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Skyline Ridge 504 fixes: hang-up retry, deferred sheet pick, open-time budgeting, retry-without-reupload] - September 2, 2026 (LOCAL ONLY — NOT DEPLOYED)
+## [Skyline Ridge 504 fixes: hang-up retry, deferred sheet pick, open-time budgeting, retry-without-reupload] - September 2, 2026 (rounds 1–2 DEPLOYED 93f1502 + 93b233a; round 3 local-only)
 
 Mike's prod test of the public wizard on the Skyline Ridge 50% DD set
 (334.5 MB, 294 sheets) failed with "The read stopped while looking through
@@ -84,6 +84,40 @@ can't save it. Also measured: prod reads only 5–8 pages per slice
   npm run verify (11 gates), and the production build all green.
 - Real-file simulation on the actual Skyline PDF with the new budget
   rule: slices finished in 12.1s and 9.1s total — well inside the wall.
+
+### Round 3: the render stage sliced (LOCAL ONLY — NOT DEPLOYED)
+(after Round 2 DEPLOYED as 93b233a and the post-deploy E2E proved the
+scan now completes — all 294 pages in 38 slices, 8.4 min — but the READ
+then died at the next stage)
+
+The render stage did everything in one request: open the 334 MB file,
+draw all four full-size 42x30 plot sheets, run the landing recheck (a
+crop render + an AI call), and possibly redraw all four after a re-aim.
+On production that measured ~28.1s — the front-door 504 — three times
+in a row. Same disease as the scan, same cure:
+
+- src/app/api/intake/parse/route.js: stageRender now draws sheets a
+  slice at a time. Each request opens the file, draws until the slice
+  budget (12s minus open time) is spent — always at least one sheet —
+  parks progress in the scan state (renderNext / renderKept /
+  renderRecheckDone / renderReAimed), and answers `more: true`; the
+  browser just asks again. A normal set still finishes in ONE request.
+- A single slow sheet gets a hard ceiling (24s minus open time, floor
+  8s): past it the sheet is SKIPPED with a warning and the read carries
+  on without its kept copy — losing one drawn sheet degrades the site
+  read; sitting on it kills the whole read. The landing recheck defers
+  to a later slice when the budget is already spent (any chosen sheet
+  can anchor it), but never past the last sheet.
+- src/lib/intake/stagedParse.js: the client loops the render stage on
+  `more: true` (MAX_RENDER_PASSES = 12 runaway stop), same shape as the
+  index close-ups and the site reads.
+
+Round 3 testing: new client test (a render that answers more twice is
+asked again, and the FINAL kept list wins) — 107/107 across the four
+affected suites; npm run verify 11 gates green; production build green
+with all 37 runtime assets traced; per-sheet render simulation on the
+real Skyline file (fresh ranged open per slice, the four sheets prod
+actually picked) all drew cleanly one per slice, 0.4–5.9s each.
 
 ---
 

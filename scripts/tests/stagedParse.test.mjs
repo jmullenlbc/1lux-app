@@ -50,6 +50,35 @@ const CLEAN = {
   done:   { ok: true },
 };
 
+test('a render that needs several slices is asked again until it is done', async () => {
+  // The monster-set shape: the server draws one sheet per request and says
+  // "more" until all four are kept. The client must keep asking, and the
+  // answer it hands on must be the FINAL one, not a mid-set partial.
+  let renderCalls = 0;
+  const f = fakeFetch({
+    ...CLEAN,
+    render: () => {
+      renderCalls += 1;
+      if (renderCalls < 3) {
+        return { more: true, keptSheets: [{ page: 4, key: 'sheets/x.jpg', bytes: 90000 }], sheetsRead: [4, 7] };
+      }
+      return {
+        keptSheets: [
+          { page: 4, key: 'sheets/x.jpg', bytes: 90000 },
+          { page: 7, key: 'sheets/y.jpg', bytes: 80000 },
+        ],
+        sheetsRead: [4, 7],
+      };
+    },
+  });
+  const out = await runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'set.pdf', onStep: () => {} });
+  f.restore();
+
+  assert.equal(renderCalls, 3, 'the client must ask again while the server says more');
+  assert.equal(out.keptSheets.length, 2, 'the final, complete kept list is the one reported');
+  assert.deepStrictEqual(f.calls.filter(c => c === 'render'), ['render', 'render', 'render']);
+});
+
 test('the four stages run in order, and the working scan is cleaned up', async () => {
   const f = fakeFetch(CLEAN);
   const steps = [];

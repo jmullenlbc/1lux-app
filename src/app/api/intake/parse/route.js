@@ -1109,50 +1109,109 @@ async function recheckLanding(state, rendered, source) {
   return { chosenPages, targets, offset };
 }
 
-/** Stage 2 — draw the chosen sheets and keep them. */
+/** Stage 2 — draw the chosen sheets and keep them, a slice at a time.
+ *
+ * Sliced for the same reason the scan is: on the Skyline Ridge set the old
+ * one-request version (open the 334 MB file + draw four full-size 42x30
+ * plots + the landing recheck, all before answering) measured ~28.1s on
+ * production three times in a row — a deterministic front-door 504 that no
+ * retry could save. Each request now opens the file, draws sheets until the
+ * slice budget is spent (always at least one), parks progress, and answers
+ * `more: true`; the browser simply asks again. A small set still finishes in
+ * one request, so the common case costs no extra round trips.
+ */
 async function stageRender(scanKey, state) {
   if (!state.chosenPages?.length || state.ext !== 'pdf') {
     return NextResponse.json({ stage: 'render', keptSheets: null, sheetsRead: state.sheetsRead ?? null });
   }
 
+  const openStarted = Date.now();
   const opened = await openSource({ s3Key: state.s3Key, ext: 'pdf' });
   if (opened.error) return opened.error;
+  const openMs = Date.now() - openStarted;
+  // Opening the file already spent part of this request's stay, so the
+  // drawing budget is what's left of the slice — same rule as the scan.
+  const budgetMs = sliceBudgetMs(openMs);
+  // One sheet per request is as thin as this stage can slice, so a single
+  // slow sheet gets a hard ceiling instead: past it the sheet is SKIPPED and
+  // the read carries on without its copy. Losing one drawn sheet degrades the
+  // site read; sitting on it past the front door kills the whole read.
+  const sheetCapMs = Math.max(8_000, 24_000 - openMs);
+  const drawStarted = Date.now();
 
   try {
     let chosenPages = state.chosenPages;
-    let { rendered, keptSheets } = await renderAndKeep({
-      source: opened.source, chosenPages, opened: opened.handle, keepPng: true,
-    });
+    let kept = state.renderKept ?? [];
+    let next = state.renderNext ?? 0;
+    let recheckDone = state.renderRecheckDone ?? false;
+    let reAimed = state.renderReAimed ?? false;
+    let fix = null;
 
-    // Did we land where the index said? Only asked of a set whose pages were
-    // worked out by reading the index as a picture, and only worth asking
-    // because progress sets are routinely bound a few sheets short of their own
-    // index, which slides every page number after it. One cheap look at the
-    // title block catches that; without it a wrong sheet is indistinguishable
-    // from a right one, and its numbers get reported as the answer.
-    const fix = await recheckLanding(state, rendered, opened.source);
-    if (fix) {
-      for (const sheet of keptSheets ?? []) {
-        if (sheet.pngKey) await deleteSheetImage(sheet.pngKey);
-        if (sheet.key) await deleteSheetImage(sheet.key);
+    while (next < chosenPages.length) {
+      const one = await Promise.race([
+        renderAndKeep({
+          source: opened.source, chosenPages: [chosenPages[next]], opened: opened.handle, keepPng: true,
+        }),
+        new Promise((res) => setTimeout(() => res('timeout'), sheetCapMs).unref?.()),
+      ]);
+      if (one === 'timeout') {
+        // The abandoned render is still chewing this Lambda's one CPU, so
+        // nothing more useful can happen in THIS request — park and answer.
+        console.warn('intake/parse: sheet render timed out, skipping page', chosenPages[next], 'of', state.fileName);
+        next += 1;
+        break;
       }
-      chosenPages = fix.chosenPages;
-      ({ rendered, keptSheets } = await renderAndKeep({
-        source: opened.source, chosenPages, opened: opened.handle, keepPng: true,
-      }));
+      kept = kept.concat(one.keptSheets ?? []);
+      next += 1;
+
+      // Did we land where the index said? Only asked of a set whose pages were
+      // worked out by reading the index as a picture, and only worth asking
+      // because progress sets are routinely bound a few sheets short of their
+      // own index, which slides every page number after it. One cheap look at
+      // a drawn title block catches that; without it a wrong sheet is
+      // indistinguishable from a right one, and its numbers get reported as
+      // the answer. Deferred to a later slice when this one's budget is
+      // already spent — any of the chosen sheets can anchor the check — but
+      // never past the last sheet.
+      if (!recheckDone && (Date.now() - drawStarted < budgetMs || next >= chosenPages.length)) {
+        recheckDone = true;
+        fix = await recheckLanding(state, one.rendered, opened.source);
+        if (fix) {
+          for (const sheet of kept) {
+            if (sheet.pngKey) await deleteSheetImage(sheet.pngKey);
+            if (sheet.key) await deleteSheetImage(sheet.key);
+          }
+          chosenPages = fix.chosenPages;
+          kept = [];
+          next = 0;
+          reAimed = true;
+        }
+      }
+
+      if (next < chosenPages.length && Date.now() - drawStarted >= budgetMs) break;
     }
 
-    // Park the keys so the site stage can pick the images up without redrawing.
+    const more = next < chosenPages.length;
+    const keptSheets = kept.length ? kept : null;
+    const sheetsRead = reAimed ? chosenPages : state.sheetsRead;
+
+    // Park the keys so the site stage can pick the images up without
+    // redrawing — and, mid-set, so the next slice knows where to resume.
     await putScanStateAt(scanKey, {
       ...state,
-      keptSheets,
       chosenPages,
-      sheetsRead: fix ? chosenPages : state.sheetsRead,
+      renderKept: kept,
+      renderNext: next,
+      renderRecheckDone: recheckDone,
+      renderReAimed: reAimed,
+      ...(more ? {} : { keptSheets }),
+      sheetsRead,
       ...(fix ? { visionIndex: { ...state.visionIndex, offset: fix.offset, targets: fix.targets } } : {}),
     });
     return NextResponse.json({
       stage: 'render',
-      sheetsRead: (fix ? chosenPages : state.sheetsRead) ?? null,
+      ...(more ? { more: true } : {}),
+      sheetsRead: sheetsRead ?? null,
       // `pngKey` is our scaffolding, not the visitor's business.
       keptSheets: keptSheets?.map(({ page, key, bytes }) => ({ page, key, bytes })) ?? null,
     });
