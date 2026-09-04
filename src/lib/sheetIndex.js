@@ -76,7 +76,14 @@ const ROLE_SIGNALS = {
   areaSummary: [
     [/\b(building|project)\s+(statistics|gross|area)\b/i, 34],
     [/\b(area|program)\s+(summary|breakdown|schedule|tabulation)\b/i, 32],
+    // G101-style combined sheets ("PROJECT INFORMATION, UNIT MATRIX, & CODE
+    // ANALYSIS") print the per-building totals under a BUILDING DATA /
+    // PROPOSED TOTAL AREA block and nothing on them says "area summary".
+    // Skyline Ridge's only square footage lived there and never rendered.
+    [/\bproposed\s+total\s+area\b/i, 30],
+    [/\bbuilding\s+data\b/i, 26],
     [/\bcode\s+(summary|analysis)\b/i, 18],
+    [/\bproject\s+information\b/i, 12],
     [/\bgsf\b/i, 8],
   ],
   // The takeoff counts egress stairwells and exit doors off a plan view.
@@ -204,7 +211,7 @@ You are given one row per page: the page number, the sheet number from its title
 Identify the pages for each of these roles:
   "unitMatrix"  — the unit matrix / unit mix / room or key schedule: the table of unit types and quantities.
   "sitePlan"    — the overall site plan: the sheet showing the whole site, buildings, and parking. Prefer the architectural or overall site plan over enlarged, phased, or utility-only site sheets.
-  "areaSummary" — the building area / gross area / program summary, sometimes called building statistics or a code summary.
+  "areaSummary" — the building area / gross area / program summary, sometimes called building statistics or a code summary. A combined "project information / code analysis" sheet with a BUILDING DATA or PROPOSED TOTAL AREA block counts — on many sets it is the only sheet stating square footage.
   "floorPlan"   — ONE plan view for counting egress stairwells and exit doors. Best: a life-safety / egress / code plan. Next best: the ground or first floor plan. Last resort: a typical floor plan. Prefer an overall plan over an enlarged partial one.
   "elevations"  — the exterior / building elevations sheet, for counting stories. Prefer overall exterior elevations over enlarged, partial, or interior elevations.
   "cover"       — the cover or title sheet carrying project information and the sheet index.

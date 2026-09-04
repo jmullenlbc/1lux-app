@@ -41,6 +41,7 @@
  * @see src/lib/intake/reviewFlags.js   — drawing-level trust; this is field-level
  */
 import { lotSquareFeet, ACRE_SF } from '../siteFields.js';
+import { PRICING } from '../pricing.js';
 
 /** A stated, usable number — or null. Number(null) is 0, hence the dance. */
 function stated(v) {
@@ -50,6 +51,28 @@ function stated(v) {
 }
 
 function fmt(n) { return Number(n).toLocaleString('en-US'); }
+
+/**
+ * A figure the VISITOR typed — "364,029" included — or null. These arrive as
+ * questionnaire answer strings (figureGrossSf, figureTotalUnits, figureStories,
+ * figureStairwells, figureExitDoors, figureSurfaceParking): the wizard asks
+ * for them only when the drawings answered nothing, so a drawing-stated or
+ * counted value always outranks them.
+ */
+function statedAnswer(v) {
+  if (typeof v !== 'string') return stated(v);
+  const n = stated(v.replace(/[,\s]/g, ''));
+  return n != null && n > 0 ? n : null;
+}
+
+/**
+ * Units-sum → building-gross blow-up, the LAST-RESORT gross estimate.
+ * The number lives in the master pricing sheet (PRICING.estimation), not
+ * here — Mike set it to 1.25 (2026-09-04). Only used when no total is
+ * stated, no per-building totals exist, the visitor typed nothing, and no
+ * footprint × stories is available.
+ */
+const UNITS_TO_GROSS = PRICING.estimation.unitsToGross;
 
 /** Answers however they arrive — DB rows, validated rows, or a plain map. */
 export function answersToMap(answers) {
@@ -123,9 +146,15 @@ function bedroomsFromMix(mix) {
  * Compute the full takeoff.
  * @param {object|null} drawings  mergeProposals() output (rawPayload.drawings)
  * @param {Array|object|null} answers  questionnaire answers, any shape
+ * @param {object|null} pricing  loadPricing() output — estimation factors come
+ *                               from the master pricing sheet; falls back to
+ *                               the static PRICING defaults when not passed.
  * @returns {Array} quantity rows, in the order the review panel shows them
  */
-export function computeQuantities(drawings, answers) {
+export function computeQuantities(drawings, answers, pricing = null) {
+  const unitsToGross = Number(pricing?.estimation?.unitsToGross) > 0
+    ? Number(pricing.estimation.unitsToGross)
+    : UNITS_TO_GROSS;
   const rows = safeRows(drawings);
   const site = (drawings?.siteData && typeof drawings.siteData === 'object') ? drawings.siteData : null;
   const totals = (drawings?.projectTotals && typeof drawings.projectTotals === 'object') ? drawings.projectTotals : null;
@@ -155,6 +184,9 @@ export function computeQuantities(drawings, answers) {
   } else if (siteUnits != null) {
     unitCount = siteUnits; unitSource = 'drawing';
     unitHow = 'Stated on the site plan data block.';
+  } else if (statedAnswer(ans.figureTotalUnits) != null) {
+    unitCount = statedAnswer(ans.figureTotalUnits); unitSource = 'questionnaire';
+    unitHow = 'Entered on the questionnaire — no unit count was found on the drawings.';
   }
   add('totalUnits', '# Units', 'count', unitCount, unitSource, unitHow, unitFlag);
 
@@ -293,12 +325,26 @@ export function computeQuantities(drawings, answers) {
       ? 'From the amenity-area figure on the site plan — usually the outdoor programme (pool deck, courtyards).'
       : 'Not stated on any drawing.');
 
-  const grossSf = stated(totals?.grossInteriorSf) ?? stated(site?.grossSf);
-  add('grossSf', 'Total Building Gross SF', 'sf', grossSf, 'drawing',
-    grossSf != null
-      ? (totals?.grossSfLabel ? `Read from the "${totals.grossSfLabel}" line on the drawings.` : 'Stated total on the drawings.')
-      : 'No stated building total was found.',
-    totals?.grossSfNeedsReview ? String(totals.grossSfNote || 'The gross-SF read needs review — confirm which total was read.') : null);
+  // Gross SF ladder: a drawing-stated (or per-building-summed) total wins,
+  // then a figure the visitor typed. Two derived estimates (footprint ×
+  // stories, then unit-SF blow-up) are patched in at the END of this function
+  // because their ingredients are computed below this section.
+  const grossStated = stated(totals?.grossInteriorSf) ?? stated(site?.grossSf);
+  const grossFigure = grossStated == null ? statedAnswer(ans.figureGrossSf) : null;
+  const grossSf = grossStated ?? grossFigure;
+  add('grossSf', 'Total Building Gross SF', 'sf', grossSf,
+    grossStated != null ? 'drawing' : 'questionnaire',
+    grossStated == null
+      ? (grossFigure != null
+          ? 'Entered on the questionnaire — no stated total was found on the drawings.'
+          : 'No stated building total was found.')
+      : totals?.grossSfSummed && totals?.grossSfSummary
+        ? String(totals.grossSfSummary)
+        : totals?.grossSfLabel
+          ? `Read from the "${totals.grossSfLabel}" line on the drawings.`
+          : 'Stated total on the drawings.',
+    grossStated != null && totals?.grossSfNeedsReview
+      ? String(totals.grossSfNote || 'The gross-SF read needs review — confirm which total was read.') : null);
 
   // Back of house is the remainder — what's left of the stated gross after
   // the categories the drawings itemized. Only computable when the two big
@@ -326,32 +372,43 @@ export function computeQuantities(drawings, answers) {
   // Stated wins; a COUNTED figure (read off a drawn view, the one deliberate
   // exception to the no-counting rule) fills in only when nothing was stated,
   // and always arrives flagged so a reviewer knows it was counted, not read.
+  // A VISITOR-TYPED figure is the last rung — the wizard asks for it only
+  // when the drawings answered nothing.
   const storiesStated = stated(site?.stories);
   const storiesCounted = stated(site?.storiesCounted);
-  const stories = storiesStated ?? storiesCounted;
-  add('stories', '# Stories', 'count', stories, 'drawing',
+  const storiesTyped = storiesStated == null && storiesCounted == null ? statedAnswer(ans.figureStories) : null;
+  const stories = storiesStated ?? storiesCounted ?? storiesTyped;
+  add('stories', '# Stories', 'count', stories,
+    storiesTyped != null ? 'questionnaire' : 'drawing',
     storiesStated != null ? 'Stated on the drawings (code summary or title block).'
       : storiesCounted != null ? 'Counted off the building elevation (floor levels / window rows).'
+      : storiesTyped != null ? 'Entered on the questionnaire — not found on the drawings.'
       : 'Not stated on any sheet that was read.',
     storiesStated == null && storiesCounted != null
       ? 'Counted off the elevation, not stated in writing — confirm against the code summary.' : null);
 
   const stairsStated = stated(site?.egressStairwells);
   const stairsCounted = stated(site?.egressStairwellsCounted);
-  const stairs = stairsStated ?? stairsCounted;
-  add('egressStairwells', '# Egress Stairwells', 'count', stairs, 'drawing',
+  const stairsTyped = stairsStated == null && stairsCounted == null ? statedAnswer(ans.figureStairwells) : null;
+  const stairs = stairsStated ?? stairsCounted ?? stairsTyped;
+  add('egressStairwells', '# Egress Stairwells', 'count', stairs,
+    stairsTyped != null ? 'questionnaire' : 'drawing',
     stairsStated != null ? 'Stated on the drawings (exit-stair line in a code summary).'
       : stairsCounted != null ? 'Counted as stair shafts on the floor plan (a switchback pair is one stairwell).'
+      : stairsTyped != null ? 'Entered on the questionnaire — not found on the drawings.'
       : 'Not stated on any sheet that was read.',
     stairsStated == null && stairsCounted != null
       ? 'Counted off the floor plan, not stated in writing — confirm the shaft count.' : null);
 
   if (stories != null && stairs != null && stories >= 1) {
     const landings = stairs * (2 * stories - 1);
-    const counted = storiesStated == null || stairsStated == null;
+    const typed = storiesTyped != null || stairsTyped != null;
+    const counted = !typed && (storiesStated == null || stairsStated == null);
     add('stairLandings', '# Stair Landings', 'count', landings, 'derived',
       `${fmt(stairs)} stair${stairs === 1 ? '' : 's'} × (2 × ${fmt(stories)} stories − 1) = ${fmt(landings)} — a switchback stair serving N levels has 2N−1 landings, every one of them lit.`,
-      counted
+      typed
+        ? 'Built on a figure the visitor typed (see the story / stair rows). Assumes switchback stairs in enclosed shafts.'
+        : counted
         ? 'Built on a COUNTED story or stair figure (see those rows) — confirm them before trusting this. Assumes switchback stairs in enclosed shafts.'
         : 'Assumes switchback stairs in enclosed shafts. Open or straight-run stairs land differently — confirm on the plans.');
   } else {
@@ -361,19 +418,26 @@ export function computeQuantities(drawings, answers) {
 
   const exitsStated = stated(site?.exitDoors);
   const exitsCounted = stated(site?.exitDoorsCounted);
-  const exits = exitsStated ?? exitsCounted;
-  add('exitDoors', '# Egress/Exit Doors', 'count', exits, 'drawing',
+  const exitsTyped = exitsStated == null && exitsCounted == null ? statedAnswer(ans.figureExitDoors) : null;
+  const exits = exitsStated ?? exitsCounted ?? exitsTyped;
+  add('exitDoors', '# Egress/Exit Doors', 'count', exits,
+    exitsTyped != null ? 'questionnaire' : 'drawing',
     exitsStated != null ? 'Stated on the drawings (exits-provided line in a code summary).'
       : exitsCounted != null ? 'Counted as marked exits on the ground-floor / life-safety plan.'
+      : exitsTyped != null ? 'Entered on the questionnaire — not found on the drawings.'
       : 'Not stated on any sheet that was read.',
     exitsStated == null && exitsCounted != null
       ? 'Counted off the plan, not stated in writing — confirm against the code summary.' : null);
 
   // ── PARKING ────────────────────────────────────────────────────────────────
-  const surface = stated(site?.surfaceParking);
+  const surfaceStated = stated(site?.surfaceParking);
   const provided = stated(site?.parkingProvided);
-  add('surfaceParking', '# Surface Parking Stalls', 'count', surface, 'drawing',
-    surface != null ? 'Stated on the site plan.'
+  const surfaceTyped = surfaceStated == null ? statedAnswer(ans.figureSurfaceParking) : null;
+  const surface = surfaceStated ?? surfaceTyped;
+  add('surfaceParking', '# Surface Parking Stalls', 'count', surface,
+    surfaceTyped != null ? 'questionnaire' : 'drawing',
+    surfaceStated != null ? 'Stated on the site plan.'
+      : surfaceTyped != null ? 'Entered on the questionnaire — not found on the site plan.'
       : provided != null ? `Only a total of ${fmt(provided)} provided stalls was stated, without a surface/structured split.`
       : 'Not stated on the site plan.',
     surface != null && provided != null && surface > provided
@@ -420,6 +484,31 @@ export function computeQuantities(drawings, answers) {
   } else {
     add('buildingFootprintSf', 'Building Footprint SF', 'sf', null, null,
       'Not stated — footprint is rarely printed; a stated lot-coverage % plus the lot size would let it be derived.');
+  }
+
+  // ── GROSS SF, DERIVED (last resorts) ───────────────────────────────────────
+  // Patched in at the end because the ingredients — footprint and stories —
+  // are computed after the SF section. Mike's validated backup ranks first:
+  // on the Trailhead reconciliation (2026-08-18), footprint × stories landed
+  // within 0.8% of the true gross. The unit-SF blow-up is a rougher estimate
+  // and its flag says so. Back of house stays uncomputed either way — a
+  // remainder off an estimated gross would be an estimate of an estimate.
+  const grossRow = out.find(r => r.key === 'grossSf');
+  if (grossRow && grossRow.value == null) {
+    const fp = out.find(r => r.key === 'buildingFootprintSf');
+    if (fp?.value != null && stories != null && stories >= 1) {
+      const est = Math.round(fp.value * stories);
+      grossRow.value = est;
+      grossRow.source = 'derived';
+      grossRow.how = `Footprint ${fmt(fp.value)} SF × ${fmt(stories)} stories = ${fmt(est)} SF — no stated total was found, so this is estimated.`;
+      grossRow.flag = 'ESTIMATED from footprint × stories, not read off the drawings. Upper floors that step back, or a footprint that includes garages, will move this — enter the real gross SF if you have it.';
+    } else if (unitSf && !unitSf.partial && unitSf.sum > 0) {
+      const est = Math.round(unitSf.sum * unitsToGross);
+      grossRow.value = est;
+      grossRow.source = 'derived';
+      grossRow.how = `Residential unit SF ${fmt(unitSf.sum)} × ${unitsToGross} = ${fmt(est)} SF — no stated total and no footprint, so the unit areas are scaled up to cover corridors, walls, and back of house.`;
+      grossRow.flag = `ROUGH ESTIMATE from unit areas alone (×${unitsToGross}, the master pricing sheet's units→gross factor). Enter the real gross SF if you have it.`;
+    }
   }
 
   return out;

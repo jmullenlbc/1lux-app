@@ -91,6 +91,23 @@ test('scanSheetRoles returns every role even when it finds nothing', () => {
   assert.doesNotThrow(() => scanSheetRoles(null));
 });
 
+test('a combined project-information sheet (Skyline G101 shape) ranks as the area summary', () => {
+  // Skyline Ridge's ONLY square footage in 294 pages was on "G101 — PROJECT
+  // INFORMATION": a BUILDING DATA / PROPOSED TOTAL AREA block. Its title says
+  // neither "area" nor "code summary", so before these signals existed the
+  // sheet was never rendered and the whole set read as having no gross SF.
+  const set = [
+    ...SET,
+    { page: 4, text: 'G101  PROJECT INFORMATION   BUILDING DATA - RESIDENTIAL BUILDINGS   PROPOSED TOTAL AREA   BUILDING A: 87,781 SF' },
+  ];
+  const scan = scanSheetRoles(buildSheetIndex(set));
+  // Before the BUILDING DATA / PROPOSED TOTAL AREA / PROJECT INFORMATION
+  // signals existed this page scored ZERO for the role and vanished. It must
+  // now be a candidate — outranking a genuine code-summary sheet is not
+  // required, being in the running is.
+  assert.ok(scan.areaSummary.some(c => c.page === 4), 'the BUILDING DATA sheet must be an areaSummary candidate');
+});
+
 // ─── pickKeySheets — the part that must never fail ─────────────────────────
 
 test('with no model at all, the scan still produces an answer', async () => {

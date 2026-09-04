@@ -430,6 +430,7 @@ Return ONLY valid JSON matching this exact schema — no markdown, no explanatio
     "grossInteriorSf": number or null,
     "grossSfLabel": "string or null",
     "grossSfSheet": "string or null",
+    "perBuildingGross": [ { "name": "string", "grossSf": number } ] or null,
     "garageSf": number or null,
     "corridorSf": number or null,
     "statedTotalUnits": number or null,
@@ -450,6 +451,14 @@ Rules:
   (1) a program/area breakdown total ("BUILDING GROSS SF"), (2) a cover-sheet or code-summary grand
   total ("TOTAL BUILDING GSF", "GBA", "ACTUAL AREA"), (3) a room/unit schedule total. Do NOT add up
   per-floor areas yourself — report only what is printed.
+- perBuildingGross: many sets print NO whole-project total, only a TOTAL per building — a code-analysis
+  or building-data block reading "BUILDING A: 87,781 SF / BUILDING B: 87,781 SF / ...". Copy each stated
+  per-building TOTAL here verbatim: name as printed ("BUILDING A"), grossSf as printed. Only whole-building
+  totals belong here — never per-floor lines, never footprints or "max area per floor", and never a figure
+  you computed. Do NOT sum these into grossInteriorSf — leave grossInteriorSf null when no whole-project
+  total is printed; downstream code does the arithmetic and shows its work. When you fill this in, set
+  grossSfLabel to the heading of the block these came from (e.g. "PROPOSED TOTAL AREA") and grossSfSheet
+  to that sheet. null when the document states no per-building totals.
 - grossSfLabel: the LITERAL heading printed above or beside that number, copied exactly as it appears
   — "BUILDING GROSS SF", "TOTAL ACTUAL AREA", "NET RENTABLE", "AVG AREA". Copy it verbatim, including
   abbreviations and punctuation. Do not normalise, expand, or interpret it.
@@ -472,7 +481,7 @@ Rules:
  * to break that, which is why the constant lives here, next to the prompt,
  * rather than at the call sites.
  */
-export const EXTRACT_PROMPT_VERSION = 'unitMatrix-2026-08-18';
+export const EXTRACT_PROMPT_VERSION = 'unitMatrix-2026-09-04';
 
 /**
  * Which JOB this drawing is, in src/lib/aiModels.js terms.
@@ -569,9 +578,23 @@ export function attachAreaBasis(proposal, { pages, text } = {}) {
   const totals = proposal?.projectTotals;
   if (!totals) return proposal;
 
+  // Per-building stated totals, for sets that print NO whole-project number.
+  // Skyline Ridge is the motivating case: its code-analysis sheet prints four
+  // "BUILDING n: xx,xxx SF" totals and no grand total anywhere in 294 pages.
+  // The model reports each printed figure verbatim (the schema forbids it from
+  // summing); THIS code does the arithmetic, so the answer shows its work and
+  // a misread building is one visible wrong addend, not one wrong total.
+  const buildings = Array.isArray(totals.perBuildingGross)
+    ? totals.perBuildingGross.filter(b => b && Number.isFinite(Number(b.grossSf)) && Number(b.grossSf) > 0)
+    : [];
+  const summed = totals.grossInteriorSf == null && buildings.length > 0
+    ? buildings.reduce((s, b) => s + Number(b.grossSf), 0)
+    : null;
+  const effectiveSf = summed ?? totals.grossInteriorSf;
+
   const candidates = Array.isArray(pages) && pages.length ? findAreaSheets(pages, 3) : [];
   const byPage = new Map((pages ?? []).map(p => [p.page, p.text]));
-  const stated = Number(totals.grossInteriorSf);
+  const stated = Number(effectiveSf);
 
   // Which sheet do we judge? The one the number is actually printed on.
   //
@@ -579,12 +602,17 @@ export function attachAreaBasis(proposal, { pages, text } = {}) {
   // different bases into one string and the verdict becomes an average of pages
   // that have nothing to do with each other. Whichever candidate carries this
   // number is the one whose wording applies to it.
+  //
+  // A summed total is printed nowhere, so it can't be located — locate its
+  // first ADDEND instead: the per-building figures share one block, and the
+  // block's wording is what tells us the basis of all of them.
+  const locate = summed != null ? Number(buildings[0].grossSf) : stated;
   let sourcePage = null;
-  if (Number.isFinite(stated) && stated > 0) {
-    sourcePage = candidates.find(c => focusAroundNumber(byPage.get(c.page) ?? '', stated)) ?? null;
+  if (Number.isFinite(locate) && locate > 0) {
+    sourcePage = candidates.find(c => focusAroundNumber(byPage.get(c.page) ?? '', locate)) ?? null;
     if (!sourcePage) {
       // Not on any candidate sheet — check the rest of the set before giving up.
-      const anywhere = (pages ?? []).find(p => focusAroundNumber(p.text ?? '', stated));
+      const anywhere = (pages ?? []).find(p => focusAroundNumber(p.text ?? '', locate));
       if (anywhere) sourcePage = { page: anywhere.page, sheetNo: sheetNumberOf(anywhere.text), offSheet: true };
     }
   }
@@ -601,9 +629,18 @@ export function attachAreaBasis(proposal, { pages, text } = {}) {
     : (candidates.length ? byPage.get(candidates[0].page) ?? '' : (text ?? ''));
   const basisText = [totals.grossSfLabel ?? '', pageText].join('\n');
 
-  const resolved = resolveGrossSf(totals.grossInteriorSf, basisText, {
+  const resolved = resolveGrossSf(effectiveSf, basisText, {
     buildingType: totals.buildingType,
   });
+
+  // The reviewer must see that this total is OUR arithmetic, not a printed
+  // number — Mike's standing rule prefers what the architect states, so a
+  // computed total always says exactly what was added up.
+  const sumNote = summed != null
+    ? 'No whole-project total is printed — this is the sum of the stated per-building totals: ' +
+      buildings.map(b => `${String(b.name || 'building').trim()} ${Number(b.grossSf).toLocaleString('en-US')}`).join(' + ') +
+      ` = ${summed.toLocaleString('en-US')} SF. `
+    : '';
 
   // Found the sheet but could not read the table. BECK's A-811 program breakdown
   // scores 90 and yields nothing: the table is vector art, so only the Revit
@@ -624,10 +661,11 @@ export function attachAreaBasis(proposal, { pages, text } = {}) {
       grossSfNote:       resolved.note,
       // Both screens append "Read from sheet X." after this, so it is left out here.
       grossSfSummary:    unreadable
-        ? 'The area sheet is a picture, not text — its table could not be read. ' +
+        ? sumNote + 'The area sheet is a picture, not text — its table could not be read. ' +
           'Please check the square footage against that sheet.'
-        : resolved.summary,
+        : sumNote + resolved.summary,
       grossSfUnreadable: unreadable,
+      grossSfSummed:     summed != null,
       grossSfSheet:      totals.grossSfSheet ?? sourcePage?.sheetNo ?? candidates[0]?.sheetNo ?? null,
     },
     areaSheets: candidates,

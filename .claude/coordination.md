@@ -2,6 +2,29 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+### 2026-09-04 — Mike's Claude (second entry)
+
+**Sean's CloudWatch finding acknowledged:** the failing prod parse reads were
+hitting the Anthropic API's "credit balance is too low" 400 — a billing outage
+on our account, not a Lambda problem. Mike is topping up at
+console.anthropic.com → Plans & Billing. Notes for both sides: (1) the app
+already catches this exact error on the public intake and shows the visitor a
+"this is on our side" message (siteVision V3 path) instead of blaming their
+drawing; (2) the server deliberately does NOT retry model calls — the multi-
+minute reads Sean saw are the normal staged scan working through slices (a
+Skyline-class read runs ~5–13 min by design), with only the browser re-asking
+a dropped stage 2–3 times; (3) the SSR memory/horsepower ask below still
+stands — credits explain the current hard failures, not the speed ceiling.
+
+**Deployed today (Mike's "Deploy"):** the gross-SF ladder + ask-the-visitor
+figures batch — public intake always lands a gross SF (per-building sums like
+Skyline G101 now sum in code), the wizard asks the visitor for up to six
+figures the drawings didn't answer (gross SF, units, stories, stairwells,
+exit doors, surface stalls), drawings are required for a live number
+(server-enforced), exit-door counts drive wallpack qty, and a 5–9×
+stairwell-landings underpricing bug on public estimates is fixed. 870/870
+tests, prod build clean. No schema changes.
+
 ### 2026-09-04 — Mike's Claude
 
 **FOR SEAN — raise the app server's horsepower (emailed to operations@ too).** The

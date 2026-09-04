@@ -55,6 +55,22 @@ const STEPS = [
   { id: 'review',    short: 'Review & Send', label: 'Review & Send' },
 ];
 
+/**
+ * The figures the wizard asks the visitor to TYPE when the drawings didn't
+ * answer them (Mike, 2026-09-04: "answer as many of these questions as
+ * possible and then ask them for what we can't find"). `key` matches
+ * FIGURE_KEYS in questionnaire.js — the server-side whitelist that lets these
+ * ride inside `answers`; `qKey` is the computeQuantities row each one settles.
+ */
+const FIGURE_FIELDS = [
+  { key: 'figureGrossSf',        qKey: 'grossSf',          label: 'Total building gross SF',  placeholder: 'e.g. 364,000' },
+  { key: 'figureTotalUnits',     qKey: 'totalUnits',       label: 'Total units',              placeholder: 'e.g. 234' },
+  { key: 'figureStories',        qKey: 'stories',          label: '# Stories',                placeholder: 'e.g. 4' },
+  { key: 'figureStairwells',     qKey: 'egressStairwells', label: '# Egress stairwells',      placeholder: 'e.g. 3' },
+  { key: 'figureExitDoors',      qKey: 'exitDoors',        label: '# Exit doors',             placeholder: 'e.g. 8' },
+  { key: 'figureSurfaceParking', qKey: 'surfaceParking',   label: '# Surface parking stalls', placeholder: 'e.g. 120' },
+];
+
 function Field({ label, labelRight, hint, error, children }) {
   return (
     <label className="block">
@@ -182,6 +198,14 @@ export default function IntakeClient() {
   const [project,   setProject]   = useState('');
   const [touchedEmail, setTouchedEmail] = useState(false);
   const [drawings, setDrawings] = useState(null);
+  // Figures the visitor types when the drawings couldn't answer them (or to
+  // override a derived estimate). Kept apart from `answers` so the radio-group
+  // state stays purely INTAKE_QUESTIONS; merged in at the payload boundary.
+  const [figures, setFigures] = useState(() => {
+    const init = {};
+    for (const f of FIGURE_FIELDS) init[f.key] = '';
+    return init;
+  });
   const [answers, setAnswers] = useState(() => {
     const init = {};
     for (const q of INTAKE_QUESTIONS) init[q.key] = q.default ?? '';
@@ -208,8 +232,23 @@ export default function IntakeClient() {
     }
   }, [guessedType]);
 
+  // The typed figures merged into the answers payload. The server's
+  // validateAnswers keeps them (FIGURE_KEYS whitelist) and computeQuantities
+  // treats them as the 'questionnaire' rung of the gross-SF/units ladder —
+  // below anything the drawings state, above anything derived.
+  const mergedAnswers = useMemo(() => {
+    const out = { ...answers };
+    for (const [k, v] of Object.entries(figures)) {
+      const s = String(v ?? '').trim();
+      if (s) out[k] = s;
+    }
+    return out;
+  }, [answers, figures]);
+
   // ── Live server-side estimate ──────────────────────────────────────────────
   // Debounced: every answer flip re-prices, but a burst of changes is one call.
+  // Drawings are the ticket in (Mike, 2026-09-04): no live number without
+  // them. Typed figures only REFINE an estimate the drawings started.
   const estimateSeq = useRef(0);
   useEffect(() => {
     if (!drawings) { setEstimate(null); return; }
@@ -219,7 +258,7 @@ export default function IntakeClient() {
         const res = await fetch('/api/intake/estimate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ answers, drawings }),
+          body: JSON.stringify({ answers: mergedAnswers, drawings }),
         });
         if (!res.ok) return; // keep the last good estimate
         const data = await res.json();
@@ -227,7 +266,22 @@ export default function IntakeClient() {
       } catch { /* transient network failure — keep the last good estimate */ }
     }, 500);
     return () => clearTimeout(t);
-  }, [answers, drawings]);
+  }, [mergedAnswers, figures, drawings]);
+
+  // ── "We couldn't find these" — the figures asked for on the Units page ────
+  // Driven by the estimate's provenance rows: a figure whose source is
+  // 'drawing' is settled and never asked. source null → plain ask; 'derived'
+  // → show our estimate with its arithmetic and offer the override. Only
+  // shown once drawings have been read — no drawings, no card, no number.
+  const figureAsks = useMemo(() => {
+    if (!estimate) return [];
+    const rows = new Map((estimate?.quantities || []).map(r => [r.key, r]));
+    return FIGURE_FIELDS.map(f => {
+      const row = rows.get(f.qKey) || null;
+      if (row && row.source === 'drawing') return null;
+      return { ...f, row };
+    }).filter(Boolean);
+  }, [estimate]);
 
   const questionsBySection = useMemo(() => {
     const out = new Map();
@@ -282,7 +336,7 @@ export default function IntakeClient() {
           companyName:  company || null,
           projectName:  project,
           drawingsData: drawings || null,
-          answers,
+          answers: mergedAnswers,
         }),
       });
       if (!res.ok) {
@@ -469,7 +523,7 @@ export default function IntakeClient() {
                         <span className="text-xs text-slate-400">
                           {drawings
                             ? `${drawings.sources.length} drawing${drawings.sources.length !== 1 ? 's' : ''} read`
-                            : 'You can continue without drawings and we’ll take the details by hand'}
+                            : 'Upload drawings to see live pricing — you can still submit without them'}
                         </span>
                         <button onClick={goNext} className={navBtn(true)}>
                           {drawings ? 'Continue to units →' : 'Skip — continue to units →'}
@@ -482,6 +536,39 @@ export default function IntakeClient() {
                 {/* ── Building-area pages ── */}
                 {step.sections && (
                   <>
+                    {/* Figures the drawings couldn't answer — asked once, on the
+                        Units page, where the numbers they drive live. */}
+                    {stepId === 'units' && figureAsks.length > 0 && (
+                      <section className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-4">
+                        <h3 className="text-sm font-semibold text-amber-900">
+                          Figures we couldn’t read from your drawings
+                        </h3>
+                        <p className="text-xs text-amber-700 mt-1">
+                          Everything else came straight off the drawings — these we need from you.
+                        </p>
+                        <div className="grid sm:grid-cols-2 gap-4 mt-4">
+                          {figureAsks.map(f => (
+                            <div key={f.key}>
+                              <Field label={f.label}>
+                                <input
+                                  className={inputCls}
+                                  inputMode="numeric"
+                                  value={figures[f.key]}
+                                  onChange={e => setFigures(x => ({ ...x, [f.key]: e.target.value }))}
+                                  placeholder={f.placeholder}
+                                />
+                              </Field>
+                              {f.row?.source === 'derived' && !String(figures[f.key] ?? '').trim() && (
+                                <p className="text-xs text-amber-600 mt-1.5">
+                                  Our estimate: <strong>{Number(f.row.value).toLocaleString('en-US')}</strong>
+                                  {f.row.how ? ` — ${f.row.how}` : ''}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                    )}
                     <div className="space-y-4">
                       {step.sections.flatMap(name => questionsBySection.get(name) || []).map(q => (
                         <div key={q.key}>
@@ -544,6 +631,12 @@ export default function IntakeClient() {
                             <dd className="text-slate-700 font-medium text-right shrink-0">
                               {answers[q.key] ? optionLabel(q, answers[q.key]) : '—'}
                             </dd>
+                          </div>
+                        ))}
+                        {FIGURE_FIELDS.filter(f => String(figures[f.key] ?? '').trim()).map(f => (
+                          <div key={f.key} className="flex justify-between gap-3 py-1 border-b border-slate-50 min-w-0">
+                            <dt className="text-slate-400 truncate min-w-0">{f.label} (entered by you)</dt>
+                            <dd className="text-slate-700 font-medium text-right shrink-0">{figures[f.key]}</dd>
                           </div>
                         ))}
                       </dl>

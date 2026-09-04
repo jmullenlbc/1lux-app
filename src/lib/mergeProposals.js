@@ -53,6 +53,9 @@ const GROSS_SF_META = [
   'grossSfStated', 'grossSfBasis', 'grossSfConfidence', 'grossSfAdjusted',
   'grossSfNeedsReview', 'grossSfNote', 'grossSfSummary', 'grossSfLabel', 'grossSfSheet',
   'grossSfUnreadable',
+  // The per-building addends behind a summed total (attachAreaBasis) — they
+  // explain the number, so they travel with it, never mixed across files.
+  'perBuildingGross', 'grossSfSummed',
 ];
 
 export function mergeProposals(results) {

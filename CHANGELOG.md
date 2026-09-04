@@ -5,7 +5,113 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Monster-read speed levers 2+3: parallel scan shards + matrix/render overlap] - September 4, 2026 (built local-only, NOT deployed)
+## [Gross-SF ladder + ask-the-visitor figures: no more silent empty sidebar] - September 4, 2026 (DEPLOYED)
+
+Skyline Ridge read perfectly — 3 unit types, 234 units — and the Live
+Budget sidebar stayed dark, because sheet G101 prints four per-building
+totals and no grand total, and the engine only trusted a single stated
+number. Mike's order: always find gross SF (it's always printed
+somewhere, even in pieces), estimate it when it truly isn't, and ask the
+visitor for whatever the drawings couldn't answer.
+
+### The gross-SF ladder (engine)
+
+- src/lib/drawingExtract.js: the area-sheet read now also collects
+  per-building gross totals (perBuildingGross). attachAreaBasis() filters
+  them to real finite numbers, SUMS THEM IN CODE (the model only reports
+  the printed addends verbatim — no model arithmetic), locates the basis
+  text around the first addend, and stamps grossSfSummed + a
+  "Building A 87,781 + … = 364,029 SF" summary. A printed grand total
+  still beats the sum.
+- src/lib/mergeProposals.js: the per-building addends + summed flag
+  travel as one bundle with the winning gross-SF proposal (GROSS_SF_META).
+- src/lib/sheetIndex.js: "PROPOSED TOTAL AREA" / "BUILDING DATA" /
+  "PROJECT INFORMATION" now score as area-summary signals, so a
+  G101-style sheet is rendered at all (pre-fix it scored zero and the
+  totals were never seen).
+- src/lib/intake/quantities.js: the full fallback ladder — drawing-stated
+  → per-building sum → site read → VISITOR-TYPED figure → footprint ×
+  stories (flagged ESTIMATED) → unit-SF × 1.35 blow-up (flagged ROUGH
+  ESTIMATE). Typed beats derived; drawing beats typed. BOH stays null on
+  a derived gross (no estimates of estimates), and a partial unit-SF
+  column blocks the blow-up rung.
+- src/lib/intake/questionnaire.js: validateAnswers whitelists the two
+  visitor figure keys (digits only, up to 9) so they survive validation.
+
+### Ask the visitor (wizard UI)
+
+- src/app/conceptual_budget/IntakeClient.jsx: the Units step shows an
+  amber "figures we couldn't read" card for gross SF and total units —
+  but ONLY for figures the drawings didn't answer (source 'drawing'
+  hides the ask; a derived value shows our estimate + how it was made
+  and offers an override). Typed figures merge into the answers at
+  submit, feed the live estimate (which now runs with drawings OR any
+  typed figure — no drawings required), and appear on the review page
+  labeled "(entered by you)".
+
+### Mike's review corrections (same day)
+
+- The units→gross factor moved OUT of the code and INTO the master
+  pricing sheet: PRICING.estimation.unitsToGross = 1.25 (Mike's number,
+  down from the hardcoded 1.35), editable at /admin/pricing under
+  "Takeoff Estimation", DB-override honored — computeQuantities() now
+  takes the loaded pricing (estimate route + precon email pass it).
+- Drawings are the ticket in: no live budget without them. The wizard
+  only prices once drawings are read (typed figures REFINE that
+  estimate, they never start one), and the public estimate API enforces
+  the same rule server-side so the bare endpoint can't be used as a
+  free pricing calculator.
+- BUG FOUND AND FIXED while wiring: the estimate route fed the raw
+  stairwell SHAFT count into the engine field that holds (and prices)
+  stairwell LANDINGS at $175 each — underpricing stairwells 5–9× on the
+  public estimate. It now feeds the takeoff's landings row
+  (stairs × (2 × stories − 1)); verified live: 4 stairs / 5 stories →
+  36 landings → $6,300.
+
+### The amber card now covers the count-driven figures too (same day, Mike's "yes")
+
+- src/lib/intake/quantities.js: stories, egress stairwells, exit doors,
+  and surface parking each gained a visitor-typed rung
+  (figureStories / figureStairwells / figureExitDoors /
+  figureSurfaceParking) on the same ladder as gross SF: drawing-stated
+  → counted-off-a-view → typed. Anything the drawings answered still
+  wins; typed values arrive tagged 'questionnaire'. Stair landings
+  derive off whatever stories + stairs resolve to, and their flag now
+  says when they're built on a typed figure.
+- src/lib/intake/questionnaire.js: the four new keys joined the
+  FIGURE_KEYS whitelist (same digits-only clamp — public endpoint).
+- src/app/api/intake/estimate/route.js: a known exit-door count
+  (drawing-stated, counted, or typed) now becomes the wallpack quantity
+  via the engine's own override seam (sections.exterior.wallpacksQty) —
+  wallpacks are the one door fixture, one per egress door — replacing
+  the per-building fallback model whenever the real door count exists.
+- src/app/conceptual_budget/IntakeClient.jsx: the amber card asks for
+  all six figures (still only the ones the drawings didn't answer);
+  review page shows each typed one as "(entered by you)".
+- Verified live: typed 5 stories / 3 stairwells / 8 doors / 96 stalls →
+  27 landings priced $4,725, wallpacks 8 × $350 = $2,800 (auto model
+  said 15, correctly overridden), parking stalls in projectData; with
+  no typed figures the auto wallpack model still runs; the no-drawings
+  gate still returns a null budget.
+
+### Tests
+
+- 5 new tests pin the typed count rungs (typed drives landings with the
+  typed flag, drawing beats typed, COUNTED beats typed, exit doors +
+  stalls fill in, garbage rejected) — quantities suite 39/39, full
+  regression 870/870 with the dev server live, prod build clean.
+- 15 new tests across drawingExtract / quantities / sheetIndex suites
+  (Skyline G101 fixture: sum-in-code, printed-total-beats-sum, junk-row
+  filtering, merge carry-through, typed/derived/blocked ladder rungs,
+  garbage-input rejection, G101 sheet candidacy, pricing-sheet factor
+  override + junk-factor fallback). Full regression 865/865 with the
+  dev server live, prod build clean (37/37 runtime assets), live API
+  checks: no-drawings POST → budget null; drawings + typed unit count →
+  full budget with the figure tagged 'questionnaire'.
+
+---
+
+## [Monster-read speed levers 2+3: parallel scan shards + matrix/render overlap] - September 4, 2026 (DEPLOYED 8e7df3e — proven live on Skyline Ridge: full read 3 unit types / 234 units)
 
 Round 7 proved the Skyline-class read completes end to end — in 13.3
 minutes. Mike's target is 2–3. The two biggest levers that need no server

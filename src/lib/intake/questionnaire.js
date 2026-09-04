@@ -298,6 +298,23 @@ export const INTAKE_QUESTIONS = [
 const byKey = new Map(INTAKE_QUESTIONS.map(q => [q.key, q]));
 
 /**
+ * Free-number figures the wizard asks for ONLY when the drawings answered
+ * nothing ("answer what we can, ask for the rest"). Not INTAKE_QUESTIONS —
+ * those are fixed-option questions the wizard always renders; these are
+ * number inputs that appear when the takeoff left the quantity blank, and
+ * computeQuantities() reads them as the questionnaire-sourced fallback.
+ * Values are clamped to plain digits because this is a public endpoint.
+ */
+export const FIGURE_KEYS = [
+  { key: 'figureGrossSf',         section: 'Project figures', question: 'Total building gross SF (entered by the submitter — not found on the drawings)' },
+  { key: 'figureTotalUnits',      section: 'Project figures', question: 'Total units (entered by the submitter — not found on the drawings)' },
+  { key: 'figureStories',         section: 'Project figures', question: '# Stories (entered by the submitter — not found on the drawings)' },
+  { key: 'figureStairwells',      section: 'Project figures', question: '# Egress stairwells (entered by the submitter — not found on the drawings)' },
+  { key: 'figureExitDoors',       section: 'Project figures', question: '# Egress/exit doors (entered by the submitter — not found on the drawings)' },
+  { key: 'figureSurfaceParking',  section: 'Project figures', question: '# Surface parking stalls (entered by the submitter — not found on the drawings)' },
+];
+
+/**
  * Validate submitted answers against the questionnaire.
  * Returns rows ready for ConceptualSubmissionAnswer — unknown keys are
  * dropped, answers are clamped to the question's options (free text is not
@@ -316,6 +333,13 @@ export function validateAnswers(input) {
     const answer = known ? raw : (q.default ?? '');
     if (!answer) continue; // no answer and no default (e.g. projectType left blank)
     rows.push({ section: q.section, questionKey: q.key, question: q.question, answer });
+  }
+  // Visitor-typed figures ride along under their own whitelist — digits only,
+  // commas and spaces tolerated, anything else dropped (public endpoint).
+  for (const f of FIGURE_KEYS) {
+    const raw = typeof given[f.key] === 'string' ? given[f.key].replace(/[,\s]/g, '') : '';
+    if (!/^\d{1,9}$/.test(raw) || Number(raw) <= 0) continue;
+    rows.push({ section: f.section, questionKey: f.key, question: f.question, answer: raw });
   }
   return rows;
 }

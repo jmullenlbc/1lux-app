@@ -59,12 +59,32 @@ export async function POST(req) {
 
   const { answers, drawings } = body || {};
 
+  // Drawings are the ticket in (Mike, 2026-09-04): a visitor gets a live
+  // number only after uploading drawings. Typed figures refine that estimate;
+  // they never start one. Enforced here, not just in the wizard UI, so the
+  // bare endpoint can't be used as a free pricing calculator.
+  if (!drawings || typeof drawings !== 'object') {
+    return NextResponse.json({ budget: null, projectData: null, quantities: [] });
+  }
+
+  const pricing = await loadPricing();
+
   // Drawings → quantities (null stays null: "the drawing did not say").
-  const rows = computeQuantities(drawings || null, answers || null);
+  const rows = computeQuantities(drawings, answers || null, pricing);
   const q = {};
   for (const r of rows) if (r && r.key) q[r.key] = r.value;
 
+
   const { sections, buildingTypeKey } = answersToEngine(answers);
+
+  // A known exit-door count (drawing-stated, counted, or visitor-typed) is a
+  // better wallpack quantity than the engine's per-building fallback model —
+  // wallpacks are the one door fixture, one per egress door. Passed as the
+  // engine's own quantity-override seam, so the reviewed budget behaves the
+  // same way when it inherits these sections.
+  if (num(q.exitDoors) != null) {
+    sections.exterior = { ...(sections.exterior || {}), wallpacksQty: num(q.exitDoors) };
+  }
 
   const pd = {
     grossSf:             num(q.grossSf),
@@ -78,7 +98,11 @@ export async function POST(req) {
     exteriorAmenitySf:   num(q.exteriorAmenitySf),
     garageSf:            num(q.garageSf),
     bohSf:               num(q.bohSf),
-    numEgressStairwells: num(q.egressStairwells),
+    // The engine field is named numEgressStairwells but HOLDS LANDINGS — the
+    // internal wizard labels it "Stairwell Landings" and prices $175 per
+    // landing. The takeoff's stairLandings row (stairs × (2×stories−1)) is
+    // the matching figure; the raw shaft count would underprice 5-9×.
+    numEgressStairwells: num(q.stairLandings),
     numSurfaceParking:   num(q.surfaceParking),
     numCarports:         num(q.carports),
     numGarages:          num(q.garages),
@@ -88,10 +112,17 @@ export async function POST(req) {
     // Sales tax is unknown at intake; the reviewed budget adds it later.
   };
 
-  const pricing = await loadPricing();
   const budget = calculateBudget(pd, sections, pricing);
+
+  // The wizard's "we couldn't find these" card keys off where each figure
+  // came from: null = ask for it, 'derived' = show our estimate and offer an
+  // override, 'drawing'/'questionnaire' = settled. Values + provenance only —
+  // no pricing.
+  const quantities = rows.map(r => ({
+    key: r.key, value: r.value, source: r.source, how: r.how, flag: r.flag,
+  }));
 
   // The budget object is derived output (the visitor's own numbers) — the
   // pricing model itself never leaves the server.
-  return NextResponse.json({ budget, projectData: pd });
+  return NextResponse.json({ budget, projectData: pd, quantities });
 }

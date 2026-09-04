@@ -174,6 +174,9 @@ const PRICING_FIELDS = [
   // ── FREIGHT / WAREHOUSING ─────────────────────────────────────────────
   { group: 'Freight & Warehousing', key: 'freight',     label: 'Freight Rate',     desc: '% of product subtotal (0.06 = 6%)', unit: 'decimal' },
   { group: 'Freight & Warehousing', key: 'warehousing', label: 'Warehousing Rate', desc: '% of product subtotal (0.03 = 3%)', unit: 'decimal' },
+
+  // ── TAKEOFF ESTIMATION FACTORS ────────────────────────────────────────
+  { group: 'Takeoff Estimation', key: 'estimation.unitsToGross', label: 'Units → Gross SF Factor', desc: 'Last-resort gross SF estimate: residential unit SF × this factor (covers corridors, walls, BOH). Used only when no total, no per-building totals, and no footprint are on the drawings.', unit: '×' },
 ];
 
 /** Read a nested value from an object using dot-notation key */

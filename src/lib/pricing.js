@@ -414,6 +414,11 @@ export const PRICING = {
   freight:     0.06, // 6% of product subtotal
   warehousing: 0.03, // 3% of product subtotal
 
+  // ─── TAKEOFF ESTIMATION FACTORS ──────────────────────────────────────────
+  estimation: {
+    unitsToGross: 1.25, // last-resort gross SF = residential unit SF × this (Mike, 2026-09-04)
+  },
+
   // ─── DESIGN BUDGET UNIT UPGRADES ─────────────────────────────────────────
   designUpgrades: {
     diskBacklitRoundedPerSf: -0.04, // rounded backlit disk vs flat edge-lit: -$0.04/SF of units

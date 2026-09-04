@@ -287,6 +287,165 @@ test('coverage without a lot size cannot derive a footprint', () => {
   assert.equal(q.buildingFootprintSf.value, null);
 });
 
+// ─── THE GROSS-SF LADDER (typed figures + derived last resorts) ─────────────
+// Drawing-stated wins, then the visitor's typed figure, then footprint ×
+// stories (Mike's validated backup — 0.8% on Trailhead), then unit SF × the
+// master pricing sheet's units→gross factor (Mike set 1.25, 2026-09-04).
+
+function noGross() {
+  const d = cleanDrawings();
+  d.projectTotals.grossInteriorSf = null;
+  d.siteData.grossSf = null;
+  return d;
+}
+
+test('a typed gross-SF figure fills in when the drawings state nothing', () => {
+  const q = byKey(computeQuantities(noGross(), { figureGrossSf: '364,029' }));
+  assert.equal(q.grossSf.value, 364029);
+  assert.equal(q.grossSf.source, 'questionnaire');
+  assert.match(q.grossSf.how, /Entered on the questionnaire/);
+  // A typed gross is a real figure — BOH computes off it like any other.
+  assert.equal(q.bohSf.value, 364029 - 174000 - 18000 - 5000);
+});
+
+test('a drawing-stated gross always beats the typed figure', () => {
+  const q = byKey(computeQuantities(cleanDrawings(), { figureGrossSf: '999999' }));
+  assert.equal(q.grossSf.value, 260000);
+  assert.equal(q.grossSf.source, 'drawing');
+});
+
+test('a typed unit count fills in when no matrix, stated total, or site count exists', () => {
+  const d = noGross();
+  d.unitTypes = [];
+  d.projectTotals.statedTotalUnits = null;
+  d.siteData.totalUnits = null;
+  d.siteData.bedMix = null;
+  const q = byKey(computeQuantities(d, { figureTotalUnits: '234' }));
+  assert.equal(q.totalUnits.value, 234);
+  assert.equal(q.totalUnits.source, 'questionnaire');
+});
+
+test('garbage typed figures are ignored, never parsed into a number', () => {
+  for (const bad of ['abc', '-500', '0', '12.5.7', '']) {
+    const q = byKey(computeQuantities(noGross(), { figureGrossSf: bad }));
+    assert.notEqual(q.grossSf.source, 'questionnaire', `"${bad}" must not answer the question`);
+  }
+});
+
+test('no stated gross and nothing typed → footprint × stories, labelled ESTIMATED', () => {
+  const q = byKey(computeQuantities(noGross(), {}));
+  assert.equal(q.grossSf.value, 60000 * 4);       // stated footprint × stated stories
+  assert.equal(q.grossSf.source, 'derived');
+  assert.match(q.grossSf.flag, /ESTIMATED from footprint × stories/);
+  // BOH stays uncomputed — a remainder off an estimated gross would be an
+  // estimate of an estimate.
+  assert.equal(q.bohSf.value, null);
+});
+
+test('no footprint either → unit SF × the pricing-sheet factor, labelled ROUGH ESTIMATE', () => {
+  const d = noGross();
+  d.siteData.buildingFootprintSf = null;
+  const q = byKey(computeQuantities(d, {}));
+  assert.equal(q.grossSf.value, Math.round(174000 * 1.25));   // 217,500 (factor from PRICING.estimation)
+  assert.equal(q.grossSf.source, 'derived');
+  assert.match(q.grossSf.flag, /ROUGH ESTIMATE/);
+  assert.equal(q.bohSf.value, null);
+});
+
+test('the units→gross factor comes from the pricing sheet passed in, not a hardcoded number', () => {
+  const d = noGross();
+  d.siteData.buildingFootprintSf = null;
+  const q = byKey(computeQuantities(d, {}, { estimation: { unitsToGross: 1.4 } }));
+  assert.equal(q.grossSf.value, Math.round(174000 * 1.4));
+  // A junk factor falls back to the static default rather than poisoning the math.
+  const q2 = byKey(computeQuantities(d, {}, { estimation: { unitsToGross: 0 } }));
+  assert.equal(q2.grossSf.value, Math.round(174000 * 1.25));
+});
+
+test('a typed figure beats both derived estimates', () => {
+  const q = byKey(computeQuantities(noGross(), { figureGrossSf: '300000' }));
+  assert.equal(q.grossSf.value, 300000);
+  assert.equal(q.grossSf.source, 'questionnaire');
+});
+
+// ─── TYPED COUNT FIGURES (stories, stairs, exit doors, parking) ─────────────
+// Same ladder as gross SF: drawing-stated → counted-off-a-view → typed by the
+// visitor. A typed count is a real figure — landings derive off it, exit doors
+// become the wallpack quantity — but anything the drawings answered wins.
+
+test('typed stories + stairwells fill in and drive the landings derivation', () => {
+  const d = cleanDrawings();
+  d.siteData.stories = null;
+  d.siteData.egressStairwells = null;
+  const q = byKey(computeQuantities(d, { figureStories: '5', figureStairwells: '3' }));
+  assert.equal(q.stories.value, 5);
+  assert.equal(q.stories.source, 'questionnaire');
+  assert.equal(q.egressStairwells.value, 3);
+  assert.equal(q.egressStairwells.source, 'questionnaire');
+  assert.equal(q.stairLandings.value, 3 * (2 * 5 - 1));      // 27
+  assert.equal(q.stairLandings.source, 'derived');
+  assert.match(q.stairLandings.flag, /figure the visitor typed/);
+});
+
+test('drawing-stated stories/stairs always beat typed figures', () => {
+  const q = byKey(computeQuantities(cleanDrawings(), { figureStories: '99', figureStairwells: '99' }));
+  assert.equal(q.stories.value, 4);
+  assert.equal(q.stories.source, 'drawing');
+  assert.equal(q.egressStairwells.value, 2);
+  assert.equal(q.stairLandings.value, 14);
+});
+
+test('a COUNTED figure beats a typed one — the drawings were at least looked at', () => {
+  const d = cleanDrawings();
+  d.siteData.stories = null;
+  d.siteData.storiesCounted = 3;
+  const q = byKey(computeQuantities(d, { figureStories: '9' }));
+  assert.equal(q.stories.value, 3);
+  assert.equal(q.stories.source, 'drawing');
+  assert.match(q.stories.flag, /Counted off the elevation/);
+});
+
+test('typed exit doors and surface stalls fill in when the drawings are silent', () => {
+  const d = cleanDrawings();
+  d.siteData.exitDoors = null;
+  d.siteData.surfaceParking = null;
+  const q = byKey(computeQuantities(d, { figureExitDoors: '8', figureSurfaceParking: '96' }));
+  assert.equal(q.exitDoors.value, 8);
+  assert.equal(q.exitDoors.source, 'questionnaire');
+  assert.match(q.exitDoors.how, /Entered on the questionnaire/);
+  assert.equal(q.surfaceParking.value, 96);
+  assert.equal(q.surfaceParking.source, 'questionnaire');
+});
+
+test('garbage typed count figures are ignored like garbage gross figures', () => {
+  const d = cleanDrawings();
+  d.siteData.stories = null;
+  d.siteData.exitDoors = null;
+  for (const bad of ['abc', '-3', '0', '']) {
+    const q = byKey(computeQuantities(d, { figureStories: bad, figureExitDoors: bad }));
+    assert.notEqual(q.stories.source, 'questionnaire', `"${bad}" must not answer stories`);
+    assert.notEqual(q.exitDoors.source, 'questionnaire', `"${bad}" must not answer exit doors`);
+  }
+});
+
+test('a partial unit-SF column blocks the units→gross blow-up (no estimate off an undercount)', () => {
+  const d = noGross();
+  d.siteData.buildingFootprintSf = null;
+  d.unitTypes[2].unitSf = null;                    // 80 of 200 units missing SF
+  const q = byKey(computeQuantities(d, {}));
+  assert.equal(q.grossSf.value, null);
+  assert.equal(q.grossSf.source, null);
+});
+
+test('a summed per-building total shows its addends as the how-sentence', () => {
+  const d = cleanDrawings();
+  d.projectTotals.grossSfSummed = true;
+  d.projectTotals.grossSfSummary =
+    'No whole-project total is printed — this is the sum of the stated per-building totals: Building A 87,781 + Building B 87,781 + Building C 96,746 + Building D 91,721 = 364,029 SF. Stated gross.';
+  const q = byKey(computeQuantities(d, {}));
+  assert.match(q.grossSf.how, /sum of the stated per-building totals/);
+});
+
 test('mergeProposals carries the counted fields and lot coverage through a merge', () => {
   const merged = mergeProposals([
     { fileName: 'elev.pdf', proposal: { unitTypes: [], siteData: { storiesCounted: 4, confidence: 0.85 } } },

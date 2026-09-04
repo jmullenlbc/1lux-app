@@ -5,7 +5,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fileExt, pickModel, mergeProposals, extractPdfPages, IMAGE_EXTS, ACCEPTED_EXTS } from '../../src/lib/drawingExtract.js';
+import { fileExt, pickModel, mergeProposals, extractPdfPages, attachAreaBasis, IMAGE_EXTS, ACCEPTED_EXTS } from '../../src/lib/drawingExtract.js';
 import { modelFor } from '../../src/lib/aiModels.js';
 
 test('fileExt is case-insensitive and handles dotted names', () => {
@@ -264,6 +264,85 @@ test('gross SF: files without it do not clobber the file that has it', () => {
   ]);
   assert.equal(m.projectTotals.grossInteriorSf, 233050);
   assert.equal(m.projectTotals.grossSfBasis, 'gross');
+});
+
+// ─── PER-BUILDING TOTALS (the Skyline Ridge shape) ──────────────────────────
+// Some sets print four "BUILDING n: xx,xxx SF" totals and no grand total in
+// 294 pages. The model reports each printed figure verbatim; attachAreaBasis
+// does the arithmetic and says so, and the basis is judged off the page the
+// first ADDEND is printed on (a summed total is printed nowhere).
+
+const SKYLINE_PAGE_4 =
+  'PROJECT INFORMATION  CODE ANALYSIS  SHEET NO. G101\n' +
+  'BUILDING DATA - RESIDENTIAL BUILDINGS  PROPOSED TOTAL AREA  GROSS BUILDING AREA\n' +
+  'BUILDING A: 87,781 SF  BUILDING B: 87,781 SF  BUILDING C: 96,746 SF  BUILDING D: 91,721 SF\n' +
+  '5 STORIES PROPOSED  TYPE IIIA CONSTRUCTION  NFPA 13 SPRINKLERED THROUGHOUT';
+
+function skylineProposal(overrides = {}) {
+  return {
+    unitTypes: [],
+    projectTotals: {
+      grossInteriorSf: null,
+      perBuildingGross: [
+        { name: 'Building A', grossSf: 87781 },
+        { name: 'Building B', grossSf: 87781 },
+        { name: 'Building C', grossSf: 96746 },
+        { name: 'Building D', grossSf: 91721 },
+      ],
+      grossSfLabel: 'PROPOSED TOTAL AREA',
+      grossSfSheet: 'G101',
+      ...overrides,
+    },
+  };
+}
+
+test('per-building totals sum in code when no whole-project total is printed', () => {
+  const out = attachAreaBasis(skylineProposal(), { pages: [{ page: 4, text: SKYLINE_PAGE_4 }] });
+  const t = out.projectTotals;
+  assert.equal(t.grossSfSummed, true);
+  assert.equal(t.grossSfStated, 87781 + 87781 + 96746 + 91721);   // 364,029
+  // The page says GROSS BUILDING AREA right by the addends — no adjustment.
+  assert.equal(t.grossInteriorSf, 364029);
+  assert.match(t.grossSfSummary, /sum of the stated per-building totals/);
+  assert.match(t.grossSfSummary, /Building A 87,781 \+ Building B 87,781 \+ Building C 96,746 \+ Building D 91,721 = 364,029 SF/);
+});
+
+test('a printed whole-project total always beats the per-building sum', () => {
+  const out = attachAreaBasis(
+    skylineProposal({ grossInteriorSf: 233050, grossSfLabel: 'BUILDING GROSS SF' }),
+    { pages: [{ page: 2, text: 'AREA SUMMARY  BUILDING GROSS SF 233,050 SF  SHEET NO. A-101' }] },
+  );
+  const t = out.projectTotals;
+  assert.equal(t.grossSfSummed, false);
+  assert.equal(t.grossInteriorSf, 233050);
+  assert.ok(!/per-building/.test(t.grossSfSummary));
+});
+
+test('junk per-building rows (null, zero, non-numeric) are filtered before summing', () => {
+  const out = attachAreaBasis(
+    skylineProposal({
+      perBuildingGross: [
+        { name: 'Building A', grossSf: 87781 },
+        null,
+        { name: 'Building B', grossSf: 0 },
+        { name: 'Building C', grossSf: 'vector art' },
+      ],
+    }),
+    { pages: [{ page: 4, text: SKYLINE_PAGE_4 }] },
+  );
+  assert.equal(out.projectTotals.grossSfStated, 87781, 'only the real addend counts');
+});
+
+test('per-building addends travel with the winning gross bundle through a merge', () => {
+  const summed = attachAreaBasis(skylineProposal(), { pages: [{ page: 4, text: SKYLINE_PAGE_4 }] });
+  const m = mergeProposals([
+    { fileName: 'skyline.pdf', proposal: summed },
+    { fileName: 'nogross.pdf', proposal: p([{ code: 'A1', qty: 10, confidence: 0.9 }]) },
+  ]);
+  assert.equal(m.projectTotals.grossInteriorSf, 364029);
+  assert.equal(m.projectTotals.grossSfSummed, true);
+  assert.equal(m.projectTotals.perBuildingGross.length, 4);
+  assert.match(m.projectTotals.grossSfSummary, /364,029/);
 });
 
 // ─── KEPT SHEETS ────────────────────────────────────────────────────────────
