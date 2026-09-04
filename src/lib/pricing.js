@@ -114,16 +114,18 @@ export const PRICING = {
     // `surfaceParking.solarUpgrade = 3000`, which was a flat $3,000 that was
     // never wired to anything and did not scale with fixture type.
     //
-    // Set to 2.3 by Mike, 2026-08-09, as a single blended figure. The Avilla
-    // actuals it is blended from:
+    // The Avilla actuals it is blended from:
     //   solar area light $2,169.86–$2,297.57 + $1,030.52 pole  vs  $1,325
     //     conventional  →  2.4–2.5x
     //   solar bollard   $1,224.78                              vs  $800
     //     conventional  →  1.53x
-    // Poles run higher than bollards; 2.3 sits between them and leans toward
-    // area lights, which carry most of the dollars on a typical site.
+    // Mike set 2.3 (2026-08-09) as a blend leaning toward area lights, and
+    // confirmed 2.3 stays (2026-09-04, after the Fulshear review).
     //
-    // NOT YET WIRED into calculations.js — nothing multiplies by this today.
+    // WIRED 2026-09-04: calculations.js multiplies the surface-parking (area
+    // lighting) line by this when siteDesignLevel === 'solar'. The budget also
+    // carries a note that install labor drops dramatically — no trenching,
+    // conduit, or wire runs to the poles.
     solarMultiplier: 2.3,
 
     bollard: {
@@ -387,6 +389,11 @@ export const PRICING = {
   // ─── BOH / GARAGE ─────────────────────────────────────────────────────────
   boh: {
     perSf: 1.85,
+    // Mike, 2026-09-04 (Fulshear review): "BOH should never be more than 5%
+    // of the Gross SF. That is the cap." Guards against BOH-as-remainder
+    // swallowing corridors/walls when corridor SF is unknown (Fulshear's
+    // remainder hit 63,953 SF ≈ 15.6% of gross and overpriced BOH by ~$97K).
+    maxPctOfGross: 0.05,
   },
   garage: {
     perSf: 0.27,

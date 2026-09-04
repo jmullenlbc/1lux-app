@@ -80,7 +80,12 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const intAmenitySf   = n(pd.interiorAmenitySf);
   const extAmenitySf   = n(pd.exteriorAmenitySf);
   const garageSf       = n(pd.garageSf);
-  const bohSf          = n(pd.bohSf);
+  // BOH is hard-capped at a % of gross SF (Mike: "BOH should never be more
+  // than 5% of the Gross SF") — protects against the remainder-derived BOH
+  // swallowing corridors/walls when corridor SF is unknown.
+  const bohSfEntered   = n(pd.bohSf);
+  const bohCapSf       = grossSf > 0 ? Math.round(grossSf * n(PRICING.boh.maxPctOfGross, 0.05)) : null;
+  const bohSf          = bohCapSf != null ? Math.min(bohSfEntered, bohCapSf) : bohSfEntered;
   const stairwells     = n(pd.numEgressStairwells);
   const surfaceParking = n(pd.numSurfaceParking);
   const numCarports    = n(pd.numCarports);
@@ -238,7 +243,15 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
 
   const stallsPerFixture = PRICING.exterior.surfaceParking.stallsPerFixture ?? 9;
   const parkingFixtures  = Math.ceil(surfaceParking / stallsPerFixture);
-  const parkingProduct   = parkingFixtures * (PRICING.exterior.surfaceParking.perFixture ?? PRICING.exterior.surfaceParking.perStall ?? 1325);
+  // Solar site design multiplies the area-lighting (surface parking) line —
+  // each fixture carries its own panel, battery and controller. Mike 2026-09-04
+  // (Fulshear review): "Solar lighting should add 2.5x to the area lighting.
+  // Should have a note that labor should be reduced dramatically because of no
+  // need for trenching and running conduit and wire." The multiplier lives in
+  // master pricing (exterior.solarMultiplier); the note ships in sections.exterior.solar.
+  const solarSite       = exterior.siteDesignLevel === 'solar';
+  const solarMultiplier = solarSite ? n(PRICING.exterior.solarMultiplier, 2.3) : 1;
+  const parkingProduct   = parkingFixtures * (PRICING.exterior.surfaceParking.perFixture ?? PRICING.exterior.surfaceParking.perStall ?? 1325) * solarMultiplier;
   const carportProduct   = Math.floor(numCarports / 2) * PRICING.exterior.carport.diskEveryOther;
   const garageExtProduct = numGarages * PRICING.exterior.detachedGarage.sconcePerDoor;
 
@@ -530,7 +543,14 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
         accents:    { product: accentProduct         },
         total:      { product: corridorProductTotal  },
       },
-      boh:      { product: bohProduct        },
+      boh:      {
+        product: bohProduct,
+        // Surfaces the 5%-of-gross cap when it kicked in, so any view can say
+        // "BOH capped at X SF (entered Y)".
+        capped: bohCapSf != null && bohSfEntered > bohCapSf
+          ? { enteredSf: bohSfEntered, capSf: bohCapSf }
+          : null,
+      },
       interior: { product: intAmenityProduct },
       garage:   { product: garageProduct     },
       exterior: {
@@ -549,6 +569,13 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
           priceOverridden: priceOverride(exterior.wallpacksPrice) != null,
         },
         landscape: { product: landscapeFlat        },
+        // Solar site design (Fulshear review, 2026-09-04): the parking product
+        // above already includes the multiplier; the note rides along for every
+        // summary/sidebar to display.
+        solar: solarSite ? {
+          multiplier: solarMultiplier,
+          note: 'Solar site lighting: install labor should be reduced dramatically — no trenching, conduit, or wire runs to the poles.',
+        } : null,
         misc:      { product: extMiscBuffer        },
         formulaTotal:     exteriorFormulaTotal,
         overrideApplied:  exteriorOverrideUsed,

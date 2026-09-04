@@ -5,7 +5,91 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Gross-SF ladder + ask-the-visitor figures: no more silent empty sidebar] - September 4, 2026 (DEPLOYED)
+## [Fulshear review: solar wired at 2.3×, BOH capped at 5% of gross, public review page = internal summary] - September 4, 2026 (DEPLOYED)
+
+Mike reviewed the Fulshear Lakes conceptual budget against his internal
+Google Sheet and flagged four items. Three were code changes (all built
+here); the fourth was a pricing-model investigation (documented, no code
+change without his call).
+
+### Solar site lighting (finally a real engine input)
+
+Fulshear's questionnaire answer was literally "Solar lighting" and the
+engine ignored it. Now:
+
+- src/lib/pricing.js: solarMultiplier stays 2.3 (Mike confirmed after the
+  Fulshear review; it was briefly 2.5 mid-session). It now actually does
+  something — see next line.
+- src/lib/calculations.js: when sections.exterior.siteDesignLevel ===
+  'solar', the surface-parking (area lighting) line is multiplied by
+  PRICING.exterior.solarMultiplier, and sections.exterior.solar carries
+  the multiplier + Mike's labor note ("install labor should be reduced
+  dramatically — no trenching, conduit, or wire runs to the poles") so
+  every surface that renders the budget can show it.
+- src/lib/intake/questionnaire.js: the public site-design question now
+  maps "Solar lighting" → siteDesignLevel 'solar' into the engine.
+- src/components/sections/ExteriorSection.jsx: internal wizard gets the
+  same question ("What level of design would you like on the site?") with
+  the solar upcharge priced live, mirrored math, and the labor note.
+- SummaryBudgetBreakdown + BudgetSidebar: surface-parking line relabels
+  to "Surface parking (solar × 2.3)" and an amber labor-note card renders
+  under the breakdown when solar is on.
+
+### BOH capped at 5% of gross SF (Mike's rule, 2026-09-04)
+
+"BOH should never be more than 5% of the Gross SF. That is the cap."
+Born from the Fulshear gap: with corridors unknown, BOH-as-remainder hit
+63,953 SF (~15.6% of gross) and overpriced BOH by ~$97K.
+
+- src/lib/pricing.js: boh.maxPctOfGross = 0.05 — a real pricing knob,
+  editable at /admin/pricing ("BOH Cap (% of Gross)").
+- src/lib/calculations.js: BOH SF is clamped to the cap at pricing time
+  (covers typed AND derived values; no clamp when gross SF is unknown).
+  sections.boh.capped = { enteredSf, capSf } when the clamp fired, so any
+  view can say "BOH capped at X SF (entered Y)".
+- src/lib/intake/quantities.js: the remainder-derived BOH row caps too,
+  and its how/flag sentences show the raw remainder, the cap, and what
+  the remainder likely still contained (corridors etc.).
+- scripts/tests/quantities.test.mjs: the two remainder tests updated for
+  the cap + a new under-the-cap passthrough test (suite is now 871).
+
+### Public questionnaire fixes (Mike's items b + c)
+
+- src/app/conceptual_budget/IntakeClient.jsx: the drawings dropzone was
+  unmounted when you navigated away from the Drawings step, so clicking
+  back showed an empty box (the component-local file list died with it).
+  It now stays mounted and is CSS-hidden instead — files persist.
+- Same file: the Review & send step now renders the EXACT internal
+  summary page on top — the navy hero (total, Lighting Only, Controls
+  w/ F&W, $/SF, $/Unit, project name + date), the Project Data grid
+  (16 quantities), and the same SummaryBudgetBreakdown component the
+  internal /summary page uses — followed by the contact/design-choices
+  recap and submit button. The little "Estimated budget" bar it replaced
+  is gone.
+- SummaryBudgetBreakdown's formatCurrency import moved from
+  calculations.js to @/lib/format so reusing it publicly does NOT ship
+  the pricing model to visitors' browsers (verified: its whole import
+  chain is format + Tooltip only).
+
+### Fulshear $667,901.32 vs sheet $545,928.55 (investigated, no code change)
+
+Decomposed to −$50.17: ~$110K is input differences (dominant: BOH-as-
+remainder swallowed 63,953 SF at $1.85/SF vs Mike's 11,400 SF; plus
+exterior amenity 22,430 read from site plan vs his 9,000), ~$11.9K is
+model-vs-judgment defaults (controls 0.19 uncapped vs his 0.15, base
+0.38 vs 0.36, etc.). Details in the session write-up to Mike.
+
+### Verification
+
+- Regression suite: 871/871 green (with dev server up for the E2E tests).
+- Engine sanity checks: solar/base parking ratio exactly 2.300; BOH
+  15,000 SF on 100k gross prices as 5,000 × $1.85; under-cap and
+  no-gross cases untouched.
+- npm run build: clean; check-runtime-assets 37/37.
+
+---
+
+## [Gross-SF ladder + ask-the-visitor figures: no more silent empty sidebar] - September 4, 2026 (DEPLOYED 8af23bc)
 
 Skyline Ridge read perfectly — 3 unit types, 234 units — and the Live
 Budget sidebar stayed dark, because sheet G101 prints four per-building

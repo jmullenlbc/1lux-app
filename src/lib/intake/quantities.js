@@ -355,9 +355,19 @@ export function computeQuantities(drawings, answers, pricing = null) {
     const remainder = grossSf - itemized;
     const skipped = [corridorSf == null && 'corridors', interiorAmenitySf == null && 'interior amenity'].filter(Boolean);
     if (remainder >= 0) {
-      add('bohSf', 'Back of House SF (remainder)', 'sf', Math.round(remainder), 'derived',
-        `Gross ${fmt(grossSf)} minus units ${fmt(unitSf.sum)}${corridorSf != null ? `, corridors ${fmt(corridorSf)}` : ''}${interiorAmenitySf != null ? `, interior amenity ${fmt(interiorAmenitySf)}` : ''}.`,
-        skipped.length ? `No ${skipped.join(' or ')} SF was stated, so this remainder still contains ${skipped.join(' and ')}.` : null);
+      // Mike's cap (2026-09-04): BOH is never more than 5% of gross SF. The
+      // remainder also holds corridors/walls when those weren't stated, and
+      // uncapped it overprices BOH badly (Fulshear: 63,953 SF ≈ 15.6% of gross).
+      const bohMaxPct = Number(pricing?.boh?.maxPctOfGross) > 0
+        ? Number(pricing.boh.maxPctOfGross)
+        : (PRICING.boh.maxPctOfGross ?? 0.05);
+      const bohCap = Math.round(grossSf * bohMaxPct);
+      const capped = remainder > bohCap;
+      add('bohSf', 'Back of House SF (remainder)', 'sf', capped ? bohCap : Math.round(remainder), 'derived',
+        `Gross ${fmt(grossSf)} minus units ${fmt(unitSf.sum)}${corridorSf != null ? `, corridors ${fmt(corridorSf)}` : ''}${interiorAmenitySf != null ? `, interior amenity ${fmt(interiorAmenitySf)}` : ''}${capped ? ` = ${fmt(Math.round(remainder))}, capped at ${Math.round(bohMaxPct * 100)}% of gross` : ''}.`,
+        capped
+          ? `The raw remainder (${fmt(Math.round(remainder))} SF) exceeded the ${Math.round(bohMaxPct * 100)}%-of-gross BOH cap${skipped.length ? ` — it likely still contains ${skipped.join(' and ')}` : ''}.`
+          : (skipped.length ? `No ${skipped.join(' or ')} SF was stated, so this remainder still contains ${skipped.join(' and ')}.` : null));
     } else {
       add('bohSf', 'Back of House SF (remainder)', 'sf', null, null,
         'Could not be computed.',

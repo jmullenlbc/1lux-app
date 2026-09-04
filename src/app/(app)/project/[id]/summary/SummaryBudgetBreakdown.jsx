@@ -1,5 +1,9 @@
 'use client';
-import { formatCurrency } from '@/lib/calculations';
+// formatCurrency must come from format.js (NOT calculations.js) — this
+// component is reused on the public /conceptual_budget review step, and
+// importing calculations.js would bundle the PRICING model into the
+// public visitor's browser.
+import { formatCurrency } from '@/lib/format';
 import { TooltipBudgetRow } from '@/components/ui/Tooltip';
 
 function Row({ label, value }) {
@@ -79,7 +83,10 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
       value: sections?.exterior?.total?.product || 0,
       details: [
         { label: 'Exterior amenities', value: sections?.exterior?.amenities?.product || 0 },
-        { label: 'Surface parking',    value: sections?.exterior?.parking?.product   || 0 },
+        { label: sections?.exterior?.solar
+            ? `Surface parking (solar × ${sections.exterior.solar.multiplier})`
+            : 'Surface parking',
+          value: sections?.exterior?.parking?.product || 0 },
         { label: 'Carports',           value: sections?.exterior?.carports?.product  || 0 },
         { label: 'Garages',            value: sections?.exterior?.garages?.product   || 0 },
         { label: 'Building wallpacks', value: sections?.exterior?.wallpacks?.product || 0 },
@@ -128,6 +135,13 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
           <Row key={item.label} label={item.label} value={item.value} />
         ))}
       </div>
+
+      {/* Solar site design — labor note rides with the budget wherever it's shown */}
+      {sections?.exterior?.solar && (
+        <div className="mt-2 mb-1 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800 print:bg-transparent print:border-amber-300">
+          <span className="font-semibold">Solar site lighting</span> — area lighting priced at {sections.exterior.solar.multiplier}× conventional. {sections.exterior.solar.note}
+        </div>
+      )}
 
       {/* Energy credit adder — inside the lighting subtotal, shown as its own line */}
       {energyCreditLighting > 0 && (

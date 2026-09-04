@@ -222,8 +222,15 @@ export const INTAKE_QUESTIONS = [
     hint: 'Base design covers code-required site and parking lighting; upgrades add landscape, path, or solar lighting.',
     options: ['Base design', 'Upgraded landscape and/or path lighting', 'Solar lighting'],
     default: 'Base design',
-    // Recorded for the reviewer; the conceptual engine has no site-design knob yet.
-    engine: null,
+    // Wired 2026-09-04 (Fulshear review): 'solar' multiplies the area-lighting
+    // (surface parking) line by exterior.solarMultiplier in calculations.js.
+    // 'upgraded' is still recorded for the reviewer only — pathway lighting has
+    // no formula yet.
+    engine: { section: 'exterior', field: 'siteDesignLevel', map: {
+        'Base design': 'base',
+        'Upgraded landscape and/or path lighting': 'upgraded',
+        'Solar lighting': 'solar',
+      } },
   },
   {
     key: 'exteriorAmenityFinish',

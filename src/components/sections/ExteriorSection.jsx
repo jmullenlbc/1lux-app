@@ -22,6 +22,7 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
   const [answers, setAnswers] = useState({
     amenityLevel:      responses.amenityLevel      || 'medium',
     amenityHours:      responses.amenityHours      || 'beforeDusk',
+    siteDesignLevel:   responses.siteDesignLevel   || 'base',
     exteriorOverride:  responses.exteriorOverride  ?? '',
     // Building wallpack overrides. 'auto' (not '') is the cleared state — see the
     // OverrideBox note in QuestionCard.jsx: the responses store refuses to overwrite
@@ -81,7 +82,12 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
   const sp = P.exterior?.surfaceParking || {};
   const amenityProduct  = extSf * baseRate * nightMult;
   const parkingFixtures = Math.ceil(parking / (sp.stallsPerFixture ?? 9));
-  const parkingProduct  = parkingFixtures * (sp.perFixture ?? 1325);
+  // Solar site design multiplies the area-lighting line (fixture carries its
+  // own panel/battery/controller) — mirrors calculations.js. Mike 2026-09-04.
+  const solarSite       = answers.siteDesignLevel === 'solar';
+  const solarMult       = solarSite ? (P.exterior?.solarMultiplier ?? 2.3) : 1;
+  const parkingProduct  = parkingFixtures * (sp.perFixture ?? 1325) * solarMult;
+  const solarExtra      = parkingFixtures * (sp.perFixture ?? 1325) * ((P.exterior?.solarMultiplier ?? 2.3) - 1);
   const carportProduct  = Math.floor(carports / 2) * (P.exterior?.carport?.diskEveryOther ?? 30);
   const garageProduct   = numGarages * (P.exterior?.detachedGarage?.sconcePerDoor ?? 80);
   // The old "exterior door sconces" line (doors × $212.50 avg) was deleted
@@ -129,7 +135,8 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
   // Exterior amenities are NOT listed here — they're configured + shown by the
   // amenity question cards above. They stay in the exterior total via the engine.
   const frozenLines = [
-    { label: 'Surface parking',       math: `${parking} stalls ÷ ${sp.stallsPerFixture ?? 9} = ${parkingFixtures} fixture${parkingFixtures === 1 ? '' : 's'} × $${(sp.perFixture ?? 1325).toLocaleString()}`, value: parkingProduct },
+    { label: solarSite ? 'Surface parking (solar)' : 'Surface parking',
+      math: `${parking} stalls ÷ ${sp.stallsPerFixture ?? 9} = ${parkingFixtures} fixture${parkingFixtures === 1 ? '' : 's'} × $${(sp.perFixture ?? 1325).toLocaleString()}${solarSite ? ` × ${solarMult} solar` : ''}`, value: parkingProduct },
     { label: 'Carports',              math: `${carports} ÷ 2 = ${Math.floor(carports / 2)} disk${Math.floor(carports / 2) === 1 ? '' : 's'} × $${P.exterior?.carport?.diskEveryOther ?? 30}`, value: carportProduct },
     { label: 'Detached garages',      math: `${numGarages} × $${P.exterior?.detachedGarage?.sconcePerDoor ?? 80}/door`, value: garageProduct },
     { label: 'Building wallpacks',    math: wpMath, value: wallpackProduct },
@@ -215,6 +222,29 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
           <div>• Building wallpacks: per-building rate by building type × ${WPC.perFixture ?? 350} each — covers exterior doors too</div>
         </div>
       </div>
+
+      {/* Site design level — base / upgraded / solar (mirrors the public intake question) */}
+      <QuestionCard
+        question="What level of design would you like on the site?"
+        note="Base design covers code-required site and parking lighting. Solar fixtures carry their own panel, battery and controller, so the area lighting runs higher on product — but install labor should be reduced dramatically because there's no trenching or running conduit and wire to the poles."
+        costSuffix=" total"
+        options={[
+          { value: 'base',     label: 'Base design',                                sub: 'Code-required site and parking lighting', cost: 0 },
+          { value: 'upgraded', label: 'Upgraded landscape and/or path lighting',    sub: 'Recorded for the designer — add dollars via the manual adder below', cost: 0 },
+          { value: 'solar',    label: `Solar lighting — ${P.exterior?.solarMultiplier ?? 2.3}× area lighting`, sub: 'Self-contained solar fixtures; labor drops dramatically (no trenching, conduit, or wire runs)', cost: solarExtra },
+        ]}
+        value={answers.siteDesignLevel}
+        onChange={val => {
+          setAnswers(a => ({ ...a, siteDesignLevel: val }));
+          setDirtyAnswers(d => new Set(d).add('siteDesignLevel'));
+        }}
+      />
+      {solarSite && (
+        <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+          <span className="font-semibold">Solar site lighting</span> — area lighting priced at {solarMult}× conventional.
+          Install labor should be reduced dramatically — no trenching, conduit, or wire runs to the poles.
+        </div>
+      )}
 
       {/* Exterior amenity level */}
       <QuestionCard

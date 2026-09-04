@@ -111,7 +111,10 @@ export default function BudgetSidebar({ budget, projectData, currentStep }) {
               highlight={currentStep === 'exterior'}
               details={[
                 { label: 'Exterior amenities', value: sections.exterior?.amenities?.product || 0 },
-                { label: 'Surface parking',    value: sections.exterior?.parking?.product   || 0 },
+                { label: sections.exterior?.solar
+                    ? `Surface parking (solar × ${sections.exterior.solar.multiplier})`
+                    : 'Surface parking',
+                  value: sections.exterior?.parking?.product || 0 },
                 { label: 'Carports',           value: sections.exterior?.carports?.product  || 0 },
                 { label: 'Garages',            value: sections.exterior?.garages?.product   || 0 },
                 { label: 'Building wallpacks', value: sections.exterior?.wallpacks?.product || 0 },

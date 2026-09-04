@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import DrawingDropzone from '@/components/intake/DrawingDropzone';
 import BudgetSidebar from '@/components/wizard/BudgetSidebar';
+import SummaryBudgetBreakdown from '@/app/(app)/project/[id]/summary/SummaryBudgetBreakdown';
 import QuestionCard from '@/components/sections/QuestionCard';
 import { classifyIntakeEmail } from '@/lib/intake';
 import { INTAKE_QUESTIONS } from '@/lib/intake/questionnaire';
@@ -355,6 +356,36 @@ export default function IntakeClient() {
   const estimatePd = estimate?.projectData || null;
   const hasEstimate = (estimatePd?.grossSf || 0) > 0 && budget;
 
+  // ── Review page — the EXACT internal summary top (Mike, 2026-09-04: "The
+  // summary page should match the exact summary page we have internally. You
+  // cut the top of that summary page off."): navy hero, Project Data grid,
+  // full Budget Breakdown. Same rows and markup as
+  // src/app/(app)/project/[id]/summary/page.jsx.
+  const pdRows = useMemo(() => {
+    const pd = estimatePd || {};
+    return [
+      { label: 'Total Gross SF',         value: pd.grossSf             ? pd.grossSf.toLocaleString()           : null },
+      { label: 'Units Gross SF',         value: pd.unitsSf             ? pd.unitsSf.toLocaleString()           : null },
+      { label: '# of Units',             value: pd.numUnits            ? pd.numUnits.toLocaleString()          : null },
+      { label: '# of Bedrooms',          value: pd.numBedrooms         ? pd.numBedrooms.toLocaleString()       : null },
+      { label: '# of Bathrooms',         value: pd.numBathrooms        ? pd.numBathrooms.toLocaleString()      : null },
+      { label: '# of Vanities',          value: pd.numVanities         ? pd.numVanities.toLocaleString()       : null },
+      { label: '# of Balconies',         value: pd.numBalconies        ? pd.numBalconies.toLocaleString()      : null },
+      { label: 'Stairwell Landings',     value: pd.numEgressStairwells ? pd.numEgressStairwells.toString()     : null },
+      { label: 'Corridor SF',            value: pd.corridorSf          ? pd.corridorSf.toLocaleString()        : null },
+      { label: 'Interior Amenity SF',    value: pd.interiorAmenitySf   ? pd.interiorAmenitySf.toLocaleString() : null },
+      { label: 'Exterior Amenity SF',    value: pd.exteriorAmenitySf   ? pd.exteriorAmenitySf.toLocaleString() : null },
+      { label: 'Garage SF',              value: pd.garageSf            ? pd.garageSf.toLocaleString()          : null },
+      { label: 'BOH SF',                 value: pd.bohSf               ? pd.bohSf.toLocaleString()             : null },
+      { label: 'Surface Parking Stalls', value: pd.numSurfaceParking   ? pd.numSurfaceParking.toString()       : null },
+      { label: '# of Carports',          value: pd.numCarports         ? pd.numCarports.toString()             : null },
+      { label: '# of Exterior Doors',    value: pd.numExteriorDoors    ? pd.numExteriorDoors.toString()        : null },
+    ].filter(r => r.value);
+  }, [estimatePd]);
+  const freightPct     = Math.round((budget?.freightRate     ?? 0.06) * 100);
+  const warehousingPct = Math.round((budget?.warehousingRate ?? 0.03) * 100);
+  const todayLabel = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
   const navBtn = (enabled) =>
     `px-5 py-2.5 rounded-lg font-semibold text-sm transition-colors ${
       enabled ? 'bg-amber-500 hover:bg-amber-400 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'
@@ -507,9 +538,19 @@ export default function IntakeClient() {
                   </section>
                 )}
 
-                {/* ── Drawings ── */}
-                {stepId === 'drawings' && (
-                  <section className="bg-white rounded-2xl border border-slate-200 p-6">
+                {/* ── Drawings ──
+                    Always MOUNTED, hidden with CSS when another step is active.
+                    Unmounting DrawingDropzone loses its per-file UI state (the
+                    `items` list lives inside the component), so clicking back
+                    to this step showed an empty dropzone even though the parsed
+                    results survived in `drawings` (Mike, 2026-09-04: "When I
+                    clicked back to the budgeting tab, the drawings disappear
+                    from view. They should still be there."). Keeping it mounted
+                    also protects uploads still in flight on other steps. */}
+                <section className={cn(
+                  'bg-white rounded-2xl border border-slate-200 p-6',
+                  stepId !== 'drawings' && 'hidden'
+                )}>
                     <p className="text-sm text-slate-500 mb-5">
                       The most useful sheet is the one with the <strong>unit matrix</strong> — building square footage and
                       unit counts. We read it automatically so you don&apos;t have to type it in.
@@ -531,7 +572,6 @@ export default function IntakeClient() {
                       </div>
                     </div>
                   </section>
-                )}
 
                 {/* ── Building-area pages ── */}
                 {step.sections && (
@@ -594,9 +634,69 @@ export default function IntakeClient() {
                   </>
                 )}
 
-                {/* ── Review & send ── */}
+                {/* ── Review & send — the internal summary page, then the send form ── */}
                 {stepId === 'review' && (
+                  <div className="space-y-5">
+                    {/* Budget hero — dark navy, identical to the internal summary */}
+                    {hasEstimate && (
+                      <div
+                        className="rounded-2xl p-6 text-white"
+                        style={{ backgroundColor: '#0f172a' }}
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <div className="text-xs font-medium mb-1" style={{ color: '#94a3b8' }}>
+                              ILC Studios — Conceptual Lighting &amp; Controls Budget
+                            </div>
+                            <div className="text-3xl font-bold tabular-nums mb-2">
+                              {formatCurrency(budget.totalWithControls)}
+                            </div>
+                            <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+                              <div><span style={{ color: '#94a3b8' }}>Lighting Only: </span><span className="font-semibold">{formatCurrency(budget.subtotalLightingOnly)}</span></div>
+                              <div><span style={{ color: '#94a3b8' }}>Controls (w/ F&amp;W): </span><span className="font-semibold">{formatCurrency(budget.controlsTotal)}</span></div>
+                              {budget.perSf  > 0 && <div><span style={{ color: '#94a3b8' }}>$/SF: </span><span className="font-semibold">${budget.perSf.toFixed(2)}</span></div>}
+                              {budget.perUnit > 0 && <div><span style={{ color: '#94a3b8' }}>$/Unit: </span><span className="font-semibold">{formatCurrency(budget.perUnit)}</span></div>}
+                            </div>
+                          </div>
+                          <div className="text-right hidden sm:block shrink-0">
+                            <div className="text-sm font-semibold" style={{ color: '#e2e8f0' }}>{project}</div>
+                            <div className="text-xs mt-0.5" style={{ color: '#64748b' }}>{todayLabel}</div>
+                          </div>
+                        </div>
+                        <p className="text-xs mt-2" style={{ color: '#475569' }}>
+                          Conceptual estimate. Does not include sales tax. {CONFIRM_NOTE}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Project Data — horizontal grid, identical to the internal summary */}
+                    {hasEstimate && pdRows.length > 0 && (
+                      <div className="bg-white rounded-xl border border-slate-200 p-5">
+                        <h3 className="font-bold text-slate-900 mb-3">Project Data</h3>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-2">
+                          {pdRows.map(row => (
+                            <div key={row.label}>
+                              <div className="text-xs text-slate-400">{row.label}</div>
+                              <div className="text-sm font-semibold text-slate-900 tabular-nums">{row.value}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Budget Breakdown — the same component the internal summary renders */}
+                    {hasEstimate && (
+                      <div className="bg-white rounded-xl border border-slate-200 p-5">
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="font-bold text-slate-900">Budget Breakdown</h3>
+                          <span className="text-xs text-slate-400 italic">Hover a line for details</span>
+                        </div>
+                        <SummaryBudgetBreakdown budget={budget} freightPct={freightPct} warehousingPct={warehousingPct} />
+                      </div>
+                    )}
+
                   <section className="bg-white rounded-2xl border border-slate-200 p-6">
+                    <h3 className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Your details</h3>
                     <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
                       <div className="flex justify-between gap-3 border-b border-slate-100 py-1.5">
                         <dt className="text-slate-400">Name</dt>
@@ -642,16 +742,6 @@ export default function IntakeClient() {
                       </dl>
                     </div>
 
-                    {hasEstimate && (
-                      <div className="mt-5 rounded-xl bg-slate-900 px-5 py-4 flex items-center justify-between">
-                        <div>
-                          <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Estimated budget</div>
-                          <p className="text-xs text-slate-400 mt-1 max-w-xs">{CONFIRM_NOTE}</p>
-                        </div>
-                        <div className="text-2xl font-bold text-white tabular-nums">{formatCurrency(budget.totalWithControls)}</div>
-                      </div>
-                    )}
-
                     {submitError && (
                       <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 mt-4">
                         <p className="text-xs text-red-700">{submitError} — please try again or email us directly.</p>
@@ -665,6 +755,7 @@ export default function IntakeClient() {
                       </button>
                     </div>
                   </section>
+                  </div>
                 )}
               </>
             )}

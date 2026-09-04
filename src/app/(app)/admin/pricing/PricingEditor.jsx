@@ -48,6 +48,7 @@ const PRICING_FIELDS = [
 
   // ── BOH / GARAGE ──────────────────────────────────────────────────────
   { group: 'BOH & Garage', key: 'boh.perSf',    label: 'BOH / Core + Shell Rate', desc: '$/SF of BOH area', unit: '$/SF' },
+  { group: 'BOH & Garage', key: 'boh.maxPctOfGross', label: 'BOH Cap (% of Gross)', desc: 'BOH SF is never priced above this fraction of gross SF (0.05 = 5%). Mike 2026-09-04: guards against remainder-derived BOH swallowing corridors/walls.', unit: 'decimal' },
   { group: 'BOH & Garage', key: 'garage.perSf', label: 'Enclosed Garage Rate',    desc: '$/SF of garage area', unit: '$/SF' },
 
   // ── INTERIOR AMENITIES ────────────────────────────────────────────────
@@ -68,7 +69,7 @@ const PRICING_FIELDS = [
   // $1,325 buys one area light + pole covering ~9 stalls, not one stall.
   { group: 'Exterior Site', key: 'exterior.surfaceParking.perFixture',   label: 'Surface Parking — Per Fixture', desc: 'Area light + 30ft pole (covers ~9 stalls)', unit: '$/fixture' },
   { group: 'Exterior Site', key: 'exterior.surfaceParking.stallsPerFixture', label: 'Stalls Per Fixture',    desc: 'How many stalls one area light covers', unit: 'stalls' },
-  { group: 'Exterior Site', key: 'exterior.solarMultiplier',             label: 'Solar Multiplier',          desc: 'Multiply the conventional site rate by this when the site is solar. Blended from Avilla actuals — area lights run 2.4–2.5x, bollards 1.53x. Replaces the old flat $3,000 solar adder. Not yet wired to the formula', unit: '×' },
+  { group: 'Exterior Site', key: 'exterior.solarMultiplier',             label: 'Solar Multiplier',          desc: 'Multiplies the surface-parking (area lighting) line when the site design is Solar. From Avilla actuals — area lights run 2.4–2.5x, bollards 1.53x. Replaces the old flat $3,000 solar adder. Confirmed 2.3 by Mike 2026-09-04', unit: '×' },
   { group: 'Exterior Site', key: 'exterior.carport.diskEveryOther',      label: 'Carport Disk (every other)', desc: '7" disk per every other bay', unit: '$/disk' },
   { group: 'Exterior Site', key: 'exterior.detachedGarage.sconcePerDoor', label: 'Garage Sconce Per Door',   desc: 'Per detached garage door', unit: '$/door' },
   { group: 'Exterior Site', key: 'exterior.exteriorDoor.primarySconce',  label: 'Exterior Door — Primary (retired)',   desc: 'No longer drives any budget. The door-sconce line was deleted 2026-08-12 — same fixture as Building Wallpacks below, which is now the only exterior-door line', unit: '$/door' },

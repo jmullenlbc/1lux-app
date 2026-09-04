@@ -93,12 +93,24 @@ test('landings are null (never guessed) when stories or stairs are unstated', ()
   assert.match(q.stairLandings.how, /stairs × \(2 × stories − 1\)/);
 });
 
-test('BOH is the remainder of the stated gross, and shows its arithmetic', () => {
+test('BOH is the remainder of the stated gross, capped at 5% of gross (Mike 2026-09-04)', () => {
   const q = byKey(computeQuantities(cleanDrawings(), {}));
-  // 260,000 − 174,000 units − 18,000 corridors − 5,000 interior amenity
-  assert.equal(q.bohSf.value, 63000);
+  // Raw remainder: 260,000 − 174,000 units − 18,000 corridors − 5,000 interior
+  // amenity = 63,000 — but BOH is never more than 5% of gross: 13,000.
+  assert.equal(q.bohSf.value, 13000);
   assert.equal(q.bohSf.source, 'derived');
   assert.match(q.bohSf.how, /260,000/);
+  assert.match(q.bohSf.how, /capped at 5% of gross/);
+  assert.match(q.bohSf.flag, /exceeded the 5%-of-gross BOH cap/);
+});
+
+test('a BOH remainder under the 5% cap passes through untouched', () => {
+  const d = cleanDrawings();
+  d.projectTotals.grossInteriorSf = 205000; // remainder 205,000 − 197,000 = 8,000 < 10,250 cap
+  const q = byKey(computeQuantities(d, {}));
+  assert.equal(q.bohSf.value, 8000);
+  assert.equal(q.bohSf.source, 'derived');
+  assert.doesNotMatch(q.bohSf.how, /capped/);
 });
 
 test('a negative BOH remainder becomes an alert, not a negative number', () => {
@@ -304,8 +316,9 @@ test('a typed gross-SF figure fills in when the drawings state nothing', () => {
   assert.equal(q.grossSf.value, 364029);
   assert.equal(q.grossSf.source, 'questionnaire');
   assert.match(q.grossSf.how, /Entered on the questionnaire/);
-  // A typed gross is a real figure — BOH computes off it like any other.
-  assert.equal(q.bohSf.value, 364029 - 174000 - 18000 - 5000);
+  // A typed gross is a real figure — BOH computes off it like any other,
+  // subject to the 5%-of-gross cap (raw remainder 167,029 ≫ 18,201 cap).
+  assert.equal(q.bohSf.value, Math.round(364029 * 0.05));
 });
 
 test('a drawing-stated gross always beats the typed figure', () => {
