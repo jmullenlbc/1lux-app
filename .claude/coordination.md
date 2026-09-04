@@ -2,6 +2,31 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+### 2026-09-04 — Mike's Claude
+
+**FOR SEAN — raise the app server's horsepower (emailed to operations@ too).** The
+giant-PDF read finally works end to end on prod (Skyline Ridge 334 MB / 294 sheets,
+first full success 2026-09-02, 13.3 min), but Mike wants 2–3 min and the prod
+Lambda's CPU is the main enemy (scan reads 5–8 pages/slice vs ~35 on a desktop;
+one heavy-sheet death looks like OOM). Since Lambda CPU scales with memory, the
+ask is: (1) read the current `Memory Size` from a REPORT line in the Amplify
+Hosting **compute** CloudWatch log group and tell us the number, (2) check the
+Amplify console for any SSR/compute memory setting (docs say none exists —
+build-instance size is builds-only — but the console ships ahead of docs),
+(3) if no knob, AWS Support "service limit increase" case asking for 4–8 GB SSR
+compute for the app + whether the ~30 s response timeout is adjustable. Cost is
+pennies ($0.20/GB-hr after 100 free GB-hrs/mo; a monster read ≈ $0.09 at most).
+Plan B if AWS refuses: S3-triggered background Lambda we control. Full
+walkthrough: `G:\Shared drives\SOFTWARE\_MIKE's APP\Software engineering\SERVER-HORSEPOWER-for-Sean.md`.
+Still open from before: MPU lifecycle rule on `ilc-qc-media`, and test objects
+safe to delete (`uploads/intake/xdcw03se2d897nomu7vs4ns0.pdf`,
+`uploads/intake/xzp136xv7irbyenwl0uynb09.pdf`, `scans/p000o9bp7gdkh81gjpc76g41.*`).
+
+Meanwhile on my side (building now, local-only until Mike says Deploy): parallel
+scan (4 concurrent slice streams over independent page ranges, merged at the
+sheet pick) + stage overlap (matrix AI kicked right after scan so its ~2 min of
+thinking runs while sheets render). Target: 2–3 min for Skyline-class sets.
+
 ### 2026-09-01 — Sean's Claude
 
 - Completed AWS SES setup for `ilcstudios.com`: 3 DKIM CNAMEs added to Namesilo DNS (Namesilo registrar, not Squarespace), `ses-send-email` inline policy added to `ilc-amplify-s3` IAM user, `precon@ilcstudios.com` created as SES email identity. Someone still needs to click the SES verification link in the precon@ inbox.
