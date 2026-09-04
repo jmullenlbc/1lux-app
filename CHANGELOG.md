@@ -5,7 +5,73 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Skyline Ridge 504 fixes, Rounds 1–7: hang-up retry, deferred sheet pick, open-time budgeting, retry-without-reupload, poison list, 4 MB render chunks, matrix park-and-poll] - September 2, 2026 (Rounds 1–6 DEPLOYED: 93f1502, 93b233a, e2b3568, fa24ac4, 7945b48, 7a8bdd9; Round 7 built local-only)
+## [Monster-read speed levers 2+3: parallel scan shards + matrix/render overlap] - September 4, 2026 (built local-only, NOT deployed)
+
+Round 7 proved the Skyline-class read completes end to end — in 13.3
+minutes. Mike's target is 2–3. The two biggest levers that need no server
+change: the scan (~9 of those minutes) now reads four page ranges at once,
+and the unit-matrix model think (~2 minutes) now runs UNDER the sheet
+render instead of after it. Together they project Skyline to ~5 minutes;
+the rest rides on Sean's Lambda memory raise (delegated 2026-09-03).
+
+### Lever 2 — the scan fans out into four parallel streams
+
+- src/app/api/intake/parse/route.js: a big set's first scan slice now
+  offers the REST of the pages as four contiguous ranges (shardRanges,
+  computed once server-side so a zombie slice can never skew them; only
+  when ≥32 pages remain). Each range is read by its own request stream
+  (runScanShard), parking into its own derived object
+  scans/<id>shard<i>.json.gz — no two streams ever write the same thing.
+  A merge request (mergeShards) folds every banked page back into the
+  main scan, dedupes by page number, then falls through to the ORDINARY
+  finishing-slice judgement — zero duplicated logic. One dead stream is a
+  hole in the read (like a memory-braked scan), never the end of it; the
+  read only fails if all four died.
+- src/lib/drawingExtract.js: extractPdfPages takes toPage (inclusive
+  range end) so a shard stops at its fence; MAX_PDF_PAGES exported.
+- src/lib/intake/stagedParse.js: the client sees shardRanges on a scan
+  reply and runs the streams concurrently (runShardedScan,
+  MAX_SHARD_SLICES=40 per stream), reporting combined page progress.
+  Shard requests carry the scanKey, so only the loose per-IP request
+  limit applies — never the upload throttle.
+
+### Lever 3 — the unit-count think overlaps the render
+
+- src/lib/intake/stagedParse.js: on a set WITH a text layer, the matrix
+  stage is kicked right after the scan finishes and left thinking (the
+  existing park-and-poll) while the sheets render underneath it; it is
+  awaited at its old place in the step order, so the visitor's progress
+  list is unchanged and the await costs only what is LEFT of the think.
+  No-text sets stay serial (nothing parked to read yet).
+- src/app/api/intake/parse/route.js: stageMatrix now parks its answer and
+  its attempt marker at a DERIVED key (scans/<id>matrix.json.gz +
+  .attempt.json) instead of rewriting the main scan state — removing the
+  write race with the concurrently-running render. Marker freshness is
+  checked before the park is read, so polls during a think cost nothing.
+  A mid-flight read from the previous release (matrixParked in main
+  state) is still served. stageDone sweeps all derived objects.
+- src/lib/uploadStorage.js: getScanState takes { quiet } so legitimate
+  probes for not-yet-existing objects stop writing error noise.
+
+### Testing (full pass, no deploy — awaiting Mike's word)
+
+- scripts/tests/stagedParse.test.mjs: call-order assertions updated for
+  the overlap (matrix request now lands before render on text sets); new
+  coverage for the shard fan-out (every offered range read, one merge
+  after all streams, one dead stream survivable, all-dead fatal) and the
+  overlap (kick-before-render, final polled answer wins, no-text stays
+  serial). 99/99 unit tests pass across the three touched suites; all
+  other suites pass (the 64 "failures" in a no-server run are the
+  dev-server smoke/E2E suites by design).
+- Production build clean; all gates green (runtime-assets 37/37,
+  source-tracked, auth-imports, sensitivity, shared-metrics).
+- Local E2Es against the dev server: 18/18 checks on the lever-3 derived-
+  key matrix flow (fresh kick / parked / in-flight / kick-limit / re-kick
+  / legacy park); full staged read on Beckett Firestone (13 pg, no-text —
+  correctly serial, no shards, right site numbers) and on Center Street
+  (789 pg / 77 MB via dev store) exercising the real four-stream fan-out.
+
+ hang-up retry, deferred sheet pick, open-time budgeting, retry-without-reupload, poison list, 4 MB render chunks, matrix park-and-poll] - September 2, 2026 (Rounds 1–6 DEPLOYED: 93f1502, 93b233a, e2b3568, fa24ac4, 7945b48, 7a8bdd9; Round 7 built local-only)
 
 Mike's prod test of the public wizard on the Skyline Ridge 50% DD set
 (334.5 MB, 294 sheets) failed with "The read stopped while looking through

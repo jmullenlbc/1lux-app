@@ -116,6 +116,16 @@ export const STEP_WORDS = {
  */
 const MAX_SCAN_SLICES = 80;
 
+/**
+ * The runaway stop on ONE parallel scan stream.
+ *
+ * A stream owns about a quarter of the set (the worst real case is ~100 pages
+ * of a 400-page-cap monster), and production reads 5-8 pages a slice, so ~20
+ * slices is the honest worst case. Kept well above it; like every other stop
+ * this only exists so a server that keeps saying "one more" cannot spin.
+ */
+const MAX_SHARD_SLICES = 40;
+
 /** How long to wait before re-asking a stage whose request never came back. */
 export const STAGE_RETRY_WAITS_MS = [2000, 6000];
 
@@ -226,6 +236,53 @@ async function stageOnce(body, signal, file) {
 }
 
 /**
+ * Read the rest of a big set with several slice streams at once.
+ *
+ * The server measured 5-8 pages per 12-second slice on production — one polite
+ * stream needs nine minutes for a 294-page set. But each slice runs on its own
+ * Lambda, and Lambdas don't queue behind each other: the ranges the first
+ * slice's response offered are read here CONCURRENTLY, each stream parking
+ * into its own server-side object so no two ever write the same thing. When
+ * the streams are done, one merge request folds every banked page back into
+ * the main scan and answers exactly like a finishing slice — the caller's
+ * loop carries on without knowing the read was ever parallel.
+ *
+ * A stream that dies for good is a hole in the merge, not the end of the read
+ * (its stretch of the set goes unread, same as a memory-braked scan) — the
+ * whole thing only fails if EVERY stream failed.
+ */
+async function runShardedScan(scan, signal, onStep) {
+  const { scanKey, totalPages } = scan;
+  const base = scan.pagesRead ?? 0;
+  const counts = scan.shardRanges.map(() => 0);
+  const report = () => onStep('scan', 'active', {
+    totalPages, pagesRead: base + counts.reduce((a, b) => a + b, 0),
+  });
+
+  const runStream = async (range, i) => {
+    for (let s = 0; s < MAX_SHARD_SLICES; s++) {
+      const r = await stage(
+        { stage: 'scan', scanKey, shard: i, from: range.from, to: range.to }, signal,
+      );
+      counts[i] = r?.pagesRead ?? counts[i];
+      report();
+      if (!r?.more) return;
+    }
+    const err = new Error(
+      'This set is taking longer to read than we can hold a line open for. '
+      + "Send it to budgets@ilcstudios.com and we'll take it from there. (R4)");
+    err.shown = true;
+    throw err;
+  };
+
+  const settled = await Promise.allSettled(scan.shardRanges.map(runStream));
+  const failures = settled.filter((s) => s.status === 'rejected');
+  if (failures.length === settled.length) throw failures[0].reason;
+
+  return stage({ stage: 'scan', scanKey, mergeShards: true }, signal);
+}
+
+/**
  * Run the staged read.
  *
  * @param {object}   a
@@ -256,6 +313,14 @@ export async function runStagedParse({ s3Key, file, fileName, onStep = () => {},
       throw err;
     }
     onStep('scan', 'active', { totalPages: scan.totalPages, pagesRead: scan.pagesRead });
+    // A big set's first slice comes back with the rest of the pages offered as
+    // parallel ranges. Fan out — four streams reading at once instead of one
+    // stream reading politely — then merge, and carry on with the merged
+    // response exactly as if one very productive slice had just answered.
+    if (scan.shardRanges?.length > 1) {
+      scan = await runShardedScan(scan, signal, onStep);
+      continue;
+    }
     scan = await stage({ stage: 'scan', scanKey: scan.scanKey }, signal);
   }
 
@@ -269,6 +334,29 @@ export async function runStagedParse({ s3Key, file, fileName, onStep = () => {},
   try {
     let keptSheets = null;
     let sheetsRead = scan.sheetsRead;
+
+    // ── The overlap ──
+    // The unit-count read is ONE long model think (about two minutes on a
+    // dense set) that needs nothing but the text the scan already parked. So
+    // when there IS text, it is kicked off NOW and left thinking while the
+    // sheets are drawn underneath it — the server parks its answer in an
+    // object of its own, so the two stages never touch each other's state.
+    // The empty catch below only keeps an early rejection from being
+    // "unhandled" while the render runs; the real await at the matrix step
+    // still sees the original error. Without text there is no table to read
+    // and the matrix answers instantly — nothing worth overlapping.
+    const readMatrix = async () => {
+      let m = await stage({ stage: 'matrix', scanKey }, signal);
+      // "Still reading": the server kicked the model call off and is letting
+      // it finish behind the front door. Poll until the parked answer appears.
+      for (let i = 0; m?.more && i < MAX_MATRIX_POLLS; i++) {
+        await new Promise(res => setTimeout(res, MATRIX_POLL_WAIT_MS));
+        m = await stage({ stage: 'matrix', scanKey }, signal);
+      }
+      return m;
+    };
+    const matrixEarly = scan.hasText ? readMatrix() : null;
+    matrixEarly?.catch(() => {});
 
     // A scanned set -- paper that was photographed, or a plot with the text
     // stripped out -- has nothing to search, so the sheets to open have to be
@@ -326,13 +414,10 @@ export async function runStagedParse({ s3Key, file, fileName, onStep = () => {},
     }
 
     onStep('matrix', 'active');
-    let m = await stage({ stage: 'matrix', scanKey }, signal);
-    // "Still reading": the server kicked the model call off and is letting it
-    // finish behind the front door. Poll until the parked answer appears.
-    for (let i = 0; m?.more && i < MAX_MATRIX_POLLS; i++) {
-      await new Promise(res => setTimeout(res, MATRIX_POLL_WAIT_MS));
-      m = await stage({ stage: 'matrix', scanKey }, signal);
-    }
+    // Usually already finished: it was kicked before the sheets were drawn and
+    // has been thinking the whole time. The await costs whatever is LEFT of
+    // the think, not the whole thing.
+    const m = await (matrixEarly ?? readMatrix());
     if (m?.more) {
       const err = new Error('The read stopped while reading the unit counts. Please try again. (R6/matrix)');
       err.shown = true;

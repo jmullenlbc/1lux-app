@@ -85,7 +85,10 @@ test('the four stages run in order, and the working scan is cleaned up', async (
   await runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'set.pdf', onStep: (k, s) => steps.push(k + ':' + s) });
   f.restore();
 
-  assert.deepStrictEqual(f.calls, ['scan', 'render', 'matrix', 'done'],
+  // The matrix is KICKED right after the scan (it thinks while the sheets are
+  // drawn), so its request lands before the render's even though the visitor
+  // still sees the steps in the listed order.
+  assert.deepStrictEqual(f.calls, ['scan', 'matrix', 'render', 'done'],
     'site must not run when the matrix already answered -- it is the expensive call');
   assert.ok(steps.includes('site:skipped'),
     'a step that does not run must still be reported, or it looks like the read stopped');
@@ -112,7 +115,7 @@ test('a site plan with no matrix falls through to the vision read', async () => 
   const out = await runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'site.pdf' });
   f.restore();
 
-  assert.deepStrictEqual(f.calls, ['scan', 'render', 'matrix', 'site', 'done']);
+  assert.deepStrictEqual(f.calls, ['scan', 'matrix', 'render', 'site', 'done']);
   assert.equal(out.kind, 'site_data');
   assert.equal(out.siteData.totalUnits, 247);
 });
@@ -257,7 +260,7 @@ test('with nowhere to upload first, the file rides along with the first step', a
   const out = await runStagedParse({ file, fileName: 'set.pdf' });
   f.restore();
 
-  assert.deepStrictEqual(f.calls, ['scan', 'render', 'matrix', 'done']);
+  assert.deepStrictEqual(f.calls, ['scan', 'matrix', 'render', 'done']);
   assert.equal(f.sent[0].file?.size, file.size, 'the scan step has to carry the file itself');
   assert.equal(f.sent[1].file, undefined, 'later steps work from the parked key, not the file');
   assert.equal(out.unitTypes.length, 1);
@@ -569,4 +572,121 @@ test('the sheet pick arrives as its own round, and the loop just keeps asking', 
     'one finishing slice, then the pick round');
   assert.deepStrictEqual(out.sheetsRead, [4, 7]);
   assert.equal(out.totalPages, 294);
+});
+
+// ── The parallel scan: four streams instead of one polite one ───────────────
+// Production reads 5-8 pages a slice, so a 294-page set took nine minutes down
+// one stream. The first slice's response OFFERS the rest of the set as ranges;
+// the client reads them concurrently, each stream parking server-side under
+// its own key, then one merge request folds the banked pages back into the
+// main scan. What these protect: every offered range must actually be read,
+// the merge must wait for all of the streams, and one dead stream must cost a
+// hole in the read -- never the read itself.
+
+const RANGES = [
+  { from: 9, to: 36 }, { from: 37, to: 64 }, { from: 65, to: 92 }, { from: 93, to: 120 },
+];
+
+/** A monster set's scan replies: first slice offers ranges, shards answer, merge folds. */
+function monsterScan({ shardReply } = {}) {
+  let plainScans = 0;
+  return (body) => {
+    if (body.shard != null) {
+      return shardReply
+        ? shardReply(body)
+        : { staging: true, shard: body.shard, more: false, pagesRead: 28 };
+    }
+    if (body.mergeShards) {
+      // The real merge falls through to the ordinary finishing slice: it says
+      // "more" once (the pick round), exactly like a very productive slice.
+      return { staging: true, more: true, scanKey: 'k', totalPages: 120, pagesRead: 120, picking: true };
+    }
+    return (++plainScans === 1)
+      ? { staging: true, more: true, scanKey: 'k', totalPages: 120, pagesRead: 8, shardRanges: RANGES }
+      : { staging: true, scanKey: 'k', totalPages: 120, sheetsRead: [4, 7], hasText: true, needsRender: true };
+  };
+}
+
+test('a monster scan fans out into the offered ranges and merges when all are done', async () => {
+  const f = fakeFetch({ ...CLEAN, scan: monsterScan() });
+  const out = await runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'monster.pdf' });
+  f.restore();
+
+  const shards = f.sent.filter(b => b.shard != null);
+  assert.deepStrictEqual(
+    shards.map(b => ({ from: b.from, to: b.to })).sort((a, b) => a.from - b.from),
+    RANGES,
+    'every offered range must be read -- a dropped one is silently unread pages');
+  assert.deepStrictEqual([...new Set(shards.map(b => b.shard))].sort(), [0, 1, 2, 3]);
+
+  const mergeAt = f.sent.findIndex(b => b.mergeShards);
+  assert.equal(f.sent.filter(b => b.mergeShards).length, 1, 'one merge, not one per stream');
+  const lastShardAt = f.sent.reduce((at, b, i) => (b.shard != null ? i : at), -1);
+  assert.ok(mergeAt > lastShardAt, 'the merge must wait for every stream');
+
+  assert.equal(out.unitTypes.length, 1, 'the read finishes exactly like a serial one');
+  assert.equal(out.totalPages, 120);
+});
+
+test('one dead stream is a hole in the read, not the end of it', async () => {
+  const f = fakeFetch({
+    ...CLEAN,
+    scan: monsterScan({
+      shardReply: (body) => (body.shard === 2
+        ? { __status: 502, message: 'One stream died.' }
+        : { staging: true, shard: body.shard, more: false, pagesRead: 28 }),
+    }),
+  });
+  const out = await runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'monster.pdf' });
+  f.restore();
+
+  assert.equal(f.sent.filter(b => b.mergeShards).length, 1,
+    'the merge still runs -- the other three streams banked real pages');
+  assert.equal(out.unitTypes.length, 1, 'the visitor still gets an answer');
+});
+
+test('but every stream dying IS the end of the read', async () => {
+  const f = fakeFetch({
+    ...CLEAN,
+    scan: monsterScan({ shardReply: () => ({ __status: 502, message: 'Every stream died.' }) }),
+  });
+  await assert.rejects(
+    () => runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'monster.pdf' }),
+    /Every stream died/,
+  );
+  f.restore();
+  assert.equal(f.sent.filter(b => b.mergeShards).length, 0, 'nothing to merge');
+});
+
+// ── The overlap: the unit-count read thinks while the sheets are drawn ──────
+// The matrix is ONE long model call needing nothing but the parked text, so on
+// a set WITH text it is kicked right after the scan and awaited at its old
+// place in the step order. What this protects: the answer handed on must be
+// the FINAL polled one, and a set with no text must not be asked early (there
+// is no table to read yet).
+
+test('the matrix is kicked before the render, and the polled answer is the final one', async () => {
+  let matrixCalls = 0;
+  const f = fakeFetch({
+    ...CLEAN,
+    // First ask: "still reading" -- the server kicked the model call off.
+    // Second ask (one poll later): the parked answer.
+    matrix: () => (++matrixCalls === 1 ? { more: true } : { matrix: MATRIX, needsSite: false }),
+  });
+  const out = await runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'set.pdf' });
+  f.restore();
+
+  assert.ok(f.calls.indexOf('matrix') < f.calls.indexOf('render'),
+    'the think must start before the sheets are drawn, or nothing overlaps');
+  assert.equal(matrixCalls, 2, 'polled until the parked answer appeared');
+  assert.equal(out.unitTypes.length, 1, 'a mid-think "more" must never be handed on as the answer');
+});
+
+test('a set with no text layer does not kick the matrix early', async () => {
+  const f = fakeFetch(PLOTTED);
+  await runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'set.pdf' });
+  f.restore();
+
+  assert.ok(f.calls.indexOf('matrix') > f.calls.indexOf('render'),
+    'with nothing parked to read, asking early would just burn a request');
 });

@@ -189,6 +189,10 @@ export async function extractPdfPages(source, opts = {}) {
     timeBudgetMs = PDF_SCAN_BUDGET_MS,
     shouldStop,
     fromPage = 1,
+    // Last page this call may read, inclusive. Set only by a parallel scan
+    // shard, which owns one contiguous stretch of a big set; everything else
+    // reads to the end as it always did.
+    toPage = null,
   } = opts;
   const started = Date.now();
 
@@ -202,7 +206,7 @@ export async function extractPdfPages(source, opts = {}) {
       ? source
       : await (await loadPdfjs()).getDocument(pdfDocOptions(source)).promise;
 
-    const limit = Math.min(doc.numPages, maxPages);
+    const limit = Math.min(doc.numPages, maxPages, toPage ?? Infinity);
     const pages = [];
     let stoppedEarly = false;
 
@@ -316,7 +320,7 @@ export async function extractPdfPages(source, opts = {}) {
  * finds them almost immediately; the budget only matters for unit matrices,
  * which can sit anywhere.
  */
-const MAX_PDF_PAGES = 400;
+export const MAX_PDF_PAGES = 400;
 const PDF_SCAN_BUDGET_MS = 20000;
 
 /** True for an already-open pdfjs document, as opposed to raw bytes. */

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { stampError } from '@/lib/intake/errorNumbers';
 import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicKey } from '@/lib/anthropicKey';
-import { extractDrawingText, parseUnitMatrix, fileExt, ACCEPTED_EXTS, IMAGE_EXTS } from '@/lib/drawingExtract';
+import { extractDrawingText, extractPdfPages, parseUnitMatrix, fileExt, ACCEPTED_EXTS, IMAGE_EXTS, MAX_PDF_PAGES } from '@/lib/drawingExtract';
 import { renderPdfPages, renderPdfCrops, extractSiteData, mergeSiteData, validateSiteData } from '@/lib/siteVision';
 import {
   INDEX_CANDIDATE_PAGES, locateIndexBlock, readIndexTile, probeSheetNumber,
@@ -174,6 +174,46 @@ const sliceBudgetMs = (openMs = 0) =>
 /** A backstop on slices, so a set that never finishes cannot loop forever. */
 const MAX_SCAN_SLICES = 80;
 
+/**
+ * ── Parallel scan shards ──
+ *
+ * Production reads 5–8 pages per 12-second slice — a 294-page set is nine
+ * minutes of one browser politely asking for one slice at a time. But each
+ * slice runs on its own Lambda, and Lambdas don't queue behind each other: the
+ * browser can run several slice streams AT ONCE, each reading its own stretch
+ * of the set. The first slice runs alone (it learns the page count and pays
+ * the upload throttle); its response then offers the remaining pages as
+ * SCAN_SHARDS contiguous ranges, the browser opens one stream per range, and
+ * each stream parks its progress in its OWN derived state object
+ * (`scans/<id>shard<i>.json.gz`) so no two writers ever touch the same key.
+ * A final merge folds every banked page back into the main state, sorted, and
+ * the read finishes through the exact same judgement it always used.
+ *
+ * Below this many unread pages the fan-out isn't worth its overhead (every
+ * shard slice re-opens the file) — small sets keep the single-stream path.
+ */
+const SCAN_SHARDS = 4;
+const SHARD_MIN_REMAINING = 32;
+
+/** A shard reads its slice caps client-side; this bounds a runaway server-side. */
+const shardStateKeyFor = (scanKey, i) =>
+  scanKey.replace(/\.json\.gz$/i, `shard${i}.json.gz`);
+
+/**
+ * The matrix read's OWN parking spot and in-flight marker, derived from the
+ * scan key. Both derived keys still match `isScanKey` (a cuid2 is lowercase
+ * alphanumeric), so the ordinary state helpers handle them — and both live
+ * under `scans/`, so the lifecycle sweep covers them like everything else.
+ *
+ * Separate on purpose: the matrix now runs WHILE the render stage is still
+ * drawing (the browser kicks it early and lets the model think in parallel).
+ * Parking its answer into the main state, or sharing the render's attempt
+ * marker, would be two concurrent writers on one object — last write wins and
+ * either the render's progress or the matrix's answer silently vanishes.
+ */
+const matrixStateKeyFor = (scanKey) =>
+  scanKey.replace(/\.json\.gz$/i, 'matrix.json.gz');
+
 // Closing a ranged document is best-effort, never load-bearing. pdfjs's
 // destroy() waits for in-flight work, and a page read that was raced out by
 // the slice budget can leave a range fetch stuck underneath it — awaiting
@@ -213,6 +253,9 @@ export async function POST(request) {
   let s3Key = null;
   let stage = null;
   let scanKey = null;
+  let shard = null;        // which parallel scan stream this request drives
+  let shardRange = null;   // that stream's page range, echoed from our own offer
+  let mergeShards = false; // fold every stream's pages back into the main state
 
   const contentType = request.headers.get('content-type') || '';
   if (contentType.includes('application/json')) {
@@ -226,6 +269,9 @@ export async function POST(request) {
     scanKey = body?.scanKey ?? null;
     s3Key   = body?.s3Key ?? null;
     name    = String(body?.fileName || 'upload');
+    shard   = Number.isInteger(body?.shard) ? body.shard : null;
+    shardRange  = body?.from != null || body?.to != null ? { from: body?.from, to: body?.to } : null;
+    mergeShards = body?.mergeShards === true;
   } else {
     let file;
     try {
@@ -274,6 +320,26 @@ export async function POST(request) {
   if (stage === 'scan' && scanKey) {
     const parked = await getScanState(scanKey);
     if (!parked.ok) return bad(parked.code, parked.message, parked.code === 'bad_key' ? 400 : 410);
+
+    // One of the parallel scan streams. It reads its own stretch of the set
+    // and parks into its own derived state object — it never writes the main
+    // state, so any number of them can run at once.
+    if (shard != null) {
+      try {
+        return await runScanShard(scanKey, parked.state, shard, shardRange);
+      } catch (e) {
+        return unexpected(e, parked.state?.fileName || 'upload');
+      }
+    }
+
+    // Every stream is done: fold their banked pages into the main state, then
+    // fall through to the ordinary continue below — which finds nothing left
+    // to read and finishes the scan through the same judgement it always used.
+    if (mergeShards) {
+      const merged = await mergeScanShards(scanKey, parked.state);
+      if (merged.error) return merged.error;
+      parked.state = merged.state;
+    }
 
     // The reading is done and only the sheet pick is left. It works from the
     // parked pages alone, so this request never pays to open the file at all —
@@ -596,6 +662,17 @@ async function stageScan({ source, opened, name, ext, s3Key, buffer, state = nul
       console.error('intake/parse: could not park partial scan for', name);
       return NextResponse.json({ stage: 'scan', staging: false, fileName: name });
     }
+    // Enough left to be worth fanning out? Offer the remainder as parallel
+    // ranges. The ranges are computed HERE, once, and echoed back by every
+    // shard request — a single source, so no two shards can ever disagree
+    // about who owns which pages (a hung-up slice's zombie can still rewrite
+    // the main state's nextPage after this response leaves, so deriving the
+    // ranges server-side on each shard call would not be stable).
+    const shardRanges = scanShardRanges({
+      ext,
+      totalPages: picked.extracted.scan.totalPages ?? null,
+      nextPage:   picked.extracted.scan.nextPage,
+    });
     return NextResponse.json({
       stage:      'scan',
       staging:    true,
@@ -604,6 +681,7 @@ async function stageScan({ source, opened, name, ext, s3Key, buffer, state = nul
       fileName:   name,
       totalPages: picked.extracted.scan.totalPages ?? null,
       pagesRead:  picked.extracted.scan.pages.length,
+      ...(shardRanges ? { shardRanges } : {}),
     });
   }
 
@@ -699,6 +777,132 @@ async function stageScan({ source, opened, name, ext, s3Key, buffer, state = nul
     needsRender: ext === 'pdf' && chosenPages.length > 0,
     needsIndex,
   });
+}
+
+/**
+ * The fan-out offer: split what the first slice left unread into SCAN_SHARDS
+ * contiguous ranges. Null when the set is too small to bother, when reading is
+ * already done, or when the type has no pages to shard.
+ */
+function scanShardRanges({ ext, totalPages, nextPage }) {
+  if (ext !== 'pdf') return null;
+  if (!Number.isInteger(nextPage) || !Number.isInteger(totalPages)) return null;
+  // The extractor never reads past its own page budget, so neither may a shard.
+  const cap = Math.min(totalPages, MAX_PDF_PAGES);
+  const span = cap - nextPage + 1;
+  if (span < SHARD_MIN_REMAINING) return null;
+  const per = Math.ceil(span / SCAN_SHARDS);
+  const ranges = [];
+  for (let i = 0; i < SCAN_SHARDS; i++) {
+    const from = nextPage + i * per;
+    if (from > cap) break;
+    ranges.push({ from, to: Math.min(cap, from + per - 1) });
+  }
+  return ranges.length > 1 ? ranges : null;
+}
+
+/**
+ * One slice of one parallel scan stream.
+ *
+ * Same reading loop as the main scan, with two differences: it stops at the
+ * top of its own range, and it parks into its own derived state object — never
+ * the main state, so four of these running at once cannot clobber each other.
+ * The range arrives echoed from our own fan-out offer and is frozen into the
+ * shard's state on first contact; a retried request after a front-door hang-up
+ * finds the banked pages and resumes mid-range like any other slice.
+ */
+async function runScanShard(scanKey, state, shardIndex, range) {
+  if (shardIndex < 0 || shardIndex >= SCAN_SHARDS) {
+    return bad('bad_request', 'Unknown scan shard.');
+  }
+  if (state.ext !== 'pdf' || !state.s3Key) {
+    return bad('bad_request', 'This file has no pages to shard.');
+  }
+
+  const shardKey = shardStateKeyFor(scanKey, shardIndex);
+  // `quiet`: on the stream's first slice this object rightly does not exist.
+  const prior = await getScanState(shardKey, { quiet: true });
+  let sh = prior.ok ? prior.state : null;
+
+  if (!sh) {
+    const cap = Math.min(state.totalPages ?? MAX_PDF_PAGES, MAX_PDF_PAGES);
+    const from = Math.max(1, Math.trunc(range?.from ?? 0));
+    const to = Math.min(cap, Math.trunc(range?.to ?? 0));
+    if (!from || !to || from > to) {
+      return bad('bad_request', 'Bad scan shard range.');
+    }
+    sh = { shard: shardIndex, from, to, pages: [], nextPage: from };
+  }
+
+  // Nothing left in this stream's range — answer done without opening the file.
+  // (A hung-up FINAL slice replays here: the zombie parked nextPage null.)
+  if (sh.nextPage == null) {
+    return NextResponse.json({
+      stage: 'scan', staging: true, shard: shardIndex, more: false, pagesRead: sh.pages.length,
+    });
+  }
+
+  const openStarted = Date.now();
+  const opened = await openSource({ s3Key: state.s3Key, ext: 'pdf' });
+  if (opened.error) return opened.error;
+  try {
+    const slice = await extractPdfPages(opened.source, {
+      fromPage:     sh.nextPage,
+      toPage:       sh.to,
+      timeBudgetMs: sliceBudgetMs(Date.now() - openStarted),
+      ...(opened.handle?.ranged ? { shouldStop: opened.handle.overBudget } : {}),
+    });
+
+    const pages = sh.pages.concat(slice.pages);
+    // `nextPage` null means this stream is finished — its range ran out, or
+    // the memory brake came on (out of ROOM is final, exactly as it is for
+    // the single-stream scan; the merge works with whatever was banked).
+    const next = { ...sh, pages, nextPage: slice.nextPage, braked: slice.braked || sh.braked || false };
+    const parkedKey = await putScanStateAt(shardKey, next);
+    if (!parkedKey) {
+      return bad('parse_failed', 'Something went wrong reading this file on our side. Please try again in a minute.', 502);
+    }
+    return NextResponse.json({
+      stage: 'scan', staging: true, shard: shardIndex,
+      more: slice.nextPage != null, pagesRead: pages.length,
+    });
+  } finally {
+    await closeQuietly(opened.handle);
+  }
+}
+
+/**
+ * Fold every stream's banked pages back into the main state.
+ *
+ * Pages are keyed by page number — the main state's prefix plus each shard's
+ * stretch, sorted, first writer wins on the (theoretical) duplicate. The main
+ * state's `nextPage` is pushed past the end of the set, so the ordinary scan
+ * continue that runs right after this reads nothing and drops straight into
+ * the same finished-reading judgement (text-layer verdict, sheet pick, park)
+ * the single-stream path has always used. The shard states are swept here;
+ * they were only ever scaffolding.
+ */
+async function mergeScanShards(scanKey, state) {
+  const byPage = new Map();
+  for (const p of state.pages ?? []) byPage.set(p.page, p);
+  for (let i = 0; i < SCAN_SHARDS; i++) {
+    const shardKey = shardStateKeyFor(scanKey, i);
+    // `quiet`: a stream that never started (fan-out interrupted) has no object.
+    const parked = await getScanState(shardKey, { quiet: true });
+    if (parked.ok) {
+      for (const p of parked.state.pages ?? []) {
+        if (!byPage.has(p.page)) byPage.set(p.page, p);
+      }
+    }
+    await deleteScanState(shardKey);
+  }
+  const pages = [...byPage.values()].sort((a, b) => a.page - b.page);
+  const nextState = { ...state, pages, nextPage: (state.totalPages ?? MAX_PDF_PAGES) + 1 };
+  const key = await putScanStateAt(scanKey, nextState);
+  if (!key) {
+    return { error: bad('parse_failed', 'Something went wrong reading this file on our side. Please try again in a minute.', 502) };
+  }
+  return { state: nextState };
 }
 
 /**
@@ -1394,14 +1598,26 @@ async function stageMatrix(scanKey, state) {
 
   // An earlier request already finished this — very possibly one whose
   // response the front door had dropped. The parked answer IS the answer.
+  // (Reads written by the previous release parked it inside the main state;
+  // reads from this one park it in the matrix's own object, below.)
   if (state.matrixParked) return NextResponse.json(state.matrixParked);
 
-  // The render stage is done with the marker by the time the matrix runs, so
-  // the same slot now tracks the in-flight model call.
-  const marker = await getScanAttempt(scanKey);
+  // Everything this stage parks lives at its OWN derived key, because the
+  // browser now kicks the matrix while the render stage is still drawing —
+  // the two run concurrently on purpose (the model thinks for ~2 minutes and
+  // the sheets draw underneath it). Sharing the render's marker, or writing
+  // the answer into the main state mid-render, would be a lost-update race.
+  const matrixKey = matrixStateKeyFor(scanKey);
+  const marker = await getScanAttempt(matrixKey);
   const inFlight = marker?.stage === 'matrix' && Number.isFinite(marker.startedAt);
   if (inFlight && Date.now() - marker.startedAt < MATRIX_INFLIGHT_MS) {
     return NextResponse.json({ stage: 'matrix', more: true });
+  }
+  if (marker) {
+    // A run has finished (or died). Its answer, if it parked one, is at the
+    // matrix's own key.
+    const parked = await getScanState(matrixKey, { quiet: true });
+    if (parked.ok) return NextResponse.json(parked.state);
   }
   const kicks = (inFlight ? marker.kicks : 0) ?? 0;
   if (kicks >= MATRIX_MAX_KICKS) {
@@ -1409,14 +1625,14 @@ async function stageMatrix(scanKey, state) {
       stage: 'matrix', matrix: null, needsSite: true,
       matrixError: 'We could not finish reading the unit table in this set.',
     };
-    await putScanStateAt(scanKey, { ...state, matrixParked: payload });
+    await putScanStateAt(matrixKey, payload);
     return NextResponse.json(payload);
   }
 
   const client = anthropicClient();
   if (!client) return unavailable();
 
-  await putScanAttempt(scanKey, { stage: 'matrix', startedAt: Date.now(), kicks: kicks + 1 });
+  await putScanAttempt(matrixKey, { stage: 'matrix', startedAt: Date.now(), kicks: kicks + 1 });
 
   // `pages` lets the area-sheet finder score sheet-by-sheet instead of guessing
   // from one flattened blob — that's what tells net from gross.
@@ -1445,8 +1661,10 @@ async function stageMatrix(scanKey, state) {
 
   // Park BEFORE answering: if the front door already hung up on this request,
   // the park is the only way the answer survives — the next poll serves it.
-  await putScanStateAt(scanKey, { ...state, matrixParked: payload });
-  await putScanAttempt(scanKey, { stage: 'parked' });
+  // Parked at the matrix's own key, marker downgraded second, so a poll that
+  // sees the downgrade always finds the answer already in place.
+  await putScanStateAt(matrixKey, payload);
+  await putScanAttempt(matrixKey, { stage: 'parked' });
   return NextResponse.json(payload);
 }
 
@@ -1512,6 +1730,11 @@ async function stageDone(scanKey, state) {
   }
   // The index close-ups were scaffolding too, and nobody ever looks at them.
   for (const key of state.visionIndex?.tileKeys ?? []) await deleteSheetImage(key);
+  // The derived objects: each scan shard's bank, and the matrix read's parked
+  // answer and marker. Deleting a key that was never written is a no-op.
+  for (let i = 0; i < SCAN_SHARDS; i++) await deleteScanState(shardStateKeyFor(scanKey, i));
+  await deleteScanState(matrixStateKeyFor(scanKey));
+  await deleteScanAttempt(matrixStateKeyFor(scanKey));
   await deleteScanAttempt(scanKey);
   await deleteScanState(scanKey);
   return NextResponse.json({ stage: 'done', ok: true });

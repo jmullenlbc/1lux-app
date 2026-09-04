@@ -535,7 +535,7 @@ async function writeScan(key, state) {
  *
  * @returns {{ok: true, state} | {ok: false, code, message}}
  */
-export async function getScanState(key) {
+export async function getScanState(key, { quiet = false } = {}) {
   if (!isScanKey(key)) {
     return { ok: false, code: 'bad_key', message: 'Not a valid scan reference.' };
   }
@@ -550,7 +550,12 @@ export async function getScanState(key) {
       : await devGet(key));
     return { ok: true, state: JSON.parse(raw.toString('utf8')) };
   } catch (err) {
-    console.error('[uploadStorage] getScanState failed for key', key, err?.name ?? err?.message ?? err);
+    // `quiet` marks probes for objects that may legitimately not exist yet
+    // (a scan shard's first slice, the matrix's parked answer) — a miss there
+    // is the expected case, not a fault worth an error line.
+    if (!quiet) {
+      console.error('[uploadStorage] getScanState failed for key', key, err?.name ?? err?.message ?? err);
+    }
     return {
       ok: false,
       code: 'scan_expired',
