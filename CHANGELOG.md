@@ -5,7 +5,108 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Fulshear review: solar wired at 2.3×, BOH capped at 5% of gross, public review page = internal summary] - September 4, 2026 (DEPLOYED)
+## [Pathway lighting wired into the engine at Mike's corrected rates] - September 4, 2026 (DEPLOYED — same push as the entry below)
+
+The pathway $/unit table has sat in master pricing since July, priced from
+16 conceptual budgets' bollard counts, but the engine never used it. Mike
+reviewed the basis this session, corrected three tiers, and said ship it:
+
+### Rate corrections (all Mike's numbers, 2026-09-04)
+
+- src/lib/pricing.js: townhomes/single-family STAY $320 (grounded in 6
+  Avilla photometric actuals); garden/stackedFlats/gurban cut $240 → $60
+  (garden walk-ups light walkways from the buildings, and wallpacks already
+  price that scope off exit doors — $240 was double-counting); wrap cut
+  $96 → $60 (top of the observed 0.018–0.085 bollards/unit band);
+  podium/midRise/highRise cut $48 → $35 (high unit counts over-scale a
+  per-unit rate; Town Lake's high-rise actual ran ~$13/unit). Floor stays
+  $4,000. All admin-editable at /admin/pricing.
+
+### Engine wiring
+
+- src/lib/calculations.js: new pathway line in the exterior formula —
+  units × rate[buildingType], floored at minTotal, $0 at zero scale (same
+  rule as wallpacks). A hand-entered exteriorManualItems.pathwayLighting
+  SUPPRESSES the model line so a counted figure is never doubled (Modera
+  Town Lake's $4,800 stays $4,800). Pathway rides the 5% misc-buffer base.
+  sections.exterior.pathway exposes product/rate/buildingType/floorApplied/
+  suppressedByManual.
+- src/components/sections/ExteriorSection.jsx: client mirror of the same
+  math, frozen "Pathway lighting" line with plain-English arithmetic, and
+  the scope-inputs bullet.
+- BudgetSidebar.jsx + SummaryBudgetBreakdown.jsx + projects/[id]/chat/
+  route.js: pathway row in every exterior breakdown, labeled "Pathway
+  (manual entry)" when a manual figure carries the scope. Budget PDF shows
+  section totals only, so it inherits automatically.
+- src/app/(app)/admin/pricing/PricingEditor.jsx: all nine rate
+  descriptions rewritten to record the 2026-09-04 decisions and their
+  calibration evidence.
+
+### Verification
+
+- New scripts/tests/pathwayLighting.test.mjs — 11 tests: the formula per
+  type, the floor, zero-scale $0, manual suppression (object + JSON-string
+  forms), other manual adders NOT suppressing, misc-buffer ride-along,
+  exterior override still replacing everything. Full suite 885/885 green
+  (E2Es against a live dev server); production build clean with all 37
+  runtime assets present.
+
+---
+
+## [Drawings-page building summary, landings asked directly, balcony count ask] - September 4, 2026 (DEPLOYED — same push as the pathway entry above)
+
+Mike's follow-up after the a750233 deploy, four items. One was a question
+(the deploy status — verified live by probing the prod estimate API: solar
+priced at exactly 2.3× with the no-trenching note), three were changes:
+
+### Building summary on the Drawings page
+
+- src/app/conceptual_budget/IntakeClient.jsx: new "Building summary — what
+  we pulled from your drawings" card below the dropzone, listing every
+  takeoff row with its value ("# Egress/Exit Doors  24" style), an "(est.)"
+  marker on derived figures, a hover tooltip with the arithmetic/provenance,
+  an amber flag marker, and a muted "couldn't read" line for the rest.
+- src/app/api/intake/estimate/route.js: quantities rows now carry label +
+  unit to the client (values and provenance only — still no pricing).
+
+### "# Egress stairwells" → "# Egress stairwell landings"
+
+The public wizard used to ask for the SHAFT count and derive landings
+(stairs × (2×stories−1)). It now asks for LANDINGS directly, matching the
+internal Project Data field and the $175/landing engine input:
+
+- src/app/conceptual_budget/IntakeClient.jsx: figure field is now
+  figureStairLandings ("# Egress stairwell landings"), feeding the
+  stairLandings row.
+- src/lib/intake/quantities.js: a typed landings count wins over the 2N−1
+  derivation; the legacy figureStairwells key still replays old stored
+  submissions (shafts typed → landings derived).
+- src/lib/intake/questionnaire.js: FIGURE_KEYS whitelist gains
+  figureStairLandings + figureBalconies; legacy key kept.
+- src/components/ProjectDashboard.jsx + projects/[id]/chat/route.js: the
+  internal displays of pd.numEgressStairwells (which HOLDS landings) were
+  mislabeled "# Egress Stairwells" — now "# Egress Stairwell Landings".
+
+### Balcony answer now able to move the budget
+
+Why "None" didn't change the number: the balcony line is per-balcony price
+× balcony count, and when the drawings' unit matrix lists no balcony column
+the count is null → every option priced ×0 = $0. Fix:
+
+- New "# Balconies" figure ask (amber card on the Units page) whenever the
+  drawings didn't yield a count; quantities.js reads it as the
+  questionnaire-sourced fallback. Verified live-locally: 150 balconies ×
+  Low sconce = $8,250, None = $0 — the answer moves the budget now.
+
+### Verification
+
+- 874/874 regression tests green (3 new: typed landings override, legacy
+  shafts replay, typed balcony fallback); local estimate-API probes for
+  both new figures end-to-end; /conceptual_budget renders.
+
+---
+
+## [Fulshear review: solar wired at 2.3×, BOH capped at 5% of gross, public review page = internal summary] - September 4, 2026 (DEPLOYED a750233)
 
 Mike reviewed the Fulshear Lakes conceptual budget against his internal
 Google Sheet and flagged four items. Three were code changes (all built

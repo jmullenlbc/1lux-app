@@ -212,8 +212,10 @@ export const PRICING = {
       minTotal: 4000,
 
       // ── PATHWAY DOLLARS PER UNIT, BY BUILDING TYPE ───────────────────────
-      // PROVISIONAL — not yet wired into calculations.js. Mike is gathering
-      // more data to confirm before these drive a budget.
+      // WIRED into calculations.js 2026-09-04 (Mike signed off after the
+      // 2026-09-04 rate corrections below): pathway = units × rate[type],
+      // floored at minTotal; a hand-entered exteriorManualItems.pathwayLighting
+      // suppresses the model line so counted figures are never doubled.
       //
       // Mike, 2026-08-12: this table is now DOLLARS per unit, not bollards per
       // unit. Multiply by the unit count to get the pathway lighting line —
@@ -259,15 +261,27 @@ export const PRICING = {
         // ── Tier 1: horizontal product, long walks to individual doors ──
         singleFamily: 320,  // 0.40 bollards/unit — grounded in BTR actuals
         townHouses:   320,  // 0.40 — n=6 actuals, de-escalated 30%
-        stackedFlats: 240,  // 0.30 — NO DATA of its own; Mike 2026-08-09: match garden/walk-up "for now"
-        garden:       240,  // 0.30 — Mike: "runs more like townhomes"; conceptual data says 0.062 — SEE MISMATCH NOTE
+        // Mike 2026-09-04: garden $240 → $60. His own conceptual budgets put
+        // garden at 0.037–0.089 bollards/unit ($30–$71); the July deep read
+        // showed garden walk-ups light walkways FROM the buildings (Avalon:
+        // 0.56 wallpacks/unit, near-zero ground) and wallpacks are already
+        // priced off the exit-door count — so a high ground rate here was
+        // double-counting scope. $60 keeps a 300-unit garden at $18K, inside
+        // the historical $5–24K band ($240 would have said $72K).
+        stackedFlats: 60,   // NO DATA of its own; matches garden per Mike 2026-08-09 (re-confirmed 2026-09-04)
+        garden:       60,
         // Mike 2026-08-12: "They are the same thing" — gurban carries the SAME
         // pathway rate as garden. Kept as its own field because gurban is a real
         // building type everywhere else in the app (4–5 levels, its own controls
         // rate); only the pathway number is shared.
-        gurban:       240,
+        gurban:       60,
         // ── Tier 2: can carry surface parking, so varies widely ──
-        wrap:          96,  // 0.12 — Mike: higher when surface parking is present; observed 0.018–0.085
+        // Mike 2026-09-04: "$96 seems high … closer to $60." $60 = 0.075
+        // bollards/unit, the top of the observed conceptual band (0.018–0.085),
+        // so the number now sits ON the data instead of above it. Still the
+        // thinnest tier — the one deep-read wrap actual came in at 0.34
+        // combined ground fixtures/unit, so revisit if wraps start landing low.
+        wrap:          60,
         // ── Tier 3: structured parking, interior circulation, least site lighting ──
         // Mike 2026-07-21: keep podium / mid-rise / high-rise as SEPARATE fields
         // but with the SAME number for now. 0.06 ground fixtures/unit is the
@@ -275,9 +289,12 @@ export const PRICING = {
         // West Middle Creek 0.060, 38th+Huron 0.077, 40th+Walnut 0.062) —
         // ~$48–80/unit at conventional rates. On these products most site
         // lighting is building-mounted (wallpacks/steplights), not ground.
-        podium:        48,
-        midRise:       48,
-        highRise:      48,
+        // Mike 2026-09-04: cut $48 → $35 — these products carry HIGH unit
+        // counts, so a per-unit rate over-scales (Modera Town Lake actual was
+        // ~$33/unit, the low end of the $33–$81 observed high-rise band).
+        podium:        35,
+        midRise:       35,
+        highRise:      35,
       },
     },
     landscape: {

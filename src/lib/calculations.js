@@ -331,8 +331,26 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     + n(exteriorManualItems.parkingEntrances)
     + n(exteriorManualItems.manualExteriorAdder);
 
+  // Pathway lighting: $/unit by building type, from master pricing
+  // (exterior.pathway.dollarsPerUnit), floored at pathway.minTotal for any
+  // project with real scale. Wired 2026-09-04 on Mike's sign-off of the
+  // corrected table (townhome $320 kept, wrap $60, garden/stacked/gurban $60,
+  // podium/mid/high $35 — his numbers, all inside the observed calibration
+  // bands). A hand-entered pathway figure in exteriorManualItems wins and
+  // SUPPRESSES the model line — projects like Modera Town Lake carry a real
+  // counted number there, and the model must not stack on top of it.
+  // Zero-scale (no units) prices at $0, same rule as wallpacks.
+  const pwRates        = PRICING.exterior.pathway?.dollarsPerUnit || {};
+  const pathwayRate    = pwRates[wpBuildingType] ?? 0;
+  const pathwayFloor   = n(PRICING.exterior.pathway?.minTotal);
+  const pathwayManual  = n(exteriorManualItems.pathwayLighting);
+  const pathwayAuto    = numUnits > 0 && pathwayRate > 0
+    ? Math.max(numUnits * pathwayRate, pathwayFloor)
+    : 0;
+  const pathwayProduct = pathwayManual > 0 ? 0 : pathwayAuto;
+
   // Misc buffer = 5% of formula-line subtotal + manual adder. Both contribute.
-  const extSubBeforeMisc     = extAmenityProduct + parkingProduct + carportProduct + garageExtProduct + wallpackProduct + landscapeFlat;
+  const extSubBeforeMisc     = extAmenityProduct + parkingProduct + carportProduct + garageExtProduct + wallpackProduct + landscapeFlat + pathwayProduct;
   const extBufferBase        = extSubBeforeMisc + exteriorManualTotal;
   const extMiscBuffer        = extBufferBase * PRICING.exterior.miscBufferPct;
   const exteriorFormulaTotal = extSubBeforeMisc + extMiscBuffer;
@@ -569,6 +587,16 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
           priceOverridden: priceOverride(exterior.wallpacksPrice) != null,
         },
         landscape: { product: landscapeFlat        },
+        // Pathway lighting — model line wired 2026-09-04. `suppressedByManual`
+        // means a hand-entered exteriorManualItems.pathwayLighting figure is
+        // carrying the scope instead (it rides in manualAdderTotal).
+        pathway: {
+          product:            pathwayProduct,
+          rate:               pathwayRate,
+          buildingType:       wpBuildingType,
+          floorApplied:       pathwayProduct > 0 && numUnits * pathwayRate < pathwayFloor,
+          suppressedByManual: pathwayManual > 0,
+        },
         // Solar site design (Fulshear review, 2026-09-04): the parking product
         // above already includes the multiplier; the note rides along for every
         // summary/sidebar to display.

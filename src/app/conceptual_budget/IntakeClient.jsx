@@ -67,9 +67,15 @@ const FIGURE_FIELDS = [
   { key: 'figureGrossSf',        qKey: 'grossSf',          label: 'Total building gross SF',  placeholder: 'e.g. 364,000' },
   { key: 'figureTotalUnits',     qKey: 'totalUnits',       label: 'Total units',              placeholder: 'e.g. 234' },
   { key: 'figureStories',        qKey: 'stories',          label: '# Stories',                placeholder: 'e.g. 4' },
-  { key: 'figureStairwells',     qKey: 'egressStairwells', label: '# Egress stairwells',      placeholder: 'e.g. 3' },
+  // Landings, not shafts (Mike, 2026-09-04): the internal Project Data field
+  // asks for landings, and the engine prices $175 per LANDING — so the visitor
+  // types the same figure. A switchback stair serving N floors has 2N−1.
+  { key: 'figureStairLandings',  qKey: 'stairLandings',    label: '# Egress stairwell landings', placeholder: 'e.g. 15' },
   { key: 'figureExitDoors',      qKey: 'exitDoors',        label: '# Exit doors',             placeholder: 'e.g. 8' },
   { key: 'figureSurfaceParking', qKey: 'surfaceParking',   label: '# Surface parking stalls', placeholder: 'e.g. 120' },
+  // Without a balcony count the balcony-lighting answer prices to $0 whatever
+  // the visitor picks — ask for it whenever the unit matrix didn't list one.
+  { key: 'figureBalconies',      qKey: 'balconies',        label: '# Balconies',              placeholder: 'e.g. 150' },
 ];
 
 function Field({ label, labelRight, hint, error, children }) {
@@ -282,6 +288,18 @@ export default function IntakeClient() {
       if (row && row.source === 'drawing') return null;
       return { ...f, row };
     }).filter(Boolean);
+  }, [estimate]);
+
+  // ── Building summary on the Drawings page (Mike, 2026-09-04: "add a
+  // building summary on the drawing page below of everything we pulled from
+  // the drawings") — the takeoff rows the estimate already returns, split
+  // into what was read and what will be asked for.
+  const pulledRows = useMemo(() => {
+    const rows = (estimate?.quantities || []).filter(r => r.label);
+    return {
+      found:   rows.filter(r => r.value != null),
+      missing: rows.filter(r => r.value == null),
+    };
   }, [estimate]);
 
   const questionsBySection = useMemo(() => {
@@ -557,6 +575,43 @@ export default function IntakeClient() {
                     </p>
 
                     <DrawingDropzone onResults={setDrawings} />
+
+                    {/* Building summary — everything the takeoff pulled from the
+                        drawings, shown right where they were uploaded. Values +
+                        provenance only; no pricing. */}
+                    {drawings && pulledRows.found.length > 0 && (
+                      <div className="mt-6 border border-slate-200 rounded-xl overflow-hidden">
+                        <div className="px-4 py-3 bg-slate-50 border-b border-slate-100">
+                          <h3 className="text-sm font-semibold text-slate-800">Building summary — what we pulled from your drawings</h3>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            Every figure below feeds your budget. Figures marked “est.” are our arithmetic, not read off a sheet — hover any number to see where it came from.
+                          </p>
+                        </div>
+                        <div className="p-4 grid sm:grid-cols-2 gap-x-8 gap-y-2.5">
+                          {pulledRows.found.map(r => (
+                            <div key={r.key} className="flex items-baseline justify-between gap-3">
+                              <span className="text-sm text-slate-600">{r.label}</span>
+                              <span
+                                className="text-sm font-semibold text-slate-900 text-right shrink-0"
+                                title={[r.how, r.flag].filter(Boolean).join(' ')}
+                              >
+                                {Number(r.value).toLocaleString('en-US')}{r.unit === 'sf' ? ' SF' : ''}
+                                {r.source === 'derived' && <span className="font-normal text-slate-400"> (est.)</span>}
+                                {r.flag && <span className="text-amber-500" title={r.flag}> ⚠</span>}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        {pulledRows.missing.length > 0 && (
+                          <div className="px-4 pb-4">
+                            <p className="text-xs text-slate-400">
+                              Couldn’t read from the drawings (we’ll ask you on the next pages):{' '}
+                              {pulledRows.missing.map(r => r.label).join(' · ')}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     <div className="flex items-center justify-between mt-6">
                       <button onClick={goPrev} className={backBtn}>← Back</button>

@@ -228,6 +228,12 @@ export function computeQuantities(drawings, answers, pricing = null) {
     add('balconies', '# Balconies', 'count', balc.sum, 'drawing',
       'Balconies per unit type × unit quantities, from the unit matrix.',
       partialFlag(balc, 'a balcony count'));
+  } else if (statedAnswer(ans.figureBalconies) != null) {
+    // Without a count, the balcony-lighting answer prices to $0 no matter what
+    // the visitor picks (Mike, 2026-09-04: "Why does none ... not change the
+    // budget?") — so the wizard now asks for the count when drawings lack it.
+    add('balconies', '# Balconies', 'count', statedAnswer(ans.figureBalconies), 'questionnaire',
+      'Entered on the questionnaire — no balcony counts were found on the drawings.');
   } else {
     add('balconies', '# Balconies', 'count', null, null, 'No balcony counts found in any drawing, and the questionnaire did not rule them out.');
   }
@@ -410,7 +416,15 @@ export function computeQuantities(drawings, answers, pricing = null) {
     stairsStated == null && stairsCounted != null
       ? 'Counted off the floor plan, not stated in writing — confirm the shaft count.' : null);
 
-  if (stories != null && stairs != null && stories >= 1) {
+  // A visitor-typed landings count wins over the 2N−1 derivation — the wizard
+  // asks for LANDINGS directly (Mike, 2026-09-04: '"# Egress stairwells"
+  // should be "# Egress stairwell landings"'), matching the internal Project
+  // Data field, and the ask card offers this as the override on a derived row.
+  const landingsTyped = statedAnswer(ans.figureStairLandings);
+  if (landingsTyped != null) {
+    add('stairLandings', '# Stair Landings', 'count', landingsTyped, 'questionnaire',
+      'Entered on the questionnaire — count every landing, including the half-landing between floors.');
+  } else if (stories != null && stairs != null && stories >= 1) {
     const landings = stairs * (2 * stories - 1);
     const typed = storiesTyped != null || stairsTyped != null;
     const counted = !typed && (storiesStated == null || stairsStated == null);
@@ -423,7 +437,7 @@ export function computeQuantities(drawings, answers, pricing = null) {
         : 'Assumes switchback stairs in enclosed shafts. Open or straight-run stairs land differently — confirm on the plans.');
   } else {
     add('stairLandings', '# Stair Landings', 'count', null, null,
-      'Needs both the story count and the egress stair count (landings = stairs × (2 × stories − 1)).');
+      'Needs both the story count and the egress stair count (landings = stairs × (2 × stories − 1)) — or a landings count typed on the questionnaire.');
   }
 
   const exitsStated = stated(site?.exitDoors);

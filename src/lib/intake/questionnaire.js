@@ -316,7 +316,12 @@ export const FIGURE_KEYS = [
   { key: 'figureGrossSf',         section: 'Project figures', question: 'Total building gross SF (entered by the submitter — not found on the drawings)' },
   { key: 'figureTotalUnits',      section: 'Project figures', question: 'Total units (entered by the submitter — not found on the drawings)' },
   { key: 'figureStories',         section: 'Project figures', question: '# Stories (entered by the submitter — not found on the drawings)' },
+  // Legacy key — pre-2026-09-04 submissions typed the SHAFT count here and the
+  // takeoff derived landings from it. The wizard now asks for landings
+  // directly (figureStairLandings); this stays so old submissions replay.
   { key: 'figureStairwells',      section: 'Project figures', question: '# Egress stairwells (entered by the submitter — not found on the drawings)' },
+  { key: 'figureStairLandings',   section: 'Project figures', question: '# Egress stairwell landings (entered by the submitter — not found on the drawings)' },
+  { key: 'figureBalconies',       section: 'Project figures', question: '# Balconies (entered by the submitter — not found on the drawings)' },
   { key: 'figureExitDoors',       section: 'Project figures', question: '# Egress/exit doors (entered by the submitter — not found on the drawings)' },
   { key: 'figureSurfaceParking',  section: 'Project figures', question: '# Surface parking stalls (entered by the submitter — not found on the drawings)' },
 ];

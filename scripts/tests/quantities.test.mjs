@@ -408,6 +408,30 @@ test('drawing-stated stories/stairs always beat typed figures', () => {
   assert.equal(q.stairLandings.value, 14);
 });
 
+test('a typed landings count overrides the 2N−1 derivation (Mike 2026-09-04: the wizard asks for landings directly)', () => {
+  const q = byKey(computeQuantities(cleanDrawings(), { figureStairLandings: '18' }));
+  assert.equal(q.stairLandings.value, 18);                   // not 2 × (2×4−1) = 14
+  assert.equal(q.stairLandings.source, 'questionnaire');
+});
+
+test('the legacy figureStairwells key still replays: shafts typed, landings derived', () => {
+  const d = cleanDrawings();
+  d.siteData.stories = null;
+  d.siteData.egressStairwells = null;
+  const q = byKey(computeQuantities(d, { figureStories: '5', figureStairwells: '3' }));
+  assert.equal(q.stairLandings.value, 27);
+  assert.equal(q.stairLandings.source, 'derived');
+});
+
+test('a typed balcony count fills in when the unit matrix lists none — the balcony answer prices off it', () => {
+  const d = cleanDrawings();
+  for (const u of d.unitTypes) delete u.balconies;
+  assert.equal(byKey(computeQuantities(d, {})).balconies.value, null);
+  const q = byKey(computeQuantities(d, { figureBalconies: '150' }));
+  assert.equal(q.balconies.value, 150);
+  assert.equal(q.balconies.source, 'questionnaire');
+});
+
 test('a COUNTED figure beats a typed one — the drawings were at least looked at', () => {
   const d = cleanDrawings();
   d.siteData.stories = null;

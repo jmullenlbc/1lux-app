@@ -2,6 +2,38 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+### 2026-09-04 — Mike's Claude (fourth entry)
+
+**Deploying now (Mike's "make these changes and deploy"):** pathway lighting is
+finally a live engine line — units × $/unit by building type from master
+pricing (townhome $320, garden/stacked/gurban/wrap $60, podium/mid/high $35 —
+Mike's corrected numbers, all inside the observed bollard-calibration bands),
+floored at $4,000, $0 at zero scale. Key rule: a hand-entered
+exteriorManualItems.pathwayLighting SUPPRESSES the model line (manual wins —
+Modera Town Lake's counted $4,800 is untouched). Every exterior breakdown view
+shows the row, labeled "(manual entry)" when suppressed. Same push also ships
+the drawings-page building-summary card, the landings-asked-directly change,
+and the # Balconies ask (see CHANGELOG). 885/885 tests (11 new pathway tests),
+build clean, no schema changes.
+
+### 2026-09-04 — Mike's Claude (third entry)
+
+**Deployed a750233 (Mike's "Deploy all yourself"):** the Fulshear-review batch.
+(1) Solar site design is now a real engine input — siteDesignLevel 'solar'
+multiplies the surface-parking line by exterior.solarMultiplier (2.3, Mike
+confirmed after briefly considering 2.5), with a "labor drops dramatically —
+no trenching/conduit/wire" note rendered wherever the budget shows; the
+internal wizard gained the same question. (2) NEW PRICING RULE: BOH is hard-
+capped at 5% of gross SF (boh.maxPctOfGross, editable at /admin/pricing) —
+enforced at pricing time AND in the intake remainder derivation; born from
+Fulshear where the BOH remainder swallowed 63,953 SF and overpriced ~$97K.
+(3) Public /conceptual_budget: drawings survive step navigation (dropzone was
+unmounting), and the Review & send step now renders the exact internal
+summary top (navy hero + Project Data grid + SummaryBudgetBreakdown).
+871/871 tests, build clean, no schema changes. Heads-up for anyone touching
+prod pricing: if a Solar Multiplier override row exists in the DB it should
+read 2.3 (code default already is).
+
 ### 2026-09-04 — Mike's Claude (second entry)
 
 **Sean's CloudWatch finding acknowledged:** the failing prod parse reads were

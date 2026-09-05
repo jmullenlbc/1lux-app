@@ -124,7 +124,28 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
     ? 'no units or building count yet — $0'
     : `${wpQtyOv != null ? `${wpQty} (manual)` : `${wpBuildings} bldg${wpBuildings === 1 ? '' : 's'} × ${wpPerBuilding}${wpIsHorizontal && (WPC.clubhouse ?? 0) > 0 ? ` + ${WPC.clubhouse} clubhouse` : ''} = ${wpQty}`} × $${wpEach.toLocaleString()}${wpPriceOv != null ? ' (manual)' : ''}`;
 
-  const subBeforeMisc   = amenityProduct + parkingProduct + carportProduct + garageProduct + wallpackProduct + autoLandscape;
+  // Pathway lighting — mirrors the engine block wired 2026-09-04: $/unit by
+  // building type from master pricing, floored at pathway.minTotal. A manual
+  // "Pathway lighting" entry below WINS and suppresses this model line, so a
+  // hand-counted figure is never stacked on top of the model's.
+  const PW             = P.exterior?.pathway || {};
+  const pathwayRate    = PW.dollarsPerUnit?.[wpType] ?? 0;
+  const pathwayFloor   = Number(PW.minTotal) || 0;
+  const pathwayManual  = parseFloat(manualItems.pathwayLighting) || 0;
+  const pathwayAuto    = numUnitsPD > 0 && pathwayRate > 0
+    ? Math.max(numUnitsPD * pathwayRate, pathwayFloor)
+    : 0;
+  const pathwayProduct = pathwayManual > 0 ? 0 : pathwayAuto;
+  const pathwayFloored = pathwayProduct > 0 && numUnitsPD * pathwayRate < pathwayFloor;
+  const pathwayMath = pathwayManual > 0
+    ? 'manual pathway entry below carries this scope'
+    : numUnitsPD <= 0 || pathwayRate <= 0
+      ? 'no units yet — $0'
+      : pathwayFloored
+        ? `${numUnitsPD.toLocaleString()} units × $${pathwayRate}/unit = $${Math.round(numUnitsPD * pathwayRate).toLocaleString()}, floored at $${pathwayFloor.toLocaleString()}`
+        : `${numUnitsPD.toLocaleString()} units × $${pathwayRate}/unit`;
+
+  const subBeforeMisc   = amenityProduct + parkingProduct + carportProduct + garageProduct + wallpackProduct + autoLandscape + pathwayProduct;
   // The buffer base includes the manual adder — matches the engine
   // (extBufferBase = extSubBeforeMisc + exteriorManualTotal). This preview
   // previously left the manual adder out of the buffer and understated it.
@@ -140,6 +161,7 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
     { label: 'Carports',              math: `${carports} ÷ 2 = ${Math.floor(carports / 2)} disk${Math.floor(carports / 2) === 1 ? '' : 's'} × $${P.exterior?.carport?.diskEveryOther ?? 30}`, value: carportProduct },
     { label: 'Detached garages',      math: `${numGarages} × $${P.exterior?.detachedGarage?.sconcePerDoor ?? 80}/door`, value: garageProduct },
     { label: 'Building wallpacks',    math: wpMath, value: wallpackProduct },
+    { label: 'Pathway lighting',      math: pathwayMath, value: pathwayProduct },
     // Show the cap when it binds, otherwise the label reads as the uncapped
     // figure and silently contradicts the value next to it.
     { label: 'Landscape',             math: landscapeCapped
@@ -220,6 +242,7 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
           <div>• Surface parking: 1 fixture per ~{sp.stallsPerFixture ?? 9} stalls × ${(sp.perFixture ?? 1325).toLocaleString()}/fixture (area light + 30ft pole)</div>
           <div>• Carports: 1 × 7" disk per every other bay (${P.exterior?.carport?.diskEveryOther ?? 30} ea)</div>
           <div>• Building wallpacks: per-building rate by building type × ${WPC.perFixture ?? 350} each — covers exterior doors too</div>
+          <div>• Pathway lighting: $/unit by building type (${pathwayRate || 0}/unit here), floored at ${pathwayFloor.toLocaleString()} — a manual pathway entry replaces the model line</div>
         </div>
       </div>
 

@@ -400,7 +400,7 @@ export default function ProjectDashboard({
           <EditableStat label="# Bathrooms"         displayValue={fmtNum(pd.numBathrooms)}        rawValue={pd.numBathrooms}        onSave={d('numBathrooms')} />
           <EditableStat label="# Vanities"          displayValue={fmtNum(pd.numVanities)}         rawValue={pd.numVanities}         onSave={d('numVanities')} />
           <EditableStat label="# Balconies"         displayValue={fmtNum(pd.numBalconies)}        rawValue={pd.numBalconies}        onSave={d('numBalconies')} />
-          <EditableStat label="# Egress Stairwells" displayValue={fmtNum(pd.numEgressStairwells)} rawValue={pd.numEgressStairwells} onSave={d('numEgressStairwells')} />
+          <EditableStat label="# Egress Stairwell Landings" displayValue={fmtNum(pd.numEgressStairwells)} rawValue={pd.numEgressStairwells} onSave={d('numEgressStairwells')} />
           <EditableStat label="# Ceiling Fans"      displayValue={fmtNum(pd.numFans)}             rawValue={pd.numFans}             onSave={d('numFans')} />
           <EditableStat label="# Surface Parking"   displayValue={fmtNum(pd.numSurfaceParking)}   rawValue={pd.numSurfaceParking}   onSave={d('numSurfaceParking')} />
           <EditableStat label="# Carports"          displayValue={fmtNum(pd.numCarports)}         rawValue={pd.numCarports}         onSave={d('numCarports')} />

@@ -119,7 +119,8 @@ export async function POST(req) {
   // override, 'drawing'/'questionnaire' = settled. Values + provenance only —
   // no pricing.
   const quantities = rows.map(r => ({
-    key: r.key, value: r.value, source: r.source, how: r.how, flag: r.flag,
+    key: r.key, label: r.label, unit: r.unit,
+    value: r.value, source: r.source, how: r.how, flag: r.flag,
   }));
 
   // The budget object is derived output (the visitor's own numbers) — the

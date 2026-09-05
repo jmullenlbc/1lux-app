@@ -167,7 +167,7 @@ export async function POST(request, { params }) {
   if (pd.exteriorAmenitySf)    buildingLines.push(`Exterior Amenity SF: ${Number(pd.exteriorAmenitySf).toLocaleString()}`);
   if (pd.garageSf)             buildingLines.push(`Garage SF: ${Number(pd.garageSf).toLocaleString()}`);
   if (pd.bohSf)                buildingLines.push(`BOH/Core+Shell SF: ${Number(pd.bohSf).toLocaleString()}`);
-  if (pd.numEgressStairwells)  buildingLines.push(`# Egress Stairwells: ${pd.numEgressStairwells}`);
+  if (pd.numEgressStairwells)  buildingLines.push(`# Egress Stairwell Landings: ${pd.numEgressStairwells}`);
   if (pd.numSurfaceParking)    buildingLines.push(`Surface Parking Stalls: ${pd.numSurfaceParking}`);
   if (pd.numCarports)          buildingLines.push(`Carports: ${pd.numCarports}`);
   if (pd.numGarages)           buildingLines.push(`Detached Garages: ${pd.numGarages}`);
@@ -214,6 +214,7 @@ export async function POST(request, { params }) {
   budgetLines.push(`    Carports:         ${fmt(s.exterior?.carports?.product)}`);
   budgetLines.push(`    Garages:          ${fmt(s.exterior?.garages?.product)}`);
   budgetLines.push(`    Bldg wallpacks:   ${fmt(s.exterior?.wallpacks?.product)}`);
+  budgetLines.push(`    Pathway lighting: ${fmt(s.exterior?.pathway?.product)}${s.exterior?.pathway?.suppressedByManual ? ' (manual entry carries it)' : ''}`);
   budgetLines.push(`    Landscape/adder:  ${fmt(s.exterior?.landscape?.product)}`);
   budgetLines.push(`    5% misc buffer:   ${fmt(s.exterior?.misc?.product)}`);
   budgetLines.push(`  Emergency Lighting: ${fmt(s.emergency?.product)}`);

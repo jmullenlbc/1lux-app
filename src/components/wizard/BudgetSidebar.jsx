@@ -118,6 +118,10 @@ export default function BudgetSidebar({ budget, projectData, currentStep }) {
                 { label: 'Carports',           value: sections.exterior?.carports?.product  || 0 },
                 { label: 'Garages',            value: sections.exterior?.garages?.product   || 0 },
                 { label: 'Building wallpacks', value: sections.exterior?.wallpacks?.product || 0 },
+                { label: sections.exterior?.pathway?.suppressedByManual
+                    ? 'Pathway (manual entry)'
+                    : 'Pathway lighting',
+                  value: sections.exterior?.pathway?.product || 0 },
                 { label: 'Landscape',          value: sections.exterior?.landscape?.product || 0 },
                 { label: '5% misc buffer',     value: sections.exterior?.misc?.product      || 0 },
               ]}
