@@ -93,7 +93,10 @@ export default function BudgetSidebar({ budget, projectData, currentStep }) {
               details={[
                 { label: 'Corridor disks',       value: sections.corridors?.disks?.product      || 0 },
                 { label: 'Unit entry sconces',   value: sections.corridors?.sconces?.product    || 0 },
-                { label: 'Stairwell fixtures',   value: sections.corridors?.stairwells?.product || 0 },
+                { label: sections.corridors?.stairwells?.breezeway
+                           ? `Breezeway stairs (${sections.corridors.stairwells.breezeway.stairs})`
+                           : 'Stairwell fixtures',
+                  value: sections.corridors?.stairwells?.product || 0 },
                 { label: 'Accent downlights',    value: sections.corridors?.accents?.product    || 0 },
               ]}
             />
@@ -120,7 +123,9 @@ export default function BudgetSidebar({ budget, projectData, currentStep }) {
                 { label: 'Building wallpacks', value: sections.exterior?.wallpacks?.product || 0 },
                 { label: sections.exterior?.pathway?.suppressedByManual
                     ? 'Pathway (manual entry)'
-                    : 'Pathway lighting',
+                    : (sections.exterior?.pathway?.solarMultiplier || 1) > 1
+                      ? `Pathway lighting (solar × ${sections.exterior.pathway.solarMultiplier})`
+                      : 'Pathway lighting',
                   value: sections.exterior?.pathway?.product || 0 },
                 { label: 'Landscape',          value: sections.exterior?.landscape?.product || 0 },
                 { label: '5% misc buffer',     value: sections.exterior?.misc?.product      || 0 },

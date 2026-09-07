@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { logActivity } from '@/lib/activity';
+import { captureQuietly } from '@/lib/calibration/capture';
 
 // Map projectData fields → questionnaire (section, questionKey) for bidirectional sync
 const QUESTIONNAIRE_SYNC = {
@@ -157,6 +158,7 @@ export async function PUT(request, { params }) {
   }
 
   await logActivity(params.id, user, 'project_data', description, { changed: changedFields });
+  captureQuietly(params.id, { minIntervalMs: 0 });
 
   return NextResponse.json({ projectData: updated });
 }

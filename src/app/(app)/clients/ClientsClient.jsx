@@ -3,7 +3,12 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-import { CLIENT_TYPES, LOCATION_TYPES, clientTypeLabel, locationTypeLabel } from '@/lib/utils';
+import {
+  ORG_TYPE_OPTIONS, LOCATION_TYPES,
+  clientTypeLabel, locationTypeLabel, clientTypeKeyFromLabel,
+} from '@/lib/utils';
+import { clientDealCounts, parseList } from '@/lib/crmClient';
+import MultiSelect from '@/components/ui/MultiSelect';
 
 function ClientTypeTag({ type }) {
   if (!type) return null;
@@ -25,13 +30,28 @@ function ClientTypeTag({ type }) {
   );
 }
 
+// Every Client Type key ticked on a client. orgTypes stores labels, so they get
+// translated back to keys; `type` is the fallback for rows saved before the
+// multi-select existed.
+function clientTypeKeys(client) {
+  const fromLabels = parseList(client?.orgTypes)
+    .map(clientTypeKeyFromLabel)
+    .filter(Boolean);
+  if (fromLabels.length) return fromLabels;
+  return client?.type ? [client.type] : [];
+}
+
 // ── New/Edit Client Modal ─────────────────────────────────────────────────────
 
 function ClientModal({ client, onClose, onSave }) {
   const [form, setForm] = useState({
     name:         client?.name         || '',
-    type:         client?.type         || 'developer',
+    // Client Type is a multi-select now — a builder can be a developer AND a
+    // self-performing GC. `type` is still derived from the first tick server-side.
+    orgTypes:     parseList(client?.orgTypes),
     locationType: client?.locationType || 'standalone',
+    city:         client?.city         || '',
+    state:        client?.state        || '',
     notes:        client?.notes        || '',
   });
   const [saving, setSaving] = useState(false);
@@ -50,7 +70,12 @@ function ClientModal({ client, onClose, onSave }) {
       const res    = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          name:  form.name.trim(),
+          city:  form.city.trim() || null,
+          state: form.state.trim().toUpperCase() || null,
+        }),
       });
       if (!res.ok) { const d = await res.json(); setErr(d.error || 'Save failed'); return; }
       onSave();
@@ -86,15 +111,34 @@ function ClientModal({ client, onClose, onSave }) {
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Organization Type</label>
-            <select
-              value={form.type}
-              onChange={e => set('type', e.target.value)}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
-            >
-              {CLIENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
+          <MultiSelect
+            label="Client Type"
+            options={ORG_TYPE_OPTIONS}
+            selected={form.orgTypes}
+            onChange={orgTypes => set('orgTypes', orgTypes)}
+            hint="Tick every one that applies."
+          />
+
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2">
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">City</label>
+              <input
+                value={form.city}
+                onChange={e => set('city', e.target.value)}
+                placeholder="e.g., Denver"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">State</label>
+              <input
+                value={form.state}
+                onChange={e => set('state', e.target.value)}
+                placeholder="CO"
+                maxLength={2}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 uppercase focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
           </div>
 
           <div>
@@ -149,6 +193,16 @@ export default function ClientsClient({ clients: initial, user }) {
   const [search,  setSearch]  = useState('');
   const [modal,   setModal]   = useState(null); // null | 'new' | clientObject
   const [deletingId, setDeletingId] = useState(null);
+  const [tagFilter,  setTagFilter]  = useState('');   // '' = every client
+
+  // Every tag actually in use, for the filter row.
+  const tagsInUse = [];
+  for (const c of clients) {
+    for (const link of c.tagLinks || []) {
+      if (link.tag && !tagsInUse.some(t => t.id === link.tag.id)) tagsInUse.push(link.tag);
+    }
+  }
+  tagsInUse.sort((a, b) => a.name.localeCompare(b.name));
 
   // Refresh list after save/delete
   async function refresh() {
@@ -171,11 +225,15 @@ export default function ClientsClient({ clients: initial, user }) {
   }
 
   const filtered = clients.filter(c => {
+    if (tagFilter && !(c.tagLinks || []).some(l => l.tagId === tagFilter)) return false;
     const q = search.toLowerCase();
-    return !q ||
-      c.name.toLowerCase().includes(q) ||
+    if (!q) return true;
+    return c.name.toLowerCase().includes(q) ||
       (c.type         || '').toLowerCase().includes(q) ||
       (c.locationType || '').toLowerCase().includes(q) ||
+      (c.city         || '').toLowerCase().includes(q) ||
+      (c.state        || '').toLowerCase().includes(q) ||
+      parseList(c.orgTypes).some(t => String(t).toLowerCase().includes(q)) ||
       (c.notes        || '').toLowerCase().includes(q);
   });
 
@@ -203,10 +261,10 @@ export default function ClientsClient({ clients: initial, user }) {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
-          { label: 'Total Clients',   value: clients.length },
-          { label: 'Developers',      value: clients.filter(c => c.type === 'developer').length },
-          { label: 'Architects',      value: clients.filter(c => c.type === 'architect').length },
-          { label: 'Linked Projects', value: clients.reduce((s, c) => s + (c._count?.projects || 0), 0) },
+          { label: 'Total Clients', value: clients.length },
+          { label: 'Developers',    value: clients.filter(c => clientTypeKeys(c).includes('developer')).length },
+          { label: 'People',        value: clients.reduce((s, c) => s + (c._count?.contacts || 0), 0) },
+          { label: 'Open Deals',    value: clients.reduce((s, c) => s + clientDealCounts(c.projects).open, 0) },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-xl border border-slate-200 p-5">
             <div className="text-2xl font-bold text-slate-900">{s.value}</div>
@@ -230,6 +288,34 @@ export default function ClientsClient({ clients: initial, user }) {
           </button>
         )}
       </div>
+
+      {/* Tag filter — only shown once at least one client is tagged */}
+      {tagsInUse.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 mb-4">
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide mr-1">Tags</span>
+          <button
+            onClick={() => setTagFilter('')}
+            aria-pressed={!tagFilter}
+            className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+              !tagFilter ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
+            }`}
+          >
+            All
+          </button>
+          {tagsInUse.map(tag => (
+            <button
+              key={tag.id}
+              onClick={() => setTagFilter(tagFilter === tag.id ? '' : tag.id)}
+              aria-pressed={tagFilter === tag.id}
+              className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                tagFilter === tag.id ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
+              }`}
+            >
+              {tag.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Clients grid / empty state */}
       {filtered.length === 0 ? (
@@ -267,9 +353,13 @@ export default function ClientsClient({ clients: initial, user }) {
                   >
                     {client.name}
                   </Link>
-                  {client.locationType && client.locationType !== 'none' && (
+                  {(client.city || client.state || (client.locationType && client.locationType !== 'none')) && (
                     <div className="text-xs text-slate-400 mt-0.5">
-                      {locationTypeLabel(client.locationType)}
+                      {[
+                        [client.city, client.state].filter(Boolean).join(', '),
+                        client.locationType && client.locationType !== 'none'
+                          ? locationTypeLabel(client.locationType) : '',
+                      ].filter(Boolean).join(' · ')}
                     </div>
                   )}
                 </div>
@@ -307,11 +397,44 @@ export default function ClientsClient({ clients: initial, user }) {
                 </div>
               </div>
 
-              {client.type && (
-                <div className="mb-3">
-                  <ClientTypeTag type={client.type} />
+              {clientTypeKeys(client).length > 0 && (
+                <div className="mb-3 flex flex-wrap gap-1">
+                  {clientTypeKeys(client).map(key => <ClientTypeTag key={key} type={key} />)}
                 </div>
               )}
+
+              {(client.tagLinks || []).length > 0 && (
+                <div className="mb-3 flex flex-wrap gap-1">
+                  {client.tagLinks.map(link => (
+                    <span key={link.id || link.tagId}
+                      className="inline-block text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                      {link.tag?.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Deal counts, worked out live from this client's projects —
+                  never a stored number that can drift. One project is one deal,
+                  even when it rides both pipelines. */}
+              {(() => {
+                const counts = clientDealCounts(client.projects);
+                return (
+                  <div className="grid grid-cols-4 gap-1 text-center">
+                    {[
+                      ['Open',      counts.open,      'text-slate-900'],
+                      ['Won',       counts.won,       'text-emerald-600'],
+                      ['Lost',      counts.lost,      'text-red-500'],
+                      ['Abandoned', counts.abandoned, 'text-amber-600'],
+                    ].map(([label, value, tone]) => (
+                      <div key={label} className="rounded-lg bg-slate-50 py-1.5">
+                        <div className={`text-sm font-bold ${tone}`}>{value}</div>
+                        <div className="text-[10px] text-slate-400 uppercase tracking-wide">{label}</div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
 
               {client.notes && (
                 <p className="text-xs text-slate-400 mt-2 line-clamp-2">{client.notes}</p>
@@ -320,6 +443,8 @@ export default function ClientsClient({ clients: initial, user }) {
               <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
                 <span className="text-xs text-slate-400">
                   {client._count?.projects || 0} {client._count?.projects === 1 ? 'project' : 'projects'}
+                  {' · '}
+                  {client._count?.contacts || 0} {client._count?.contacts === 1 ? 'person' : 'people'}
                 </span>
                 <Link
                   href={`/clients/${client.id}`}

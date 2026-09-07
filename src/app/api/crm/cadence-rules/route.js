@@ -2,10 +2,32 @@ import { NextResponse } from 'next/server';
 import { requireAuth, isAnyAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
+/**
+ * Starting cadences, measured rather than guessed.
+ *
+ * Mike, 2026-09-07: "went quiet after what is the real question." So these came
+ * out of four years of his own calendar (scripts/calendar/quietGap.mjs), which
+ * measured every gap between two meetings with the same company — 5,353 of them
+ * across 434 companies. Every gap measured that way is one the relationship
+ * SURVIVED, because another meeting followed it. The shape:
+ *
+ *   half of survived gaps ≤ 14 days · 80% ≤ 28 days · 90% ≤ 70 days
+ *
+ * So his real rhythm is two weeks, and the tiers below are set where they flag
+ * an unusual gap instead of a normal one. In share-of-normal-rhythm terms:
+ *   30 days flags 19% · 45 flags 15% · 60 flags 11% · 75 flags 10% · 90 flags 8%
+ *
+ * The old values (42/90/90/180/365) were placeholders. The two long ones held up
+ * and are unchanged; the three short ones were too loose — a deal you are
+ * actively working should not be allowed to go a full quarter in silence.
+ *
+ * NOTE: re-seeding overwrites cadenceDays, so a tier tuned by hand will be reset
+ * if someone posts { seed: true } again.
+ */
 const DEFAULT_TIERS = [
-  { tier: 'VIP_CLIENT',    label: 'VIP Client',     cadenceDays: 42  },
-  { tier: 'ACTIVE_DEAL',   label: 'Active Deal',    cadenceDays: 90  },
-  { tier: 'WARM_PROSPECT', label: 'Warm Prospect',  cadenceDays: 90  },
+  { tier: 'VIP_CLIENT',    label: 'VIP Client',     cadenceDays: 30  },
+  { tier: 'ACTIVE_DEAL',   label: 'Active Deal',    cadenceDays: 45  },
+  { tier: 'WARM_PROSPECT', label: 'Warm Prospect',  cadenceDays: 75  },
   { tier: 'PAST_CLIENT',   label: 'Past Client',    cadenceDays: 180 },
   { tier: 'COLD_PROSPECT', label: 'Cold Prospect',  cadenceDays: 365 },
 ];

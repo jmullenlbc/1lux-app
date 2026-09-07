@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { invalidateMassEmailThreshold } from '@/lib/email/settings';
 
 // GET /api/automation/exclusion-rules
 export async function GET(request) {
@@ -37,6 +38,9 @@ export async function POST(request) {
       createdById: user.id,
     },
   });
+
+  // The mass-email threshold is cached — drop it so a new rule takes effect now.
+  invalidateMassEmailThreshold();
 
   return NextResponse.json({ rule }, { status: 201 });
 }

@@ -2,6 +2,7 @@
 // directly, the same way Next's bundler does. Without it the test runner cannot
 // resolve './pricing'.
 import { PRICING as STATIC_PRICING } from './pricing.js';
+import { breezewayStairPackage } from './stairLandings.js';
 
 // Safely convert any value to a finite number
 function n(val, fallback = 0) {
@@ -53,8 +54,30 @@ export function priceOverride(raw) {
   return num;
 }
 
+/**
+ * A project's frozen pricing snapshot only knows the lines that existed the day
+ * the project was created. Lines added since (wallpacks, pathway, landscape
+ * caps, the solar multipliers…) are simply absent from it — and absent read as
+ * $0, which is how every April project came to show $0 wallpacks and $0
+ * pathway on its live page. Snapshot values still win for every key they carry;
+ * missing keys fall through to the master sheet — the same rule loadPricing()
+ * applies to the saved DB record.
+ */
+export function fillPricingDefaults(defaults, override) {
+  if (!override || typeof override !== 'object') return defaults;
+  const out = { ...defaults };
+  for (const [k, v] of Object.entries(override)) {
+    if (v !== null && typeof v === 'object' && !Array.isArray(v) && defaults[k] && typeof defaults[k] === 'object' && !Array.isArray(defaults[k])) {
+      out[k] = fillPricingDefaults(defaults[k], v);
+    } else if (v !== undefined) {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
 export function calculateBudget(projectData, responses = {}, pricingOverride = null) {
-  const PRICING = pricingOverride || STATIC_PRICING;
+  const PRICING = pricingOverride ? fillPricingDefaults(STATIC_PRICING, pricingOverride) : STATIC_PRICING;
   const pd = projectData || {};
   const r  = responses   || {};
 
@@ -69,6 +92,11 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // Sales tax: stored on project data as decimal (e.g. 0.0915 for 9.15%)
   // Also falls back to questionnaire responses for legacy data
   const salesTaxPct = n(pd.salesTaxPct) || n(projectDataR.salesTax) || 0;
+
+  // One building type for the whole budget: the project's own, else whatever
+  // the questionnaire said, else a mid-rise. Drives the stair package, the
+  // exterior wallpack count and the controls cap.
+  const buildingTypeKey = pd.buildingTypeKey || controls.buildingType || controls.projectType || 'midRise';
 
   // ─── SAFE PROJECT DATA NUMBERS ────────────────────────────────────────────
   const grossSf        = n(pd.grossSf);
@@ -120,16 +148,23 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // otherwise fall back to ROUND(numUnits × room multiplier)
   const fanMult  = FAN_ROOMS[units.fans || 'none'] ?? 0;
   const fanCount = n(pd.numFans) > 0 ? n(pd.numFans) : Math.round(numUnits * fanMult);
-  // Conceptual adderPerFan ($140) is already net of the disk credit. Design levels
-  // (142/190/270) are GROSS, so subtract the $35 disk credit (a 12" disk is removed
-  // from the base when a fan is added).
+  // Two price ladders, decided by whether a fan finish level has been chosen —
+  // both GROSS on the sheet, both net of the $35 disk credit here (a 12" disk
+  // comes out of the base when a fan goes in):
+  //   - no level yet (conceptual budget): the flat conceptual fan price (Mike
+  //     2026-09-05: "$180 … should be gross"), so $180 − $35 = $145 per fan;
+  //   - a level (design questionnaire): that level's price minus the credit.
+  // The conceptual questionnaire never saves a level; the design one always does.
+  // An old frozen sheet with no conceptual price falls to the legacy NET adder.
   const fanDiskCredit = n(PRICING.fans?.diskCredit, 35);
-  // Default to the Medium design level the moment fans are chosen; picking a
-  // different finish level (low/high) overrides it.
-  const fanLevelKey  = (units.fanLevel && PRICING.designFanLevels?.[units.fanLevel]) ? units.fanLevel : 'medium';
-  let fanPricePerFan = PRICING.fans.adderPerFan; // fallback if no design levels defined
-  if (PRICING.designFanLevels?.[fanLevelKey]) {
-    fanPricePerFan = Math.max(0, PRICING.designFanLevels[fanLevelKey] - fanDiskCredit);
+  const fanLevelKey  = (units.fanLevel && PRICING.designFanLevels?.[units.fanLevel]) ? units.fanLevel : null;
+  let fanPricePerFan;
+  if (fanLevelKey) {
+    fanPricePerFan = Math.max(0, n(PRICING.designFanLevels[fanLevelKey]) - fanDiskCredit);
+  } else {
+    fanPricePerFan = n(PRICING.fans?.conceptualPerFan) > 0
+      ? Math.max(0, n(PRICING.fans.conceptualPerFan) - fanDiskCredit)
+      : n(PRICING.fans?.adderPerFan, 145);
   }
   // Override is the NET adder per fan — the $35 disk credit is NOT subtracted from
   // it. Typing $200 means $200 per fan.
@@ -186,8 +221,18 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     : 0;
   const sconceProduct    = sconceUnit * numUnits;
 
-  // Stairwell LED strips + battery backup
-  const stairwellProduct = stairwells * PRICING.corridors.stairwellPerLanding.product;
+  // Stairwells. Enclosed corridor-building stairs: LED strip + battery per
+  // landing. Breezeway walk-ups (garden / stacked flats / gurban): the open
+  // stair carries its own landing disks, wall packs on the stair and egress,
+  // frogeyes and vestibule disks — the Lowell + I76 package (Mike 2026-09-05:
+  // "Where it does matter a lot is breezeways"). Same landings count feeds both.
+  const breezewayStairs  = breezewayStairPackage(
+    { landings: stairwells, stories: n(pd.numFloors), buildingTypeKey },
+    PRICING,
+  );
+  const stairwellProduct = breezewayStairs
+    ? breezewayStairs.product
+    : stairwells * PRICING.corridors.stairwellPerLanding.product;
 
   // Recessed accent downlights (fire-rated adjustable)
   const accentProduct = numAccents > 0
@@ -275,7 +320,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // a real number (including 0) → exactly that. A zero-scale project (no units
   // AND no building count) prices at $0 rather than charging a phantom clubhouse.
   const wp             = PRICING.exterior.wallpacks || {};
-  const wpBuildingType = pd.buildingTypeKey || controls.buildingType || controls.projectType || 'midRise';
+  const wpBuildingType = buildingTypeKey;
   const wpPerBuilding  = wp.perBuilding?.[wpBuildingType] ?? 0;
   const wpIsWalkUp     = ['stackedFlats', 'garden', 'gurban'].includes(wpBuildingType);
   const wpIsHorizontal = wpIsWalkUp || ['singleFamily', 'townHouses'].includes(wpBuildingType);
@@ -292,7 +337,11 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const wpEach         = priceOverride(exterior.wallpacksPrice) ?? (wp.perFixture ?? 350);
   const wallpackProduct = wpQty * wpEach;
 
-  // Landscape: 2% of total lot SF (Excel-verified formula).
+  // Landscape: 2% of NET lot SF — lot minus the building footprint (the ground
+  // the fixtures can actually sit on). Mike 2026-09-04: "net lot". Before that
+  // the line multiplied the FULL lot (which is what the Excel does too — one
+  // of the reasons Excel and app landscape figures differ on big sites). Falls
+  // back to the full lot when no footprint is on file rather than pricing $0.
   //
   // Historical note: `exterior.landscapeBudget` was a manual override
   // field on the wizard before mid-2026. The input was removed from the
@@ -306,7 +355,9 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // the pricing admin had no effect on any budget.
   const landscapePct  = PRICING.exterior.landscape?.pctOfNetLotSf ?? 0.02;
   const landscapeCap  = PRICING.exterior.landscape?.maxTotal ?? 3000;
-  const landscapeFlat = lotSf > 0 ? Math.min(lotSf * landscapePct, landscapeCap) : 0;
+  const netLotSf      = footprintSf > 0 ? Math.max(lotSf - footprintSf, 0) : lotSf;
+  const landscapeRaw  = netLotSf > 0 ? netLotSf * landscapePct : 0;
+  const landscapeFlat = Math.min(landscapeRaw, landscapeCap);
 
   // Manual override: site/exterior is frequently hand-calculated outside the
   // formula (manually built in the spreadsheet). A positive exteriorOverride
@@ -340,13 +391,18 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // SUPPRESSES the model line — projects like Modera Town Lake carry a real
   // counted number there, and the model must not stack on top of it.
   // Zero-scale (no units) prices at $0, same rule as wallpacks.
+  // Solar sites bump the MODEL line by pathway.solarMultiplier (1.6 — Mike
+  // 2026-09-04; solar bollards run ~1.5× conventional on the Avilla actuals).
+  // Applied after the floor so a floored site still gets the solar premium.
   const pwRates        = PRICING.exterior.pathway?.dollarsPerUnit || {};
   const pathwayRate    = pwRates[wpBuildingType] ?? 0;
   const pathwayFloor   = n(PRICING.exterior.pathway?.minTotal);
   const pathwayManual  = n(exteriorManualItems.pathwayLighting);
-  const pathwayAuto    = numUnits > 0 && pathwayRate > 0
+  const pathwaySolarMultiplier = solarSite ? n(PRICING.exterior.pathway?.solarMultiplier, 1.6) : 1;
+  const pathwayBase    = numUnits > 0 && pathwayRate > 0
     ? Math.max(numUnits * pathwayRate, pathwayFloor)
     : 0;
+  const pathwayAuto    = pathwayBase * pathwaySolarMultiplier;
   const pathwayProduct = pathwayManual > 0 ? 0 : pathwayAuto;
 
   // Misc buffer = 5% of formula-line subtotal + manual adder. Both contribute.
@@ -496,9 +552,13 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
 
   // ─── CONTROLS ─────────────────────────────────────────────────────────────
   // Controls apply to total gross SF (IECC 2021 — Excel-verified)
-  const buildingType = pd.buildingTypeKey || controls.buildingType || controls.projectType || 'midRise';
+  const buildingType = buildingTypeKey;
   const ctrlRate     = PRICING.controls.rates[buildingType] || PRICING.controls.rates.midRise;
-  const controlsCap  = n(PRICING.controls.cap, ctrlRate.cap);
+  // Two ceilings, and the lower one wins: the building type's own cap (garden
+  // $65K … high-rise $190K) AND the sheet-wide "never over $180K" cap. Before
+  // 2026-09-04 the sheet-wide cap silently REPLACED the type cap whenever it was
+  // present, so a garden project could be charged up to $180K of controls.
+  const controlsCap  = Math.min(n(ctrlRate.cap, Infinity), n(PRICING.controls.cap, Infinity));
   let controlsProduct = Math.min(grossSf * ctrlRate.perSf, controlsCap);
 
   // Manual override — an explicit override replaces the formula result.
@@ -557,7 +617,13 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
       corridors: {
         disks:      { product: diskProduct           },
         sconces:    { product: sconceProduct         },
-        stairwells: { product: stairwellProduct      },
+        stairwells: {
+          product:   stairwellProduct,
+          landings:  stairwells,
+          // Set only for breezeway walk-ups — the per-stair fixture package
+          // behind the dollars, so any view can show the counts.
+          breezeway: breezewayStairs,
+        },
         accents:    { product: accentProduct         },
         total:      { product: corridorProductTotal  },
       },
@@ -586,16 +652,28 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
           qtyOverridden:   priceOverride(exterior.wallpacksQty)   != null,
           priceOverridden: priceOverride(exterior.wallpacksPrice) != null,
         },
-        landscape: { product: landscapeFlat        },
+        // Landscape — NET lot (lot − footprint) × pct, capped. `netLotSf` and
+        // `capped` let every view print the same math the engine ran.
+        landscape: {
+          product:  landscapeFlat,
+          lotSf,
+          footprintSf,
+          netLotSf,
+          pct:      landscapePct,
+          capped:   landscapeRaw > landscapeCap,
+        },
         // Pathway lighting — model line wired 2026-09-04. `suppressedByManual`
         // means a hand-entered exteriorManualItems.pathwayLighting figure is
         // carrying the scope instead (it rides in manualAdderTotal).
+        // `solarMultiplier` is 1 on conventional sites, pathway.solarMultiplier
+        // (1.6) on solar sites — already baked into `product`.
         pathway: {
           product:            pathwayProduct,
           rate:               pathwayRate,
           buildingType:       wpBuildingType,
           floorApplied:       pathwayProduct > 0 && numUnits * pathwayRate < pathwayFloor,
           suppressedByManual: pathwayManual > 0,
+          solarMultiplier:    pathwaySolarMultiplier,
         },
         // Solar site design (Fulshear review, 2026-09-04): the parking product
         // above already includes the multiplier; the note rides along for every

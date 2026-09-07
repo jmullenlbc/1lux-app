@@ -178,7 +178,7 @@ export const INTAKE_QUESTIONS = [
     key: 'interiorAmenityFinish',
     section: 'Interior amenities',
     question: 'Please choose what $/SF of interior amenity SF based on the level of finish of the project..',
-    hint: 'Interior amenities range from $6/SF on the low end (i.e. garden walk-up) to $15/SF (i.e. high-end mid-rise or high-rise).',
+    hint: 'Interior amenities range from $6/SF on the low end (i.e. garden walk-up) to $16/SF (i.e. high-end mid-rise or high-rise).',
     options: ['3', '6', '7', '8', '9', '10', '11', '12', '13', '14'],
     default: '10',
     format: 'perSf',

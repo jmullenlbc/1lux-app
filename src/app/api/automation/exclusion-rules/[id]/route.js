@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, isAnyAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { invalidateMassEmailThreshold } from '@/lib/email/settings';
 
 // PATCH /api/automation/exclusion-rules/[id]
 export async function PATCH(request, { params }) {
@@ -24,6 +25,9 @@ export async function PATCH(request, { params }) {
     data,
   });
 
+  // The mass-email threshold is cached — drop it so an edit takes effect now.
+  invalidateMassEmailThreshold();
+
   return NextResponse.json({ rule });
 }
 
@@ -40,6 +44,7 @@ export async function DELETE(request, { params }) {
   if (!existing) return NextResponse.json({ error: 'Rule not found' }, { status: 404 });
 
   await prisma.activityExclusionRule.delete({ where: { id: params.id } });
+  invalidateMassEmailThreshold();
 
   return NextResponse.json({ ok: true });
 }

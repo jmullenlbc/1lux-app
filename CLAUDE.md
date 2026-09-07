@@ -30,7 +30,10 @@ Each gate exists because something silently broke in production:
 
 ## Schema changes are additive-only, and never silent
 
-Amplify runs `prisma db push --accept-data-loss` on deploy, so a removed or renamed field in `prisma/schema.prisma` is a **dropped production column with no rollback**.
+Amplify runs `npx prisma migrate deploy` on deploy (`amplify.yml` line 41). Two consequences, both easy to get backwards:
+
+- The SQL in `prisma/migrations/` **is production code**. It really runs against the live database, and a SQL error does not fail quietly — it halts the deploy with the migration half-applied, and the next deploy refuses to start until someone runs `migrate resolve --rolled-back` (the `0023_proposals` precedent). Write and read a migration's backfills as production code, not local convenience.
+- Prisma will **not** silently drop a column for you, but a migration you write can. A removed or renamed field in `prisma/schema.prisma` is still a **dropped production column with no rollback** the moment its migration says so.
 
 - **Adding** a model or an optional field is safe — do it, with a migration, and say so in the session summary.
 - **Removing or renaming** anything is destructive. Never do it as a side effect of another change; surface it to Mike and get an explicit yes first.
@@ -236,12 +239,18 @@ npm ci
 node scripts/generate-deploy-log.js
 sed -i 's/provider = "sqlite"/provider = "postgresql"/' prisma/schema.prisma
 npx prisma generate
-npx prisma db push --accept-data-loss
+npx prisma migrate resolve --applied "0001_baseline" 2>/dev/null || true
+npx prisma migrate resolve --rolled-back "0023_proposals" 2>/dev/null || true
+npx prisma migrate deploy
 node prisma/seed.js
 npm run build
 ```
 
-`prisma db push --accept-data-loss` is intentional — schema changes in production may drop columns. The seed runs every deploy (upsert — safe).
+`migrate deploy` applies every migration committed since the last deploy, in order. It never drops data and never re-runs an applied migration — but it does run *your* SQL against production, so a bad statement halts the deploy mid-migration.
+
+The two `migrate resolve` lines are permanent recovery scaffolding, not leftovers: `0001_baseline` predates the migration table (its tables were created by an old `db push`), and `0023_proposals` failed mid-apply on 2026-06-09 on a forward foreign-key reference. Both no-op silently once resolved. **If a migration ever fails in production, its own `--rolled-back` line belongs here too** — otherwise every later deploy refuses to start.
+
+The seed runs every deploy (upsert — safe).
 
 ## Data Model Highlights
 

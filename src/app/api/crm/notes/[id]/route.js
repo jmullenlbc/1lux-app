@@ -4,6 +4,9 @@ import { prisma } from '@/lib/db';
 import { extractNoteActions } from '@/lib/bot/extractNoteActions';
 import { getActiveActionTypes } from '@/lib/noteActionTypesStore';
 import { executeNotePublished, pauseNoteOnUnpublish } from '@/lib/bot/noteActionRunner';
+// Which activity types count as in person lives in one place now — shared with
+// the note-create route and the calendar sync.
+import { isInPersonType } from '@/lib/calendar/inPerson';
 
 const NOTE_INCLUDE = {
   createdBy: { select: { id: true, name: true } },
@@ -50,8 +53,6 @@ export async function PATCH(request, { params }) {
     removeProjectIds = [],
   } = body;
 
-  const IN_PERSON_TYPES = new Set(['COFFEE','LUNCH','HAPPY_HOUR','GOLF','SITE_VISIT']);
-
   const data = {};
   if (title        !== undefined) data.title       = title.trim();
   if (noteBody     !== undefined) data.body         = noteBody;
@@ -62,7 +63,11 @@ export async function PATCH(request, { params }) {
   }
   if (activityType !== undefined) {
     data.activityType = activityType;
-    data.isInPerson   = IN_PERSON_TYPES.has(activityType);
+    data.isInPerson   = isInPersonType(activityType);
+    // A person just set this by hand, so the calendar sync must stop deciding it.
+    // recordCalendarEvent() reads this and leaves the note alone from here on.
+    data.classificationSource     = 'manual';
+    data.classificationConfidence = 100;
   }
 
   // Publish: mark note complete → unlocks automations + updates Contact.lastInPersonAt

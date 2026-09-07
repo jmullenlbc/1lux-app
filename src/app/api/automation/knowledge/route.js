@@ -8,7 +8,9 @@ export async function GET(req) {
 
   const { searchParams } = new URL(req.url);
   const category = searchParams.get('category');
-  const search = searchParams.get('search');
+  // The screen sends `q`; this route only ever read `search`, so the search box
+  // did nothing. Read both.
+  const search = searchParams.get('q') || searchParams.get('search');
   const activeParam = searchParams.get('active');
 
   const where = {};

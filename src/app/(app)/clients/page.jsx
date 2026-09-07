@@ -13,8 +13,17 @@ export default async function ClientsPage() {
     where: canSeeAllData(session) ? {} : { createdById: session.id },
     orderBy: { name: 'asc' },
     include: {
-      _count: { select: { projects: true } },
+      _count: { select: { projects: true, contacts: true } },
       createdBy: { select: { name: true, email: true } },
+      // Just enough of each project to count the deals on the cards, and the
+      // tag links for the chips + tag filter.
+      projects: {
+        select: {
+          id: true, name: true, serviceType: true, projectType: true,
+          procurementStatus: true, designStatus: true,
+        },
+      },
+      tagLinks: { include: { tag: true } },
     },
   });
 

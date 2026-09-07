@@ -242,17 +242,31 @@ export default function ProjectDashboard({
   // Save a top-level Project field
   const saveProject = useCallback(async (field, value) => {
     const payload = { [field]: value === '' ? null : value };
+
+    // Mike's rule: a deal cannot go to Lost or Abandoned without a written
+    // reason. The API enforces it as well; this just asks before the round trip.
+    if ((field === 'procurementStatus' || field === 'designStatus') &&
+        (value === 'LOST' || value === 'ABANDONED')) {
+      const word   = value === 'LOST' ? 'lost' : 'abandoned';
+      const reason = prompt(`Why was this deal ${word}? (required)`, project[`${field}Reason`] || '');
+      if (reason === null) return;
+      if (!reason.trim()) { alert(`A reason is required to mark a deal ${word}.`); return; }
+      payload[`${field}Reason`] = reason.trim();
+    }
+
     const res = await fetch(`/api/projects/${project.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
+    const data = await res.json().catch(() => ({}));
     if (res.ok) {
-      const { project: updated } = await res.json();
-      setProject(updated);
-      onProjectUpdate?.(updated);
+      setProject(data.project);
+      onProjectUpdate?.(data.project);
+    } else if (data.error) {
+      alert(data.error);
     }
-  }, [project.id, onProjectUpdate]);
+  }, [project, onProjectUpdate]);
 
   // Convenience: data field saver factory
   const d = (field) => (val) => saveData(field, val);
@@ -413,7 +427,9 @@ export default function ProjectDashboard({
 
           {/* ── Budget / Rates ── */}
           <Rule label="Budget &amp; Rates" />
-          <EditableStat label="Margin %"     displayValue={fmtPct(pd.marginPct)}      rawValue={pd.marginPct != null ? (pd.marginPct * 100).toFixed(2) : ''}     onSave={val => d('marginPct')(val != null && val !== '' ? parseFloat(val) / 100 : null)} />
+          {/* Blank margin means "standard 23%" (the change-order rates already
+              assume it) — shown as such so an older project never reads as 0%. */}
+          <EditableStat label="Margin %"     displayValue={fmtPct(pd.marginPct ?? 0.23)}      rawValue={pd.marginPct != null ? (pd.marginPct * 100).toFixed(2) : '23.00'}     onSave={val => d('marginPct')(val != null && val !== '' ? parseFloat(val) / 100 : null)} />
           <EditableStat label="Initial Client Budget" displayValue={fmt(pd.clientInitialBudget)} rawValue={pd.clientInitialBudget} onSave={d('clientInitialBudget')} />
           <EditableStat label="Freight %"    displayValue={fmtPct(pd.freightPct)}     rawValue={pd.freightPct != null ? (pd.freightPct * 100).toFixed(2) : ''} onSave={val => d('freightPct')(val != null && val !== '' ? parseFloat(val) / 100 : null)} />
           <EditableStat label="Warehousing %" displayValue={fmtPct(pd.warehousingPct)} rawValue={pd.warehousingPct != null ? (pd.warehousingPct * 100).toFixed(2) : ''} onSave={val => d('warehousingPct')(val != null && val !== '' ? parseFloat(val) / 100 : null)} />
@@ -441,12 +457,20 @@ export default function ProjectDashboard({
           <Rule label="Pipeline" />
           <EditableStat label="Procurement Stage" displayValue={STAGE_LABEL[project.procurementStage] || 'Qualified'} rawValue={project.procurementStage || 'QUALIFIED'} onSave={p('procurementStage')} select options={PROC_STAGE_OPTIONS} />
           {isDesignPipeline && (
-            <EditableStat label="Design Stage" displayValue={STAGE_LABEL[project.designStage] || 'Design Qualified'} rawValue={project.designStage || 'DESIGN_QUALIFIED'} onSave={p('designStage')} select options={DESIGN_STAGE_OPTIONS} />
+            <EditableStat label="Design Stage" displayValue={STAGE_LABEL[project.designStage] || 'Qualified'} rawValue={project.designStage || 'QUALIFIED'} onSave={p('designStage')} select options={DESIGN_STAGE_OPTIONS} />
           )}
           <EditableStat label="Project Type" displayValue={project.projectType ? projectTypeLabel(project.projectType) : null} rawValue={project.projectType || ''} onSave={p('projectType')} select options={[{ value: '', label: '— Select —' }, ...PROJECT_TYPES]} />
           <EditableStat label="Procurement Status" displayValue={STATUS_LABEL[project.procurementStatus] || 'Open'} rawValue={project.procurementStatus || 'OPEN'} onSave={p('procurementStatus')} select options={STATUS_OPTIONS} />
           {isDesignPipeline && (
             <EditableStat label="Design Status" displayValue={STATUS_LABEL[project.designStatus] || 'Open'} rawValue={project.designStatus || 'OPEN'} onSave={p('designStatus')} select options={STATUS_OPTIONS} />
+          )}
+          {/* The written reason only exists on a lost or abandoned deal, so it
+              only takes up space when there is one. */}
+          {project.procurementStatusReason && (
+            <ReadStat label="Why Procurement Closed" value={project.procurementStatusReason} />
+          )}
+          {isDesignPipeline && project.designStatusReason && (
+            <ReadStat label="Why Design Closed" value={project.designStatusReason} />
           )}
           <EditableStat label="Sales Owner" displayValue={salesOwnerName} rawValue={project.salesOwnerId || ''} onSave={p('salesOwnerId')} select options={salesOwnerOptions} />
 

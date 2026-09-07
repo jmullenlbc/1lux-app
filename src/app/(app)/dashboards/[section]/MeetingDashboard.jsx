@@ -2,89 +2,384 @@
 import { useState, useEffect, useCallback } from 'react';
 import { NEXT_ACTION_TYPES } from '@/lib/pipeline';
 
-// Weekly Sales Meeting — v1 run-of-show. Two live queues you work down and edit in
+// Weekly Sales Meeting — the run-of-show. Live queues you work down and edit in
 // the meeting, so the pipeline maintains itself (no carried-forward doc).
-//   A · Awaiting signature   B · Next actions due
-// Everything reads straight from the deal data; edits PATCH the project.
+//
+// Maram runs this meeting, so it is a shared team screen: an admin sets the card
+// list the whole room sees, and anyone can keep a personal order on top of it.
+// Every card that lists deals shows an owner, because "who owes what" is the
+// whole point of the hour.
 
 const money = v => v ? `$${Math.round(v).toLocaleString()}` : '—';
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
-const todayISO = () => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; };
 
 export default function MeetingDashboard() {
-  const [data, setData]   = useState(null);
-  const [loading, setLoad] = useState(true);
+  const [layout, setLayout] = useState(null);   // { cards, source, catalog, canEditShared, hasPersonal }
+  const [data, setData]     = useState(null);
+  const [loading, setLoad]  = useState(true);
+  const [editing, setEdit]  = useState(false);
+  const [saving, setSaving] = useState(false);
 
+  // Load the layout first, then only the data the cards on screen actually need.
   const load = useCallback(async () => {
     setLoad(true);
-    const r = await fetch('/api/sales/meeting');
-    setData(r.ok ? await r.json() : { awaitingSignature: [], nextActions: [], salesUsers: [], counts: {} });
+    const lr = await fetch('/api/sales/meeting/layout');
+    const l  = lr.ok ? await lr.json() : { cards: [], catalog: [], source: 'built-in' };
+    setLayout(l);
+    const dr = await fetch(`/api/sales/meeting?cards=${encodeURIComponent(l.cards.join(','))}`);
+    setData(dr.ok ? await dr.json() : { salesUsers: [], counts: {} });
     setLoad(false);
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  // Patch a project, then refresh the queues so items move/drop live.
+  // Patch a project, then refresh so items move/drop live.
   async function patch(id, body) {
     await fetch(`/api/projects/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     load();
   }
 
+  async function saveLayout(cards, scope) {
+    setSaving(true);
+    await fetch('/api/sales/meeting/layout', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cards, scope }),
+    });
+    setSaving(false);
+    load();
+  }
+
+  async function resetToShared() {
+    setSaving(true);
+    await fetch('/api/sales/meeting/layout', { method: 'DELETE' });
+    setSaving(false);
+    load();
+  }
+
   if (loading) return <div className="p-8 text-sm text-slate-400">Loading the meeting…</div>;
+
   const users = data.salesUsers || [];
   const c = data.counts || {};
+  const cards = layout.cards || [];
+  const titleOf = k => (layout.catalog.find(x => x.key === k) || {}).title || k;
+  const subOf   = k => (layout.catalog.find(x => x.key === k) || {}).subtitle || '';
 
   return (
     <div className="p-6 space-y-6">
       <div>
         <p className="text-[10px] font-bold text-orange-500 uppercase tracking-wider">Sales</p>
-        <h1 className="text-xl font-bold text-slate-900">Weekly Meeting</h1>
-        <p className="text-xs text-slate-500 mt-0.5">Work each queue top-to-bottom and update as you go — the pipeline stays current, no separate doc.</p>
-        <div className="flex gap-2 mt-3 text-xs">
-          <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 font-semibold">{c.awaitingSignature || 0} awaiting signature</span>
-          <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 font-semibold">{c.nextActions || 0} next actions</span>
-          {c.overdue > 0 && <span className="px-2.5 py-1 rounded-full bg-red-50 text-red-600 font-semibold">{c.overdue} overdue</span>}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-bold text-slate-900">Weekly Meeting</h1>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Work each card top-to-bottom and update as you go — the pipeline stays current, no separate doc.
+            </p>
+          </div>
+          <button onClick={() => setEdit(v => !v)}
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:border-amber-400 hover:text-amber-600 whitespace-nowrap">
+            {editing ? 'Done' : 'Choose cards'}
+          </button>
+        </div>
+        <div className="flex gap-2 mt-3 text-xs flex-wrap">
+          {cards.includes('awaitingSignature') && <Chip tone="amber">{c.awaitingSignature || 0} awaiting signature</Chip>}
+          {cards.includes('nextActions') && <Chip>{c.nextActions || 0} next actions</Chip>}
+          {c.overdue > 0 && <Chip tone="red">{c.overdue} overdue</Chip>}
+          {layout.source === 'personal' && <Chip tone="slate">your own order</Chip>}
         </div>
       </div>
 
-      {/* ── Queue A · Awaiting signature ─────────────────────────────────────── */}
-      <Section title="① Awaiting signature" subtitle="Proposals out, not yet signed — longest-waiting first">
-        {data.awaitingSignature.length === 0
-          ? <Empty>Nothing waiting on a signature. 🎉</Empty>
-          : (
-            <Table cols={['Deal', 'Client', 'Value', 'Waiting', 'Next action', '']}>
-              {data.awaitingSignature.map(d => (
-                <tr key={d.id} className="border-t border-slate-100 align-top">
-                  <Td><a href={`/project/${d.id}`} className="font-semibold text-slate-800 hover:text-amber-600">{d.name}</a></Td>
-                  <Td className="text-slate-500">{d.client || '—'}</Td>
-                  <Td className="text-slate-600">{money(d.value)}</Td>
-                  <Td><Waiting days={d.daysWaiting} /></Td>
-                  <Td><NextAction d={d} users={users} onSave={patch} /></Td>
-                  <Td><button onClick={() => patch(d.id, { proposalSentDate: null, designStatus: 'WON', procurementStage: 'PRECONSTRUCTION' })}
-                    className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 whitespace-nowrap">Signed ✓</button></Td>
-                </tr>
-              ))}
-            </Table>
-          )}
-      </Section>
+      {editing && (
+        <CardPicker layout={layout} saving={saving}
+          onSave={saveLayout} onReset={resetToShared} />
+      )}
 
-      {/* ── Queue B · Next actions due ───────────────────────────────────────── */}
-      <Section title="② Next actions due" subtitle="Who owes what, by when — overdue in red">
-        {data.nextActions.length === 0
-          ? <Empty>No open next actions. Add one on any deal below or from the pipeline.</Empty>
-          : (
-            <Table cols={['Deal', 'Client', 'Action', 'Owner', 'Due', '']}>
-              {data.nextActions.map(d => (
-                <tr key={d.id} className={`border-t border-slate-100 align-top ${d.overdue ? 'bg-red-50/40' : ''}`}>
-                  <Td><a href={`/project/${d.id}`} className="font-semibold text-slate-800 hover:text-amber-600">{d.name}</a></Td>
-                  <Td className="text-slate-500">{d.client || '—'}</Td>
-                  <Td colSpan={3} className="p-0"><NextAction d={d} users={users} onSave={patch} inline /></Td>
-                  <Td><button onClick={() => patch(d.id, { nextActionType: null, nextActionOwnerId: null, nextActionDueDate: null })}
-                    className="text-[11px] font-semibold text-slate-400 hover:text-emerald-600 whitespace-nowrap">Done ✓</button></Td>
-                </tr>
-              ))}
-            </Table>
-          )}
-      </Section>
+      {cards.length === 0 && <Empty>No cards on the screen. Hit “Choose cards”.</Empty>}
+
+      {cards.map(key => (
+        <Section key={key} title={titleOf(key)} subtitle={subOf(key)}>
+          <CardBody cardKey={key} data={data} users={users} patch={patch} />
+        </Section>
+      ))}
+    </div>
+  );
+}
+
+// ── Which table a card renders ────────────────────────────────────────────────
+function CardBody({ cardKey, data, users, patch }) {
+  const rows = data[cardKey] || [];
+  if (rows.length === 0) return <Empty>{EMPTY_LINE[cardKey] || 'Nothing here this week.'}</Empty>;
+
+  switch (cardKey) {
+    case 'awaitingSignature':
+      return (
+        <Table cols={['Deal', 'Client', 'Owner', 'Value', 'Waiting', 'Next action', '']}>
+          {rows.map(d => (
+            <Row key={d.id}>
+              <DealCell d={d} /><Td className="text-slate-500">{d.client || '—'}</Td>
+              <Owner d={d} /><Td className="text-slate-600">{money(d.value)}</Td>
+              <Td><Waiting days={d.daysWaiting} /></Td>
+              <Td><NextAction d={d} users={users} onSave={patch} /></Td>
+              <Td><button onClick={() => patch(d.id, { proposalSentDate: null, designStatus: 'WON', procurementStage: 'PRECONSTRUCTION' })}
+                className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 whitespace-nowrap">Signed ✓</button></Td>
+            </Row>
+          ))}
+        </Table>
+      );
+
+    case 'nextActions':
+      return (
+        <Table cols={['Deal', 'Client', 'Action', 'Owner', 'Due', '']}>
+          {rows.map(d => (
+            <Row key={d.id} className={d.overdue ? 'bg-red-50/40' : ''}>
+              <DealCell d={d} /><Td className="text-slate-500">{d.client || '—'}</Td>
+              <Td colSpan={3} className="p-0"><NextAction d={d} users={users} onSave={patch} inline /></Td>
+              <Td><button onClick={() => patch(d.id, { nextActionType: null, nextActionOwnerId: null, nextActionDueDate: null })}
+                className="text-[11px] font-semibold text-slate-400 hover:text-emerald-600 whitespace-nowrap">Done ✓</button></Td>
+            </Row>
+          ))}
+        </Table>
+      );
+
+    case 'closingSoon':
+      return (
+        <Table cols={['Deal', 'Client', 'Owner', 'Value', 'Expected order', 'Next action']}>
+          {rows.map(d => (
+            <Row key={d.id}>
+              <DealCell d={d} /><Td className="text-slate-500">{d.client || '—'}</Td>
+              <Owner d={d} /><Td className="text-slate-600">{money(d.value)}</Td>
+              <Td className="font-semibold text-slate-700">{fmtDate(d.expectedOrderDate)}</Td>
+              <Td><NextAction d={d} users={users} onSave={patch} /></Td>
+            </Row>
+          ))}
+        </Table>
+      );
+
+    case 'proposalsSentLastWeek':
+      return (
+        <Table cols={['Deal', 'Client', 'Owner', 'Proposal', 'Fee', 'Sent', 'Status']}>
+          {rows.map(d => (
+            <Row key={d.id}>
+              <DealCell d={d} /><Td className="text-slate-500">{d.client || '—'}</Td>
+              <Owner d={d} /><Td className="text-slate-500">{d.title}</Td>
+              <Td className="text-slate-600">{money(d.value)}</Td>
+              <Td className="text-slate-500">{fmtDate(d.sentAt)}</Td>
+              <Td><span className="text-[11px] font-semibold text-slate-600">{d.status}</span></Td>
+            </Row>
+          ))}
+        </Table>
+      );
+
+    case 'proposalsAwaiting':
+      return (
+        <Table cols={['Deal', 'Client', 'Owner', 'Proposal', 'Fee', 'Waiting']}>
+          {rows.map(d => (
+            <Row key={d.id}>
+              <DealCell d={d} /><Td className="text-slate-500">{d.client || '—'}</Td>
+              <Owner d={d} /><Td className="text-slate-500">{d.title}</Td>
+              <Td className="text-slate-600">{money(d.value)}</Td>
+              <Td><Waiting days={d.daysWaiting} /></Td>
+            </Row>
+          ))}
+        </Table>
+      );
+
+    case 'designSubmissions':
+      return (
+        <Table cols={['Project', 'Client', 'Owner', 'Direction', 'Phase', 'Files', 'When']}>
+          {rows.map(d => (
+            <Row key={d.id}>
+              <DealCell d={{ ...d, id: d.projectId }} /><Td className="text-slate-500">{d.client || '—'}</Td>
+              <Owner d={d} />
+              <Td><span className={`px-1.5 py-0.5 rounded text-[11px] font-semibold ${
+                d.direction === 'Sent out' ? 'bg-sky-50 text-sky-700' : 'bg-violet-50 text-violet-700'}`}>{d.direction}</span></Td>
+              <Td className="font-semibold text-slate-700">{d.phaseTag || '—'}</Td>
+              <Td className="text-slate-500">{d.fileCount}</Td>
+              <Td className="text-slate-500">{fmtDate(d.createdAt)}</Td>
+            </Row>
+          ))}
+        </Table>
+      );
+
+    case 'budgetsAwaitingReply':
+      return (
+        <Table cols={['Deal', 'Client', 'Owner', 'Value', 'Budget sent', 'Silent for', 'Next action']}>
+          {rows.map(d => (
+            <Row key={d.id}>
+              <DealCell d={d} /><Td className="text-slate-500">{d.client || '—'}</Td>
+              <Owner d={d} /><Td className="text-slate-600">{money(d.value)}</Td>
+              <Td className="text-slate-500">{fmtDate(d.budgetSentDate)}</Td>
+              <Td><Waiting days={d.daysSinceSent} /></Td>
+              <Td><NextAction d={d} users={users} onSave={patch} /></Td>
+            </Row>
+          ))}
+        </Table>
+      );
+
+    case 'wonAndLost':
+      return (
+        <Table cols={['Deal', 'Client', 'Owner', 'Value', 'Procurement', 'Design', 'Reason']}>
+          {rows.map(d => (
+            <Row key={d.id}>
+              <DealCell d={d} /><Td className="text-slate-500">{d.client || '—'}</Td>
+              <Owner d={d} /><Td className="text-slate-600">{money(d.value)}</Td>
+              <Td><Outcome s={d.procurementStatus} /></Td>
+              <Td><Outcome s={d.designStatus} /></Td>
+              <Td className="text-slate-600 max-w-xs">{d.reason || <span className="text-slate-300">no reason recorded</span>}</Td>
+            </Row>
+          ))}
+        </Table>
+      );
+
+    case 'flagged':
+      return (
+        <Table cols={['Deal', 'Client', 'Owner', 'Why it is flagged', '']}>
+          {rows.map(d => (
+            <Row key={d.id}>
+              <DealCell d={d} /><Td className="text-slate-500">{d.client || '—'}</Td>
+              <Owner d={d} /><Td className="text-slate-600">{d.flagNote || '—'}</Td>
+              <Td><button onClick={() => patch(d.id, { flagged: false })}
+                className="text-[11px] font-semibold text-slate-400 hover:text-emerald-600 whitespace-nowrap">Clear ✓</button></Td>
+            </Row>
+          ))}
+        </Table>
+      );
+
+    case 'newLeads':
+      return (
+        <Table cols={['Project asked for', 'From', 'Building type', 'Waiting', '']}>
+          {rows.map(d => (
+            <Row key={d.id}>
+              <Td><a href={`/admin/submissions`} className="font-semibold text-slate-800 hover:text-amber-600">{d.name}</a>
+                {d.possibleDuplicate && <span className="ml-1.5 text-[10px] font-semibold text-amber-600">possible duplicate</span>}</Td>
+              <Td className="text-slate-500">{d.from}<span className="block text-slate-400">{d.email}</span></Td>
+              <Td className="text-slate-500">{d.buildingType || '—'}</Td>
+              <Td><Waiting days={d.daysWaiting} /></Td>
+              <Td><a href="/admin/submissions" className="text-[11px] font-semibold text-amber-600 hover:text-amber-700">Review →</a></Td>
+            </Row>
+          ))}
+        </Table>
+      );
+
+    case 'wentQuiet':
+      return (
+        <Table cols={['Person', 'Company', 'Tier', 'Last contact', 'Silent for', 'Their limit']}>
+          {rows.map(d => (
+            <Row key={d.id}>
+              <Td><a href={`/crm/contacts`} className="font-semibold text-slate-800 hover:text-amber-600">{d.name}</a>
+                {d.title && <span className="block text-slate-400">{d.title}</span>}</Td>
+              <Td className="text-slate-500">{d.company || '—'}</Td>
+              <Td className="text-slate-500">{d.tier ? d.tier.replace(/_/g, ' ').toLowerCase() : '—'}</Td>
+              <Td className="text-slate-500">{fmtDate(d.lastAt)}</Td>
+              <Td><Waiting days={d.silentFor} /></Td>
+              <Td className="text-slate-400">{d.limit}d</Td>
+            </Row>
+          ))}
+        </Table>
+      );
+
+    default:
+      return <Empty>This card has nothing to show yet.</Empty>;
+  }
+}
+
+const EMPTY_LINE = {
+  awaitingSignature:    'Nothing waiting on a signature. 🎉',
+  nextActions:          'No open next actions. Add one on any deal or from the pipeline.',
+  closingSoon:          'Nothing expected to close in the next two weeks.',
+  proposalsSentLastWeek:'No proposals went out last week.',
+  proposalsAwaiting:    'No proposals sitting unanswered.',
+  designSubmissions:    'No drawing sets in or out this week.',
+  budgetsAwaitingReply: 'Every budget we sent has been answered.',
+  wonAndLost:           'Nothing closed since last week.',
+  flagged:              'Nothing flagged.',
+  newLeads:             'No website leads waiting on a review.',
+  wentQuiet:            'Nobody has gone quiet past their check-in window.',
+};
+
+// ── Add / remove / reorder the cards ──────────────────────────────────────────
+function CardPicker({ layout, saving, onSave, onReset }) {
+  const [picked, setPicked] = useState(layout.cards);
+
+  const on   = k => picked.includes(k);
+  const move = (i, by) => {
+    const next = [...picked];
+    const j = i + by;
+    if (j < 0 || j >= next.length) return;
+    [next[i], next[j]] = [next[j], next[i]];
+    setPicked(next);
+  };
+  const toggle = k => setPicked(p => (p.includes(k) ? p.filter(x => x !== k) : [...p, k]));
+
+  const available = layout.catalog.filter(c => !c.needs && !on(c.key));
+  const notYet    = layout.catalog.filter(c => c.needs);
+
+  return (
+    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-4">
+      <div>
+        <h3 className="text-sm font-bold text-slate-800">On the screen, in this order</h3>
+        <ul className="mt-2 space-y-1">
+          {picked.map((k, i) => {
+            const card = layout.catalog.find(c => c.key === k) || { title: k };
+            return (
+              <li key={k} className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1.5">
+                <span className="flex-1 text-xs font-semibold text-slate-700">{card.title}</span>
+                <button onClick={() => move(i, -1)} disabled={i === 0}
+                  className="text-slate-400 hover:text-slate-700 disabled:opacity-25 text-xs px-1">↑</button>
+                <button onClick={() => move(i, 1)} disabled={i === picked.length - 1}
+                  className="text-slate-400 hover:text-slate-700 disabled:opacity-25 text-xs px-1">↓</button>
+                <button onClick={() => toggle(k)} className="text-[11px] font-semibold text-slate-400 hover:text-red-600 px-1">remove</button>
+              </li>
+            );
+          })}
+          {picked.length === 0 && <li className="text-xs text-slate-400 py-2">Nothing chosen yet.</li>}
+        </ul>
+      </div>
+
+      {available.length > 0 && (
+        <div>
+          <h3 className="text-sm font-bold text-slate-800">Add a card</h3>
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {available.map(c => (
+              <button key={c.key} onClick={() => toggle(c.key)} title={c.subtitle}
+                className="text-xs px-2.5 py-1 rounded-full bg-white border border-slate-200 text-slate-600 hover:border-amber-400 hover:text-amber-600">
+                + {c.title}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {notYet.length > 0 && (
+        <div>
+          <h3 className="text-sm font-bold text-slate-500">Not built yet</h3>
+          <ul className="mt-2 space-y-1">
+            {notYet.map(c => (
+              <li key={c.key} className="text-[11px] text-slate-400">
+                <span className="font-semibold text-slate-500">{c.title}</span> — needs {c.needs}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2 pt-1">
+        <button onClick={() => onSave(picked, 'personal')} disabled={saving}
+          className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-800 text-white hover:bg-slate-700 disabled:opacity-50">
+          Save for me
+        </button>
+        {layout.canEditShared && (
+          <button onClick={() => onSave(picked, 'shared')} disabled={saving}
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50">
+            Save for everyone
+          </button>
+        )}
+        {layout.hasPersonal && (
+          <button onClick={onReset} disabled={saving}
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-800">
+            Use the team’s set
+          </button>
+        )}
+        {saving && <span className="text-xs text-slate-400">Saving…</span>}
+      </div>
     </div>
   );
 }
@@ -136,8 +431,31 @@ function Table({ cols, children }) {
     </div>
   );
 }
+function Row({ children, className = '' }) { return <tr className={`border-t border-slate-100 align-top ${className}`}>{children}</tr>; }
 function Td({ children, className = '', ...rest }) { return <td className={`px-2 py-2 ${className}`} {...rest}>{children}</td>; }
 function Empty({ children }) { return <p className="text-xs text-slate-400 text-center py-6">{children}</p>; }
+function Chip({ children, tone = 'default' }) {
+  const cls = { amber: 'bg-amber-50 text-amber-700', red: 'bg-red-50 text-red-600', slate: 'bg-slate-100 text-slate-500' }[tone]
+    || 'bg-slate-100 text-slate-600';
+  return <span className={`px-2.5 py-1 rounded-full font-semibold ${cls}`}>{children}</span>;
+}
+function DealCell({ d }) {
+  return <Td>{d.id
+    ? <a href={`/project/${d.id}`} className="font-semibold text-slate-800 hover:text-amber-600">{d.name}</a>
+    : <span className="font-semibold text-slate-800">{d.name}</span>}</Td>;
+}
+function Owner({ d }) {
+  return <Td className={d.salesOwnerName ? 'text-slate-600 font-medium' : 'text-slate-300'}>
+    {d.salesOwnerName || 'unassigned'}
+  </Td>;
+}
+function Outcome({ s }) {
+  if (!s || s === 'OPEN') return <span className="text-slate-300">open</span>;
+  const cls = s === 'WON' ? 'bg-emerald-50 text-emerald-700'
+    : s === 'LOST' ? 'bg-red-50 text-red-600'
+      : 'bg-slate-100 text-slate-500';
+  return <span className={`px-1.5 py-0.5 rounded text-[11px] font-semibold ${cls}`}>{s.toLowerCase()}</span>;
+}
 function Waiting({ days }) {
   if (days == null) return <span className="text-slate-400">—</span>;
   const cls = days >= 14 ? 'bg-red-50 text-red-600' : days >= 7 ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500';

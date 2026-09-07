@@ -5,7 +5,8 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { Select } from '@/components/ui/Input';
 import Card, { CardHeader, CardBody } from '@/components/ui/Card';
-import { BUILDING_TYPES, PROJECT_PHASES, SERVICE_TYPES, CLIENT_TYPES, LOCATION_TYPES, clientTypeLabel, locationTypeLabel } from '@/lib/utils';
+import { BUILDING_TYPES, PROJECT_PHASES, SERVICE_TYPES, LOCATION_TYPES, ORG_TYPE_OPTIONS, PROJECT_TYPES, clientTypeLabel, locationTypeLabel } from '@/lib/utils';
+import MultiSelect from '@/components/ui/MultiSelect';
 
 const BUDGET_TYPES = [
   { value: 'conceptual',  label: 'Conceptual Budget' },
@@ -14,7 +15,10 @@ const BUDGET_TYPES = [
 ];
 
 function NewClientModal({ onClose, onCreated }) {
-  const [form,    setForm]    = useState({ name: '', type: 'developer', locationType: 'standalone', notes: '' });
+  // Client Type is a multi-select — one company can be both a developer and a
+  // self-performing GC. The API derives the legacy single `type` from the first
+  // tick, so nothing downstream has to change.
+  const [form,    setForm]    = useState({ name: '', orgTypes: [], locationType: 'standalone', notes: '' });
   const [saving,  setSaving]  = useState(false);
   const [err,     setErr]     = useState('');
 
@@ -55,13 +59,13 @@ function NewClientModal({ onClose, onCreated }) {
             <input value={form.name} onChange={e => set('name', e.target.value)} autoFocus placeholder="e.g., Greystar"
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500" />
           </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Organization Type</label>
-            <select value={form.type} onChange={e => set('type', e.target.value)}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white">
-              {CLIENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
-          </div>
+          <MultiSelect
+            label="Client Type"
+            options={ORG_TYPE_OPTIONS}
+            selected={form.orgTypes}
+            onChange={orgTypes => set('orgTypes', orgTypes)}
+            hint="Tick every one that applies."
+          />
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Location Type</label>
             <select value={form.locationType} onChange={e => set('locationType', e.target.value)}
@@ -92,6 +96,7 @@ export default function NewProjectForm({ existingProjects = [], clients: initial
   const [form, setForm] = useState({
     name:         '',
     clientId:     '',
+    projectType:  '',
     buildingType: '',
     city:         '',
     state:        '',
@@ -174,6 +179,7 @@ export default function NewProjectForm({ existingProjects = [], clients: initial
         body: JSON.stringify({
           name:         form.name.trim(),
           clientId:     form.clientId     || null,
+          projectType:  form.projectType  || null,
           buildingType: form.buildingType || null,
           city:         form.city.trim()  || null,
           state:        form.state.trim() || null,
@@ -295,6 +301,13 @@ export default function NewProjectForm({ existingProjects = [], clients: initial
                 </div>
               )}
             </div>
+
+            {/* Project Type — what kind of community this is. Building Type
+                below is the construction shape (garden, podium, high-rise…). */}
+            <Select label="Project Type" value={form.projectType} onChange={set('projectType')}>
+              <option value="">Select project type...</option>
+              {PROJECT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </Select>
 
             {/* Building Type */}
             <Select label="Building Type" value={form.buildingType} onChange={set('buildingType')}>

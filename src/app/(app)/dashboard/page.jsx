@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { getSession, isClientViewer } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { calculateBudget } from '@/lib/calculations';
-import { loadPricing } from '@/lib/pricingLoader';
+import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
 import { responsesToSections } from '@/lib/utils';
 import DashboardClient from './DashboardClient';
 
@@ -33,7 +33,7 @@ export default async function DashboardPage() {
 
   const hydrated = projects.map(p => {
     const sections    = responsesToSections(p.responses);
-    const pricing     = p.pricingSnapshot ? JSON.parse(p.pricingSnapshot) : activePricing;
+    const pricing     = pricingForProject(p.pricingSnapshot, activePricing);
     const projectData = { ...(p.projectData || {}), buildingTypeKey: p.buildingType };
     const budget      = calculateBudget(projectData, sections, pricing);
     return {

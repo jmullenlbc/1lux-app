@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { writableSiteKeys } from '@/lib/siteFields';
+import { writableSiteKeys, projectLevelSiteKeys, BUILDING_TYPE_KEYS } from '@/lib/siteFields';
 import { getRun, recordVerdict, VERDICT } from '@/lib/agent/reviewStore';
 import { describeSiteCorrection } from '@/lib/agent/siteDiff';
 
-const WRITABLE = new Set(writableSiteKeys());
+const WRITABLE      = new Set(writableSiteKeys());
+const PROJECT_LEVEL = new Set(projectLevelSiteKeys());
+const TYPE_KEYS     = new Set(BUILDING_TYPE_KEYS);
 
 async function canAccess(projectId, user) {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
@@ -27,10 +29,17 @@ export async function POST(request, { params }) {
   // enforced here, so a crafted payload cannot use the site extractor as a
   // general-purpose writer into Project Info — most pointedly into `numUnits`,
   // which the unit matrix owns and a human has already signed off on.
-  const write = {};
+  const write = {};          // ProjectData columns (numbers)
+  const projectWrite = {};   // Project columns (today: buildingType)
   const rejected = [];
   for (const [key, value] of Object.entries(fields)) {
     if (!WRITABLE.has(key)) { rejected.push(key); continue; }
+    if (PROJECT_LEVEL.has(key)) {
+      // The building type is a key from a fixed list, not a number. Anything
+      // else (free text, a label, an empty pick) is dropped rather than saved.
+      if (key === 'buildingType' && TYPE_KEYS.has(value)) projectWrite.buildingType = value;
+      continue;
+    }
     const n = Number(value);
     // A field ticked on with no number is a mistake, not an instruction to
     // blank the project. Blanking is done in Project Info, deliberately.
@@ -40,21 +49,28 @@ export async function POST(request, { params }) {
   if (rejected.length) {
     console.warn(`[site/commit] ignored non-site field(s) in payload: ${rejected.join(', ')}`);
   }
-  if (!Object.keys(write).length) {
+  const applied = { ...write, ...projectWrite };
+  if (!Object.keys(applied).length) {
     return NextResponse.json({ error: 'nothing_to_apply', message: 'No site fields were selected.' }, { status: 400 });
   }
 
   await prisma.$transaction(async (tx) => {
-    await tx.projectData.upsert({
-      where:  { projectId: params.id },
-      update: write,
-      create: { projectId: params.id, ...write },
-    });
+    if (Object.keys(write).length) {
+      await tx.projectData.upsert({
+        where:  { projectId: params.id },
+        update: write,
+        create: { projectId: params.id, ...write },
+      });
+    }
+
+    if (Object.keys(projectWrite).length) {
+      await tx.project.update({ where: { id: params.id }, data: projectWrite });
+    }
 
     if (fileId) {
       await tx.projectFile.updateMany({
         where: { id: fileId, projectId: params.id },
-        data:  { analysisData: JSON.stringify({ committedAt: new Date().toISOString(), siteFields: write }) },
+        data:  { analysisData: JSON.stringify({ committedAt: new Date().toISOString(), siteFields: applied }) },
       });
     }
   });
@@ -79,11 +95,11 @@ export async function POST(request, { params }) {
       } else {
         // Diffed against the model's ORIGINAL output as stored, not against
         // anything the client claims it changed.
-        const diff = describeSiteCorrection(run.output, write);
+        const diff = describeSiteCorrection(run.output, applied);
         const res = await recordVerdict(runId, {
           verdict:    diff.changed ? VERDICT.CORRECTED : VERDICT.ACCEPTED,
           correction: diff.changed ? diff.summary : null,
-          note:       `Applied to project. ${Object.keys(write).length} site field(s) written to Project Info.`,
+          note:       `Applied to project. ${Object.keys(applied).length} site field(s) written to Project Info.`,
           userId:     user.id,
         });
         verdict = res.ok
@@ -96,6 +112,18 @@ export async function POST(request, { params }) {
     }
   }
 
-  const projectData = await prisma.projectData.findUnique({ where: { projectId: params.id } });
-  return NextResponse.json({ ok: true, written: Object.keys(write), projectData, verdict });
+  const [projectData, project] = await Promise.all([
+    prisma.projectData.findUnique({ where: { projectId: params.id } }),
+    prisma.project.findUnique({ where: { id: params.id }, select: { buildingType: true } }),
+  ]);
+  // The questionnaires replace their working copy of Project Info with this
+  // row, and the engine reads the building type off it as `buildingTypeKey`
+  // (see wizard/page.jsx) — so it rides along here, or an apply would drop
+  // the type until the next reload.
+  return NextResponse.json({
+    ok: true,
+    written: Object.keys(applied),
+    projectData: projectData ? { ...projectData, buildingTypeKey: project?.buildingType ?? null } : null,
+    verdict,
+  });
 }

@@ -25,8 +25,12 @@ import { useState, useRef, useCallback } from 'react';
 import { oversizeMessage, uploadErrorMessage, uploadThrowMessage } from '@/lib/uploadErrorMessage';
 import { appendUpload } from '@/lib/uploadClient';
 import ReadingWait, { READING_TIME_HINT } from '@/components/ReadingWait';
+import { BUILDING_TYPES, buildingTypeLabel } from '@/lib/utils';
 
-function fmt(n) { return n == null ? '—' : Number(n).toLocaleString(); }
+function fmt(n) {
+  if (n == null) return '—';
+  return Number.isFinite(Number(n)) ? Number(n).toLocaleString() : buildingTypeLabel(n);
+}
 
 // ── automatic checks ─────────────────────────────────────────────────────────
 // Shown at the moment somebody is deciding whether to apply, not only in
@@ -113,15 +117,30 @@ function FieldRow({ row, checked, value, onToggle, onChange }) {
         )}
       </div>
       <div className="shrink-0 text-right">
-        <input
-          type="number"
-          value={value ?? ''}
-          disabled={!checked}
-          onChange={e => onChange(e.target.value === '' ? null : Number(e.target.value))}
-          className="w-32 text-right bg-white border border-slate-300 rounded-lg px-2 py-1 text-sm font-mono tabular-nums outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200 disabled:bg-slate-50 disabled:text-slate-400"
-        />
+        {row.unit === 'type' ? (
+          // The building type is a pick from the engine's list, not a number —
+          // the reader's pick is pre-selected and the reviewer can change it.
+          <select
+            value={value ?? ''}
+            disabled={!checked}
+            onChange={e => onChange(e.target.value === '' ? null : e.target.value)}
+            className="w-56 bg-white border border-slate-300 rounded-lg px-2 py-1 text-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200 disabled:bg-slate-50 disabled:text-slate-400"
+            aria-label="Building type"
+          >
+            <option value="">— not set —</option>
+            {BUILDING_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+          </select>
+        ) : (
+          <input
+            type="number"
+            value={value ?? ''}
+            disabled={!checked}
+            onChange={e => onChange(e.target.value === '' ? null : Number(e.target.value))}
+            className="w-32 text-right bg-white border border-slate-300 rounded-lg px-2 py-1 text-sm font-mono tabular-nums outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200 disabled:bg-slate-50 disabled:text-slate-400"
+          />
+        )}
         <div className="text-[10px] text-slate-400 mt-0.5 uppercase tracking-wide">
-          {row.unit === 'sf' ? 'sq ft' : 'count'}
+          {row.unit === 'sf' ? 'sq ft' : row.unit === 'type' ? 'building type' : 'count'}
         </div>
       </div>
     </div>

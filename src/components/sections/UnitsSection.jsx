@@ -58,13 +58,18 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
   }
 
   const hasFans         = ans.fans !== 'none';
-  // The master net adder per fan, mirroring the engine: design levels are gross so
-  // the disk credit comes off; the conceptual adder is already net.
+  // The master net adder per fan, mirroring the engine: the conceptual fan
+  // price and the design fan levels are both GROSS on the sheet, so the disk
+  // credit comes off either one ($180 − $35 = $145 at conceptual).
   const fanDiskCredit   = P.fans?.diskCredit ?? 35;
-  const fanLevelKey     = (ans.fanLevel && P.designFanLevels?.[ans.fanLevel]) ? ans.fanLevel : 'medium';
-  const fanMasterPerFan = P.designFanLevels?.[fanLevelKey] != null
+  const fanConceptual   = Number(P.fans?.conceptualPerFan) > 0
+    ? Math.max(0, Number(P.fans.conceptualPerFan) - fanDiskCredit)
+    : (P.fans?.adderPerFan ?? 145);
+  const fanLevelKey     = (isDesign && ans.fanLevel && P.designFanLevels?.[ans.fanLevel]) ? ans.fanLevel : null;
+  const fanMasterPerFan = fanLevelKey
     ? Math.max(0, P.designFanLevels[fanLevelKey] - fanDiskCredit)
-    : P.fans.adderPerFan;
+    : fanConceptual;
+  const fanOptionCost   = (fansPerUnit) => Math.round(fanMasterPerFan * fansPerUnit);
   const hasUndercab120v = ans.undercabinet === 'lineVoltage';
 
   const numUnits     = Number(projectData?.numUnits)    || 0;
@@ -101,6 +106,10 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
       payload.fanSize52       = null;
       payload.fanLightKit     = null;
       payload.fanSupplemental = null;
+    } else {
+      // A design budget always carries its fan level — that is what moves the
+      // engine off the flat conceptual $175 and onto the level's real price.
+      payload.fanLevel = ans.fanLevel || 'medium';
     }
     if (Object.keys(payload).length > 0) {
       await onSaveResponses(payload);
@@ -295,13 +304,13 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
             note={`A typical 48" fan installed runs $350 total (product + labor). Net adder depends on level selected${isDesign ? ' below' : ''}.`}
             options={[
               { value: 'none',                         label: 'None',                                                    sub: '—',                   cost: isDesign ? undefined : 0 },
-              { value: 'masterOnly',                   label: 'Master bed only',                                        sub: '1 fan/unit',           cost: isDesign ? undefined : 105 },
-              { value: 'livingRoomOnly',               label: 'Living room only',                                           sub: '1 fan/unit',           cost: isDesign ? undefined : 105 },
-              { value: 'masterAndLiving',              label: 'Master bed + Living room',                                   sub: '2 fans/unit',          cost: isDesign ? undefined : 210 },
-              { value: 'masterAndSecondary',           label: 'Master bed + Secondary bed',                                 sub: '~1.5 fans avg/unit',   cost: isDesign ? undefined : 158 },
-              { value: 'masterSecondaryLiving',        label: 'Master bed/Secondary bed/Living room',                  sub: '~2.5 fans avg/unit',   cost: isDesign ? undefined : 263 },
-              { value: 'masterSecondaryTertiary',      label: 'Master bed/Secondary bed/Tertiary bed',                 sub: '~2.5 fans avg/unit',   cost: isDesign ? undefined : 263 },
-              { value: 'masterSecondaryTertiaryLiving',label: 'Master bed/Secondary bed/Tertiary bed + Living room',   sub: '~2.75 fans avg/unit',  cost: isDesign ? undefined : 289 },
+              { value: 'masterOnly',                   label: 'Master bed only',                                        sub: '1 fan/unit',           cost: isDesign ? undefined : fanOptionCost(1) },
+              { value: 'livingRoomOnly',               label: 'Living room only',                                           sub: '1 fan/unit',           cost: isDesign ? undefined : fanOptionCost(1) },
+              { value: 'masterAndLiving',              label: 'Master bed + Living room',                                   sub: '2 fans/unit',          cost: isDesign ? undefined : fanOptionCost(2) },
+              { value: 'masterAndSecondary',           label: 'Master bed + Secondary bed',                                 sub: '~1.5 fans avg/unit',   cost: isDesign ? undefined : fanOptionCost(1.5) },
+              { value: 'masterSecondaryLiving',        label: 'Master bed/Secondary bed/Living room',                  sub: '~2.5 fans avg/unit',   cost: isDesign ? undefined : fanOptionCost(2.5) },
+              { value: 'masterSecondaryTertiary',      label: 'Master bed/Secondary bed/Tertiary bed',                 sub: '~2.5 fans avg/unit',   cost: isDesign ? undefined : fanOptionCost(2.5) },
+              { value: 'masterSecondaryTertiaryLiving',label: 'Master bed/Secondary bed/Tertiary bed + Living room',   sub: '~2.75 fans avg/unit',  cost: isDesign ? undefined : fanOptionCost(2.75) },
             ]}
             value={ans.fans}
             onChange={v => set('fans', v)}
@@ -322,9 +331,12 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
                 note="Low = pull-chain builder grade. Medium = eLuma spec grade. High = custom/premium."
                 costSuffix="/fan"
                 options={[
-                  { value: 'low',    label: 'Ceiling fan (Low finish)',    sub: '$115 product / $142 net adder per fan', cost: 142 },
-                  { value: 'medium', label: 'Ceiling fan (Medium finish)', sub: '$175 product / $190 net adder per fan', cost: 190 },
-                  { value: 'high',   label: 'Ceiling fan (High finish)',   sub: '$300 product / $270 net adder per fan', cost: 270 },
+                  // Same math as the engine: the level price is gross, the
+                  // $35 disk credit comes off it. Read from the master sheet
+                  // so a pricing edit shows here without a code change.
+                  { value: 'low',    label: 'Ceiling fan (Low finish)',    sub: 'pull-chain builder grade', cost: Math.max(0, (P.designFanLevels?.low    ?? 142) - fanDiskCredit) },
+                  { value: 'medium', label: 'Ceiling fan (Medium finish)', sub: 'eLuma spec grade',         cost: Math.max(0, (P.designFanLevels?.medium ?? 190) - fanDiskCredit) },
+                  { value: 'high',   label: 'Ceiling fan (High finish)',   sub: 'custom/premium',           cost: Math.max(0, (P.designFanLevels?.high   ?? 270) - fanDiskCredit) },
                 ]}
                 value={ans.fanLevel}
                 onChange={v => set('fanLevel', v)}

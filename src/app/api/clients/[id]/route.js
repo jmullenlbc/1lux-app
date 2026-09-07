@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { clientTypeKeyFromLabel } from '@/lib/utils';
+import { deriveClientTypeKey } from '@/lib/crmClient';
 
 async function getClientOrFail(id, user) {
   const client = await prisma.client.findUnique({ where: { id } });
@@ -26,10 +28,32 @@ export async function GET(request, { params }) {
         orderBy: { updatedAt: 'desc' },
         select: {
           id: true, projectNumber: true, name: true, location: true, city: true, state: true,
-          buildingType: true, phase: true, budgetType: true,
+          buildingType: true, projectType: true, phase: true, budgetType: true,
+          serviceType: true,
+          procurementStatus: true, procurementStatusReason: true,
+          designStatus: true, designStatusReason: true,
           status: true, createdAt: true, updatedAt: true,
         },
       },
+      // People, each carrying the projects they are attached to so the
+      // per-person deal counters can be worked out on the page.
+      contacts: {
+        orderBy: { createdAt: 'asc' },
+        include: {
+          projectLinks: {
+            include: {
+              project: {
+                select: {
+                  id: true, name: true, projectNumber: true, serviceType: true,
+                  procurementStatus: true, procurementStatusReason: true,
+                  designStatus: true, designStatusReason: true,
+                },
+              },
+            },
+          },
+        },
+      },
+      tagLinks:  { include: { tag: true } },
       createdBy: { select: { name: true, email: true } },
       owner:     { select: { id: true, name: true, email: true } },
     },
@@ -53,11 +77,19 @@ export async function PATCH(request, { params }) {
     linkedIn, primaryContact, primaryContactTitle,
     primaryContactEmail, primaryContactPhone,
     tier, markets, geographies, projectTypes, projectsPerYear, pipelinePerUnit, developerType, orgTypes, ownerId, paymentTerms,
+    developerTypes, rating, tagIds,
   } = body;
 
   if (name !== undefined && !name?.trim()) {
     return NextResponse.json({ error: 'Client name cannot be empty' }, { status: 400 });
   }
+
+  // Client Type is the multi-select now. When it changes, the single `type`
+  // column follows the first tick so every screen already reading `type`
+  // (colour tags, the Clients-page stats) stays right.
+  const derivedType = orgTypes !== undefined
+    ? deriveClientTypeKey(orgTypes, clientTypeKeyFromLabel)
+    : null;
 
   const updated = await prisma.client.update({
     where: { id: params.id },
@@ -84,10 +116,26 @@ export async function PATCH(request, { params }) {
       ...(projectsPerYear     !== undefined && { projectsPerYear: parseInt(projectsPerYear) || null }),
       ...(pipelinePerUnit     !== undefined && { pipelinePerUnit: pipelinePerUnit === '' || pipelinePerUnit == null ? null : Number(pipelinePerUnit) }),
       ...(developerType       !== undefined && { developerType: developerType || null }),
+      // Multi-select Developer Type; the legacy single column tracks the first tick.
+      ...(developerTypes      !== undefined && {
+        developerTypes: JSON.stringify(developerTypes || []),
+        developerType:  (developerTypes || [])[0] || null,
+      }),
+      ...(rating              !== undefined && { rating: rating || null }),
       ...(orgTypes            !== undefined && { orgTypes: JSON.stringify(orgTypes) }),
+      ...(derivedType                       && { type: derivedType }),
       ...(ownerId             !== undefined && { ownerId: ownerId || null }),
       ...(paymentTerms        !== undefined && { paymentTerms: paymentTerms || null }),
+      // Tags: replace the whole set in one write, so the links can never end up
+      // half-applied if something fails partway.
+      ...(Array.isArray(tagIds) && {
+        tagLinks: {
+          deleteMany: {},
+          create: [...new Set(tagIds)].map(tagId => ({ tagId })),
+        },
+      }),
     },
+    include: { tagLinks: { include: { tag: true } } },
   });
 
   return NextResponse.json({ client: updated });

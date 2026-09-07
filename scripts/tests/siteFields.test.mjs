@@ -180,3 +180,106 @@ test('no stated gross SF proposes nothing — never a zero', () => {
   const rows = byKey(proposeSiteFields({ grossSf: null, totalUnits: 300 }));
   assert.equal(rows.grossSf, undefined);
 });
+
+// ── egress stairwell landings (Mike's ladder, 2026-09-05) ────────────────────
+
+test('stated stories + exit stairs propose the landing count, +10%, into the internal project page', () => {
+  const rows = byKey(proposeSiteFields({ stories: 4, egressStairwells: 2 }));
+  assert.equal(rows.numEgressStairwells.value, 15);           // 2 × 7 = 14, +10%
+  assert.match(rows.numEgressStairwells.note, /2 × 4 stories/);
+  assert.ok(!/ESTIMATED/.test(rows.numEgressStairwells.note));
+  assert.ok(writableSiteKeys().includes('numEgressStairwells'), 'the commit route may write it');
+});
+
+test('counted stories or stairs still propose landings, with a confirm-the-count warning', () => {
+  const rows = byKey(proposeSiteFields({ stories: null, storiesCounted: 4, egressStairwells: 2 }));
+  assert.equal(rows.numEgressStairwells.value, 15);
+  assert.match(rows.numEgressStairwells.note, /COUNTED/);
+});
+
+test('no exit-stair count on the drawings: the building-code estimate is proposed and flagged', () => {
+  const rows = byKey(proposeSiteFields({ stories: 3, egressStairwells: null, buildingCount: 5 }));
+  assert.equal(rows.numEgressStairwells.value, 55);           // 5 × 2 stairs × 5 landings = 50, +10%
+  assert.match(rows.numEgressStairwells.note, /building code minimum/);
+  assert.match(rows.numEgressStairwells.note, /ESTIMATED/);
+});
+
+test('no story count and nothing to estimate it from: landings stay absent, never zero', () => {
+  const rows = byKey(proposeSiteFields({ egressStairwells: 2, buildingCount: 3 }));
+  assert.ok(!('numEgressStairwells' in rows));
+});
+
+// ── building type (Mike 2026-09-05: "pick if a project is a Garden, townhomes, gurban, podium, wrap…") ──
+
+import { buildingTypeKeyFromText, BUILDING_TYPE_KEYS, projectLevelSiteKeys, buildingTypeKeyLabel } from '../../src/lib/siteFields.js';
+
+test('an engine key from the reader passes through untouched', () => {
+  for (const k of BUILDING_TYPE_KEYS) assert.equal(buildingTypeKeyFromText(k), k, k);
+});
+
+test('free text off older reads still resolves to a key', () => {
+  assert.equal(buildingTypeKeyFromText('3-STORY GARDEN WALK-UP'), 'garden');
+  assert.equal(buildingTypeKeyFromText('Garden style apartments'), 'garden');
+  assert.equal(buildingTypeKeyFromText('breezeway walk-up'), 'garden');
+  assert.equal(buildingTypeKeyFromText('4-story garden'), 'gurban', 'a 4–5 story garden IS a gurban');
+  assert.equal(buildingTypeKeyFromText('5 story walk-up'), 'gurban');
+  assert.equal(buildingTypeKeyFromText('Urban Garden'), 'gurban');
+  assert.equal(buildingTypeKeyFromText('TOWNHOMES'), 'townHouses');
+  assert.equal(buildingTypeKeyFromText('Stacked flats'), 'stackedFlats');
+  assert.equal(buildingTypeKeyFromText('Type IA podium over Type IIIA'), 'podium');
+  assert.equal(buildingTypeKeyFromText('Wrap (Texas donut)'), 'wrap');
+  assert.equal(buildingTypeKeyFromText('Mid-Rise'), 'midRise');
+  assert.equal(buildingTypeKeyFromText('HIGH RISE'), 'highRise');
+  assert.equal(buildingTypeKeyFromText('single family detached'), 'singleFamily');
+});
+
+test('anything that is not a type is null, never a default', () => {
+  for (const v of [null, undefined, '', '   ', 'multifamily', 'residential', 'apartments', 42]) {
+    assert.equal(buildingTypeKeyFromText(v), null, String(v));
+  }
+});
+
+test('the reader\'s building type is proposed as a type row, writable, on the Project side', () => {
+  const rows = byKey(proposeSiteFields({ buildingType: 'garden' }));
+  assert.equal(rows.buildingType.value, 'garden');
+  assert.equal(rows.buildingType.unit, 'type');
+  assert.match(rows.buildingType.note, /Garden \(3 Levels\)/);
+  assert.match(rows.buildingType.note, /stair package/);
+  assert.ok(writableSiteKeys().includes('buildingType'));
+  assert.deepEqual(projectLevelSiteKeys(), ['buildingType']);
+  assert.equal(buildingTypeKeyLabel('podium'), 'Podium (3-8 Levels)');
+});
+
+test('free text from the drawing is shown alongside the key it became', () => {
+  const rows = byKey(proposeSiteFields({ buildingType: '3-STORY GARDEN WALK-UP' }));
+  assert.equal(rows.buildingType.value, 'garden');
+  assert.match(rows.buildingType.note, /the drawing said "3-STORY GARDEN WALK-UP"/);
+});
+
+test('an unreadable building type proposes nothing', () => {
+  assert.ok(!('buildingType' in byKey(proposeSiteFields({ buildingType: 'multifamily' }))));
+  assert.ok(!('buildingType' in byKey(proposeSiteFields({ buildingType: null }))));
+});
+
+test('a different type already on the project is an overwrite; the same type is not', () => {
+  const diff = byKey(proposeSiteFields({ buildingType: 'garden' }, { buildingType: 'podium' }));
+  assert.equal(diff.buildingType.overwrites, true);
+  assert.equal(diff.buildingType.current, 'podium');
+  const same = byKey(proposeSiteFields({ buildingType: 'garden' }, { buildingType: 'garden' }));
+  assert.equal(same.buildingType.overwrites, false);
+  const blank = byKey(proposeSiteFields({ buildingType: 'garden' }, { buildingType: null }));
+  assert.equal(blank.buildingType.overwrites, false);
+});
+
+test('the building type steers the code-minimum stair estimate (breezeway packs more stairs per plate)', () => {
+  // 30,000 SF plate, 3 stories, one building, no stair count on the drawings.
+  const base = { stories: 3, buildingCount: 1, buildingFootprintSf: 30000 };
+  const corridor  = byKey(proposeSiteFields({ ...base, buildingType: 'podium' })).numEgressStairwells.value;
+  const breezeway = byKey(proposeSiteFields({ ...base, buildingType: 'garden' })).numEgressStairwells.value;
+  const untyped   = byKey(proposeSiteFields(base)).numEgressStairwells.value;
+  assert.equal(corridor, untyped, 'no type falls back to the corridor factor');
+  assert.ok(breezeway > corridor, `garden ${breezeway} should out-count corridor ${corridor}`);
+  // Townhouse stairs are private — nothing shared to light.
+  const town = byKey(proposeSiteFields({ ...base, buildingType: 'townHouses' })).numEgressStairwells.value;
+  assert.equal(town, 0);
+});

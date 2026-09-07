@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db';
 import { responsesToSections } from '@/lib/utils';
 import { calculateBudget, formatCurrency } from '@/lib/calculations';
 import { OPTION_LABELS } from '@/lib/pricing';
-import { loadPricing } from '@/lib/pricingLoader';
+import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
 import ShareViewTracker from './ShareViewTracker';
 import SummaryBudgetBreakdown from '@/app/(app)/project/[id]/summary/SummaryBudgetBreakdown';
 
@@ -20,7 +20,7 @@ export default async function SharePage({ params }) {
   if (!share) notFound();
 
   const project    = share.project;
-  const pricing    = project.pricingSnapshot ? JSON.parse(project.pricingSnapshot) : await loadPricing();
+  const pricing    = pricingForProject(project.pricingSnapshot, await loadPricing());
   const sections   = responsesToSections(project.responses);
   const projectData = { ...(project.projectData || {}), buildingTypeKey: project.buildingType };
   const budget     = calculateBudget(projectData, sections, pricing);
@@ -104,7 +104,11 @@ export default async function SharePage({ params }) {
             {budget.perSf   > 0 && <div><span style={{ color: '#94a3b8' }}>$/SF: </span><span className="font-semibold">${budget.perSf.toFixed(2)}</span></div>}
             {budget.perUnit > 0 && <div><span style={{ color: '#94a3b8' }}>$/Unit: </span><span className="font-semibold">{formatCurrency(budget.perUnit)}</span></div>}
           </div>
-          <p className="text-xs mt-3" style={{ color: '#475569' }}>Conceptual estimate only. Does not include sales tax.</p>
+          <p className="text-xs mt-3" style={{ color: '#475569' }}>
+            Conceptual estimate only. {budget.salesTaxPct > 0
+              ? `Includes ${Math.round(budget.salesTaxPct * 10000) / 100}% sales tax on product.`
+              : 'Does not include sales tax.'}
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

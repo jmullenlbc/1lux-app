@@ -5,6 +5,14 @@ import { getSectionRows } from '@/lib/dashboards/providers';
 import { runFieldWidget } from '@/lib/dashboards/engine';
 import { runWidget } from '@/lib/dashboardEngine';
 import { dimensionsFor, readField } from '@/lib/dashboards/fieldCatalog';
+import { loadSamplesWithContext } from '@/lib/calibration/capture';
+import { runCalibrationWidget } from '@/lib/calibration/report';
+
+function parseSpec(ds) {
+  if (ds == null) return {};
+  if (typeof ds === 'string') { try { return JSON.parse(ds || '{}') || {}; } catch { return {}; } }
+  return typeof ds === 'object' ? ds : {};
+}
 
 // Distinct values per plain dimension → powers the global filter bar. Computed
 // from the full (unfiltered) row set so options never vanish as filters narrow.
@@ -73,11 +81,23 @@ export async function POST(request) {
     : [];
   const legacyById = new Map(legacyRows.filter(w => w.category !== 'FIELD').map(w => [w.id, w]));
 
+  // Calibration widgets read CalibrationSample rows, not the section rows.
+  // Loaded once per request, only when a widget asks for them.
+  const wantsCalibration = widgets.some(w => parseSpec(w.dataSpec).kind === 'calibration');
+  let samples = [];
+  if (wantsCalibration) {
+    try { samples = await loadSamplesWithContext(); }
+    catch (e) { console.error('[dashboards/render] calibration load error:', e?.message ?? e); }
+  }
+
   const results = {};
   for (const w of widgets) {
     try {
+      const spec = parseSpec(w.dataSpec);
       const lw = legacyById.get(w.id);
-      if (lw) {
+      if (spec.kind === 'calibration') {
+        results[w.id] = runCalibrationWidget(spec, samples, filters);
+      } else if (lw) {
         const data = await runWidget(lw, prisma);
         results[w.id] = { chartType: lw.chartType || w.chartType || 'BAR', series: flattenLegacy(data), legacy: true };
       } else {

@@ -6,11 +6,12 @@ import { prisma } from '@/lib/db';
 import { responsesToSections } from '@/lib/utils';
 import { calculateBudget, formatCurrency } from '@/lib/calculations';
 import { OPTION_LABELS } from '@/lib/pricing';
-import { loadPricing } from '@/lib/pricingLoader';
+import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
 import Link from 'next/link';
 import SummaryPrintButton from './SummaryPrintButton';
 import SummaryBudgetBreakdown from './SummaryBudgetBreakdown';
 import ContingencyWidget from './ContingencyWidget';
+import SalesTaxWidget from './SalesTaxWidget';
 import MissingInputsWarning from '@/components/MissingInputsWarning';
 import SendBudgetButton from './SendBudgetButton';
 
@@ -47,14 +48,19 @@ export default async function SummaryPage({ params }) {
   if (!project) notFound();
   if (isClientViewer(session.role) && project.createdById !== session.id) notFound();
 
-  // Use the pricing snapshot frozen at project creation; fall back to current if older project has none
-  const pricing     = project.pricingSnapshot
-    ? JSON.parse(project.pricingSnapshot)
-    : await loadPricing();
+  // The snapshot frozen at project creation, with later-added lines filled from
+  // the master sheet; current pricing if an older project has no snapshot.
+  const pricing     = pricingForProject(project.pricingSnapshot, await loadPricing());
   const sections    = responsesToSections(project.responses);
   const projectData = { ...(project.projectData || {}), buildingTypeKey: project.buildingType };
   const budget      = calculateBudget(projectData, sections, pricing);
   const pd       = projectData;
+
+  // Sales tax is applied by the engine whenever a rate is on file, so the
+  // footer has to say which it is rather than always claiming "no tax".
+  const salesTaxNote = budget.salesTaxPct > 0
+    ? `Includes ${Math.round(budget.salesTaxPct * 10000) / 100}% sales tax on product.`
+    : 'Does not include sales tax.';
 
   function getLabel(category, key) {
     return OPTION_LABELS[category]?.[key] || key || '—';
@@ -294,15 +300,22 @@ export default async function SummaryPage({ params }) {
           </div>
         )}
         <p className="text-xs mt-2 print:hidden" style={{ color: '#475569' }}>
-          {project.budgetType === 'design' ? 'Design budget estimate' : 'Conceptual estimate'}. Does not include sales tax.
+          {project.budgetType === 'design' ? 'Design budget estimate' : 'Conceptual estimate'}. {salesTaxNote}
         </p>
       </div>
 
-      <ContingencyWidget
-        projectId={project.id}
-        baseBudget={budget.totalWithControls}
-        initialPct={pd.contingencyPct ?? 0}
-      />
+      <div className="space-y-1">
+        <SalesTaxWidget
+          projectId={project.id}
+          initialPct={budget.salesTaxPct || 0}
+          taxAmount={(budget.lightingTaxAmount || 0) + (budget.controlsTaxAmount || 0)}
+        />
+        <ContingencyWidget
+          projectId={project.id}
+          baseBudget={budget.totalWithControls}
+          initialPct={pd.contingencyPct ?? 0}
+        />
+      </div>
 
       {/* ── Design disclaimer — small, above Project Data ──────────── */}
       {project.budgetType === 'design' && (
@@ -337,7 +350,7 @@ export default async function SummaryPage({ params }) {
         </div>
         <SummaryBudgetBreakdown budget={budget} freightPct={freightPct} warehousingPct={warehousingPct} />
         <p className="hidden print:block text-xs mt-3 text-slate-400">
-          Conceptual estimate only. Does not include sales tax.
+          Conceptual estimate only. {salesTaxNote}
         </p>
       </div>
 

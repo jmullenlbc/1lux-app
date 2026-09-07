@@ -26,7 +26,7 @@ export async function POST(request, { params }) {
     data: {
       dashboardId: params.id,
       name:      b.name || 'Untitled',
-      chartType: ['BAR', 'LINE'].includes(b.chartType) ? b.chartType : 'BAR',
+      chartType: ['BAR', 'LINE', 'TABLE'].includes(b.chartType) ? b.chartType : 'BAR',
       width:     ['HALF', 'FULL'].includes(b.width) ? b.width : 'HALF',
       dataSpec:  b.dataSpec ? (typeof b.dataSpec === 'string' ? b.dataSpec : JSON.stringify(b.dataSpec)) : null,
       // legacy columns are NOT NULL — sentinels for field-picker widgets

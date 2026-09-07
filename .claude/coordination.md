@@ -2,6 +2,504 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+### 2026-09-07 (latest) — Mike's Claude — **DEPLOYED**: everything below that said "local-only" is now live
+
+**Bot Knowledge files go to 25 MB, sent in pieces.** Mike: *"we should make it up
+to 25mbs like email. can we do it in pieces very easily like drawings? then
+deploy."*
+
+The 4 MB number was never a preference — it was the front door. Raising the cap
+alone would have made it **worse**: a 25 MB POST dies at Amplify with an empty 413
+before our code runs, turning a clear message into a blank failure. So the file
+now goes browser → S3 direct in 5 MB parts (the drawing-set plumbing, unchanged)
+and this route receives only a key.
+
+- `uploadStorage.js` — `MAX_KNOWLEDGE_UPLOAD_BYTES` (25 MB) + a **separate**
+  `KNOWLEDGE_PRESIGNABLE` map. Deliberately not a widened `PRESIGNABLE`: widening
+  the bot's library must never widen what the public `/conceptual_budget` page
+  accepts. A test fails if the two ever get crossed.
+- `uploadClient.js` — `isPresignable(file, scope)`, default `'project'`, so all
+  seven existing callers are byte-for-byte unaffected.
+- `extract.js` — **the second wall is reading, not sending.** A page is not a fixed
+  unit of work, so the 120-page cap stopped bounding anything at 25 MB. Added
+  `READ_BUDGET_MS = 20_000`, checked *before* each PDF page and before any OCR is
+  started (`OCR_NEEDS_MS = 12_000` — Tesseract cannot be interrupted mid-call).
+- The screen sends **one file per request**. Five 25 MB files read back-to-back in
+  one request would blow the 30s wall and return nothing; this also means a
+  failing file fails alone.
+
+**Also fixed:** `tests/budget-math.mjs` still asserted the old flat $180K controls
+cap — the bug fixed on 2026-09-04. Now proves the lower of the two ceilings wins in
+both directions. And `.gitignore` had `devserver.log`, which never matched the
+dot-prefixed `.devserver.log` start-dev.ps1 actually writes.
+
+**⚠️ Migrations 0061–0068 shipped in this one push, in order.** Schema-guard
+cleared the DDL: additive only — 6 new tables, 19 new nullable columns, 1 NOT NULL
+with a default (`Client.developerTypes`), 2 new indexes. No removals, renames,
+retypes, or new uniques on existing data. Full schema ↔ migration coverage; all
+three preBuild guards pass.
+
+**Irreversible data rewrites in that set — flagged to Mike, no backup step in
+`amplify.yml`:**
+- **0061** `Project.designStage`: `DESIGN_QUALIFIED` and `PROPOSAL_SENT` both
+  collapse to `QUALIFIED`. Rows in `PROPOSAL_SENT` with no `proposalSentDate` get
+  one backfilled from `updatedAt` — an approximation that afterward looks
+  identical to a real proposal date. **Zero rows locally**; prod count unknown.
+- **0066** `LUNCH`/`DINNER`/`BREAKFAST` → `MEAL` on `Note.activityType` and
+  `ActivityClassificationRule.resultType`. Breakfast vs dinner gone permanently.
+- **0067** `RelationshipCadenceRule.cadenceDays` 42/90/90 → 30/45/75, guarded on
+  the exact old placeholder so hand-tuned tiers survive.
+- **0063** backfills are non-lossy — new columns only, sources untouched.
+
+**Replay hazard to know about:** `0064` is `IF NOT EXISTS` throughout *except* its
+two trailing `ALTER TABLE "EmailContactLink" ADD CONSTRAINT`. If it ever
+half-applies and gets the `migrate resolve --rolled-back` treatment 0023 got, the
+replay dies on `42710 duplicate_object`. Not a problem on a clean first run.
+
+Also noted by schema-guard: `prisma/migrations/migration_lock.toml` does not exist
+and is untracked. Pre-existing — 60 migrations have deployed without it — so not a
+new risk, just worth knowing the provider is not pinned.
+
+**Verification before this push:** regression suite **1,130/1,130**; engine math
+**60/60** + bid matrix **12/12** + fuzz; `npm run build` clean with all **37**
+runtime assets traced; `npm run verify` **11/11 gates**.
+
+### 2026-09-07 — Mike's Claude — BUILT LOCAL-ONLY, NOT DEPLOYED (stacks on everything below)
+
+**Bot Knowledge now takes files — and the bot finally reads what is in there.**
+
+Mike: *"can I drag stuff here we want to add to the bot knowledge? also the bot
+knowledge should take word docs, excel, PDFs and jpegs and pngs. I don't think it
+does now."* Correct — it took typed Q&A pairs only.
+
+**Drop zone on `/sales/automation/knowledge`.** Word (.docx/.rtf), Excel
+(.xlsx/.xls/.csv), PDF, images, plain text. **4 MB cap** = Amplify's front door,
+not an arbitrary choice. Each file is read on the way in and the flattened text is
+stored beside it. Unreadable files are **kept and flagged**, never dropped —
+Archive/Restore on the row, hard delete admin-only.
+
+New pure `src/lib/botKnowledge/`: `text.js` (zero imports — file-type detection
+with **extension beating MIME**, .docx XML flattening, search scoring),
+`zip.js` (~90-line ZIP reader on Node's own `zlib`, because a .docx is a ZIP and
+**adding a zip dependency means adding it to the prod Lambda bundle** — this repo
+has been burned twice by that), `extract.js` (pdfjs text layer via the sanctioned
+`loadPdfjs()`, **never `pdf-parse`** — its `module.parent` check throws ENOENT
+under ESM; OCR fallback; **120-page text cap / 5-page OCR cap** against the 30s
+wall), `storage.js` (S3 prefix **`bot-knowledge/`** so the `uploads/` lifecycle
+rule cannot sweep it; dualstack on both clients), `retrieve.js`.
+
+**Migration 0068 — one new table `BotKnowledgeDoc`, additive only.** Hand-written
+PostgreSQL (deliberately not generated from the sqlite-provider schema).
+Schema-guard reviewed: **no removals, renames, retypes or new uniques; no sign-off
+needed on data-loss grounds.** Indexes are `(isActive, status, category)` matching
+the one real read path, plus `(createdById)` so `SET NULL` on user delete does not
+seq-scan.
+
+**Four pre-existing bugs found and fixed on that screen:**
+1. **Import from CSV had never once worked** — button sends `{ entries: [...] }`,
+   route accepted only a bare array. Every import 400'd.
+2. **The search box was inert** — screen sends `q`, route read only `search`.
+3. **A saved entry rendered blank** until reload — the `{ entry }` envelope was
+   being stored as the entry.
+4. **The bot only ever saw the five OLDEST Q&A pairs.** `take: 5, orderBy:
+   createdAt asc`, no matching at all — everything added after the first five was
+   never read. Now the project/client/serviceType/stage is the query and both
+   typed answers and uploaded documents are searched, excerpt-first.
+
+29 new unit tests (`scripts/tests/botKnowledge.test.mjs`); full suite
+**1,125/1,125 green**; `npm run build` clean; both routes verified live (401
+unauthenticated); real .docx/.xlsx/.txt run through the reader end to end.
+
+⚠️ **Migrations 0061–0068 are ALL UNTRACKED in git** — not gitignored, just
+unstaged. `amplify.yml` generates the client from `schema.prisma` but applies
+tables from `prisma/migrations`, so committing the schema without staging these
+eight ships a client whose tables do not exist (P2021, from a green build). Stage
+all eight, ship **0061→0068 together, in order**. `prisma/seeds/dashboardTemplates.js`
+rides with this batch.
+
+---
+
+### 2026-09-07 — Mike's Claude — BUILT LOCAL-ONLY, NOT DEPLOYED
+
+**The weekly meeting screen, plus a measured answer to "gone quiet after how long."**
+
+Mike asked for widgets for the weekly meeting *"even though I can customize"*, and
+gave nine starting items. Then three answers: submissions in and out are *"the
+same"*; *"maram really runs it"*; and on the threshold, *"went quiet after what is
+the real question"* — throwing it back to be measured.
+
+**The screen is now a layout, not two hardcoded lists.** New pure catalog
+`src/lib/meeting/cards.js` (18 cards, no Prisma / no React / no `@/` alias, so the
+API and the screen read the same list and it is unit-testable). **Eleven built;
+six carry a `needs` string naming the exact missing field and cannot be switched
+on** — shown greyed rather than silently dropped. New
+`/api/sales/meeting/layout` (GET effective layout + catalog, PUT with
+`scope: personal|shared`, shared admin-only, DELETE drops the personal copy);
+`/api/sales/meeting` now takes `?cards=` and only pays for the queries on screen.
+
+**Zero schema change for the layout** — `Dashboard.section` is a plain String, so
+`section="MEETING"` works as-is, and `ownerUserId` null/set is the shared-default
+vs personal-copy seam. Because **Maram runs the meeting**, every deal card has an
+Owner column: shared team screen, not a personal to-do list.
+
+**Mike's #9 solved with nothing typed.** IFC / for-award budgets awaiting response
+= the budget's recorded send date + the email work's existing "counts as a real
+reply from a person" rule (mass sends, invites, auto-replies out). Design
+submissions is ONE card either direction — `DrawingSubmission.source` is already
+`EXTERNAL | INTERNAL`.
+
+**The threshold, measured.** `scripts/calendar/quietGap.mjs` measured every gap
+between two meetings with the same outside company: **5,353 gaps / 434 companies**,
+each one a gap the relationship SURVIVED. Half ≤ 14 days, 80% ≤ 28, 90% ≤ 70.
+Cadence-tier defaults moved from the guessed **42/90/90/180/365 to 30/45/75/180/365**
+(the two long tiers held), and `check-ins-due` now falls back to the same shared
+`QUIET_AFTER_DAYS`, so the CRM screen and the meeting card cannot disagree about
+one person. **Migration 0067 is data-only** — three conditional UPDATEs that move
+only rows still holding the placeholder, so a hand-tuned tier keeps its number.
+
+**Honest limit:** no threshold makes the list short — even at 5+ meetings/year and
+120 days it is 86 companies. The number *ranks*; CRM scope must filter.
+
+**Bug fixed:** `quietGap.mjs` anchored "today" to the last date in the file, which
+is **2032** because repeating series are written out with future instances — so
+every company read as quiet (434 of 434). Now anchored to the export's mtime. The
+percentiles were never affected.
+
+**Verified:** `meetingCards.test.mjs` 7/7, all four routes 401 (compile + auth gate),
+every Prisma query shape run against the real schema. **Not verified in a browser** —
+port 3000 held and the app redirects to a login I may not sign into.
+
+**⚠️ Deploy warnings now 0061 → 0067 untracked in git**; 0061 and 0066 irreversible
+in-place rewrites; 0064 bare `ADD CONSTRAINT` replay hazard. Local dev.db is
+`db push`-built and unbaselined, so `migrate deploy` fails locally with P3005 —
+0067 was applied locally with `prisma db execute` instead. Prod runs `migrate
+deploy` from amplify.yml and is unaffected.
+
+---
+
+### 2026-09-07 — Mike's Claude — BUILT LOCAL-ONLY, NOT DEPLOYED
+
+**Mike's last three calendar rulings applied. No schema change in this batch —
+pure logic + the dry-run script + tests.**
+
+**"1 meeting per time period."** `dedupeOverlappingMeetings()` in
+`src/lib/calendar/worthANote.js`. Three conditions, all required: a real overlap,
+**starts within 30 minutes**, and the same activity type (or one side has none).
+**Overlap alone is not "the same meeting"** — the first version got that wrong and
+the golf mixer, being a four-hour block, swallowed a genuine coffee and a genuine
+lunch that fell inside it, then chained transitively so a Tryba client visit was
+collapsed into an IKEA delivery. The 30-minute window is calibrated on Mike's own
+listings (tee times 3:10p / 3:20p). All-day blocks and TRAVEL are excluded from
+the comparison outright — an all-day marker overlaps everything that day, and
+travel is de-duplicated in *days* by `travelDates()`.
+
+**Auto-booking exclusion** (`isAutoBooking()` in `personal.js`, new bucket
+`auto-booking` between the personal and to-do gates). Narrow on purpose: only
+app-written confirmations (`^Reservation at`, `Table for N`, `Your table at … is
+confirmed`). **"Dinner reservation at Guard and Grace" is still kept** — Mike
+titled that himself; the de-dupe, not the stop-list, is what stops a double count.
+
+**Hotel stays are travel days** (Mike: "yes"). Three new TRAVEL title rules in
+`inPerson.js`, kept narrow because **ILC designs hotels** — a bare `/hotel/` would
+turn "Virgin Hotel design review" into a travel day. Every pattern needs a
+staying-somewhere context, plus a bidirectional-lookahead pattern for brand-first
+titles ("Hilton Stay Ft. Collins").
+
+**Two leaks found by reading the leftovers rather than assuming they were noise:**
+a delivery window is not a meeting at all (`IKEA delivery- 438646230` was
+outranking a real client visit on duration), and kids' activities ("Reid
+gymnastics") were reaching the shared CRM. Both are now stop-list patterns.
+
+**Final dry run (6th, read-only):** in-person by year **204 / 185 / 208 / 91**,
+travel days 10 / 14 / 11 / 2 (37 total), 44 entries collapsed as the same time
+period, 781 personal excluded. Wrongly-discarded in-person meetings **622 → 74 →
+51**. Golf now matches Mike's hand count **exactly in 2024 (20) and 2026 (9)**;
+the whole remaining gap is the meals definition he already agreed to.
+`scripts/tests/calendarInPerson.test.mjs` — **52 tests, all green.** Full
+regression + `npm run build` still owed at deploy time.
+
+**The real import is still NOT built** — this is the read and the rules only.
+Backfill mode still needs: set dates, no follow-up extraction, no tasks, nothing
+sent, and a way to undo the batch.
+
+**⚠️ Deploy warnings unchanged and still live** — migrations 0061 → 0066 all
+untracked in git; 0061 and 0066 are irreversible in-place rewrites; 0064 has the
+bare `ADD CONSTRAINT` replay hazard.
+
+---
+
+### 2026-09-07 (later) — Mike's Claude — BUILT LOCAL-ONLY, NOT DEPLOYED (stacks on the entry below)
+
+**Mike's four rulings on what counts as a business meeting, applied everywhere.**
+His words: *"Catalina golf mixer is every other week and is a business event.
+each of those should count always. even though they are repeating… so should a
+work business trip. we should look at how many days people are traveling to see
+clients… all personal events like soccer practice, tennis match, doctors appts,
+therapy should be excluded… 1. change to meals and include work breakfast, lunch
+and dinners 2. start with 2023."*
+
+**The real bug was in the seeded rule data, not the code.** `Virtual — skip`
+seeded at priority 80 and `Large group — skip` at 70 — both **above** every title
+rule at 50. A lunch with a leftover Teams link, or a twenty-person mixer, was
+thrown away before anything read the title. `DEFAULT_RULES` in
+`src/app/api/automation/classification-rules/route.js` now seeds them at 30 and
+25, and **migration `0066_activity_type_meal`** lowers any rows already seeded.
+
+**`LUNCH` → `MEAL`** across constants, all five UI screens, the AI prompt, the
+seeded rules and the schema comments. Non-destructive: `normalizeActivityType()`
+maps `LUNCH`/`DINNER`/`BREAKFAST` forward on every read and the pickers hide the
+legacy key, so old notes read as "Meal" whether or not 0066 has run. **Both
+columns are plain `String`, never enums** — schema-guard confirmed; my schema
+change is comment-only.
+
+**`TRAVEL` is business but deliberately NOT in-person** — counted in days, not
+meetings, so it can never inflate the in-person number Mike checks by hand.
+
+**Two new pure files:** `src/lib/calendar/personal.js` (the stop-list — runs
+first, answer is final, so nothing medical or family reaches a shared CRM) and
+`src/lib/calendar/worthANote.js` (`isWorthANote` — the ONE gate, order: cancelled
+→ personal → business title always kept → internal only → nobody invited →
+all-day → keep). `scripts/calendar/icsDryRun.mjs` had its own private copy of
+this logic deleted and now calls the shared gate, so the dry-run report is
+literally what the import will do.
+
+**Dry run over Mike's real export (read-only, nothing written):** 4,462 events
+from 2023 on → 1,906 kept, 776 personal excluded, 26 travel days, in-person 216 /
+198 / 231 / 93 by year. The first run wrongly discarded **622** real in-person
+meetings; now **74**. It now runs *above* Mike's hand count (+30/+44/+79) because
+104 kept meetings come from 10 repeating titles, 66 of them the Catalina Golf
+Mixer — his ruling working as asked. Question back to him is open.
+
+`scripts/tests/calendarInPerson.test.mjs` — **38 tests, all green.** Full
+regression + `npm run build` still owed at deploy time.
+
+**⚠️ For whoever deploys:** migration folders **0061 → 0066 are all still
+untracked in git (`??`)**. They must be `git add`ed or prod receives none of
+them. Two are irreversible in-place data rewrites — **0061** stamps
+`proposalSentDate = COALESCE(proposalSentDate, "updatedAt")` (a stand-in that
+becomes indistinguishable from a real date) and **0066** collapses
+breakfast/lunch/dinner into `MEAL` one-way. The **0064** bare `ADD CONSTRAINT`
+replay hazard below still stands.
+
+---
+
+### 2026-09-07 — Mike's Claude — BUILT LOCAL-ONLY, NOT DEPLOYED (stacks on everything below)
+
+**Sales notes are now wired to the calendar.** Mike: *"when we sync with
+Microsoft the system should know it's in person through a title or location."*
+Two real gaps were behind that ask. First, `classifyEvent` in
+`src/lib/bot/activityClassifier.js` — a good three-layer classifier reading
+TITLE_CONTAINS / LOCATION_CONTAINS / LOCATION_TYPE — **had zero callers**, while
+the Microsoft-facing `ingestCalendarEvent` decided in-person with a standalone
+regex. Second, a synced calendar event **left no record at all**: it fired
+`CALENDAR_EVENT_CREATED` and stopped, so it never reached the AI action
+extraction, the bot drafts, or `Contact.lastInPersonAt`.
+
+Three new files under `src/lib/calendar/`: `inPerson.js` (pure title/location
+rules, and the one home for the COFFEE/LUNCH/GOLF/HAPPY_HOUR/SITE_VISIT set that
+was copied into three files), `normalize.js` (the Graph seam, mirroring
+`src/lib/email/normalize.js`), and `recorder.js` (a synced event becomes a DRAFT
+sales note keyed on `Note.calendarRef`, idempotent on re-sync, guests linked to
+`Contact` rows). The classifier gained a **keyword layer** between rules and
+Haiku, so it works with no API key — which is why `Note.classificationSource`
+always listed `keyword`. `ingestCalendarEvent` now classifies, writes the draft
+note, and still fires the trigger unchanged. **Publishing stays a person's
+action** — an invite is not proof a meeting happened — and publishing is still
+what moves Last In Person. Setting a note's type by hand now stamps
+`classificationSource: 'manual'`, which is what tells the sync to stop touching
+that note.
+
+**The mass-email 25 is now changeable** (Mike: *"make it changeable but set to
+25. no one will probably change it"*) — an `ActivityExclusionRule` of type
+`MIN_RECIPIENTS` on Sales Automation → Rules → Exclusions, read by the new
+`src/lib/email/settings.js`, cached 5 min, cache dropped on any rule write.
+`classify.js` stays pure and database-free; 25 is the fallback and junk values
+fall back to it rather than breaking a sync.
+
+**Migration `0065_note_calendar_ref_index`** — an index on `Note.calendarRef`.
+Additive only, schema-guard reviewed, written with `IF NOT EXISTS`. **Ship
+0061 → 0065 together, in order** (0061 remaps live `designStage` values, so
+shipping without it drops existing design deals off the board).
+
+**Known hazard for whoever deploys, flagged by schema-guard and NOT changed:**
+`0064_email_contact_activity` creates its table with `CREATE TABLE IF NOT
+EXISTS` but adds both foreign keys with bare `ADD CONSTRAINT`. If a deploy halts
+and that migration is replayed with the table already present, those two lines
+fail with `42710 duplicate_object`. Left alone deliberately — CLAUDE.md says
+never edit an applied migration, and editing it would break the local checksum.
+Worth knowing if the deploy stops there.
+
+**Also found, not fixed, needs Mike's call:** there are **two people tables**.
+`Contact` (CRM: notes, cadence, `lastInPersonAt`) and `ClientContact` (people
+under a client: the email work writes `lastEmailReceivedAt`/`lastEmailSentAt`
+there). So today Last Email and Last In Person live on two different records for
+what may be the same human. Pre-existing, not introduced here. Merging them is a
+big destructive schema change and is Mike's decision, not mine.
+
+Verified: 1,060/1,060 regression tests (38 new), `npm run build` clean, 37/37
+runtime assets, intake route loads in the running dev server. The
+`/sales/automation/rules` screen was not clicked through in a browser (login).
+
+### 2026-09-06 — Mike's Claude — BUILT LOCAL-ONLY, NOT DEPLOYED (stacks on everything below)
+
+**CRM steps 1 and 2 are built: the Client module and the People module**,
+from Mike's two verbatim field specs, under one migration
+`0063_crm_client_people`. Client Type (8 options) and Developer Type became
+multi-selects stored as JSON arrays in `Client.orgTypes` / `developerTypes`;
+the old single `type` / `developerType` columns stay and are derived from the
+first tick so nothing downstream broke. Client Rating is a free-text
+placeholder until the equation is settled. **All deal counters are DERIVED on
+read, never stored** (`src/lib/crmClient.js`), and there are **TWO counting
+scopes** — Mike ruled on this 2026-09-06 ("it should be 2 wins but the wins
+per client should only count 1 per project"). A project rides the Procurement
+board always and the Design board too when serviceType is Full Design or
+Design Assist. `dealCounts` counts PER BOARD and is what the pipeline boards
+report, so a design job won on both is two wins there. `clientDealCounts`
+counts PER PROJECT and is what a client record and a person record show — one
+job is one deal, never two. `projectOutcome()` folds the boards into one
+answer, won → open → lost → abandoned (the lost-over-abandoned tie-break when
+both boards are dead but disagree was my judgment call, not Mike's).
+Won = WON + COMPLETED. New `ClientTag` / `ClientTagLink` tables give editable, deletable
+tags that cascade. People gained firstName/lastName/cellPhone/workPhone/
+linkedIn + two email-timestamp columns, a new `ProjectContact` link table for
+per-person deal counts, and a full People table with an expandable detail
+panel. A **written
+reason is now required to mark a deal Lost or Abandoned** — new
+`Project.procurementStatusReason` / `designStatusReason`, enforced in the API
+and prompted for in both the CRM board and the project hub. Fixed a real bug:
+`clientTypeKeyFromLabel` ignored the legacy label map, so any client saved
+under the retired "Developer / Self-Performing GC" label came back with no
+type at all.
+
+**Email activity against a person is built too** — the two Last Email fields
+on the People tab. Mike asked for it now so that connecting Microsoft later is
+just a sync, not a build. Nothing talks to Graph yet. `src/lib/email/` holds
+the rules (`classify.js`, pure — no DB, no network, no Microsoft), the adapter
+(`normalize.js`, the ONE file that changes when Graph is wired up), and the
+recorder. An email counts as real contact only if it is not a **mass email
+(25 or more distinct people on it — Mike's number)**, not a calendar invite,
+not a reply, and not automated. Storage reuses the existing `EmailMessage` /
+`EmailAccount` tables rather than a parallel mailbox; `EmailMessage` gains
+cc/bcc plus the stored verdict, and a new `EmailContactLink` joins message to
+person with a role (FROM = they wrote us, To/Cc/Bcc = we wrote them, which is
+what separates the two fields). Ingestion door: `POST /api/email/ingest`,
+admin-only. Every message is stored even when it does not count, so a rule
+change can be re-applied without re-syncing; the two dates are recomputed
+from the links, so they can move backwards.
+
+⚠️ **FOUR untracked migrations must ship together, in order, when this
+deploys: `0061_design_stages_shared`, `0062_calibration_samples`,
+`0063_crm_client_people`, `0064_email_contact_activity`.** If 0061 is left
+behind, the `designStage` default in schema.prisma has no migration backing it.
+
+⚠️ **Correction to a long-standing assumption:** `amplify.yml` runs
+`npx prisma migrate deploy`, **not** `prisma db push --accept-data-loss`.
+So the backfill UPDATEs in 0063 really do run in production, and a SQL error
+would halt the deploy in a failed-migration state (the `0023_proposals`
+precedent, whose permanent `migrate resolve --rolled-back` line IS already in
+amplify.yml at line 38 — an earlier note here doubted that; it is there).
+`CLAUDE.md` documented the retired `db push` pipeline and has been corrected.
+
+1032/1032 tests green with the dev server up, build clean with it stopped
+(64 migrations Postgres-compatible, 123 models backed by a CREATE TABLE).
+schema-guard reviewed the schema.prisma diff and found nothing destructive.
+Nothing is deployed — this stacks on top of the 09-04 and 09-05 batches,
+which are also still local.
+Open with Mike: the Client Rating equation (he said "no client rating yet"),
+and the lost-over-abandoned tie-break noted above.
+
+### 2026-09-05 — Mike's Claude (second entry) — BUILT LOCAL-ONLY, NOT DEPLOYED (stacks on everything below)
+
+**Lowell's drawings changed the stair model.** For garden / gurban /
+stacked-flat breezeway walk-ups the stair line is now a PACKAGE per open
+stair (landing lights + wall packs with battery on the stair and egress +
+emergency twin-heads + vestibule disks), built from the Lowell GMP E-sheets
+— `breezewayStairPackage` in `src/lib/stairLandings.js`, rates in a new
+`pricing.breezewayStair` block — Mike priced it the same evening: landing =
+a REGULAR disk $12 (decorative landing lights are not a conceptual item),
+wall pack w/ battery $300, frogeye $25, vestibule disk w/ battery $50 →
+$2,311 per 3-story stair, $57,775 on Lowell's 25). Corridor buildings keep
+the landing-only line. Because the
+type now drives that package plus wall packs and the controls cap, **the
+site read classifies the building** (nine fixed keys, decision rules in the
+prompt, version `siteVision-2026-09-05`); the Site Data panel proposes it as
+a dropdown row and the commit route writes `Project.buildingType` (only a
+known key). Fixed on the way: the commit route's returned row lacked
+`buildingTypeKey`, so the wizards dropped the type until reload. The
+unit-matrix commit route likely has the same drop (returns bare
+`updatedData`) — not touched. Also: margin default 23%, interior amenity
+high $16, **fans $180 GROSS at conceptual → $145 net** (the engine takes the
+$35 disk credit off the conceptual price the same way it does off a design
+level — supersedes the morning's $155 and the afternoon's $175 flat),
+manual sales-tax % box on the summary (`ProjectData.salesTaxPct`, a
+baseline column, no migration). The free ZIP lookup route built in the
+afternoon was PULLED the same evening at Mike's request and parked in
+ROADMAP.md ("💰 Budget Summary → Sales Tax Rate Lookup"). 968/968, build
+clean before the evening amendment. No new schema change; 0061 + 0062 still
+sit uncommitted with the rest. **CRM:** Mike asked whether the Excel's
+client/project/pipeline fields had been built — answered NO (09-04 was
+analysis only, per his pause) and he now wants to resume; a schema build
+is gated on the decisions in the gap doc and will need schema-guard.
+
+### 2026-09-05 — Mike's Claude — BUILT LOCAL-ONLY, NOT DEPLOYED (stacks on the 09-04 batch)
+
+**Stair landings now have one ladder in one file** — `src/lib/stairLandings.js`:
+drawings (stairs × (2×stories−1), the mid-level landing included) → building-
+code estimate when the drawings never state the exit-stair count (≥2 per
+building, more on a long floor plate; stories = gross ÷ footprint when
+unwritten) → null so a human types it. **+10% on every derived/estimated
+count** (Mike), never on a typed one. **The plate factor is building-type
+aware** (calibrated same day against six projects on file): corridor
+buildings 15,000 SF per stair, garden/gurban/stacked-flat breezeway walk-ups
+5,000, townhouses zero shared stairs; the public takeoff reads the type from
+the questionnaire, the internal site read defaults to corridor. Wired into
+the public takeoff (quantities.js, incl. an end-of-function patch that
+back-fills the stairs / stories rows as 'derived' + ESTIMATED) and, new,
+into the internal project page's Site Data proposals (siteFields.js
+`numEgressStairwells` — the commit route can now write landings). Four
+tunables on the master sheet (`estimation.landingsContingency /
+exitStairsMinPerBuilding / floorPlateSfPerExitStair /
+breezewayPlateSfPerExitStair`, editable at /admin/pricing). Garden controls
+$0.19 → $0.18 (cap $65K stays). Landscape relabeled "$ per SF of net lot"
+(it was never a percentage). Fans stay $155 — the $175 question is closed.
+934/934, build clean, no schema changes. Still undeployed from 09-04:
+migrations 0061 (approved remap) + 0062, snapshot fill, controls-cap fix,
+calibration widgets.
+
+### 2026-09-04 — Mike's Claude (fifth entry) — BUILT LOCAL-ONLY, NOT DEPLOYED
+
+**Two new migrations are sitting uncommitted on Mike's machine — read before
+you touch prisma/migrations:**
+
+- `0062_calibration_samples` — additive: new `CalibrationSample` table for the
+  pricing-calibration learning system (model qty × rate vs actual per budget
+  line, surfaced as 5 prebuilt widgets on /dashboards/budget).
+- `0061_design_stages_shared` — ⚠️ IRREVERSIBLE many-to-one remap of the
+  design pipeline's stages onto the conceptual stage list (DESIGN_QUALIFIED +
+  PROPOSAL_SENT → QUALIFIED; proposalSentDate backfilled from updatedAt as an
+  approximation). Schema-guard flagged it; waiting on Mike's sign-off. Do not
+  deploy a schema change around it.
+
+**Bug you should know about:** `Project.pricingSnapshot` (frozen at creation)
+never picked up pricing keys added later, so every existing project's live
+budget showed $0 wallpacks and $0 pathway — a303f24's pathway line has only
+been reaching brand-new projects. Fixed in `calculateBudget` via
+`fillPricingDefaults` (snapshot wins, missing keys fall through to master
+pricing) and a single `pricingForProject()` helper at all ten parse sites.
+When it ships, 14 of 23 snapshot projects move (Fulshear +$59K, Broadstone
+Southglenn +$41K, Town Lake +$8.9K — full line-by-line workbook in the G:
+engineering folder, SNAPSHOT-FIX-BEFORE-AFTER-2026-09-04.xlsx). The fill also
+surfaced a **controls cap bug**, fixed: the sheet-wide $180K cap was REPLACING
+the building-type cap instead of stacking with it (garden could be charged up
+to $180K). Now the lower of the two wins (controlsCap.test.mjs). Fans on old
+projects move $140 → $155 because their snapshots lacked the designFanLevels
+table; Mike's own Excel uses $175/fan — open question to him. Mike approved
+the 0061 stage remap ("no data is precious in there yet"). Rule going forward: a new
+pricing key needs NO inline default anymore.
+
+Also local-only: pathway 1.6× on solar sites, landscape 2% of NET lot,
+capture hooks on the responses/data/budget routes. 911/911 tests, build clean.
+
 ### 2026-09-04 — Mike's Claude (fourth entry)
 
 **Deploying now (Mike's "make these changes and deploy"):** pathway lighting is
@@ -612,7 +1110,7 @@ These are headline-level; ask Mike's Claude here for file-and-line detail on any
 - **GitHub Codespaces secret**: `ANTHROPIC_API_KEY` added to repo Codespaces secrets — Mike can now use AI parsing in a Codespace.
 - **Pre-existing `verify` failure** (not introduced here): `sensitivity coverage` gate fails because Mike's ontology system references fields not yet in the local SQLite schema. Pre-push hooks all pass — this only affects `npm run verify`, not deploys.
 
-## ⚠️ Mike's Claude — 2026-08-08 (latest): a bug pattern to never write again — `.catch()` on `requireAuth()`
+## ⚠️ Mike's Claude — 2026-08-08: a bug pattern to never write again — `.catch()` on `requireAuth()`
 
 **Nothing for you to fix. This is a "don't reintroduce it" note.** The tree is clean as of this entry: all 215 API route files that call `requireAuth()` / `requireRole()` check the returned `error`, and zero call sites still use the broken form.
 
@@ -978,7 +1476,7 @@ Replaced all `window.print()` flows with server-side Puppeteer PDF generation. `
 ### 2026-06-23 — Mike's Claude (Schedule parser v2.1 — keyword floor + AI timeout + resilience, deployed)
 
 Zenith still showed no dates after v2 (likely AI/serverless timeout silently swallowed, or the card's auto-parse bailed on missing stored textContent). Hardened `scheduleExtract.js` + `CAScheduleCard.jsx`:
-- **Deterministic keyword pass is now the timeout-proof FLOOR** (instant, no AI): reliably pulls construction-start, MEP rough-ins (floored to ≥ construction-start so design-phase 2025 "MEP" rows are excluded), TCO (latest), and Final Completion (latest). Verified on Zenith: 6/1/26 / 1/12/27 / 5/16/28 / 6/2/28.
+- **Deterministic keyword pass is now the timeout-proof FLOOR** (instant, no AI): reliably pulls construction-start, MEP rough-ins (floored to ≥ construction-start so design-phase 2025 "MEP" rows are excluded), TCO, and Final Completion. Verified on Zenith: 6/1/26 / 1/12/27 / 5/16/28 / 6/2/28.
 - **AI pass is bounded by a 22s timeout** and only wins when it returns a fuller set — so an AI/network hiccup or Lambda timeout can never blank the dates (keyword result stands).
 - **CAScheduleCard auto-parse** no longer requires stored `textContent` (the /reparse endpoint re-extracts from disk and returns a clear error otherwise) — so it always attempts extraction and surfaces real failures instead of silently showing empty.
 - Upload route schedule `catch` now logs instead of swallowing.

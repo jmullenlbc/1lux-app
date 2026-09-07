@@ -34,6 +34,14 @@ const TEMPLATES_BY_SECTION = {
     { name: 'Budgets by Service Type',     chartType: 'BAR',  width: 'HALF', dataSpec: { groupBy: 'serviceType', terms: [{ field: 'budgetsCount', agg: 'count' }], op: 'single' } },
     { name: 'Budgets by Project Type',     chartType: 'BAR',  width: 'HALF', dataSpec: { groupBy: 'projectType', terms: [{ field: 'budgetsCount', agg: 'count' }], op: 'single' } },
     { name: 'Budgets by Client',           chartType: 'BAR',  width: 'HALF', dataSpec: { groupBy: 'client', terms: [{ field: 'budgetsCount', agg: 'count' }], op: 'single' } },
+    // Pricing calibration (learning loop): model vs actual per budget line.
+    // kind:'calibration' widgets read CalibrationSample rows, not the field
+    // catalog — see src/lib/calibration/report.js.
+    { name: 'Pricing Calibration — Rate Drift',   chartType: 'TABLE', width: 'FULL', dataSpec: { kind: 'calibration', report: 'rateDrift' } },
+    { name: 'Model vs Actual — Drift by Line',    chartType: 'BAR',   width: 'FULL', dataSpec: { kind: 'calibration', report: 'modelVsActualByLine' } },
+    { name: 'Drift by Building Type',             chartType: 'BAR',   width: 'HALF', dataSpec: { kind: 'calibration', report: 'modelVsActualByBuilding' } },
+    { name: 'Calibration Coverage by Line',       chartType: 'BAR',   width: 'HALF', dataSpec: { kind: 'calibration', report: 'coverageByLine' } },
+    { name: 'Projects with Actuals by Month',     chartType: 'LINE',  width: 'HALF', dataSpec: { kind: 'calibration', report: 'samplesByMonth' } },
   ],
 };
 

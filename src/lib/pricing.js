@@ -30,11 +30,16 @@ export const PRICING = {
   },
 
   // ─── CEILING FANS ─────────────────────────────────────────────────────────
-  // Net adder per fan = $175 gross - $35 disk credit already in base
+  // Net adder per fan = $180 gross - $35 disk credit already in base
   fans: {
-    adderPerFan: 140, // net adder per fan location
+    adderPerFan: 145, // net adder per fan location (legacy fallback)
     diskCredit:   35, // credit for 12" disk removed from base
-    totalPerFan: 175, // gross product cost per fan
+    totalPerFan: 180, // gross product cost per fan
+    // What a CONCEPTUAL budget prices a fan at, GROSS, before a finish level is
+    // picked (Mike 2026-09-05: "Fans can show $175 at conceptual … Should be
+    // gross but make it $180."). The engine takes the disk credit off it, the
+    // same way it does for a design fan level: $180 − $35 = $145 net per fan.
+    conceptualPerFan: 180,
   },
 
   // ─── BATHROOM VANITY LIGHTING ─────────────────────────────────────────────
@@ -80,11 +85,40 @@ export const PRICING = {
     },
   },
 
+  // ─── BREEZEWAY STAIR PACKAGE (garden / stacked flats / gurban walk-ups) ───
+  // Mike 2026-09-05: "Does it really matter what the SF of stairwells are. We
+  // just really care about the landings. Where it does matter a lot is
+  // breezeways ... Then you have landings and you have the lighting on the
+  // stairs and egress." Read off the Lowell + I76 GMP set (E-sheets, 7 × 3-story
+  // buildings, 25 breezeway stairs): each open stair serving N levels carries
+  //   N     C4  decorative surface mounts on the floor landings
+  //   2N+1  W1  breezeway LED wall packs w/ integrated battery (stair + egress)
+  //   N     X1  emergency twin-heads (frogeyes)
+  //   N−1   C6  7" disks w/ battery in the upper-level vestibules
+  // The ground-floor egress wall pack (EW2) is already in the exterior
+  // wallpacks line and is NOT repeated here. Enclosed corridor-building
+  // stairs stay on corridors.stairwellPerLanding.
+  // Unit prices are PLACEHOLDERS pending Mike's numbers (landing light = the
+  // corridor stairwell rate, wall pack = a small battery pack, not the $350
+  // exterior cutoff).
+  // Prices are Mike's (2026-09-05): "Wallpack with battery = $300. Frogeyes
+  // emergency twin head = $25. Vestibule disk with emergency battery = $50.
+  // Regular disks = $12. Decorative landing light we don't do in a conceptual
+  // budget." So the per-landing fixture on an open stair is a REGULAR disk.
+  breezewayStair: {
+    landingLight:         12,  // C4 position — a regular disk, not a decorative fixture
+    wallpackWithBattery: 300,  // W1 — per stair + egress wall pack
+    frogeye:              25,  // X1 — emergency twin-head
+    vestibuleDisk:        50,  // C6 — disk w/ emergency battery, upper vestibules
+    // Levels served per stair when Project Data has no story count.
+    storiesDefault: { garden: 3, stackedFlats: 3, gurban: 4 },
+  },
+
   // ─── INTERIOR AMENITIES ───────────────────────────────────────────────────
   interiorAmenities: {
     low:    6,
     medium: 10,
-    high:   15,
+    high:   16, // 15 → 16 (Mike 2026-09-05: "make the highest level $16 not $15")
   },
 
   // ─── EXTERIOR AMENITIES ───────────────────────────────────────────────────
@@ -211,6 +245,14 @@ export const PRICING = {
       // "small amount… for now enter $4000."
       minTotal: 4000,
 
+      // Solar site design multiplies the pathway line too — a solar bollard
+      // ($1,224.78 on the Avilla actuals) runs ~1.53× a conventional one
+      // ($800). Mike 2026-09-04: "yes pathway should get a bump of 1.6x".
+      // Applied to the MODEL line only when siteDesignLevel === 'solar'; a
+      // hand-entered pathway figure is taken as-is (already counted/priced).
+      // Surface parking keeps its own exterior.solarMultiplier (2.3).
+      solarMultiplier: 1.6,
+
       // ── PATHWAY DOLLARS PER UNIT, BY BUILDING TYPE ───────────────────────
       // WIRED into calculations.js 2026-09-04 (Mike signed off after the
       // 2026-09-04 rate corrections below): pathway = units × rate[type],
@@ -298,7 +340,12 @@ export const PRICING = {
       },
     },
     landscape: {
-      // (lotSf - buildingFootprintSf) × 2% — entered manually in Exterior section
+      // NET lot: (lotSf − buildingFootprintSf) × $0.02 PER SQUARE FOOT. Wired
+      // to the net figure 2026-09-04 (Mike: "net lot") — before that the
+      // engine multiplied the FULL lot despite this key's name. Falls back to
+      // the full lot when no footprint is on file. The key name says "pct"
+      // for history's sake; it is a $/SF rate (Mike 2026-09-05: label it
+      // "$ per SF of net lot", not a percentage).
       pctOfNetLotSf: 0.02,
       // Hard ceiling. The source questionnaire says "add an estimate flat amount
       // for landscape lighting — for most projects do not exceed $3,000". Without
@@ -423,7 +470,7 @@ export const PRICING = {
       singleFamily: { perSf: 0.00, cap:  50000 },
       townHouses:   { perSf: 0.00, cap:  50000 },
       stackedFlats: { perSf: 0.15, cap:  65000 },
-      garden:       { perSf: 0.19, cap:  65000 },
+      garden:       { perSf: 0.18, cap:  65000 }, // 0.19 → 0.18 (Mike 2026-09-05: "split the difference", cap stays)
       gurban:       { perSf: 0.22, cap:  70000 },
       wrap:         { perSf: 0.35, cap: 110000 },
       podium:       { perSf: 0.40, cap: 135000 },
@@ -441,6 +488,18 @@ export const PRICING = {
   // ─── TAKEOFF ESTIMATION FACTORS ──────────────────────────────────────────
   estimation: {
     unitsToGross: 1.25, // last-resort gross SF = residential unit SF × this (Mike, 2026-09-04)
+    // Stair landings (see src/lib/stairLandings.js). Mike 2026-09-05: "add 10%
+    // to landings" on any count the app derives; the code-minimum fallback
+    // (≥2 exit stairs per building, more on a long floor plate) fills in when
+    // the drawings never state the exit-stair count. The plate factors were
+    // calibrated 2026-09-05 against six real projects on file: corridor
+    // buildings (wrap/podium/mid/high-rise) ran ~12K–22K SF per stair, and
+    // garden/breezeway walk-ups ~5K SF per stair — each open breezeway stair
+    // serves only the handful of units around it.
+    landingsContingency:          0.10,
+    exitStairsMinPerBuilding:     2,
+    floorPlateSfPerExitStair:     15000,
+    breezewayPlateSfPerExitStair: 5000,
   },
 
   // ─── DESIGN BUDGET UNIT UPGRADES ─────────────────────────────────────────
@@ -549,7 +608,7 @@ export const OPTION_LABELS = {
   interiorAmenities: {
     low:    '$6/SF — Low finish (e.g., garden walk-up)',
     medium: '$10/SF — Medium finish',
-    high:   '$15/SF — High finish (e.g., high-end mid-rise or high-rise)',
+    high:   '$16/SF — High finish (e.g., high-end mid-rise or high-rise)',
   },
   exteriorAmenities: {
     low:       '$1/SF — Low finish (e.g., garden walk-up)',

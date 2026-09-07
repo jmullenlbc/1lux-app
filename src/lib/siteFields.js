@@ -36,6 +36,7 @@
  * @see src/lib/agent/autoChecks.js  — the arithmetic that grades it
  * @see scripts/tests/siteFields.test.mjs
  */
+import { estimateStairLandings } from './stairLandings.js';
 
 /**
  * A stated number, or NaN.
@@ -54,6 +55,57 @@ export function stated(v) {
 
 /** Square feet in an acre. Exact, by definition. */
 export const ACRE_SF = 43560;
+
+/**
+ * The engine's building-type keys — the same nine as BUILDING_TYPES in
+ * src/lib/utils.js, listed here so this module stays free of UI imports.
+ * Anything the drawing reader returns that is not one of these is not a type.
+ */
+export const BUILDING_TYPE_KEYS = [
+  'singleFamily', 'townHouses', 'stackedFlats', 'garden', 'gurban',
+  'wrap', 'podium', 'midRise', 'highRise',
+];
+
+/**
+ * The building type as the drawing reader reported it, as an engine key.
+ *
+ * The reader is asked for the key itself ("garden", "podium" …), but it is a
+ * model reading a title block, and the older reads on file are free text
+ * ("3-STORY GARDEN WALK-UP"). Both are accepted; anything that does not
+ * resolve is null, never a default — a wrong type re-prices the stair
+ * package, the wall packs and the controls cap all at once.
+ */
+export function buildingTypeKeyFromText(raw) {
+  if (raw == null) return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  if (BUILDING_TYPE_KEYS.includes(s)) return s;
+  const t = s.toLowerCase().replace(/[_\s-]+/g, ' ');
+  if (t.includes('single'))                                          return 'singleFamily';
+  if (t.includes('stacked'))                                         return 'stackedFlats';
+  if (t.includes('townhome') || t.includes('townhouse') || t.includes('town house') || t.includes('rowhouse') || t.includes('row house')) return 'townHouses';
+  if (t.includes('high rise') || t.includes('highrise') || t.includes('high-rise')) return 'highRise';
+  if (t.includes('mid rise')  || t.includes('midrise')  || t.includes('mid-rise'))  return 'midRise';
+  if (t.includes('podium'))                                          return 'podium';
+  if (t.includes('wrap'))                                            return 'wrap';
+  if (t.includes('gurban') || t.includes('urban garden'))            return 'gurban';
+  // A 4–5 story garden / walk-up IS a gurban — that is the whole distinction.
+  if ((t.includes('garden') || t.includes('walk')) && /\b[45]\b|\b[45] ?stor/.test(t)) return 'gurban';
+  if (t.includes('garden') || t.includes('walk up') || t.includes('walkup') || t.includes('breezeway')) return 'garden';
+  return null;
+}
+
+const BUILDING_TYPE_LABELS = {
+  singleFamily: 'Single Family (1-2 Levels)',
+  townHouses:   'Town Houses (2-3 Levels)',
+  stackedFlats: 'Town House / Stacked Flats (3 Levels)',
+  garden:       'Garden (3 Levels)',
+  gurban:       'Gurban (4-5 Levels)',
+  wrap:         'Wrap (3-5 Levels)',
+  podium:       'Podium (3-8 Levels)',
+  midRise:      'Mid Rise (9-12 Levels)',
+  highRise:     'High Rise (12+ Levels)',
+};
 
 /**
  * Land consumed by ONE surface stall including its share of drive aisle.
@@ -113,6 +165,26 @@ export function stallBreakdown(vision) {
  * @see src/lib/projectInputChecks.js — three of these are on the critical list
  */
 export const SITE_FIELD_DEFS = [
+  {
+    // The one non-numeric field. It lives on Project (buildingType), not on
+    // ProjectData — the commit route routes it there. Mike 2026-09-05: "can't
+    // you analyze the site and look for something in the drawings that says
+    // what it is?" The reader is given decision rules (breezeway + 3 stories
+    // = garden, podium level = podium, …) and returns one engine key or null.
+    key:   'buildingType',
+    label: 'Building Type',
+    unit:  'type',
+    read: (v) => {
+      const key = buildingTypeKeyFromText(v?.buildingType);
+      if (!key) return null;
+      const raw = String(v?.buildingType ?? '').trim();
+      return {
+        value: key,
+        note: `Read as ${BUILDING_TYPE_LABELS[key]}${raw && raw !== key ? ` (the drawing said "${raw}")` : ''}. ` +
+              'Drives the stair package (breezeway vs enclosed), building wall packs and the controls cap — confirm it.',
+      };
+    },
+  },
   {
     key:   'grossSf',
     label: 'Total Building Gross SF',
@@ -180,6 +252,38 @@ export const SITE_FIELD_DEFS = [
     },
   },
   {
+    key:   'numEgressStairwells',
+    label: '# Egress Stairwell Landings',
+    unit:  'count',
+    read: (v) => {
+      // The Project Data field holds LANDINGS ($175 each), not shafts. Mike's
+      // ladder (2026-09-05): drawings (stories × stairs, stated or counted)
+      // → building-code estimate → the human types it. The shared estimator
+      // adds the 10% contingency; the note shows every step so the reviewer
+      // can see what was read and what was assumed.
+      // The building type the reader found (if any) steers the code fallback:
+      // breezeway walk-ups pack more stairs per plate than a corridor building,
+      // townhouse stairs are private. No type → the corridor factor.
+      const est = estimateStairLandings({
+        stories:         v?.stories ?? v?.storiesCounted,
+        stairs:          v?.egressStairwells ?? v?.egressStairwellsCounted,
+        buildings:       v?.buildingCount,
+        footprintSf:     v?.buildingFootprintSf,
+        grossSf:         v?.grossSf,
+        buildingTypeKey: buildingTypeKeyFromText(v?.buildingType),
+      });
+      if (!est) return null;
+      const counted = (v?.stories == null && v?.storiesCounted != null)
+                   || (v?.egressStairwells == null && v?.egressStairwellsCounted != null);
+      const note = [
+        est.how,
+        est.flag,
+        !est.estimated && counted ? 'Built on a COUNTED story or stair figure — confirm it before accepting.' : null,
+      ].filter(Boolean).join(' ');
+      return { value: est.landings, note };
+    },
+  },
+  {
     key:   'exteriorAmenitySf',
     label: 'Exterior Amenity SF',
     unit:  'sf',
@@ -243,7 +347,11 @@ export function proposeSiteFields(vision, current = null) {
       critical:   !!def.critical,
       // Replacing a number somebody already entered is a different decision from
       // filling a blank, so the panel needs to be able to say which it is.
-      overwrites: currentValue != null && Number(currentValue) !== Number(read.value),
+      overwrites: currentValue != null && currentValue !== '' && (
+        def.unit === 'type'
+          ? String(currentValue) !== String(read.value)
+          : Number(currentValue) !== Number(read.value)
+      ),
     });
   }
   return rows;
@@ -252,4 +360,14 @@ export function proposeSiteFields(vision, current = null) {
 /** The keys a commit is permitted to write. Anything else is dropped. */
 export function writableSiteKeys() {
   return SITE_FIELD_DEFS.map(d => d.key);
+}
+
+/** The keys that belong on Project rather than ProjectData. */
+export function projectLevelSiteKeys() {
+  return SITE_FIELD_DEFS.filter(d => d.unit === 'type').map(d => d.key);
+}
+
+/** Human label for a building-type key, for notes and diffs. */
+export function buildingTypeKeyLabel(key) {
+  return BUILDING_TYPE_LABELS[key] || key || '—';
 }

@@ -1,14 +1,19 @@
 /**
  * activityClassifier.js
  *
- * Three-layer activity classification for calendar events:
+ * Four-layer activity classification for calendar events:
  *   1. User-defined rules (ActivityClassificationRule) — checked first, highest priority wins
- *   2. Claude Haiku AI — for events that don't match any rule
- *   3. Fallback — returns null (event stays unclassified for manual review)
+ *   2. Title and location keywords — free, instant, and works with no API key
+ *   3. Claude Haiku AI — for events the first two layers can't call
+ *   4. Fallback — returns null (event stays unclassified for manual review)
+ *
+ * Mike, 2026-09-07: "when we sync with Microsoft the system should know it's in
+ * person through a title or location." Layer 2 is that promise — it is the layer
+ * that always runs, so the answer never depends on an API key being present.
  *
  * Used by:
  *   - Calendar .ics import (current)
- *   - M365 calendar webhook sync (Phase D)
+ *   - M365 calendar sync, through ingestCalendarEvent in src/lib/bot/intake.js
  */
 
 import { prisma }          from '@/lib/db';
@@ -16,11 +21,23 @@ import { modelParams, textFrom } from '@/lib/aiModels';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient }      from '@/lib/agent/client';
 import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
+import {
+  IN_PERSON_TYPES, ALWAYS_IN_PERSON_TYPES, classifyByTitleAndLocation,
+  activityTypeFromTitle, normalizeActivityType,
+} from '@/lib/calendar/inPerson';
+import { excludeFromNotes } from '@/lib/calendar/personal';
 
-// ── In-person activity types ───────────────────────────────────────────────────
-export const IN_PERSON_TYPES = new Set([
-  'COFFEE', 'LUNCH', 'GOLF', 'HAPPY_HOUR', 'SITE_VISIT',
-]);
+// Re-exported so the older importers of this file keep working. The set itself
+// now lives in src/lib/calendar/inPerson.js, which is the one home for it.
+export { IN_PERSON_TYPES };
+
+/**
+ * How sure the keyword layer has to be to answer without asking the AI.
+ * 85+ means the TITLE named the activity outright ("Lunch with Dave", "Golf at
+ * Brookhaven"). Below that the keywords are only reading the location box, which
+ * is worth a second opinion when one is available.
+ */
+const KEYWORD_TRUST_THRESHOLD = 85;
 
 // ── Rule condition evaluators ──────────────────────────────────────────────────
 
@@ -87,7 +104,8 @@ export function invalidateRulesCache() {
 
 // ── Claude Haiku classifier ────────────────────────────────────────────────────
 
-const VALID_TYPES = ['COFFEE','LUNCH','GOLF','HAPPY_HOUR','SITE_VISIT','CALL','EVENT','OTHER','SKIP'];
+const VALID_TYPES = ['COFFEE','MEAL','GOLF','HAPPY_HOUR','SITE_VISIT','TRAVEL','CALL','EVENT','OTHER','SKIP',
+  'LUNCH'];  // LUNCH kept so an older answer still parses; normalized to MEAL below
 
 async function classifyWithAI(event) {
   const apiKey = getAnthropicKey();
@@ -116,12 +134,13 @@ Event:
 
 Classify as exactly one:
 COFFEE - coffee shop meeting, cafe, informal chat (typically 30-90 min, 2-4 people)
-LUNCH - lunch, dinner, breakfast meeting at a restaurant
+MEAL - a business breakfast, lunch or dinner at a restaurant
 GOLF - golf outing, golf tournament, golf mixer, tee time
 HAPPY_HOUR - drinks, happy hour, cocktail event, brewery/bar visit
 SITE_VISIT - visiting a job site, project site, building tour
+TRAVEL - a day spent travelling for work: a flight, a trip to another city to see clients
 CALL - phone/video call that's still external relationship-building
-EVENT - networking event, conference, awards, gala, tournament (not golf)
+EVENT - networking event, conference, awards, gala, mixer, tournament (not golf)
 OTHER - in-person meeting that doesn't fit above categories
 SKIP - internal-only meeting, all-hands, weekly standup, virtual meeting with no real relationship context
 
@@ -129,10 +148,10 @@ Rules:
 - If location contains a URL or "Zoom"/"Teams"/"Meet" = virtual, likely SKIP unless clearly external relationship
 - If 10+ attendees = probably SKIP unless it's a networking EVENT
 - Short meetings (<20 min) with no location = probably SKIP
-- Restaurant name + small group = LUNCH
+- Restaurant name + small group = MEAL
 
 Respond with ONLY: CLASSIFICATION|CONFIDENCE (0-100)
-Examples: LUNCH|88  or  SKIP|95  or  GOLF|72`;
+Examples: MEAL|88  or  SKIP|95  or  GOLF|72`;
 
   try {
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
@@ -156,7 +175,10 @@ Examples: LUNCH|88  or  SKIP|95  or  GOLF|72`;
     const type = typeStr?.trim().toUpperCase();
     const conf = parseInt(confStr?.trim()) || 50;
     if (VALID_TYPES.includes(type)) {
-      return { activityType: type, confidence: conf, source: 'ai' };
+      return {
+        activityType: type === 'SKIP' ? 'SKIP' : normalizeActivityType(type),
+        confidence: conf, source: 'ai',
+      };
     }
   } catch (e) {
     console.error('[activityClassifier] Haiku error:', e.message);
@@ -181,44 +203,87 @@ Examples: LUNCH|88  or  SKIP|95  or  GOLF|72`;
  * @returns {
  *   activityType: string | null  — null means unclassifiable
  *   isInPerson:   boolean
- *   source:       'rule' | 'ai' | 'keyword' | null
+ *   source:       'rule' | 'keyword' | 'ai' | null
  *   ruleName?:    string         — which rule matched (if source=rule)
- *   confidence?:  number         — AI confidence 0-100 (if source=ai)
+ *   confidence?:  number         — 0-100
+ *   reason?:      string         — plain English, for the note and the log
  * }
  */
 export async function classifyEvent(event) {
+  // ── Layer 0: the personal stop-list ────────────────────────────────────────
+  // Mike, 2026-09-07: "all personal events like soccer practice, tennis match,
+  // doctors appts, therapy should be excluded." This runs ahead of everything —
+  // ahead of his own rules, ahead of the AI — because a personal appointment
+  // must never reach a shared CRM, and because there is no reason to spend an
+  // API call reading his dentist's address.
+  const excluded = excludeFromNotes(event);
+  if (excluded.excluded) {
+    return {
+      activityType: null, isInPerson: false, source: 'keyword',
+      confidence: 95, reason: excluded.reason,
+    };
+  }
+
   // ── Layer 1: User-defined rules ────────────────────────────────────────────
+  // Mike's own rules beat everything else. If he wrote one, he meant it.
+  const titleType = activityTypeFromTitle(event.title);
   const rules = await getActiveRules();
   for (const rule of rules) {
     if (evalCondition(rule, event)) {
       if (rule.resultType === 'SKIP') {
-        return { activityType: null, isInPerson: false, source: 'rule', ruleName: rule.name };
+        // The one exception: golf, a meal, coffee and happy hour in the title are
+        // in person "full stop" (Mike, 2026-09-07). A generic skip rule — the
+        // seeded "Virtual — skip" is the one that bites — does not get to throw
+        // away a lunch just because a Teams link was left on the invite.
+        if (titleType && ALWAYS_IN_PERSON_TYPES.has(titleType)) continue;
+        return {
+          activityType: null, isInPerson: false, source: 'rule',
+          ruleName: rule.name, reason: `your rule "${rule.name}" says to skip these`,
+        };
       }
+      const resultType = normalizeActivityType(rule.resultType);
       return {
-        activityType: rule.resultType,
-        isInPerson:   IN_PERSON_TYPES.has(rule.resultType),
+        activityType: resultType,
+        isInPerson:   IN_PERSON_TYPES.has(resultType),
         source:       'rule',
         ruleName:     rule.name,
         confidence:   100,
+        reason:       `your rule "${rule.name}" matched`,
       };
     }
   }
 
-  // ── Layer 2: Claude Haiku ──────────────────────────────────────────────────
+  // ── Layer 2: Title and location keywords ───────────────────────────────────
+  // A title that names the activity outright is answer enough. A weaker read —
+  // location only — is kept aside and used if the AI has nothing to say.
+  const keyword = classifyByTitleAndLocation(event);
+  if (keyword && keyword.confidence >= KEYWORD_TRUST_THRESHOLD) {
+    return keyword;
+  }
+
+  // ── Layer 3: Claude Haiku ──────────────────────────────────────────────────
   const aiResult = await classifyWithAI(event);
   if (aiResult) {
     if (aiResult.activityType === 'SKIP') {
-      return { activityType: null, isInPerson: false, source: 'ai', confidence: aiResult.confidence };
+      return {
+        activityType: null, isInPerson: false, source: 'ai',
+        confidence: aiResult.confidence, reason: 'read as an internal or routine meeting',
+      };
     }
     return {
       activityType: aiResult.activityType,
       isInPerson:   IN_PERSON_TYPES.has(aiResult.activityType),
       source:       'ai',
       confidence:   aiResult.confidence,
+      reason:       'read from the invite',
     };
   }
 
-  // ── Layer 3: No classification ─────────────────────────────────────────────
+  // ── Layer 4: the weaker keyword read, if there was one ─────────────────────
+  // No API key, or the AI failed. The location on its own still beats nothing.
+  if (keyword) return keyword;
+
+  // ── Layer 5: No classification ─────────────────────────────────────────────
   return { activityType: null, isInPerson: false, source: null };
 }
 

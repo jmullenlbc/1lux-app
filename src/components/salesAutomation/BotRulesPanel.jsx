@@ -76,13 +76,8 @@ function TriggerConfig({ triggerType, config, onChange }) {
               { value: 'CONSTRUCTION',    label: 'Construction' },
               { value: 'COMPLETED',       label: 'Completed' },
             ];
-            const designStages = [
-              { value: 'DESIGN_QUALIFIED', label: 'Design Qualified' },
-              { value: 'PROPOSAL_SENT',    label: 'Proposal Sent' },
-              { value: 'DESIGN',           label: 'Design' },
-              { value: 'DESIGN_COMPLETED', label: 'Design Completed' },
-            ];
-            const stageOptions = (config.pipeline || '').toLowerCase() === 'design' ? designStages : procStages;
+            // Both boards share the same stage list (2026-09-04).
+            const stageOptions = procStages;
             const selected = (config.stages || '').split(',').map(s => s.trim()).filter(Boolean);
             function toggleStage(val) {
               const next = selected.includes(val)
@@ -193,7 +188,7 @@ function TriggerConfig({ triggerType, config, onChange }) {
             value={config.toStage || ''}
             onChange={e => set('toStage', e.target.value)}
             className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
-            placeholder="PROPOSAL_SENT"
+            placeholder="PRECONSTRUCTION"
           />
         </div>
       </div>

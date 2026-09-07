@@ -111,6 +111,8 @@ function NoteInput({ projectId, onClose }) {
 function ProjectCard({ project, pipeline, onOpen, onDragStart, onDragEnd, isDragging }) {
   const status   = project[statusFieldFor(pipeline)] || 'OPEN';
   const st       = STATUS_CONFIG[status] || STATUS_CONFIG.OPEN;
+  // Why it was lost or abandoned — hover the status chip to read it.
+  const statusReason = project[`${statusFieldFor(pipeline)}Reason`] || '';
   const rev      = revenueFor(project, pipeline);
   const outSync  = stagesOutOfSync(project);
   const isStale  = status === 'OPEN' && daysSince(project.updatedAt) >= 30;
@@ -143,7 +145,10 @@ function ProjectCard({ project, pipeline, onOpen, onDragStart, onDragEnd, isDrag
               </span>
             )}
             {status !== 'OPEN' && (
-              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${st.color}`}>{st.label}</span>
+              <span title={statusReason || undefined}
+                className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${st.color}`}>
+                {st.label}{statusReason ? ' ⓘ' : ''}
+              </span>
             )}
             {svcLabel(project.serviceType) && (
               <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200">
@@ -322,13 +327,27 @@ function ListView({ projects, pipeline, onOpen, onUpdate }) {
   });
 
   async function changeStatus(project, newStatus) {
+    const body = { [statusField]: newStatus };
+
+    // Mike's rule: you cannot mark a deal Lost or Abandoned without saying why.
+    // The API rejects it too, so this prompt just saves a round trip.
+    if (newStatus === 'LOST' || newStatus === 'ABANDONED') {
+      const word   = newStatus === 'LOST' ? 'lost' : 'abandoned';
+      const reason = prompt(`Why was "${project.name}" ${word}? (required)`, project[`${statusField}Reason`] || '');
+      if (reason === null) return;                 // they hit Cancel
+      if (!reason.trim()) { alert(`A reason is required to mark a deal ${word}.`); return; }
+      body[`${statusField}Reason`] = reason.trim();
+    }
+
     setSavingStatus(project.id);
     try {
       const res = await fetch(`/api/projects/${project.id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [statusField]: newStatus }),
+        body: JSON.stringify(body),
       });
-      if (res.ok) { const d = await res.json(); onUpdate(d.project || d); }
+      const d = await res.json().catch(() => ({}));
+      if (res.ok) onUpdate(d.project || d);
+      else alert(d.error || 'Could not change the status.');
     } finally { setSavingStatus(null); }
   }
 
@@ -388,6 +407,12 @@ function ListView({ projects, pipeline, onOpen, onUpdate }) {
                   >
                     {PIPELINE_STATUS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
                   </select>
+                  {project[`${statusField}Reason`] && (
+                    <p className="text-[10px] text-slate-400 mt-1 max-w-[160px] truncate"
+                      title={project[`${statusField}Reason`]}>
+                      {project[`${statusField}Reason`]}
+                    </p>
+                  )}
                 </td>
                 <td className="px-3 py-2.5 text-slate-500 text-xs whitespace-nowrap">{project.salesOwner?.name || '—'}</td>
               </tr>

@@ -6,6 +6,7 @@
  */
 import { prisma } from './db';
 import { PRICING as STATIC_PRICING } from './pricing';
+import { fillPricingDefaults } from './calculations';
 
 const CONFIG_KEY = 'pricing';
 
@@ -27,6 +28,25 @@ export async function loadPricing() {
     // DB not available or parse error — fall through to static
   }
   return STATIC_PRICING;
+}
+
+/**
+ * The pricing a project actually runs on: its frozen snapshot, with any line
+ * added to the sheet AFTER the snapshot was taken filled in from the master
+ * defaults (the engine applies the same rule inside calculateBudget). No
+ * snapshot, or an unreadable one, → the fallback (usually loadPricing()).
+ * Every page and route that used to JSON.parse(project.pricingSnapshot) goes
+ * through here so the client-side mirrors see the same numbers as the engine.
+ */
+export function pricingForProject(snapshotJson, fallback) {
+  if (!snapshotJson) return fallback;
+  try {
+    const parsed = typeof snapshotJson === 'string' ? JSON.parse(snapshotJson) : snapshotJson;
+    if (!parsed || typeof parsed !== 'object') return fallback;
+    return fillPricingDefaults(STATIC_PRICING, parsed);
+  } catch {
+    return fallback;
+  }
 }
 
 /**

@@ -46,6 +46,7 @@ export async function PATCH(request, { params }) {
   const { name, buildingType, location, address, date, status, currentStep, completedSteps, contactEmail, clientId, phase, city, state, serviceType, flagged, flagNote, contractValue, contractSignedDate, designContractValue, designContractSignedDate, constructionStartDate, mepRoughInDate, constructionEndDate, budgetType, budgetSentDate, peerReviewMatrixType,
     // ── Pipeline / CRM fields (merged from Deal) ──
     projectType, procurementStage, designStage, pipelineProbability, probabilityToWin, probabilityToMoveForward, procurementStatus, designStatus, expectedOrderDate, salesOwnerId,
+    procurementStatusReason, designStatusReason,
     // ── Weekly sales meeting fields ──
     proposalSentDate, nextActionType, nextActionOwnerId, nextActionDueDate } = body;
 
@@ -55,8 +56,27 @@ export async function PATCH(request, { params }) {
   const validBudgetTypes = ['conceptual', 'design', 'peer_review'];
   const validServiceTypes = ['fullDesign', 'designAssist', 'peerReview', 'bidOnly', 'other'];
   const validProcurementStages = ['QUALIFIED', 'PRECONSTRUCTION', 'BUYOUT', 'CONSTRUCTION', 'COMPLETED'];
-  const validDesignStages      = ['DESIGN_QUALIFIED', 'PROPOSAL_SENT', 'DESIGN', 'CONSTRUCTION_ADMIN', 'DESIGN_COMPLETED'];
+  // Both boards share one stage list (2026-09-04).
+  const validDesignStages      = validProcurementStages;
   const validPipelineStatus    = ['OPEN', 'WON', 'LOST', 'COMPLETED', 'ABANDONED'];
+
+  // Mike's rule: Lost and Abandoned both need a written reason. Enforced here so
+  // no screen can slip a deal into either state without one — the reason may
+  // arrive with this request or already be on the record from an earlier save.
+  const NEEDS_REASON = ['LOST', 'ABANDONED'];
+  for (const [board, nextStatus, sentReason, storedReason] of [
+    ['Procurement', procurementStatus, procurementStatusReason, project.procurementStatusReason],
+    ['Design',      designStatus,      designStatusReason,      project.designStatusReason],
+  ]) {
+    if (nextStatus === undefined || !NEEDS_REASON.includes(nextStatus)) continue;
+    const reason = sentReason !== undefined ? sentReason : storedReason;
+    if (!String(reason ?? '').trim()) {
+      return NextResponse.json(
+        { error: `A reason is required when marking a project Lost or Abandoned (${board}).` },
+        { status: 400 },
+      );
+    }
+  }
 
   const updated = await prisma.project.update({
     where: { id: params.id },
@@ -96,6 +116,13 @@ export async function PATCH(request, { params }) {
       ...(probabilityToMoveForward !== undefined && { probabilityToMoveForward: clampPct(probabilityToMoveForward) }),
       ...(procurementStatus   !== undefined && validPipelineStatus.includes(procurementStatus) && { procurementStatus }),
       ...(designStatus        !== undefined && validPipelineStatus.includes(designStatus) && { designStatus }),
+      // The written reason behind a Lost / Abandoned deal. Cleared automatically
+      // when the deal moves back to an open or won state, so a stale excuse
+      // never hangs around on a live job.
+      ...(procurementStatusReason !== undefined && { procurementStatusReason: procurementStatusReason || null }),
+      ...(designStatusReason      !== undefined && { designStatusReason:      designStatusReason      || null }),
+      ...(procurementStatus !== undefined && !NEEDS_REASON.includes(procurementStatus) && { procurementStatusReason: null }),
+      ...(designStatus      !== undefined && !NEEDS_REASON.includes(designStatus)      && { designStatusReason:      null }),
       ...(expectedOrderDate   !== undefined && { expectedOrderDate: expectedOrderDate ? new Date(expectedOrderDate) : null }),
       ...(salesOwnerId        !== undefined && { salesOwnerId: salesOwnerId || null }),
       ...(proposalSentDate    !== undefined && { proposalSentDate: proposalSentDate ? new Date(proposalSentDate) : null }),

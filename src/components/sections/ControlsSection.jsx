@@ -30,7 +30,9 @@ export default function ControlsSection({ responses, projectData, budget, pricin
 
   const FALLBACK_RATE = { perSf: 0.45, cap: 175000 };
   const baseRate      = P.controls?.rates?.[buildingType] || P.controls?.rates?.midRise || FALLBACK_RATE;
-  const controlsCap   = P.controls?.cap ?? baseRate.cap ?? 180000;
+  // Mirrors the engine: the building type's own cap AND the sheet-wide cap both apply — lower wins.
+  const lowerCap      = Math.min(baseRate.cap ?? Infinity, P.controls?.cap ?? Infinity);
+  const controlsCap   = Number.isFinite(lowerCap) ? lowerCap : 180000;
   const selectedRate  = { ...baseRate, cap: controlsCap };
 
   const baseEst           = Math.min(grossSf * (selectedRate.perSf ?? 0), selectedRate.cap ?? 175000);

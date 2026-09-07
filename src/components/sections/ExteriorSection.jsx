@@ -61,14 +61,21 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
   const numGarages  = Number(projectData?.numGarages)            || 0;
   const extDoors    = Number(projectData?.numExteriorDoors)      || 0;
   const lotSf       = Number(projectData?.lotSf)                 || 0;
-  // Landscape = 2% of total lot SF, capped at the questionnaire's stated ceiling.
-  // Rate and cap read from master pricing so this cannot drift from calculations.js
-  // (it previously hardcoded 0.02 with no cap, in two places).
+  const footprintSf = Number(projectData?.buildingFootprintSf)   || 0;
+  // Landscape = 2% of NET lot SF (lot − building footprint), capped at the
+  // questionnaire's stated ceiling — mirrors calculations.js (Mike 2026-09-04:
+  // "net lot"). Falls back to the full lot when no footprint is on file.
+  // Rate and cap read from master pricing so this cannot drift from the engine.
   const LS = P.exterior?.landscape || {};
   const landscapePct = LS.pctOfNetLotSf ?? 0.02;
   const landscapeCap = LS.maxTotal ?? 3000;
-  const autoLandscape = lotSf > 0 ? Math.min(lotSf * landscapePct, landscapeCap) : 0;
-  const landscapeCapped = lotSf > 0 && lotSf * landscapePct > landscapeCap;
+  const netLotSf     = footprintSf > 0 ? Math.max(lotSf - footprintSf, 0) : lotSf;
+  const landscapeRaw = netLotSf > 0 ? netLotSf * landscapePct : 0;
+  const autoLandscape = Math.min(landscapeRaw, landscapeCap);
+  const landscapeCapped = landscapeRaw > landscapeCap;
+  const netLotMath = footprintSf > 0
+    ? `${lotSf.toLocaleString()} − ${footprintSf.toLocaleString()} footprint = ${netLotSf.toLocaleString()} SF net lot`
+    : `${lotSf.toLocaleString()} SF lot (no footprint on file)`;
 
   const EA       = P.exteriorAmenities || {};
   const rateMap  = { low: EA.low ?? 1, lowMedium: EA.lowMedium ?? 2, medium: EA.medium ?? 3, high: EA.high ?? 5 };
@@ -132,18 +139,23 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
   const pathwayRate    = PW.dollarsPerUnit?.[wpType] ?? 0;
   const pathwayFloor   = Number(PW.minTotal) || 0;
   const pathwayManual  = parseFloat(manualItems.pathwayLighting) || 0;
-  const pathwayAuto    = numUnitsPD > 0 && pathwayRate > 0
+  // Solar sites bump the model pathway line by pathway.solarMultiplier (1.6),
+  // applied after the floor — mirrors the engine. Manual entries are taken as-is.
+  const pathwaySolarMult = solarSite ? (PW.solarMultiplier ?? 1.6) : 1;
+  const pathwayBase    = numUnitsPD > 0 && pathwayRate > 0
     ? Math.max(numUnitsPD * pathwayRate, pathwayFloor)
     : 0;
+  const pathwayAuto    = pathwayBase * pathwaySolarMult;
   const pathwayProduct = pathwayManual > 0 ? 0 : pathwayAuto;
   const pathwayFloored = pathwayProduct > 0 && numUnitsPD * pathwayRate < pathwayFloor;
+  const pathwaySolarSuffix = solarSite ? ` × ${pathwaySolarMult} solar` : '';
   const pathwayMath = pathwayManual > 0
     ? 'manual pathway entry below carries this scope'
     : numUnitsPD <= 0 || pathwayRate <= 0
       ? 'no units yet — $0'
       : pathwayFloored
-        ? `${numUnitsPD.toLocaleString()} units × $${pathwayRate}/unit = $${Math.round(numUnitsPD * pathwayRate).toLocaleString()}, floored at $${pathwayFloor.toLocaleString()}`
-        : `${numUnitsPD.toLocaleString()} units × $${pathwayRate}/unit`;
+        ? `${numUnitsPD.toLocaleString()} units × $${pathwayRate}/unit = $${Math.round(numUnitsPD * pathwayRate).toLocaleString()}, floored at $${pathwayFloor.toLocaleString()}${pathwaySolarSuffix}`
+        : `${numUnitsPD.toLocaleString()} units × $${pathwayRate}/unit${pathwaySolarSuffix}`;
 
   const subBeforeMisc   = amenityProduct + parkingProduct + carportProduct + garageProduct + wallpackProduct + autoLandscape + pathwayProduct;
   // The buffer base includes the manual adder — matches the engine
@@ -161,12 +173,12 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
     { label: 'Carports',              math: `${carports} ÷ 2 = ${Math.floor(carports / 2)} disk${Math.floor(carports / 2) === 1 ? '' : 's'} × $${P.exterior?.carport?.diskEveryOther ?? 30}`, value: carportProduct },
     { label: 'Detached garages',      math: `${numGarages} × $${P.exterior?.detachedGarage?.sconcePerDoor ?? 80}/door`, value: garageProduct },
     { label: 'Building wallpacks',    math: wpMath, value: wallpackProduct },
-    { label: 'Pathway lighting',      math: pathwayMath, value: pathwayProduct },
+    { label: solarSite && pathwayManual <= 0 ? 'Pathway lighting (solar)' : 'Pathway lighting', math: pathwayMath, value: pathwayProduct },
     // Show the cap when it binds, otherwise the label reads as the uncapped
     // figure and silently contradicts the value next to it.
     { label: 'Landscape',             math: landscapeCapped
-        ? `${lotSf.toLocaleString()} SF lot × ${(landscapePct * 100).toFixed(0)}% = $${Math.round(lotSf * landscapePct).toLocaleString()}, capped at $${landscapeCap.toLocaleString()}`
-        : `${lotSf.toLocaleString()} SF lot × ${(landscapePct * 100).toFixed(0)}%`, value: autoLandscape },
+        ? `${netLotMath} × $${landscapePct.toFixed(2)}/SF = $${Math.round(landscapeRaw).toLocaleString()}, capped at $${landscapeCap.toLocaleString()}`
+        : `${netLotMath} × $${landscapePct.toFixed(2)}/SF`, value: autoLandscape },
     { label: 'Miscellaneous',         math: `${((P.exterior?.miscBufferPct ?? 0.05) * 100).toFixed(0)}% buffer of full exterior (incl. amenities + manual adder)`, value: miscBuffer },
   ];
   // Subtotal of the breakdown box = everything in the formula EXCEPT amenities
@@ -242,7 +254,8 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
           <div>• Surface parking: 1 fixture per ~{sp.stallsPerFixture ?? 9} stalls × ${(sp.perFixture ?? 1325).toLocaleString()}/fixture (area light + 30ft pole)</div>
           <div>• Carports: 1 × 7" disk per every other bay (${P.exterior?.carport?.diskEveryOther ?? 30} ea)</div>
           <div>• Building wallpacks: per-building rate by building type × ${WPC.perFixture ?? 350} each — covers exterior doors too</div>
-          <div>• Pathway lighting: $/unit by building type (${pathwayRate || 0}/unit here), floored at ${pathwayFloor.toLocaleString()} — a manual pathway entry replaces the model line</div>
+          <div>• Pathway lighting: $/unit by building type (${pathwayRate || 0}/unit here), floored at ${pathwayFloor.toLocaleString()}; solar sites × {PW.solarMultiplier ?? 1.6} — a manual pathway entry replaces the model line</div>
+          <div>• Landscape: ${landscapePct.toFixed(2)} per SF of the net lot (lot − building footprint), capped at ${landscapeCap.toLocaleString()}</div>
         </div>
       </div>
 
@@ -254,7 +267,7 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
         options={[
           { value: 'base',     label: 'Base design',                                sub: 'Code-required site and parking lighting', cost: 0 },
           { value: 'upgraded', label: 'Upgraded landscape and/or path lighting',    sub: 'Recorded for the designer — add dollars via the manual adder below', cost: 0 },
-          { value: 'solar',    label: `Solar lighting — ${P.exterior?.solarMultiplier ?? 2.3}× area lighting`, sub: 'Self-contained solar fixtures; labor drops dramatically (no trenching, conduit, or wire runs)', cost: solarExtra },
+          { value: 'solar',    label: `Solar lighting — ${P.exterior?.solarMultiplier ?? 2.3}× area lighting, ${PW.solarMultiplier ?? 1.6}× pathway`, sub: 'Self-contained solar fixtures; labor drops dramatically (no trenching, conduit, or wire runs)', cost: solarExtra + (pathwayManual > 0 ? 0 : pathwayBase * ((PW.solarMultiplier ?? 1.6) - 1)) },
         ]}
         value={answers.siteDesignLevel}
         onChange={val => {
@@ -264,7 +277,7 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
       />
       {solarSite && (
         <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
-          <span className="font-semibold">Solar site lighting</span> — area lighting priced at {solarMult}× conventional.
+          <span className="font-semibold">Solar site lighting</span> — area lighting priced at {solarMult}× conventional, pathway at {pathwaySolarMult}×.
           Install labor should be reduced dramatically — no trenching, conduit, or wire runs to the poles.
         </div>
       )}

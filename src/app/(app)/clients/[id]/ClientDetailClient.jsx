@@ -1,7 +1,14 @@
 'use client';
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, Fragment } from 'react';
 import Link from 'next/link';
-import { buildingTypeLabel } from '@/lib/utils';
+import {
+  buildingTypeLabel, ORG_TYPE_OPTIONS, DEVELOPER_TYPES, developerTypeLabel,
+  PROJECT_TYPES as CLIENT_PROJECT_TYPES, projectTypeLabel,
+} from '@/lib/utils';
+import {
+  clientDealCounts, projectTypesFromProjects, contactDealCounts,
+  splitName, joinName, isValidEmail, formatPhone,
+} from '@/lib/crmClient';
 import {
   STANDARDS_SECTIONS, SECTION_COLOR_MAP, TAG_COLORS,
   CCT_OPTIONS, CCT_EXTERIOR_OPTIONS, CCT_INTERIOR_AREAS,
@@ -15,15 +22,9 @@ import ShareStandardsButton from './ShareStandardsButton';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const ORG_TYPES = [
-  'Developer', 'Architect', 'Interior Designer', 'General Contractor',
-  'Electrical Engineer', 'Electrical Contractor', 'Client Rep', 'Self-Performing GC',
-];
-
-const DEVELOPER_TYPES = [
-  { value: 'merchant',      label: 'Merchant Builder' },
-  { value: 'longTermHold',  label: 'Long Term Hold' },
-];
+// Client Type and Developer Type both live in src/lib/utils.js now, so the
+// new-client page, the clients list and this editor can never drift apart.
+const ORG_TYPES = ORG_TYPE_OPTIONS;
 
 const MARKETS = [
   'Multi-family apartments', 'Multi-family condos', 'Senior living', 'Student housing',
@@ -234,7 +235,8 @@ function EditModal({ client, onClose, onSave }) {
     state:               client.state               || '',
     locationType:        client.locationType        || '',
     tier:                client.tier                || '',
-    developerType:       client.developerType       || '',
+    rating:              client.rating              || '',
+    developerTypes:      parseJSON(client.developerTypes),
     orgTypes:            parseJSON(client.orgTypes),
     markets:             parseJSON(client.markets),
     geographies:         parseJSON(client.geographies),
@@ -247,12 +249,68 @@ function EditModal({ client, onClose, onSave }) {
   const [saving, setSaving] = useState(false);
   const [err, setErr]       = useState('');
   const [users, setUsers]   = useState([]);
+  const [salesOnly, setSalesOnly] = useState(true);
+
+  // Tags: the full library plus what is ticked on this client.
+  const [tags, setTags]       = useState([]);
+  const [tagIds, setTagIds]   = useState((client.tagLinks || []).map(l => l.tagId));
+  const [newTag, setNewTag]   = useState('');
+  const [tagBusy, setTagBusy] = useState(false);
 
   useEffect(() => {
     fetch('/api/users').then(r => r.json()).then(d => setUsers(d.users || [])).catch(() => {});
+    fetch('/api/tags').then(r => r.json()).then(d => setTags(d.tags || [])).catch(() => {});
   }, []);
 
+  // Mike's rule: the account owner must be someone marked as a salesperson.
+  // If nobody is marked yet, fall back to the whole list rather than showing an
+  // empty dropdown that looks broken.
+  const salespeople = users.filter(u =>
+    u.division === 'SALES' ||
+    (Array.isArray(u.deptRoles) ? u.deptRoles : parseJSON(u.deptRoles)).includes('Sales'));
+  const ownerOptions = salesOnly && salespeople.length ? salespeople : users;
+
   function set(k, v) { setForm(f => ({ ...f, [k]: v })); }
+
+  async function createTag() {
+    const name = newTag.trim();
+    if (!name || tagBusy) return;
+    setTagBusy(true);
+    try {
+      const res = await fetch('/api/tags', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      const d = await res.json();
+      if (res.ok && d.tag) {
+        setTags(t => (t.some(x => x.id === d.tag.id) ? t : [...t, d.tag]));
+        setTagIds(ids => (ids.includes(d.tag.id) ? ids : [...ids, d.tag.id]));
+        setNewTag('');
+      }
+    } finally { setTagBusy(false); }
+  }
+
+  async function renameTag(tag) {
+    const name = prompt('Rename this tag. It renames everywhere it is used.', tag.name);
+    if (!name || name.trim() === tag.name) return;
+    const res = await fetch(`/api/tags/${tag.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name.trim() }),
+    });
+    if (res.ok) {
+      const d = await res.json();
+      setTags(list => list.map(t => (t.id === tag.id ? d.tag : t)));
+    }
+  }
+
+  async function deleteTag(tag) {
+    if (!confirm(`Delete the tag "${tag.name}"? It comes off every client that has it.`)) return;
+    const res = await fetch(`/api/tags/${tag.id}`, { method: 'DELETE' });
+    if (res.ok) {
+      setTags(list => list.filter(t => t.id !== tag.id));
+      setTagIds(ids => ids.filter(id => id !== tag.id));
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -263,13 +321,18 @@ function EditModal({ client, onClose, onSave }) {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
-          type: form.orgTypes[0] || client.type,
+          // `type` is derived from the Client Type ticks server-side; sending
+          // the label here would overwrite the key with a label string.
+          type: undefined,
           orgTypes: form.orgTypes,
+          developerTypes: form.developerTypes,
+          rating: form.rating,
           markets: form.markets,
           geographies: form.geographies,
           projectTypes: form.projectTypes,
           projectsPerYear: form.projectsPerYear,
           ownerId: form.ownerId || null,
+          tagIds,
         }),
       });
       if (!res.ok) { const d = await res.json(); setErr(d.error || 'Save failed'); return; }
@@ -339,28 +402,66 @@ function EditModal({ client, onClose, onSave }) {
               <select value={form.ownerId} onChange={e => set('ownerId', e.target.value)}
                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500">
                 <option value="">— Unassigned —</option>
-                {users.map(u => <option key={u.id} value={u.id}>{u.name || u.email}</option>)}
+                {ownerOptions.map(u => <option key={u.id} value={u.id}>{u.name || u.email}</option>)}
               </select>
+              <label className="flex items-center gap-2 mt-2 text-xs text-slate-500">
+                <input type="checkbox" checked={salesOnly} onChange={e => setSalesOnly(e.target.checked)}
+                  className="rounded border-slate-300 text-amber-500 focus:ring-amber-500" />
+                Only show people set up as salespeople
+                {salespeople.length === 0 && <span className="text-slate-400">(nobody is yet, so everyone is listed)</span>}
+              </label>
             </div>
           </section>
 
           <section className="border-t border-slate-100 pt-5">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Organization Type</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Client Type</p>
+            <p className="text-xs text-slate-400 mb-3">Tick every one that applies.</p>
             <MultiSelect options={ORG_TYPES} selected={form.orgTypes} onChange={v => set('orgTypes', v)} />
           </section>
 
           <section className="border-t border-slate-100 pt-5">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Developer Details</p>
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Developer Type</label>
-              <div className="flex gap-2">
-                {DEVELOPER_TYPES.map(t => (
-                  <button key={t.value} type="button" onClick={() => set('developerType', form.developerType === t.value ? '' : t.value)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
-                      form.developerType === t.value ? 'bg-slate-800 text-white border-slate-800' : 'border-slate-200 text-slate-500 hover:border-slate-400'
-                    }`}>{t.label}</button>
-                ))}
-              </div>
+            <div className="space-y-3">
+              <MultiSelect label="Developer Type" options={DEVELOPER_TYPES}
+                selected={form.developerTypes} onChange={v => set('developerTypes', v)} />
+              <Inp label="Client Rating" placeholder="Free text for now — the scoring rule is still to be decided"
+                value={form.rating} onChange={e => set('rating', e.target.value)} />
+            </div>
+          </section>
+
+          <section className="border-t border-slate-100 pt-5">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tags</p>
+            <p className="text-xs text-slate-400 mb-3">
+              Make your own labels. Renaming or deleting one here changes it on every client that has it.
+            </p>
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {tags.length === 0 && <span className="text-xs text-slate-400">No tags yet — add the first one below.</span>}
+              {tags.map(tag => {
+                const active = tagIds.includes(tag.id);
+                return (
+                  <span key={tag.id} className={`inline-flex items-center rounded-full border text-xs font-medium transition-colors ${
+                    active ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200'
+                  }`}>
+                    <button type="button"
+                      onClick={() => setTagIds(ids => active ? ids.filter(i => i !== tag.id) : [...ids, tag.id])}
+                      className="pl-2.5 pr-1 py-1">{tag.name}</button>
+                    <button type="button" title="Rename" onClick={() => renameTag(tag)}
+                      className={`px-1 py-1 ${active ? 'text-white/70 hover:text-white' : 'text-slate-300 hover:text-slate-600'}`}>✎</button>
+                    <button type="button" title="Delete" onClick={() => deleteTag(tag)}
+                      className={`pr-2 pl-1 py-1 ${active ? 'text-white/70 hover:text-white' : 'text-slate-300 hover:text-red-500'}`}>✕</button>
+                  </span>
+                );
+              })}
+            </div>
+            <div className="flex gap-2">
+              <input value={newTag} onChange={e => setNewTag(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); createTag(); } }}
+                placeholder="New tag name…"
+                className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              <button type="button" onClick={createTag} disabled={tagBusy || !newTag.trim()}
+                className="px-3 py-2 rounded-lg text-sm font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50">
+                Add
+              </button>
             </div>
           </section>
 
@@ -374,7 +475,8 @@ function EditModal({ client, onClose, onSave }) {
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Project types built</label>
-                <MultiSelect options={PROJECT_TYPES} selected={form.projectTypes} onChange={v => set('projectTypes', v)} />
+                {/* Same six choices as a project's Project Type, so the two lists agree. */}
+                <MultiSelect options={CLIENT_PROJECT_TYPES} selected={form.projectTypes} onChange={v => set('projectTypes', v)} />
               </div>
               <Inp label="Approx. projects per year" type="number" placeholder="e.g. 12" value={form.projectsPerYear} onChange={e => set('projectsPerYear', e.target.value)} />
             </div>
@@ -492,11 +594,25 @@ function OverviewTab({ client, onEditClick }) {
   const markets      = parseJSON(client.markets);
   const geographies  = parseJSON(client.geographies);
   const projectTypes = parseJSON(client.projectTypes);
-  const ptLabels     = projectTypes.map(v => PROJECT_TYPES.find(p => p.value === v)?.label || v);
-  const devType    = DEVELOPER_TYPES.find(d => d.value === client.developerType)?.label;
+  const ptLabels     = projectTypes.map(projectTypeLabel);
+  // Falls back to the legacy single column so clients saved before the
+  // multi-select still show their developer type.
+  const devTypes   = (() => {
+    const list = parseJSON(client.developerTypes);
+    if (list.length) return list;
+    return client.developerType ? [client.developerType] : [];
+  })();
   const locType    = LOCATION_TYPES.find(l => l.value === client.locationType)?.label;
   const location   = [client.city, client.state].filter(Boolean).join(', ');
   const isGC       = orgTypes.includes('General Contractor');
+  const tagLinks   = client.tagLinks || [];
+  // One project is one deal here. A Full Design job rides both pipelines, but
+  // it is still one job we did for this client, so it counts once (Mike,
+  // 2026-09-06). The pipeline boards themselves still count it on each board.
+  const counts     = clientDealCounts(client.projects);
+  // What they actually build, read off their own projects — the auto-populate
+  // Mike asked for. Shown next to what was ticked by hand.
+  const seenTypes  = projectTypesFromProjects(client.projects).map(projectTypeLabel);
 
   return (
     <div className="space-y-6">
@@ -539,17 +655,51 @@ function OverviewTab({ client, onEditClick }) {
               {orgTypes.length === 0 && client.type && (
                 <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${orgTypeColor(client.type)}`}>{client.type}</span>
               )}
+              {tagLinks.map(link => (
+                <span key={link.id || link.tagId} className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                  {link.tag?.name}
+                </span>
+              ))}
             </div>
           </div>
+        </div>
+
+        {/* Deal counts — worked out live from this client's projects across both
+            pipelines, so they can never disagree with the boards. */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-5 pt-5 border-t border-slate-100">
+          {[
+            ['Open Deals',      counts.open,      'text-slate-900'],
+            ['Won',             counts.won,       'text-emerald-600'],
+            ['Lost',            counts.lost,      'text-red-500'],
+            ['Abandoned',       counts.abandoned, 'text-amber-600'],
+            ['People',          client.contacts?.length ?? client._count?.contacts ?? 0, 'text-slate-900'],
+          ].map(([label, value, tone]) => (
+            <div key={label} className="rounded-lg bg-slate-50 px-3 py-2.5">
+              <div className={`text-lg font-bold ${tone}`}>{value}</div>
+              <div className="text-[10px] text-slate-400 uppercase tracking-wide">{label}</div>
+            </div>
+          ))}
         </div>
 
         {/* Detail grid: contact info | markets */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5 mt-5 pt-5 border-t border-slate-100">
           {/* Left: dev type + contact info */}
           <div className="space-y-2">
-            {devType && (
+            {devTypes.length > 0 && (
               <div className="text-xs text-slate-400 mb-1">
-                <span className="font-semibold text-slate-500">Developer type: </span>{devType}
+                <span className="font-semibold text-slate-500">Developer type: </span>
+                {devTypes.map(developerTypeLabel).join(', ')}
+              </div>
+            )}
+            {client.rating && (
+              <div className="text-xs text-slate-400 mb-1">
+                <span className="font-semibold text-slate-500">Rating: </span>{client.rating}
+              </div>
+            )}
+            {client.owner && (
+              <div className="text-xs text-slate-400 mb-1">
+                <span className="font-semibold text-slate-500">Salesperson: </span>
+                {client.owner.name || client.owner.email}
               </div>
             )}
             {client.paymentTerms && (
@@ -647,6 +797,11 @@ function OverviewTab({ client, onEditClick }) {
                   + Add project types this client builds
                 </button>
               )}
+              {seenTypes.length > 0 && (
+                <p className="text-[11px] text-slate-400 mt-1.5">
+                  From their actual projects: {seenTypes.join(', ')}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -690,8 +845,34 @@ function getCheckinStatus(contact) {
   return 'current';
 }
 
+// A blank person, so the Add row and the "add first person" button agree.
+const EMPTY_PERSON = {
+  name: '', firstName: '', lastName: '', title: '', email: '',
+  cellPhone: '', workPhone: '', department: '', linkedInUrl: '',
+};
+
+// The four deal numbers for one person, small enough to sit in a table cell.
+function DealChips({ contact }) {
+  const c = contactDealCounts(contact);
+  if (!c.total) return <span className="text-slate-300">—</span>;
+  return (
+    <span className="inline-flex gap-1">
+      {[['O', c.open, 'bg-slate-100 text-slate-700'],
+        ['W', c.won, 'bg-emerald-50 text-emerald-700'],
+        ['L', c.lost, 'bg-red-50 text-red-600'],
+        ['A', c.abandoned, 'bg-amber-50 text-amber-700']].map(([k, v, cls]) => (
+        <span key={k} title={{ O: 'Open', W: 'Won', L: 'Lost', A: 'Abandoned' }[k]}
+          className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${v ? cls : 'bg-slate-50 text-slate-300'}`}>
+          {k}{v}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
   const [contacts,  setContacts]  = useState(initial);
+  const [openId,    setOpenId]    = useState(null);   // person whose detail panel is showing
 
   // Propagate any contact change up so the Overview count, tab badge, and
   // Playbook "primary national contact" dropdown stay in sync without a refresh.
@@ -706,29 +887,51 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
   const [saving,    setSaving]    = useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
+  const [formErr, setFormErr] = useState('');
+
   async function addContact() {
     if (!addForm?.name?.trim()) return;
-    setSaving(true);
+    if (!isValidEmail(addForm.email)) { setFormErr('That email address does not look right.'); return; }
+    setSaving(true); setFormErr('');
     const res = await fetch(`/api/clients/${clientId}/contacts`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(addForm),
     });
-    const { contact } = await res.json();
-    setContacts(c => [...c, contact]);
+    const data = await res.json();
+    if (!res.ok) { setFormErr(data.error || 'Could not add this person.'); setSaving(false); return; }
+    setContacts(c => [...c, data.contact]);
     setAddForm(null);
     setSaving(false);
   }
 
   async function saveEdit(id) {
-    setSaving(true);
+    if (!isValidEmail(editForm.email)) { setFormErr('That email address does not look right.'); return; }
+    setSaving(true); setFormErr('');
     const res = await fetch(`/api/clients/${clientId}/contacts/${id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(editForm),
     });
-    const { contact } = await res.json();
-    setContacts(c => c.map(x => x.id === id ? contact : x));
+    const data = await res.json();
+    if (!res.ok) { setFormErr(data.error || 'Could not save.'); setSaving(false); return; }
+    setContacts(c => c.map(x => x.id === id ? data.contact : x));
     setEditId(null);
     setSaving(false);
+  }
+
+  // Typing a first or last name keeps the full name in step, unless the full
+  // name has been typed by hand.
+  function editPart(field, value) {
+    setEditForm(f => {
+      const next = { ...f, [field]: value };
+      if (field === 'firstName' || field === 'lastName') {
+        next.name = joinName(
+          field === 'firstName' ? value : f.firstName,
+          field === 'lastName'  ? value : f.lastName,
+        ) || f.name;
+      }
+      if (field === 'name') Object.assign(next, splitName(value));
+      return next;
+    });
   }
 
   async function deleteContact(id, name) {
@@ -745,17 +948,21 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-        <h2 className="font-semibold text-slate-900">Contacts
+        <h2 className="font-semibold text-slate-900">People
           <span className="ml-2 text-sm font-normal text-slate-400">({contacts.length})</span>
         </h2>
         {addForm === null && (
-          <button onClick={() => setAddForm({ name: '', title: '', email: '', phone: '', department: '' })}
+          <button onClick={() => { setAddForm({ ...EMPTY_PERSON }); setFormErr(''); }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-            Add Contact
+            Add Person
           </button>
         )}
       </div>
+
+      {formErr && (
+        <div className="px-5 py-2.5 text-sm text-red-600 bg-red-50 border-b border-red-100">{formErr}</div>
+      )}
 
       {/* Cadence badge banner */}
       {(() => {
@@ -797,43 +1004,45 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
               <th className="px-5 py-2.5 text-left">Name</th>
               <th className="px-4 py-2.5 text-left">Title</th>
               <th className="px-4 py-2.5 text-left">Email</th>
-              <th className="px-4 py-2.5 text-left">Phone</th>
+              <th className="px-4 py-2.5 text-left">Work Phone</th>
+              <th className="px-4 py-2.5 text-left">Cell</th>
               <th className="px-4 py-2.5 text-left">Department</th>
-              <th className="w-16"></th>
+              <th className="px-4 py-2.5 text-left">Deals</th>
+              <th className="w-24"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
             {contacts.map(c => (
-              <tr key={c.id} className="group hover:bg-slate-50/50 transition-colors">
-                {editId === c.id ? (
-                  <>
-                    <td className="px-5 py-2"><input value={editForm.name || ''} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} className={inputCls} /></td>
-                    <td className="px-4 py-2"><input value={editForm.title || ''} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} className={inputCls} /></td>
-                    <td className="px-4 py-2"><input value={editForm.email || ''} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} className={inputCls} /></td>
-                    <td className="px-4 py-2"><input value={editForm.phone || ''} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} className={inputCls} /></td>
-                    <td className="px-4 py-2"><input list="dept-options" value={editForm.department || ''} onChange={e => setEditForm(f => ({ ...f, department: e.target.value }))} placeholder="Dept" className={inputCls} /></td>
-                    <td className="px-4 py-2">
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => saveEdit(c.id)} disabled={saving}
-                          className="px-2 py-1 text-xs font-semibold bg-amber-500 text-white rounded hover:bg-amber-400 transition-colors">
-                          {saving ? '…' : 'Save'}
-                        </button>
-                        <button onClick={() => setEditId(null)} className="px-2 py-1 text-xs text-slate-500 rounded hover:bg-slate-100 transition-colors">×</button>
-                      </div>
-                    </td>
-                  </>
-                ) : (
-                  <>
-                    <td className="px-5 py-3 font-medium text-slate-800">{c.name}</td>
-                    <td className="px-4 py-3 text-slate-500">{c.title || <span className="text-slate-300">—</span>}</td>
-                    <td className="px-4 py-3">
-                      {c.email ? <a href={`mailto:${c.email}`} className="text-amber-600 hover:text-amber-500">{c.email}</a> : <span className="text-slate-300">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-slate-500">{c.phone || <span className="text-slate-300">—</span>}</td>
-                    <td className="px-4 py-3">{c.department ? <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">{c.department}</span> : <span className="text-slate-300">—</span>}</td>
-                    <td className="px-4 py-3">
+              <Fragment key={c.id}>
+                <tr className="group hover:bg-slate-50/50 transition-colors">
+                  <td className="px-5 py-3 font-medium text-slate-800">{c.name}</td>
+                  <td className="px-4 py-3 text-slate-500">{c.title || <span className="text-slate-300">—</span>}</td>
+                  <td className="px-4 py-3">
+                    {c.email ? <a href={`mailto:${c.email}`} className="text-amber-600 hover:text-amber-500">{c.email}</a> : <span className="text-slate-300">—</span>}
+                  </td>
+                  <td className="px-4 py-3 text-slate-500">{formatPhone(c.workPhone || c.phone) || <span className="text-slate-300">—</span>}</td>
+                  <td className="px-4 py-3 text-slate-500">{formatPhone(c.cellPhone) || <span className="text-slate-300">—</span>}</td>
+                  <td className="px-4 py-3">{c.department ? <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">{c.department}</span> : <span className="text-slate-300">—</span>}</td>
+                  <td className="px-4 py-3"><DealChips contact={c} /></td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => setOpenId(openId === c.id ? null : c.id)}
+                        className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                        title={openId === c.id ? 'Hide details' : 'Show details'}>
+                        <svg className={`w-3.5 h-3.5 transition-transform ${openId === c.id ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                      </button>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => { setEditId(c.id); setEditForm({ name: c.name, title: c.title || '', email: c.email || '', phone: c.phone || '', department: c.department || '' }); }}
+                        <button onClick={() => {
+                            setFormErr('');
+                            setEditId(c.id);
+                            setOpenId(c.id);
+                            setEditForm({
+                              name: c.name, firstName: c.firstName || '', lastName: c.lastName || '',
+                              title: c.title || '', email: c.email || '',
+                              workPhone: c.workPhone || c.phone || '', cellPhone: c.cellPhone || '',
+                              department: c.department || '', linkedInUrl: c.linkedInUrl || '',
+                            });
+                          }}
                           className="p-1 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Edit">
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                         </button>
@@ -844,20 +1053,119 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
                           )}
                         </button>
                       </div>
+                    </div>
+                  </td>
+                </tr>
+
+                {/* Detail / edit panel — the fields that would make the table
+                    unreadable if they each had their own column. */}
+                {openId === c.id && (
+                  <tr className="bg-slate-50/60">
+                    <td colSpan={8} className="px-5 py-4">
+                      {editId === c.id ? (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">First Name</label>
+                              <input value={editForm.firstName || ''} onChange={e => editPart('firstName', e.target.value)} className={inputCls} />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Last Name</label>
+                              <input value={editForm.lastName || ''} onChange={e => editPart('lastName', e.target.value)} className={inputCls} />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Full Name *</label>
+                              <input value={editForm.name || ''} onChange={e => editPart('name', e.target.value)} className={inputCls} />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Job Title</label>
+                              <input value={editForm.title || ''} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} className={inputCls} />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Email</label>
+                              <input type="email" value={editForm.email || ''} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} className={inputCls} />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Department</label>
+                              <input list="dept-options" value={editForm.department || ''} onChange={e => setEditForm(f => ({ ...f, department: e.target.value }))} className={inputCls} />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Work Phone</label>
+                              <input type="tel" value={editForm.workPhone || ''} onChange={e => setEditForm(f => ({ ...f, workPhone: e.target.value }))} className={inputCls} />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Cell Phone</label>
+                              <input type="tel" value={editForm.cellPhone || ''} onChange={e => setEditForm(f => ({ ...f, cellPhone: e.target.value }))} className={inputCls} />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">LinkedIn</label>
+                              <input type="url" placeholder="https://linkedin.com/in/…" value={editForm.linkedInUrl || ''} onChange={e => setEditForm(f => ({ ...f, linkedInUrl: e.target.value }))} className={inputCls} />
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button onClick={() => saveEdit(c.id)} disabled={saving}
+                              className="px-3 py-1.5 text-xs font-semibold bg-amber-500 text-white rounded-lg hover:bg-amber-400 transition-colors disabled:opacity-60">
+                              {saving ? 'Saving…' : 'Save'}
+                            </button>
+                            <button onClick={() => setEditId(null)}
+                              className="px-3 py-1.5 text-xs font-medium text-slate-500 rounded-lg border border-slate-200 hover:bg-white transition-colors">Cancel</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-2 text-xs">
+                          <div>
+                            <div className="text-slate-400"><span className="font-semibold text-slate-500">First / Last: </span>
+                              {[c.firstName, c.lastName].filter(Boolean).join(' ') || '—'}</div>
+                            <div className="text-slate-400"><span className="font-semibold text-slate-500">LinkedIn: </span>
+                              {c.linkedInUrl
+                                ? <a href={c.linkedInUrl} target="_blank" rel="noopener noreferrer" className="text-amber-600 hover:text-amber-500">Profile</a>
+                                : '—'}</div>
+                          </div>
+                          <div>
+                            <div className="text-slate-400"><span className="font-semibold text-slate-500">Last email received: </span>
+                              {c.lastEmailReceivedAt ? new Date(c.lastEmailReceivedAt).toLocaleDateString() : 'Not tracked yet'}</div>
+                            <div className="text-slate-400"><span className="font-semibold text-slate-500">Last email we sent: </span>
+                              {c.lastEmailSentAt ? new Date(c.lastEmailSentAt).toLocaleDateString() : 'Not tracked yet'}</div>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-slate-500 mb-0.5">Projects</div>
+                            {(c.projectLinks || []).length === 0
+                              ? <span className="text-slate-400">Not attached to any project yet.</span>
+                              : (
+                                <ul className="space-y-0.5">
+                                  {c.projectLinks.map(l => (
+                                    <li key={l.id || l.projectId}>
+                                      <Link href={`/projects/${l.project?.id}`} className="text-amber-600 hover:text-amber-500">
+                                        {l.project?.name}
+                                      </Link>
+                                      {l.isLead && <span className="ml-1.5 text-[10px] font-bold text-slate-400 uppercase">Lead</span>}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                          </div>
+                        </div>
+                      )}
                     </td>
-                  </>
+                  </tr>
                 )}
-              </tr>
+              </Fragment>
             ))}
 
             {/* Add row */}
             {addForm !== null && (
+              <Fragment>
               <tr className="bg-blue-50/30">
-                <td className="px-5 py-2"><input autoFocus value={addForm.name} onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))} placeholder="Full name *" className={inputCls} /></td>
+                <td className="px-5 py-2"><input autoFocus value={addForm.name}
+                  onChange={e => setAddForm(f => ({ ...f, name: e.target.value, ...splitName(e.target.value) }))}
+                  placeholder="Full name *" className={inputCls} /></td>
                 <td className="px-4 py-2"><input value={addForm.title} onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))} placeholder="Title" className={inputCls} /></td>
-                <td className="px-4 py-2"><input value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} placeholder="Email" className={inputCls} /></td>
-                <td className="px-4 py-2"><input value={addForm.phone} onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))} placeholder="Phone" className={inputCls} /></td>
+                <td className="px-4 py-2"><input type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} placeholder="Email" className={inputCls} /></td>
+                <td className="px-4 py-2"><input type="tel" value={addForm.workPhone} onChange={e => setAddForm(f => ({ ...f, workPhone: e.target.value }))} placeholder="Work" className={inputCls} /></td>
+                <td className="px-4 py-2"><input type="tel" value={addForm.cellPhone} onChange={e => setAddForm(f => ({ ...f, cellPhone: e.target.value }))} placeholder="Cell" className={inputCls} /></td>
                 <td className="px-4 py-2"><input list="dept-options" value={addForm.department} onChange={e => setAddForm(f => ({ ...f, department: e.target.value }))} placeholder="Dept" className={inputCls} /></td>
+                {/* Deals column — a brand new person has none yet. */}
+                <td className="px-4 py-2 text-slate-300">—</td>
                 <td className="px-4 py-2">
                   <div className="flex items-center gap-1">
                     <button onClick={addContact} disabled={saving || !addForm.name?.trim()}
@@ -868,16 +1176,24 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
                   </div>
                 </td>
               </tr>
+              <tr className="bg-blue-50/30">
+                <td colSpan={8} className="px-5 pb-3">
+                  <input type="url" value={addForm.linkedInUrl}
+                    onChange={e => setAddForm(f => ({ ...f, linkedInUrl: e.target.value }))}
+                    placeholder="LinkedIn profile URL (optional)" className={inputCls} />
+                </td>
+              </tr>
+              </Fragment>
             )}
           </tbody>
         </table>
 
         {contacts.length === 0 && addForm === null && (
           <div className="px-5 py-12 text-center">
-            <p className="text-slate-400 text-sm mb-3">No contacts yet.</p>
-            <button onClick={() => setAddForm({ name: '', title: '', email: '', phone: '', department: '' })}
+            <p className="text-slate-400 text-sm mb-3">No people yet.</p>
+            <button onClick={() => { setFormErr(''); setAddForm({ ...EMPTY_PERSON }); }}
               className="text-sm font-medium text-amber-600 hover:text-amber-500 transition-colors">
-              + Add first contact
+              + Add first person
             </button>
           </div>
         )}

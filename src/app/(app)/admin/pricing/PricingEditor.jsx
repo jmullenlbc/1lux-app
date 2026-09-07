@@ -21,7 +21,8 @@ const PRICING_FIELDS = [
   { group: 'Kitchen Island Pendants', key: 'kitchenPendants.oneLinear.product',        label: '(1) Linear over Island',     desc: 'Per unit', unit: '$/unit' },
 
   // ── CEILING FANS ──────────────────────────────────────────────────────
-  { group: 'Ceiling Fans', key: 'fans.adderPerFan', label: 'Net Adder Per Fan', desc: 'Gross fan cost minus disk credit', unit: '$/fan' },
+  { group: 'Ceiling Fans', key: 'fans.conceptualPerFan', label: 'Conceptual Per Fan', desc: 'GROSS price per fan on a conceptual budget, before a design fan level is picked; the $35 disk credit comes off it in the budget (Mike 2026-09-05: $180 gross → $145 net)', unit: '$/fan' },
+  { group: 'Ceiling Fans', key: 'fans.adderPerFan', label: 'Net Adder Per Fan (legacy)', desc: 'Fallback only if Conceptual Per Fan is blank', unit: '$/fan' },
   { group: 'Ceiling Fans', key: 'fans.diskCredit',  label: 'Disk Credit',       desc: 'Base disk removed when fan installed', unit: '$/fan' },
   { group: 'Ceiling Fans', key: 'fans.totalPerFan', label: 'Gross Per Fan',     desc: 'Full product cost before credit', unit: '$/fan' },
 
@@ -40,7 +41,14 @@ const PRICING_FIELDS = [
 
   // ── CORRIDORS ─────────────────────────────────────────────────────────
   { group: 'Corridors & Stairwells', key: 'corridors.diskPerSf',                       label: 'Corridor Disk Rate',       desc: '7" disk @ 10ft spacing, flat $/SF', unit: '$/SF' },
-  { group: 'Corridors & Stairwells', key: 'corridors.stairwellPerLanding.product',     label: 'Stairwell Per Landing',    desc: '4ft LED strip + occupancy + battery', unit: '$/landing' },
+  { group: 'Corridors & Stairwells', key: 'corridors.stairwellPerLanding.product',     label: 'Stairwell Per Landing',    desc: '4ft LED strip + occupancy + battery — enclosed corridor-building stairs (wrap / podium / mid-rise / high-rise)', unit: '$/landing' },
+  { group: 'Corridors & Stairwells', key: 'breezewayStair.landingLight',        label: 'Breezeway Stair — Landing Disk (regular)', desc: 'Garden / stacked-flat / gurban walk-ups only: a regular disk on each floor landing (Lowell C4 position). One per level per stair. Mike 2026-09-05: $12 — decorative landing lights are not a conceptual item.', unit: '$/ea' },
+  { group: 'Corridors & Stairwells', key: 'breezewayStair.wallpackWithBattery', label: 'Breezeway Stair — Wall Pack w/ Battery', desc: 'LED wall pack with integrated battery on the stair runs and egress (Lowell W1). 2 × levels + 1 per stair. The ground-floor egress pack is in Exterior wallpacks. Mike 2026-09-05: $300.', unit: '$/ea' },
+  { group: 'Corridors & Stairwells', key: 'breezewayStair.frogeye',             label: 'Breezeway Stair — Emergency Frogeye', desc: 'Twin-head emergency unit (Lowell X1). One per level per stair. Mike 2026-09-05: $25.', unit: '$/ea' },
+  { group: 'Corridors & Stairwells', key: 'breezewayStair.vestibuleDisk',       label: 'Breezeway Stair — Vestibule Disk w/ Battery', desc: 'Disk with emergency battery in the upper-level vestibules (Lowell C6). Levels − 1 per stair. Mike 2026-09-05: $50.', unit: '$/ea' },
+  { group: 'Corridors & Stairwells', key: 'breezewayStair.storiesDefault.garden',       label: 'Breezeway Levels — Garden (default)',       desc: 'Levels each stair serves when Project Data has no story count.', unit: 'levels' },
+  { group: 'Corridors & Stairwells', key: 'breezewayStair.storiesDefault.stackedFlats', label: 'Breezeway Levels — Stacked Flats (default)', desc: 'Same, for stacked flats.', unit: 'levels' },
+  { group: 'Corridors & Stairwells', key: 'breezewayStair.storiesDefault.gurban',       label: 'Breezeway Levels — Gurban (default)',       desc: 'Same, for gurban walk-ups.', unit: 'levels' },
   { group: 'Corridors & Stairwells', key: 'corridorSconce.low.product',                label: 'Unit Entry Sconce — Low',  desc: 'Per unit', unit: '$/unit' },
   { group: 'Corridors & Stairwells', key: 'corridorSconce.medium.product',             label: 'Unit Entry Sconce — Medium', desc: 'Per unit', unit: '$/unit' },
   { group: 'Corridors & Stairwells', key: 'corridorSconce.high.product',               label: 'Unit Entry Sconce — High', desc: 'Per unit', unit: '$/unit' },
@@ -110,8 +118,9 @@ const PRICING_FIELDS = [
   { group: 'Exterior Site', key: 'exterior.pathway.dollarsPerUnit.podium',       label: 'Pathway $/Unit — Podium',          desc: 'TIER 3. Structured parking + interior circulation = least site lighting. Mike 2026-09-04: cut $48 → $35 — these products carry high unit counts, so per-unit over-scales', unit: '$/unit' },
   { group: 'Exterior Site', key: 'exterior.pathway.dollarsPerUnit.midRise',      label: 'Pathway $/Unit — Mid Rise',        desc: 'TIER 3. Same number as Podium for now (Mike 2026-09-04: $35)', unit: '$/unit' },
   { group: 'Exterior Site', key: 'exterior.pathway.dollarsPerUnit.highRise',     label: 'Pathway $/Unit — High Rise',       desc: 'TIER 3. Same number as Podium for now (Mike 2026-09-04: $35; Modera Town Lake actual ran ~$13/unit — the floor and manual entries handle low-site high-rises)', unit: '$/unit' },
-  { group: 'Exterior Site', key: 'exterior.landscape.pctOfNetLotSf',     label: 'Landscape % of Lot SF',     desc: 'Landscape lighting as a % of lot SF (0.02 = 2%)', unit: 'decimal' },
-  { group: 'Exterior Site', key: 'exterior.landscape.maxTotal',          label: 'Landscape Cap',             desc: 'Hard ceiling on landscape lighting regardless of lot size', unit: '$' },
+  { group: 'Exterior Site', key: 'exterior.pathway.solarMultiplier',     label: 'Pathway Solar Multiplier',  desc: 'Multiplies the MODEL pathway line when the site design is Solar (a solar bollard ran 1.53× conventional on the Avilla actuals). Mike 2026-09-04: 1.6. A hand-entered pathway figure is never multiplied', unit: '×' },
+  { group: 'Exterior Site', key: 'exterior.landscape.pctOfNetLotSf',     label: 'Landscape $ per SF of Net Lot', desc: 'Landscape lighting in dollars per square foot of the NET lot — lot SF minus building footprint (0.02 = two cents per SF). Not a percentage. Falls back to the full lot when no footprint is on file; capped by the Landscape Cap below', unit: '$/SF' },
+  { group: 'Exterior Site', key: 'exterior.landscape.maxTotal',          label: 'Landscape Cap',             desc: 'Hard ceiling on landscape lighting regardless of net lot size', unit: '$' },
   { group: 'Exterior Site', key: 'exterior.miscBufferPct',               label: 'Misc Buffer %',             desc: '% of exterior subtotal before misc', unit: '%' },
 
   // ── EMERGENCY ─────────────────────────────────────────────────────────
@@ -178,6 +187,10 @@ const PRICING_FIELDS = [
 
   // ── TAKEOFF ESTIMATION FACTORS ────────────────────────────────────────
   { group: 'Takeoff Estimation', key: 'estimation.unitsToGross', label: 'Units → Gross SF Factor', desc: 'Last-resort gross SF estimate: residential unit SF × this factor (covers corridors, walls, BOH). Used only when no total, no per-building totals, and no footprint are on the drawings.', unit: '×' },
+  { group: 'Takeoff Estimation', key: 'estimation.landingsContingency',      label: 'Stair Landings Contingency',   desc: 'Added on top of every stair-landing count the app derives from drawings or estimates from code (0.10 = +10%). Not added to a count a person typed.', unit: 'decimal' },
+  { group: 'Takeoff Estimation', key: 'estimation.exitStairsMinPerBuilding', label: 'Exit Stairs per Building (min)', desc: 'Building-code fallback when the drawings never state the exit-stair count: at least this many exit stairs per residential building over one story.', unit: 'stairs' },
+  { group: 'Takeoff Estimation', key: 'estimation.floorPlateSfPerExitStair', label: 'Floor Plate SF per Exit Stair (corridor)', desc: 'Same fallback, for corridor buildings (wrap / podium / mid-rise / high-rise): one exit stair per this many SF of floor plate (footprint ÷ buildings), for travel distance — never fewer than the minimum above. Calibrated at 15,000 against past projects (2026-09-05).', unit: 'SF' },
+  { group: 'Takeoff Estimation', key: 'estimation.breezewayPlateSfPerExitStair', label: 'Floor Plate SF per Exit Stair (breezeway)', desc: 'Same fallback, for garden / gurban / stacked-flat walk-ups: each open breezeway stair serves only the units around it, so a plate holds one per this many SF. Calibrated at 5,000 against past garden projects (2026-09-05). Townhouses get zero shared stairs regardless.', unit: 'SF' },
 ];
 
 /** Read a nested value from an object using dot-notation key */

@@ -23,7 +23,7 @@ export async function PATCH(request, { params }) {
     where: { id: params.widgetId },
     data: {
       ...(b.name      !== undefined && { name: b.name }),
-      ...(b.chartType !== undefined && ['BAR', 'LINE'].includes(b.chartType) && { chartType: b.chartType }),
+      ...(b.chartType !== undefined && ['BAR', 'LINE', 'TABLE'].includes(b.chartType) && { chartType: b.chartType }),
       ...(b.width     !== undefined && ['HALF', 'FULL'].includes(b.width) && { width: b.width }),
       ...(b.position  !== undefined && { position: Number(b.position) }),
       ...(b.dataSpec  !== undefined && { dataSpec: b.dataSpec == null ? null : (typeof b.dataSpec === 'string' ? b.dataSpec : JSON.stringify(b.dataSpec)) }),

@@ -28,18 +28,26 @@
  * @see src/lib/agent/unitMatrixDiff.js — the same idea for a list-shaped output
  * @see scripts/tests/siteDiff.test.mjs
  */
-import { proposeSiteFields, SITE_FIELD_DEFS } from '../siteFields.js';
+import { proposeSiteFields, SITE_FIELD_DEFS, buildingTypeKeyLabel } from '../siteFields.js';
 
 const LABELS = Object.fromEntries(SITE_FIELD_DEFS.map(d => [d.key, d.label]));
 
-/** null, undefined and '' are all "not set" and must not read as a change. */
+/**
+ * null, undefined and '' are all "not set" and must not read as a change.
+ * Numbers compare as numbers; the building type (the one non-numeric field)
+ * compares as the key string it is.
+ */
 function norm(v) {
   if (v === null || v === undefined || v === '') return null;
   const n = Number(v);
-  return Number.isFinite(n) ? n : null;
+  if (Number.isFinite(n)) return n;
+  return typeof v === 'string' ? v.trim() || null : null;
 }
 
-function fmt(v) { return v == null ? '—' : Number(v).toLocaleString(); }
+function fmt(v) {
+  if (v == null) return '—';
+  return typeof v === 'number' ? v.toLocaleString() : buildingTypeKeyLabel(v);
+}
 
 /**
  * Describe the difference between what the model read off the drawing and what

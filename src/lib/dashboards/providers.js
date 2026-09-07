@@ -6,7 +6,7 @@
 import { prisma } from '@/lib/db';
 import { calculateBudget } from '@/lib/calculations';
 import { responsesToSections } from '@/lib/utils';
-import { loadPricing } from '@/lib/pricingLoader';
+import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
 
 export async function getSectionRows(section) {
   switch (section) {
@@ -85,7 +85,7 @@ async function getBudgetRows() {
     // (Conceptual or Design-questionnaire depending on the project's inputs).
     let productBudgetTotal = 0;
     try {
-      const pricing = p.pricingSnapshot ? JSON.parse(p.pricingSnapshot) : defaultPricing;
+      const pricing = pricingForProject(p.pricingSnapshot, defaultPricing);
       const sections = responsesToSections(p.responses);
       const projectData = { ...(p.projectData || {}), buildingTypeKey: p.buildingType };
       productBudgetTotal = calculateBudget(projectData, sections, pricing)?.totalWithControls || 0;

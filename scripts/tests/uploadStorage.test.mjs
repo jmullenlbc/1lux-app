@@ -18,7 +18,8 @@ process.env.S3_ACCESS_KEY_ID = 'fake-access-key-id-for-tests';
 process.env.S3_SECRET_ACCESS_KEY = 'testfakesecrettestfakesecrettestfakesec';
 
 const { validatePresignRequest, presignUpload, isUploadKey, rangeFetcherFor,
-        MAX_INTAKE_UPLOAD_BYTES, MAX_PROJECT_UPLOAD_BYTES, limitForScope,
+        MAX_INTAKE_UPLOAD_BYTES, MAX_PROJECT_UPLOAD_BYTES,
+        MAX_KNOWLEDGE_UPLOAD_BYTES, limitForScope,
         isSheetKey, putSheetImage, presignSheetRead,
         PART_BYTES, MULTIPART_MIN_BYTES, partCountFor } =
   await import('../../src/lib/uploadStorage.js');
@@ -78,6 +79,64 @@ test('a 246 MB set — the one that actually failed — is now accepted', () => 
   const v = validatePresignRequest({ fileName: 'Broadston Drawings.pdf', size: 246.1 * 1024 * 1024 });
   assert.equal(v.ok, true, 'the real upload from the GC must go through');
   assert.equal(v.limit, MAX_INTAKE_UPLOAD_BYTES);
+});
+
+// ─── The bot's library ───────────────────────────────────────────────────────
+//
+// Mike, 2026-09-07: "we should make it up to 25mbs like email. can we do it in
+// pieces very easily like drawings?" These tests are the answer to the second
+// half — the knowledge scope rides the same presign/multipart plumbing, it just
+// accepts more kinds of file and stops at 25 MB.
+
+test('the knowledge scope takes everything the bot can read, not just PDFs', () => {
+  for (const [name, type] of [
+    ['Scope of work.docx',    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+    ['Fixture schedule.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+    ['Lowell budget.pdf',     'application/pdf'],
+    ['whiteboard.JPEG',       'image/jpeg'],
+    ['site photo.png',        'image/png'],
+    ['notes.txt',             'text/plain'],
+    ['rates.csv',             'text/csv'],
+  ]) {
+    const v = validatePresignRequest({ fileName: name, size: 8 * 1024 * 1024, scope: 'knowledge' });
+    assert.equal(v.ok, true, `${name} should be accepted for the bot's library`);
+    assert.equal(v.contentType, type);
+  }
+});
+
+test('widening the knowledge scope does NOT widen the public intake page', () => {
+  // The public conceptual-budget page must keep taking drawings and schedules
+  // only. An image or a Word document there is someone in the wrong place.
+  for (const name of ['whiteboard.png', 'Scope of work.docx', 'notes.txt']) {
+    assert.equal(validatePresignRequest({ fileName: name, size: 1000 }).ok, false, `${name} must still be refused at intake`);
+    assert.equal(validatePresignRequest({ fileName: name, size: 1000, scope: 'project' }).ok, false, `${name} must still be refused on a project`);
+  }
+});
+
+test('the knowledge ceiling is 25 MB — the size of an email attachment', () => {
+  assert.equal(MAX_KNOWLEDGE_UPLOAD_BYTES, 25 * 1024 * 1024);
+  assert.equal(limitForScope('knowledge'), MAX_KNOWLEDGE_UPLOAD_BYTES);
+
+  const at   = validatePresignRequest({ fileName: 'big.pdf', size: MAX_KNOWLEDGE_UPLOAD_BYTES, scope: 'knowledge' });
+  const over = validatePresignRequest({ fileName: 'huge.pdf', size: MAX_KNOWLEDGE_UPLOAD_BYTES + 1, scope: 'knowledge' });
+  assert.equal(at.ok, true, 'exactly 25 MB is allowed');
+  assert.equal(over.ok, false);
+  assert.equal(over.code, 'too_large');
+});
+
+test('a 20 MB Word document — the thing that used to be refused at 4 MB', () => {
+  const v = validatePresignRequest({ fileName: 'ILC Standards.docx', size: 20 * 1024 * 1024, scope: 'knowledge' });
+  assert.equal(v.ok, true);
+  // Four pieces of 5 MB, each its own request with its own retry. That is the
+  // "in pieces, like drawings" part.
+  assert.ok(20 * 1024 * 1024 >= MULTIPART_MIN_BYTES, 'a file this size goes up in pieces');
+  assert.equal(partCountFor(20 * 1024 * 1024), 4);
+});
+
+test('an unknown scope is refused rather than falling back to a generous one', () => {
+  const v = validatePresignRequest({ fileName: 'x.pdf', size: 1000, scope: 'knowledge-ish' });
+  assert.equal(v.ok, false);
+  assert.equal(v.code, 'bad_request');
 });
 
 test('handles null/absent input without throwing', () => {

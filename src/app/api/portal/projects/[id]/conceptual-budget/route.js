@@ -3,7 +3,7 @@ import { requirePortalAuth } from '@/lib/portalAuth';
 import { prisma } from '@/lib/db';
 import { responsesToSections } from '@/lib/utils';
 import { calculateBudget } from '@/lib/calculations';
-import { loadPricing } from '@/lib/pricingLoader';
+import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,9 +33,7 @@ export async function GET(req, { params }) {
     return NextResponse.json({ budget: null });
   }
 
-  const pricing = project.pricingSnapshot
-    ? JSON.parse(project.pricingSnapshot)
-    : await loadPricing();
+  const pricing = pricingForProject(project.pricingSnapshot, await loadPricing());
 
   const sections = responsesToSections(project.responses);
   const projectData = { ...project.projectData, buildingTypeKey: project.buildingType };

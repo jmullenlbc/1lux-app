@@ -324,11 +324,25 @@ const th = calculateBudget({ ...baselinePD, buildingTypeKey: 'townHouses'   }, {
 assert(sf.controls === 0, 'singleFamily produces $0 controls (rate is 0)');
 assert(th.controls === 0, 'townHouses produces $0 controls (rate is 0)');
 
-// Verify the universal controls cap ($180K) is respected at very large grossSf.
-// (Per the Link+Pin sheet: "controls should never be over $180K". Replaced the old
-// per-building-type caps with a single $180K cap.)
+// Verify the controls cap at very large grossSf. TWO ceilings apply and the
+// LOWER one wins: the building type's own cap, and the sheet-wide "never over
+// $180K". This assertion used to expect a flat $180,000 for every type, which
+// was the bug fixed 2026-09-04 — the sheet-wide cap was silently REPLACING the
+// type cap, so a garden project could be charged $180K of controls against its
+// own $65K ceiling.
 const huge = calculateBudget({ ...baselinePD, grossSf: 5000000, buildingTypeKey: 'midRise' }, {});
-assert(huge.controls === 180000, 'controls capped at the universal $180,000 even at 5M SF');
+assert(huge.controls === 175000, 'mid-rise stops at its own $175,000 cap, below the sheet-wide $180,000');
+
+// A high-rise's own cap is $190K, ABOVE the sheet-wide number, so there the
+// sheet-wide cap is the one that bites. Between them the two assertions prove
+// the lower ceiling wins in both directions.
+const hugeHR = calculateBudget({ ...baselinePD, grossSf: 5000000, buildingTypeKey: 'highRise' }, {});
+assert(hugeHR.controls === 180000, 'high-rise stops at the sheet-wide $180,000, below its own $190,000 cap');
+
+// And the case that started it: a garden project must never be dragged up to
+// the sheet-wide number.
+const hugeGarden = calculateBudget({ ...baselinePD, grossSf: 5000000, buildingTypeKey: 'garden' }, {});
+assert(hugeGarden.controls === 65000, 'garden stops at its own $65,000 cap, not the sheet-wide $180,000');
 
 // ───────────────────────────────────────────────────────────────────────────
 // Scenario 8: Sales tax = 0 sanity

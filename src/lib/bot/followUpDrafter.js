@@ -10,6 +10,7 @@ import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
 import { modelParams, textFrom } from '@/lib/aiModels';
 import { inDesignPipeline, STAGE_LABEL } from '@/lib/pipeline';
+import { knowledgeContextBlock } from '@/lib/botKnowledge/retrieve';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -59,11 +60,25 @@ async function findTemplate(project) {
       || await prisma.messageTemplate.findFirst({ where: { channel: 'EMAIL', isActive: true } });
 }
 
-async function findKnowledgeEntries() {
-  return prisma.botKnowledgeEntry.findMany({
-    where: { isActive: true, category: { in: ['GENERAL', 'DEVELOPERS'] } },
-    take: 5,
-    orderBy: { createdAt: 'asc' },
+// What the bot is handed out of the knowledge library.
+//
+// This used to be `take: 5, orderBy: createdAt asc` with no matching at all, so
+// the bot only ever saw the five OLDEST Q&A pairs — everything added after that
+// was never read, and no uploaded document was read at all. Now the project
+// itself is the query, and both Q&A pairs and uploaded documents are searched.
+async function findKnowledge(project) {
+  const query = [
+    project.name,
+    project.client?.name,
+    project.serviceType,
+    project.buildingType,
+    STAGE_LABEL[primaryStage(project)] || primaryStage(project),
+  ].filter(Boolean).join(' ');
+
+  return knowledgeContextBlock({
+    query,
+    categories: ['GENERAL', 'DEVELOPERS'],
+    limit: 5,
   });
 }
 
@@ -88,7 +103,7 @@ export async function generateFollowUpDraft(project, rule) {
     return { error: 'No contact email found for project — skipping', project: project.name };
   }
 
-  const [template, knowledgeEntries] = await Promise.all([findTemplate(project), findKnowledgeEntries()]);
+  const [template, knowledgeText] = await Promise.all([findTemplate(project), findKnowledge(project)]);
 
   const recentActivities = (project.activities || [])
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
@@ -96,9 +111,8 @@ export async function generateFollowUpDraft(project, rule) {
     .map(a => `- ${a.description || a.body || a.type} (${fmtDate(a.createdAt)})`)
     .join('\n');
 
-  const knowledgeBlock = knowledgeEntries.length
-    ? `\nRelevant knowledge (use only if directly applicable — do not force it):\n` +
-      knowledgeEntries.map(e => `Q: ${e.question}\nA: ${e.answer}`).join('\n\n')
+  const knowledgeBlock = knowledgeText
+    ? `\nRelevant knowledge (use only if directly applicable — do not force it):\n${knowledgeText}`
     : '';
   const templateBody = template?.body || '';
 

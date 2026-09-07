@@ -35,7 +35,7 @@ export async function POST(request) {
   }
 
   const body = await request.json();
-  const { name, buildingType, location, contactEmail, budgetType, clientId, city, state, phase, serviceType } = body;
+  const { name, buildingType, location, contactEmail, budgetType, clientId, city, state, phase, serviceType, projectType } = body;
 
   if (!name) {
     return NextResponse.json({ error: 'Project name is required' }, { status: 400 });
@@ -74,6 +74,7 @@ export async function POST(request) {
       budgetNumber,
       name,
       buildingType:    buildingType || null,
+      projectType:     projectType  || null,   // Multi-Family / Senior Living / …
       location:        locationStr,
       city:            city         || null,
       state:           state        || null,
@@ -85,7 +86,9 @@ export async function POST(request) {
       createdById:     user.id,
       clientId:        clientId     || null,
       pricingSnapshot: JSON.stringify(activePricing),
-      projectData: { create: {} },
+      // Every project starts at ILC's standard margin (Mike 2026-09-05:
+      // "Margin should default at 23%"); editable per project on the dashboard.
+      projectData: { create: { marginPct: 0.23 } },
     },
     include: { projectData: true },
   });

@@ -402,7 +402,7 @@ const EMPTY_EXCL_RULE = {
   name:     '',
   ruleType: 'RECURRING_WEEKLY',
   keywords: '',
-  minRecipients: 10,
+  minRecipients: 25,          // Mike's number — see MASS_EMAIL_MIN_PEOPLE
   senderDomain: '',
   isActive: true,
 };
@@ -421,7 +421,7 @@ function ExclusionRuleDrawer({ open, onClose, rule, onSaved }) {
           name:          rule.name || '',
           ruleType:      rule.ruleType || 'RECURRING_WEEKLY',
           keywords:      Array.isArray(cfg.keywords) ? cfg.keywords.join(', ') : (cfg.keywords || ''),
-          minRecipients: cfg.minRecipients ?? 10,
+          minRecipients: cfg.minRecipients ?? 25,
           senderDomain:  cfg.domain || '',
           isActive:      rule.isActive !== false,
         });
@@ -442,7 +442,7 @@ function ExclusionRuleDrawer({ open, onClose, rule, onSaved }) {
       return JSON.stringify({ keywords: kws });
     }
     if (form.ruleType === 'MIN_RECIPIENTS') {
-      return JSON.stringify({ minRecipients: Number(form.minRecipients) || 10 });
+      return JSON.stringify({ minRecipients: Number(form.minRecipients) || 25 });
     }
     if (form.ruleType === 'SENDER_DOMAIN') {
       return JSON.stringify({ domain: form.senderDomain.trim() });
@@ -546,11 +546,16 @@ function ExclusionRuleDrawer({ open, onClose, rule, onSaved }) {
                   type="number"
                   min={2}
                   value={form.minRecipients}
-                  onChange={e => set('minRecipients', parseInt(e.target.value) || 10)}
+                  onChange={e => set('minRecipients', parseInt(e.target.value) || 25)}
                   className="w-24 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
                 />
                 <span className="text-xs text-slate-500">recipients</span>
               </div>
+              <p className="text-[11px] text-slate-500 mt-1">
+                An email with this many people on it (sender included) is treated as a
+                mass send: it is still saved, but it will not move anyone&rsquo;s Last
+                Email dates. Leave it at 25 unless you have a reason to change it.
+              </p>
             </div>
           )}
 
@@ -699,7 +704,7 @@ function FollowUpRuleDrawer({ open, onClose, onSaved }) {
               value={form.stage}
               onChange={e => set('stage', e.target.value)}
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
-              placeholder="e.g. PROPOSAL_SENT"
+              placeholder="e.g. PRECONSTRUCTION"
             />
           </div>
 
@@ -764,12 +769,15 @@ const CLASS_CONDITION_TYPES = [
   { value: 'BODY_CONTAINS',      label: 'Body Contains' },
 ];
 
+// Meal covers a work breakfast, lunch or dinner; Travel is a day on the road to
+// see clients. Both are Mike's rules from 2026-09-07.
 const CLASS_RESULT_TYPES = [
   { value: 'COFFEE',      label: '☕ Coffee' },
-  { value: 'LUNCH',       label: '🍽 Lunch' },
+  { value: 'MEAL',        label: '🍽 Meal (breakfast, lunch or dinner)' },
   { value: 'GOLF',        label: '⛳ Golf' },
   { value: 'HAPPY_HOUR',  label: '🍻 Happy Hour' },
   { value: 'SITE_VISIT',  label: '🏗 Site Visit' },
+  { value: 'TRAVEL',      label: '✈️ Travel day' },
   { value: 'CALL',        label: '📞 Call' },
   { value: 'EVENT',       label: '🎟 Event' },
   { value: 'OTHER',       label: '📅 Other' },
@@ -1177,7 +1185,7 @@ export default function RulesPage() {
     const defaults = [
       { name: 'Weekly recurring meetings',      ruleType: 'RECURRING_WEEKLY',   config: '{}',                                           isActive: true },
       { name: 'OAC / project coordination',      ruleType: 'KEYWORD_SUBJECT',    config: '{"keywords":["OAC","project meeting","coordination"]}', isActive: true },
-      { name: 'Mass emails (10+ recipients)',    ruleType: 'MIN_RECIPIENTS',     config: '{"minRecipients":10}',                          isActive: true },
+      { name: 'Mass emails (25+ people)',        ruleType: 'MIN_RECIPIENTS',     config: '{"minRecipients":25}',                          isActive: true },
     ];
     try {
       const results = await Promise.all(
@@ -1668,13 +1676,18 @@ export default function RulesPage() {
                           <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
                             rule.resultType === 'SKIP'       ? 'bg-slate-100 text-slate-500' :
                             rule.resultType === 'GOLF'       ? 'bg-green-50 text-green-700' :
+                            rule.resultType === 'MEAL'       ? 'bg-orange-50 text-orange-700' :
                             rule.resultType === 'LUNCH'      ? 'bg-orange-50 text-orange-700' :
                             rule.resultType === 'COFFEE'     ? 'bg-amber-50 text-amber-700' :
                             rule.resultType === 'HAPPY_HOUR' ? 'bg-yellow-50 text-yellow-700' :
                             rule.resultType === 'SITE_VISIT' ? 'bg-blue-50 text-blue-700' :
+                            rule.resultType === 'TRAVEL'     ? 'bg-sky-50 text-sky-700' :
                             'bg-slate-100 text-slate-600'
                           }`}>
-                            {rule.resultType === 'SKIP' ? 'Skip' : rule.resultType.replace(/_/g, ' ')}
+                            {/* Rules saved before the rename still say LUNCH — show them as Meal. */}
+                            {rule.resultType === 'SKIP' ? 'Skip'
+                              : rule.resultType === 'LUNCH' ? 'Meal'
+                              : rule.resultType.replace(/_/g, ' ')}
                           </span>
                         </td>
                         <td className="py-2 pr-4">

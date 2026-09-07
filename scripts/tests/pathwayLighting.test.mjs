@@ -106,15 +106,56 @@ test('other manual adders do NOT suppress the model pathway line', () => {
   assert.equal(p.suppressedByManual, false);
 });
 
+// ── solar sites ──────────────────────────────────────────────────────────────
+// Mike 2026-09-04: "yes pathway should get a bump of 1.6x". Solar bollards ran
+// ~1.53× conventional on the Avilla actuals. Parking keeps its own 2.3.
+
+test('solar site design multiplies the model pathway line by pathway.solarMultiplier (1.6)', () => {
+  assert.equal(PRICING.exterior.pathway.solarMultiplier, 1.6);
+  const conv  = pathway({ numUnits: 372, buildingTypeKey: 'garden' });
+  const solar = pathway({ numUnits: 372, buildingTypeKey: 'garden' }, { exterior: { siteDesignLevel: 'solar' } });
+  assert.equal(conv.product, 372 * 60);
+  assert.equal(conv.solarMultiplier, 1);
+  assert.equal(solar.solarMultiplier, 1.6);
+  assert.ok(Math.abs(solar.product - 372 * 60 * 1.6) < 0.01, `got ${solar.product}`);
+});
+
+test('solar applies AFTER the floor — a floored site still gets the premium ($4,000 → $6,400)', () => {
+  const p = pathway({ numUnits: 50, buildingTypeKey: 'podium' }, { exterior: { siteDesignLevel: 'solar' } });
+  assert.equal(p.floorApplied, true);
+  assert.ok(Math.abs(p.product - 4000 * 1.6) < 0.01, `got ${p.product}`);
+});
+
+test('a hand-entered pathway figure is never multiplied — solar or not', () => {
+  const b = calculateBudget(
+    { numUnits: 381, buildingTypeKey: 'highRise' },
+    { exterior: { siteDesignLevel: 'solar', exteriorManualItems: { pathwayLighting: 4800 } } },
+  );
+  assert.equal(b.sections.exterior.pathway.product, 0);
+  assert.equal(b.sections.exterior.manualAdderTotal, 4800);
+});
+
+test('surface parking keeps its own 2.3× solar multiplier — the pathway bump does not leak', () => {
+  const pd = { numUnits: 372, numSurfaceParking: 90, buildingTypeKey: 'garden' };
+  const conv  = calculateBudget(pd).sections.exterior;
+  const solar = calculateBudget(pd, { exterior: { siteDesignLevel: 'solar' } }).sections.exterior;
+  assert.equal(solar.solar.multiplier, PRICING.exterior.solarMultiplier);
+  assert.equal(solar.solar.multiplier, 2.3);
+  assert.ok(Math.abs(solar.parking.product - conv.parking.product * 2.3) < 0.01);
+});
+
 // ── plumbing ─────────────────────────────────────────────────────────────────
 
 test('the pathway line rides in the exterior total and the misc-buffer base', () => {
   const pd = { numUnits: 200, buildingTypeKey: 'garden' };
   const withP    = calculateBudget(pd).sections.exterior;
   // Same project, but pathway zeroed via a pricing override — the delta must be
-  // exactly the pathway line grossed up by the misc buffer.
+  // exactly the pathway line grossed up by the misc buffer. The rate is set to
+  // 0 explicitly: a snapshot that simply LACKS the table falls through to the
+  // master sheet (see pricingSnapshotFill.test.mjs), so emptying it is not
+  // "zero", it is "never had it".
   const zeroRates = structuredClone(PRICING);
-  zeroRates.exterior.pathway.dollarsPerUnit = {};
+  zeroRates.exterior.pathway.dollarsPerUnit.garden = 0;
   const withoutP = calculateBudget(pd, {}, zeroRates).sections.exterior;
 
   const expectedLine = 200 * 60; // garden

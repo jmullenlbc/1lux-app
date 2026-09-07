@@ -12,25 +12,56 @@ export function formatDate(dateStr) {
   });
 }
 
-// Building types — values are pricing keys, labels match the Google Sheet master
+// Client Type — Mike's 8 (2026-09-06). A client can be several of these at once,
+// so the UI is a multi-select stored in Client.orgTypes as label strings; the
+// single `Client.type` column is derived from the first tick and kept for the
+// colour tags, stats and anything else already reading it.
 export const CLIENT_TYPES = [
   { value: 'developer',                 label: 'Developer' },
   { value: 'architect',                 label: 'Architect' },
-  { value: 'interiorDesigner',          label: 'Interior Designer' },
   { value: 'generalContractor',         label: 'General Contractor' },
-  { value: 'electricalEngineer',        label: 'Electrical Engineer' },
-  { value: 'electricalContractor',      label: 'Electrical Contractor' },
-  { value: 'clientRep',                 label: 'Client Rep' },
   { value: 'selfPerformingGc',          label: 'Self-Performing GC' },
-  { value: 'developerSelfPerformingGc', label: 'Developer / Self-Performing GC' },
+  { value: 'electricalContractor',      label: 'Electrical Contractor' },
+  { value: 'electricalEngineer',        label: 'Electrical Engineer' },
+  { value: 'interiorDesigner',          label: 'Interior Designer' },
+  { value: 'clientRep',                 label: 'Client Rep' },
 ];
 
+// Retired combined value — a client that was both is now two ticks. Kept so old
+// rows still render a label instead of a raw key.
+const LEGACY_CLIENT_TYPE_LABELS = {
+  developerSelfPerformingGc: 'Developer / Self-Performing GC',
+};
+
+// The multi-select's option list, as the label strings stored in orgTypes.
+export const ORG_TYPE_OPTIONS = CLIENT_TYPES.map(t => t.label);
+
+// orgTypes holds labels; Client.type holds a key. This bridges the two.
+export function clientTypeKeyFromLabel(label) {
+  if (!label) return null;
+  const current = CLIENT_TYPES.find(t => t.label === label)?.value;
+  if (current) return current;
+  // A client saved before the combined option was retired still has the old
+  // label in orgTypes; without this it would come back as "no type at all".
+  const legacy = Object.entries(LEGACY_CLIENT_TYPE_LABELS).find(([, l]) => l === label);
+  return legacy ? legacy[0] : null;
+}
+
 export const LOCATION_TYPES = [
-  { value: 'none',        label: '(None)' },
-  { value: 'localBranch', label: 'Local Branch' },
   { value: 'national',    label: 'National' },
+  { value: 'localBranch', label: 'Local Branch' },
   { value: 'standalone',  label: 'Standalone' },
 ];
+
+// Developer Type — multi-select (a builder can be both). Mike 2026-09-06.
+export const DEVELOPER_TYPES = [
+  { value: 'merchant',     label: 'Merchant' },
+  { value: 'longTermHold', label: 'Long-Term Hold' },
+];
+
+export function developerTypeLabel(key) {
+  return DEVELOPER_TYPES.find(t => t.value === key)?.label || key || '—';
+}
 
 export const PROJECT_PHASES = [
   { value: 'sd',           label: 'SD',           long: 'Schematic Design' },
@@ -42,11 +73,14 @@ export const PROJECT_PHASES = [
 ];
 
 export function clientTypeLabel(key) {
-  return CLIENT_TYPES.find(t => t.value === key)?.label || key || '—';
+  return CLIENT_TYPES.find(t => t.value === key)?.label
+    || LEGACY_CLIENT_TYPE_LABELS[key]
+    || key || '—';
 }
 
 export function locationTypeLabel(key) {
-  return LOCATION_TYPES.find(t => t.value === key)?.label || key || '—';
+  if (!key || key === 'none') return '—';
+  return LOCATION_TYPES.find(t => t.value === key)?.label || key;
 }
 
 export function phaseLabel(key, long = false) {
@@ -69,19 +103,30 @@ export function serviceTypeLabel(key) {
 
 // Project's asset/product type — one controlled vocabulary used across the platform
 // (Sales Details editor, dashboards). Distinct from BUILDING_TYPES (construction form).
+// Mike's six (2026-09-06). Stored values are unchanged where one already
+// existed — 'BTR' stays the value behind "Single Family For Rent" so no project
+// row has to be rewritten.
 export const PROJECT_TYPES = [
   { value: 'Multi-Family',  label: 'Multi-Family' },
-  { value: 'BTR',           label: 'BTR (Build to Rent)' },  // typically townhomes
-  { value: 'Student',       label: 'Student Housing' },
   { value: 'Senior',        label: 'Senior Living' },
-  { value: 'Affordable',    label: 'Affordable' },
-  { value: 'Mixed-Use',     label: 'Mixed-Use' },
+  { value: 'BTR',           label: 'Single Family For Rent' },
+  { value: 'SFS',           label: 'Single Family For Sale' },
+  { value: 'Affordable',    label: 'Affordable Housing' },
   { value: 'Hospitality',   label: 'Hospitality' },
-  { value: 'Other',         label: 'Other' },
 ];
 
+// Retired choices. Rows still holding one keep a readable label; the picker no
+// longer offers them.
+const LEGACY_PROJECT_TYPE_LABELS = {
+  'Student':   'Student Housing',
+  'Mixed-Use': 'Mixed-Use',
+  'Other':     'Other',
+};
+
 export function projectTypeLabel(key) {
-  return PROJECT_TYPES.find(t => t.value === key)?.label || key || '—';
+  return PROJECT_TYPES.find(t => t.value === key)?.label
+    || LEGACY_PROJECT_TYPE_LABELS[key]
+    || key || '—';
 }
 
 export const BUILDING_TYPES = [

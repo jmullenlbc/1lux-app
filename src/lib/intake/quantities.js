@@ -42,6 +42,8 @@
  */
 import { lotSquareFeet, ACRE_SF } from '../siteFields.js';
 import { PRICING } from '../pricing.js';
+import { estimateStairLandings } from '../stairLandings.js';
+import { answersToEngine } from './questionnaire.js';
 
 /** A stated, usable number — or null. Number(null) is 0, hence the dance. */
 function stated(v) {
@@ -420,16 +422,20 @@ export function computeQuantities(drawings, answers, pricing = null) {
   // asks for LANDINGS directly (Mike, 2026-09-04: '"# Egress stairwells"
   // should be "# Egress stairwell landings"'), matching the internal Project
   // Data field, and the ask card offers this as the override on a derived row.
+  //
+  // Otherwise the shared estimator (src/lib/stairLandings.js) does the
+  // 2N−1 arithmetic and adds Mike's 10% contingency. When the drawings never
+  // stated the stair count, the building-code fallback is patched in at the
+  // END of this function, once the footprint and gross rows it needs exist.
   const landingsTyped = statedAnswer(ans.figureStairLandings);
   if (landingsTyped != null) {
     add('stairLandings', '# Stair Landings', 'count', landingsTyped, 'questionnaire',
       'Entered on the questionnaire — count every landing, including the half-landing between floors.');
   } else if (stories != null && stairs != null && stories >= 1) {
-    const landings = stairs * (2 * stories - 1);
+    const est = estimateStairLandings({ stories, stairs }, pricing);
     const typed = storiesTyped != null || stairsTyped != null;
     const counted = !typed && (storiesStated == null || stairsStated == null);
-    add('stairLandings', '# Stair Landings', 'count', landings, 'derived',
-      `${fmt(stairs)} stair${stairs === 1 ? '' : 's'} × (2 × ${fmt(stories)} stories − 1) = ${fmt(landings)} — a switchback stair serving N levels has 2N−1 landings, every one of them lit.`,
+    add('stairLandings', '# Stair Landings', 'count', est.landings, 'derived', est.how,
       typed
         ? 'Built on a figure the visitor typed (see the story / stair rows). Assumes switchback stairs in enclosed shafts.'
         : counted
@@ -437,7 +443,7 @@ export function computeQuantities(drawings, answers, pricing = null) {
         : 'Assumes switchback stairs in enclosed shafts. Open or straight-run stairs land differently — confirm on the plans.');
   } else {
     add('stairLandings', '# Stair Landings', 'count', null, null,
-      'Needs both the story count and the egress stair count (landings = stairs × (2 × stories − 1)) — or a landings count typed on the questionnaire.');
+      'Needs the story count and the egress stair count (landings = stairs × (2 × stories − 1)), a building-code estimate, or a landings count typed on the questionnaire.');
   }
 
   const exitsStated = stated(site?.exitDoors);
@@ -532,6 +538,57 @@ export function computeQuantities(drawings, answers, pricing = null) {
       grossRow.source = 'derived';
       grossRow.how = `Residential unit SF ${fmt(unitSf.sum)} × ${unitsToGross} = ${fmt(est)} SF — no stated total and no footprint, so the unit areas are scaled up to cover corridors, walls, and back of house.`;
       grossRow.flag = `ROUGH ESTIMATE from unit areas alone (×${unitsToGross}, the master pricing sheet's units→gross factor). Enter the real gross SF if you have it.`;
+    }
+  }
+
+  // ── STAIR LANDINGS, ESTIMATED (code-minimum fallback) ─────────────────────
+  // Mike's ladder (2026-09-05): drawings first, then the building code, then
+  // a human. When the drawings gave no stair count (or no story count), the
+  // estimator fills in from code minimums — ≥2 exit stairs per building, more
+  // on a long floor plate, stories from gross ÷ footprint — and the rows it
+  // leaned on are patched to show the assumption, so a reviewer sees "2
+  // stairs (estimated)" rather than a landing count that came from nowhere.
+  const landingsRow = out.find(r => r.key === 'stairLandings');
+  if (landingsRow && landingsRow.value == null && landingsTyped == null) {
+    const fpRow = out.find(r => r.key === 'buildingFootprintSf');
+    // The building type steers the per-stair plate size: breezeway walk-ups
+    // (garden/gurban/stacked flats) pack far more stairs onto a plate than a
+    // corridor building, and townhouses have no shared stairs at all.
+    const { buildingTypeKey } = answersToEngine(answers);
+    const est = estimateStairLandings({
+      stories, stairs,
+      buildings:   stated(site?.buildingCount),
+      footprintSf: fpRow?.value ?? null,
+      grossSf:     grossRow?.value ?? null,
+      buildingTypeKey,
+    }, pricing);
+    if (est) {
+      landingsRow.value  = est.landings;
+      landingsRow.source = 'derived';
+      landingsRow.how    = est.how;
+      landingsRow.flag   = est.flag;
+      if (est.stairsEstimated) {
+        const stairsRow = out.find(r => r.key === 'egressStairwells');
+        if (stairsRow && stairsRow.value == null) {
+          stairsRow.value  = est.stairs;
+          stairsRow.source = 'derived';
+          stairsRow.how    = est.privateStairs
+            ? 'Townhouse-style — stairs are private, inside each unit, so no shared egress stairs.'
+            : est.stories <= 1
+            ? 'Single-story — no interior exit stairs assumed.'
+            : `Building-code estimate: ${fmt(est.buildings)} building${est.buildings === 1 ? '' : 's'} × ${fmt(est.stairsPerBuilding)} exit stairs — nothing on the drawings stated it.`;
+          stairsRow.flag   = 'ESTIMATED from code minimums, not read off the drawings — confirm on the plans.';
+        }
+      }
+      if (est.storiesEstimated) {
+        const storiesRow = out.find(r => r.key === 'stories');
+        if (storiesRow && storiesRow.value == null) {
+          storiesRow.value  = est.stories;
+          storiesRow.source = 'derived';
+          storiesRow.how    = `Gross ${fmt(grossRow.value)} SF ÷ footprint ${fmt(fpRow.value)} SF ≈ ${fmt(est.stories)} — nothing on the drawings stated it.`;
+          storiesRow.flag   = 'ESTIMATED from gross ÷ footprint, not read off the drawings — confirm on the elevations or code summary.';
+        }
+      }
     }
   }
 

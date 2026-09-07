@@ -19,16 +19,22 @@ export default function Chart({ chartType = 'BAR', series = [], unit, height = 1
   }
   const W = 640, H = height, padX = 8, padTop = 18, padBottom = 26;
   const plotW = W - padX * 2, plotH = H - padTop - padBottom;
-  const max = Math.max(...series.map(s => s.value), 0) || 1;
+  // Drift-style series go negative; the baseline sits at zero and bars hang
+  // below it. All-positive data keeps the original bottom baseline.
+  const vals = series.map(s => Number(s.value) || 0);
+  const max = Math.max(...vals, 0);
+  const min = Math.min(...vals, 0);
+  const span = (max - min) || 1;
   const n = series.length;
   const step = plotW / n;
   const x = i => padX + step * i + step / 2;
-  const y = v => padTop + plotH - (Math.max(0, v) / max) * plotH;
+  const y = v => padTop + ((max - v) / span) * plotH;
+  const zeroY = y(0);
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" preserveAspectRatio="xMidYMid meet" style={{ display: 'block' }}>
-      {/* baseline */}
-      <line x1={padX} y1={padTop + plotH} x2={W - padX} y2={padTop + plotH} stroke="#e2e8f0" strokeWidth="1" />
+      {/* baseline (zero) */}
+      <line x1={padX} y1={zeroY} x2={W - padX} y2={zeroY} stroke="#e2e8f0" strokeWidth="1" />
 
       {chartType === 'LINE' ? (
         <>
@@ -47,11 +53,13 @@ export default function Chart({ chartType = 'BAR', series = [], unit, height = 1
         series.map((s, i) => {
           const bw = Math.min(step * 0.6, 40);
           const bx = x(i) - bw / 2;
-          const by = y(s.value);
+          const v = Number(s.value) || 0;
+          const by = y(v);
+          const top = Math.min(by, zeroY), h = Math.abs(zeroY - by);
           return (
             <g key={i}>
-              <rect x={bx} y={by} width={bw} height={padTop + plotH - by} rx="4" fill="#f59e0b" />
-              <text x={x(i)} y={by - 5} textAnchor="middle" fontSize="10" fontWeight="700" fill="#475569">{fmtVal(s.value, unit)}</text>
+              <rect x={bx} y={top} width={bw} height={h} rx="4" fill={v < 0 ? '#ef4444' : '#f59e0b'} />
+              <text x={x(i)} y={v < 0 ? by + 11 : by - 5} textAnchor="middle" fontSize="10" fontWeight="700" fill="#475569">{fmtVal(v, unit)}</text>
             </g>
           );
         })

@@ -72,6 +72,7 @@ model User {
   schedulingRules    SchedulingRule[]           @relation("SchedulingRuleCreator")
   messageTemplates   MessageTemplate[]          @relation("TemplateCreator")
   botKnowledgeEntries BotKnowledgeEntry[]       @relation("KnowledgeCreator")
+  botKnowledgeDocs    BotKnowledgeDoc[]         @relation("BotKnowledgeDocCreator")
   userLocationStates  UserLocationState[]       @relation("LocationStateOwner")
   botRulesCreated    BotRule[]                  @relation("BotRuleCreator")
   submittalResponses SubmittalResponse[]        @relation("SubmittalResponseCreator")
@@ -214,7 +215,9 @@ model Client {
   projectTypes  String  @default("[]")
   projectsPerYear Int?
   pipelinePerUnit Float?  // ILC $/unit used for the pipeline value rollup
-  developerType String?
+  developerType String?  // legacy single value — kept in sync with developerTypes[0]
+  developerTypes String @default("[]")  // JSON array: merchant | longTermHold (Mike 2026-09-06: multi-select)
+  rating        String?  // Client Rating — free-text placeholder until the equation is defined
   orgTypes      String  @default("[]")
   emailDomains  String  @default("[]")
 
@@ -244,6 +247,7 @@ model Client {
   aliases          ClientAlias[]
   cadenceDays      Int?    // company-level cadence override; null = use individual tier defaults
   intakeSubmissions ConceptualSubmission[]
+  tagLinks         ClientTagLink[]
 }
 
 model ClientPlaybook {
@@ -360,16 +364,48 @@ model PipelineProject {
   @@unique([clientId, name])
 }
 
+// A person inside a client. Mike's People spec (2026-09-06): full name that can
+// be split into first/last, two phone numbers, LinkedIn, and the two email
+// timestamps that light up when email sync is built. Deal counts are derived
+// from ProjectContact links, never stored.
 model ClientContact {
   id         String   @id @default(cuid())
   clientId   String
   client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   name       String
+  firstName  String?  // parsed from name on save; editable
+  lastName   String?
   title      String?
   email      String?
-  phone      String?
+  phone      String?  // legacy single phone — kept in sync with workPhone
+  cellPhone  String?
+  workPhone  String?
+  linkedInUrl String?
   department String?  // Development | Design | Pre-construction | Construction | Finance | custom
+  // Email intelligence. Both are CACHES of the newest matching EmailContactLink
+  // — kept so a list of 200 people does not have to scan the mailbox — and both
+  // ignore mass sends (25+ people), calendar invites, replies and automatic
+  // messages. Rebuilt by refreshContactEmailDates() in src/lib/email/recorder.js.
+  lastEmailReceivedAt DateTime?
+  lastEmailSentAt     DateTime?
   createdAt  DateTime @default(now())
+  projectLinks ProjectContact[]
+  emailLinks   EmailContactLink[]
+}
+
+// Person ↔ project link. isLead marks the Lead Person on that project; every
+// linked person inherits the project's win/loss counts.
+model ProjectContact {
+  id        String        @id @default(cuid())
+  projectId String
+  project   Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  contactId String
+  contact   ClientContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  isLead    Boolean       @default(false)
+  createdAt DateTime      @default(now())
+
+  @@unique([projectId, contactId])
+  @@index([contactId])
 }
 
 model ClientKBSection {
@@ -420,13 +456,15 @@ model Project {
   // + designContractValue (Design Fee Total); Total Combined is their sum (never stored).
   projectType              String?                       // Multi-Family, etc. (from Deal)
   procurementStage         String    @default("QUALIFIED")        // Procurement board column
-  designStage              String    @default("DESIGN_QUALIFIED")  // Design board column (dual-pipeline only)
+  designStage              String    @default("QUALIFIED")  // Design board column (dual-pipeline only); shares the Procurement stage list since 0061
   pipelineProbability      Int       @default(50)   // legacy single probability (kept; = probabilityToWin)
   probabilityToWin         Int?                     // % chance ILC wins the job
   probabilityToMoveForward Int?                     // % chance the project moves forward at all
   // Average Probability (mean of the two above) is DERIVED, never stored — computed in the sales provider.
   procurementStatus        String    @default("OPEN")    // OPEN | WON | LOST | COMPLETED | ABANDONED
+  procurementStatusReason  String?                        // required note when set to LOST or ABANDONED
   designStatus             String    @default("OPEN")    // dual-pipeline (Full Design / Design Assist) only
+  designStatusReason       String?                        // required note when set to LOST or ABANDONED
   expectedOrderDate        DateTime?
   salesOwnerId             String?                        // the ONE project owner across the platform
   salesOwner               User?     @relation("ProjectSalesOwner", fields: [salesOwnerId], references: [id])
@@ -495,6 +533,8 @@ model Project {
   proposals           Proposal[]         @relation("ProjectProposals")
   unitTypes           ProjectUnitType[]
   submissions         ConceptualSubmission[] @relation("SubmissionDuplicateMatch")
+  calibrationSamples  CalibrationSample[]
+  contactLinks        ProjectContact[]
 }
 
 model ProjectFile {
@@ -895,7 +935,10 @@ model Note {
   calendarRef  String?
 
   // sales-specific
-  activityType             String?  // COFFEE | LUNCH | HAPPY_HOUR | GOLF | SITE_VISIT | CALL | EMAIL | EVENT | OTHER
+  // MEAL replaced LUNCH on 2026-09-07 (one category for breakfast, lunch and
+  // dinner). Old rows still say LUNCH until migration 0066 rewrites them, and
+  // normalizeActivityType() in src/lib/calendar/inPerson.js maps it forward.
+  activityType             String?  // COFFEE | MEAL | HAPPY_HOUR | GOLF | SITE_VISIT | TRAVEL | CALL | EMAIL | EVENT | OTHER
   isInPerson               Boolean  @default(false)
   classificationSource     String?  // keyword | rule | ai | manual
   classificationConfidence Int?
@@ -918,6 +961,11 @@ model Note {
   clients  NoteClient[]
   projects NoteProject[]
   actions  NoteAction[]
+
+  // The calendar sync looks a note up by the event's own id on every pass, so
+  // that lookup gets an index. Not unique: a manually typed calendarRef could
+  // repeat, and a duplicate must never fail the sync.
+  @@index([calendarRef])
 }
 
 // Structured items the AI extracts from a note's prose: ACTIONs (→ bot follow-ups)
@@ -1736,6 +1784,8 @@ model EmailMessage {
   fromEmail         String
   fromName          String?
   toEmails          String            // JSON array: [{ email, name }]
+  ccEmails          String?           // JSON array: [{ email, name }]
+  bccEmails         String?           // JSON array: [{ email, name }]
   sentAt            DateTime
   receivedAt        DateTime
   tags              String            @default("[]")  // JSON array e.g. ["Design","Schedule"]
@@ -1754,9 +1804,41 @@ model EmailMessage {
   parsedAt          DateTime?
   createdAt         DateTime          @default(now())
 
+  // ── Does this email count as real contact with a person? ──────────────────
+  // Worked out once at write time by src/lib/email/classify.js, then stored, so
+  // "when did we last really talk to them" is one indexed lookup instead of a
+  // scan. Mike's rules: a mass email is 25 or more people on it; calendar
+  // invites and replies do not count either.
+  peopleCount       Int?              // distinct people on it, sender included
+  isMassEmail       Boolean           @default(false)
+  isCalendarInvite  Boolean           @default(false)
+  isReplyMessage    Boolean           @default(false)
+  isAutomated       Boolean           @default(false)
+  countsAsContact   Boolean           @default(false)  // true only when all four above are false
+  contactLinks      EmailContactLink[]
+
   @@index([projectId])
   @@index([conversationId])
   @@index([outlookLabel])
+  @@index([countsAsContact, sentAt])
+}
+
+// Which of our people were on an email, and in what capacity.
+//
+// The role is what tells the two Last Email fields apart: if the person SENT it,
+// that is an email we received from them; if they were on the To/Cc/Bcc, that is
+// an email we sent to them. One row per person per message.
+model EmailContactLink {
+  id        String        @id @default(cuid())
+  messageId String
+  message   EmailMessage  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  contactId String
+  contact   ClientContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  role      String        // FROM | TO | CC | BCC
+  createdAt DateTime      @default(now())
+
+  @@unique([messageId, contactId])
+  @@index([contactId])
 }
 
 model EmailAttachment {
@@ -2089,6 +2171,45 @@ model BotKnowledgeEntry {
   @@index([category])
 }
 
+// A file dropped on the Bot Knowledge page — Word, Excel, PDF, or an image.
+//
+// A Q&A pair (BotKnowledgeEntry) is something somebody sat down and typed. This
+// is the other half: the documents that already exist. The file itself is kept
+// so it can be re-read later (a better extractor, or a human wanting the
+// original), and `text` is the flattened version the bot actually searches.
+//
+// status is PENDING while the text is being pulled out, READY when it can be
+// used, FAILED when the file could not be read — a scanned page with nothing
+// legible on it, or a format we cannot open. A FAILED row is deliberately kept
+// rather than deleted, so the file is not silently lost.
+model BotKnowledgeDoc {
+  id          String   @id @default(cuid())
+  category    String   @default("GENERAL") // same free-text categories as BotKnowledgeEntry
+  title       String                       // defaults to the filename, editable
+  description String?                      // why this was added — typed by a human
+  fileName    String
+  fileType    String                       // pdf | word | excel | image | text
+  mimeType    String?
+  sizeBytes   Int
+  storedPath  String                       // S3 key in prod, relative path in dev
+  text        String?                      // extracted, what the bot searches
+  charCount   Int      @default(0)
+  pageCount   Int?
+  status      String   @default("PENDING")  // PENDING | READY | FAILED
+  statusNote  String?                       // why it failed, in plain English
+  isActive    Boolean  @default(true)
+  createdById String?
+  createdBy   User?    @relation("BotKnowledgeDocCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // One composite rather than three singles. Every read here filters on the same
+  // three columns in this order (see botKnowledge/retrieve.js), and a standalone
+  // index on a two-value boolean earns nothing but write cost.
+  @@index([isActive, status, category])
+  @@index([createdById])
+}
+
 // Travel detection state — one row per day outside home base
 model UserLocationState {
   id               String   @id @default(cuid())
@@ -2148,7 +2269,7 @@ model ActivityClassificationRule {
   name           String
   conditionType  String   // TITLE_CONTAINS | LOCATION_CONTAINS | LOCATION_TYPE | ATTENDEE_MAX | ATTENDEE_MIN | ORGANIZER_DOMAIN | DURATION_MIN | DURATION_MAX | BODY_CONTAINS
   conditionValue String   // the value to test (e.g. "golf", "virtual", "15")
-  resultType     String   // COFFEE | LUNCH | GOLF | HAPPY_HOUR | SITE_VISIT | CALL | EVENT | OTHER | SKIP
+  resultType     String   // COFFEE | MEAL | GOLF | HAPPY_HOUR | SITE_VISIT | TRAVEL | CALL | EVENT | OTHER | SKIP
   priority       Int      @default(0)   // higher = checked first
   isActive       Boolean  @default(true)
   createdById    String
@@ -2410,4 +2531,54 @@ model AgentRun {
   @@index([taskType, promptVersion])
   @@index([status])
   @@index([projectId])
+}
+
+// ── Pricing calibration (learning loop, 2026-09-04) ─────────────────────────
+// One row per budget line per capture: what the engine modeled (amount, the
+// quantity it multiplied, the rate it used) next to what Mike/reality said
+// (actualAmount). The Pre-Con dashboard's calibration widgets read these to
+// show rate drift per line and propose a corrected rate. Structured rows, no
+// JSON blobs — every column is a filter the dashboard and bots can use.
+model CalibrationSample {
+  id              String   @id @default(cuid())
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  source          String                    // engine | manual | actual | bidmatrix | backfill
+  lineKey         String                    // units | corridors | boh | interior | garage | exterior.* | emergency | exitSigns | controls | total
+  quantity        Float?                    // the driver the engine multiplied (SF, units, fixtures, landings…)
+  quantityUnit    String?                   // sf | units | fixtures | landings | stalls
+  modelAmount     Float                     // what the engine produced for this line
+  actualAmount    Float?                    // hand-built / bid-matrix / invoiced figure, when known
+  rateUsed        Float?                    // pricing-sheet rate the line was built from
+  impliedRate     Float?                    // actualAmount ÷ quantity — the rate reality implies
+  buildingType    String?
+  siteDesignLevel String?                   // conventional | solar
+  note            String?
+  capturedAt      DateTime @default(now())
+
+  @@index([projectId])
+  @@index([lineKey])
+  @@index([capturedAt])
+}
+
+// ── CRM tags (Mike 2026-09-06) ───────────────────────────────────────────────
+// Free-form client tags. Structured rows, not a JSON blob, so renaming a tag
+// renames it everywhere it is used and deleting one removes every link.
+model ClientTag {
+  id        String          @id @default(cuid())
+  name      String          @unique
+  createdAt DateTime        @default(now())
+  links     ClientTagLink[]
+}
+
+model ClientTagLink {
+  id        String    @id @default(cuid())
+  clientId  String
+  client    Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  tagId     String
+  tag       ClientTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  @@unique([clientId, tagId])
+  @@index([tagId])
 }

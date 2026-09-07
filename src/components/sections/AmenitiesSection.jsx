@@ -23,7 +23,7 @@ export default function AmenitiesSection({ responses, projectData, pricing, onSa
   const NAMED_RATES = {
     low:    P.interiorAmenities?.low    ?? 6,
     medium: P.interiorAmenities?.medium ?? 10,
-    high:   P.interiorAmenities?.high   ?? 15,
+    high:   P.interiorAmenities?.high   ?? 16,
   };
   const selectedRate = NAMED_RATES[selected] ?? (Number(selected) || 0);
 
@@ -64,7 +64,7 @@ export default function AmenitiesSection({ responses, projectData, pricing, onSa
           Choose the $/SF rate based on your project's finish level.
         </p>
         <p className="text-xs text-slate-400 mb-5">
-          Interior amenities range from $6/SF (garden walk-up) to $15/SF (high-end mid-rise or high-rise).
+          Interior amenities range from $6/SF (garden walk-up) to $16/SF (high-end mid-rise or high-rise).
         </p>
 
         {/* Rate selector grid */}
@@ -108,7 +108,7 @@ export default function AmenitiesSection({ responses, projectData, pricing, onSa
           <div><span className="font-medium text-slate-600">$6–7/SF</span> — Garden walk-up, minimal amenity package</div>
           <div><span className="font-medium text-slate-600">$8–10/SF</span> — Standard mid-market multifamily</div>
           <div><span className="font-medium text-slate-600">$11–13/SF</span> — Upper mid-range, enhanced amenity package</div>
-          <div><span className="font-medium text-slate-600">$14–15/SF</span> — High-end mid-rise or high-rise, luxury finishes</div>
+          <div><span className="font-medium text-slate-600">$14–16/SF</span> — High-end mid-rise or high-rise, luxury finishes</div>
         </div>
       </div>
 

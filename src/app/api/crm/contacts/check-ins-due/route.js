@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { QUIET_AFTER_DAYS } from '@/lib/meeting/cards';
 
 // GET /api/crm/contacts/check-ins-due
 // Query: ?status=overdue | due_soon
@@ -42,7 +43,10 @@ export async function GET(request) {
       contact.cadenceDays ??
       contact.client?.cadenceDays ??
       (contact.cadenceTier ? ruleByTier[contact.cadenceTier] : null) ??
-      90;
+      // Was a flat 90 by guess. Now the measured fallback, shared with the
+      // weekly meeting's "gone quiet" card so the two screens cannot disagree
+      // about the same person.
+      QUIET_AFTER_DAYS;
 
     // Reference date: lastInPersonAt preferred, else lastTouchpointAt
     const referenceDate = contact.lastInPersonAt ?? contact.lastTouchpointAt;

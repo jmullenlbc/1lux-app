@@ -113,7 +113,7 @@ export function buildRoundup({ userId, projects = [], noteActions = [], signals 
   // Longest wait first: the one that has been silent three weeks is the one
   // Monday is actually about.
   const awaiting = mine
-    .filter(p => (p.proposalSentDate || p.designStage === 'PROPOSAL_SENT')
+    .filter(p => p.proposalSentDate
       && p.procurementStatus === 'OPEN'
       && (p.designStatus === 'OPEN' || !p.designStatus))
     .map(p => {

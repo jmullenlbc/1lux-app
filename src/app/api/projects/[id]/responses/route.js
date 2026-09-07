@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { logActivity, diffResponses, describeQuestionnaireChange } from '@/lib/activity';
+import { captureQuietly } from '@/lib/calibration/capture';
 
 export async function GET(request, { params }) {
   const { user, error } = await requireAuth();
@@ -87,6 +88,7 @@ export async function PUT(request, { params }) {
   const changedItems = diffResponses(existing, responses);
   const description   = describeQuestionnaireChange(section, changedItems, project.budgetType);
   await logActivity(params.id, user, 'questionnaire', description, { section, changed: changedItems });
+  captureQuietly(params.id, { minIntervalMs: 0 });
 
   const all = await prisma.questionnaireResponse.findMany({
     where: { projectId: params.id },

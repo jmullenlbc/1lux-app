@@ -24,6 +24,8 @@ export default async function CRMPage() {
           contractValue: true, designContractValue: true,
           procurementStage: true, designStage: true,
           pipelineProbability: true, probabilityToWin: true, probabilityToMoveForward: true, procurementStatus: true, designStatus: true, expectedOrderDate: true,
+          // Why a deal was lost or abandoned — shown on the card and the list row.
+          procurementStatusReason: true, designStatusReason: true,
           updatedAt: true,
           salesOwner:  { select: { id: true, name: true } },
           client:      { select: { id: true, name: true } },

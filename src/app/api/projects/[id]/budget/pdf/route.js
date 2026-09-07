@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db';
 import { calculateBudget, formatCurrency } from '@/lib/calculations';
 import { OPTION_LABELS } from '@/lib/pricing';
 import { responsesToSections } from '@/lib/utils';
-import { loadPricing } from '@/lib/pricingLoader';
+import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
 import { htmlToPdf } from '@/lib/pdf';
 
 function esc(s) {
@@ -31,7 +31,7 @@ export async function GET(request, { params }) {
   });
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const pricing  = project.pricingSnapshot ? JSON.parse(project.pricingSnapshot) : await loadPricing();
+  const pricing  = pricingForProject(project.pricingSnapshot, await loadPricing());
   const sections = responsesToSections(project.responses);
   const pd       = { ...(project.projectData || {}), buildingTypeKey: project.buildingType };
   const budget   = calculateBudget(pd, sections, pricing);
@@ -40,6 +40,11 @@ export async function GET(request, { params }) {
   const freightPct     = Math.round((budget.freightRate     ?? 0.06) * 100);
   const warehousingPct = Math.round((budget.warehousingRate ?? 0.03) * 100);
   const contingencyPct = budget.contingencyRate ? Math.round(budget.contingencyRate * 100) : 0;
+  const salesTaxPctLabel = Math.round((budget.salesTaxPct || 0) * 10000) / 100;
+  const taxLabel     = `Sales Tax (${salesTaxPctLabel}%)`;
+  const salesTaxNote = budget.salesTaxPct > 0
+    ? `Includes ${salesTaxPctLabel}% sales tax on product.`
+    : 'Does not include sales tax.';
 
   const isDesign = project.budgetType === 'design';
   const typeLabel = isDesign ? 'Design' : 'Conceptual';
@@ -142,7 +147,7 @@ export async function GET(request, { params }) {
     { section: 'Interior Amenities', rows: [
       { q: 'Finish Level / Rate', a: (() => {
           const v = r.amenities?.interiorLevel || 'medium';
-          const labels = { low: 'Low ($6/SF)', medium: 'Medium ($10/SF)', high: 'High ($15/SF)', custom: 'Custom Rate' };
+          const labels = { low: 'Low ($6/SF)', medium: 'Medium ($10/SF)', high: 'High ($16/SF)', custom: 'Custom Rate' };
           if (v === 'custom' && r.amenities?.interiorCustomRate)
             return `Custom: $${Number(r.amenities.interiorCustomRate).toFixed(2)}/SF`;
           if (labels[v]) return labels[v];
@@ -318,15 +323,17 @@ ${budget.energyCreditLighting > 0 ? row(`Energy Credit (${Math.round((budget.ene
 ${row('Lighting Subtotal', budget.lightingProductSubtotal, true)}
 ${row(`Freight (${freightPct}%)`, budget.freight || 0)}
 ${row(`Warehousing (${warehousingPct}%)`, budget.warehousing || 0)}
+${budget.lightingTaxAmount > 0 ? row(taxLabel, budget.lightingTaxAmount) : ''}
 ${row('Lighting Total', budget.subtotalLightingOnly, true)}
 ${row('Controls (IECC 2021)', budget.controls || 0)}
 ${budget.energyCreditControls > 0 ? row(`Energy Credit (${Math.round((budget.energyCreditPct || 0) * 100)}%)`, budget.energyCreditControls) : ''}
 ${row(`Freight (${freightPct}%)`, budget.controlsFreight || 0)}
 ${row(`Warehousing (${warehousingPct}%)`, budget.controlsWarehousing || 0)}
+${budget.controlsTaxAmount > 0 ? row(taxLabel, budget.controlsTaxAmount) : ''}
 ${row('Total w/ Controls', budget.totalWithControls, true)}
 ${contingencyRows}
 
-<p style="font-size:7pt;color:#94a3b8;margin-top:6px">Conceptual estimate only. Does not include sales tax.</p>
+<p style="font-size:7pt;color:#94a3b8;margin-top:6px">Conceptual estimate only. ${salesTaxNote}</p>
 
 <!-- ── PAGE 2 ── -->
 <div style="page-break-before:always">

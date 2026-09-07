@@ -5,6 +5,7 @@ import QuestionCard from '@/components/sections/QuestionCard';
 import StandardsHint from '@/components/wizard/StandardsHint';
 import { PRICING } from '@/lib/pricing';
 import { priceOverride } from '@/lib/calculations';
+import { breezewayStairPackage } from '@/lib/stairLandings';
 
 // Static fallbacks — live values come from the master pricing prop (see P below).
 const DISK_RATES     = { 6: 0.40, 7: 0.35, 8: 0.30, 9: 0.28, 10: 0.25, 11: 0.23, 12: 0.23 };
@@ -53,10 +54,18 @@ export default function DesignCorridorsSection({
   const fixtureRate = ans.fixtureType === 'recessed' ? recessedRate : diskRate;
   const corridorProduct = corridorSf * fixtureRate;
 
-  // Stairwell product
+  // Stairwell product — breezeway walk-ups price a per-stair package instead
+  // of $/landing (same helper the engine uses).
   const STAIR_EACH  = P.corridors?.stairwellPerLanding?.product ?? 175;
   const STAIR_ELEV  = P.designCorridors?.stairwellElevatedAdder ?? 50;
-  const stairwellProduct = stairwells * STAIR_EACH;
+  const breezeway   = breezewayStairPackage(
+    { landings: stairwells, stories: projectData?.numFloors, buildingTypeKey: projectData?.buildingTypeKey },
+    P,
+  );
+  const stairwellProduct = breezeway ? breezeway.product : stairwells * STAIR_EACH;
+  const stairLabel  = breezeway
+    ? `Breezeway stairs (${breezeway.stairs} stairs × $${breezeway.perStairProduct.toLocaleString()} — landing disks, wall packs, frogeyes)`
+    : `Stairwells (${stairwells} landings × $${STAIR_EACH})`;
   const elevatedStairAdder = ans.stairwellDesign === 'elevated' ? stairwells * STAIR_ELEV : 0;
 
   // Unit sconce
@@ -191,20 +200,26 @@ export default function DesignCorridorsSection({
       {/* Stairwell design */}
       <QuestionCard
         question="Stairwell lighting approach?"
-        note={`Code minimum uses a 4ft LED strip with integrated battery backup at each landing ($175/landing). Elevated design adds $50/landing for enhanced aesthetics. ${stairwells > 0 ? `(${stairwells} landings)` : ''}`}
+        note={breezeway
+          ? `Open breezeway stairs: each stair gets landing disks, wall packs with battery on the stair runs and egress, emergency frogeyes and vestibule disks (about $${breezeway.perStairProduct.toLocaleString()} per stair, ${breezeway.stairs} stairs from ${stairwells} landings). Elevated design adds $${STAIR_ELEV}/landing.`
+          : `Code minimum uses a 4ft LED strip with integrated battery backup at each landing ($${STAIR_EACH}/landing). Elevated design adds $${STAIR_ELEV}/landing for enhanced aesthetics. ${stairwells > 0 ? `(${stairwells} landings)` : ''}`}
         costSuffix=" total"
         options={[
           {
             value: 'code',
             label:  'Code minimum',
-            sub:    `$${STAIR_EACH}/landing — 4ft LED strip w/ integrated battery backup`,
-            cost:   stairwells * STAIR_EACH,
+            sub:    breezeway
+              ? 'Breezeway stair package — landing disks, wall packs w/ battery, frogeyes, vestibule disks'
+              : `$${STAIR_EACH}/landing — 4ft LED strip w/ integrated battery backup`,
+            cost:   stairwellProduct,
           },
           {
             value: 'elevated',
             label:  'Elevated design',
-            sub:    `$${STAIR_EACH + STAIR_ELEV}/landing — adds aesthetic upgrade (+$${STAIR_ELEV}/landing)`,
-            cost:   stairwells * (STAIR_EACH + STAIR_ELEV),
+            sub:    breezeway
+              ? `Package + $${STAIR_ELEV}/landing aesthetic upgrade`
+              : `$${STAIR_EACH + STAIR_ELEV}/landing — adds aesthetic upgrade (+$${STAIR_ELEV}/landing)`,
+            cost:   stairwellProduct + stairwells * STAIR_ELEV,
           },
         ]}
         value={ans.stairwellDesign}
@@ -262,8 +277,8 @@ export default function DesignCorridorsSection({
           <div className="space-y-1.5 text-sm">
             {[
               { label: `Corridor fixtures (${corridorSf.toLocaleString()} SF × $${fixtureRate.toFixed(3)}/SF)`, value: corridorProduct,    show: corridorSf > 0 },
-              { label: `Stairwells (${stairwells} landings × $${STAIR_EACH})`,                                             value: stairwellProduct,   show: stairwells > 0 },
-              { label: `Stairwell elevated adder (${stairwells} × $50)`,                                         value: elevatedStairAdder, show: elevatedStairAdder > 0 },
+              { label: stairLabel,                                                                                         value: stairwellProduct,   show: stairwells > 0 },
+              { label: `Stairwell elevated adder (${stairwells} × $${STAIR_ELEV})`,                                        value: elevatedStairAdder, show: elevatedStairAdder > 0 },
               { label: `Unit-entry sconces (${numUnits} × $${sconceEach})${sconceEach !== sconceMasterRate ? ' — overridden' : ''}`, value: sconceProduct,      show: sconceProduct > 0 },
               { label: `Recessed accents (${numAccents} × $${ACCENT_EACH})`,                                                value: accentProduct,      show: accentProduct > 0 },
             ].filter(r => r.show).map(row => (

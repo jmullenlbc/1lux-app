@@ -202,7 +202,7 @@ export async function POST(request, { params }) {
   budgetLines.push('── Corridors & Stairwells ────────────────────────────────');
   budgetLines.push(`  Corridor disks:     ${fmt(s.corridors?.disks?.product)}`);
   budgetLines.push(`  Unit-entry sconces: ${fmt(s.corridors?.sconces?.product)}`);
-  budgetLines.push(`  Stairwell fixtures: ${fmt(s.corridors?.stairwells?.product)}`);
+  budgetLines.push(`  Stairwell fixtures: ${fmt(s.corridors?.stairwells?.product)}${s.corridors?.stairwells?.breezeway ? ` (breezeway package — ${s.corridors.stairwells.breezeway.how})` : ''}`);
   budgetLines.push(`  CORRIDORS TOTAL:    ${fmt(s.corridors?.total?.product)}`);
   budgetLines.push('── Other Sections ────────────────────────────────────────');
   budgetLines.push(`  BOH / Core+Shell:   ${fmt(s.boh?.product)}`);
@@ -214,8 +214,8 @@ export async function POST(request, { params }) {
   budgetLines.push(`    Carports:         ${fmt(s.exterior?.carports?.product)}`);
   budgetLines.push(`    Garages:          ${fmt(s.exterior?.garages?.product)}`);
   budgetLines.push(`    Bldg wallpacks:   ${fmt(s.exterior?.wallpacks?.product)}`);
-  budgetLines.push(`    Pathway lighting: ${fmt(s.exterior?.pathway?.product)}${s.exterior?.pathway?.suppressedByManual ? ' (manual entry carries it)' : ''}`);
-  budgetLines.push(`    Landscape/adder:  ${fmt(s.exterior?.landscape?.product)}`);
+  budgetLines.push(`    Pathway lighting: ${fmt(s.exterior?.pathway?.product)}${s.exterior?.pathway?.suppressedByManual ? ' (manual entry carries it)' : ''}${(s.exterior?.pathway?.solarMultiplier || 1) > 1 ? ` (solar × ${s.exterior.pathway.solarMultiplier})` : ''}`);
+  budgetLines.push(`    Landscape/adder:  ${fmt(s.exterior?.landscape?.product)}${s.exterior?.landscape?.netLotSf ? ` (2% of ${Math.round(s.exterior.landscape.netLotSf).toLocaleString()} SF net lot${s.exterior.landscape.capped ? ', capped' : ''})` : ''}`);
   budgetLines.push(`    5% misc buffer:   ${fmt(s.exterior?.misc?.product)}`);
   budgetLines.push(`  Emergency Lighting: ${fmt(s.emergency?.product)}`);
   budgetLines.push(`  Exit Signs:         ${fmt(s.exitSigns?.product)}`);

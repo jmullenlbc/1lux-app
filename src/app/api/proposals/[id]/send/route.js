@@ -40,11 +40,13 @@ export async function POST(req, { params }) {
       data: { status: 'SENT', sentAt: new Date() },
     });
 
-    // Advance the project's Design board to PROPOSAL_SENT (design-fee projects only)
-    if (proposal.project && ['fullDesign', 'designAssist'].includes(proposal.project.serviceType)) {
-      await tx.project.update({
-        where: { id: proposal.project.id },
-        data: { designStage: 'PROPOSAL_SENT' },
+    // "Proposal sent" is a date on the project, not a board column — both
+    // pipelines share one stage list (2026-09-04). First send wins so the
+    // awaiting-signature clock measures from the original send.
+    if (proposal.project) {
+      await tx.project.updateMany({
+        where: { id: proposal.project.id, proposalSentDate: null },
+        data:  { proposalSentDate: new Date() },
       });
     }
   });

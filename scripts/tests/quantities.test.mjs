@@ -78,16 +78,68 @@ test('ceiling fans: the verbatim spreadsheet options count per bedroom tier', ()
   assert.match(fans('Master bed + Secondary bed').how, /secondary/i);
 });
 
-test('stair landings = stairs × (2 × stories − 1)', () => {
+test('stair landings = stairs × (2 × stories − 1), plus the 10% contingency (Mike 2026-09-05)', () => {
   const q = byKey(computeQuantities(cleanDrawings(), {}));
-  assert.equal(q.stairLandings.value, 2 * (2 * 4 - 1));      // 14
+  assert.equal(q.stairLandings.value, Math.round(2 * (2 * 4 - 1) * 1.1));   // 14 → 15
   assert.equal(q.stairLandings.source, 'derived');
   assert.match(q.stairLandings.how, /2 × 4 stories/);
+  assert.match(q.stairLandings.how, /\+ 10%/);
+  assert.match(q.stairLandings.how, /mid-level landing/, 'the middle landing between floors is called out');
 });
 
-test('landings are null (never guessed) when stories or stairs are unstated', () => {
+test('stories unstated: estimated from gross ÷ footprint, and the landings follow — flagged ESTIMATED', () => {
+  const d = cleanDrawings();
+  d.siteData.stories = null;                                  // 260,000 ÷ 60,000 ≈ 4
+  const q = byKey(computeQuantities(d, {}));
+  assert.equal(q.stories.value, 4);
+  assert.equal(q.stories.source, 'derived');
+  assert.match(q.stories.flag, /ESTIMATED/);
+  assert.equal(q.stairLandings.value, Math.round(2 * (2 * 4 - 1) * 1.1));
+  assert.match(q.stairLandings.flag, /ESTIMATED from building-code/);
+});
+
+test('exit stairs unstated: the building-code minimum fills in (≥2 per building, more on a long floor plate)', () => {
+  const d = cleanDrawings();
+  d.siteData.egressStairwells = null;
+  d.siteData.buildingCount = 1;                               // 60,000 SF plate → 4 stairs @ 15K
+  const q = byKey(computeQuantities(d, {}));
+  assert.equal(q.egressStairwells.value, 4);
+  assert.equal(q.egressStairwells.source, 'derived');
+  assert.match(q.egressStairwells.flag, /ESTIMATED from code minimums/);
+  assert.equal(q.stairLandings.value, Math.round(4 * (2 * 4 - 1) * 1.1));   // 28 → 31
+  assert.match(q.stairLandings.how, /building code minimum/);
+
+  // Three walk-up buildings, no footprint at all → 2 per building.
+  const e = cleanDrawings();
+  e.siteData.egressStairwells = null;
+  e.siteData.buildingFootprintSf = null;
+  e.siteData.buildingCount = 3;
+  const qe = byKey(computeQuantities(e, {}));
+  assert.equal(qe.egressStairwells.value, 6);
+  assert.equal(qe.stairLandings.value, Math.round(6 * 7 * 1.1));            // 42 → 46
+});
+
+test('the questionnaire building type steers the plate factor: garden walk-ups get breezeway stairs, townhouses get none', () => {
+  // Garden: the 60,000 SF plate holds one open breezeway stair per 5,000 SF.
+  const d = cleanDrawings();
+  d.siteData.egressStairwells = null;
+  d.siteData.buildingCount = 1;
+  const q = byKey(computeQuantities(d, { projectType: 'Garden (3 Levels)' }));
+  assert.equal(q.egressStairwells.value, 12);                 // 60,000 ÷ 5,000
+  assert.match(q.stairLandings.how, /breezeway/);
+  // Townhouses: private in-unit stairs — zero shared landings, not null.
+  const t = cleanDrawings();
+  t.siteData.egressStairwells = null;
+  const qt = byKey(computeQuantities(t, { projectType: 'Town Houses (2-3 Levels)' }));
+  assert.equal(qt.stairLandings.value, 0);
+  assert.match(qt.stairLandings.how, /private, inside each unit/);
+});
+
+test('landings stay null (never guessed from nothing) when neither stories nor gross+footprint exist', () => {
   const d = cleanDrawings();
   d.siteData.stories = null;
+  d.siteData.buildingFootprintSf = null;
+  d.siteData.lotCoveragePct = null;
   const q = byKey(computeQuantities(d, {}));
   assert.equal(q.stairLandings.value, null);
   assert.match(q.stairLandings.how, /stairs × \(2 × stories − 1\)/);
@@ -174,7 +226,8 @@ test('site-only path: units and bedrooms come from the site plan bed mix', () =>
 
 test('quantityFlags collects per-row flags and rolls up the not-found list', () => {
   const d = cleanDrawings();
-  d.siteData.stories = null;                                  // landings unfindable
+  d.siteData.stories = null;                                  // landings unfindable…
+  d.siteData.buildingFootprintSf = null;                      // …and unestimable
   d.projectTotals.statedTotalUnits = 300;                     // unit mismatch
   const flags = quantityFlags(computeQuantities(d, {}));
   assert.ok(flags.some(f => f.includes('# Units')));
@@ -237,7 +290,7 @@ test('counted figures fill in only when nothing is stated, and arrive flagged', 
   assert.equal(q.exitDoors.value, 6);
   assert.match(q.exitDoors.flag, /Counted off the plan/);
   // Landings still compute off the counted values — but flagged as built on a count.
-  assert.equal(q.stairLandings.value, 2 * (2 * 4 - 1));
+  assert.equal(q.stairLandings.value, Math.round(2 * (2 * 4 - 1) * 1.1));
   assert.match(q.stairLandings.flag, /COUNTED/);
 });
 
@@ -249,7 +302,7 @@ test('a stated figure always beats its counted twin, with no counted flag', () =
   assert.equal(q.stories.value, 4);
   assert.equal(q.stories.flag, null);
   assert.equal(q.egressStairwells.value, 2);
-  assert.equal(q.stairLandings.value, 2 * (2 * 4 - 1));
+  assert.equal(q.stairLandings.value, Math.round(2 * (2 * 4 - 1) * 1.1));
   assert.match(q.stairLandings.flag, /Assumes switchback/);
   assert.ok(!/COUNTED/.test(q.stairLandings.flag));
 });
@@ -395,7 +448,7 @@ test('typed stories + stairwells fill in and drive the landings derivation', () 
   assert.equal(q.stories.source, 'questionnaire');
   assert.equal(q.egressStairwells.value, 3);
   assert.equal(q.egressStairwells.source, 'questionnaire');
-  assert.equal(q.stairLandings.value, 3 * (2 * 5 - 1));      // 27
+  assert.equal(q.stairLandings.value, Math.round(3 * (2 * 5 - 1) * 1.1));   // 27 → 30
   assert.equal(q.stairLandings.source, 'derived');
   assert.match(q.stairLandings.flag, /figure the visitor typed/);
 });
@@ -405,12 +458,12 @@ test('drawing-stated stories/stairs always beat typed figures', () => {
   assert.equal(q.stories.value, 4);
   assert.equal(q.stories.source, 'drawing');
   assert.equal(q.egressStairwells.value, 2);
-  assert.equal(q.stairLandings.value, 14);
+  assert.equal(q.stairLandings.value, 15);                    // 14 + 10%
 });
 
 test('a typed landings count overrides the 2N−1 derivation (Mike 2026-09-04: the wizard asks for landings directly)', () => {
   const q = byKey(computeQuantities(cleanDrawings(), { figureStairLandings: '18' }));
-  assert.equal(q.stairLandings.value, 18);                   // not 2 × (2×4−1) = 14
+  assert.equal(q.stairLandings.value, 18);                   // not 2 × (2×4−1) = 14, and NO 10% added to a typed count
   assert.equal(q.stairLandings.source, 'questionnaire');
 });
 
@@ -419,7 +472,7 @@ test('the legacy figureStairwells key still replays: shafts typed, landings deri
   d.siteData.stories = null;
   d.siteData.egressStairwells = null;
   const q = byKey(computeQuantities(d, { figureStories: '5', figureStairwells: '3' }));
-  assert.equal(q.stairLandings.value, 27);
+  assert.equal(q.stairLandings.value, 30);                   // 27 + 10%
   assert.equal(q.stairLandings.source, 'derived');
 });
 

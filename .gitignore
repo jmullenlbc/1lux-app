@@ -30,6 +30,8 @@ C\:*
 *tempdevserver*
 *temp-devserver*
 devserver.log
+# start-dev.ps1 writes the dot-prefixed name, which the line above never matched.
+.devserver.log
 dev-server.log
 
 # MCP audit log — the local JSONL fallback sink (src/lib/mcp/audit.js).

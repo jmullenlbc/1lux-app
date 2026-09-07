@@ -19,6 +19,15 @@ Each widget would save its config as a named report in the DB. Widgets become co
 
 ---
 
+## 💰 Budget Summary
+
+### Sales Tax Rate Lookup _(deferred 2026-09-05)_
+The summary page has a manual "sales tax %" box (saved to the project as `salesTaxPct`, applied to lighting and controls product, never freight). A look-up-by-ZIP helper was built on 2026-09-05 — a small server route proxied a free ZIP-to-rate estimate (SalesTaxZip) and pre-filled the box, with the typed number always winning — and pulled the same day at Mike's request ("Forget the sales tax lookup for now. Put in the roadmap."). If it comes back it should use a paid, maintained rate source (TaxJar / Avalara-style) rather than a free estimate, and pre-fill from the project address ZIP automatically.
+
+**Scope:** Small. One API route + a ZIP field on the widget; the manual box stays the source of truth.
+
+---
+
 ## 🏗️ CRM / Deals
 
 ### Convert Deal → Project _(planned)_

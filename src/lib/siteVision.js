@@ -238,7 +238,7 @@ Return ONLY valid JSON — no markdown, no commentary:
   "exitDoorsCounted": number or null,
   "buildingFootprintSf": number or null,
   "lotCoveragePct": number or null,
-  "buildingType": "string or null",
+  "buildingType": one of "singleFamily" | "townHouses" | "stackedFlats" | "garden" | "gurban" | "wrap" | "podium" | "midRise" | "highRise", or null,
   "confidence": number (0.0-1.0),
   "foundSiteDataBlock": boolean,
   "notes": "string - what you read it from, and anything ambiguous. AT MOST TWO SENTENCES."
@@ -263,6 +263,18 @@ COUNTED FIGURES — the one deliberate exception to the no-counting rule. These 
 - egressStairwellsCounted: ONLY from a floor plan or life-safety plan. Count the distinct enclosed stair shafts — stair-run symbols inside shaft walls, often tagged "STAIR 1", "ST-2". Count stairwells (shafts), NOT flights or runs; a switchback stair is one stairwell. If the image is not a plan view, null.
 - exitDoorsCounted: ONLY from a ground-floor or life-safety plan. Count doors marked as exits — EXIT tags, exit-sign symbols, egress arrows discharging to the exterior. Unmarked exterior doors do not count. If the image is not a plan view showing grade level, null.
 - When a counted figure and a stated figure are both available, report BOTH — never overwrite a stated number with your count.
+
+BUILDING TYPE — the one classification you may make, and only from evidence that is on the sheet. The lighting budget prices stairs, wall packs and controls differently by type, so a wrong type is worse than a null. Look for the words first: a title block, code summary or site data block often says it outright ("GARDEN STYLE", "3-STORY WALK-UP", "PODIUM", "WRAP", "TOWNHOMES", "MID-RISE"). Then apply these rules, in order, and return the key:
+- "townHouses": units labelled TOWNHOME / TOWNHOUSE / ROWHOUSE, each with its own front door and garage, 2–3 stories, no shared corridor or shared stair.
+- "stackedFlats": 3-story stacked flats or "2-over-2" / "big house" units with a shared open stair but no corridor, when the sheet uses those words.
+- "garden": several separate 3-story residential buildings with open BREEZEWAY or exterior WALK-UP stairs (stairs open to the air between the units), surface parking with detached garages or carports, and no elevator. This is the most common walk-up type — but a garden building of 4 or 5 stories is a "gurban", not a "garden".
+- "gurban": a 4- or 5-story walk-up / breezeway building (open stairs, no interior corridor, usually no elevator).
+- "wrap": a 3–5 story residential building that WRAPS around a structured parking garage on the same footprint (the garage is inside the ring of units, often labelled "WRAP" or "TEXAS DONUT").
+- "podium": residential floors built on top of a concrete parking or retail level ("PODIUM", "LEVEL P1", "PARKING BELOW", "TYPE IA OVER TYPE IIIA / V-A").
+- "midRise": 6 to 12 stories with interior corridors and elevators, not on a podium (or a podium building over 8 stories).
+- "highRise": 12 or more stories.
+- "singleFamily": detached single-family houses, 1–2 stories.
+- If the sheet gives no evidence for any of these — no words and no story count with a stair type — return null. Do not pick a type because it is common. Say in notes what the type was read from.
 - confidence: how legible and unambiguous the source text was. Hand-lettered but clear = 0.8. Blurry or inferred layout = 0.3.
 - foundSiteDataBlock: true only if you found an explicit data/summary block, as opposed to scattered callouts.
 - notes: two sentences at the outside. Name the block you read and flag anything you were unsure of. Do not restate the numbers you already reported, and do not walk through your arithmetic — a long note is time spent writing rather than reading, and this answer has thirty seconds to come back.`;
@@ -308,8 +320,16 @@ COUNTED FIGURES — the one deliberate exception to the no-counting rule. These 
  * human. Also adds lotCoveragePct (stated only) so the footprint can be
  * derived in code from coverage x lot area instead of asking the model to
  * do arithmetic.
+ *
+ * 2026-09-05 turns buildingType from a free-text string into a classification
+ * with decision rules and a fixed set of nine engine keys, on Mike's
+ * instruction ("can't you analyze the site and look for something in the
+ * drawings that says what it is?"). The type now drives the breezeway stair
+ * package, the wall-pack count and the controls cap, so a guessed type is a
+ * mispriced budget — the rules say null when there is no evidence on the
+ * sheet, and the Site Data panel shows the pick as a dropdown a human confirms.
  */
-export const SITE_VISION_PROMPT_VERSION = `siteVision-2026-08-31b-${MAX_EDGE}px`;
+export const SITE_VISION_PROMPT_VERSION = `siteVision-2026-09-05-${MAX_EDGE}px`;
 
 /**
  * Run vision extraction over rendered pages.

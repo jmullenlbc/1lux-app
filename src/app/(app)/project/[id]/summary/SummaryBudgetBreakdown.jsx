@@ -18,9 +18,10 @@ function Row({ label, value }) {
 }
 
 export default function SummaryBudgetBreakdown({ budget, freightPct, warehousingPct }) {
-  const { sections, freight, warehousing, lightingProductSubtotal, subtotalLightingOnly, controls, controlsFreight, controlsWarehousing, totalWithControls, contingencyRate, contingencyAmount, totalWithContingency, energyCreditPct, energyCreditLighting, energyCreditControls } = budget;
+  const { sections, freight, warehousing, lightingProductSubtotal, subtotalLightingOnly, controls, controlsFreight, controlsWarehousing, totalWithControls, contingencyRate, contingencyAmount, totalWithContingency, energyCreditPct, energyCreditLighting, energyCreditControls, salesTaxPct, lightingTaxAmount, controlsTaxAmount } = budget;
   const ecPctLabel = Math.round((energyCreditPct || 0) * 100);
   const contingencyPct = contingencyRate ? Math.round(contingencyRate * 100) : 0;
+  const taxLabel = `Sales Tax (${Math.round((salesTaxPct || 0) * 10000) / 100}%)`;
 
   const lineItems = [
     {
@@ -44,7 +45,10 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
       details: [
         { label: 'Corridor disks',     value: sections?.corridors?.disks?.product      || 0 },
         { label: 'Unit entry sconces', value: sections?.corridors?.sconces?.product    || 0 },
-        { label: 'Stairwell fixtures', value: sections?.corridors?.stairwells?.product || 0 },
+        { label: sections?.corridors?.stairwells?.breezeway
+                   ? `Breezeway stairs (${sections.corridors.stairwells.breezeway.stairs} stairs — landing disks, wall packs, egress)`
+                   : 'Stairwell fixtures',
+          value: sections?.corridors?.stairwells?.product || 0 },
         { label: 'Accent downlights',  value: sections?.corridors?.accents?.product    || 0 },
         ...(sections?.corridors?.manualAdder > 0
           ? [{ label: 'Manual adder', value: sections?.corridors?.manualAdder }]
@@ -92,7 +96,9 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
         { label: 'Building wallpacks', value: sections?.exterior?.wallpacks?.product || 0 },
         { label: sections?.exterior?.pathway?.suppressedByManual
             ? 'Pathway (manual entry)'
-            : 'Pathway lighting',
+            : (sections?.exterior?.pathway?.solarMultiplier || 1) > 1
+              ? `Pathway lighting (solar × ${sections.exterior.pathway.solarMultiplier})`
+              : 'Pathway lighting',
           value: sections?.exterior?.pathway?.product || 0 },
         { label: 'Landscape / adder',  value: sections?.exterior?.landscape?.product || 0 },
         { label: '5% misc buffer',     value: sections?.exterior?.misc?.product      || 0 },
@@ -176,6 +182,17 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
         <Row label={`Freight (${freightPct}%)`}         value={freight     || 0} />
         <Row label={`Warehousing (${warehousingPct}%)`} value={warehousing || 0} />
       </div>
+      {/* Sales tax on lighting product — only when a rate is on file */}
+      {lightingTaxAmount > 0 && (
+        <>
+          <div className="print:hidden">
+            <TooltipBudgetRow label={taxLabel} value={lightingTaxAmount} details={[{ label: 'On lighting product subtotal', value: lightingTaxAmount }]} />
+          </div>
+          <div className="hidden print:block">
+            <Row label={taxLabel} value={lightingTaxAmount} />
+          </div>
+        </>
+      )}
 
       {/* Lighting total */}
       <div className="border-t-2 border-slate-900 pt-2 mt-1 mb-3">
@@ -214,6 +231,16 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
         <Row label={`Freight (${freightPct}%)`}         value={controlsFreight     || 0} />
         <Row label={`Warehousing (${warehousingPct}%)`} value={controlsWarehousing || 0} />
       </div>
+      {controlsTaxAmount > 0 && (
+        <>
+          <div className="print:hidden">
+            <TooltipBudgetRow label={taxLabel} value={controlsTaxAmount} details={[{ label: 'On controls subtotal', value: controlsTaxAmount }]} />
+          </div>
+          <div className="hidden print:block">
+            <Row label={taxLabel} value={controlsTaxAmount} />
+          </div>
+        </>
+      )}
 
       {/* Grand total */}
       <div className="border-t-2 border-slate-900 pt-3 mt-2">

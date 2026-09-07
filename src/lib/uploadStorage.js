@@ -47,6 +47,11 @@ export const MAX_DIRECT_UPLOAD_BYTES = MAX_INTAKE_UPLOAD_BYTES;
 // PDF text we parse and, on some tabs, tokens we pay for.
 export const MAX_PROJECT_UPLOAD_BYTES = 25 * 1024 * 1024; // 25 MB
 
+// What the Bot Knowledge drop zone enforces. Mike, 2026-09-07: "we should make
+// it up to 25mbs like email." Same number as the project windows, and for the
+// same reason — every megabyte here becomes text we store and search.
+export const MAX_KNOWLEDGE_UPLOAD_BYTES = 25 * 1024 * 1024; // 25 MB
+
 // The slip has to outlive the upload itself. A 400 MB set over a job-site
 // connection at 2 Mbps takes ~27 minutes, and a slip that expires mid-transfer
 // fails the upload at 90% with nothing the visitor can do about it. An hour is
@@ -63,15 +68,44 @@ const PRESIGNABLE = {
   xls:  'application/vnd.ms-excel',
 };
 
+// The bot's library takes everything the reader can open, not just drawings and
+// schedules — Word documents, images and plain text as well. Kept separate from
+// the list above so widening it here cannot widen what the public intake page
+// accepts.
+const KNOWLEDGE_PRESIGNABLE = {
+  ...PRESIGNABLE,
+  doc:  'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  rtf:  'application/rtf',
+  xlsm: 'application/vnd.ms-excel.sheet.macroEnabled.12',
+  csv:  'text/csv',
+  png:  'image/png',
+  jpg:  'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif:  'image/gif',
+  webp: 'image/webp',
+  bmp:  'image/bmp',
+  txt:  'text/plain',
+  md:   'text/markdown',
+};
+
 // The only scopes a slip may be issued for. The key is always a random cuid
 // under uploads/, so a scope cannot be used to reach an existing object — it
-// only selects which ceiling applies and makes the temp keys readable.
-const SCOPES = ['intake', 'project'];
+// only selects which ceiling and which type list apply, and makes the temp keys
+// readable.
+const SCOPES = ['intake', 'project', 'knowledge'];
 
 const mb = (bytes) => Math.round(bytes / (1024 * 1024));
 
 export function limitForScope(scope) {
-  return scope === 'project' ? MAX_PROJECT_UPLOAD_BYTES : MAX_INTAKE_UPLOAD_BYTES;
+  if (scope === 'project')   return MAX_PROJECT_UPLOAD_BYTES;
+  if (scope === 'knowledge') return MAX_KNOWLEDGE_UPLOAD_BYTES;
+  return MAX_INTAKE_UPLOAD_BYTES;
+}
+
+/** Which extensions a scope may presign, and the Content-Type each is locked to. */
+export function typesForScope(scope) {
+  return scope === 'knowledge' ? KNOWLEDGE_PRESIGNABLE : PRESIGNABLE;
 }
 
 export function presignAvailable() {
@@ -88,8 +122,15 @@ export function validatePresignRequest({ fileName, size, scope = 'intake' } = {}
   }
   const name = String(fileName ?? '').trim();
   const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
-  if (!PRESIGNABLE[ext]) {
-    return { ok: false, code: 'unsupported_type', message: 'Unsupported file type. Please upload a PDF or Excel file.' };
+  const types = typesForScope(scope);
+  if (!types[ext]) {
+    return {
+      ok: false,
+      code: 'unsupported_type',
+      message: scope === 'knowledge'
+        ? 'Unsupported file type. Word, Excel, PDF, images and text files work.'
+        : 'Unsupported file type. Please upload a PDF or Excel file.',
+    };
   }
   const bytes = Number(size);
   if (!Number.isFinite(bytes) || bytes <= 0) {
@@ -99,7 +140,7 @@ export function validatePresignRequest({ fileName, size, scope = 'intake' } = {}
   if (bytes > ceiling) {
     return { ok: false, code: 'too_large', message: `That file is larger than ${mb(ceiling)} MB. Please upload a smaller file.` };
   }
-  return { ok: true, ext, contentType: PRESIGNABLE[ext], scope, limit: ceiling };
+  return { ok: true, ext, contentType: types[ext], scope, limit: ceiling };
 }
 
 /**

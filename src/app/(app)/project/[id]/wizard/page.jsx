@@ -5,7 +5,7 @@ import { getSession, isClientViewer } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { responsesToSections } from '@/lib/utils';
 import { calculateBudget } from '@/lib/calculations';
-import { loadPricing } from '@/lib/pricingLoader';
+import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
 import WizardClient from '../WizardClient';
 import DesignWizardClient from '../DesignWizardClient';
 import PeerReviewClient from '../PeerReviewClient';
@@ -28,9 +28,7 @@ export default async function ProjectWizardPage({ params }) {
   if (!project) notFound();
   if (isClientViewer(session.role) && project.createdById !== session.id) notFound();
 
-  const pricing = project.pricingSnapshot
-    ? JSON.parse(project.pricingSnapshot)
-    : await loadPricing();
+  const pricing = pricingForProject(project.pricingSnapshot, await loadPricing());
 
   const sections       = responsesToSections(project.responses);
   const projectData    = { ...(project.projectData || {}), buildingTypeKey: project.buildingType };

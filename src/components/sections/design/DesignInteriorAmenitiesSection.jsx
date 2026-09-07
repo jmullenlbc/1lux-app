@@ -23,7 +23,7 @@ export default function DesignInteriorAmenitiesSection({
   const rateMap = {
     low:    P.interiorAmenities?.low    ?? 6,
     medium: P.interiorAmenities?.medium ?? 10,
-    high:   P.interiorAmenities?.high   ?? 15,
+    high:   P.interiorAmenities?.high   ?? 16,
   };
   const liveTotal = intAmenitySf * (rateMap[ans.interiorLevel] ?? rateMap.medium);
 

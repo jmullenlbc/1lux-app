@@ -3,6 +3,7 @@ import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { calculateBudget } from '@/lib/calculations';
 import { responsesToSections } from '@/lib/utils';
+import { captureQuietly } from '@/lib/calibration/capture';
 
 export async function GET(request, { params }) {
   const { user, error } = await requireAuth();
@@ -20,6 +21,7 @@ export async function GET(request, { params }) {
 
   const sections = responsesToSections(project.responses);
   const budget   = calculateBudget(project.projectData, sections);
+  captureQuietly(project.id);
 
   return NextResponse.json({ budget });
 }

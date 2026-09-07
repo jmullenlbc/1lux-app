@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+// Which activity types count as in person lives in one place now, so this route,
+// the note PATCH route and the calendar sync can never drift apart.
+import { isInPersonType } from '@/lib/calendar/inPerson';
 
 async function nextNoteNumber() {
   const max = await prisma.note.aggregate({ where: { noteType: 'SALES' }, _max: { noteNumber: true } });
   return (max._max.noteNumber ?? 0) + 1;
 }
-
-const IN_PERSON_ACTIVITY_TYPES = new Set(['COFFEE', 'LUNCH', 'HAPPY_HOUR', 'GOLF', 'SITE_VISIT']);
 
 const NOTE_INCLUDE = {
   createdBy: { select: { id: true, name: true } },
@@ -83,7 +84,7 @@ export async function POST(request) {
     );
   }
 
-  const isInPerson = activityType ? IN_PERSON_ACTIVITY_TYPES.has(activityType) : false;
+  const isInPerson = isInPersonType(activityType);
   const noteNumber = await nextNoteNumber();
 
   const note = await prisma.note.create({

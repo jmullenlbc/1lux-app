@@ -336,7 +336,9 @@ function NoteActions({ noteId, noteBody, published }) {
 
 const ACTIVITY_META = {
   COFFEE:     { emoji: '☕', label: 'Coffee',      color: 'bg-amber-50 text-amber-700 border-amber-200',    inPerson: true },
-  LUNCH:      { emoji: '🍽', label: 'Lunch',       color: 'bg-orange-50 text-orange-700 border-orange-200',  inPerson: true },
+  MEAL:       { emoji: '🍽', label: 'Meal',        color: 'bg-orange-50 text-orange-700 border-orange-200',  inPerson: true },
+  LUNCH:      { emoji: '🍽', label: 'Meal',        color: 'bg-orange-50 text-orange-700 border-orange-200',  inPerson: true, legacy: true },  // notes written before the rename
+  TRAVEL:     { emoji: '✈️', label: 'Travel',      color: 'bg-sky-50 text-sky-700 border-sky-200',           inPerson: false },
   HAPPY_HOUR: { emoji: '🍺', label: 'Happy Hour',  color: 'bg-yellow-50 text-yellow-700 border-yellow-200',  inPerson: true },
   GOLF:       { emoji: '⛳', label: 'Golf',         color: 'bg-green-50 text-green-700 border-green-200',     inPerson: true },
   SITE_VISIT: { emoji: '🏗', label: 'Site Visit',  color: 'bg-blue-50 text-blue-700 border-blue-200',        inPerson: true },
@@ -781,7 +783,7 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
         <div>
           <label className="block text-xs font-medium text-slate-500 mb-2">Activity Type</label>
           <div className="flex flex-wrap gap-1.5">
-            {Object.entries(ACTIVITY_META).map(([key, meta]) => (
+            {Object.entries(ACTIVITY_META).filter(([, meta]) => !meta.legacy).map(([key, meta]) => (
               <button
                 key={key}
                 type="button"

@@ -24,15 +24,16 @@ export async function POST(req, { params }) {
       data: { status: 'ACCEPTED', acceptedAt: new Date() },
     });
 
-    // Graduate project to ACTIVE (full hub nav unlocks) + advance pipeline stages:
-    // Procurement → Pre-Construction; design-fee projects also mark Design complete.
+    // Graduate project to ACTIVE (full hub nav unlocks) + advance pipeline stages.
+    // Both boards share one stage list (2026-09-04): an accepted proposal moves
+    // Procurement → Pre-Construction, and design-fee projects move Design there too.
     const isDesign = ['fullDesign', 'designAssist'].includes(proposal.project?.serviceType);
     await tx.project.update({
       where: { id: proposal.projectId },
       data: {
         lifecycleStatus:  'ACTIVE',
         procurementStage: 'PRECONSTRUCTION',
-        ...(isDesign ? { designStage: 'DESIGN_COMPLETED' } : {}),
+        ...(isDesign ? { designStage: 'PRECONSTRUCTION' } : {}),
       },
     });
   });

@@ -9,16 +9,9 @@
  */
 import { prisma } from '@/lib/db';
 import { runTrigger } from '@/lib/bot/ruleEngine';
-
-const ACTIVITY_KEYWORDS = [
-  [/\bcoffee\b/i, 'COFFEE'], [/\blunch\b|\bdinner\b/i, 'LUNCH'], [/\bgolf\b/i, 'GOLF'],
-  [/\bhappy hour\b|\bdrinks\b/i, 'HAPPY_HOUR'], [/\bsite visit\b|\bwalk ?through\b/i, 'SITE_VISIT'],
-  [/\bcall\b|\bzoom\b|\bteams\b|\bphone\b/i, 'CALL'],
-];
-function guessActivityType(title = '') {
-  for (const [re, t] of ACTIVITY_KEYWORDS) if (re.test(title)) return t;
-  return 'OTHER';
-}
+import { normalizeEvent } from '@/lib/calendar/normalize';
+import { classifyEvent } from '@/lib/bot/activityClassifier';
+import { recordCalendarEvent } from '@/lib/calendar/recorder';
 
 // Resolve the ILC owner of an inbound item (the mailbox/organizer), by email.
 async function resolveOwner({ ownerUserId, ownerEmail }) {
@@ -61,22 +54,82 @@ export async function ingestEmail(raw, opts = {}) {
 }
 
 // ── Calendar ──────────────────────────────────────────────────────────────────
-export function normalizeCalendarEvent(raw = {}) {
-  const attendees = Array.isArray(raw.attendees) ? raw.attendees : [];
-  const title = raw.title || raw.subject || '';
+
+/**
+ * A raw event → the fields the automation rules read.
+ *
+ * The heavy lifting moved out of here: src/lib/calendar/normalize.js speaks
+ * Microsoft, and src/lib/calendar/inPerson.js decides in person vs not from the
+ * title and the location. This function now just names what a rule can test.
+ *
+ * `classification` is optional — pass it when you have already classified the
+ * event so it is not worked out twice.
+ */
+export function normalizeCalendarEvent(raw = {}, classification = null) {
+  const event = raw?.attendeeCount !== undefined && raw?.startAt !== undefined
+    ? raw                       // already neutral
+    : normalizeEvent(raw);
+
   return {
-    title,
-    activityType: raw.activityType || guessActivityType(title),
-    attendeeCount: attendees.length,
-    isInPerson: raw.isInPerson ?? !/zoom|teams|virtual|http/i.test(raw.location || ''),
+    title:          event.title,
+    location:       event.location || '',
+    activityType:   raw.activityType || classification?.activityType || null,
+    attendeeCount:  event.attendeeCount,
+    organizerEmail: event.organizerEmail || '',
+    isInPerson:     raw.isInPerson ?? Boolean(classification?.isInPerson),
   };
 }
 
+/**
+ * The door the Microsoft 365 calendar sync knocks on.
+ *
+ * What happens to one event, in order:
+ *   1. It is turned into the neutral shape (Graph or anything else).
+ *   2. It is classified — your rules first, then the title and location
+ *      keywords, then the AI. This is Mike's "know it's in person through a
+ *      title or location", 2026-09-07.
+ *   3. It becomes a DRAFT sales note, unless it classified as not worth one.
+ *      Publishing the note is still a person's decision, and publishing is what
+ *      sets off the AI action items, the bot drafts and the Last In Person date.
+ *   4. The CALENDAR_EVENT_CREATED trigger fires, so any rule Mike built on the
+ *      automation screen still runs exactly as before.
+ *
+ * `dryRun` classifies and fires the trigger in preview mode but writes no note,
+ * which is what the Test panel wants.
+ */
 export async function ingestCalendarEvent(raw, opts = {}) {
-  const payload = normalizeCalendarEvent(raw);
-  const organizerEmail = (raw.organizerEmail || raw.organizer || '').toLowerCase().trim();
-  const ownerUserId = await resolveOwner({ ownerUserId: opts.ownerUserId, ownerEmail: organizerEmail || opts.ownerEmail });
-  return runTrigger('CALENDAR_EVENT_CREATED', payload, {
-    ownerUserId, eventRef: raw.eventId || raw.id || null, dryRun: opts.dryRun,
+  const event = normalizeEvent(raw, {
+    format:         opts.format || 'auto',
+    mailboxAddress: opts.mailboxAddress || opts.ownerEmail || '',
   });
+
+  const [ownerUserId, classification] = await Promise.all([
+    resolveOwner({
+      ownerUserId: opts.ownerUserId,
+      ownerEmail:  event.organizerEmail || opts.ownerEmail,
+    }),
+    classifyEvent(event),
+  ]);
+
+  let note = { noteId: null, status: 'skipped', reason: 'dry run — no note written' };
+  if (!opts.dryRun && opts.createNote !== false) {
+    try {
+      note = await recordCalendarEvent(prisma, event, {
+        ownerUserId,
+        classification,
+        projectId: opts.projectId ?? null,
+      });
+    } catch (err) {
+      // A note that fails to save must not cost us the trigger run.
+      console.error('[intake] could not write the calendar note:', err?.message ?? err);
+      note = { noteId: null, status: 'skipped', reason: `note not saved: ${err?.message ?? 'unknown error'}` };
+    }
+  }
+
+  const payload = normalizeCalendarEvent(event, classification);
+  const result = await runTrigger('CALENDAR_EVENT_CREATED', payload, {
+    ownerUserId, eventRef: event.externalId, dryRun: opts.dryRun,
+  });
+
+  return { ...result, classification, note };
 }

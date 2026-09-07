@@ -5,11 +5,14 @@ import Button from '@/components/ui/Button';
 import Card, { CardHeader, CardBody } from '@/components/ui/Card';
 import { Select } from '@/components/ui/Input';
 import Input from '@/components/ui/Input';
-import { CLIENT_TYPES, LOCATION_TYPES } from '@/lib/utils';
+import MultiSelect from '@/components/ui/MultiSelect';
+import { ORG_TYPE_OPTIONS, LOCATION_TYPES } from '@/lib/utils';
 
 export default function NewClientPage() {
   const router = useRouter();
-  const [form, setForm] = useState({ name: '', type: 'developer', locationType: 'standalone', notes: '' });
+  const [form, setForm] = useState({
+    name: '', orgTypes: [], locationType: 'standalone', city: '', state: '', notes: '',
+  });
   const [error,   setError]   = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -24,7 +27,14 @@ export default function NewClientPage() {
       const res = await fetch('/api/clients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: form.name.trim(), type: form.type, locationType: form.locationType, notes: form.notes || null }),
+        body: JSON.stringify({
+          name:         form.name.trim(),
+          orgTypes:     form.orgTypes,
+          locationType: form.locationType,
+          city:         form.city.trim()  || null,
+          state:        form.state.trim().toUpperCase() || null,
+          notes:        form.notes || null,
+        }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Failed to create client'); return; }
@@ -62,9 +72,20 @@ export default function NewClientPage() {
               autoFocus
             />
 
-            <Select label="Organization Type" value={form.type} onChange={set('type')}>
-              {CLIENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </Select>
+            <MultiSelect
+              label="Client Type"
+              options={ORG_TYPE_OPTIONS}
+              selected={form.orgTypes}
+              onChange={orgTypes => setForm(f => ({ ...f, orgTypes }))}
+              hint="Pick every one that applies — a builder can be both a developer and a self-performing GC."
+            />
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-2">
+                <Input label="City" placeholder="e.g., Denver" value={form.city} onChange={set('city')} />
+              </div>
+              <Input label="State" placeholder="CO" maxLength={2} value={form.state} onChange={set('state')} />
+            </div>
 
             <Select label="Location Type" value={form.locationType} onChange={set('locationType')}>
               {LOCATION_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}

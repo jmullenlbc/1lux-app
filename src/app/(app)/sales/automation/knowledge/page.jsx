@@ -2,8 +2,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import AutomationNav from '@/components/salesAutomation/AutomationNav';
 import DisabledSection from '@/components/salesAutomation/DisabledSection';
+import { ACCEPT_ATTRIBUTE, fileTypeLabel, detectFileType } from '@/lib/botKnowledge/text';
+import { appendUploads } from '@/lib/uploadClient';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
+
+// Matches MAX_KNOWLEDGE_UPLOAD_BYTES in uploadStorage.js, which is server-only
+// (it reaches for the AWS SDK) and so cannot be imported into a screen. Checked
+// here purely so an oversized file is refused before it is sent anywhere — the
+// server checks it again for real.
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
 const CATEGORY_OPTIONS = [
   { value: '',            label: 'All' },
@@ -307,7 +315,11 @@ function EntryDrawer({ open, onClose, entry, onSaved }) {
         const d = await res.json().catch(() => ({}));
         throw new Error(d.error || `Error ${res.status}`);
       }
-      const saved = await res.json();
+      // Both the create and the update route answer with { entry: … }. Treating
+      // the envelope as the entry left the new row with no id, so it rendered
+      // blank until the page was reloaded.
+      const body  = await res.json();
+      const saved = body.entry || body;
       onSaved(saved, !!entry);
       onClose();
     } catch (e) {
@@ -413,6 +425,289 @@ function EntryDrawer({ open, onClose, entry, onSaved }) {
   );
 }
 
+// ── Documents ─────────────────────────────────────────────────────────────────
+
+function prettySize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024)        return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+const TYPE_TINT = {
+  pdf:   'bg-red-50 text-red-700 border-red-200',
+  word:  'bg-blue-50 text-blue-700 border-blue-200',
+  excel: 'bg-green-50 text-green-700 border-green-200',
+  image: 'bg-purple-50 text-purple-700 border-purple-200',
+  text:  'bg-slate-50 text-slate-600 border-slate-200',
+};
+
+/**
+ * The documents half of the page — a drop zone plus the list of what has been
+ * dropped.
+ *
+ * A file that could not be read still shows up here with the reason in plain
+ * English, because a file that vanishes silently is worse than one that says it
+ * failed. The reading happens while the upload request is open, so a scanned PDF
+ * can take a while; that is what the spinner is for.
+ */
+function DocumentsPanel({ category }) {
+  const [docs,      setDocs]      = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [dragging,  setDragging]  = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [progress,  setProgress]  = useState(null);
+  const [problems,  setProblems]  = useState([]);
+  const [err,       setErr]       = useState('');
+  const inputRef = useRef(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (category) params.set('category', category);
+      // Archived documents are fetched too, so Restore is reachable — archiving
+      // one otherwise removes the only button that could bring it back.
+      const archived = new URLSearchParams(params);
+      archived.set('active', 'false');
+
+      const [a, b] = await Promise.all([
+        fetch(`/api/automation/knowledge/docs?${params.toString()}`),
+        fetch(`/api/automation/knowledge/docs?${archived.toString()}`),
+      ]);
+      const live = a.ok ? (await a.json()).docs || [] : [];
+      const gone = b.ok ? (await b.json()).docs || [] : [];
+      setDocs([...live, ...gone]);
+    } catch {}
+    setLoading(false);
+  }, [category]);
+
+  useEffect(() => { load(); }, [load]);
+
+  // Files go up ONE AT A TIME, each in its own request.
+  //
+  // Two reasons, and both are about the same 30-second limit. A big file goes
+  // straight to storage in 5 MB pieces (the drawing-set plumbing), so the
+  // request itself is tiny — but the READING still happens while the request is
+  // open, and five 25 MB files read back to back in one request would sail past
+  // the limit and come back as nothing at all. One file per request bounds that.
+  // It also means a file that fails fails alone: the other four are already in.
+  async function upload(fileList) {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+
+    setUploading(true);
+    setErr('');
+    setProblems([]);
+
+    const trouble = [];
+    let addedAny  = false;
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        setProgress({ name: file.name, index: i + 1, total: files.length, pct: 0 });
+
+        // Refuse an unreadable type here rather than sending it anywhere. The
+        // file picker already filters by type, but a drag-and-drop does not.
+        if (!detectFileType(file.name, file.type)) {
+          trouble.push({ fileName: file.name, reason: 'Not a file type the bot can read. Word, Excel, PDF, images and text files work.' });
+          continue;
+        }
+        if (file.size > MAX_UPLOAD_BYTES) {
+          trouble.push({
+            fileName: file.name,
+            reason: `Too big (${(file.size / 1024 / 1024).toFixed(1)} MB). The limit is 25 MB — split it, or save the PDF at a smaller size.`,
+          });
+          continue;
+        }
+
+        const fd = new FormData();
+        fd.append('category', category || 'GENERAL');
+
+        try {
+          // Puts the file wherever it can go: straight to storage in pieces when
+          // that is available, in the request body otherwise (local dev).
+          await appendUploads(fd, [file], {
+            scope: 'knowledge',
+            onProgress: pct => setProgress(p => (p ? { ...p, pct } : p)),
+          });
+        } catch (e) {
+          trouble.push({ fileName: file.name, reason: e.message });
+          continue;
+        }
+
+        setProgress(p => (p ? { ...p, pct: 100 } : p));
+
+        const res  = await fetch('/api/automation/knowledge/docs', { method: 'POST', body: fd });
+        const data = await res.json().catch(() => ({}));
+
+        if (data.created?.length) addedAny = true;
+        if (data.failed?.length)  trouble.push(...data.failed);
+        if (!res.ok && !data.created?.length && !data.failed?.length) {
+          trouble.push({ fileName: file.name, reason: data.error || 'The upload did not go through.' });
+        }
+      }
+
+      setProblems(trouble);
+      if (!addedAny && !trouble.length) setErr('The upload did not go through.');
+      await load();
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setUploading(false);
+      setProgress(null);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  }
+
+  async function toggleActive(doc) {
+    const res = await fetch(`/api/automation/knowledge/docs/${doc.id}`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ isActive: !doc.isActive }),
+    });
+    if (res.ok) load();
+  }
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl p-5 mb-4">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Documents</span>
+        <span className="text-[10px] text-slate-400 bg-slate-100 rounded-full px-2 py-0.5">{docs.length}</span>
+      </div>
+
+      {/* Drop zone */}
+      <div
+        onDragOver={e => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={e => { e.preventDefault(); setDragging(false); upload(e.dataTransfer.files); }}
+        onClick={() => inputRef.current?.click()}
+        className={`rounded-xl border-2 border-dashed px-4 py-7 text-center cursor-pointer transition-colors ${
+          dragging ? 'border-orange-400 bg-orange-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+        }`}
+      >
+        <input
+          ref={inputRef}
+          type="file"
+          multiple
+          accept={ACCEPT_ATTRIBUTE}
+          onChange={e => upload(e.target.files)}
+          className="hidden"
+        />
+        {uploading ? (
+          <div className="text-sm text-slate-600">
+            <div className="flex items-center justify-center gap-2">
+              <div className="w-4 h-4 border-2 border-slate-200 border-t-orange-500 rounded-full animate-spin" />
+              {progress
+                ? <span className="truncate max-w-[22rem]">
+                    {progress.total > 1 ? `File ${progress.index} of ${progress.total} — ` : ''}
+                    {progress.name}
+                  </span>
+                : 'Reading the files…'}
+            </div>
+            {progress && (
+              <>
+                <div className="mx-auto mt-3 h-1.5 w-56 rounded-full bg-slate-100 overflow-hidden">
+                  <div
+                    className="h-full bg-orange-500 transition-[width] duration-200"
+                    style={{ width: `${progress.pct}%` }}
+                  />
+                </div>
+                <p className="text-xs text-slate-400 mt-2">
+                  {progress.pct < 100 ? `Sending… ${progress.pct}%` : 'Reading it — a scanned PDF can take a minute.'}
+                </p>
+              </>
+            )}
+          </div>
+        ) : (
+          <>
+            <p className="text-sm font-semibold text-slate-700">Drop files here</p>
+            <p className="text-xs text-slate-400 mt-1">
+              Word, Excel, PDF, images and text files. Up to 25 MB each.
+            </p>
+          </>
+        )}
+      </div>
+
+      {err && (
+        <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mt-3">{err}</p>
+      )}
+
+      {problems.length > 0 && (
+        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 space-y-1">
+          <p className="text-xs font-semibold text-amber-800">
+            {problems.length} file{problems.length === 1 ? '' : 's'} could not be added:
+          </p>
+          {problems.map((p, i) => (
+            <p key={i} className="text-xs text-amber-700">
+              <span className="font-semibold">{p.fileName}</span> — {p.reason}
+            </p>
+          ))}
+        </div>
+      )}
+
+      {/* List */}
+      {loading ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="w-4 h-4 border-2 border-slate-200 border-t-orange-500 rounded-full animate-spin" />
+        </div>
+      ) : docs.length === 0 ? (
+        <p className="text-xs text-slate-400 text-center py-6">
+          Nothing dropped in yet. Anything you add here, the bot can quote from.
+        </p>
+      ) : (
+        <div className="divide-y divide-slate-50 mt-2">
+          {docs.map(doc => (
+            <div key={doc.id} className={`py-3 flex items-start justify-between gap-3 ${doc.isActive ? '' : 'opacity-50'}`}>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                  <span className={`text-[10px] font-bold uppercase border rounded px-1.5 py-0.5 shrink-0 ${TYPE_TINT[doc.fileType] || TYPE_TINT.text}`}>
+                    {fileTypeLabel(doc.fileType)}
+                  </span>
+                  <p className="text-sm font-semibold text-slate-800 leading-snug truncate">{doc.title}</p>
+                  {doc.status === 'FAILED' && (
+                    <span className="text-[10px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 shrink-0">
+                      Not readable
+                    </span>
+                  )}
+                </div>
+                {doc.description && (
+                  <p className="text-xs text-slate-500 leading-relaxed">{doc.description}</p>
+                )}
+                <p className="text-[10px] text-slate-400 mt-1">
+                  {doc.fileName} · {prettySize(doc.sizeBytes)}
+                  {doc.pageCount ? ` · ${doc.pageCount} page${doc.pageCount === 1 ? '' : 's'}` : ''}
+                  {doc.status === 'READY' ? ` · ${doc.charCount.toLocaleString()} characters read` : ''}
+                </p>
+                {doc.statusNote && (
+                  <p className="text-[11px] text-amber-700 mt-1">{doc.statusNote}</p>
+                )}
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <a
+                  href={`/api/automation/knowledge/docs/${doc.id}/file`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[11px] font-semibold text-slate-500 hover:text-orange-600 px-2 py-1 rounded hover:bg-orange-50 transition-colors"
+                >
+                  Open
+                </a>
+                <button
+                  onClick={() => toggleActive(doc)}
+                  className="text-[11px] font-semibold text-slate-400 hover:text-red-500 px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                >
+                  {doc.isActive ? 'Archive' : 'Restore'}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function KnowledgePage() {
@@ -498,7 +793,9 @@ export default function KnowledgePage() {
       {/* Header */}
       <div className="mb-5">
         <h1 className="text-xl font-bold text-slate-900">Bot Knowledge</h1>
-        <p className="text-xs text-slate-500 mt-0.5">Searchable knowledge the bot draws from when drafting emails.</p>
+        <p className="text-xs text-slate-500 mt-0.5">
+          Searchable knowledge the bot draws from when drafting emails — typed answers below, and any documents you drop in.
+        </p>
       </div>
 
       {err && (
@@ -541,6 +838,9 @@ export default function KnowledgePage() {
           + Add Entry
         </button>
       </div>
+
+      {/* Documents dropped in — Word, Excel, PDF, images */}
+      <DocumentsPanel category={categoryFilter} />
 
       {/* Content */}
       {loading ? (

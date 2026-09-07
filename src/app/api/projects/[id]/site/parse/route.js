@@ -125,7 +125,13 @@ export async function POST(request, { params }) {
   // goes into the DISPLAY: it lets the panel show what each proposal would
   // replace, so overwriting a number somebody typed is a visible decision
   // rather than a silent one.
-  const current = await prisma.projectData.findUnique({ where: { projectId: params.id } });
+  const [currentData, currentProject] = await Promise.all([
+    prisma.projectData.findUnique({ where: { projectId: params.id } }),
+    prisma.project.findUnique({ where: { id: params.id }, select: { buildingType: true } }),
+  ]);
+  // The building type lives on Project, not ProjectData; folded in so the panel
+  // can say "Replaces Garden already on this project" like it does for numbers.
+  const current = { ...(currentData || {}), buildingType: currentProject?.buildingType ?? null };
 
   let review = null;
   try {

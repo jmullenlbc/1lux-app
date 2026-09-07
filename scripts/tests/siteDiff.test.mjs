@@ -105,3 +105,18 @@ test('a missing or malformed run output does not throw', () => {
   assert.equal(describeSiteCorrection(VISION, null).counts.dropped, 4);
   assert.equal(describeSiteCorrection(undefined, undefined).changed, false);
 });
+
+// ── building type — the one non-numeric field ─────────────────────────────────
+
+test('a changed building type is an edit, reported by label', () => {
+  const d = describeSiteCorrection({ buildingType: 'garden', lotSf: 100000 }, { buildingType: 'podium', lotSf: 100000 });
+  assert.equal(d.changed, true);
+  assert.equal(d.counts.edited, 1);
+  assert.match(d.summary, /Building Type Garden \(3 Levels\)→Podium \(3-8 Levels\)/);
+});
+
+test('applying the building type as read is accepted', () => {
+  const d = describeSiteCorrection({ buildingType: 'garden' }, { buildingType: 'garden' });
+  assert.equal(d.changed, false);
+  assert.equal(d.counts.accepted, 1);
+});

@@ -5,6 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, Cell, PieChart, Pie,
 } from 'recharts';
+import { PROJECT_TYPES } from '@/lib/utils';
 
 // ── Colour palette ─────────────────────────────────────────────────────────
 
@@ -312,8 +313,10 @@ const FILTER_FIELDS = [
   { key: 'pipeline',         label: 'Pipeline',          type: 'enum',    options: ['PROCUREMENT','DESIGN'] },
   { key: 'dealStatus',       label: 'Deal Status',       type: 'enum',    options: ['OPEN','WON','LOST','ABANDONED','ON_HOLD'] },
   { key: 'projectStatus',    label: 'Project Status',    type: 'enum',    options: ['ACTIVE','ON_HOLD','CANCELED','COMPLETED'] },
-  { key: 'stage',            label: 'Stage',             type: 'enum',    options: ['QUALIFIED','PRECONSTRUCTION','BUYOUT','CONSTRUCTION','COMPLETED','DESIGN_QUALIFIED','PROPOSAL_SENT','DESIGN','DESIGN_COMPLETED'] },
-  { key: 'projectType',      label: 'Project Type',      type: 'enum',    options: ['MULTI_FAMILY','STUDENT_HOUSING','HOSPITALITY','OFFICE','OTHER'] },
+  { key: 'stage',            label: 'Stage',             type: 'enum',    options: ['QUALIFIED','PRECONSTRUCTION','BUYOUT','CONSTRUCTION','COMPLETED'] },
+  // Same six choices as the project hub and the new-project form — one list in
+  // src/lib/utils.js so the filter can never drift from what is actually stored.
+  { key: 'projectType',      label: 'Project Type',      type: 'enum',    options: PROJECT_TYPES.map(t => t.value) },
   { key: 'serviceType',      label: 'Service Type',      type: 'enum',    options: ['FULL_SERVICE_DESIGN','DESIGN_ASSIST','PEER_REVIEW','BID_ONLY'] },
   { key: 'lostReason',       label: 'Lost Reason',       type: 'enum',    options: ['BUDGET','COMPETITOR','CANCELLED','NO_DECISION','TIMING','OTHER'] },
   { key: 'probability',      label: 'Win %',             type: 'number' },

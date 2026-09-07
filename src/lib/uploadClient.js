@@ -311,9 +311,20 @@ function putOnce(url, body, contentType, onProgress) {
 
 const PRESIGNABLE_EXT = ['pdf', 'xlsx', 'xls'];
 
-export function isPresignable(file) {
+// The bot's library reads more than drawings and schedules, so its drop zone can
+// send more than they can. Must stay in step with KNOWLEDGE_PRESIGNABLE in
+// uploadStorage.js — an extension listed here but not there gets a slip refused
+// and quietly falls back to the form body, which caps out at 4 MB in prod.
+const KNOWLEDGE_EXT = [
+  ...PRESIGNABLE_EXT,
+  'doc', 'docx', 'rtf', 'xlsm', 'csv',
+  'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp',
+  'txt', 'md',
+];
+
+export function isPresignable(file, scope = 'project') {
   const ext = (file?.name || '').split('.').pop()?.toLowerCase();
-  return PRESIGNABLE_EXT.includes(ext);
+  return (scope === 'knowledge' ? KNOWLEDGE_EXT : PRESIGNABLE_EXT).includes(ext);
 }
 
 // Amplify's front door. Anything at or under this can still ride in the form
@@ -321,7 +332,7 @@ export function isPresignable(file) {
 const FRONT_DOOR_BYTES = 4 * 1024 * 1024;
 
 export async function appendUpload(form, file, { onProgress, scope = 'project' } = {}) {
-  if (isPresignable(file)) {
+  if (isPresignable(file, scope)) {
     let sent;
     try {
       sent = await uploadDirect(file, { onProgress, scope });
@@ -358,7 +369,7 @@ export async function appendUploads(form, files, { onProgress, scope = 'project'
   let done    = 0;
 
   for (const file of list) {
-    if (isPresignable(file)) {
+    if (isPresignable(file, scope)) {
       const base = done;
       let slip;
       try {

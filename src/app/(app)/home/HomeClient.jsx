@@ -118,7 +118,8 @@ const PHASE_LABELS = {
 };
 const STAGE_LABELS = {
   QUALIFIED:'Qualified', PRECONSTRUCTION:'Pre-Con', BUYOUT:'Buyout', CONSTRUCTION:'Construction', COMPLETED:'Completed',
-  DESIGN_QUALIFIED:'Qualified', PROPOSAL_SENT:'Proposal', DESIGN:'Design', DESIGN_COMPLETED:'Completed',
+  // legacy design-board keys (migrated 0061; kept so an old value still renders)
+  DESIGN_QUALIFIED:'Qualified', PROPOSAL_SENT:'Qualified', DESIGN:'Pre-Con', CONSTRUCTION_ADMIN:'Construction', DESIGN_COMPLETED:'Completed',
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

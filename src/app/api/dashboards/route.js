@@ -7,6 +7,25 @@ export const dynamic = 'force-dynamic';
 
 const WITH_WIDGETS = { widgets: { orderBy: { position: 'asc' } } };
 
+// Templates flagged as "prebuilt" (dataSpec.kind set) are guaranteed on the
+// section default even when it was created before the template existed.
+async function appendMissingPrebuilt(dash, section) {
+  const templates = (TEMPLATES_BY_SECTION[section] || []).filter(t => t.dataSpec?.kind);
+  const have = new Set((dash.widgets || []).map(w => w.name));
+  const missing = templates.filter(t => !have.has(t.name));
+  if (!missing.length) return dash;
+  let position = dash.widgets.length;
+  await prisma.dashboardWidget.createMany({
+    data: missing.map(t => ({
+      dashboardId: dash.id,
+      name: t.name, chartType: t.chartType || 'BAR', width: t.width || 'HALF', position: position++,
+      dataSpec: JSON.stringify(t.dataSpec || {}),
+      category: 'FIELD', metric: 'custom', viewBy: 'none', filters: '[]',
+    })),
+  });
+  return prisma.dashboard.findUnique({ where: { id: dash.id }, include: WITH_WIDGETS });
+}
+
 // GET /api/dashboards?section=SALES
 // Resolves the user's active dashboard: their personal copy if any, else the
 // section's admin default. Also returns dashboards shared with them.
@@ -23,6 +42,10 @@ export async function GET(request) {
     active = await prisma.dashboard.findFirst({
       where: { section, ownerUserId: null, isDefault: true }, include: WITH_WIDGETS,
     });
+    // Prebuilt widgets added after a default was seeded (e.g. the calibration
+    // set) are appended to the admin default by name, so existing defaults
+    // pick them up without anyone recreating the dashboard.
+    if (active) active = await appendMissingPrebuilt(active, section);
   }
 
   const shared = await prisma.dashboardShare.findMany({

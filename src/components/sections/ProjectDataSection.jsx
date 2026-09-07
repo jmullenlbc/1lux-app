@@ -17,7 +17,7 @@ const FIELDS = [
       { key: 'numBalconies',         label: '# of Balconies',                  type: 'number', placeholder: '100',      hint: 'Total balcony count' },
       { key: 'numBathrooms',         label: '# of Bathrooms',                  type: 'number', placeholder: '200',      hint: 'Total bathroom count across all units' },
       { key: 'numVanities',          label: '# of Vanities',                   type: 'number', placeholder: '200',      hint: 'Usually equal to # of bathrooms' },
-      { key: 'numEgressStairwells',  label: '# of Egress Stairwell Landings',  type: 'number', placeholder: '30',       hint: 'Count every landing, including the half-landing between floors: a stair serving 3 floors has 3 floor landings + 2 in-between = 5. Every landing gets a light. Add 20% on top.' },
+      { key: 'numEgressStairwells',  label: '# of Egress Stairwell Landings',  type: 'number', placeholder: '30',       hint: 'Count every landing, including the half-landing between floors: a stair serving 3 floors has 3 floor landings + 2 in-between = 5. Every landing gets a light. The drawing takeoff fills this in with 10% already added; if you type it yourself, add 10% on top.' },
       { key: 'numFans',              label: '# of Ceiling Fans',               type: 'number', placeholder: '14',       hint: 'Total fan count — overrides unit-mix calculation. Leave blank to auto-calculate.' },
       { key: 'numAccentDownlights',  label: '# of Recessed Downlight Accents', type: 'number', placeholder: '40',       hint: 'Adjustable recessed accents in corridors. $160 ea (1-hr fire rated).' },
     ],
