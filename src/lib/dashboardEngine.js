@@ -1,9 +1,12 @@
 /**
- * Dashboard query engine — zero external dependencies, native JS dates only.
+ * Dashboard query engine — native JS dates only, no date library.
  * Translates a DashboardWidget config into Prisma queries and returns chart-ready data.
  */
 
-import { averageProbability } from './pipeline';
+// File extensions on purpose: the test suite imports this module straight into
+// plain Node, which will not guess at a missing ".js" the way the app build does.
+import { averageProbability, STAGE_LABEL, STATUS_LABEL, DESIGN_SERVICE_TYPES } from './pipeline.js';
+import { serviceTypeLabel, projectTypeLabel } from './utils.js';
 
 // ── Native date helpers ────────────────────────────────────────────────────
 
@@ -122,12 +125,41 @@ const FIELD_MAP = {
   dealStatus: 'procurementStatus', stage: 'procurementStage', probability: 'pipelineProbability',
   totalRevenue: 'contractValue', designFeeTotal: 'designContractValue', ownerId: 'salesOwnerId',
 };
-const DROP_FILTER_FIELDS = new Set(['pipeline','lostReason','wonAt','lostAt','nextActionDue','numberOfUnits']);
+const DROP_FILTER_FIELDS = new Set(['lostReason','wonAt','lostAt','nextActionDue','numberOfUnits','projectStatus']);
+
+// Service type used to be offered on the filter panel in a spelling the database
+// has never held (FULL_SERVICE_DESIGN and friends). Charts saved with one of
+// those matched nothing at all. Translate them on the way in so an existing saved
+// chart starts working instead of silently staying empty.
+const LEGACY_SERVICE_TYPE = {
+  FULL_SERVICE_DESIGN: 'fullDesign',
+  DESIGN_ASSIST:       'designAssist',
+  PEER_REVIEW:         'peerReview',
+  BID_ONLY:            'bidOnly',
+};
+
+// Which board a job sits on is derived, not stored: every project sells product,
+// so Procurement is all of them, and Design is the ones whose service type puts
+// them on that board. This filter was being thrown away, which is why the seeded
+// "Design Fee Forecast" was quietly charting every job in the company.
+function pipelineWhere(value) {
+  const picked = Array.isArray(value) ? value : [value];
+  if (picked.includes('DESIGN') && !picked.includes('PROCUREMENT')) {
+    return { serviceType: { in: DESIGN_SERVICE_TYPES } };
+  }
+  return {}; // Procurement (or both) — no narrowing, every project is on that board
+}
 
 function filterToWhere(rule) {
   if (DROP_FILTER_FIELDS.has(rule.field)) return {};
+  if (rule.field === 'pipeline') return pipelineWhere(rule.value);
   const field = FIELD_MAP[rule.field] || rule.field;
-  const { operator, value } = rule;
+  const { operator } = rule;
+  const value = field === 'serviceType'
+    ? (Array.isArray(rule.value)
+        ? rule.value.map(v => LEGACY_SERVICE_TYPE[v] || v)
+        : (LEGACY_SERVICE_TYPE[rule.value] || rule.value))
+    : rule.value;
 
   if (DATE_FIELDS.has(field)) {
     let range = typeof value === 'string' ? resolveRelativeDate(value) : null;
@@ -183,19 +215,30 @@ function probabilityTier(p) {
 
 const PROB_TIER_ORDER = ['80–100%', '50–79%', '25–49%', '0–24%'];
 
+// Every bar, slice and legend entry reads in plain English. These used to come
+// back as the stored value, so a chart grouped by stage said "PRECONSTRUCTION"
+// and one grouped by service type said "fullDesign". The names come from the
+// same vocabulary the boards use, so a rename lands on the charts too.
+const PIPELINE_LABEL = { PROCUREMENT: 'Procurement', DESIGN: 'Design' };
+
 function getDealKey(deal, viewBy) {
   switch (viewBy) {
     case 'month':           return deal.expectedOrderDate ? fmtMonthYear(new Date(deal.expectedOrderDate)) : 'No Date';
     case 'quarter':         return deal.expectedOrderDate ? quarter(new Date(deal.expectedOrderDate)) : 'No Date';
     case 'client':          return deal.client?.name || 'Unassigned';
     case 'owner':           return deal.owner?.name  || 'Unassigned';
-    case 'stage':           return deal.stage        || 'Unknown';
-    case 'projectType':     return deal.projectType  || 'Unknown';
-    case 'serviceType':     return deal.serviceType  || 'Unknown';
+    case 'stage':           return STAGE_LABEL[deal.stage] || deal.stage || 'Unknown';
+    case 'projectType':     return deal.projectType ? projectTypeLabel(deal.projectType) : 'Unknown';
+    case 'serviceType':     return deal.serviceType ? serviceTypeLabel(deal.serviceType) : 'Unknown';
+    // Splitting a chart by Deal Status was landing every deal in one "Unknown"
+    // bucket — the status was never read here at all.
+    case 'dealStatus':      return STATUS_LABEL[deal.dealStatus] || deal.dealStatus || 'Unknown';
     case 'probabilityTier': return probabilityTier(deal.probability);
-    case 'lostReason':      return deal.lostReason   || 'Unknown';
     case 'state':           return deal.state        || 'Unknown';
-    case 'pipeline':        return deal.pipeline     || 'Unknown';
+    case 'pipeline':        return PIPELINE_LABEL[deal.pipeline] || deal.pipeline || 'Unknown';
+    // 'lostReason' used to live here. A lost deal now carries a written reason on
+    // the project rather than a code picked from a list, so there is nothing to
+    // group by; an old chart set to it falls through to a single bucket below.
     default:                return 'Unknown';
   }
 }
@@ -532,3 +575,7 @@ async function runProposals(widget, db, filters) {
     meta: { sentCount, acceptedCount, acceptedValue, rate },
   };
 }
+
+// Internals reached by the test suite only (scripts/tests/dashboardFilters.test.mjs).
+// Nothing in the app imports this.
+export const __testing = { getDealKey, probabilityTier };

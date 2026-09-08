@@ -11,13 +11,16 @@
 //   type:'date'      → a time axis (group by week/month/quarter).
 
 import { SERVICE_TYPES } from '@/lib/utils';
-import { WON_STATUSES, DECIDED_STATUSES } from '@/lib/pipeline';
+import { WON_STATUSES, DECIDED_STATUSES, STAGE_LABEL } from '@/lib/pipeline';
 
 // Value → layman label maps so dashboards never show raw field values.
 // serviceType mirrors the platform-wide SERVICE_TYPES (single source of truth).
 const SERVICE_TYPE_LABELS = Object.fromEntries(SERVICE_TYPES.map(t => [t.value, t.label]));
 const STATUS_LABELS = { OPEN: 'Open', WON: 'Won', LOST: 'Lost', COMPLETED: 'Completed', ABANDONED: 'Abandoned' };
-const STAGE_LABELS  = { QUALIFIED: 'Qualified', PRECONSTRUCTION: 'Pre-Construction', BUYOUT: 'Buyout', CONSTRUCTION: 'Construction', COMPLETED: 'Completed' };
+// Comes from pipeline.js, never a copy. This map used to be typed out here, so a
+// stage rename showed up on the boards and not on the dashboards. It also picks
+// up the legacy design keys for free, so an un-migrated row still reads properly.
+const STAGE_LABELS  = STAGE_LABEL;
 const PHASE_LABELS  = { sd: 'Schematic Design', dd: 'Design Development', cd: 'Construction Docs', ifc: 'Issued for Construction', construction: 'Construction', closeout: 'Closeout' };
 const BUDGET_TYPE_LABELS = { conceptual: 'Conceptual', design: 'Full Design', peer_review: 'Peer Review' };
 

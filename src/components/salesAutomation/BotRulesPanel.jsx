@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import DisabledSection from '@/components/salesAutomation/DisabledSection';
+import { PIPELINE_STAGES } from '@/lib/pipeline';
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
@@ -69,15 +70,10 @@ function TriggerConfig({ triggerType, config, onChange }) {
         <div>
           <label className="block text-[11px] font-semibold text-slate-600 mb-1">Stages</label>
           {(() => {
-            const procStages = [
-              { value: 'QUALIFIED',       label: 'Qualified' },
-              { value: 'PRECONSTRUCTION', label: 'Pre-Construction' },
-              { value: 'BUYOUT',          label: 'Buyout' },
-              { value: 'CONSTRUCTION',    label: 'Construction' },
-              { value: 'COMPLETED',       label: 'Completed' },
-            ];
-            // Both boards share the same stage list (2026-09-04).
-            const stageOptions = procStages;
+            // Both boards share the same stage list (2026-09-04), and the list
+            // itself comes from pipeline.js — typed out here once, this dropdown
+            // kept offering the old stage names after a rename.
+            const stageOptions = PIPELINE_STAGES.PROCUREMENT.map(s => ({ value: s.key, label: s.label }));
             const selected = (config.stages || '').split(',').map(s => s.trim()).filter(Boolean);
             function toggleStage(val) {
               const next = selected.includes(val)

@@ -5,7 +5,9 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, Cell, PieChart, Pie,
 } from 'recharts';
-import { PROJECT_TYPES } from '@/lib/utils';
+import { PROJECT_TYPES, SERVICE_TYPES } from '@/lib/utils';
+import { STAGE_KEYS, STAGE_LABEL, PIPELINE_STATUS, STATUS_LABEL } from '@/lib/pipeline';
+import { RELATIVE_DATE_OPTIONS } from '@/lib/dashboardEngine';
 
 // ── Colour palette ─────────────────────────────────────────────────────────
 
@@ -14,17 +16,20 @@ const PALETTE = [
   '#06b6d4', '#f97316', '#84cc16', '#ec4899', '#6366f1',
 ];
 
+// Segment names arrive from the engine in plain English now ("Won", not "WON"),
+// so the colour lookup answers to both spellings — a green Won bar should not
+// turn grey because the word behind it changed.
 const STATUS_COLORS = {
-  OPEN: '#3b82f6',
-  WON:  '#10b981',
-  LOST: '#ef4444',
-  ABANDONED: '#94a3b8',
-  ON_HOLD: '#f59e0b',
+  OPEN: '#3b82f6',      Open: '#3b82f6',
+  WON:  '#10b981',      Won:  '#10b981',
+  LOST: '#ef4444',      Lost: '#ef4444',
+  COMPLETED: '#0ea5e9', Completed: '#0ea5e9',
+  ABANDONED: '#94a3b8', Abandoned: '#94a3b8',
 };
 
 const PIPELINE_COLORS = {
-  PROCUREMENT: '#3b82f6',
-  DESIGN: '#8b5cf6',
+  PROCUREMENT: '#3b82f6', Procurement: '#3b82f6',
+  DESIGN: '#8b5cf6',      Design: '#8b5cf6',
 };
 
 function segmentColor(seg, idx) {
@@ -219,14 +224,19 @@ function WidgetStats({ data, widget }) {
 
 // ── Widget filter summary ──────────────────────────────────────────────────
 
+// The little grey chips under a chart's title, saying what it is filtered to.
+// They used to print the raw field name and the raw stored value — "projectType
+// Multi-Family" next to "stage PRECONSTRUCTION". Same names as the picker now.
 function FilterSummary({ filters }) {
   if (!filters?.length) return null;
   const tags = filters.map((f, i) => {
-    const val = Array.isArray(f.value) ? f.value.join(', ') : f.value;
+    const def   = FILTER_FIELDS.find(x => x.key === f.field);
+    const one   = v => def?.labels?.[v] || RELATIVE_DATE_LABEL[v] || v;
+    const val   = Array.isArray(f.value) ? f.value.map(one).join(', ') : one(f.value);
     return (
       <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-medium">
-        <span className="text-slate-400">{f.field}</span>
-        <span>{typeof val === 'string' ? val.replace(/_/g, ' ') : val}</span>
+        <span className="text-slate-400">{def?.label || f.field}</span>
+        <span>{typeof val === 'string' ? val : String(val)}</span>
       </span>
     );
   });
@@ -309,28 +319,48 @@ function WidgetCard({ widget, onEdit, onDelete }) {
 
 // ── Widget edit modal ──────────────────────────────────────────────────────
 
+// Every choice on this panel is a stored value with a plain-English name beside
+// it. The stored value is what gets saved and what the engine queries; the name
+// is only ever what you read. Both come out of the same vocabulary modules the
+// rest of the app uses (pipeline.js, utils.js) — typed out here, this list drifts
+// the moment anyone renames a stage or adds a service type.
+const labelsFrom = list => Object.fromEntries(list.map(t => [t.value, t.label]));
+
 const FILTER_FIELDS = [
-  { key: 'pipeline',         label: 'Pipeline',          type: 'enum',    options: ['PROCUREMENT','DESIGN'] },
-  { key: 'dealStatus',       label: 'Deal Status',       type: 'enum',    options: ['OPEN','WON','LOST','ABANDONED','ON_HOLD'] },
-  { key: 'projectStatus',    label: 'Project Status',    type: 'enum',    options: ['ACTIVE','ON_HOLD','CANCELED','COMPLETED'] },
-  { key: 'stage',            label: 'Stage',             type: 'enum',    options: ['QUALIFIED','PRECONSTRUCTION','BUYOUT','CONSTRUCTION','COMPLETED'] },
-  // Same six choices as the project hub and the new-project form — one list in
-  // src/lib/utils.js so the filter can never drift from what is actually stored.
-  { key: 'projectType',      label: 'Project Type',      type: 'enum',    options: PROJECT_TYPES.map(t => t.value) },
-  { key: 'serviceType',      label: 'Service Type',      type: 'enum',    options: ['FULL_SERVICE_DESIGN','DESIGN_ASSIST','PEER_REVIEW','BID_ONLY'] },
-  { key: 'lostReason',       label: 'Lost Reason',       type: 'enum',    options: ['BUDGET','COMPETITOR','CANCELLED','NO_DECISION','TIMING','OTHER'] },
-  { key: 'probability',      label: 'Win %',             type: 'number' },
-  { key: 'totalRevenue',     label: 'Total Revenue',     type: 'number' },
+  // Which board the job sits on. Every project sells product, so Procurement is
+  // "all of them"; Design is the jobs whose service type puts them on that board.
+  { key: 'pipeline',    label: 'Pipeline',     type: 'enum', options: ['PROCUREMENT', 'DESIGN'],
+    labels: { PROCUREMENT: 'Procurement', DESIGN: 'Design' } },
+  // Open / Won / Lost / Completed / Abandoned — the same five the boards use.
+  // (This list used to offer "ON_HOLD", which is not a status a deal can hold,
+  // so picking it always came back empty.)
+  { key: 'dealStatus',  label: 'Deal Status',  type: 'enum', options: PIPELINE_STATUS.map(s => s.key),
+    labels: STATUS_LABEL },
+  { key: 'stage',       label: 'Stage',        type: 'enum', options: STAGE_KEYS,
+    labels: STAGE_LABEL },
+  // Same six choices as the project hub and the new-project form.
+  { key: 'projectType', label: 'Project Type', type: 'enum', options: PROJECT_TYPES.map(t => t.value),
+    labels: labelsFrom(PROJECT_TYPES) },
+  // These are stored as fullDesign / designAssist / peerReview / bidOnly. The old
+  // list here spelled them FULL_SERVICE_DESIGN etc., which matches nothing in the
+  // database — every chart filtered this way came back empty.
+  { key: 'serviceType', label: 'Service Type', type: 'enum', options: SERVICE_TYPES.map(t => t.value),
+    labels: labelsFrom(SERVICE_TYPES) },
+  { key: 'probability',      label: 'Win %',              type: 'number' },
+  { key: 'totalRevenue',     label: 'Total Revenue',      type: 'number' },
   { key: 'expectedOrderDate',label: 'Expected Order Date',type: 'date' },
-  { key: 'createdAt',        label: 'Created Date',      type: 'date' },
-  { key: 'wonAt',            label: 'Won Date',          type: 'date' },
+  { key: 'createdAt',        label: 'Created Date',       type: 'date' },
+  // Dropped from this list on 2026-09-08: Project Status, Lost Reason and Won
+  // Date. None of the three is a field a project actually has — Project Status
+  // made the chart fail to load outright, the other two were quietly ignored, so
+  // the chart showed everything while claiming to be filtered. A reason for a
+  // lost deal is written free-text on the project, not picked from a list.
 ];
 
-const RELATIVE_DATES = [
-  'this_month','last_month','next_month','this_quarter','last_quarter',
-  'next_quarter','this_year','last_year','last_6_months','last_12_months',
-  'next_6_months','next_12_months',
-];
+// One labelled list, from the engine that resolves these periods, so the picker
+// can never offer a period the engine does not understand (and vice versa).
+const RELATIVE_DATES = RELATIVE_DATE_OPTIONS;
+const RELATIVE_DATE_LABEL = Object.fromEntries(RELATIVE_DATE_OPTIONS.map(d => [d.key, d.label]));
 
 const VIEW_BY_OPTIONS = [
   { key: 'month',          label: 'Month' },
@@ -341,12 +371,22 @@ const VIEW_BY_OPTIONS = [
   { key: 'projectType',    label: 'Project Type' },
   { key: 'serviceType',    label: 'Service Type' },
   { key: 'probabilityTier',label: 'Probability Tier' },
-  { key: 'lostReason',     label: 'Lost Reason' },
+  // "Lost Reason" was offered here and always drew a single "Unknown" bar — the
+  // reason a deal is lost is written out on the project now, not picked from a
+  // list, so there is nothing to group by.
   { key: 'pipeline',       label: 'Pipeline' },
   { key: 'state',          label: 'State' },
 ];
 
-const SEGMENT_OPTIONS = [null, 'pipeline', 'serviceType', 'dealStatus', 'projectType', 'owner'];
+// The colour split inside each bar. Named properly here — the screen used to
+// build these names by chopping up the field name, which read "deal Status".
+const SEGMENT_OPTIONS = [
+  { key: 'dealStatus',  label: 'Deal Status' },
+  { key: 'serviceType', label: 'Service Type' },
+  { key: 'projectType', label: 'Project Type' },
+  { key: 'owner',       label: 'Owner' },
+  { key: 'pipeline',    label: 'Pipeline' },
+];
 
 const CATEGORY_OPTIONS = [
   { key: 'REVENUE',        label: 'Revenue',        desc: 'Total revenue by period or dimension' },
@@ -409,7 +449,7 @@ function FilterRow({ rule, onChange, onRemove }) {
           onChange={e => onChange({ ...rule, operator: 'is_any_of', value: [e.target.value] })}
           className="flex-1 text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white">
           <option value="">Any</option>
-          {fieldDef.options.map(o => <option key={o} value={o}>{o.replace(/_/g,' ')}</option>)}
+          {fieldDef.options.map(o => <option key={o} value={o}>{fieldDef.labels?.[o] || o}</option>)}
         </select>
       )}
 
@@ -418,7 +458,7 @@ function FilterRow({ rule, onChange, onRemove }) {
           onChange={e => onChange({ ...rule, operator: 'is', value: e.target.value })}
           className="flex-1 text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white">
           <option value="">Select period</option>
-          {RELATIVE_DATES.map(d => <option key={d} value={d}>{d.replace(/_/g,' ')}</option>)}
+          {RELATIVE_DATES.map(d => <option key={d.key} value={d.key}>{d.label}</option>)}
         </select>
       )}
 
@@ -537,7 +577,7 @@ function WidgetEditModal({ widget, dashboardId, onSave, onClose }) {
               <select value={form.segmentBy || ''} onChange={e => setForm(f => ({ ...f, segmentBy: e.target.value || null }))}
                 className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white">
                 <option value="">None</option>
-                {SEGMENT_OPTIONS.filter(Boolean).map(o => <option key={o} value={o}>{o.replace(/([A-Z])/g,' $1').trim()}</option>)}
+                {SEGMENT_OPTIONS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
               </select>
             </div>
           </div>

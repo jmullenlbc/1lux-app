@@ -107,11 +107,14 @@ export const DEFAULT_WIDGETS = [
     position: 7,
   },
   {
+    // Was grouped by "lost reason", which no longer exists as a picked value —
+    // the reason is written out on the project. Grouped by organization instead,
+    // which answers the question people actually ask about losses.
     name: 'Lost Deal Analysis',
     category: 'DEAL_COUNT',
     metric: 'count',
-    viewBy: 'lostReason',
-    segmentBy: 'pipeline',
+    viewBy: 'client',
+    segmentBy: 'projectType',
     filters: JSON.stringify([
       { field: 'dealStatus', operator: 'is_any_of', value: ['LOST'] },
     ]),

@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { STAGE_LABEL } from '@/lib/pipeline';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Widget Registry — single source of truth for all available widgets
@@ -116,11 +117,11 @@ const PHASE_LABELS = {
   sd: 'SD', dd: 'DD', cd: 'CD', ifc: 'IFC',
   construction: 'CA', closeout: 'CL',
 };
-const STAGE_LABELS = {
-  QUALIFIED:'Qualified', PRECONSTRUCTION:'Pre-Con', BUYOUT:'Buyout', CONSTRUCTION:'Construction', COMPLETED:'Completed',
-  // legacy design-board keys (migrated 0061; kept so an old value still renders)
-  DESIGN_QUALIFIED:'Qualified', PROPOSAL_SENT:'Qualified', DESIGN:'Pre-Con', CONSTRUCTION_ADMIN:'Construction', DESIGN_COMPLETED:'Completed',
-};
+// Comes from pipeline.js, never a copy. Home used to shorten "Pre-Construction"
+// to "Pre-Con" on its own, which meant the same deal read differently here than
+// on the board. One name per stage, everywhere. The legacy design keys come
+// along in that map already.
+const STAGE_LABELS = STAGE_LABEL;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Widget shell

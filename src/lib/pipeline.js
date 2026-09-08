@@ -8,11 +8,19 @@
 // keys (DESIGN_QUALIFIED / PROPOSAL_SENT / DESIGN / CONSTRUCTION_ADMIN /
 // DESIGN_COMPLETED) were migrated in 0061 and are only kept below as a read-side
 // safety net for anything that still carries one.
+// Mike 2026-09-07 renamed the middle two so one label reads correctly on BOTH
+// boards at once: at that point in a job the design side is doing CA while the
+// procurement side is buying, and both projects sit in the same column.
+//
+// These are LABELS ONLY. The stored keys are untouched on purpose — renaming
+// PRECONSTRUCTION or CONSTRUCTION would mean rewriting every project row and
+// every saved bot rule, filter and dashboard that names a stage, for no gain
+// the user can see. What is on screen is what changed.
 const SHARED_STAGES = [
   { key: 'QUALIFIED',       label: 'Qualified' },
-  { key: 'PRECONSTRUCTION', label: 'Pre-Construction' },
+  { key: 'PRECONSTRUCTION', label: 'Design / Pre-Con' },
   { key: 'BUYOUT',          label: 'Buyout' },
-  { key: 'CONSTRUCTION',    label: 'Construction' },
+  { key: 'CONSTRUCTION',    label: 'CA / Procurement' },
   { key: 'COMPLETED',       label: 'Completed' },
 ];
 

@@ -5,6 +5,105 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [CRM dashboards filter panel fixed properly] - September 8, 2026 (DEPLOYED — September 8 push)
+
+Mike, 2026-09-08: *"Fix that screen properly and deploy everything above."*
+
+The complaint was that the filter dropdowns showed stored values like
+`PRECONSTRUCTION` instead of "Design / Pre-Con". Reading the engine behind the
+screen turned up something worse: **four of the filters were not filtering.**
+
+### What was actually broken
+
+| Control | What it did | Now |
+|---|---|---|
+| **Pipeline** (the default filter) | Silently thrown away — picking "Design" charted every job in the company. The seeded **Design Fee Forecast** widget was wrong for this reason. | Narrows to the design service types |
+| **Service Type** | Offered `FULL_SERVICE_DESIGN` etc., a spelling the database has never held → always zero rows | Offers the real values, and translates the old spelling so saved charts heal instead of breaking |
+| **Project Status** | Named a column that does not exist → the whole chart came back "Failed to load" | Removed |
+| **Lost Reason**, **Won Date** | Silently ignored — there is no such field to filter on | Removed |
+| **Split by → Deal Status** | Lumped every deal into one "Unknown" bar | Splits properly into Open / Won / Lost / Completed / Abandoned |
+| **Group by → Lost Reason** | Always drew a single "Unknown" bar | Removed; the seeded "Lost Deal Analysis" chart now groups by organization |
+| Every enum dropdown, chart axis and filter chip | Printed stored keys — `PRECONSTRUCTION`, `fullDesign`, `next_12_months` | Prints the same words that appear everywhere else in the app |
+
+Saved widgets are not rewritten. The translation happens when the chart runs, so
+an existing chart built on the old values starts returning correct rows on its own.
+
+### Still weak on that screen, deliberately not touched
+
+- **Sales Cycle Duration by Owner** is always empty. It measures from a won/lost
+  date, and no such date is stored on a project. Adding one is a schema change.
+- **Group by / split by "Pipeline"** still produces one bucket, because a project
+  is not on one board — a full-design job is on both. Splitting it honestly means
+  deciding whether such a job counts once or twice.
+- **Combined Revenue Forecast** cannot yet show product revenue and design fee
+  side by side in the same chart.
+
+**Files changed:** `src/app/(app)/crm/dashboards/DashboardsClient.jsx`,
+`src/lib/dashboardEngine.js`, `src/lib/defaultDashboard.js`, and a new
+`scripts/tests/dashboardFilters.test.mjs` (14 tests).
+
+**Verified:** regression 1,156/1,156 (26 new across both entries); `npm run build`
+clean with all 37 runtime assets; `npm run verify` 11 gates; bid matrix 12/12.
+
+---
+
+## [Pipeline stages renamed: Design / Pre-Con and CA / Procurement] - September 7, 2026 (DEPLOYED — September 8 push)
+
+Mike, 2026-09-07: *"I want both the procurement and design pipelines to have these
+stages too. QUALIFIED / DESIGN / PRE-CON / BUYOUT / CA / PROCUREMENT / COMPLETED"*
+
+His five line up one-for-one with the five that already existed, so this is a
+**rename of the middle two**, not a new stage set:
+
+| Was | Now |
+|---|---|
+| Qualified | Qualified |
+| Pre-Construction | **Design / Pre-Con** |
+| Buyout | Buyout |
+| Construction | **CA / Procurement** |
+| Completed | Completed |
+
+The new names read correctly on both boards at once, which is the point: at that
+stage the design side is doing construction administration while the procurement
+side is buying, and the same project sits in the same column on both.
+
+### Nothing moved in the database
+
+These are labels. The stored values (`PRECONSTRUCTION`, `CONSTRUCTION`) are
+deliberately untouched, so there is **no migration and no data rewrite** — every
+project stays exactly where it is, and every saved bot rule, dashboard filter and
+export that names a stage keeps working. A new test pins those keys in place, so
+if someone later renames the key to match the label the suite fails loudly instead
+of quietly emptying the boards in production.
+
+### The rename exposed a real bug: three screens had their own copy of the names
+
+The board read its stage names from `src/lib/pipeline.js`, but the home page, the
+dashboards field catalog and the bot-rules stage dropdown each had the list typed
+out again. They had already drifted — home shortened "Pre-Construction" to
+"Pre-Con" on its own, so the same deal read differently depending on the screen.
+A rename would have landed on the board and nowhere else. All three now read from
+`pipeline.js`. Two stage-key lists (the project save route and the CRM dashboard
+filter) were wired to `STAGE_KEYS` for the same reason.
+
+**Follow-up, now fixed:** the CRM dashboard **filter** dropdown showed the stored
+key (`PRECONSTRUCTION`) rather than the label, as did every other enum filter on
+that screen. Rather than fix one field, that whole screen was taken on as its own
+job in the next entry below — where the raw keys turned out to be the smallest of
+its problems.
+
+**Files changed:** `src/lib/pipeline.js`, `src/lib/dashboards/fieldCatalog.js`,
+`src/app/(app)/home/HomeClient.jsx`,
+`src/components/salesAutomation/BotRulesPanel.jsx`,
+`src/app/api/projects/[id]/route.js`,
+`src/app/(app)/crm/dashboards/DashboardsClient.jsx`, and a new
+`scripts/tests/pipelineStages.test.mjs` (12 tests).
+
+**Verified:** regression 1,142/1,142 (12 new); engine math 60/60, fuzz 0 failures,
+bid matrix 12/12; `npm run build` clean with all 37 runtime assets; verify 11 gates.
+
+---
+
 ## [Bot Knowledge tells you to add one file at a time] - September 7, 2026 (DEPLOYED — September 7 second push)
 
 Mike, 2026-09-07: *"write instructions in the bot knowledge about dropping 1 file

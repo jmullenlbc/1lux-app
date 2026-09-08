@@ -2,7 +2,48 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-07 (latest) — Mike's Claude — **DEPLOYED**: Bot Knowledge drop zone says "add one file at a time"
+### 2026-09-08 (latest) — Mike's Claude — **DEPLOYED**: pipeline stages relabelled + CRM dashboards filter panel repaired
+
+Two pieces in one push.
+
+**1. Stage relabel.** Mike: *"I want both the procurement and design pipelines to
+have these stages too. QUALIFIED / DESIGN / PRE-CON / BUYOUT / CA / PROCUREMENT /
+COMPLETED"*. His five map one-for-one onto the existing five, so this is a rename
+of the middle two: Pre-Construction → **Design / Pre-Con**, Construction → **CA /
+Procurement**. **Labels only — the stored keys `PRECONSTRUCTION` and `CONSTRUCTION`
+did not move**, so no migration and no data rewrite. `pipelineStages.test.mjs`
+pins those keys; if someone later renames a key to match a label the suite fails
+loudly instead of quietly emptying the boards in prod. The rename also exposed
+three screens carrying their own typed-out copy of the stage names (home had
+already drifted to "Pre-Con") — all now read `src/lib/pipeline.js`.
+
+**2. CRM dashboards filter panel.** Mike: *"Fix that screen properly."* The raw
+keys in the dropdowns were the least of it — **four filters were not filtering**.
+`pipeline` (the default filter, and the basis of the seeded Design Fee Forecast)
+was dropped on the floor; `serviceType` was offered in an uppercase spelling the
+DB has never held, so it matched zero rows; `projectStatus` named a non-existent
+column and made the whole widget return "Failed to load"; `lostReason`/`wonAt`
+were silently ignored. Also: `segmentBy: 'dealStatus'` collapsed everything into
+one "Unknown" bucket, and axes printed `PRECONSTRUCTION` / `fullDesign`. Fixed
+with a legacy-value translation at query time so **saved widgets heal rather than
+break**. Dead fields removed from the picker.
+
+Known-remaining on that screen, not touched: the DURATION category reads
+`wonAt || lostAt`, neither of which exists on Project, so "Sales Cycle Duration by
+Owner" is always empty (needs a schema field → migration → schema-guard);
+view-by/split-by "Pipeline" is still one constant bucket because a full-design job
+is genuinely on both boards; "Combined Revenue Forecast" can't split product vs
+design revenue side by side.
+
+Verified: regression **1,156/1,156** with the dev server up (+26 new tests across
+the two pieces; 3 transient failures in `uploadFlow.e2e` proved to be a Next
+dev-server manifest race — **4/4 on isolated rerun**, and none of the changed
+files touch that route). `npm run build` exit 0 with all **37** runtime assets
+traced; `npm run verify` **11 gates**; `npm test` bid matrix **12/12**. No schema
+change, so no schema-guard pass was needed. Browser check not possible — behind
+the login wall and I may not enter passwords.
+
+### 2026-09-07 — Mike's Claude — **DEPLOYED**: Bot Knowledge drop zone says "add one file at a time"
 
 Mike: *"write instructions in the bot knowledge about dropping 1 file at a time on
 that screen. deploy all of this."*

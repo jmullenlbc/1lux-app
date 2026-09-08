@@ -3,7 +3,7 @@ import { requireAuth, isClientViewer } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { logActivity, PHASE_LABELS } from '@/lib/activity';
 import { sendNotification } from '@/lib/notify';
-import { NEXT_ACTION_KEYS } from '@/lib/pipeline';
+import { NEXT_ACTION_KEYS, STAGE_KEYS } from '@/lib/pipeline';
 
 async function getProjectForUser(projectId, user) {
   const project = await prisma.project.findUnique({
@@ -55,8 +55,9 @@ export async function PATCH(request, { params }) {
   const validPhases      = ['sd', 'dd', 'cd', 'ifc', 'construction', 'closeout'];
   const validBudgetTypes = ['conceptual', 'design', 'peer_review'];
   const validServiceTypes = ['fullDesign', 'designAssist', 'peerReview', 'bidOnly', 'other'];
-  const validProcurementStages = ['QUALIFIED', 'PRECONSTRUCTION', 'BUYOUT', 'CONSTRUCTION', 'COMPLETED'];
-  // Both boards share one stage list (2026-09-04).
+  // Both boards share one stage list (2026-09-04), taken from pipeline.js so a
+  // stage added there is accepted here without a second edit.
+  const validProcurementStages = STAGE_KEYS;
   const validDesignStages      = validProcurementStages;
   const validPipelineStatus    = ['OPEN', 'WON', 'LOST', 'COMPLETED', 'ABANDONED'];
 
