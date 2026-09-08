@@ -2,7 +2,26 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-07 (latest) — Mike's Claude — **DEPLOYED**: everything below that said "local-only" is now live
+### 2026-09-07 (latest) — Mike's Claude — **DEPLOYED**: Bot Knowledge drop zone says "add one file at a time"
+
+Mike: *"write instructions in the bot knowledge about dropping 1 file at a time on
+that screen. deploy all of this."*
+
+Copy only — `src/app/(app)/sales/automation/knowledge/page.jsx`. No logic, no data,
+no schema, so no schema-guard pass was needed. The heading is now **"Drop one file
+here"** with a short paragraph under the file-type line explaining why: a multi-file
+drop still works (the loop already sends them one at a time), but a big batch means
+a long wait on one screen and anything still queued is lost if the tab closes. Also
+warns that a large scanned PDF can take a minute by itself.
+
+Verified: regression **1,130/1,130** with the dev server up; engine math **60/60**,
+fuzz 8,000 scenarios **0 failures**, bid matrix **12/12**; `npm run build` exit 0
+with all **37** runtime assets traced and `/sales/automation/knowledge` at 10.3 kB;
+`npm run verify` **11 gates**. The new text was confirmed present in the built
+client chunk, so it genuinely ships. Browser check was not possible — the page is
+behind the login wall and I may not enter passwords.
+
+### 2026-09-07 — Mike's Claude — **DEPLOYED**: everything below that said "local-only" is now live
 
 **Bot Knowledge files go to 25 MB, sent in pieces.** Mike: *"we should make it up
 to 25mbs like email. can we do it in pieces very easily like drawings? then

@@ -5,6 +5,28 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Bot Knowledge tells you to add one file at a time] - September 7, 2026 (DEPLOYED — September 7 second push)
+
+Mike, 2026-09-07: *"write instructions in the bot knowledge about dropping 1 file
+at a time on that screen."*
+
+The drop zone now says so plainly. The heading reads **"Drop one file here"**, and
+under the file-type line there is a short paragraph explaining why: dropping
+several *does* work — the screen already sends them one after another by itself —
+but a big batch keeps you waiting on that screen, and anything still in the queue
+is lost if the tab is closed partway through. It also warns that a large scanned
+PDF can take a minute on its own, so a long wait is not a sign of a problem.
+
+This is guidance, not a new restriction. Nothing about the uploader changed: a
+multi-file drop still works exactly as it did, and the "File 2 of 5" progress line
+is untouched. The advice simply matches what the screen actually does, so no one
+drops fifteen files and wonders why it is sitting there.
+
+**Files changed:** `src/app/(app)/sales/automation/knowledge/page.jsx` (copy only —
+no logic, no data, no schema).
+
+---
+
 ## [Bot Knowledge files go to 25 MB, sent in pieces like the drawing sets] - September 7, 2026 (DEPLOYED — September 7 push)
 
 Mike, 2026-09-07: *"we should make it up to 25mbs like email. can we do it in

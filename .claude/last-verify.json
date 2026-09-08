@@ -1,62 +1,62 @@
 {
-  "at": "2026-09-07T23:47:23.562Z",
+  "at": "2026-09-08T00:40:39.515Z",
   "full": false,
   "failed": null,
   "results": [
     {
       "gate": "source is tracked",
       "ok": true,
-      "ms": 238
+      "ms": 246
     },
     {
       "gate": "auth imports",
       "ok": true,
-      "ms": 274
+      "ms": 239
     },
     {
       "gate": "dynamic pages",
       "ok": true,
-      "ms": 86
+      "ms": 75
     },
     {
       "gate": "schema provider",
       "ok": true,
-      "ms": 70
+      "ms": 68
     },
     {
       "gate": "env contract",
       "ok": true,
-      "ms": 70
+      "ms": 73
     },
     {
       "gate": "migrations (postgres)",
       "ok": true,
-      "ms": 91
+      "ms": 92
     },
     {
       "gate": "schema ↔ migrations",
       "ok": true,
-      "ms": 79
+      "ms": 81
     },
     {
       "gate": "shared metrics",
       "ok": true,
-      "ms": 140
+      "ms": 136
     },
     {
       "gate": "sensitivity coverage",
       "ok": true,
-      "ms": 105
+      "ms": 112
     },
     {
       "gate": "unit tests",
       "ok": true,
-      "ms": 3172
+      "ms": 3116
     },
     {
       "gate": "secrets",
       "ok": true,
-      "ms": 127
+      "ms": 131
     }
   ]
 }

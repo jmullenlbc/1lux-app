@@ -622,9 +622,21 @@ function DocumentsPanel({ category }) {
           </div>
         ) : (
           <>
-            <p className="text-sm font-semibold text-slate-700">Drop files here</p>
+            <p className="text-sm font-semibold text-slate-700">Drop one file here</p>
             <p className="text-xs text-slate-400 mt-1">
               Word, Excel, PDF, images and text files. Up to 25 MB each.
+            </p>
+            {/* Say the quiet part out loud. Dropping a pile DOES work — the loop
+                above sends them one at a time by itself — but a big batch means a
+                long wait on one screen, and anything still in the queue is lost if
+                the tab closes. Telling people to go one at a time is the honest
+                advice, not a limitation of the uploader. */}
+            <p className="text-xs text-slate-500 mt-3 leading-relaxed max-w-md mx-auto">
+              <span className="font-semibold text-slate-600">Add one file at a time.</span>{' '}
+              You can drop several and they will go up one after another, but a big
+              batch keeps you waiting on this screen — and if you close the tab
+              partway through, the ones still in line never make it. A large scanned
+              PDF can take a minute on its own.
             </p>
           </>
         )}
