@@ -5,7 +5,11 @@
 
 // File extensions on purpose: the test suite imports this module straight into
 // plain Node, which will not guess at a missing ".js" the way the app build does.
-import { averageProbability, STAGE_LABEL, STATUS_LABEL, DESIGN_SERVICE_TYPES } from './pipeline.js';
+import {
+  averageProbability, STAGE_LABEL, STATUS_LABEL, DESIGN_SERVICE_TYPES,
+  PIPELINE_LABEL, PIPELINE_KEYS, boardRows, combinedRevenue,
+  normalizeStage, DECIDED_STATUSES, WON_STATUSES,
+} from './pipeline.js';
 import { serviceTypeLabel, projectTypeLabel } from './utils.js';
 
 // ── Native date helpers ────────────────────────────────────────────────────
@@ -122,10 +126,45 @@ const NUMERIC_FIELDS = new Set(['pipelineProbability','contractValue','designCon
 // The dashboard now runs on Project (Deal merged in). Translate legacy deal filter
 // field names → project columns; drop filters on fields that no longer exist.
 const FIELD_MAP = {
-  dealStatus: 'procurementStatus', stage: 'procurementStage', probability: 'pipelineProbability',
+  probability: 'pipelineProbability',
   totalRevenue: 'contractValue', designFeeTotal: 'designContractValue', ownerId: 'salesOwnerId',
 };
 const DROP_FILTER_FIELDS = new Set(['lostReason','wonAt','lostAt','nextActionDue','numberOfUnits','projectStatus']);
+
+// ── Row-level filters ─────────────────────────────────────────────────────
+// These three describe a BOARD ROW, not a job. A full-design job is on two
+// boards at once and can be won on one while still open on the other, so asking
+// the database for "status is WON" against procurementStatus is wrong twice
+// over: it throws away a job whose DESIGN side is won, and it lets that same
+// job's Procurement row through when the chart asked only for Design. They are
+// matched in JS after each project is expanded into its board rows instead.
+const ROW_FILTER_FIELDS = new Set(['pipeline', 'dealStatus', 'stage']);
+
+function rowValue(row, field) {
+  if (field === 'pipeline')   return row.pipeline;
+  if (field === 'dealStatus') return row.status;
+  if (field === 'stage')      return normalizeStage(row.stage);
+  return null;
+}
+
+function rowMatches(row, rule) {
+  const actual = rowValue(row, rule.field);
+  const norm   = v => (rule.field === 'stage' ? normalizeStage(v) : v);
+  const wanted = (Array.isArray(rule.value) ? rule.value : [rule.value]).map(norm);
+  switch (rule.operator) {
+    case 'is':        return actual === wanted[0];
+    case 'is_not':    return actual !== wanted[0];
+    case 'is_any_of': return wanted.includes(actual);
+    default:          return true;   // an operator that makes no sense here filters nothing
+  }
+}
+
+/** Does this board row survive every row-level filter on the widget? */
+export function rowPassesFilters(row, filters) {
+  return (filters || [])
+    .filter(f => ROW_FILTER_FIELDS.has(f.field))
+    .every(f => rowMatches(row, f));
+}
 
 // Service type used to be offered on the filter panel in a spelling the database
 // has never held (FULL_SERVICE_DESIGN and friends). Charts saved with one of
@@ -142,8 +181,14 @@ const LEGACY_SERVICE_TYPE = {
 // so Procurement is all of them, and Design is the ones whose service type puts
 // them on that board. This filter was being thrown away, which is why the seeded
 // "Design Fee Forecast" was quietly charting every job in the company.
-function pipelineWhere(value) {
-  const picked = Array.isArray(value) ? value : [value];
+//
+// This is only a head start for the database — it fetches no more jobs than the
+// chart could possibly need. The actual narrowing to one board happens in
+// rowPassesFilters() after each job has been split into its rows, which is the
+// only place that can tell a job's Design row from its Procurement row.
+function pipelineWhere(rule) {
+  if (rule.operator !== 'is' && rule.operator !== 'is_any_of') return {};
+  const picked = Array.isArray(rule.value) ? rule.value : [rule.value];
   if (picked.includes('DESIGN') && !picked.includes('PROCUREMENT')) {
     return { serviceType: { in: DESIGN_SERVICE_TYPES } };
   }
@@ -152,7 +197,9 @@ function pipelineWhere(value) {
 
 function filterToWhere(rule) {
   if (DROP_FILTER_FIELDS.has(rule.field)) return {};
-  if (rule.field === 'pipeline') return pipelineWhere(rule.value);
+  if (rule.field === 'pipeline') return pipelineWhere(rule);
+  // Status and stage belong to a board row; they are matched after expansion.
+  if (ROW_FILTER_FIELDS.has(rule.field)) return {};
   const field = FIELD_MAP[rule.field] || rule.field;
   const { operator } = rule;
   const value = field === 'serviceType'
@@ -218,8 +265,8 @@ const PROB_TIER_ORDER = ['80–100%', '50–79%', '25–49%', '0–24%'];
 // Every bar, slice and legend entry reads in plain English. These used to come
 // back as the stored value, so a chart grouped by stage said "PRECONSTRUCTION"
 // and one grouped by service type said "fullDesign". The names come from the
-// same vocabulary the boards use, so a rename lands on the charts too.
-const PIPELINE_LABEL = { PROCUREMENT: 'Procurement', DESIGN: 'Design' };
+// same vocabulary the boards use (pipeline.js), so a rename lands on the charts
+// too — this file used to keep its own copy of the board names.
 
 function getDealKey(deal, viewBy) {
   switch (viewBy) {
@@ -258,6 +305,33 @@ function generateTimeLabels(deals, viewBy) {
   return null;
 }
 
+// ── Counting jobs vs counting rows ─────────────────────────────────────────
+// Two honest numbers, and they are meant to differ. "Rows" is how many deals are
+// in play across the boards; "jobs" is how many actual projects those came from,
+// counted once each. A full-design job is one job and two deals.
+function countJobs(deals) {
+  return new Set(deals.map(d => d.id)).size;
+}
+
+// Mike, 2026-09-08: "We need to always break out deals won to design deals won
+// and procurement deals won." So every widget that reports wins reports both,
+// never a single merged figure.
+function wonByBoard(deals, revenueOf) {
+  const out = { total: 0, totalRevenue: 0 };
+  for (const key of PIPELINE_KEYS) out[key] = { count: 0, revenue: 0, label: PIPELINE_LABEL[key] };
+  for (const deal of deals) {
+    if (!WON_STATUSES.includes(deal.dealStatus)) continue;
+    const bucket = out[deal.pipeline];
+    if (!bucket) continue;
+    const money = revenueOf ? revenueOf(deal) : (deal.revenue || 0);
+    bucket.count += 1;
+    bucket.revenue += money;
+    out.total += 1;
+    out.totalRevenue += money;
+  }
+  return out;
+}
+
 // ── Main run function ──────────────────────────────────────────────────────
 
 export async function runWidget(widget, db) {
@@ -280,31 +354,54 @@ export async function runWidget(widget, db) {
       salesOwner: { select: { id: true, name: true } },
     },
   });
-  const deals = rawProjects.map(p => ({
-    ...p,
-    owner:          p.salesOwner,
-    stage:          p.procurementStage,
-    probability:    averageProbability(p),
-    dealStatus:     p.procurementStatus,
-    totalRevenue:   p.contractValue,
-    designFeeTotal: p.designContractValue,
-    pipeline:       'PROCUREMENT',
-    lostReason:     null,
-  }));
+
+  // ── One job → one row per board ────────────────────────────────────────────
+  // Mike, 2026-09-08: "It counts once, but shows on 2 dashboards. Each dashboard
+  // only cares about product sales (PROCUREMENT) or design fees (DESIGN)."
+  //
+  // So a full-design job produces two rows here: a Procurement row worth the
+  // product sale and a Design row worth the design fee. Each carries its own
+  // stage and its own status, because the two really do move and close apart.
+  // A chart filtered to one board sees exactly one of them; a chart left on both
+  // sees both, and the un-split sum of the two IS that job's combined revenue.
+  const deals = [];
+  for (const p of rawProjects) {
+    for (const row of boardRows(p)) {
+      if (!rowPassesFilters(row, filters)) continue;
+      deals.push({
+        ...p,
+        owner:           p.salesOwner,
+        pipeline:        row.pipeline,
+        stage:           row.stage,
+        dealStatus:      row.status,
+        probability:     averageProbability(p),
+        revenue:         row.revenue,            // this board's money, and only this board's
+        totalRevenue:    p.contractValue,        // product sales on the whole job
+        designFeeTotal:  p.designContractValue,  // design fee on the whole job
+        combinedRevenue: combinedRevenue(p),     // Mike's item 3 — the two added up
+        lostReason:      null,
+      });
+    }
+  }
 
   const { category, metric, viewBy, segmentBy } = widget;
 
   // REVENUE / FORECAST
   if (category === 'REVENUE' || category === 'FORECAST') {
-    const revenueField = metric === 'designFee' ? 'designFeeTotal' : 'totalRevenue';
+    // Each row is worth what its own board is worth. A widget that names design
+    // fees zeroes the Procurement rows so a chart left on both boards still says
+    // "design fees" honestly rather than quietly adding product sales in.
+    const revenueOf = deal => (metric === 'designFee' && deal.pipeline !== 'DESIGN')
+      ? 0
+      : (deal.revenue || 0);
     const map = {};
 
     for (const deal of deals) {
       const key = getDealKey(deal, viewBy);
       const seg = getSegmentKey(deal, segmentBy);
       const val = metric === 'weighted_value'
-        ? (deal[revenueField] || 0) * (deal.probability / 100)
-        : (deal[revenueField] || 0);
+        ? revenueOf(deal) * ((deal.probability || 0) / 100)
+        : revenueOf(deal);
       if (!map[key]) map[key] = {};
       map[key][seg] = (map[key][seg] || 0) + val;
     }
@@ -319,10 +416,13 @@ export async function runWidget(widget, db) {
       return row;
     });
 
-    const totalOpen = deals.filter(d => d.dealStatus === 'OPEN').reduce((s,d) => s + (d[revenueField]||0), 0);
-    const totalWon  = deals.filter(d => d.dealStatus === 'WON').reduce((s,d)  => s + (d[revenueField]||0), 0);
+    const totalOpen = deals.filter(d => d.dealStatus === 'OPEN')
+      .reduce((s, d) => s + revenueOf(d), 0);
+    const totalWon  = deals.filter(d => WON_STATUSES.includes(d.dealStatus))
+      .reduce((s, d) => s + revenueOf(d), 0);
     return { category, metric, viewBy, segmentBy, segments, series,
-      meta: { totalOpen, totalWon, dealCount: deals.length } };
+      meta: { totalOpen, totalWon, dealCount: deals.length,
+        jobCount: countJobs(deals), won: wonByBoard(deals, revenueOf) } };
   }
 
   // DEAL_COUNT
@@ -350,18 +450,25 @@ export async function runWidget(widget, db) {
       return row;
     });
     return { category, metric, viewBy, segmentBy, segments, series,
-      meta: { dealCount: deals.length } };
+      meta: { dealCount: deals.length, jobCount: countJobs(deals), won: wonByBoard(deals) } };
   }
 
   // CONVERSION
   if (category === 'CONVERSION') {
+    // One win-rate definition, the one in pipeline.js: won ÷ everything past
+    // Open. A COMPLETED job was won and then delivered, so finishing the work
+    // must not lower the rate, and an abandoned deal is a deal that did not
+    // land. This branch used to count only WON over WON+LOST, which is why the
+    // dashboard and the CRM stats bar could show two different win rates.
+    const decided = d => DECIDED_STATUSES.includes(d.dealStatus);
     const map = {};
     for (const deal of deals) {
       const key = getDealKey(deal, viewBy);
       if (!map[key]) map[key] = { won:0, lost:0, total:0 };
+      if (!decided(deal)) continue;
       map[key].total++;
-      if (deal.dealStatus === 'WON')  map[key].won++;
-      if (deal.dealStatus === 'LOST') map[key].lost++;
+      if (WON_STATUSES.includes(deal.dealStatus)) map[key].won++;
+      else                                        map[key].lost++;
     }
     const labels = Object.keys(map).sort((a,b) => {
       const ra = map[a].total > 0 ? map[a].won/map[a].total : 0;
@@ -375,25 +482,55 @@ export async function runWidget(widget, db) {
       total:   map[label].total,
       winRate: map[label].total > 0 ? Math.round((map[label].won/map[label].total)*100) : 0,
     }));
-    const totalWon  = deals.filter(d => d.dealStatus === 'WON').length;
-    const totalLost = deals.filter(d => d.dealStatus === 'LOST').length;
+    const won       = wonByBoard(deals);
+    const totalWon  = won.total;
+    const totalLost = deals.filter(d => decided(d) && !WON_STATUSES.includes(d.dealStatus)).length;
     const overallRate = (totalWon+totalLost) > 0 ? Math.round((totalWon/(totalWon+totalLost))*100) : 0;
     return { category, metric, viewBy, segmentBy: null, segments: ['won','lost'],
-      series, meta: { totalWon, totalLost, overallRate, dealCount: deals.length } };
+      series, meta: { totalWon, totalLost, overallRate, won,
+        dealCount: deals.length, jobCount: countJobs(deals) } };
   }
 
-  // DURATION
+  // DURATION — how long a deal took, board by board
+  //
+  // This chart was always empty: it read deal.wonAt / deal.lostAt, and neither
+  // column has ever existed. The dates now come from ProjectStatusEvent, which
+  // records the day a deal was created and every day its status changed.
+  //
+  // Rows the 0069 backfill had to invent from updatedAt are marked approximated
+  // and are excluded here on purpose. The 0061 lesson is that a guessed date,
+  // once stored, is indistinguishable from a real one — so rather than publish
+  // an average built on the day somebody last edited a record, the chart says
+  // how many closed deals it had to leave out.
   if (category === 'DURATION') {
+    const events = rawProjects.length ? await db.projectStatusEvent.findMany({
+      where: { projectId: { in: rawProjects.map(p => p.id) }, approximated: false },
+      orderBy: { changedAt: 'asc' },
+      select: { projectId: true, pipeline: true, toStatus: true, changedAt: true },
+    }) : [];
+    const history = new Map();
+    for (const e of events) {
+      const k = `${e.projectId}|${e.pipeline}`;
+      if (!history.has(k)) history.set(k, []);
+      history.get(k).push(e);
+    }
+
     const map = {};
+    let closedWithoutDate = 0;
+    let measured = 0;
     for (const deal of deals) {
-      if (!deal.wonAt && !deal.lostAt) continue;
-      const closed = deal.wonAt || deal.lostAt;
-      const days   = Math.round((new Date(closed) - new Date(deal.createdAt)) / 86400000);
-      const key    = getDealKey(deal, viewBy);
-      const seg    = getSegmentKey(deal, segmentBy);
-      if (!map[key])       map[key] = {};
-      if (!map[key][seg])  map[key][seg] = [];
+      if (!DECIDED_STATUSES.includes(deal.dealStatus)) continue;   // still open — no duration yet
+      const board   = history.get(`${deal.id}|${deal.pipeline}`) || [];
+      const closing = [...board].reverse().find(e => DECIDED_STATUSES.includes(e.toStatus));
+      if (!closing) { closedWithoutDate++; continue; }
+      const openedAt = board.find(e => e.toStatus === 'OPEN')?.changedAt ?? deal.createdAt;
+      const days = Math.max(0, Math.round((new Date(closing.changedAt) - new Date(openedAt)) / 86400000));
+      const key  = getDealKey(deal, viewBy);
+      const seg  = getSegmentKey(deal, segmentBy);
+      if (!map[key])      map[key] = {};
+      if (!map[key][seg]) map[key][seg] = [];
       map[key][seg].push(days);
+      measured++;
     }
     const labels   = Object.keys(map).sort();
     const segments = [...new Set(Object.values(map).flatMap(s => Object.keys(s)))].sort();
@@ -406,7 +543,8 @@ export async function runWidget(widget, db) {
       return row;
     });
     return { category, metric, viewBy, segmentBy, segments, series,
-      meta: { dealCount: deals.length } };
+      meta: { dealCount: measured, closedWithoutDate,
+        jobCount: countJobs(deals), won: wonByBoard(deals) } };
   }
 
   return { category, metric, viewBy, segmentBy, segments:[], series:[], meta:{ dealCount:0 } };
@@ -578,4 +716,4 @@ async function runProposals(widget, db, filters) {
 
 // Internals reached by the test suite only (scripts/tests/dashboardFilters.test.mjs).
 // Nothing in the app imports this.
-export const __testing = { getDealKey, probabilityTier };
+export const __testing = { getDealKey, probabilityTier, countJobs, wonByBoard };

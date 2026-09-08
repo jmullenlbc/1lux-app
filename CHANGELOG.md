@@ -5,6 +5,117 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Deal history, and one job on two boards] - September 8, 2026 (DEPLOYED)
+
+Mike, 2026-09-08:
+
+> 1. We need to record the date a deal was created and that status of won, lost,
+>    abandoned, etc. changed.
+> 2. It counts once, but shows on 2 dash boards. Each dashboard only cares about
+>    product sales (PROCUREMENT) or design fees (DESIGN).
+> 3. We should see total combined revenue of a design fee and product sales on a job.
+>
+> We need to always break out deals won to design deals won and procurement deals won.
+
+And then:
+
+> - All of this should write in the history of a project right?
+> - Win rate should always be win divided by lost+abandoned. Open is neither win or loss.
+
+This closes the three items the last entry listed as "still weak, deliberately
+not touched."
+
+### 1. The app now keeps a deal history
+
+New table `ProjectStatusEvent` (migration **0069**) writes a row every time a
+deal is created and every time its status changes — who changed it, when, from
+what to what, and the reason. A job on both boards gets its own history on each,
+because Mike's rule is that the two close separately: *"we can win a design and
+lose the procurement. we can also lose the design and later win the procurement."*
+
+Written from all four places a project comes into being (new, duplicate, Excel
+import, and the CRM board's save) plus the status edit itself. **The write can
+never block a save** — if history fails it is logged and the save still goes
+through.
+
+**Deals that already closed have no real close date.** The migration seeds what
+it can from the record's created and last-edited dates, but every seeded closing
+date is stamped `approximated` and **the Sales Cycle chart leaves those out**. It
+reports them as "No Close Date" instead of averaging in a guess. (The lesson from
+migration 0061: once a guessed date is stored, nobody can tell it from a real one.)
+Real durations start accumulating from today forward.
+
+### 2. One job counts once, and shows on both boards
+
+A job now expands into one row per board it is on: a **Procurement** row worth
+the product sale, and — for full-design and design-assist jobs — a **Design** row
+worth the design fee. Each row carries its own stage and its own status.
+
+That single change fixes a filtering bug worth naming: filtering to "Won" used to
+ask the database for the procurement status and threw away every job that was won
+on Design but still open on Procurement. Board-level filters (Pipeline, Stage,
+Deal Status) are now matched against the row, so a chart set to Design shows the
+Design side and nothing else.
+
+### 3. Combined revenue
+
+Because the two rows sit side by side, a chart left on both boards adds up to the
+job's combined revenue on its own. The seeded **Combined Revenue Forecast** is set
+that way and split by board, so the bar total is product sales plus design fees
+and the colours show which half is which.
+
+### Deals won, always broken out
+
+Every widget that reports wins now reports **procurement wins and design wins
+separately** — count and dollars — never one merged number. New seeded widget
+**Deals Won by Owner**, split by board. The stat strip above each chart carries the
+breakdown too, plus a "jobs" figure whenever the row count and the job count differ,
+so a doubled number is explained on screen rather than looking like a bug.
+
+### It writes in the project's history now
+
+It did not before — and it should have. The project **History** tab logged phase
+changes, renames, client and contract edits, but it never once mentioned a deal
+being won, lost or abandoned, or moving up a board. Now every one of those writes
+a line:
+
+> Design deal moved from Open to **Won**
+> Procurement deal moved from Open to **Lost** — Price
+
+Won / lost / abandoned lines get their own green trophy; stage moves get a blue
+arrow; both are their own choices in the History tab's **Module** dropdown, so
+you can read just the deal story on a job. The line is written from the same rows
+the charts run on, so **the timeline and the dashboards cannot tell different
+stories** about what happened. Like the rest of the history, the write is
+best-effort: if it fails, the save still goes through.
+
+### One behaviour change worth flagging
+
+The dashboard's **win rate** used to be Won ÷ (Won + Lost); everywhere else in the
+app it is Won ÷ everything past Open. Those are two different numbers under one
+label, so the dashboard now uses the single shared definition — which is exactly
+what Mike restated above. **Win rates on the dashboard will read slightly lower
+than before** — abandoned deals now count against the rate, and completed jobs
+count as wins (a completed job was won and then delivered), which is how the CRM
+stats bar has always reported it. Open deals are in neither half.
+
+**Files changed:** `prisma/schema.prisma` + new migration
+`prisma/migrations/0069_project_status_events/`, new `src/lib/statusEvents.js`,
+`src/lib/pipeline.js`, `src/lib/dashboardEngine.js`, `src/lib/defaultDashboard.js`,
+`src/lib/activity.js`, `src/components/ProjectActivityFeed.jsx`,
+`src/app/(app)/crm/dashboards/DashboardsClient.jsx`, and the four project-creation
+/ status-edit routes (`api/projects`, `api/projects/[id]`,
+`api/projects/[id]/duplicate`, `api/admin/import`).
+
+**Verified:** regression **1,177/1,177** (14 new tests in
+`scripts/tests/dashboardFilters.test.mjs`, now 28, plus a new
+`scripts/tests/statusEvents.test.mjs` pinning the history lines); `npm run verify`
+11/11 gates; `npm run build` clean with 37/37 runtime assets; budget engine sanity
+green. Schema reviewed by schema-guard — purely additive, Postgres-clean, backfill
+proved NOT-NULL-safe and idempotent.
+
+---
+
 ## [CRM dashboards filter panel fixed properly] - September 8, 2026 (DEPLOYED — September 8 push)
 
 Mike, 2026-09-08: *"Fix that screen properly and deploy everything above."*

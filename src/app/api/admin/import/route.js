@@ -5,6 +5,7 @@ import { loadPricing } from '@/lib/pricingLoader';
 import { parseConceptualBudgetXlsx } from '@/lib/excelImportParser';
 import * as XLSX from 'xlsx';
 import { readUploadedFiles } from '@/lib/uploadIntake';
+import { recordProjectCreated } from '@/lib/statusEvents';
 
 // POST /api/admin/import
 // Accepts: multipart/form-data
@@ -43,6 +44,8 @@ export async function POST(request) {
             createdById:     user.id,
           },
         });
+
+        await recordProjectCreated(prisma, project, user.id);
 
         // Create project data (filter null values)
         const pd = p.projectData || {};

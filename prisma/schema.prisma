@@ -55,6 +55,7 @@ model User {
   qcItemsChecked     BudgetQCItem[]             @relation("QCItemChecker")
   assignedRFIs       RFI[]                      @relation("RFIAssignee")
   warehouseReleases  WarehouseRelease[]         @relation("WarehouseReleaser")
+  statusChanges      ProjectStatusEvent[]       @relation("ProjectStatusEventChangedBy")
   approvedReleases   WarehouseRelease[]         @relation("ReleaseApprover")
   deliveryEventsCreated ManufacturerDeliveryEvent[] @relation("DeliveryEventCreator")
   shipSchedulePushes ShipSchedulePush[]         @relation("ShipPusher")
@@ -535,6 +536,35 @@ model Project {
   submissions         ConceptualSubmission[] @relation("SubmissionDuplicateMatch")
   calibrationSamples  CalibrationSample[]
   contactLinks        ProjectContact[]
+  statusEvents        ProjectStatusEvent[]
+}
+
+/// Every time a deal changes status on a board, one row lands here.
+///
+/// Mike, 2026-09-08: "We need to record the date a deal was created and that
+/// status of won, lost, abandoned, etc. changed." The status columns on Project
+/// only ever hold where a deal is NOW, so the day it was won was unrecoverable —
+/// which is why the sales-cycle chart could never be built.
+///
+/// One row per BOARD, because a Full Design job is won or lost on each board
+/// independently. `approximated` marks a row invented by the 0069 backfill from
+/// updatedAt rather than observed: the 0061 lesson is that once a guessed date
+/// is stored it is indistinguishable from a real one, so it is labelled instead.
+model ProjectStatusEvent {
+  id           String   @id @default(cuid())
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  pipeline     String   // PROCUREMENT | DESIGN
+  fromStatus   String?  // null on the opening row (the deal being created)
+  toStatus     String   // OPEN | WON | LOST | COMPLETED | ABANDONED
+  reason       String?  // the written reason captured when losing or abandoning
+  changedAt    DateTime @default(now())
+  changedById  String?
+  changedBy    User?    @relation("ProjectStatusEventChangedBy", fields: [changedById], references: [id])
+  approximated Boolean  @default(false)
+
+  @@index([projectId, pipeline])
+  @@index([changedAt])
 }
 
 model ProjectFile {

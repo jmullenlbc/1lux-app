@@ -88,6 +88,10 @@ export const STATUS_LABEL = Object.fromEntries(PIPELINE_STATUS.map(s => [s.key, 
 // delivered, so it counts as a win — otherwise finishing work would lower the rate.
 // Never redefine this locally; import it. Two numbers under one label is the bug
 // this replaces (the CRM stats bar and the dashboard disagreed).
+//
+// Re-confirmed by Mike, 2026-09-08: "Win rate should always be win divided by
+// lost+abandoned. Open is neither win or loss." Abandoned counts against the
+// rate; an open deal is not in the denominator at all.
 export const WON_STATUSES     = ['WON', 'COMPLETED'];
 export const DECIDED_STATUSES = ['WON', 'COMPLETED', 'LOST', 'ABANDONED']; // i.e. everything past OPEN
 export const WIN_RATE_DESCRIPTION =
@@ -125,6 +129,45 @@ export function statusFieldFor(pipeline) { return pipeline === 'DESIGN' ? 'desig
 // Procurement → product sale; Design → design fee.
 export function revenueFor(project, pipeline) {
   return pipeline === 'DESIGN' ? (project.designContractValue ?? null) : (project.contractValue ?? null);
+}
+
+// ── The two boards, and what each one is worth ────────────────────────────────
+// Mike, 2026-09-08: "It counts once, but shows on 2 dashboards. Each dashboard
+// only cares about product sales (PROCUREMENT) or design fees (DESIGN)."
+export const PIPELINES = [
+  { key: 'PROCUREMENT', label: 'Procurement', revenueLabel: 'Product Sales' },
+  { key: 'DESIGN',      label: 'Design',      revenueLabel: 'Design Fees'   },
+];
+export const PIPELINE_KEYS         = PIPELINES.map(p => p.key);
+export const PIPELINE_LABEL        = Object.fromEntries(PIPELINES.map(p => [p.key, p.label]));
+export const PIPELINE_REVENUE_LABEL = Object.fromEntries(PIPELINES.map(p => [p.key, p.revenueLabel]));
+
+/** Which boards a project sits on. Every project sells product; design types add Design. */
+export function pipelinesFor(project) {
+  return inDesignPipeline(project?.serviceType) ? ['PROCUREMENT', 'DESIGN'] : ['PROCUREMENT'];
+}
+
+/**
+ * One project → one row per board it is on.
+ *
+ * This is the unit everything counts and sums. A Full Design job really is two
+ * deals: Mike, 2026-09-05 — "we can win a design and lose the procurement. we
+ * can also lose the design and later win the procurement." So each row carries
+ * its own stage, its own status and its own revenue, and the project itself is
+ * still one job that simply appears on both boards.
+ */
+export function boardRows(project) {
+  return pipelinesFor(project).map(pipeline => ({
+    pipeline,
+    stage:   project[stageFieldFor(pipeline)],
+    status:  project[statusFieldFor(pipeline)],
+    revenue: revenueFor(project, pipeline),
+  }));
+}
+
+/** Product sales + design fees on one job — never stored, always summed from the boards. */
+export function combinedRevenue(project) {
+  return boardRows(project).reduce((sum, row) => sum + (row.revenue || 0), 0);
 }
 
 // ── Out-of-sync rule ──────────────────────────────────────────────────────────

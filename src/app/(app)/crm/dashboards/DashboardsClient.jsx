@@ -162,17 +162,36 @@ function WidgetChart({ data }) {
 
 // ── Widget stat strip ──────────────────────────────────────────────────────
 
+// Mike, 2026-09-08: "We need to always break out deals won to design deals won
+// and procurement deals won." So wherever a Won figure appears, both boards
+// appear under it — never one merged number.
+function wonSub(won) {
+  if (!won) return undefined;
+  return `${won.PROCUREMENT?.count || 0} procurement · ${won.DESIGN?.count || 0} design`;
+}
+function wonMoneySub(won) {
+  if (!won) return undefined;
+  return `${fmtDollar(won.PROCUREMENT?.revenue || 0)} product · ${fmtDollar(won.DESIGN?.revenue || 0)} design`;
+}
+
+// "Deals" counts board rows; "Jobs" counts the projects behind them. A full
+// design job is one job and two deals, and both numbers are true.
+function dealsSub(meta) {
+  return meta.jobCount != null && meta.jobCount !== meta.dealCount
+    ? `${meta.jobCount} jobs`
+    : undefined;
+}
+
 function WidgetStats({ data, widget }) {
   if (!data?.meta) return null;
   const { meta, category } = data;
 
   if (category === 'REVENUE' || category === 'FORECAST') {
-    const isDesignFee = widget.metric === 'designFee';
     return (
       <div className="flex gap-3 flex-wrap mb-3">
         <StatCard label="Open" value={fmtDollar(meta.totalOpen)} color="blue" />
-        <StatCard label="Won"  value={fmtDollar(meta.totalWon)}  color="green" />
-        <StatCard label="Deals" value={meta.dealCount} color="purple" />
+        <StatCard label="Won"  value={fmtDollar(meta.totalWon)}  sub={wonMoneySub(meta.won)} color="green" />
+        <StatCard label="Deals" value={meta.dealCount} sub={dealsSub(meta)} color="purple" />
       </div>
     );
   }
@@ -180,23 +199,28 @@ function WidgetStats({ data, widget }) {
     return (
       <div className="flex gap-3 flex-wrap mb-3">
         <StatCard label="Win Rate" value={`${meta.overallRate}%`} color="green" />
-        <StatCard label="Won"      value={meta.totalWon}          color="green" />
+        <StatCard label="Won"      value={meta.totalWon} sub={wonSub(meta.won)} color="green" />
         <StatCard label="Lost"     value={meta.totalLost}         color="red" />
-        <StatCard label="Total"    value={meta.dealCount}         color="purple" />
+        <StatCard label="Total"    value={meta.dealCount} sub={dealsSub(meta)} color="purple" />
       </div>
     );
   }
   if (category === 'DEAL_COUNT') {
     return (
       <div className="flex gap-3 flex-wrap mb-3">
-        <StatCard label="Total Deals" value={meta.dealCount} color="blue" />
+        <StatCard label="Total Deals" value={meta.dealCount} sub={dealsSub(meta)} color="blue" />
+        <StatCard label="Won"         value={meta.won?.total || 0} sub={wonSub(meta.won)} color="green" />
       </div>
     );
   }
   if (category === 'DURATION') {
     return (
       <div className="flex gap-3 flex-wrap mb-3">
-        <StatCard label="Deals Closed" value={meta.dealCount} color="purple" />
+        <StatCard label="Deals Measured" value={meta.dealCount} color="purple" />
+        {meta.closedWithoutDate > 0 && (
+          <StatCard label="No Close Date" value={meta.closedWithoutDate}
+            sub="closed before we started recording" color="amber" />
+        )}
       </div>
     );
   }

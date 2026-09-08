@@ -3,7 +3,8 @@ import { requireAuth, isClientViewer } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { logActivity, PHASE_LABELS } from '@/lib/activity';
 import { sendNotification } from '@/lib/notify';
-import { NEXT_ACTION_KEYS, STAGE_KEYS } from '@/lib/pipeline';
+import { NEXT_ACTION_KEYS, STAGE_KEYS, STAGE_LABEL, PIPELINE_LABEL } from '@/lib/pipeline';
+import { recordStatusChanges, describeStatusChange } from '@/lib/statusEvents';
 
 async function getProjectForUser(projectId, user) {
   const project = await prisma.project.findUnique({
@@ -133,6 +134,34 @@ export async function PATCH(request, { params }) {
     },
     include: { projectData: true },
   });
+
+  // Write down the day this deal changed status, on whichever board moved.
+  // The status columns above only hold where a deal is NOW; without this the
+  // day it was won is gone the moment it is overwritten.
+  const statusMoves = await recordStatusChanges(prisma, project, updated, user.id);
+
+  // Mike, 2026-09-08: "All of this should write in the history of a project
+  // right?" It does now. The same moves the charts run on are written to the
+  // project's History tab in plain English, one line each, from the one source —
+  // so the timeline and the dashboards can never disagree about what happened.
+  for (const move of statusMoves) {
+    await logActivity(params.id, user, 'deal_status', describeStatusChange(move), {
+      pipeline: move.pipeline, fromStatus: move.fromStatus, toStatus: move.toStatus,
+    });
+  }
+
+  // A deal moving up the board belongs in the same story. Stage is a board-row
+  // property like status, so it is reported per board and named the way the
+  // boards name it rather than by its stored key.
+  for (const [pipeline, field] of [['PROCUREMENT', 'procurementStage'], ['DESIGN', 'designStage']]) {
+    if (body[field] === undefined || updated[field] === project[field]) continue;
+    const board = PIPELINE_LABEL[pipeline];
+    const from  = project[field] ? (STAGE_LABEL[project[field]] || project[field]) : 'no stage';
+    const to    = STAGE_LABEL[updated[field]] || updated[field];
+    await logActivity(params.id, user, 'deal_stage',
+      `${board} deal moved from ${from} to **${to}**`,
+      { pipeline, fromStage: project[field], toStage: updated[field] });
+  }
 
   // Log meaningful changes — skip silent wizard step/progress saves
   const silentOnly = Object.keys(body).every(k => ['currentStep', 'completedSteps'].includes(k));

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth, isClientViewer } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { loadPricing } from '@/lib/pricingLoader';
+import { recordProjectCreated } from '@/lib/statusEvents';
 
 export async function GET() {
   const { user, error } = await requireAuth();
@@ -92,6 +93,9 @@ export async function POST(request) {
     },
     include: { projectData: true },
   });
+
+  // The day this deal was created, written down per board it starts on.
+  await recordProjectCreated(prisma, project, user.id);
 
   return NextResponse.json({ project }, { status: 201 });
 }

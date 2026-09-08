@@ -2,7 +2,53 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-08 (latest) — Mike's Claude — **DEPLOYED**: pipeline stages relabelled + CRM dashboards filter panel repaired
+### 2026-09-08 (latest) — Mike's Claude — **DEPLOYED**: deal history table (0069) + one job / two board rows + deal moves on the project History tab
+
+**Migration 0069 shipped in this push** and applies on the Amplify build
+(`prisma migrate deploy` runs there). Nothing pending on our side.
+
+Closes the three items the entry below listed as known-remaining.
+
+**New table `ProjectStatusEvent`** (Mike: *"We need to record the date a deal was
+created and that status of won, lost, abandoned, etc. changed"*). One history per
+board per job, because the two boards close independently. Written from all four
+creation paths (new / duplicate / Excel import / CRM save) and from the status edit
+in `api/projects/[id]`; the write is best-effort and can never block a save.
+Backfill seeds openings from `createdAt` and closings from `updatedAt`, and every
+seeded closing is stamped **`approximated = true`** — the DURATION chart excludes
+those and reports a "No Close Date" count rather than averaging a guess (the 0061
+lesson). Idempotent via deterministic `pse_<md5>` ids + `ON CONFLICT DO NOTHING`.
+
+**Board rows.** A project now expands into one row per board — Procurement worth
+the product sale, Design worth the design fee, each with its own stage and status.
+Side effect worth knowing: `pipeline` / `stage` / `dealStatus` are **no longer SQL
+where-clauses**; they are matched in JS after expansion (`rowPassesFilters`). As
+SQL they were dropping any job won on Design but open on Procurement. `filtersToWhere`
+now returns `{}` for those three; `pipelineWhere` survives only as a safe pre-narrow.
+
+**Project History tab** (Mike: *"All of this should write in the history of a project
+right?"* — it did not). Status and stage moves were the one thing the activity log
+never recorded. Two new activity types, `deal_status` and `deal_stage`, written in
+`api/projects/[id]` from the rows `recordStatusChanges` returns — same source as the
+charts, so the timeline and the dashboards cannot disagree. Both have their own
+`TYPE_CONFIG` entry and their own Module-filter option in `ProjectActivityFeed.jsx`.
+Sentences come from `describeStatusChange()` in `statusEvents.js`, which reads
+`PIPELINE_LABEL` / `STATUS_LABEL` — do not type board or status names out again.
+
+**Behaviour change to flag:** the dashboard CONVERSION branch computed
+`WON/(WON+LOST)` while `pipeline.js` defines win rate as won ÷ everything past Open.
+Realigned to the shared definition — **dashboard win rates will read lower** than
+they did. One definition, one number. Mike re-confirmed the definition the same day:
+*"Win rate should always be win divided by lost+abandoned. Open is neither win or loss."*
+
+Verified: regression **1,177/1,177** with the dev server up (14 new tests in
+`dashboardFilters.test.mjs`, now 28, plus a new `statusEvents.test.mjs`);
+`npm run verify` **11 gates** incl. source-tracked; `npm run build` exit 0,
+37/37 runtime assets; `npm test` bid matrix 12/12. **schema-guard: PASS** — purely
+additive (+30/−0), schema↔migration exact on all nine columns, FKs added by
+`ALTER TABLE` after `CREATE TABLE`, backfill proved NOT-NULL-safe.
+
+### 2026-09-08 — Mike's Claude — **DEPLOYED**: pipeline stages relabelled + CRM dashboards filter panel repaired
 
 Two pieces in one push.
 

@@ -39,6 +39,10 @@ export const DEFAULT_WIDGETS = [
     position: 1,
   },
   {
+    // Mike, 2026-09-08: "We should see total combined revenue of a design fee
+    // and product sales on a job." No pipeline filter, so a full-design job puts
+    // both of its boards on this chart — the bar total IS product sales plus
+    // design fees, and the split shows which half is which.
     name: 'Combined Revenue Forecast',
     category: 'REVENUE',
     metric: 'value',
@@ -63,11 +67,15 @@ export const DEFAULT_WIDGETS = [
     position: 3,
   },
   {
+    // Split by board on purpose: a full-design job is open on Procurement and on
+    // Design at the same time, so it contributes two deals here. Segmenting by
+    // pipeline makes that visible instead of leaving a client's count looking
+    // mysteriously doubled.
     name: 'Open Deals by Organization',
     category: 'DEAL_COUNT',
     metric: 'count',
     viewBy: 'client',
-    segmentBy: 'serviceType',
+    segmentBy: 'pipeline',
     filters: JSON.stringify([
       { field: 'dealStatus', operator: 'is_any_of', value: ['OPEN'] },
     ]),
@@ -114,7 +122,7 @@ export const DEFAULT_WIDGETS = [
     category: 'DEAL_COUNT',
     metric: 'count',
     viewBy: 'client',
-    segmentBy: 'projectType',
+    segmentBy: 'pipeline',
     filters: JSON.stringify([
       { field: 'dealStatus', operator: 'is_any_of', value: ['LOST'] },
     ]),
@@ -122,15 +130,34 @@ export const DEFAULT_WIDGETS = [
     position: 8,
   },
   {
+    // Mike, 2026-09-08: "We need to always break out deals won to design deals
+    // won and procurement deals won." Losing the design and later winning the
+    // procurement is a real outcome here, so one merged "deals won" number would
+    // hide the thing worth knowing.
+    name: 'Deals Won by Owner',
+    category: 'DEAL_COUNT',
+    metric: 'count',
+    viewBy: 'owner',
+    segmentBy: 'pipeline',
+    filters: JSON.stringify([
+      { field: 'dealStatus', operator: 'is_any_of', value: ['WON', 'COMPLETED'] },
+    ]),
+    width: 'HALF',
+    position: 9,
+  },
+  {
+    // Runs on the deal history written since 2026-09-08. Deals that closed
+    // before that have no recorded closing date, so they are counted and
+    // reported rather than averaged in on a guess.
     name: 'Sales Cycle Duration by Owner',
     category: 'DURATION',
     metric: 'days',
     viewBy: 'owner',
     segmentBy: 'pipeline',
     filters: JSON.stringify([
-      { field: 'dealStatus', operator: 'is_any_of', value: ['WON', 'LOST'] },
+      { field: 'dealStatus', operator: 'is_any_of', value: ['WON', 'COMPLETED', 'LOST'] },
     ]),
     width: 'HALF',
-    position: 9,
+    position: 10,
   },
 ];

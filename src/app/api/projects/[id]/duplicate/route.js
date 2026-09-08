@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { recordProjectCreated } from '@/lib/statusEvents';
 
 export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
@@ -40,6 +41,10 @@ export async function POST(request, { params }) {
     },
     include: { projectData: true },
   });
+
+  // A copy is a new deal with its own history — it starts today, not on the day
+  // the original was created.
+  await recordProjectCreated(prisma, copy, user.id);
 
   // Copy all questionnaire responses
   if (original.responses?.length > 0) {
