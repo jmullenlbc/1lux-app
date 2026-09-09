@@ -132,9 +132,78 @@ export function scoreText({ title = '', keywords = '', body = '' }, terms) {
   return score;
 }
 
+// ── How much of the library the bot is handed ────────────────────────────────
+//
+// Mike, 2026-09-08: "we just want the bot knowledge to feed into the sales bot
+// … We need every character or everything we upload to do that."
+//
+// So the library is no longer sampled. Every active piece of knowledge goes into
+// the prompt whole, in one block, and the only ceiling is the model's context
+// window — which is a real ceiling, not a policy one: past it the API rejects the
+// call and the bot writes nothing at all. The follow-up drafter runs on a model
+// with a 200,000-token window; at roughly four characters to the token that is
+// about 800,000 characters for everything, prompt included. 350,000 leaves the
+// prompt, the project context and the reply an enormous margin, and is far more
+// than the library holds today.
+//
+// The point of packing rather than truncating the whole block: a document either
+// arrives WHOLE or is visibly cut, and the cut is announced. Silently trimming
+// the tail off a prompt is how you get a bot confidently quoting half a policy.
+export const KNOWLEDGE_CHAR_BUDGET = 350_000;
+
+// Below this much room left, a partial document is worse than none — a few
+// hundred characters of a contract is a fragment nobody should draft from.
+export const MIN_PARTIAL_CHARS = 2_000;
+
+/**
+ * Fit as much of the library as will go, best-first, without going over budget.
+ *
+ * @param {Array<{text?: string}>} items ranked best-first; each carries its text
+ * @param {number} budget total characters allowed across all of them
+ * @returns {{packed: Array, usedChars: number, budget: number,
+ *            truncatedCount: number, droppedCount: number, complete: boolean}}
+ *          `complete` is the answer to the only question that matters: did the
+ *          bot get everything?
+ */
+export function packKnowledge(items = [], budget = KNOWLEDGE_CHAR_BUDGET) {
+  const packed = [];
+  let usedChars = 0;
+  let truncatedCount = 0;
+  let droppedCount = 0;
+
+  for (const item of items) {
+    const text = tidyText(item?.text || '');
+    if (!text) continue;               // nothing to send is not the same as dropped
+
+    const room = budget - usedChars;
+    if (text.length <= room) {
+      packed.push({ ...item, text, truncated: false });
+      usedChars += text.length;
+    } else if (room >= MIN_PARTIAL_CHARS) {
+      packed.push({ ...item, text: text.slice(0, room), truncated: true });
+      usedChars += room;
+      truncatedCount += 1;
+    } else {
+      droppedCount += 1;
+    }
+  }
+
+  return {
+    packed,
+    usedChars,
+    budget,
+    truncatedCount,
+    droppedCount,
+    complete: truncatedCount === 0 && droppedCount === 0,
+  };
+}
+
 /**
  * Pull the part of a long document that is actually about the query, so the bot
  * is handed the relevant paragraph instead of the first page of a 40-page PDF.
+ *
+ * No longer used by the bot — it gets whole documents now — but kept for any
+ * caller that needs a preview rather than the real thing.
  */
 export function excerptAround(body, terms, radius = 400) {
   const text = tidyText(body);

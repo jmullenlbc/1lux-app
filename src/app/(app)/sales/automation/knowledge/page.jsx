@@ -451,7 +451,77 @@ const TYPE_TINT = {
  * failed. The reading happens while the upload request is open, so a scanned PDF
  * can take a while; that is what the spinner is for.
  */
-function DocumentsPanel({ category }) {
+/**
+ * What the sales bot actually reads.
+ *
+ * Mike, 2026-09-08: "It sounds like it isnt right now." He was right — and the
+ * reason he had to ask is that this screen never said. What reaches the bot was
+ * decided entirely in code (a category list, a limit of five, a 1,600-character
+ * excerpt), so the only way to know was to go and read it. Now the page says so,
+ * and it will say so again on the day the library outgrows one email.
+ */
+function ReachBanner({ refreshKey }) {
+  const [reach, setReach] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/automation/knowledge/reach');
+        if (res.ok && !cancelled) setReach(await res.json());
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [refreshKey]);
+
+  if (!reach) return null;
+
+  const { itemCount, docCount, entryCount, sentCount, usedChars, budget,
+          complete, unreadable, truncatedCount, droppedCount } = reach;
+
+  const pieces = [
+    docCount   ? `${docCount} document${docCount === 1 ? '' : 's'}` : null,
+    entryCount ? `${entryCount} typed answer${entryCount === 1 ? '' : 's'}` : null,
+  ].filter(Boolean).join(' and ');
+
+  const pct = budget ? Math.round((usedChars / budget) * 100) : 0;
+  const room = `${usedChars.toLocaleString()} characters — ${pct < 1 ? 'under 1%' : `${pct}%`} of what one email can carry`;
+
+  return (
+    <div className="mb-4 space-y-2">
+      {itemCount === 0 ? (
+        <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+          Nothing in the library yet. Everything you add here goes to the sales bot in full.
+        </p>
+      ) : complete ? (
+        <p className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+          <span className="font-semibold">The sales bot reads all of this.</span>{' '}
+          Every word of {pieces} goes into every email it drafts — {room}.
+        </p>
+      ) : (
+        <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          <span className="font-semibold">The library has outgrown one email.</span>{' '}
+          {sentCount} of {itemCount} pieces are sent, most relevant first
+          {truncatedCount ? `, ${truncatedCount} cut short` : ''}
+          {droppedCount ? `, ${droppedCount} left out entirely` : ''}. Archive what is
+          out of date, or tell Claude — the bot can be moved to a model that holds more.
+        </p>
+      )}
+
+      {unreadable > 0 && (
+        <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          <span className="font-semibold">
+            {unreadable} file{unreadable === 1 ? '' : 's'} could not be read, so the bot cannot see
+            {unreadable === 1 ? ' it' : ' them'}.
+          </span>{' '}
+          Press <span className="font-semibold">Try again</span> on the red ones below.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function DocumentsPanel({ category, onChanged }) {
   const [docs,      setDocs]      = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [dragging,  setDragging]  = useState(false);
@@ -459,6 +529,7 @@ function DocumentsPanel({ category }) {
   const [progress,  setProgress]  = useState(null);
   const [problems,  setProblems]  = useState([]);
   const [err,       setErr]       = useState('');
+  const [rereading, setRereading] = useState(null);
   const inputRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -478,9 +549,12 @@ function DocumentsPanel({ category }) {
       const live = a.ok ? (await a.json()).docs || [] : [];
       const gone = b.ok ? (await b.json()).docs || [] : [];
       setDocs([...live, ...gone]);
+      // Anything that changes the list changes what the bot reads, so the
+      // "what the bot reads" line is refreshed from the same place.
+      onChanged?.();
     } catch {}
     setLoading(false);
-  }, [category]);
+  }, [category, onChanged]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -568,6 +642,24 @@ function DocumentsPanel({ category }) {
       body:    JSON.stringify({ isActive: !doc.isActive }),
     });
     if (res.ok) load();
+  }
+
+  // The file itself was kept even when reading it failed, so a file that failed
+  // for a reason since fixed can be read again in place — no deleting and
+  // re-uploading. (2026-09-08: every PDF on the live screen failed because the
+  // server was missing a piece of its PDF reader.)
+  async function reread(doc) {
+    setRereading(doc.id);
+    try {
+      const res  = await fetch(`/api/automation/knowledge/docs/${doc.id}/reread`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) setErr(data.error || 'That file could not be read again.');
+      await load();
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setRereading(null);
+    }
   }
 
   return (
@@ -705,6 +797,15 @@ function DocumentsPanel({ category }) {
                 >
                   Open
                 </a>
+                {doc.status !== 'READY' && (
+                  <button
+                    onClick={() => reread(doc)}
+                    disabled={rereading === doc.id}
+                    className="text-[11px] font-semibold text-orange-600 hover:text-orange-700 px-2 py-1 rounded hover:bg-orange-50 transition-colors disabled:opacity-50"
+                  >
+                    {rereading === doc.id ? 'Reading…' : 'Try again'}
+                  </button>
+                )}
                 <button
                   onClick={() => toggleActive(doc)}
                   className="text-[11px] font-semibold text-slate-400 hover:text-red-500 px-2 py-1 rounded hover:bg-red-50 transition-colors"
@@ -731,7 +832,11 @@ export default function KnowledgePage() {
   const [editingEntry,   setEditingEntry]   = useState(null);
   const [showImport,     setShowImport]     = useState(false);
   const [err,            setErr]            = useState('');
+  const [reachTick,      setReachTick]      = useState(0);
   const debounceRef = useRef(null);
+
+  // Stable on purpose — DocumentsPanel's loader depends on it.
+  const bumpReach = useCallback(() => setReachTick(t => t + 1), []);
 
   const load = useCallback(async (q, cat) => {
     setLoading(true);
@@ -767,6 +872,7 @@ export default function KnowledgePage() {
       });
       if (res.ok) {
         setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, isActive: false } : e));
+        bumpReach();
       }
     } catch {}
   }
@@ -787,6 +893,7 @@ export default function KnowledgePage() {
     } else {
       setEntries(prev => [...prev, saved]);
     }
+    bumpReach();
   }
 
   // Group by category
@@ -806,9 +913,11 @@ export default function KnowledgePage() {
       <div className="mb-5">
         <h1 className="text-xl font-bold text-slate-900">Bot Knowledge</h1>
         <p className="text-xs text-slate-500 mt-0.5">
-          Searchable knowledge the bot draws from when drafting emails — typed answers below, and any documents you drop in.
+          Everything here is read, in full, by the sales bot every time it drafts an email — typed answers below, and any documents you drop in.
         </p>
       </div>
+
+      <ReachBanner refreshKey={reachTick} />
 
       {err && (
         <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-4">{err}</p>
@@ -852,7 +961,7 @@ export default function KnowledgePage() {
       </div>
 
       {/* Documents dropped in — Word, Excel, PDF, images */}
-      <DocumentsPanel category={categoryFilter} />
+      <DocumentsPanel category={categoryFilter} onChanged={bumpReach} />
 
       {/* Content */}
       {loading ? (

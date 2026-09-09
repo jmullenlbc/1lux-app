@@ -5,6 +5,130 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [The whole knowledge library now reaches the sales bot] - September 8, 2026 (BUILT, NOT DEPLOYED)
+
+Mike, 2026-09-08:
+
+> we just want the bot knowledge to feed into the sales bot like you said. We
+> need every character or everything we upload to do that. It sounds like it
+> isnt right now
+
+He was right. Three separate things were shrinking the library on its way to the
+bot, and together they meant most of what he had uploaded never arrived.
+
+### What was actually reaching it
+
+- **Two categories out of the whole list.** The lookup asked only for `GENERAL`
+  and `DEVELOPERS`. Anything filed anywhere else was invisible, full stop.
+- **Five pieces, as excerpts.** It took the top five matches and cut each one
+  down to a short passage. A 40-page PDF contributed about a paragraph.
+- **Anything that didn't match a keyword was thrown away.** This is the one that
+  did the real damage: a document that didn't happen to share a word with the
+  project name was not ranked lower — it was dropped entirely.
+
+And one whole half of the sales bot had no knowledge at all. There are **two**
+email writers: the stale-project follow-up, and the outreach email composed from
+a sales note. Only the first ever read the library.
+
+### What reaches it now
+
+Everything. Every category, every typed answer, every readable document, whole —
+no excerpts, nothing dropped for failing to match. The project is still used to
+decide the ORDER things appear in, so the most relevant is nearest the top, but
+ordering is all it does now. Both email writers read it.
+
+There is one real ceiling and it is not a policy choice: the model can only hold
+so much in one go. The budget is set at 350,000 characters, which is roughly a
+sixth of what one email can carry — so today's library fits many times over with
+room to spare. If it ever does outgrow that, the last document in is marked
+inline as cut rather than silently trimmed, because a bot quoting half a policy
+with full confidence is worse than one that says the page was clipped.
+
+### And now the screen says so
+
+Mike had to ask whether this was working, because nothing on the page told him.
+A banner at the top of **Sales → Automation → Bot Knowledge** now states, in
+plain numbers, how many documents and typed answers go into every email the bot
+drafts and how much of the ceiling that uses — green when it's all going, amber
+if the library ever outgrows one email, and a separate amber line pointing at
+"Try again" whenever a document is sitting there unreadable. It refreshes
+whenever anything on the screen changes.
+
+### Files
+
+`src/lib/botKnowledge/text.js` (new `packKnowledge` + budget constants),
+`src/lib/botKnowledge/retrieve.js` (rewritten — rank, don't filter),
+`src/lib/bot/followUpDrafter.js`, `src/lib/bot/composeOutreach.js` (knowledge
+wired into both compose paths), new `GET /api/automation/knowledge/reach`,
+`src/app/(app)/sales/automation/knowledge/page.jsx`.
+
+Eight new tests pin the promise, including the one that would catch this
+happening a third time: a long document must arrive with its last word intact.
+
+### Worth knowing
+
+Sending the whole library on every draft costs more per email than sending five
+excerpts did. At today's size it is pennies; at the full budget across a nightly
+run of stale projects it would be a dollar or three a night. The follow-up
+drafter deliberately runs on the fast, cheap model for volume — if the library
+grows large enough to want a bigger one, that is a one-line change and Mike's
+call, not mine.
+
+Verified: 1,185/1,185 regression, 11/11 verify gates, clean build reporting
+43/43 runtime assets.
+
+---
+
+## [Every PDF on the live Bot Knowledge screen failed] - September 8, 2026 (BUILT, NOT DEPLOYED)
+
+Mike, 2026-09-08:
+
+> I just uploaded a bunch of things ot the bot Knowledge on the live app. A PDF
+> failed. Why?
+
+### It was not that PDF — it was every PDF
+
+The live server was shipped without the piece of the PDF reader that actually
+opens a file. Not a missing setting, not a corrupt upload: the file simply was
+not there. Proven against the real build output, not guessed — the shipped
+package list for `/api/automation/knowledge/docs` carried 381 files, of which
+the PDF worker, the PDF fonts and the image decoders numbered **zero**. (Word
+and Excel reading was unaffected; those pieces did ship.)
+
+So the moment a PDF was opened, the reader threw, the upload caught it, and the
+file was filed as "Not readable". On this machine it worked every time, because
+this machine has the whole library on disk. That gap between local and live is
+the exact trap `scripts/check-runtime-assets.mjs` was written to catch — but the
+gate only checks routes it has been told about, and Bot Knowledge file uploads
+shipped 2026-09-07 without being added to the list. It reported a clean 37/37
+while this was broken.
+
+### The fix, in three parts
+
+- **`next.config.mjs`** — both Bot Knowledge routes now force-include the three
+  runtime PDF assets (worker, standard fonts, wasm decoders).
+- **`scripts/check-runtime-assets.mjs`** — both routes added, so this can never
+  ship silently again. The gate now checks **43** assets, not 37, and the
+  knowledge routes' shipped file lists verify as worker 1 / fonts 16 / jbig2 4
+  where they were 0 / 0 / 0.
+- **"Try again" button on the doc card** (`/sales/automation/knowledge`) plus
+  `POST /api/automation/knowledge/docs/[id]/reread`. The uploaded file is kept
+  even when reading it fails, precisely so a file that failed for a reason since
+  fixed can be re-read in place. Without this, every failed PDF would have to be
+  deleted and dropped in again. Mirrors the drawings-side reparse route.
+
+### What this means for the files already up there
+
+The PDFs are still stored — nothing was lost. But a document is only visible to
+the bot when its status is READY, so until each failed PDF is re-read the bot
+cannot quote a word of it. After this deploys, "Try again" on each red one
+finishes the job.
+
+Verified: 1,177/1,177 regression, 11/11 verify gates, clean build reporting
+43/43 runtime assets.
+
+---
+
 ## [Deal history, and one job on two boards] - September 8, 2026 (DEPLOYED)
 
 Mike, 2026-09-08:

@@ -41,6 +41,12 @@ const REQUIREMENTS = [
     'api/projects/[id]/tracker/import-toc',
     'api/projects/[id]/site/parse',
     'api/projects/[id]/unit-matrix/parse',
+    // Bot Knowledge file uploads (2026-09-07). Shipped without any of these, so
+    // every PDF dropped on the live screen failed to open while local worked —
+    // the exact bug this gate exists to catch, on a route the gate did not know
+    // about. Found 2026-09-08.
+    'api/automation/knowledge/docs',
+    'api/automation/knowledge/docs/[id]/reread',
   ].flatMap(route => [
     { route, asset: 'standard_fonts', why: 'pdfjs text extraction returns nothing without the standard fonts' },
     { route, asset: 'pdf.worker.mjs', why: 'pdfjs cannot open a document at all without its worker — getDocument() throws before page 1' },

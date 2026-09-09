@@ -9,6 +9,7 @@ import { prisma } from '@/lib/db';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
 import { modelParams, textFrom } from '@/lib/aiModels';
+import { knowledgeContextBlock } from '@/lib/botKnowledge/retrieve';
 
 // Methods that belong in an outreach email to the contact.
 export const OUTREACH_EMAIL_METHODS = new Set(['EMAIL', 'SEND_MATERIALS', 'SCHEDULE']);
@@ -68,6 +69,36 @@ function fallbackEmail(group) {
   };
 }
 
+// The knowledge library, whole, ordered around this contact and these asks.
+//
+// Added 2026-09-08. This is the OTHER email the sales bot writes — the one that
+// comes out of a sales note — and it was drafting with no knowledge at all while
+// the follow-up drafter had it. Mike asked for the library to feed the sales bot;
+// feeding half of the sales bot is not that. Failure is non-fatal on purpose: a
+// knowledge query that throws must never cost us the email.
+async function knowledgeFor(group) {
+  const query = [
+    group.contactName,
+    group.company,
+    ...group.actions.map(a => `${a.label} ${a.detail || ''} ${a.targetName || ''}`),
+  ].filter(Boolean).join(' ');
+
+  try {
+    return await knowledgeContextBlock({ query });
+  } catch (e) {
+    console.error('[composeOutreach] knowledge lookup failed, drafting without it:', e?.message ?? e);
+    return '';
+  }
+}
+
+function knowledgeSection(text) {
+  return text
+    ? `\nILC's knowledge library — everything we have taught the bot, in full. Use whatever is
+genuinely relevant and ignore the rest. Never mention the library, and never force a fact
+in just because it is here:\n${text}\n`
+    : '';
+}
+
 /** Compose ONE email covering all of a group's asks (AI, with a deterministic fallback). */
 export async function composeContactEmail(group) {
   const askList = group.actions.map(a => `- ${a.label}: ${a.detail}${a.targetName ? ` (re ${a.targetName})` : ''}`).join('\n');
@@ -79,7 +110,7 @@ export async function composeContactEmail(group) {
 
 It must cover ALL of these follow-up items in a single email — one greeting, one sign-off, no repetition:
 ${askList}
-
+${knowledgeSection(await knowledgeFor(group))}
 Keep it concise and natural (not a bulleted list unless it reads well). Sign off as "Mike".
 Return ONLY JSON: {"subject": "...", "body": "..."}`;
 
@@ -110,7 +141,7 @@ async function composeAppendParagraphs(group, newAsks) {
   const askList = newAsks.map(a => `- ${a.label}: ${a.detail}${a.targetName ? ` (re ${a.targetName})` : ''}`).join('\n');
   const prompt = `Write ${newAsks.length === 1 ? 'ONE short paragraph' : `${newAsks.length} short paragraphs (one per item)`} to ADD to an existing email to ${group.contactName} from Mike at ILC Studios. Cover:
 ${askList}
-
+${knowledgeSection(await knowledgeFor({ ...group, actions: newAsks }))}
 Rules: NO greeting, NO sign-off — these paragraphs are inserted into an email that already has them. Natural and concise, Mike's voice. Separate multiple paragraphs with a blank line. Return ONLY the paragraph text.`;
   try {
     const Anthropic = (await import('@anthropic-ai/sdk')).default;

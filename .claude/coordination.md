@@ -2,7 +2,81 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-08 (latest) — Mike's Claude — **DEPLOYED**: deal history table (0069) + one job / two board rows + deal moves on the project History tab
+### 2026-09-08 (latest) — Mike's Claude — ⚠️ **BUILT, NOT DEPLOYED**: the whole Bot Knowledge library now reaches the sales bot
+
+Mike: *"we just want the bot knowledge to feed into the sales bot like you said. We
+need every character or everything we upload to do that. It sounds like it isnt
+right now."* He was right on all counts.
+
+**Three separate narrowings, all removed.** `findRelevantKnowledge` was asking for
+`categories: ['GENERAL','DEVELOPERS']` only, taking `limit: 5`, cutting each hit to a
+`MAX_DOC_CHARS/2` excerpt — and, worst of all, running
+`scored.filter(s => s.score > 0)`, which **deleted every document that did not share a
+keyword with the project name**. Ranking is now ORDER ONLY; nothing is dropped for
+failing to match, no category filter, no limit, whole documents.
+
+**The sales bot has TWO email writers and only one had knowledge.**
+`src/lib/bot/followUpDrafter.js` (stale-project, cron + manual) had it;
+`src/lib/bot/composeOutreach.js` (consolidated outreach from a sales note) had none at
+all. Both now read the library; the lookup in composeOutreach is wrapped in try/catch
+because a knowledge failure must never cost us the email.
+
+**The ceiling is the context window, not a policy.** `bot.followUp` /
+`bot.outreach.*` are all the `QUICK` tier = `claude-haiku-4-5`, 200K tokens ≈ 800K
+characters. `KNOWLEDGE_CHAR_BUDGET = 350_000` (~87K tokens) leaves the prompt, project
+context and reply an enormous margin. New pure `packKnowledge()` in
+`botKnowledge/text.js` (kept there because that file has ZERO imports, so `node --test`
+can reach it) packs whole documents in rank order; anything cut is marked inline with
+`[…this document was too long to include in full…]` — never a silent trim.
+
+**New `GET /api/automation/knowledge/reach` + a banner** at the top of
+`/sales/automation/knowledge` stating in plain numbers how much of the library goes
+into every draft, how much of the ceiling that is, and how many docs are unreadable
+(pointing at the "Try again" button from the entry below). Mike had to ask whether
+this worked because the screen never said; now it does.
+
+Verified: **1,185/1,185** regression with the dev server up, `npm run verify` 11/11,
+clean `npm run build` still reporting **43/43** runtime assets. No schema change, no
+migration.
+
+⚠️ **Two undeployed batches are now stacked** — this and the PDF fix below. One deploy
+ships both. **Waiting on Mike's word.**
+
+---
+
+### 2026-09-08 — Mike's Claude — ⚠️ **BUILT, NOT DEPLOYED**: every PDF on the live Bot Knowledge screen fails to open
+
+Mike uploaded files to Bot Knowledge on the live app and a PDF failed. It is not
+that PDF — **every PDF uploaded to Bot Knowledge in prod since 2026-09-07 (d78e8f5)
+has failed**, and every one of them is sitting there as "Not readable".
+
+**Cause: the runtime-asset trap, on a route the gate did not know about.** The
+Lambda trace for `/api/automation/knowledge/docs` shipped 381 files with
+`pdf.worker → 0`, `standard_fonts → 0`, `jbig2 → 0` (tesseract 38 and xlsx 5 were
+present, which is why Word/Excel/images were fine). No worker means `getDocument()`
+throws "Setting up fake worker failed" before page 1; `extractDocumentText` catches
+it and files the row `FAILED`. Local was green throughout because local has
+node_modules on disk. `check-runtime-assets.mjs` reported a clean 37/37 — the route
+was never added to it when the uploads shipped.
+
+**Fixed three ways:** `next.config.mjs` force-includes `PDFJS_RUNTIME_ASSETS` on
+`/api/automation/knowledge/docs` and the new reread route;
+`scripts/check-runtime-assets.mjs` now lists both (gate reports **43**, and the two
+traces verify at worker 1 / fonts 16 / jbig2 4); and a new
+`POST /api/automation/knowledge/docs/[id]/reread` + a "Try again" button on any
+non-READY doc card, so the already-stored blobs can be re-read in place instead of
+deleted and re-uploaded. Mirrors `files/[fileId]/reparse`.
+
+**Standing rule reinforced:** any new route that touches pdfjs must be added to
+BOTH `next.config.mjs` and `check-runtime-assets.mjs` in the same commit. The gate
+is only as good as its route list.
+
+Verified: 1,177/1,177 regression with the dev server up, `npm run verify` 11/11,
+clean build. No schema change, no migration. **Waiting on Mike's word to deploy.**
+
+---
+
+### 2026-09-08 — Mike's Claude — **DEPLOYED**: deal history table (0069) + one job / two board rows + deal moves on the project History tab
 
 **Migration 0069 shipped in this push** and applies on the Amplify build
 (`prisma migrate deploy` runs there). Nothing pending on our side.

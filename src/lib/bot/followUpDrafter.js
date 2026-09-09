@@ -60,12 +60,19 @@ async function findTemplate(project) {
       || await prisma.messageTemplate.findFirst({ where: { channel: 'EMAIL', isActive: true } });
 }
 
-// What the bot is handed out of the knowledge library.
+// What the bot is handed out of the knowledge library: ALL of it.
 //
-// This used to be `take: 5, orderBy: createdAt asc` with no matching at all, so
-// the bot only ever saw the five OLDEST Q&A pairs — everything added after that
-// was never read, and no uploaded document was read at all. Now the project
-// itself is the query, and both Q&A pairs and uploaded documents are searched.
+// Two rounds of narrowing lived here and both were wrong. It began as `take: 5,
+// orderBy: createdAt asc` with no matching, so the bot saw the five OLDEST Q&A
+// pairs and no document at all. Then it took the top five matches as short
+// excerpts from two categories, which still meant a 40-page PDF contributed a
+// paragraph and anything filed elsewhere contributed nothing.
+//
+// Mike, 2026-09-08: "We need every character or everything we upload to do that."
+//
+// So no category list and no limit — the whole library, whole documents. The
+// project is still passed as the query, but only to ORDER the library; nothing
+// is dropped for failing to match. See src/lib/botKnowledge/retrieve.js.
 async function findKnowledge(project) {
   const query = [
     project.name,
@@ -75,11 +82,7 @@ async function findKnowledge(project) {
     STAGE_LABEL[primaryStage(project)] || primaryStage(project),
   ].filter(Boolean).join(' ');
 
-  return knowledgeContextBlock({
-    query,
-    categories: ['GENERAL', 'DEVELOPERS'],
-    limit: 5,
-  });
+  return knowledgeContextBlock({ query });
 }
 
 // Resolve the recipient contact for a project via its client's contacts.
@@ -112,7 +115,9 @@ export async function generateFollowUpDraft(project, rule) {
     .join('\n');
 
   const knowledgeBlock = knowledgeText
-    ? `\nRelevant knowledge (use only if directly applicable — do not force it):\n${knowledgeText}`
+    ? `\nILC's knowledge library — everything we have taught the bot, in full. Use whatever
+is genuinely relevant to this project and ignore the rest. Never mention the library
+itself, and never force a fact in just because it is here:\n${knowledgeText}`
     : '';
   const templateBody = template?.body || '';
 

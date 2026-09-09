@@ -110,6 +110,13 @@ const nextConfig = {
                 '/api/projects/[id]/tracker/import-toc': PDFJS_RUNTIME_ASSETS,
                 '/api/projects/[id]/site/parse': PDFJS_RUNTIME_ASSETS,
                 '/api/projects/[id]/unit-matrix/parse': PDFJS_RUNTIME_ASSETS,
+                // Bot Knowledge reads PDFs too, and this was missed when the file
+                // uploads shipped 2026-09-07 — the route's Lambda trace carried
+                // tesseract and xlsx but ZERO pdfjs assets, so every PDF dropped on
+                // the live Bot Knowledge screen failed with "Setting up fake worker
+                // failed" while local was fine. Found 2026-09-08 from Mike's upload.
+                '/api/automation/knowledge/docs': PDFJS_RUNTIME_ASSETS,
+                '/api/automation/knowledge/docs/[id]/reread': PDFJS_RUNTIME_ASSETS,
           },
           // Zero out the client-side router cache for dynamic pages so navigating
           // back to the dashboard (or any force-dynamic page) always re-fetches.

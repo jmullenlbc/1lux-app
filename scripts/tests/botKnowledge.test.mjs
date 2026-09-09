@@ -13,6 +13,7 @@ import { listZipEntries, readZipEntry } from '../../src/lib/botKnowledge/zip.js'
 import {
   detectFileType, fileTypeLabel, docxXmlToText, tidyText,
   isUsefulText, searchTerms, scoreText, excerptAround, ACCEPT_ATTRIBUTE,
+  packKnowledge, KNOWLEDGE_CHAR_BUDGET, MIN_PARTIAL_CHARS,
 } from '../../src/lib/botKnowledge/text.js';
 
 // ── A ZIP builder, so the reader is tested against real bytes ─────────────────
@@ -246,4 +247,97 @@ test('excerpt: no match falls back to the opening, marked as truncated', () => {
 
 test('excerpt: empty body is an empty string', () => {
   assert.equal(excerptAround('', searchTerms('anything'), 100), '');
+});
+
+// ── What the bot is handed ────────────────────────────────────────────────────
+//
+// Mike, 2026-09-08: "We need every character or everything we upload to do that."
+// These pin that promise. The bug they exist to prevent is the one that has now
+// happened twice on this feature: the library quietly shrinking on its way to
+// the bot — first to the five oldest entries, then to five short excerpts.
+
+test('packing: everything fits, so everything goes, whole and unmarked', () => {
+  const items = [
+    { id: 'a', text: 'Fans are $180 gross at conceptual.' },
+    { id: 'b', text: 'BOH is capped at 5% of gross square feet.' },
+    { id: 'c', text: 'Pathway lighting is priced per unit by type.' },
+  ];
+  const out = packKnowledge(items);
+
+  assert.equal(out.packed.length, 3);
+  assert.equal(out.complete, true, 'nothing was cut or dropped');
+  assert.equal(out.truncatedCount, 0);
+  assert.equal(out.droppedCount, 0);
+  assert.deepEqual(out.packed.map(p => p.text), items.map(i => i.text));
+  assert.ok(out.packed.every(p => p.truncated === false));
+});
+
+test('packing: a long document is NOT excerpted — every character goes', () => {
+  const body = `${'word '.repeat(40_000)}THE LAST WORD`;   // ~200k chars
+  const out  = packKnowledge([{ id: 'big', text: body }]);
+
+  assert.equal(out.packed.length, 1);
+  assert.equal(out.complete, true);
+  assert.ok(out.packed[0].text.endsWith('THE LAST WORD'),
+    'the end of the document must survive — an excerpt would have stopped long before here');
+  assert.ok(out.usedChars > 150_000, 'the whole thing counted against the budget');
+});
+
+test('packing: the budget is a real ceiling, and going over it is reported', () => {
+  const out = packKnowledge(
+    [{ id: 'a', text: 'x'.repeat(600) }, { id: 'b', text: 'y'.repeat(600) }],
+    1000,
+  );
+
+  assert.equal(out.complete, false, 'this must never silently look complete');
+  assert.equal(out.packed.length, 1, 'only the first fits; the remainder is under the partial floor');
+  assert.equal(out.droppedCount, 1);
+  assert.ok(out.usedChars <= 1000, 'the budget is never exceeded');
+});
+
+test('packing: a document with real room left is cut and flagged, not dropped', () => {
+  const budget = MIN_PARTIAL_CHARS * 3;
+  const out = packKnowledge(
+    [{ id: 'a', text: 'x'.repeat(MIN_PARTIAL_CHARS) }, { id: 'b', text: 'y'.repeat(budget) }],
+    budget,
+  );
+
+  assert.equal(out.packed.length, 2);
+  assert.equal(out.packed[1].truncated, true, 'the cut must be visible to the caller');
+  assert.equal(out.truncatedCount, 1);
+  assert.equal(out.droppedCount, 0);
+  assert.equal(out.usedChars, budget);
+});
+
+test('packing: order is preserved, so the most relevant survives a squeeze', () => {
+  const out = packKnowledge(
+    [{ id: 'best', text: 'a'.repeat(500) }, { id: 'worst', text: 'b'.repeat(500) }],
+    600,
+  );
+  assert.equal(out.packed[0].id, 'best');
+  assert.equal(out.packed.length, 1);
+});
+
+test('packing: an empty library is complete, not broken', () => {
+  const out = packKnowledge([]);
+  assert.deepEqual(out.packed, []);
+  assert.equal(out.complete, true);
+  assert.equal(out.usedChars, 0);
+});
+
+test('packing: a document that read as nothing is skipped, not counted as dropped', () => {
+  const out = packKnowledge([{ id: 'empty', text: '   ' }, { id: 'real', text: 'Fans are $180.' }]);
+  assert.equal(out.packed.length, 1);
+  assert.equal(out.packed[0].id, 'real');
+  assert.equal(out.droppedCount, 0);
+  assert.equal(out.complete, true);
+});
+
+test('packing: the budget leaves real room under a 200k-token window', () => {
+  // Roughly four characters to the token. The follow-up drafter runs on a model
+  // with a 200,000-token window, and the knowledge block is not the only thing
+  // in the prompt — if this ever creeps up to the window, the API rejects the
+  // call and the bot writes nothing at all.
+  assert.ok(KNOWLEDGE_CHAR_BUDGET / 4 < 200_000 * 0.6,
+    'the knowledge block must stay well under the context window');
 });
