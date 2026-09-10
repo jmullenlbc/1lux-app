@@ -16,6 +16,11 @@ const TEMPLATES_BY_SECTION = {
     { name: 'Lost + Abandoned by Stage',   chartType: 'BAR',  width: 'HALF', dataSpec: { groupBy: 'procurementStage', terms: [{ field: 'lostAbandonedCount', agg: 'count' }], op: 'single' } },
   ],
   MAIN: [
+    // "Things Needing a Look" — five checks for records that disagree with each
+    // other, capped at five on screen and five newly-surfaced a week. kind:
+    // 'verification' makes it prebuilt: no field picker, and the card fetches
+    // itself from /api/verification. See src/lib/verification/checks.js.
+    { name: 'Things Needing a Look',       chartType: 'VERIFICATION', width: 'FULL', dataSpec: { kind: 'verification' } },
     { name: 'New Projects by Month',       chartType: 'LINE', width: 'FULL', dataSpec: { groupBy: 'createdAt', timeBucket: 'month', terms: [{ field: 'projectCount', agg: 'count' }], op: 'single' } },
     { name: 'Product Revenue by Client',   chartType: 'BAR',  width: 'HALF', dataSpec: { groupBy: 'client', terms: [{ field: 'productSaleTotal', agg: 'sum' }], op: 'single' } },
     { name: 'Projects by Phase',           chartType: 'BAR',  width: 'HALF', dataSpec: { groupBy: 'phase', terms: [{ field: 'projectCount', agg: 'count' }], op: 'single' } },

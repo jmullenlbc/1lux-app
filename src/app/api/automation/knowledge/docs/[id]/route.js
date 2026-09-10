@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { requireAuth, isAnyAdmin } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { deleteKnowledgeFile } from '@/lib/botKnowledge/storage';
 
 // GET — one document, including the extracted text so a human can check what
 // the bot is actually reading. That check matters: a scanned PDF can come back
@@ -48,19 +47,26 @@ export async function PATCH(request, { params }) {
   return NextResponse.json({ doc });
 }
 
-// DELETE — admin only, matching the Q&A entries, and this one really removes
-// the file as well. Anyone who just wants it out of the bot's way should set
-// isActive false instead.
-export async function DELETE(request, { params }) {
-  const { user, error } = await requireAuth();
+/**
+ * Files in the bot's library are archived, never deleted.
+ *
+ * Mike, 2026-09-10. This one matters more than the Q&A entries: deleting a
+ * document also deleted the file itself out of storage, so a spec or a drawing
+ * somebody uploaded months earlier was gone with no copy anywhere.
+ *
+ * Archiving takes it out of the bot's reach (retrieve.js filters on isActive)
+ * and keeps all three things: the record, the text pulled out of the file, and
+ * the file itself.
+ *
+ * Refuses rather than being removed, so nothing that still remembers this URL
+ * can destroy a file by calling it.
+ */
+export async function DELETE() {
+  const { error } = await requireAuth();
   if (error) return error;
-  if (!isAnyAdmin(user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const existing = await prisma.botKnowledgeDoc.findUnique({ where: { id: params.id } });
-  if (!existing) return NextResponse.json({ error: 'Document not found' }, { status: 404 });
-
-  await deleteKnowledgeFile(existing.storedPath);
-  await prisma.botKnowledgeDoc.delete({ where: { id: params.id } });
-
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    error: 'Files in the bot library are archived, never deleted. Archive it instead — that takes it out of the bot and keeps the file.',
+  }, { status: 405 });
 }
+

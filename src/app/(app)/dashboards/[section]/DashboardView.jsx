@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Chart from '@/components/dashboards/Chart';
 import CalibrationTable from '@/components/dashboards/CalibrationTable';
+import VerificationCard from '@/components/dashboards/VerificationCard';
 import { CALIBRATION_REPORTS } from '@/lib/calibration/report';
 import { measuresFor, dimensionsFor, fieldByKey } from '@/lib/dashboards/fieldCatalog';
 import { AGG_OPS, MATH_OPS, AGG_LABEL, MATH_LABEL } from '@/lib/dashboards/formula';
@@ -217,6 +218,8 @@ export default function DashboardView({ section, sectionLabel }) {
                 <div className="px-2 py-3">
                   {r.error
                     ? <p className="text-xs text-red-500 px-2">{r.error}</p>
+                    : r.chartType === 'VERIFICATION'
+                      ? <VerificationCard />
                     : r.chartType === 'TABLE'
                       ? <CalibrationTable table={r.table} isAdmin={meta.isAdmin} onApplied={() => render(dash, filters)} />
                       : <Chart chartType={r.chartType} series={r.series} unit={unit} />}
@@ -257,7 +260,7 @@ function WidgetEditor({ section, measures, dimensions, init, onSave, onClose }) 
   const set = (k, v) => setSpec(s => ({ ...s, [k]: v }));
   const setTerm = (i, k, v) => setSpec(s => { const t = [...s.terms]; t[i] = { ...(t[i] || { agg: 'sum' }), [k]: v }; return { ...s, terms: t }; });
   const dim = dimensions.find(d => d.key === spec.groupBy);
-  const prebuilt = spec.kind === 'calibration';
+  const prebuilt = !!spec.kind;
   const valid = prebuilt || (spec.terms[0]?.field && (spec.op === 'single' || spec.terms[1]?.field));
 
   if (prebuilt) {
@@ -266,7 +269,9 @@ function WidgetEditor({ section, measures, dimensions, init, onSave, onClose }) 
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 p-4" onClick={onClose}>
         <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-5" onClick={e => e.stopPropagation()}>
           <h3 className="text-sm font-bold text-slate-800 mb-1">Edit widget</h3>
-          <p className="text-xs text-slate-500 mb-4">Prebuilt pricing-calibration widget — <b>{report?.label || spec.report}</b>. It reads the engine's model-vs-actual samples, so there is no field to pick; you can retitle or resize it.</p>
+          <p className="text-xs text-slate-500 mb-4">{spec.kind === 'verification'
+            ? <>Prebuilt card — <b>Things Needing a Look</b>. It works out its own list every time it loads, so there is no field to pick; you can retitle or resize it.</>
+            : <>Prebuilt pricing-calibration widget — <b>{report?.label || spec.report}</b>. It reads the engine&apos;s model-vs-actual samples, so there is no field to pick; you can retitle or resize it.</>}</p>
           <div className="space-y-3">
             <Field label="Title"><input value={spec.name} onChange={e => set('name', e.target.value)} className="inp" /></Field>
             <Field label="Width"><select value={spec.width} onChange={e => set('width', e.target.value)} className="inp"><option value="HALF">Half</option><option value="FULL">Full</option></select></Field>

@@ -42,11 +42,17 @@ export async function GET(request) {
     active = await prisma.dashboard.findFirst({
       where: { section, ownerUserId: null, isDefault: true }, include: WITH_WIDGETS,
     });
-    // Prebuilt widgets added after a default was seeded (e.g. the calibration
-    // set) are appended to the admin default by name, so existing defaults
-    // pick them up without anyone recreating the dashboard.
-    if (active) active = await appendMissingPrebuilt(active, section);
   }
+  // Prebuilt widgets added after a dashboard was created (the calibration set,
+  // then Things Needing a Look) are appended by name, so nobody has to rebuild
+  // a dashboard to get them.
+  //
+  // This runs on personal copies as well as the admin default, because most
+  // people are on a personal copy and would otherwise never see a new card. The
+  // price is that deleting a prebuilt widget from a personal dashboard does not
+  // stick — it returns on the next load. Hiding one for good needs somewhere to
+  // record that it was hidden, which is a table we have not built.
+  if (active) active = await appendMissingPrebuilt(active, section);
 
   const shared = await prisma.dashboardShare.findMany({
     where: { sharedWithUserId: user.id },

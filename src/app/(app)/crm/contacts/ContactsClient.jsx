@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { companyLink, countMissingCompany } from '@/lib/crmClient';
 
@@ -62,6 +62,18 @@ export default function ContactsClient({ contacts }) {
   // employer at all can appear on their own. This makes them findable instead of
   // leaving them scattered down a long list.
   const [onlyMissingCompany, setOnlyMissingCompany] = useState(false);
+
+  // Deep links land here already filtered. The Things Needing a Look card on the
+  // Main dashboard sends people to a specific duplicated email address or to the
+  // people with no company, and dropping them into an unfiltered list of
+  // everyone would waste the click. Read on mount rather than during render, so
+  // the server and the browser agree on the first paint.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get('q');
+    if (q) setSearch(q);
+    if (params.get('missing') === 'company') setOnlyMissingCompany(true);
+  }, []);
 
   const missingCompany = useMemo(() => countMissingCompany(contacts), [contacts]);
 

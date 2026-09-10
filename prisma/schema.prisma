@@ -56,6 +56,7 @@ model User {
   assignedRFIs       RFI[]                      @relation("RFIAssignee")
   warehouseReleases  WarehouseRelease[]         @relation("WarehouseReleaser")
   statusChanges      ProjectStatusEvent[]       @relation("ProjectStatusEventChangedBy")
+  verificationActions VerificationAction[]    @relation("VerificationActor")
   approvedReleases   WarehouseRelease[]         @relation("ReleaseApprover")
   deliveryEventsCreated ManufacturerDeliveryEvent[] @relation("DeliveryEventCreator")
   shipSchedulePushes ShipSchedulePush[]         @relation("ShipPusher")
@@ -1220,6 +1221,55 @@ model DashboardWidget {
   width       String    @default("HALF")
   createdAt   DateTime  @default(now())
 }
+
+/// Things Needing a Look — the memory behind the Main-dashboard card.
+///
+/// Mike, 2026-09-09: "do we need to have a verification area for things that are
+/// conflicting or need attention in general but it can't be overwhelming. like
+/// maybe a few a week at most."
+///
+/// The checks themselves are recomputed live every time the card loads, so
+/// nothing about a problem is stored here. What IS stored is the two things a
+/// live recompute cannot know:
+///
+///   SHOWN     — this item has already been put in front of somebody. Written
+///               once, ever, per item. It is what makes "at most five new ones
+///               a week" true: without it every reload would look like a fresh
+///               week.
+///   DISMISSED — somebody pressed "That's fine". The item is buried for good and
+///               never surfaces again, even though the underlying data still
+///               reads the way it does.
+///
+/// `itemKey` is the item's stable name, built from what it is plus the id of the
+/// row it is about (e.g. "no_lead:ckxyz"). Same problem on the same record = the
+/// same key forever, which is what makes burying it stick.
+model VerificationAction {
+  id        String   @id @default(cuid())
+  itemKey   String
+  kind      String   // SHOWN | DISMISSED
+  userId    String?
+  user      User?    @relation("VerificationActor", fields: [userId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  // What the item actually said at the moment somebody buried it. Written only
+  // on a DISMISSED row. The checks are recomputed from scratch every load, so
+  // once a record is fixed or renamed the item stops being produced at all —
+  // without this snapshot the archive could only ever show a bare key.
+  title      String?
+  detail     String?
+  href       String?
+  hrefLabel  String?
+
+  // Set when somebody pulls an item back out of the archive. Nothing here is
+  // ever deleted (Mike, 2026-09-10: "I don't think these cards should ever get
+  // deleted"), so un-burying is a stamp on the existing row, not a DELETE, and
+  // the record of who buried it and when survives.
+  restoredAt DateTime?
+
+  @@unique([itemKey, kind])
+  @@index([kind, createdAt])
+}
+
 model DashboardShare {
   id               String    @id @default(cuid())
   dashboardId      String

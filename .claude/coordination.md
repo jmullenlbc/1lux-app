@@ -2,7 +2,79 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-09 (latest) — Mike's Claude — ✅ **DEPLOYED**: the whole 2026-09-09 CRM queue in one push, migrations 0070 + 0071 + 0072
+### 2026-09-10 (latest) — Mike's Claude — ✅ **DEPLOYED**: nothing gets deleted any more — the bot's library is archive-only, buried cards go to an archive, plus the "Things Needing a Look" card and migration 0073
+
+Mike: *"I think we should make all knowledge base probably be archived and not be deleted
+at all if it takes it out of the bot box reach... I don't think these cards should ever
+get deleted. they should get archived somewhere into an archive that is accessible but
+not easily."* Three things went out in this one push.
+
+**1. Delete is gone from Bot Knowledge — files and typed answers, everywhere it appeared.**
+Archiving already did the whole job: `src/lib/botKnowledge/retrieve.js` filters
+`isActive: true` on **both** `botKnowledgeEntry` and `botKnowledgeDoc`, so an archived item
+is out of `rankedLibrary`, `findRelevantKnowledge`, `knowledgeContextBlock` and
+`knowledgeReach` — while the row, the extracted `text` column and the S3 file all survive.
+Deleting only ever added the chance of losing something for good, and for a document it
+also destroyed the S3 file. The old `ConfirmDeleteModal` is now `ConfirmArchiveModal`
+(amber, **Keep it as is** / **Archive it**) and warns in Mike's words that the bot will not
+be able to reach the item. Archived docs stay in the same list, greyed with an **Archived**
+badge; archived answers gained a real **Restore** button.
+
+**⚠️ Both DELETE routes were kept and made to refuse (405), not removed** —
+`api/automation/knowledge/[id]` and `api/automation/knowledge/docs/[id]`. Deliberate: an
+old open tab, a bookmark, or anything written later cannot quietly destroy a row or an S3
+file by calling a URL the screen no longer uses. **If a hard delete is ever genuinely
+needed, that is now a deliberate code change, not a button.**
+
+**2. "That's fine" on the verification card archives instead of burying for good.**
+Company-wide dismissal is unchanged and is what Mike asked for. What changed is where it
+goes: a small closed line at the bottom of the card reading **Put away (N)**, fetched only
+when somebody opens it. Restoring **stamps `restoredAt` on the existing row** — no row is
+ever deleted, so who put it away and when survives a restore.
+
+**Migration 0073 was extended before it ever applied anywhere.** It was untracked and had
+never run (and `prisma/dev.db` has no `_prisma_migrations` table at all), so editing it in
+place carried no checksum risk. `VerificationAction` now also carries `title` / `detail` /
+`href` / `hrefLabel` / `restoredAt`. The four text columns are a **snapshot of the item's
+own words, taken server-side from a fresh recompute at the moment somebody buries it** —
+necessary because the checks recompute from scratch on every load, so once the underlying
+record is fixed the item stops being produced at all and the archive would have nothing
+left to show but a machine key. `/api/verification/archive` prefers current wording and
+falls back to the snapshot, and reports `stillTrue` so the screen can say *Still reads this
+way* vs *Has been sorted out since*.
+
+**New shared loader `src/lib/verification/load.js`** — `runChecksFromDb()` and
+`loadActions()`. All three routes (`/api/verification`, `/dismiss`, `/archive`) go through
+it so the Prisma selects cannot drift apart. Note `Project`'s contact relation is
+`contactLinks`, not `contacts`.
+
+**3. The "Things Needing a Look" card itself**, built earlier the same day, shipped in the
+same push. A card on `/dashboards/main` surfacing at most five records that disagree with
+each other, never more than five NEW ones a week, scoped to open jobs plus anything closed
+in the last 90 days. Five checks: Pipeline-tab architect/GC text vs the job's Architect/GC
+company seats; a person with no company; a won/lost job with no close date or an
+`approximated` one; two people sharing an email; a job with people but no main contact.
+
+The card reaches prod dashboards **without a data migration**: `appendMissingPrebuilt()` at
+`src/app/api/dashboards/route.js:12` appends any template with a `dataSpec.kind` by widget
+NAME at request time, on personal copies and on the admin default alike. The seed gap does
+not matter.
+
+Still true, unchanged: **removing this card from a personal dashboard does not stick** —
+there is no table recording a hidden prebuilt widget, so `appendMissingPrebuilt` puts it
+back.
+
+Debugging pass: **1245/1249 tests pass**; the 4 failures are all in `uploadFlow.e2e` and
+are the **Anthropic API returning "credit balance is too low"**. Not a code fault.
+**⚠️ Sean should know: with the API credits exhausted, the live drawing reader and the
+sales bot are down in production too, not just in tests.** `npm run build` clean, all three
+verification routes in the route table, all 43 runtime assets present; guard scripts green
+(73/73 Postgres migrations, 125/125 schema-migration sync).
+
+Local `VerificationAction` columns were added with `prisma db execute`, **not `db push`** —
+push still wants to drop `ContactLegacy`. That trap is unchanged.
+
+### 2026-09-09 — Mike's Claude — ✅ **DEPLOYED**: the whole 2026-09-09 CRM queue in one push, migrations 0070 + 0071 + 0072
 
 Everything that had been sitting BUILT-NOT-DEPLOYED went out together: the people-table
 merge (0070), Project Team + Project People (0071), items D/E/B/F/A, plus three final

@@ -5,6 +5,178 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Nothing gets deleted any more — the bot's library is archive-only, and buried cards go to an archive] - September 10, 2026 (DEPLOYED)
+
+Mike: *"I think we should make all knowledge base probably be archived and not
+be deleted at all if it takes it out of the bot box reach... I don't think these
+cards should ever get deleted. they should get archived somewhere into an
+archive that is accessible but not easily."*
+
+Two changes on that theme, shipped together with the home-screen card that was
+built the same day.
+
+---
+
+## The bot's library can no longer be deleted — only archived
+
+**Delete is gone from the Bot Knowledge screen entirely**, for uploaded files
+and for typed answers, in every place it used to appear.
+
+Archiving already did the whole job. An archived item is completely invisible to
+the sales bot — nothing it writes can quote it, and nothing it reads includes it
+— while every word of it is kept and one button puts it back. Deleting only ever
+added one thing on top of that: the chance of losing something for good. With
+files it was worse, because deleting a document also deleted the file itself out
+of storage, so a spec or a drawing somebody uploaded months earlier was gone with
+no copy anywhere.
+
+### The pop-up now asks about archiving
+
+The confirmation Mike asked for on September 9 is still there, but it now warns
+about the right thing, in his words:
+
+> **By archiving this file the bot will not be able to reach it or use it for
+> better intelligence.** Everything the sales bot knew from this document stops
+> being available the moment it is archived.
+>
+> Nothing is thrown away — the file, and everything read out of it, are kept.
+
+The buttons are **Keep it as is** and **Archive it**. The panel is amber rather
+than red, because nothing is being destroyed.
+
+### Getting things back
+
+- Archived **files** stay in the same list, greyed out with an **Archived** tag
+  on them, and a **Restore** button.
+- Archived **answers** sit under *Archived entries* and now have a real
+  **Restore** button. Before this you had to open the entry and change a switch.
+
+### The URL refuses too
+
+The two delete addresses were not removed, they were changed to refuse. That is
+deliberate: an old browser tab left open, a bookmarked link, or anything written
+later cannot quietly destroy a row or a file by calling a URL the screen no
+longer uses. Both now answer with a plain-English refusal pointing at Archive.
+
+---
+
+## Things Needing a Look: "That's fine" now archives instead of burying for good
+
+The **That's fine** button is unchanged in what it does day to day — one person
+presses it and the item goes off the list for everyone, which is what Mike asked
+for. What changed is where it goes.
+
+At the bottom of the card there is now a small, closed line reading
+**Put away (3)**. Open it and every item anybody has ever put away is there, with
+who put it away and when. Each one can be brought back onto the list with a
+single button. Nothing is ever deleted — bringing an item back stamps the
+existing record rather than removing it, so the history of the decision survives.
+
+Two details worth knowing:
+
+- **The archive remembers what the item said.** The checks are worked out fresh
+  every time, so once a record is fixed the item stops being produced at all.
+  Without a copy of its own wording the archive could only have shown a machine
+  key. A copy of the words is taken at the moment the item is put away.
+- **The archive says whether it is still true.** Items still reading the same way
+  say *Still reads this way* and can be brought back. Items that were sorted out
+  afterwards say *Has been sorted out since* — there is nothing to bring back,
+  because the problem is gone.
+
+It is deliberately plain and small. Mike: *"an archive that is accessible but not
+easily."* It is one click away at the bottom of the card, and it is not fetched
+at all until somebody opens it.
+
+---
+
+## Things Needing a Look — the home-screen card itself
+
+Mike: *"do we need to have a verification area for things that are conflicting
+or need attention in general but it can't be overwhelming. like maybe a few a
+week at most."* Then: *"1. home screen widget 2. yes start small 3. i agree with
+all of yours."*
+
+### What it is
+
+A card at the top of the home screen called **Things Needing a Look**. It shows
+at most five things at a time, and it will not put more than five *new* things
+in front of anyone in a given week. It only ever looks at open jobs and jobs
+that closed in the last 90 days, so old history never gets dredged up.
+
+Every line has a link straight to the screen where it can be fixed, and a
+**That's fine** button that buries that exact item permanently.
+
+### The five things it checks
+
+1. **The architect or GC typed on a client's Pipeline tab disagrees with the
+   Architect or GC company set on that job's team.** These are two different
+   fields — the Pipeline tab holds free text typed in from a spreadsheet, the
+   job's team holds a real company record — and nothing has ever compared them.
+2. **A person with no company.**
+3. **A won or lost job with no close date**, or one carrying a date the system
+   guessed during the September 8 backfill rather than one it was actually told.
+4. **Two people with the same email address.**
+5. **A job with people on it but nobody marked as the main contact.**
+
+### How it stays small
+
+Nothing is ever stored as a "problem". Every check is worked out fresh on each
+load, so fixing a record makes the line disappear on the next look with nothing
+left behind to tidy up. The only two things written down are: which items have
+been put in front of someone before (so the five-a-week ceiling can be counted),
+and which items somebody buried with **That's fine**.
+
+If one check fires many times, it cannot take the whole card — the list deals
+one item from each kind in turn, so a run of ten jobs missing a close date still
+leaves room for the other four checks.
+
+### Worth knowing
+
+- **That's fine is company-wide.** If Maram puts an item away, it is off the
+  list for everyone, not just her — Mike: *"I think it's fine if one person says
+  that's fine to a card and it goes away for everyone and it's archived."* The
+  system records who pressed it first, and it is shown in the archive.
+- **Removing this card from a personal dashboard does not stick** — it comes
+  back on the next load. There is no place yet that records a prebuilt card
+  being hidden.
+
+### Files
+
+- `prisma/schema.prisma` + `prisma/migrations/0073_verification_actions/` — new
+  `VerificationAction` table (shown / dismissed). Additive only, nothing dropped.
+- `src/lib/verification/checks.js` — all five checks as plain functions with no
+  database in them, so they can be tested directly.
+- `src/app/api/verification/route.js`, `src/app/api/verification/dismiss/route.js`,
+  `src/app/api/verification/archive/route.js`, `src/lib/verification/load.js`
+- `src/components/dashboards/VerificationCard.jsx`
+- `src/app/(app)/sales/automation/knowledge/page.jsx` — delete removed
+  everywhere, the pop-up rewritten to ask about archiving, Restore buttons added.
+- `src/app/api/automation/knowledge/[id]/route.js`,
+  `src/app/api/automation/knowledge/docs/[id]/route.js` — both DELETE addresses
+  now refuse.
+- `src/app/api/dashboards/render/route.js`, `src/app/(app)/dashboards/[section]/DashboardView.jsx`,
+  `prisma/seeds/dashboardTemplates.js`, `src/app/api/dashboards/route.js` — placing
+  the card, including on personal dashboard copies which the existing back-fill
+  had been skipping.
+- `src/app/(app)/crm/contacts/ContactsClient.jsx` — the card's links now land on
+  the People screen already filtered.
+- `scripts/tests/verification.test.mjs` — 29 tests.
+
+### Fixed while building this
+
+- The people-on-a-job check was reading a relation that does not exist
+  (`contacts` instead of `contactLinks`), so it never found anything.
+- The "first time shown" write used a Prisma option that only works on the live
+  Postgres database and throws outright on the local one — it would have worked
+  in production and failed every time in development. Replaced with one that
+  works on both and is also safe if two people open the home screen at the same
+  instant.
+- One check filling all five slots, found by running the checks against the real
+  local database: five jobs missing a close date took the whole card and hid the
+  other four checks entirely.
+
+---
+
 ## [Nothing leaves the bot without being asked, the client screen edits in place, and the saved wording catches up] - September 9, 2026 (DEPLOYED)
 
 Three things Mike asked for after reading the last round, deployed together with
