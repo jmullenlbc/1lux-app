@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Nothing gets deleted any more — the bot's library is archive-only, and buried cards go to an archive] - September 10, 2026 (DEPLOYED)
+## [Nothing gets deleted any more — the bot's library is archive-only, and buried cards go to an archive] - September 10, 2026 (DEPLOYED — add8bec)
 
 Mike: *"I think we should make all knowledge base probably be archived and not
 be deleted at all if it takes it out of the bot box reach... I don't think these

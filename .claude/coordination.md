@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-10 (latest) — Mike's Claude — ✅ **DEPLOYED**: nothing gets deleted any more — the bot's library is archive-only, buried cards go to an archive, plus the "Things Needing a Look" card and migration 0073
+### 2026-09-10 (latest) — Mike's Claude — ✅ **DEPLOYED (add8bec)**: nothing gets deleted any more — the bot's library is archive-only, buried cards go to an archive, plus the "Things Needing a Look" card and migration 0073
 
 Mike: *"I think we should make all knowledge base probably be archived and not be deleted
 at all if it takes it out of the bot box reach... I don't think these cards should ever
