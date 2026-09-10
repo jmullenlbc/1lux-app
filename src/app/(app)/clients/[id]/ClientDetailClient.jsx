@@ -1,14 +1,15 @@
 'use client';
-import { useState, useRef, useEffect, useCallback, Fragment } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   buildingTypeLabel, ORG_TYPE_OPTIONS, DEVELOPER_TYPES, developerTypeLabel,
   PROJECT_TYPES as CLIENT_PROJECT_TYPES, projectTypeLabel,
 } from '@/lib/utils';
 import {
-  clientDealCounts, projectTypesFromProjects, contactDealCounts,
+  clientDealCounts, projectTypesFromProjects, contactDealCounts, contactDealProjects,
   splitName, joinName, isValidEmail, formatPhone,
 } from '@/lib/crmClient';
+import { rolesHeldBy } from '@/lib/projectTeam';
 import {
   STANDARDS_SECTIONS, SECTION_COLOR_MAP, TAG_COLORS,
   CCT_OPTIONS, CCT_EXTERIOR_OPTIONS, CCT_INTERIOR_AREAS,
@@ -58,6 +59,9 @@ const TABS = [
 
 function parseJSON(val, fallback = []) {
   if (!val) return fallback;
+  // A field just changed on screen is already a real list — it has not been
+  // round-tripped through the database yet, so don't try to parse it.
+  if (Array.isArray(val)) return val;
   try { return JSON.parse(val); } catch { return fallback; }
 }
 
@@ -205,77 +209,170 @@ function CreatableSelect({ value, onChange, options, placeholder = 'Select or cr
   );
 }
 
-// ── Edit Client Modal ─────────────────────────────────────────────────────────
-// Module-level so it isn't re-created on every keystroke (that remounts the
-// input and steals focus). Takes value/onChange directly.
-function Inp({ label, type = 'text', placeholder, value, onChange }) {
-  return (
-    <div>
-      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">{label}</label>
-      <input type={type} value={value} onChange={onChange} placeholder={placeholder}
-        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-    </div>
-  );
-}
-
 const US_STATES = [
   'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD',
   'MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC',
   'SD','TN','TX','UT','VT','VA','WA','WV','WI','WY',
 ];
 
-function EditModal({ client, onClose, onSave }) {
-  const [form, setForm] = useState({
-    name:                client.name                || '',
-    email:               client.email               || '',
-    phone:               client.phone               || '',
-    website:             client.website             || '',
-    linkedIn:            client.linkedIn            || '',
-    city:                client.city                || '',
-    state:               client.state               || '',
-    locationType:        client.locationType        || '',
-    tier:                client.tier                || '',
-    rating:              client.rating              || '',
-    developerTypes:      parseJSON(client.developerTypes),
-    orgTypes:            parseJSON(client.orgTypes),
-    markets:             parseJSON(client.markets),
-    geographies:         parseJSON(client.geographies),
-    projectTypes:        parseJSON(client.projectTypes),
-    projectsPerYear:     client.projectsPerYear     ?? '',
-    paymentTerms:        client.paymentTerms         || '',
-    notes:               client.notes               || '',
-    ownerId:             client.ownerId              || '',
-  });
-  const [saving, setSaving] = useState(false);
-  const [err, setErr]       = useState('');
-  const [users, setUsers]   = useState([]);
-  const [salesOnly, setSalesOnly] = useState(true);
+// ── Client info, edited in place ──────────────────────────────────────────────
+// Mike, 2026-09-09: no pop-out and no Save button on the client info screen.
+// Click a field, type, click away — it saves itself, the same way the project
+// dashboard and the People tab already work. PersonField further down is the
+// plain-text editor; these are the pickers that go beside it.
 
-  // Tags: the full library plus what is ticked on this client.
-  const [tags, setTags]       = useState([]);
-  const [tagIds, setTagIds]   = useState((client.tagLinks || []).map(l => l.tagId));
-  const [newTag, setNewTag]   = useState('');
-  const [tagBusy, setTagBusy] = useState(false);
+// One labelled field in the info grid.
+function InfoRow({ label, children, className = '' }) {
+  return (
+    <div className={className}>
+      <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">{label}</div>
+      {children}
+    </div>
+  );
+}
+
+// Long free text. Click, type, click away.
+function InlineTextarea({ value, onSave, placeholder, rows = 3 }) {
+  const [editing, setEditing] = useState(false);
+  const [draft,   setDraft]   = useState(value ?? '');
+  const [busy,    setBusy]    = useState(false);
+
+  useEffect(() => { setDraft(value ?? ''); }, [value]);
+
+  async function commit() {
+    setEditing(false);
+    if ((draft ?? '') === (value ?? '')) return;
+    setBusy(true);
+    await onSave(draft);
+    setBusy(false);
+  }
+
+  if (editing) {
+    return (
+      <textarea
+        autoFocus
+        rows={rows}
+        value={draft}
+        placeholder={placeholder}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={e => { if (e.key === 'Escape') { setDraft(value ?? ''); setEditing(false); } }}
+        className="w-full rounded border border-amber-300 px-2 py-1.5 text-sm resize-y focus:outline-none focus:ring-1 focus:ring-amber-400"
+      />
+    );
+  }
+
+  return (
+    <button type="button" onClick={() => setEditing(true)} title="Click to edit"
+      className="block w-full text-left rounded px-1 -mx-1 py-0.5 hover:bg-amber-50 transition-colors">
+      {busy
+        ? <span className="text-sm text-amber-500">Saving…</span>
+        : value
+          ? <span className="text-sm text-slate-600 leading-relaxed whitespace-pre-line">{value}</span>
+          : <span className="text-sm text-slate-300">{placeholder}</span>}
+    </button>
+  );
+}
+
+// Tickable chips. Every tick saves on its own, so there is nothing to submit.
+function ChipPicker({
+  selected, options, onSave,
+  chipClass = () => 'bg-blue-50 text-blue-700 border border-blue-100',
+  renderLabel,
+  emptyLabel = '+ Add',
+}) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const list = Array.isArray(selected) ? selected : [];
+
+  async function toggle(next) {
+    setBusy(true);
+    await onSave(next);
+    setBusy(false);
+  }
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {list.map(v => (
+          <span key={v} className={`px-2.5 py-1 rounded-full text-xs font-medium ${chipClass(v)}`}>
+            {renderLabel ? renderLabel(v) : v}
+          </span>
+        ))}
+        {list.length === 0 && !open && (
+          <button type="button" onClick={() => setOpen(true)}
+            className="text-sm text-slate-300 hover:text-amber-600 transition-colors">{emptyLabel}</button>
+        )}
+        {(list.length > 0 || open) && (
+          <button type="button" onClick={() => setOpen(o => !o)}
+            className="text-xs text-amber-600 hover:text-amber-500 transition-colors">
+            {open ? 'Done' : 'Edit'}
+          </button>
+        )}
+        {busy && <span className="text-xs text-amber-500">Saving…</span>}
+      </div>
+      {open && (
+        <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50/40 p-2.5">
+          <MultiSelect options={options} selected={list} onChange={toggle} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// One-of choices (Tier, payment terms). Clicking the one already on clears it.
+function ChoiceChips({ value, options, onSave }) {
+  const [busy, setBusy] = useState(false);
+
+  async function pick(v) {
+    setBusy(true);
+    await onSave(value === v ? '' : v);
+    setBusy(false);
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {options.map(o => {
+        const val    = typeof o === 'string' ? o : o.value;
+        const lbl    = typeof o === 'string' ? o : o.label;
+        const active = value === val;
+        return (
+          <button key={val} type="button" onClick={() => pick(val)}
+            className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-colors ${
+              active ? 'bg-slate-800 text-white border-slate-800' : 'border-slate-200 text-slate-500 hover:border-slate-400'
+            }`}>{lbl}</button>
+        );
+      })}
+      {busy && <span className="text-xs text-amber-500">Saving…</span>}
+    </div>
+  );
+}
+
+// The tag library, edited from here: tick, rename, delete, add. Ticking saves
+// straight away. Rename and delete still ask first — those two reach across
+// every client that carries the tag, not just this one.
+function TagPicker({ tagIds, onSave }) {
+  const [tags, setTags]     = useState([]);
+  const [open, setOpen]     = useState(false);
+  const [newTag, setNewTag] = useState('');
+  const [busy, setBusy]     = useState(false);
+  const ids = Array.isArray(tagIds) ? tagIds : [];
 
   useEffect(() => {
-    fetch('/api/users').then(r => r.json()).then(d => setUsers(d.users || [])).catch(() => {});
     fetch('/api/tags').then(r => r.json()).then(d => setTags(d.tags || [])).catch(() => {});
   }, []);
 
-  // Mike's rule: the account owner must be someone marked as a salesperson.
-  // If nobody is marked yet, fall back to the whole list rather than showing an
-  // empty dropdown that looks broken.
-  const salespeople = users.filter(u =>
-    u.division === 'SALES' ||
-    (Array.isArray(u.deptRoles) ? u.deptRoles : parseJSON(u.deptRoles)).includes('Sales'));
-  const ownerOptions = salesOnly && salespeople.length ? salespeople : users;
-
-  function set(k, v) { setForm(f => ({ ...f, [k]: v })); }
+  async function toggle(tagId) {
+    const next = ids.includes(tagId) ? ids.filter(i => i !== tagId) : [...ids, tagId];
+    setBusy(true);
+    await onSave(next);
+    setBusy(false);
+  }
 
   async function createTag() {
     const name = newTag.trim();
-    if (!name || tagBusy) return;
-    setTagBusy(true);
+    if (!name || busy) return;
+    setBusy(true);
     try {
       const res = await fetch('/api/tags', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -284,10 +381,10 @@ function EditModal({ client, onClose, onSave }) {
       const d = await res.json();
       if (res.ok && d.tag) {
         setTags(t => (t.some(x => x.id === d.tag.id) ? t : [...t, d.tag]));
-        setTagIds(ids => (ids.includes(d.tag.id) ? ids : [...ids, d.tag.id]));
         setNewTag('');
+        await onSave(ids.includes(d.tag.id) ? ids : [...ids, d.tag.id]);
       }
-    } finally { setTagBusy(false); }
+    } finally { setBusy(false); }
   }
 
   async function renameTag(tag) {
@@ -308,217 +405,66 @@ function EditModal({ client, onClose, onSave }) {
     const res = await fetch(`/api/tags/${tag.id}`, { method: 'DELETE' });
     if (res.ok) {
       setTags(list => list.filter(t => t.id !== tag.id));
-      setTagIds(ids => ids.filter(id => id !== tag.id));
+      if (ids.includes(tag.id)) await onSave(ids.filter(i => i !== tag.id));
     }
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    if (!form.name.trim()) { setErr('Client name is required'); return; }
-    setSaving(true); setErr('');
-    try {
-      const res = await fetch(`/api/clients/${client.id}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...form,
-          // `type` is derived from the Client Type ticks server-side; sending
-          // the label here would overwrite the key with a label string.
-          type: undefined,
-          orgTypes: form.orgTypes,
-          developerTypes: form.developerTypes,
-          rating: form.rating,
-          markets: form.markets,
-          geographies: form.geographies,
-          projectTypes: form.projectTypes,
-          projectsPerYear: form.projectsPerYear,
-          ownerId: form.ownerId || null,
-          tagIds,
-        }),
-      });
-      if (!res.ok) { const d = await res.json(); setErr(d.error || 'Save failed'); return; }
-      onSave();
-    } catch { setErr('Network error'); }
-    finally { setSaving(false); }
-  }
+  const picked = tags.filter(t => ids.includes(t.id));
 
   return (
-    <div onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
-          <h2 className="text-base font-bold text-slate-900">Edit Client</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+    <div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {picked.map(t => (
+          <span key={t.id} className="px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
+            {t.name}
+          </span>
+        ))}
+        {picked.length === 0 && !open && (
+          <button type="button" onClick={() => setOpen(true)}
+            className="text-sm text-slate-300 hover:text-amber-600 transition-colors">+ Add a tag</button>
+        )}
+        {(picked.length > 0 || open) && (
+          <button type="button" onClick={() => setOpen(o => !o)}
+            className="text-xs text-amber-600 hover:text-amber-500 transition-colors">
+            {open ? 'Done' : 'Edit'}
           </button>
-        </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto">
-          {err && <div className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{err}</div>}
-
-          <section>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Company</p>
-            <div className="space-y-3">
-              <Inp label="Client Name *" value={form.name} onChange={e => set('name', e.target.value)} />
-              <div className="grid grid-cols-2 gap-3">
-                <Inp label="City" value={form.city} onChange={e => set('city', e.target.value)} />
-                <Inp label="State" value={form.state} onChange={e => set('state', e.target.value)} />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Location Type</label>
-                <CreatableSelect
-                  value={form.locationType}
-                  onChange={v => set('locationType', v)}
-                  options={LOCATION_TYPES}
-                  placeholder="Select or create…"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Tier</label>
-                <div className="flex gap-2">
-                  {['1', '2', '3'].map(t => (
-                    <button key={t} type="button" onClick={() => set('tier', form.tier === t ? '' : t)}
-                      className={`px-4 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${
-                        form.tier === t ? 'bg-slate-800 text-white border-slate-800' : 'border-slate-200 text-slate-500 hover:border-slate-400'
-                      }`}>Tier {t}</button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Payment terms</label>
-                <div className="flex flex-wrap gap-2">
-                  {['NET30', 'NET45', 'NET60', 'OTHER'].map(t => (
-                    <button key={t} type="button" onClick={() => set('paymentTerms', form.paymentTerms === t ? '' : t)}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${
-                        form.paymentTerms === t ? 'bg-slate-800 text-white border-slate-800' : 'border-slate-200 text-slate-500 hover:border-slate-400'
-                      }`}>{t === 'OTHER' ? 'Other' : t.replace('NET', 'NET ')}</button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="border-t border-slate-100 pt-5">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Account Owner</p>
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Assigned Salesperson</label>
-              <select value={form.ownerId} onChange={e => set('ownerId', e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500">
-                <option value="">— Unassigned —</option>
-                {ownerOptions.map(u => <option key={u.id} value={u.id}>{u.name || u.email}</option>)}
-              </select>
-              <label className="flex items-center gap-2 mt-2 text-xs text-slate-500">
-                <input type="checkbox" checked={salesOnly} onChange={e => setSalesOnly(e.target.checked)}
-                  className="rounded border-slate-300 text-amber-500 focus:ring-amber-500" />
-                Only show people set up as salespeople
-                {salespeople.length === 0 && <span className="text-slate-400">(nobody is yet, so everyone is listed)</span>}
-              </label>
-            </div>
-          </section>
-
-          <section className="border-t border-slate-100 pt-5">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Client Type</p>
-            <p className="text-xs text-slate-400 mb-3">Tick every one that applies.</p>
-            <MultiSelect options={ORG_TYPES} selected={form.orgTypes} onChange={v => set('orgTypes', v)} />
-          </section>
-
-          <section className="border-t border-slate-100 pt-5">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Developer Details</p>
-            <div className="space-y-3">
-              <MultiSelect label="Developer Type" options={DEVELOPER_TYPES}
-                selected={form.developerTypes} onChange={v => set('developerTypes', v)} />
-              <Inp label="Client Rating" placeholder="Free text for now — the scoring rule is still to be decided"
-                value={form.rating} onChange={e => set('rating', e.target.value)} />
-            </div>
-          </section>
-
-          <section className="border-t border-slate-100 pt-5">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tags</p>
-            <p className="text-xs text-slate-400 mb-3">
-              Make your own labels. Renaming or deleting one here changes it on every client that has it.
-            </p>
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {tags.length === 0 && <span className="text-xs text-slate-400">No tags yet — add the first one below.</span>}
-              {tags.map(tag => {
-                const active = tagIds.includes(tag.id);
-                return (
-                  <span key={tag.id} className={`inline-flex items-center rounded-full border text-xs font-medium transition-colors ${
-                    active ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200'
-                  }`}>
-                    <button type="button"
-                      onClick={() => setTagIds(ids => active ? ids.filter(i => i !== tag.id) : [...ids, tag.id])}
-                      className="pl-2.5 pr-1 py-1">{tag.name}</button>
-                    <button type="button" title="Rename" onClick={() => renameTag(tag)}
-                      className={`px-1 py-1 ${active ? 'text-white/70 hover:text-white' : 'text-slate-300 hover:text-slate-600'}`}>✎</button>
-                    <button type="button" title="Delete" onClick={() => deleteTag(tag)}
-                      className={`pr-2 pl-1 py-1 ${active ? 'text-white/70 hover:text-white' : 'text-slate-300 hover:text-red-500'}`}>✕</button>
-                  </span>
-                );
-              })}
-            </div>
-            <div className="flex gap-2">
-              <input value={newTag} onChange={e => setNewTag(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); createTag(); } }}
-                placeholder="New tag name…"
-                className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-              <button type="button" onClick={createTag} disabled={tagBusy || !newTag.trim()}
-                className="px-3 py-2 rounded-lg text-sm font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50">
-                Add
-              </button>
-            </div>
-          </section>
-
-          <section className="border-t border-slate-100 pt-5">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Markets</p>
-            <MultiSelect options={MARKETS} selected={form.markets} onChange={v => set('markets', v)} />
-          </section>
-
-          <section className="border-t border-slate-100 pt-5">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Portfolio</p>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Project types built</label>
-                {/* Same six choices as a project's Project Type, so the two lists agree. */}
-                <MultiSelect options={CLIENT_PROJECT_TYPES} selected={form.projectTypes} onChange={v => set('projectTypes', v)} />
-              </div>
-              <Inp label="Approx. projects per year" type="number" placeholder="e.g. 12" value={form.projectsPerYear} onChange={e => set('projectsPerYear', e.target.value)} />
-            </div>
-          </section>
-
-          <section className="border-t border-slate-100 pt-5">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Geography</p>
-            <p className="text-xs text-slate-400 mb-3">States this client is active in</p>
-            <MultiSelect options={US_STATES} selected={form.geographies} onChange={v => set('geographies', v)} />
-          </section>
-
-          <section className="border-t border-slate-100 pt-5">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Contact Info</p>
-            <div className="space-y-3">
-              {/* No general company email — only GCs have a pre-construction email */}
-              {form.orgTypes?.includes('General Contractor') && (
-                <Inp label="Pre-construction email" type="email" placeholder="GC pre-construction contact email" value={form.email} onChange={e => set('email', e.target.value)} />
-              )}
-              <Inp label="Phone" type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} />
-              <Inp label="Website" type="url" placeholder="https://…" value={form.website} onChange={e => set('website', e.target.value)} />
-              <Inp label="LinkedIn" type="url" placeholder="https://linkedin.com/company/…" value={form.linkedIn} onChange={e => set('linkedIn', e.target.value)} />
-            </div>
-          </section>
-
-          <section className="border-t border-slate-100 pt-5">
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Notes</label>
-            <textarea value={form.notes} onChange={e => set('notes', e.target.value)} rows={3}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none" />
-          </section>
-
-          <div className="flex gap-2 pt-1 border-t border-slate-100">
-            <button type="button" onClick={onClose}
-              className="flex-1 px-4 py-2 rounded-lg text-sm font-medium border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
-              Cancel
-            </button>
-            <button type="submit" disabled={saving}
-              className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 hover:bg-amber-400 text-white transition-colors disabled:opacity-60">
-              {saving ? 'Saving…' : 'Save Changes'}
+        )}
+        {busy && <span className="text-xs text-amber-500">Saving…</span>}
+      </div>
+      {open && (
+        <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50/40 p-2.5">
+          <p className="text-[11px] text-slate-400 mb-2">
+            Make your own labels. Renaming or deleting one here changes it on every client that has it.
+          </p>
+          <div className="flex flex-wrap gap-1.5 mb-2.5">
+            {tags.length === 0 && <span className="text-xs text-slate-400">No tags yet — add the first one below.</span>}
+            {tags.map(tag => {
+              const active = ids.includes(tag.id);
+              return (
+                <span key={tag.id} className={`inline-flex items-center rounded-full border text-xs font-medium transition-colors ${
+                  active ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200'
+                }`}>
+                  <button type="button" onClick={() => toggle(tag.id)} className="pl-2.5 pr-1 py-1">{tag.name}</button>
+                  <button type="button" title="Rename" onClick={() => renameTag(tag)}
+                    className={`px-1 py-1 ${active ? 'text-white/70 hover:text-white' : 'text-slate-300 hover:text-slate-600'}`}>✎</button>
+                  <button type="button" title="Delete" onClick={() => deleteTag(tag)}
+                    className={`pr-2 pl-1 py-1 ${active ? 'text-white/70 hover:text-white' : 'text-slate-300 hover:text-red-500'}`}>✕</button>
+                </span>
+              );
+            })}
+          </div>
+          <div className="flex gap-2">
+            <input value={newTag} onChange={e => setNewTag(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); createTag(); } }}
+              placeholder="New tag name…"
+              className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+            <button type="button" onClick={createTag} disabled={busy || !newTag.trim()}
+              className="px-3 py-1.5 rounded-lg text-sm font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50">
+              Add
             </button>
           </div>
-        </form>
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -589,12 +535,11 @@ function LinkProjectsModal({ clientId, available, onClose, onSave }) {
 
 // ── KB Attachment Card ────────────────────────────────────────────────────────
 // ── Overview Tab ──────────────────────────────────────────────────────────────
-function OverviewTab({ client, onEditClick }) {
+function OverviewTab({ client, onPatch }) {
   const orgTypes     = parseJSON(client.orgTypes);
   const markets      = parseJSON(client.markets);
   const geographies  = parseJSON(client.geographies);
   const projectTypes = parseJSON(client.projectTypes);
-  const ptLabels     = projectTypes.map(projectTypeLabel);
   // Falls back to the legacy single column so clients saved before the
   // multi-select still show their developer type.
   const devTypes   = (() => {
@@ -605,7 +550,7 @@ function OverviewTab({ client, onEditClick }) {
   const locType    = LOCATION_TYPES.find(l => l.value === client.locationType)?.label;
   const location   = [client.city, client.state].filter(Boolean).join(', ');
   const isGC       = orgTypes.includes('General Contractor');
-  const tagLinks   = client.tagLinks || [];
+  const tagIds     = (client.tagLinks || []).map(l => l.tagId);
   // One project is one deal here. A Full Design job rides both pipelines, but
   // it is still one job we did for this client, so it counts once (Mike,
   // 2026-09-06). The pipeline boards themselves still count it on each board.
@@ -614,30 +559,44 @@ function OverviewTab({ client, onEditClick }) {
   // Mike asked for. Shown next to what was ticked by hand.
   const seenTypes  = projectTypesFromProjects(client.projects).map(projectTypeLabel);
 
+  // The account owner has to be someone marked as a salesperson. If nobody is
+  // marked yet, list everyone rather than show a dropdown that looks broken.
+  const [users, setUsers]         = useState([]);
+  const [salesOnly, setSalesOnly] = useState(true);
+  useEffect(() => {
+    fetch('/api/users').then(r => r.json()).then(d => setUsers(d.users || [])).catch(() => {});
+  }, []);
+  const salespeople = users.filter(u =>
+    u.division === 'SALES' ||
+    (Array.isArray(u.deptRoles) ? u.deptRoles : parseJSON(u.deptRoles)).includes('Sales'));
+  const ownerOptions = salesOnly && salespeople.length ? salespeople : users;
+
   return (
     <div className="space-y-6">
-      {/* ── One full-width client info window ── */}
+      {/* ── One full-width client info window. Everything here edits in place:
+             click it, change it, click away. Nothing to save. ── */}
       <div className="bg-white rounded-xl border border-slate-200 p-6">
-        {/* Top bar: Client ID + edit */}
+        {/* Top bar: Client ID + how this screen works */}
         <div className="flex items-center justify-between mb-5">
           <span className="font-mono text-xs font-semibold text-slate-400 tracking-wide">
             {client.clientNumber ? `CLT-${String(client.clientNumber).padStart(4, '0')}` : ''}
           </span>
-          <button onClick={onEditClick}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 transition-colors" title="Edit client">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
-            </svg>
-          </button>
+          <span className="text-[11px] text-slate-300">Click any field to change it — it saves itself</span>
         </div>
 
         {/* Identity row */}
         <div className="flex items-start gap-4">
           <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
-            <span className="text-xl font-bold text-amber-600">{client.name[0].toUpperCase()}</span>
+            <span className="text-xl font-bold text-amber-600">{(client.name || '?')[0].toUpperCase()}</span>
           </div>
-          <div className="min-w-0">
-            <h1 className="text-lg font-bold text-slate-900 leading-tight">{client.name}</h1>
+          <div className="min-w-0 flex-1">
+            <PersonField
+              value={client.name}
+              placeholder="Client name"
+              width="w-full max-w-md"
+              className="text-lg font-bold text-slate-900 leading-tight"
+              onSave={v => onPatch({ name: v })}
+            />
             {(location || locType) && (
               <p className="text-sm text-slate-500 mt-0.5">
                 {location}{location && locType ? ' · ' : ''}{locType}
@@ -655,20 +614,15 @@ function OverviewTab({ client, onEditClick }) {
               {orgTypes.length === 0 && client.type && (
                 <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${orgTypeColor(client.type)}`}>{client.type}</span>
               )}
-              {tagLinks.map(link => (
-                <span key={link.id || link.tagId} className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
-                  {link.tag?.name}
-                </span>
-              ))}
             </div>
           </div>
         </div>
 
-        {/* Deal counts — worked out live from this client's projects across both
-            pipelines, so they can never disagree with the boards. */}
+        {/* Project counts — worked out live from this client's projects across
+            both pipelines, so they can never disagree with the boards. */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-5 pt-5 border-t border-slate-100">
           {[
-            ['Open Deals',      counts.open,      'text-slate-900'],
+            ['Open Projects',   counts.open,      'text-slate-900'],
             ['Won',             counts.won,       'text-emerald-600'],
             ['Lost',            counts.lost,      'text-red-500'],
             ['Abandoned',       counts.abandoned, 'text-amber-600'],
@@ -681,137 +635,182 @@ function OverviewTab({ client, onEditClick }) {
           ))}
         </div>
 
-        {/* Detail grid: contact info | markets */}
+        {/* Detail grid: company + contact info | what they build */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5 mt-5 pt-5 border-t border-slate-100">
-          {/* Left: dev type + contact info */}
-          <div className="space-y-2">
-            {devTypes.length > 0 && (
-              <div className="text-xs text-slate-400 mb-1">
-                <span className="font-semibold text-slate-500">Developer type: </span>
-                {devTypes.map(developerTypeLabel).join(', ')}
-              </div>
+
+          {/* Left: who they are and how to reach them */}
+          <div className="space-y-4">
+            <InfoRow label="Client type">
+              <ChipPicker
+                selected={orgTypes}
+                options={ORG_TYPES}
+                chipClass={orgTypeColor}
+                emptyLabel="+ Tick every type that applies"
+                onSave={v => onPatch({ orgTypes: v })}
+              />
+            </InfoRow>
+
+            <InfoRow label="Developer type">
+              <ChipPicker
+                selected={devTypes}
+                options={DEVELOPER_TYPES}
+                renderLabel={developerTypeLabel}
+                emptyLabel="+ Add developer type"
+                onSave={v => onPatch({ developerTypes: v })}
+              />
+            </InfoRow>
+
+            <div className="grid grid-cols-2 gap-4">
+              <InfoRow label="Tier">
+                <ChoiceChips
+                  value={client.tier || ''}
+                  options={['1', '2', '3'].map(t => ({ value: t, label: `Tier ${t}` }))}
+                  onSave={v => onPatch({ tier: v })}
+                />
+              </InfoRow>
+              <InfoRow label="Payment terms">
+                <ChoiceChips
+                  value={client.paymentTerms || ''}
+                  options={['NET30', 'NET45', 'NET60', 'OTHER'].map(t => ({
+                    value: t, label: t === 'OTHER' ? 'Other' : t.replace('NET', 'NET '),
+                  }))}
+                  onSave={v => onPatch({ paymentTerms: v })}
+                />
+              </InfoRow>
+            </div>
+
+            <InfoRow label="Salesperson">
+              <select
+                value={client.ownerId || ''}
+                onChange={e => onPatch({ ownerId: e.target.value || null })}
+                className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500">
+                <option value="">— Unassigned —</option>
+                {ownerOptions.map(u => <option key={u.id} value={u.id}>{u.name || u.email}</option>)}
+              </select>
+              <label className="flex items-center gap-2 mt-1.5 text-[11px] text-slate-400">
+                <input type="checkbox" checked={salesOnly} onChange={e => setSalesOnly(e.target.checked)}
+                  className="rounded border-slate-300 text-amber-500 focus:ring-amber-500" />
+                Only show people set up as salespeople
+                {salespeople.length === 0 && <span>(nobody is yet, so everyone is listed)</span>}
+              </label>
+            </InfoRow>
+
+            <div className="grid grid-cols-2 gap-4">
+              <InfoRow label="City">
+                <PersonField value={client.city} placeholder="City" width="w-full"
+                  className="text-sm text-slate-600" onSave={v => onPatch({ city: v })} />
+              </InfoRow>
+              <InfoRow label="State">
+                <PersonField value={client.state} placeholder="State" width="w-full" list="client-states"
+                  className="text-sm text-slate-600" onSave={v => onPatch({ state: v })} />
+                <datalist id="client-states">
+                  {US_STATES.map(s => <option key={s} value={s} />)}
+                </datalist>
+              </InfoRow>
+            </div>
+
+            <InfoRow label="Location type">
+              <CreatableSelect
+                value={client.locationType || ''}
+                onChange={v => onPatch({ locationType: v })}
+                options={LOCATION_TYPES}
+                placeholder="Select or create…"
+              />
+            </InfoRow>
+
+            <InfoRow label="Client rating">
+              <PersonField value={client.rating} width="w-full" className="text-sm text-slate-600"
+                placeholder="Free text for now — the scoring rule is still to be decided"
+                onSave={v => onPatch({ rating: v })} />
+            </InfoRow>
+
+            {/* Pre-construction email — GC clients only, or any client that
+                already has one saved from before. */}
+            {(isGC || client.email) && (
+              <InfoRow label="Pre-construction email">
+                <PersonField value={client.email} type="email" width="w-full"
+                  className="text-sm text-slate-600" placeholder="GC pre-construction contact email"
+                  onSave={v => onPatch({ email: v })} />
+              </InfoRow>
             )}
-            {client.rating && (
-              <div className="text-xs text-slate-400 mb-1">
-                <span className="font-semibold text-slate-500">Rating: </span>{client.rating}
-              </div>
-            )}
-            {client.owner && (
-              <div className="text-xs text-slate-400 mb-1">
-                <span className="font-semibold text-slate-500">Salesperson: </span>
-                {client.owner.name || client.owner.email}
-              </div>
-            )}
-            {client.paymentTerms && (
-              <div className="text-xs text-slate-400 mb-1">
-                <span className="font-semibold text-slate-500">Payment terms: </span>{client.paymentTerms === 'OTHER' ? 'Other' : client.paymentTerms.replace('NET', 'NET ')}
-              </div>
-            )}
-            {/* Pre-construction email — GC clients only */}
-            {isGC && client.email && (
-              <div className="flex items-center gap-2 text-sm">
-                <svg className="w-4 h-4 shrink-0 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-                </svg>
-                <div className="min-w-0">
-                  <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide leading-none">Pre-construction email</div>
-                  <a href={`mailto:${client.email}`} className="text-amber-600 hover:text-amber-500 truncate">{client.email}</a>
-                </div>
-              </div>
-            )}
-            {client.phone && (
-              <div className="flex items-center gap-2 text-sm">
-                <svg className="w-4 h-4 shrink-0 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
-                </svg>
-                <span className="text-slate-600">{client.phone}</span>
-              </div>
-            )}
-            {client.website && (
-              <div className="flex items-center gap-2 text-sm">
-                <svg className="w-4 h-4 shrink-0 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253" />
-                </svg>
-                <a href={client.website} target="_blank" rel="noopener noreferrer" className="text-amber-600 hover:text-amber-500 truncate">
-                  {client.website.replace(/^https?:\/\//, '')}
-                </a>
-              </div>
-            )}
-            {client.linkedIn && (
-              <div className="flex items-center gap-2 text-sm">
-                <svg className="w-4 h-4 shrink-0 text-slate-300" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
-                </svg>
-                <a href={client.linkedIn} target="_blank" rel="noopener noreferrer" className="text-amber-600 hover:text-amber-500">LinkedIn</a>
-              </div>
-            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <InfoRow label="Phone">
+                <PersonField value={client.phone} type="tel" width="w-full"
+                  className="text-sm text-slate-600" placeholder="Phone"
+                  onSave={v => onPatch({ phone: v })} />
+              </InfoRow>
+              <InfoRow label="Website">
+                <PersonField value={client.website} type="url" width="w-full"
+                  className="text-sm text-slate-600" placeholder="https://…"
+                  display={client.website ? client.website.replace(/^https?:\/\//, '') : null}
+                  onSave={v => onPatch({ website: v })} />
+              </InfoRow>
+            </div>
+
+            <InfoRow label="LinkedIn">
+              <PersonField value={client.linkedIn} type="url" width="w-full"
+                className="text-sm text-slate-600" placeholder="https://linkedin.com/company/…"
+                onSave={v => onPatch({ linkedIn: v })} />
+            </InfoRow>
+
+            <InfoRow label="Tags">
+              <TagPicker tagIds={tagIds} onSave={v => onPatch({ tagIds: v })} />
+            </InfoRow>
           </div>
 
-          {/* Right: markets */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Markets</h3>
-              <button onClick={onEditClick} className="text-xs text-amber-600 hover:text-amber-500 transition-colors">Edit</button>
-            </div>
-            {markets.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {markets.map(m => (
-                  <span key={m} className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">{m}</span>
-                ))}
-              </div>
-            ) : (
-              <button onClick={onEditClick} className="text-sm text-slate-400 hover:text-amber-600 transition-colors">
-                + Add markets this client builds in
-              </button>
-            )}
+          {/* Right: what they build and where */}
+          <div className="space-y-4">
+            <InfoRow label="Markets">
+              <ChipPicker
+                selected={markets}
+                options={MARKETS}
+                emptyLabel="+ Add markets this client builds in"
+                onSave={v => onPatch({ markets: v })}
+              />
+            </InfoRow>
 
-            {/* Geography */}
-            <div className="mt-4">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Geography</h3>
-              {geographies.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {geographies.map(s => (
-                    <span key={s} className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">{s}</span>
-                  ))}
-                </div>
-              ) : (
-                <button onClick={onEditClick} className="text-sm text-slate-400 hover:text-amber-600 transition-colors">
-                  + Add states this client is active in
-                </button>
-              )}
-            </div>
+            <InfoRow label="Geography">
+              <ChipPicker
+                selected={geographies}
+                options={US_STATES}
+                chipClass={() => 'bg-slate-100 text-slate-600 border border-slate-200'}
+                emptyLabel="+ Add states this client is active in"
+                onSave={v => onPatch({ geographies: v })}
+              />
+            </InfoRow>
 
-            {/* Portfolio */}
-            <div className="mt-4">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
-                Portfolio{client.projectsPerYear ? ` · ~${client.projectsPerYear} projects/yr` : ''}
-              </h3>
-              {ptLabels.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {ptLabels.map(t => (
-                    <span key={t} className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">{t}</span>
-                  ))}
-                </div>
-              ) : (
-                <button onClick={onEditClick} className="text-sm text-slate-400 hover:text-amber-600 transition-colors">
-                  + Add project types this client builds
-                </button>
-              )}
+            <InfoRow label="Portfolio">
+              <ChipPicker
+                selected={projectTypes}
+                options={CLIENT_PROJECT_TYPES}
+                renderLabel={projectTypeLabel}
+                emptyLabel="+ Add project types this client builds"
+                onSave={v => onPatch({ projectTypes: v })}
+              />
               {seenTypes.length > 0 && (
                 <p className="text-[11px] text-slate-400 mt-1.5">
                   From their actual projects: {seenTypes.join(', ')}
                 </p>
               )}
-            </div>
+            </InfoRow>
+
+            <InfoRow label="Approx. projects per year">
+              <PersonField value={client.projectsPerYear ?? ''} type="number" width="w-24"
+                className="text-sm text-slate-600" placeholder="e.g. 12"
+                onSave={v => onPatch({ projectsPerYear: v })} />
+            </InfoRow>
           </div>
         </div>
 
-        {client.notes && (
-          <div className="mt-5 pt-5 border-t border-slate-100">
-            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Notes</div>
-            <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-line">{client.notes}</p>
-          </div>
-        )}
+        <div className="mt-5 pt-5 border-t border-slate-100">
+          <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Notes</div>
+          <InlineTextarea
+            value={client.notes || ''}
+            placeholder="Click to add notes about this client…"
+            onSave={v => onPatch({ notes: v })}
+          />
+        </div>
 
         <div className="mt-5 pt-4 border-t border-slate-100 text-xs text-slate-400">
           Added by {client.createdBy?.name || client.createdBy?.email}
@@ -834,6 +833,14 @@ function OverviewTab({ client, onEditClick }) {
 }
 
 // ── People Tab ────────────────────────────────────────────────────────────────
+// Rebuilt 2026-09-09 for Mike. Three things he asked for on the call:
+//   1. "that link profile is just making taking one big line" — every person now
+//      takes TWO lines instead of one very wide table row, so nothing runs off
+//      the right side of the screen.
+//   2. Every field edits in place. No pop-out panel, no Edit button, no modal —
+//      click the words, type, click away. It saves itself.
+//   3. The Open / Won / Lost / Abandoned numbers name the jobs behind them:
+//      hover to see the list, click to open it right here on the same screen.
 function getCheckinStatus(contact) {
   const ref = contact.lastInPersonAt ?? contact.lastTouchpointAt;
   if (!ref || !contact.cadenceTier) return null;
@@ -851,28 +858,174 @@ const EMPTY_PERSON = {
   cellPhone: '', workPhone: '', department: '', linkedInUrl: '',
 };
 
-// The four deal numbers for one person, small enough to sit in a table cell.
-function DealChips({ contact }) {
-  const c = contactDealCounts(contact);
-  if (!c.total) return <span className="text-slate-300">—</span>;
+// The four buckets, in the order Mike reads them, with their colours.
+const DEAL_BUCKETS = [
+  { key: 'open',      short: 'O', label: 'Open',      on: 'bg-slate-100 text-slate-700 hover:bg-slate-200' },
+  { key: 'won',       short: 'W', label: 'Won',       on: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' },
+  { key: 'lost',      short: 'L', label: 'Lost',      on: 'bg-red-50 text-red-600 hover:bg-red-100' },
+  { key: 'abandoned', short: 'A', label: 'Abandoned', on: 'bg-amber-50 text-amber-700 hover:bg-amber-100' },
+];
+
+/**
+ * The four deal numbers for one person.
+ *
+ * The number IS the button. Hovering shows the job names without a click (Mike:
+ * he wants to see them "on a rollover"); clicking hands them to the popup on
+ * this same screen rather than navigating away.
+ */
+function DealChips({ contact, onOpenList }) {
+  const counts   = contactDealCounts(contact);
+  const buckets  = contactDealProjects(contact);
+  if (!counts.total) return <span className="text-slate-300 text-xs">No jobs yet</span>;
+
   return (
     <span className="inline-flex gap-1">
-      {[['O', c.open, 'bg-slate-100 text-slate-700'],
-        ['W', c.won, 'bg-emerald-50 text-emerald-700'],
-        ['L', c.lost, 'bg-red-50 text-red-600'],
-        ['A', c.abandoned, 'bg-amber-50 text-amber-700']].map(([k, v, cls]) => (
-        <span key={k} title={{ O: 'Open', W: 'Won', L: 'Lost', A: 'Abandoned' }[k]}
-          className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${v ? cls : 'bg-slate-50 text-slate-300'}`}>
-          {k}{v}
-        </span>
-      ))}
+      {DEAL_BUCKETS.map(b => {
+        const projects = buckets[b.key];
+        const n = projects.length;
+        return (
+          <span key={b.key} className="relative group/chip">
+            <button
+              type="button"
+              disabled={!n}
+              onClick={() => n && onOpenList({ contact, bucket: b, projects })}
+              className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition-colors ${
+                n ? `${b.on} cursor-pointer` : 'bg-slate-50 text-slate-300 cursor-default'
+              }`}
+            >
+              {b.short}{n}
+            </button>
+
+            {/* The rollover. Names only — the click is what opens the full list. */}
+            {n > 0 && (
+              <span className="pointer-events-none absolute z-30 left-1/2 -translate-x-1/2 top-full mt-1 hidden group-hover/chip:block w-56 rounded-lg bg-slate-900 text-white text-[11px] px-3 py-2 shadow-xl">
+                <span className="block font-semibold text-slate-300 mb-1">{b.label} ({n})</span>
+                {projects.slice(0, 6).map(p => (
+                  <span key={p.id} className="block truncate">{p.name}</span>
+                ))}
+                {n > 6 && <span className="block text-slate-400">+{n - 6} more…</span>}
+                <span className="block mt-1 text-slate-400">Click to open the list</span>
+              </span>
+            )}
+          </span>
+        );
+      })}
     </span>
+  );
+}
+
+/**
+ * The popup Mike asked for: "pop up" on the same screen, not a page change.
+ * Lists the jobs behind one number. The names are still links for anyone who
+ * does want to go to the job.
+ */
+function DealListPopup({ contact, bucket, projects, onClose }) {
+  useEffect(() => {
+    const onKey = e => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-900/30" onClick={onClose} />
+      <div className="relative bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-md max-h-[70vh] flex flex-col">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-start justify-between gap-3">
+          <div>
+            <h3 className="font-semibold text-slate-900">{bucket.label} — {projects.length}</h3>
+            <p className="text-xs text-slate-400 mt-0.5">{contact.name} is the main contact on these.</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close"
+            className="p-1 rounded text-slate-300 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <ul className="flex-1 overflow-y-auto divide-y divide-slate-50">
+          {projects.map(p => (
+            <li key={p.id} className="px-5 py-3 hover:bg-slate-50 transition-colors">
+              <div className="flex items-center gap-2">
+                {p.projectNumber && (
+                  <span className="text-[11px] font-mono font-semibold text-slate-400 shrink-0">
+                    PRJ-{String(p.projectNumber).padStart(4, '0')}
+                  </span>
+                )}
+                <Link href={`/project/${p.id}`} className="font-medium text-slate-800 hover:text-amber-600 transition-colors truncate">
+                  {p.name}
+                </Link>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * One field that edits itself in place.
+ *
+ * Reads as plain text; click it and it becomes a box; leave it and it saves.
+ * Escape puts it back. There is no Save button on purpose — Mike asked for the
+ * pop-out to go away entirely.
+ */
+function PersonField({
+  value, onSave, placeholder, type = 'text', className = '', display,
+  list, width = 'min-w-[6rem]', prefixIcon,
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft,   setDraft]   = useState(value ?? '');
+  const [busy,    setBusy]    = useState(false);
+
+  useEffect(() => { setDraft(value ?? ''); }, [value]);
+
+  async function commit() {
+    setEditing(false);
+    if ((draft ?? '') === (value ?? '')) return;
+    setBusy(true);
+    await onSave(draft);
+    setBusy(false);
+  }
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        type={type}
+        list={list}
+        value={draft}
+        placeholder={placeholder}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={e => {
+          if (e.key === 'Enter')  { e.preventDefault(); commit(); }
+          if (e.key === 'Escape') { setDraft(value ?? ''); setEditing(false); }
+        }}
+        className={`${width} border border-amber-300 rounded px-1.5 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-amber-400 ${className}`}
+      />
+    );
+  }
+
+  const shown = display ?? (value || null);
+  return (
+    <button
+      type="button"
+      onClick={() => setEditing(true)}
+      title="Click to edit"
+      className={`text-left rounded px-1 -mx-1 hover:bg-amber-50 transition-colors ${className} ${shown ? '' : 'text-slate-300'}`}
+    >
+      {busy ? <span className="text-amber-500">Saving…</span> : (
+        <>
+          {prefixIcon && shown ? <span className="text-slate-300 mr-1">{prefixIcon}</span> : null}
+          {shown || placeholder}
+        </>
+      )}
+    </button>
   );
 }
 
 function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
   const [contacts,  setContacts]  = useState(initial);
-  const [openId,    setOpenId]    = useState(null);   // person whose detail panel is showing
+  const [dealList,  setDealList]  = useState(null); // {contact, bucket, projects} | null
 
   // Propagate any contact change up so the Overview count, tab badge, and
   // Playbook "primary national contact" dropdown stay in sync without a refresh.
@@ -882,8 +1035,6 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
     onContactsChange?.(contacts);
   }, [contacts]);
   const [addForm,   setAddForm]   = useState(null); // null | {}
-  const [editId,    setEditId]    = useState(null);
-  const [editForm,  setEditForm]  = useState({});
   const [saving,    setSaving]    = useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
@@ -904,34 +1055,25 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
     setSaving(false);
   }
 
-  async function saveEdit(id) {
-    if (!isValidEmail(editForm.email)) { setFormErr('That email address does not look right.'); return; }
-    setSaving(true); setFormErr('');
-    const res = await fetch(`/api/clients/${clientId}/contacts/${id}`, {
+  /**
+   * Save ONE field on ONE person, straight away.
+   *
+   * Typing a first or last name keeps the full name in step and the other way
+   * round; that logic already lives in the API, so only the one field the user
+   * touched is sent and whatever comes back is what the screen shows.
+   */
+  async function saveField(contact, field, raw) {
+    const value = typeof raw === 'string' ? raw.trim() : raw;
+    if (field === 'name' && !value) { setFormErr('A person needs a name.'); return; }
+    if (field === 'email' && !isValidEmail(value)) { setFormErr('That email address does not look right.'); return; }
+    setFormErr('');
+    const res = await fetch(`/api/clients/${clientId}/contacts/${contact.id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(editForm),
+      body: JSON.stringify({ [field]: value }),
     });
-    const data = await res.json();
-    if (!res.ok) { setFormErr(data.error || 'Could not save.'); setSaving(false); return; }
-    setContacts(c => c.map(x => x.id === id ? data.contact : x));
-    setEditId(null);
-    setSaving(false);
-  }
-
-  // Typing a first or last name keeps the full name in step, unless the full
-  // name has been typed by hand.
-  function editPart(field, value) {
-    setEditForm(f => {
-      const next = { ...f, [field]: value };
-      if (field === 'firstName' || field === 'lastName') {
-        next.name = joinName(
-          field === 'firstName' ? value : f.firstName,
-          field === 'lastName'  ? value : f.lastName,
-        ) || f.name;
-      }
-      if (field === 'name') Object.assign(next, splitName(value));
-      return next;
-    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { setFormErr(data.error || 'Could not save that.'); return; }
+    setContacts(c => c.map(x => x.id === contact.id ? data.contact : x));
   }
 
   async function deleteContact(id, name) {
@@ -948,9 +1090,12 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-        <h2 className="font-semibold text-slate-900">People
-          <span className="ml-2 text-sm font-normal text-slate-400">({contacts.length})</span>
-        </h2>
+        <div>
+          <h2 className="font-semibold text-slate-900">People
+            <span className="ml-2 text-sm font-normal text-slate-400">({contacts.length})</span>
+          </h2>
+          <p className="text-[11px] text-slate-400 mt-0.5">Click any field to change it. It saves when you click away.</p>
+        </div>
         {addForm === null && (
           <button onClick={() => { setAddForm({ ...EMPTY_PERSON }); setFormErr(''); }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors">
@@ -993,217 +1138,161 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
         ) : null;
       })()}
 
-      {/* Table */}
       <datalist id="dept-options">
         {CONTACT_DEPARTMENTS.map(d => <option key={d} value={d} />)}
       </datalist>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-100 bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-              <th className="px-5 py-2.5 text-left">Name</th>
-              <th className="px-4 py-2.5 text-left">Title</th>
-              <th className="px-4 py-2.5 text-left">Email</th>
-              <th className="px-4 py-2.5 text-left">Work Phone</th>
-              <th className="px-4 py-2.5 text-left">Cell</th>
-              <th className="px-4 py-2.5 text-left">Department</th>
-              <th className="px-4 py-2.5 text-left">Deals</th>
-              <th className="w-24"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {contacts.map(c => (
-              <Fragment key={c.id}>
-                <tr className="group hover:bg-slate-50/50 transition-colors">
-                  <td className="px-5 py-3 font-medium text-slate-800">{c.name}</td>
-                  <td className="px-4 py-3 text-slate-500">{c.title || <span className="text-slate-300">—</span>}</td>
-                  <td className="px-4 py-3">
-                    {c.email ? <a href={`mailto:${c.email}`} className="text-amber-600 hover:text-amber-500">{c.email}</a> : <span className="text-slate-300">—</span>}
-                  </td>
-                  <td className="px-4 py-3 text-slate-500">{formatPhone(c.workPhone || c.phone) || <span className="text-slate-300">—</span>}</td>
-                  <td className="px-4 py-3 text-slate-500">{formatPhone(c.cellPhone) || <span className="text-slate-300">—</span>}</td>
-                  <td className="px-4 py-3">{c.department ? <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">{c.department}</span> : <span className="text-slate-300">—</span>}</td>
-                  <td className="px-4 py-3"><DealChips contact={c} /></td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => setOpenId(openId === c.id ? null : c.id)}
-                        className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                        title={openId === c.id ? 'Hide details' : 'Show details'}>
-                        <svg className={`w-3.5 h-3.5 transition-transform ${openId === c.id ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-                      </button>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => {
-                            setFormErr('');
-                            setEditId(c.id);
-                            setOpenId(c.id);
-                            setEditForm({
-                              name: c.name, firstName: c.firstName || '', lastName: c.lastName || '',
-                              title: c.title || '', email: c.email || '',
-                              workPhone: c.workPhone || c.phone || '', cellPhone: c.cellPhone || '',
-                              department: c.department || '', linkedInUrl: c.linkedInUrl || '',
-                            });
-                          }}
-                          className="p-1 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Edit">
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                        </button>
-                        <button onClick={() => deleteContact(c.id, c.name)} disabled={deletingId === c.id}
-                          className="p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete">
-                          {deletingId === c.id ? <Spinner className="w-3.5 h-3.5" /> : (
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
 
-                {/* Detail / edit panel — the fields that would make the table
-                    unreadable if they each had their own column. */}
-                {openId === c.id && (
-                  <tr className="bg-slate-50/60">
-                    <td colSpan={8} className="px-5 py-4">
-                      {editId === c.id ? (
-                        <div className="space-y-3">
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">First Name</label>
-                              <input value={editForm.firstName || ''} onChange={e => editPart('firstName', e.target.value)} className={inputCls} />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Last Name</label>
-                              <input value={editForm.lastName || ''} onChange={e => editPart('lastName', e.target.value)} className={inputCls} />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Full Name *</label>
-                              <input value={editForm.name || ''} onChange={e => editPart('name', e.target.value)} className={inputCls} />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Job Title</label>
-                              <input value={editForm.title || ''} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} className={inputCls} />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Email</label>
-                              <input type="email" value={editForm.email || ''} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} className={inputCls} />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Department</label>
-                              <input list="dept-options" value={editForm.department || ''} onChange={e => setEditForm(f => ({ ...f, department: e.target.value }))} className={inputCls} />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Work Phone</label>
-                              <input type="tel" value={editForm.workPhone || ''} onChange={e => setEditForm(f => ({ ...f, workPhone: e.target.value }))} className={inputCls} />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Cell Phone</label>
-                              <input type="tel" value={editForm.cellPhone || ''} onChange={e => setEditForm(f => ({ ...f, cellPhone: e.target.value }))} className={inputCls} />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">LinkedIn</label>
-                              <input type="url" placeholder="https://linkedin.com/in/…" value={editForm.linkedInUrl || ''} onChange={e => setEditForm(f => ({ ...f, linkedInUrl: e.target.value }))} className={inputCls} />
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <button onClick={() => saveEdit(c.id)} disabled={saving}
-                              className="px-3 py-1.5 text-xs font-semibold bg-amber-500 text-white rounded-lg hover:bg-amber-400 transition-colors disabled:opacity-60">
-                              {saving ? 'Saving…' : 'Save'}
-                            </button>
-                            <button onClick={() => setEditId(null)}
-                              className="px-3 py-1.5 text-xs font-medium text-slate-500 rounded-lg border border-slate-200 hover:bg-white transition-colors">Cancel</button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-2 text-xs">
-                          <div>
-                            <div className="text-slate-400"><span className="font-semibold text-slate-500">First / Last: </span>
-                              {[c.firstName, c.lastName].filter(Boolean).join(' ') || '—'}</div>
-                            <div className="text-slate-400"><span className="font-semibold text-slate-500">LinkedIn: </span>
-                              {c.linkedInUrl
-                                ? <a href={c.linkedInUrl} target="_blank" rel="noopener noreferrer" className="text-amber-600 hover:text-amber-500">Profile</a>
-                                : '—'}</div>
-                          </div>
-                          <div>
-                            <div className="text-slate-400"><span className="font-semibold text-slate-500">Last email received: </span>
-                              {c.lastEmailReceivedAt ? new Date(c.lastEmailReceivedAt).toLocaleDateString() : 'Not tracked yet'}</div>
-                            <div className="text-slate-400"><span className="font-semibold text-slate-500">Last email we sent: </span>
-                              {c.lastEmailSentAt ? new Date(c.lastEmailSentAt).toLocaleDateString() : 'Not tracked yet'}</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-slate-500 mb-0.5">Projects</div>
-                            {(c.projectLinks || []).length === 0
-                              ? <span className="text-slate-400">Not attached to any project yet.</span>
-                              : (
-                                <ul className="space-y-0.5">
-                                  {c.projectLinks.map(l => (
-                                    <li key={l.id || l.projectId}>
-                                      <Link href={`/projects/${l.project?.id}`} className="text-amber-600 hover:text-amber-500">
-                                        {l.project?.name}
-                                      </Link>
-                                      {l.isLead && <span className="ml-1.5 text-[10px] font-bold text-slate-400 uppercase">Lead</span>}
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                          </div>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                )}
-              </Fragment>
-            ))}
+      {/* ── One person, two lines ── */}
+      <div className="divide-y divide-slate-100">
+        {contacts.map(c => (
+          <div key={c.id} className="group px-5 py-3 hover:bg-slate-50/50 transition-colors">
+            {/* Line 1 — who they are, and how the jobs went. */}
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 min-w-0">
+                <PersonField
+                  value={c.name}
+                  onSave={v => saveField(c, 'name', v)}
+                  placeholder="Name"
+                  width="min-w-[10rem]"
+                  className="font-semibold text-slate-800 text-sm"
+                />
+                <span className="text-slate-200">·</span>
+                <PersonField
+                  value={c.title}
+                  onSave={v => saveField(c, 'title', v)}
+                  placeholder="Add a job title"
+                  width="min-w-[10rem]"
+                  className="text-sm text-slate-500"
+                />
+                <PersonField
+                  value={c.department}
+                  onSave={v => saveField(c, 'department', v)}
+                  placeholder="Add a department"
+                  list="dept-options"
+                  width="min-w-[9rem]"
+                  className="text-xs text-slate-500"
+                  display={c.department
+                    ? <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">{c.department}</span>
+                    : undefined}
+                />
+              </div>
 
-            {/* Add row */}
-            {addForm !== null && (
-              <Fragment>
-              <tr className="bg-blue-50/30">
-                <td className="px-5 py-2"><input autoFocus value={addForm.name}
-                  onChange={e => setAddForm(f => ({ ...f, name: e.target.value, ...splitName(e.target.value) }))}
-                  placeholder="Full name *" className={inputCls} /></td>
-                <td className="px-4 py-2"><input value={addForm.title} onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))} placeholder="Title" className={inputCls} /></td>
-                <td className="px-4 py-2"><input type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} placeholder="Email" className={inputCls} /></td>
-                <td className="px-4 py-2"><input type="tel" value={addForm.workPhone} onChange={e => setAddForm(f => ({ ...f, workPhone: e.target.value }))} placeholder="Work" className={inputCls} /></td>
-                <td className="px-4 py-2"><input type="tel" value={addForm.cellPhone} onChange={e => setAddForm(f => ({ ...f, cellPhone: e.target.value }))} placeholder="Cell" className={inputCls} /></td>
-                <td className="px-4 py-2"><input list="dept-options" value={addForm.department} onChange={e => setAddForm(f => ({ ...f, department: e.target.value }))} placeholder="Dept" className={inputCls} /></td>
-                {/* Deals column — a brand new person has none yet. */}
-                <td className="px-4 py-2 text-slate-300">—</td>
-                <td className="px-4 py-2">
-                  <div className="flex items-center gap-1">
-                    <button onClick={addContact} disabled={saving || !addForm.name?.trim()}
-                      className="px-2 py-1 text-xs font-semibold bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 transition-colors">
-                      {saving ? '…' : 'Add'}
-                    </button>
-                    <button onClick={() => setAddForm(null)} className="px-2 py-1 text-xs text-slate-500 rounded hover:bg-slate-100 transition-colors">×</button>
-                  </div>
-                </td>
-              </tr>
-              <tr className="bg-blue-50/30">
-                <td colSpan={8} className="px-5 pb-3">
-                  <input type="url" value={addForm.linkedInUrl}
-                    onChange={e => setAddForm(f => ({ ...f, linkedInUrl: e.target.value }))}
-                    placeholder="LinkedIn profile URL (optional)" className={inputCls} />
-                </td>
-              </tr>
-              </Fragment>
-            )}
-          </tbody>
-        </table>
+              <div className="flex items-center gap-2 shrink-0">
+                <DealChips contact={c} onOpenList={setDealList} />
+                <button onClick={() => deleteContact(c.id, c.name)} disabled={deletingId === c.id}
+                  className="p-1 rounded text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all" title="Remove this person">
+                  {deletingId === c.id ? <Spinner className="w-3.5 h-3.5" /> : (
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                  )}
+                </button>
+              </div>
+            </div>
 
-        {contacts.length === 0 && addForm === null && (
-          <div className="px-5 py-12 text-center">
-            <p className="text-slate-400 text-sm mb-3">No people yet.</p>
-            <button onClick={() => { setFormErr(''); setAddForm({ ...EMPTY_PERSON }); }}
-              className="text-sm font-medium text-amber-600 hover:text-amber-500 transition-colors">
-              + Add first person
-            </button>
+            {/* Line 2 — how to reach them. This is the line that used to run off
+                the side of the screen when it was all one row. */}
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+              <PersonField
+                value={c.email}
+                type="email"
+                onSave={v => saveField(c, 'email', v)}
+                placeholder="Add an email"
+                width="min-w-[14rem]"
+                prefixIcon="✉"
+                className="text-amber-600 hover:text-amber-500"
+              />
+              <PersonField
+                value={c.workPhone || c.phone}
+                type="tel"
+                onSave={v => saveField(c, 'workPhone', v)}
+                placeholder="Add a work phone"
+                width="min-w-[9rem]"
+                prefixIcon="☎"
+                display={formatPhone(c.workPhone || c.phone) || undefined}
+              />
+              <PersonField
+                value={c.cellPhone}
+                type="tel"
+                onSave={v => saveField(c, 'cellPhone', v)}
+                placeholder="Add a cell"
+                width="min-w-[9rem]"
+                prefixIcon="📱"
+                display={formatPhone(c.cellPhone) || undefined}
+              />
+              <PersonField
+                value={c.linkedInUrl}
+                type="url"
+                onSave={v => saveField(c, 'linkedInUrl', v)}
+                placeholder="Add LinkedIn"
+                width="min-w-[16rem]"
+                display={c.linkedInUrl ? 'in LinkedIn' : undefined}
+                className="text-amber-600 hover:text-amber-500"
+              />
+              {c.linkedInUrl && (
+                <a href={c.linkedInUrl} target="_blank" rel="noopener noreferrer"
+                  className="text-slate-300 hover:text-amber-600" title="Open their LinkedIn in a new tab">↗</a>
+              )}
+              {(c.lastEmailReceivedAt || c.lastEmailSentAt) && (
+                <span className="text-slate-300">
+                  Last email {c.lastEmailReceivedAt ? `in ${new Date(c.lastEmailReceivedAt).toLocaleDateString()}` : ''}
+                  {c.lastEmailReceivedAt && c.lastEmailSentAt ? ' · ' : ''}
+                  {c.lastEmailSentAt ? `out ${new Date(c.lastEmailSentAt).toLocaleDateString()}` : ''}
+                </span>
+              )}
+            </div>
           </div>
-        )}
+        ))}
       </div>
+
+      {/* Add a person — still a small form, because a brand new person has no
+          row to click on yet. */}
+      {addForm !== null && (
+        <div className="px-5 py-4 bg-blue-50/30 border-t border-blue-100">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <input autoFocus value={addForm.name}
+              onChange={e => setAddForm(f => ({ ...f, name: e.target.value, ...splitName(e.target.value) }))}
+              placeholder="Full name *" className={inputCls} />
+            <input value={addForm.title} onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))} placeholder="Job title" className={inputCls} />
+            <input list="dept-options" value={addForm.department} onChange={e => setAddForm(f => ({ ...f, department: e.target.value }))} placeholder="Department" className={inputCls} />
+            <input type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} placeholder="Email" className={inputCls} />
+            <input type="tel" value={addForm.workPhone} onChange={e => setAddForm(f => ({ ...f, workPhone: e.target.value }))} placeholder="Work phone" className={inputCls} />
+            <input type="tel" value={addForm.cellPhone} onChange={e => setAddForm(f => ({ ...f, cellPhone: e.target.value }))} placeholder="Cell phone" className={inputCls} />
+            <input type="url" value={addForm.linkedInUrl} onChange={e => setAddForm(f => ({ ...f, linkedInUrl: e.target.value }))} placeholder="LinkedIn profile URL (optional)" className={`${inputCls} md:col-span-3`} />
+          </div>
+          <div className="flex gap-2 mt-3">
+            <button onClick={addContact} disabled={saving || !addForm.name?.trim()}
+              className="px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors">
+              {saving ? 'Adding…' : 'Add Person'}
+            </button>
+            <button onClick={() => setAddForm(null)}
+              className="px-3 py-1.5 text-xs font-medium text-slate-500 rounded-lg border border-slate-200 hover:bg-white transition-colors">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {contacts.length === 0 && addForm === null && (
+        <div className="px-5 py-12 text-center">
+          <p className="text-slate-400 text-sm mb-3">No people yet.</p>
+          <button onClick={() => { setFormErr(''); setAddForm({ ...EMPTY_PERSON }); }}
+            className="text-sm font-medium text-amber-600 hover:text-amber-500 transition-colors">
+            + Add first person
+          </button>
+        </div>
+      )}
+
+      {dealList && (
+        <DealListPopup
+          contact={dealList.contact}
+          bucket={dealList.bucket}
+          projects={dealList.projects}
+          onClose={() => setDealList(null)}
+        />
+      )}
     </div>
   );
 }
 
 // ── Projects Tab ──────────────────────────────────────────────────────────────
-function ProjectsTab({ client, available, onRefresh }) {
+function ProjectsTab({ client, available, related = [], onRefresh }) {
   const [linking, setLinking] = useState(false);
 
   async function unlinkProject(projectId, projectName) {
@@ -1274,6 +1363,69 @@ function ProjectsTab({ client, available, onRefresh }) {
           </div>
         )}
       </div>
+
+      {/* ── Related Projects ──────────────────────────────────────────────────
+          Jobs this company is ON but did not bring us. Maram, 2026-09-09: "CSI
+          for example, they probably won't be bringing us a lot of projects, but
+          they might be connected to several others." Kept as its own list on
+          purpose — folding them in above would make an engineering firm look
+          like a big client. */}
+      {related.length > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200 mt-6">
+          <div className="px-6 py-4 border-b border-slate-100">
+            <h2 className="font-semibold text-slate-900">
+              Related Projects <span className="ml-2 text-sm font-normal text-slate-400">({related.length})</span>
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Jobs they are on the team of. Somebody else is the client on these.
+            </p>
+          </div>
+          <div className="divide-y divide-slate-50">
+            {related.map(p => {
+              const roles = rolesHeldBy(p, client.id);
+              return (
+                <div key={p.id} className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors group">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      {p.projectNumber && (
+                        <span className="text-[11px] font-mono font-semibold text-slate-400 shrink-0">
+                          PRJ-{String(p.projectNumber).padStart(4, '0')}
+                        </span>
+                      )}
+                      <Link href={`/project/${p.id}`} className="font-medium text-slate-900 hover:text-amber-600 transition-colors truncate">
+                        {p.name}
+                      </Link>
+                    </div>
+                    <div className="text-xs text-slate-400 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                      {p.client?.name && (
+                        <span>
+                          Client:{' '}
+                          <Link href={`/clients/${p.client.id}`} className="text-slate-500 hover:text-amber-600">
+                            {p.client.name}
+                          </Link>
+                        </span>
+                      )}
+                      <span>{[[p.city, p.state].filter(Boolean).join(', '), p.phase?.toUpperCase()].filter(Boolean).join(' · ')}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {/* Which hat they wore here. A company can wear more than one. */}
+                    {roles.map(r => (
+                      <span key={r.key} className="text-[10px] font-semibold text-slate-600 bg-slate-100 rounded-full px-2 py-0.5">
+                        {r.label}
+                      </span>
+                    ))}
+                    <Link href={`/project/${p.id}`}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity px-2.5 py-1 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:bg-slate-100">
+                      Open
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {linking && (
         <LinkProjectsModal clientId={client.id} available={available}
@@ -1972,11 +2124,11 @@ function ProjectDataTab({ clientId }) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function ClientDetailClient({ client: initial, availableProjects, user, canEditStandards = false, initialStandardsAnswers = [], canEditPlaybook = false }) {
+export default function ClientDetailClient({ client: initial, availableProjects, relatedProjects = [], user, canEditStandards = false, initialStandardsAnswers = [], canEditPlaybook = false }) {
   const [client,    setClient]    = useState(initial);
   const [available, setAvailable] = useState(availableProjects);
-  const [editing,   setEditing]   = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const [saveError, setSaveError] = useState('');
 
   const clientIdLabel = client.clientNumber
     ? `CLT-${String(client.clientNumber).padStart(4, '0')}`
@@ -1986,7 +2138,57 @@ export default function ClientDetailClient({ client: initial, availableProjects,
     const res  = await fetch(`/api/clients/${client.id}`);
     const data = await res.json();
     setClient(data.client);
-    setEditing(false);
+  }
+
+  // One field at a time, saved the moment it is changed — Mike, 2026-09-09:
+  // no pop-out and no Save button on the client info screen. The change shows
+  // straight away and is put back if the save fails, so the screen never shows
+  // something the database does not have.
+  //
+  // Trap: PATCH /api/clients/[id] returns the client's own columns and its tags
+  // — NOT projects, contacts, owner or createdBy. Dropping the whole response
+  // in would wipe those off the screen, so only the columns the server may have
+  // worked out for itself are taken back.
+  async function patchClient(patch) {
+    const previous = client;
+    setSaveError('');
+    setClient(c => ({ ...c, ...patch }));
+    try {
+      const res = await fetch(`/api/clients/${client.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setClient(previous);
+        setSaveError(d.error || 'That change could not be saved.');
+        return false;
+      }
+      const data = await res.json();
+      if (data.client) {
+        setClient(c => ({
+          ...c,
+          type:            data.client.type,
+          name:            data.client.name,
+          developerType:   data.client.developerType,
+          projectsPerYear: data.client.projectsPerYear,
+          tagLinks:        data.client.tagLinks ?? c.tagLinks,
+          // The owner's name in the top bar has to follow the dropdown, and the
+          // save route does not send the person back.
+          owner: patch.ownerId === undefined
+            ? c.owner
+            : (patch.ownerId ? c.owner : null),
+        }));
+      }
+      // A new salesperson is the one thing the page cannot fill in on its own.
+      if (patch.ownerId) refreshClient();
+      return true;
+    } catch {
+      setClient(previous);
+      setSaveError('That change could not be saved — check the connection.');
+      return false;
+    }
   }
 
   return (
@@ -2027,11 +2229,6 @@ export default function ClientDetailClient({ client: initial, availableProjects,
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 10.5v6m0 0l-2.25-2.25M12 16.5l2.25-2.25M3 12a9 9 0 1018 0 9 9 0 00-18 0z" /></svg>
                 Export Excel
               </a>
-              <button onClick={() => setEditing(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                Edit
-              </button>
             </div>
           </div>
 
@@ -2046,7 +2243,12 @@ export default function ClientDetailClient({ client: initial, availableProjects,
                 }`}>
                 {t.label}
                 {t.id === 'people'    && client.contacts?.length > 0      && <span className="ml-1.5 text-[10px] font-bold text-slate-400">{client.contacts.length}</span>}
-                {t.id === 'projects'  && client.projects?.length > 0     && <span className="ml-1.5 text-[10px] font-bold text-slate-400">{client.projects.length}</span>}
+                {t.id === 'projects'  && (client.projects?.length > 0 || relatedProjects.length > 0) && (
+                  <span className="ml-1.5 text-[10px] font-bold text-slate-400">
+                    {client.projects?.length || 0}
+                    {relatedProjects.length > 0 && <span className="text-slate-300"> +{relatedProjects.length}</span>}
+                  </span>
+                )}
                 {t.id === 'playbook'  && !canEditPlaybook                 && <span className="ml-1.5 text-[10px] text-slate-300">🔒</span>}
                 {t.id === 'standards' && !canEditStandards                && <span className="ml-1.5 text-[10px] text-slate-300">🔒</span>}
               </button>
@@ -2057,7 +2259,10 @@ export default function ClientDetailClient({ client: initial, availableProjects,
 
       {/* ── Tab content ── */}
       <div className="max-w-6xl mx-auto px-6 py-6">
-        {activeTab === 'overview'  && <OverviewTab client={client} onEditClick={() => setEditing(true)} />}
+        {saveError && (
+          <div className="mb-4 rounded-lg bg-red-50 border border-red-100 px-3 py-2 text-sm text-red-600">{saveError}</div>
+        )}
+        {activeTab === 'overview'  && <OverviewTab client={client} onPatch={patchClient} />}
         {activeTab === 'people'    && <PeopleTab contacts={client.contacts || []} clientId={client.id} onContactsChange={(contacts) => setClient(c => ({ ...c, contacts }))} />}
         {activeTab === 'playbook'  && (
           <PlaybookTab
@@ -2068,7 +2273,7 @@ export default function ClientDetailClient({ client: initial, availableProjects,
           />
         )}
         {activeTab === 'projects'  && (
-          <ProjectsTab client={client} available={available} onRefresh={refreshClient} />
+          <ProjectsTab client={client} available={available} related={relatedProjects} onRefresh={refreshClient} />
         )}
         {activeTab === 'projectData' && <ProjectDataTab clientId={client.id} />}
         {activeTab === 'pipeline' && <PipelineTab clientId={client.id} canEdit={canEditPlaybook} />}
@@ -2087,8 +2292,6 @@ export default function ClientDetailClient({ client: initial, availableProjects,
         )}
       </div>
 
-      {/* Edit modal */}
-      {editing && <EditModal client={client} onClose={() => setEditing(false)} onSave={refreshClient} />}
     </div>
   );
 }

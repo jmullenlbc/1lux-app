@@ -19,7 +19,11 @@ async function canAccess(projectId, user) {
 const CONTACT_SELECT = {
   id: true, name: true, firstName: true, lastName: true, title: true,
   email: true, cellPhone: true, workPhone: true, department: true,
-  clientId: true,
+  // Where they work, both ways it can be recorded: the linked company and the
+  // name somebody typed by hand. The screen needs both to tell "no employer at
+  // all" apart from "typed but never linked" (Mike, 2026-09-09).
+  clientId: true, company: true,
+  client: { select: { id: true, name: true } },
 };
 
 export async function GET(request, { params }) {
@@ -50,7 +54,7 @@ export async function POST(request, { params }) {
   const { contactId, isLead = false } = await request.json();
   if (!contactId) return NextResponse.json({ error: 'contactId is required' }, { status: 400 });
 
-  const contact = await prisma.clientContact.findUnique({ where: { id: contactId } });
+  const contact = await prisma.contact.findUnique({ where: { id: contactId } });
   if (!contact) return NextResponse.json({ error: 'Person not found' }, { status: 404 });
 
   const link = await prisma.$transaction(async (tx) => {

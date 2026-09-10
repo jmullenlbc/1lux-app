@@ -82,7 +82,7 @@ export async function refreshContactEmailDates(prisma, contactId) {
     newest(['TO', 'CC', 'BCC']),
   ]);
 
-  await prisma.clientContact.update({
+  await prisma.contact.update({
     where: { id: contactId },
     data:  { lastEmailReceivedAt, lastEmailSentAt },
   });
@@ -150,7 +150,7 @@ export async function recordEmailMessage(
   // only and this codebase also runs on SQLite locally.
   const addresses = addressesOnMessage(message);
   const known = addresses.length
-    ? await prisma.clientContact.findMany({
+    ? await prisma.contact.findMany({
         where:  { email: { not: null } },
         select: { id: true, email: true },
       })

@@ -17,7 +17,7 @@ export const WIDGET_REGISTRY = {
   },
   open_pipeline: {
     title:       'Open Pipeline',
-    description: 'CRM deals, pipeline value, and weighted forecast',
+    description: 'CRM projects, pipeline value, and weighted forecast',
     icon:        '📈',
     color:       '#f97316',
     defaultSize: 'normal',
@@ -31,21 +31,21 @@ export const WIDGET_REGISTRY = {
   },
   upcoming_actions: {
     title:       'Upcoming Actions',
-    description: 'Deals with action items due in the next 7 days',
+    description: 'Projects with action items due in the next 7 days',
     icon:        '⏰',
     color:       '#ef4444',
     defaultSize: 'normal',
   },
   won_this_year: {
     title:       'Won This Year',
-    description: 'Deals closed and won in the current calendar year',
+    description: 'Projects closed and won in the current calendar year',
     icon:        '🏆',
     color:       '#22c55e',
     defaultSize: 'normal',
   },
   pipeline_by_stage: {
     title:       'Pipeline by Stage',
-    description: 'Open pipeline value broken down by deal stage',
+    description: 'Open pipeline value broken down by project stage',
     icon:        '📊',
     color:       '#6366f1',
     defaultSize: 'wide',
@@ -164,7 +164,7 @@ function QuickStatsWidget({ stats }) {
   const items = [
     { label: 'Projects',       value: stats.projects.total,      href: '/dashboard',      color: '#f59e0b' },
     { label: 'Clients',        value: stats.clients.total,        href: '/clients',        color: '#3b82f6' },
-    { label: 'Open Deals',     value: stats.deals.open,           href: '/crm',            color: '#f97316' },
+    { label: 'Open Projects',     value: stats.deals.open,           href: '/crm',            color: '#f97316' },
     { label: 'Pipeline',       value: fmtMoney(stats.deals.pipeline), href: '/crm',        color: '#f97316' },
     { label: 'Won This Year',  value: stats.deals.wonThisYear.length, href: '/crm',        color: '#22c55e' },
     { label: 'Won Value',      value: fmtMoney(stats.deals.wonValue), href: '/crm',        color: '#22c55e' },
@@ -224,7 +224,7 @@ function OpenPipelineWidget({ data }) {
   const cfg = WIDGET_REGISTRY.open_pipeline;
   return (
     <WidgetShell id="open_pipeline" title={cfg.title} icon={cfg.icon}
-      count={data.open} countLabel="open deals" href="/crm" color={cfg.color}>
+      count={data.open} countLabel="open projects" href="/crm" color={cfg.color}>
       <div className="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100">
         <div className="px-4 py-3">
           <p className="text-base font-bold text-slate-900">{fmtMoney(data.pipeline)}</p>
@@ -237,7 +237,7 @@ function OpenPipelineWidget({ data }) {
       </div>
       <div className="divide-y divide-slate-50 overflow-y-auto max-h-52">
         {data.recent.length === 0 && (
-          <p className="px-5 py-6 text-sm text-slate-400 text-center">No open deals.</p>
+          <p className="px-5 py-6 text-sm text-slate-400 text-center">No open projects.</p>
         )}
         {data.recent.map(d => (
           <Link key={d.id} href="/crm"
@@ -343,7 +343,7 @@ function WonThisYearWidget({ data }) {
       <div className="px-5 py-4 border-b border-slate-100 grid grid-cols-2 gap-4">
         <div>
           <p className="text-2xl font-bold text-green-700">{data.wonThisYear.length}</p>
-          <p className="text-[10px] text-slate-400 uppercase tracking-wide mt-0.5">Deals Won</p>
+          <p className="text-[10px] text-slate-400 uppercase tracking-wide mt-0.5">Projects Won</p>
         </div>
         <div>
           <p className="text-2xl font-bold text-green-600">{fmtMoney(data.wonValue)}</p>
@@ -383,9 +383,9 @@ function PipelineByStageWidget({ data }) {
 
   return (
     <WidgetShell id="pipeline_by_stage" title={cfg.title} icon={cfg.icon}
-      count={data.open} countLabel="open deals" href="/crm" color={cfg.color}>
+      count={data.open} countLabel="open projects" href="/crm" color={cfg.color}>
       {stages.length === 0 ? (
-        <p className="px-5 py-8 text-sm text-slate-400 text-center">No open deals.</p>
+        <p className="px-5 py-8 text-sm text-slate-400 text-center">No open projects.</p>
       ) : (
         <div className="px-5 py-4 space-y-3 overflow-y-auto max-h-64">
           {stages.map(s => (
@@ -396,7 +396,7 @@ function PipelineByStageWidget({ data }) {
                 </span>
                 <div className="text-right">
                   <span className="text-xs font-bold text-slate-900">{fmtMoney(s.value)}</span>
-                  <span className="text-[10px] text-slate-400 ml-1.5">{s.count} deal{s.count !== 1 ? 's' : ''}</span>
+                  <span className="text-[10px] text-slate-400 ml-1.5">{s.count} project{s.count !== 1 ? 's' : ''}</span>
                 </div>
               </div>
               <div className="h-2 bg-slate-100 rounded-full overflow-hidden">

@@ -8,11 +8,11 @@ const TEMPLATES_BY_SECTION = {
   SALES: [
     { name: 'Combined Revenue Forecast',   chartType: 'BAR',  width: 'FULL', dataSpec: { groupBy: 'expectedOrderDate', timeBucket: 'month', terms: [{ field: 'productSaleTotal', agg: 'sum' }, { field: 'designFeeTotal', agg: 'sum' }], op: 'add' } },
     { name: 'Pipeline Value by Stage',     chartType: 'BAR',  width: 'HALF', dataSpec: { groupBy: 'procurementStage', terms: [{ field: 'productSaleTotal', agg: 'sum' }], op: 'single' } },
-    { name: 'Open Deals by Organization',  chartType: 'BAR',  width: 'HALF', dataSpec: { groupBy: 'client', terms: [{ field: 'projectCount', agg: 'count' }], op: 'single' } },
+    { name: 'Open Projects by Organization', chartType: 'BAR',  width: 'HALF', dataSpec: { groupBy: 'client', terms: [{ field: 'projectCount', agg: 'count' }], op: 'single' } },
     { name: 'Win Rate by Owner',           chartType: 'BAR',  width: 'HALF', dataSpec: { groupBy: 'salesOwner', terms: [{ field: 'wonCount', agg: 'count' }, { field: 'decidedCount', agg: 'count' }], op: 'percent' } },
     { name: 'Win Rate by Project Type',    chartType: 'BAR',  width: 'HALF', dataSpec: { groupBy: 'projectType', terms: [{ field: 'wonCount', agg: 'count' }, { field: 'decidedCount', agg: 'count' }], op: 'percent' } },
     { name: 'Open Pipeline by Probability',chartType: 'BAR',  width: 'HALF', dataSpec: { groupBy: 'probabilityTier', terms: [{ field: 'projectCount', agg: 'count' }], op: 'single' } },
-    { name: 'Deals by Service Type',       chartType: 'BAR',  width: 'HALF', dataSpec: { groupBy: 'serviceType', terms: [{ field: 'projectCount', agg: 'count' }], op: 'single' } },
+    { name: 'Projects by Service Type',    chartType: 'BAR',  width: 'HALF', dataSpec: { groupBy: 'serviceType', terms: [{ field: 'projectCount', agg: 'count' }], op: 'single' } },
     { name: 'Lost + Abandoned by Stage',   chartType: 'BAR',  width: 'HALF', dataSpec: { groupBy: 'procurementStage', terms: [{ field: 'lostAbandonedCount', agg: 'count' }], op: 'single' } },
   ],
   MAIN: [

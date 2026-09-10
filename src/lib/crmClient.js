@@ -203,8 +203,67 @@ export function formatPhone(value) {
  *
  * Counted per PROJECT, not per board — a person is attached to a job, not to a
  * pipeline, so one job they worked is one deal against their name.
+ *
+ * ONLY the jobs they were the main point of contact on. A project can carry
+ * several people, but exactly one of them is responsible for it, and that is the
+ * only one whose record it belongs on. Maram, 2026-09-09: "there always has to
+ * be like the one main point person and that's the only person that's going to
+ * be considered for those fields." Otherwise everyone copied onto a big job
+ * quietly inherits credit for winning it.
  */
 export function contactDealCounts(contact) {
-  const projects = (contact?.projectLinks || []).map(l => l.project).filter(Boolean);
+  const projects = (contact?.projectLinks || [])
+    .filter(l => l?.isLead)
+    .map(l => l.project)
+    .filter(Boolean);
   return clientDealCounts(projects);
+}
+
+/**
+ * The same four numbers, but with the jobs behind them.
+ *
+ * Mike, 2026-09-09, on the person row: he wants the Open / Won / Lost /
+ * Abandoned numbers to name the jobs — hovering shows them, clicking opens them
+ * on the same screen. Counting and listing therefore have to come from one
+ * place, or a number could disagree with the list it opens. `contactDealCounts`
+ * is the lengths of these buckets, never a second count.
+ *
+ * Returns `{ open: [], won: [], lost: [], abandoned: [] }` of project rows, in
+ * the order the links came back.
+ */
+export function contactDealProjects(contact) {
+  const buckets = { open: [], won: [], lost: [], abandoned: [] };
+  for (const link of contact?.projectLinks || []) {
+    if (!link?.isLead || !link.project) continue;
+    const outcome = projectOutcome(link.project);
+    if (outcome && buckets[outcome]) buckets[outcome].push(link.project);
+  }
+  return buckets;
+}
+
+/**
+ * Where a person works, and whether we actually know.
+ *
+ * Two different things can be true and they are not the same problem:
+ *  - 'none'   — we have no employer at all for them. Since the people merge, a
+ *               person survives their company being deleted, so this can now
+ *               happen on its own and needs to be visible.
+ *  - 'typed'  — somebody typed an employer name but never picked the client
+ *               record, so nothing on that person rolls up to the company.
+ *  - 'linked' — attached to a real client. Normal.
+ *
+ * Mike, 2026-09-09: "we need to flag a person with no company."
+ */
+export function companyLink(contact) {
+  if (contact?.client?.id || contact?.clientId) {
+    return { state: 'linked', label: contact?.client?.name || contact?.company || null };
+  }
+  const typed = (contact?.company ?? '').trim();
+  if (typed) return { state: 'typed', label: typed };
+  return { state: 'none', label: null };
+}
+
+/** How many of these people have no employer at all. */
+export function countMissingCompany(contacts = []) {
+  return contacts.filter(c => companyLink(c).state === 'none').length;
 }

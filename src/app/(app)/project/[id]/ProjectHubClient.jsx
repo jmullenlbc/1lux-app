@@ -20,6 +20,7 @@ import MeetingNotes from '@/components/MeetingNotes';
 import ProjectDashboard from '@/components/ProjectDashboard';
 import ContractsPanel from '@/components/contracts/ContractsPanel';
 import ProjectActivityFeed from '@/components/ProjectActivityFeed';
+import ProjectPeopleCard from '@/components/project/ProjectPeopleCard';
 import BudgetLineItemWidget from '@/components/BudgetLineItemWidget';
 import BudgetQCBadge from '@/components/budgetQC/BudgetQCBadge';
 import CorrespondenceTab from '@/components/correspondence/CorrespondenceTab';
@@ -1047,7 +1048,9 @@ export default function ProjectHubClient({ userId, userRole, project, budget, pe
               onProjectDataUpdate={() => router.refresh()}
               designInfo={designInfo}
               saveDesignInfo={saveDesignInfo}
+              clients={clients}
             />
+            <ProjectPeopleCard projectId={project.id} />
             <ProjectActivityFeed projectId={project.id} />
           </div>
         )}

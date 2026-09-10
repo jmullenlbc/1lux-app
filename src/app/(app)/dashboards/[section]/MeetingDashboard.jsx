@@ -111,7 +111,7 @@ function CardBody({ cardKey, data, users, patch }) {
   switch (cardKey) {
     case 'awaitingSignature':
       return (
-        <Table cols={['Deal', 'Client', 'Owner', 'Value', 'Waiting', 'Next action', '']}>
+        <Table cols={['Project', 'Client', 'Owner', 'Value', 'Waiting', 'Next action', '']}>
           {rows.map(d => (
             <Row key={d.id}>
               <DealCell d={d} /><Td className="text-slate-500">{d.client || '—'}</Td>
@@ -127,7 +127,7 @@ function CardBody({ cardKey, data, users, patch }) {
 
     case 'nextActions':
       return (
-        <Table cols={['Deal', 'Client', 'Action', 'Owner', 'Due', '']}>
+        <Table cols={['Project', 'Client', 'Action', 'Owner', 'Due', '']}>
           {rows.map(d => (
             <Row key={d.id} className={d.overdue ? 'bg-red-50/40' : ''}>
               <DealCell d={d} /><Td className="text-slate-500">{d.client || '—'}</Td>
@@ -141,7 +141,7 @@ function CardBody({ cardKey, data, users, patch }) {
 
     case 'closingSoon':
       return (
-        <Table cols={['Deal', 'Client', 'Owner', 'Value', 'Expected order', 'Next action']}>
+        <Table cols={['Project', 'Client', 'Owner', 'Value', 'Expected order', 'Next action']}>
           {rows.map(d => (
             <Row key={d.id}>
               <DealCell d={d} /><Td className="text-slate-500">{d.client || '—'}</Td>
@@ -155,7 +155,7 @@ function CardBody({ cardKey, data, users, patch }) {
 
     case 'proposalsSentLastWeek':
       return (
-        <Table cols={['Deal', 'Client', 'Owner', 'Proposal', 'Fee', 'Sent', 'Status']}>
+        <Table cols={['Project', 'Client', 'Owner', 'Proposal', 'Fee', 'Sent', 'Status']}>
           {rows.map(d => (
             <Row key={d.id}>
               <DealCell d={d} /><Td className="text-slate-500">{d.client || '—'}</Td>
@@ -170,7 +170,7 @@ function CardBody({ cardKey, data, users, patch }) {
 
     case 'proposalsAwaiting':
       return (
-        <Table cols={['Deal', 'Client', 'Owner', 'Proposal', 'Fee', 'Waiting']}>
+        <Table cols={['Project', 'Client', 'Owner', 'Proposal', 'Fee', 'Waiting']}>
           {rows.map(d => (
             <Row key={d.id}>
               <DealCell d={d} /><Td className="text-slate-500">{d.client || '—'}</Td>
@@ -201,7 +201,7 @@ function CardBody({ cardKey, data, users, patch }) {
 
     case 'budgetsAwaitingReply':
       return (
-        <Table cols={['Deal', 'Client', 'Owner', 'Value', 'Budget sent', 'Silent for', 'Next action']}>
+        <Table cols={['Project', 'Client', 'Owner', 'Value', 'Budget sent', 'Silent for', 'Next action']}>
           {rows.map(d => (
             <Row key={d.id}>
               <DealCell d={d} /><Td className="text-slate-500">{d.client || '—'}</Td>
@@ -216,7 +216,7 @@ function CardBody({ cardKey, data, users, patch }) {
 
     case 'wonAndLost':
       return (
-        <Table cols={['Deal', 'Client', 'Owner', 'Value', 'Procurement', 'Design', 'Reason']}>
+        <Table cols={['Project', 'Client', 'Owner', 'Value', 'Procurement', 'Design', 'Reason']}>
           {rows.map(d => (
             <Row key={d.id}>
               <DealCell d={d} /><Td className="text-slate-500">{d.client || '—'}</Td>
@@ -231,7 +231,7 @@ function CardBody({ cardKey, data, users, patch }) {
 
     case 'flagged':
       return (
-        <Table cols={['Deal', 'Client', 'Owner', 'Why it is flagged', '']}>
+        <Table cols={['Project', 'Client', 'Owner', 'Why it is flagged', '']}>
           {rows.map(d => (
             <Row key={d.id}>
               <DealCell d={d} /><Td className="text-slate-500">{d.client || '—'}</Td>
@@ -283,7 +283,7 @@ function CardBody({ cardKey, data, users, patch }) {
 
 const EMPTY_LINE = {
   awaitingSignature:    'Nothing waiting on a signature. 🎉',
-  nextActions:          'No open next actions. Add one on any deal or from the pipeline.',
+  nextActions:          'No open next actions. Add one on any project or from the pipeline.',
   closingSoon:          'Nothing expected to close in the next two weeks.',
   proposalsSentLastWeek:'No proposals went out last week.',
   proposalsAwaiting:    'No proposals sitting unanswered.',

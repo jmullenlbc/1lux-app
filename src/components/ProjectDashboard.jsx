@@ -2,6 +2,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { buildingTypeLabel, PROJECT_TYPES, projectTypeLabel } from '@/lib/utils';
 import { PIPELINE_STAGES, STAGE_LABEL, STATUS_LABEL, PIPELINE_STATUS, inDesignPipeline, stagesOutOfSync } from '@/lib/pipeline';
+import { PROJECT_TEAM_ROLES } from '@/lib/projectTeam';
 import MissingInputsWarning from './MissingInputsWarning';
 
 const PROC_STAGE_OPTIONS   = PIPELINE_STAGES.PROCUREMENT.map(s => ({ value: s.key, label: s.label }));
@@ -173,6 +174,7 @@ export default function ProjectDashboard({
   onProjectDataUpdate,// (updatedProjectData) => void — called after data saves
   designInfo = {},
   saveDesignInfo,     // (key, value) => void — saves to design-info responses
+  clients = [],       // every company, for the six Project Team pickers
 }) {
   const [project,     setProject]     = useState(initialProject);
   const [projectData, setProjectData] = useState(initialProject.projectData ?? {});
@@ -199,6 +201,17 @@ export default function ProjectDashboard({
   }, []);
   const salesOwnerOptions = [{ value: '', label: '— Unassigned —' }, ...salesUsers.map(u => ({ value: u.id, label: u.name || u.email }))];
   const salesOwnerName    = salesUsers.find(u => u.id === project.salesOwnerId)?.name;
+
+  // ── Project team pickers ──────────────────────────────────────────────────
+  // Every company we know, already loaded by the page. No filtering by client
+  // type on purpose (Mike, 2026-09-09) — a developer sometimes acts as their own
+  // GC, and the picker should not argue with him.
+  const teamClientOptions = [{ value: '', label: '— None —' }, ...clients.map(c => ({ value: c.id, label: c.name }))];
+  // Prefer the company the project itself came with, so a seat still reads
+  // correctly even if the picker list is missing it.
+  const teamName = role => project[role.relation]?.name
+    || clients.find(c => c.id === project[role.id])?.name
+    || null;
 
   // ── Budget numbers ────────────────────────────────────────────────────────
   const clientInitialBudget = pd.clientInitialBudget ?? null;
@@ -248,9 +261,9 @@ export default function ProjectDashboard({
     if ((field === 'procurementStatus' || field === 'designStatus') &&
         (value === 'LOST' || value === 'ABANDONED')) {
       const word   = value === 'LOST' ? 'lost' : 'abandoned';
-      const reason = prompt(`Why was this deal ${word}? (required)`, project[`${field}Reason`] || '');
+      const reason = prompt(`Why was this project ${word}? (required)`, project[`${field}Reason`] || '');
       if (reason === null) return;
-      if (!reason.trim()) { alert(`A reason is required to mark a deal ${word}.`); return; }
+      if (!reason.trim()) { alert(`A reason is required to mark a project ${word}.`); return; }
       payload[`${field}Reason`] = reason.trim();
     }
 
@@ -435,6 +448,31 @@ export default function ProjectDashboard({
           <EditableStat label="Warehousing %" displayValue={fmtPct(pd.warehousingPct)} rawValue={pd.warehousingPct != null ? (pd.warehousingPct * 100).toFixed(2) : ''} onSave={val => d('warehousingPct')(val != null && val !== '' ? parseFloat(val) / 100 : null)} />
           <EditableStat label="Sales Tax %"  displayValue={fmtPct(pd.salesTaxPct)}    rawValue={pd.salesTaxPct != null ? (pd.salesTaxPct * 100).toFixed(2) : ''} onSave={val => d('salesTaxPct')(val != null && val !== '' ? parseFloat(val) / 100 : null)} />
 
+        </div>
+      </div>
+
+      {/* ── Project Team — the six companies on the job ──────────────────────── */}
+      {/* Mike, 2026-09-09: "we have six project team fields and they connect to
+          clients." Every seat is optional and none of them is ever required to
+          mark a project won. Leaving one blank is a normal answer, not a gap. */}
+      <div className="bg-white border border-slate-200 rounded-2xl px-6 py-5 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Project Team</p>
+          <span className="text-[10px] text-slate-300 italic">All optional · click any field to edit</span>
+        </div>
+
+        <div className="grid grid-cols-3 gap-x-6 gap-y-4">
+          {PROJECT_TEAM_ROLES.map(role => (
+            <EditableStat
+              key={role.key}
+              label={role.label}
+              displayValue={teamName(role)}
+              rawValue={project[role.id] || ''}
+              onSave={p(role.id)}
+              select
+              options={teamClientOptions}
+            />
+          ))}
         </div>
       </div>
 

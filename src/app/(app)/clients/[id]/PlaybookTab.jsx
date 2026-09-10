@@ -15,7 +15,7 @@ const SECTIONS = [
 ];
 const SECTION_DESCS = {
   profile:   'Project types, markets, and volume.',
-  intro:     'Who puts ILC in, the vendor-list trigger, and how we learn of new deals.',
+  intro:     'Who puts ILC in, the vendor-list trigger, and how we learn of new projects.',
   comms:     'Who is on the thread for each deliverable (drives the bot’s CC list).',
   approvals: 'Who signs, who is invoiced, and payment terms.',
   process:   'Our standard process plus lead times and turnaround expectations.',
@@ -277,7 +277,7 @@ export default function PlaybookTab({ clientId, clientName = '', contacts = [], 
               <div><FieldLabel hint="If not a CRM contact, describe who">Intro owner note</FieldLabel><Inp value={scalars.introOwnerNote} onChange={v => setScalar({ introOwnerNote: v })} placeholder="e.g. the construction PMs ('SJs')" /></div>
               <Toggle checked={!!scalars.onVendorList} onChange={v => setScalar({ onVendorList: v })} label="On the precon vendor list" sub="Added at project birth?" />
               <div><FieldLabel>Vendor-list note</FieldLabel><Inp value={scalars.vendorListNote} onChange={v => setScalar({ vendorListNote: v })} placeholder="e.g. listed as lighting designer/supplier" /></div>
-              <div><FieldLabel hint="How ILC learns of new deals">Pipeline feed</FieldLabel><Inp value={scalars.pipelineFeed} onChange={v => setScalar({ pipelineFeed: v })} placeholder="e.g. monthly DealPath report (Emily)" /></div>
+              <div><FieldLabel hint="How ILC learns of new projects">Pipeline feed</FieldLabel><Inp value={scalars.pipelineFeed} onChange={v => setScalar({ pipelineFeed: v })} placeholder="e.g. monthly DealPath report (Emily)" /></div>
               <div><FieldLabel>Notes</FieldLabel><Textarea value={scalars.introNotes} onChange={v => setScalar({ introNotes: v })} rows={3} /></div>
             </div>
           )}

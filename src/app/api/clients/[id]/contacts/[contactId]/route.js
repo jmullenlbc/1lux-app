@@ -22,7 +22,7 @@ async function authorizeContact(clientId, contactId, user) {
   if (!client) return { err: NextResponse.json({ error: 'Not found' }, { status: 404 }) };
   if (!canSeeAllData(user) && client.createdById !== user.id)
     return { err: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
-  const contact = await prisma.clientContact.findFirst({ where: { id: contactId, clientId } });
+  const contact = await prisma.contact.findFirst({ where: { id: contactId, clientId } });
   if (!contact) return { err: NextResponse.json({ error: 'Not found' }, { status: 404 }) };
   return { contact };
 }
@@ -70,7 +70,7 @@ export async function PATCH(request, { params }) {
   if (workPhone !== undefined) { phoneData.workPhone = workPhone || null; phoneData.phone = workPhone || null; }
   else if (phone !== undefined) { phoneData.phone = phone || null; phoneData.workPhone = phone || null; }
 
-  const updated = await prisma.clientContact.update({
+  const updated = await prisma.contact.update({
     where: { id: contact.id },
     data: {
       ...nameData,
@@ -94,6 +94,6 @@ export async function DELETE(request, { params }) {
   const { err, contact } = await authorizeContact(params.id, params.contactId, user);
   if (err) return err;
 
-  await prisma.clientContact.delete({ where: { id: contact.id } });
+  await prisma.contact.delete({ where: { id: contact.id } });
   return NextResponse.json({ ok: true });
 }

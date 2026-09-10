@@ -5,7 +5,433 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [The whole knowledge library now reaches the sales bot] - September 8, 2026 (BUILT, NOT DEPLOYED)
+## [Nothing leaves the bot without being asked, the client screen edits in place, and the saved wording catches up] - September 9, 2026 (DEPLOYED)
+
+Three things Mike asked for after reading the last round, deployed together with
+everything below that was built but not yet live.
+
+### Bot Knowledge asks properly before it deletes anything
+
+Mike: *"bot knowledge items needs a popup confirmation before deleting because
+it pulls that data out of the bot which could be hugely detrimental."*
+
+Deleting here is final — the file, its record, and everything the sales bot
+learned from it all go at once, and none of it can be got back. It used to ask
+with the plain grey browser box, which is easy to click through without reading.
+
+It now asks with a proper box on the screen: a red warning, the file's name or
+the question in quotes, a plain sentence saying the bot loses it, and three
+buttons — **Keep it**, **Archive instead**, **Delete for good**. Archive only
+appears while the item is still active, because that is the safe way out: it
+takes the item out of the bot's reach and keeps it. The Delete button says
+"Deleting…" while it works so nobody clicks twice. Pressing Escape or clicking
+outside the box keeps the item.
+
+The same box is used in all three places you can delete from: the file list, the
+active question-and-answer list, and the archived list.
+
+### The client info screen edits in place — no pop-out, no Save button
+
+Mike: *"I didn't see anything about the client info page and we talked about all
+those fields being on that page and not having a popup. all those fields are
+editable without having to hit a save button like the fields in the project
+dashboard."*
+
+The Edit button and the pop-out panel are gone from the client screen entirely.
+Every field on the Info tab is now edited where it sits — click the words, type,
+click away, and it saves itself. That is all twenty of them: name, client type,
+developer type, tier, payment terms, salesperson, city, state, location type,
+client rating, pre-construction email, phone, website, LinkedIn, tags, markets,
+geography, portfolio, approximate projects per year, and notes.
+
+The pickers that hold more than one answer — client type, developer type,
+markets, geography, portfolio, tags — show what is chosen as chips with an
+**Edit** link beside them. Open it and every tick saves straight away; close it
+when you are done. Nothing waits on a Save button.
+
+If a save fails the field goes back to what it was and a red line explains why,
+so the screen never shows something the database does not have.
+
+### One terminology, including the wording already saved in the database
+
+Mike: *"reseed with project or projects instead of deal or deals. we need 1
+terminology for this."*
+
+The last round changed every screen to say Project. Five pieces of wording were
+not on a screen — they were written into the database the first time the app ran
+and had been sitting there ever since, so changing the code did not change them.
+A data-only migration now renames the saved rows:
+
+- the follow-up reminder tier **Active Deal** → **Active Project**
+- the starter charts **Open Deals by Organization** → **Open Projects by
+  Organization**, **Deals by Service Type** → **Projects by Service Type**,
+  **Lost Deal Analysis** → **Lost Project Analysis**, and **Deals Won by Owner**
+  → **Projects Won by Owner**
+
+Nothing but the words changed — no table, column or setting is touched, and
+running it twice does nothing the second time. The starter chart list in the
+code was corrected to match, so a dashboard created from here on is born with
+the right names.
+
+### Two fixes to the people merge, caught in review before it shipped
+
+The people-table merge (below) had two quiet gaps, both fixed before deploy:
+
+1. **Three links that no foreign key protects** — who signs a proposal, who
+   receives budgets and schedules, and the person a note's follow-up is about.
+   These hold a person's id as plain text, so the merge was not moving them. For
+   anyone the merge combined, they would have gone blank with no error anywhere.
+   They now follow the person like everything else.
+2. **"Known since" no longer moves forward.** When two records of the same
+   person are combined, the earlier of the two dates is kept, so nobody looks
+   newer than they are.
+
+### Files changed
+
+- `src/app/(app)/sales/automation/knowledge/page.jsx` — the confirmation box,
+  shared by all three delete buttons
+- `src/app/(app)/clients/[id]/ClientDetailClient.jsx` — the pop-out editor
+  deleted; the Info tab rebuilt to edit in place
+- **New:** `prisma/migrations/0072_project_wording_reseed/migration.sql`
+- `prisma/seeds/dashboardTemplates.js` — starter chart names
+- `prisma/migrations/0070_merge_people_tables/migration.sql` — the two fixes above
+
+### Checks
+
+1,220 of 1,220 regression tests pass. Production build clean, all 43 runtime
+assets present. Migration, schema-sync and provider guards all pass. The new
+migration was run against a real database to prove every table and column name
+in it exists.
+
+### Migrations riding along
+
+**Three unapplied migrations go out with this push, in order: 0070, 0071, 0072.**
+They apply oldest first and stop at the first failure — if 0070 fails, 0071 and
+0072 never run.
+
+---
+
+## [Related projects, the pipeline side panel, the rebuilt People tab, throwing bot files out for good, and one word for one thing] - September 9, 2026 (DEPLOYED)
+
+Items D, E, B, F and A from the 2026-09-09 CRM review with Maram, finished in
+the order Mike asked for them.
+
+### D — Related Projects on a client
+
+A client screen used to show only the jobs that client owns. Maram, on CSI:
+*"they probably won't be bringing us a lot of projects, but they might be
+connected to several others."* The Projects tab now carries a second card,
+**Related Projects** — every job where this company sits in one of the six
+Project Team seats but is not the client. Each row names the job, the company
+that actually owns it, the city and phase, and a grey chip for every seat this
+company holds on it. The tab badge counts both lists.
+
+### E — The pipeline side panel
+
+Mike: *"So we don't have to go into a project and come back, go into a project,
+come back."* Clicking a job on the pipeline board no longer leaves the board.
+It slides a panel out on the right with the sales fields on it:
+
+Procurement stage and status · Design stage and status (only on design jobs) ·
+Sales owner · Product sale total · Design fee total · Total combined ·
+Probability to win · Probability to move forward · Average probability ·
+Expected order date · the Project Team seats, read-only.
+
+Every field saves the moment you click away, and the card behind the panel
+updates with it. There is an **Open full project** link for everything else.
+
+Two things are deliberately the same as the project screen rather than new: the
+fields are the same fields, saved through the same API, and marking a job Lost
+or Abandoned still asks for the written reason before it will save. Neither
+screen can drift from the other.
+
+### B — The People tab on a client, rebuilt
+
+Mike, on the old layout: *"that link profile is just making taking one big
+line."* Three changes:
+
+1. **Two lines per person instead of one very wide row.** Name, title and
+   department on the first line; email, phones and LinkedIn on the second.
+   Nothing runs off the right of the screen any more.
+2. **Every field edits where it sits.** Click the words, type, click away. No
+   Edit button, no pop-out panel, no Save button.
+3. **The Open / Won / Lost / Abandoned numbers now name the jobs behind them.**
+   Hover a number and it lists them; click it and the list opens on the same
+   screen. The numbers still only count the jobs that person is the main
+   contact on.
+
+**Bug fixed at the same time:** those four numbers were reading zero for
+everybody. The client screen was loading people without the jobs attached to
+them, so there was nothing to count. It never showed a wrong number — it showed
+a dash where a number belonged.
+
+### F — Throwing a Bot Knowledge file out for good
+
+Bot Knowledge could only archive. Files and question-and-answer entries can now
+be deleted outright — the file itself goes too, not just the row — from the
+active list and from the archived list. Archive is still there and the
+confirmation box steers you to it: use Delete when you want it gone, Archive
+when you only want it out of the bot's way.
+
+### A — One word for one thing
+
+Mike: *"anywhere it says deals should be project just so we have terminology
+across the board."* Every screen that said **Deal** or **Deals** now says
+**Project** or **Projects**:
+
+- Home: the four sales tiles, all four widget descriptions, the stage
+  breakdown, "Projects Won", "No open projects."
+- CRM dashboards: the Projects / Total Projects / Projects Measured tiles, the
+  Project Status filter, the Project Count widget type, the empty-filter note.
+- The weekly meeting screen: the first column of all nine tables.
+- Clients list and client screen: "Open Projects".
+- Sales automation: the Project Stage picker on rules and on templates, the
+  "Project Stale" trigger, the bot queue's empty-state note.
+- The Playbook tab, and the tech-stack map.
+- A project's History tab: status and stage moves now read "Procurement project
+  moved from Open to Won", and the History tab's own filter labels match.
+- The message you get when you mark a job Lost or Abandoned without a reason —
+  the same words now on the board, in the side panel, on the project screen and
+  from the server.
+
+This is display text only. Nothing about how the app stores or counts anything
+changed, and no field, setting or saved dashboard was renamed.
+
+**The names saved in the database** — the relationship cadence tier "Active
+Deal" and the starter dashboard charts — were still on the old wording at this
+point. They are renamed by migration 0072, in the entry above.
+
+### Files changed
+
+- **New:** `src/components/crm/PipelineSidePanel.jsx`
+- `src/app/(app)/clients/[id]/ClientDetailClient.jsx` — People tab rebuilt,
+  Related Projects card
+- `src/app/(app)/clients/[id]/page.jsx` — loads each person's jobs; related
+  projects query
+- `src/app/(app)/crm/CRMClient.jsx` — opens the panel instead of navigating
+- `src/lib/crmClient.js` — `contactDealProjects()`, sharing one outcome rule
+  with the counter so a number can never disagree with the list it opens
+- `src/app/(app)/sales/automation/knowledge/page.jsx` — delete buttons
+- Wording: `admin/tech-stack/TechStackClient.jsx`, `clients/ClientsClient.jsx`,
+  `clients/[id]/PlaybookTab.jsx`, `crm/dashboards/DashboardsClient.jsx`,
+  `dashboards/[section]/MeetingDashboard.jsx`, `home/HomeClient.jsx`,
+  `sales/automation/rules/page.jsx`, `sales/automation/templates/page.jsx`,
+  `sales/bot-queue/page.jsx`, `components/ProjectDashboard.jsx`,
+  `components/ProjectActivityFeed.jsx`, `components/proposals/ProposalTab.jsx`,
+  `components/salesAutomation/BotRulesPanel.jsx`, `lib/statusEvents.js`,
+  `lib/meeting/cards.js`, `lib/defaultDashboard.js`,
+  `api/crm/cadence-rules/route.js`, `api/projects/[id]/route.js`
+- `scripts/tests/crmClientModule.test.mjs` — pins that the number on a chip and
+  the list it opens are the same jobs
+- `scripts/tests/statusEvents.test.mjs` — the history wording
+
+### Checks
+
+1,220 of 1,220 regression tests pass. Production build clean, all 43 runtime
+assets present. Migration, schema-sync and provider guards all pass. No
+migration and no schema change in any of this.
+
+---
+
+## [Project Team, Project People, and a flag for people with no company] - September 9, 2026 (DEPLOYED)
+
+Item C from the 2026-09-09 CRM review with Maram. Mike: *"we have six project
+team fields and they connect to clients"*, and *"you can just kind of choose
+people are you want connected."*
+
+### Six companies on every job
+
+A project now records the six companies working on it, each one pointing at a
+real client record instead of a typed-out name:
+
+Developer · General Contractor · Electrical Contractor · Interior Designer ·
+Electrical Engineer · Architect
+
+They live on the project dashboard in a new **Project Team** card, above Sales
+Details. Click any one of them and it becomes a dropdown of every company we
+know; pick one, and it saves on the spot. Same click-to-edit behaviour as the
+rest of that screen — no pop-out window.
+
+Three things worth knowing:
+
+- **Every seat is optional, always.** Mike, asked directly: *"always optional."*
+  A blank seat is a normal answer, never a validation error, and never blocks
+  marking a project won.
+- **The pickers do not filter by client type.** A developer who acts as their own
+  general contractor can be put in both seats. The picker should not argue with
+  you about who is allowed to be what.
+- **The old free-text `architect` / `gc` boxes on a client's Pipeline tab are a
+  separate thing** and are untouched. They can disagree with the new seats. They
+  are typed words; the new seats are real links to client records.
+
+### The people on a job, and the one who owns it
+
+A new **Project People** card sits under the team card. Search anyone in the
+people list, add them to the job, take them off again. One of them is the
+**main contact**, marked with a star, and there is exactly one:
+
+> Maram, 2026-09-09: *"there always has to be like the one main point person and
+> that's the only person that's going to be considered for those fields."*
+
+- The first person added to a job becomes the main contact automatically.
+- "Make main" moves the star; the previous holder stands down in the same save,
+  so two people can never both be main.
+- **A person's own won / lost / open / abandoned numbers now count only the jobs
+  they were main contact on.** Before this, everybody copied onto a big job
+  quietly inherited credit for winning it. If a job has people but no star, the
+  card says so in amber: *no main contact*.
+
+These are our-side people — the ones on a client record. They are not the
+outside guests on the Contacts tab, who get a portal login instead.
+
+### A person with no company is now flagged
+
+Mike: *"we need to flag a person with no company."* Since the people merge, a
+person survives their company being deleted, so this can happen on its own.
+Three states, and they are not the same problem:
+
+- **No company** — red badge. We have no employer for them at all.
+- **not linked** — amber hint. Somebody typed an employer name but never picked
+  the client record, so nothing about that person rolls up to the company.
+- Linked to a real client — normal, shown plainly.
+
+### One behaviour change to be aware of
+
+**Deleting a company now quietly empties its seat on every project's team.**
+The projects survive and nothing else about them changes; the seat just goes
+blank. That is the deliberate choice — the alternative is refusing to delete a
+company that is on any job anywhere.
+
+### Files
+
+- `prisma/schema.prisma` — six optional company links on `Project`, six named
+  back-relations on `Client`, all set to blank the seat when a company is
+  deleted. Reviewed by schema-guard: purely additive, nothing dropped.
+- `prisma/migrations/0071_project_team_fields/migration.sql` — 6 columns,
+  6 foreign keys, 6 indexes. Nothing else.
+- `src/lib/projectTeam.js` — **new.** The single list of the six roles, plus the
+  helpers for saving, reading and searching them. Adding a seventh role later
+  means editing this file and the schema, not hunting through screens.
+- `src/lib/crmClient.js` — a person's deal counts now follow the main contact;
+  `companyLink` / `countMissingCompany` for the no-company flag.
+- `src/app/api/projects/[id]/route.js` — accepts the six seats, checks the
+  company still exists before writing, loads the six names back on read.
+- `src/app/api/projects/[id]/people/route.js` — now returns where each person
+  works, both the linked company and the typed one.
+- `src/components/ProjectDashboard.jsx` — the Project Team card.
+- `src/components/project/ProjectPeopleCard.jsx` — **new.** The people card.
+- `src/app/(app)/project/[id]/page.jsx` + `ProjectHubClient.jsx` — load the six
+  company names on the server so the card reads right on first paint.
+- `scripts/tests/projectTeam.test.mjs` — **new**, 16 tests pinning the six roles,
+  the optional rule, the save whitelist and the main-contact counting rule.
+
+### Verified
+
+Full regression suite **1,219 / 1,219 passing**. `npm run build` clean, all 43
+runtime assets traced. All three schema deploy guards green.
+
+### Still to ship
+
+**Migration 0071 rides behind 0070 (the people merge) in the same deploy.** If
+0070 fails on the way up, 0071 never applies and the deploy stops — that is a
+console fix, not a retry. Worth doing these two on a quiet moment rather than
+mid-day.
+
+---
+
+## [One record per person: the two people tables merged] - September 9, 2026 (DEPLOYED)
+
+From the 2026-09-09 CRM review with Maram. Mike, asked whether to merge them:
+*"yes absolutely."*
+
+### The problem
+
+The app had **two separate tables describing the same humans**:
+
+- `ClientContact` — a person who works at a client. Created from a client's
+  People tab. This is where email history was recorded.
+- `Contact` — a person we know, company optional. Created from the CRM contacts
+  screen. This is where the check-in clock, the cadence tier and the last
+  coffee/lunch/golf were recorded.
+
+Add Ryan from both screens and you got two Ryans. His last email lived on one
+row and his last coffee on the other, so **no screen on the platform could show
+both**. It also meant the client People tab could never grow the relationship
+fields, and the CRM contacts list could never show email activity — the data was
+always on the other record.
+
+This had to be fixed before the Project Team fields get built, because the new
+"Project People" picker points straight at the people table. Building it against
+a table that was about to change identity would mean building it twice.
+
+### What changed
+
+One model, `Contact`, holding everything either table used to hold. Nothing was
+thrown away.
+
+- The **table** is still called `ClientContact` — deliberately. Three foreign
+  keys already point at it (project links, email links, a client's people list)
+  and only one pointed at the old `Contact`. Keeping the table moves the fewest
+  rows and touches the fewest files; the model name is what the code reads.
+- `clientId` is now **optional**. We meet people before we know where they work.
+- Deleting a company now **unhooks** its people instead of deleting them. That
+  is a real behaviour change: a person survives their employer.
+- `contactNumber` is issued from **one counter** (`src/lib/contactNumber.js`), so
+  a person created on a client's People tab gets a number just like one created
+  on the CRM screen. Previously only the CRM screen numbered anyone.
+
+### Migration 0070 — non-destructive by design
+
+Eight steps, nothing dropped:
+
+1. Widen the surviving table (`clientId` optional, `SET NULL` on client delete).
+2. Add the ten columns only the old `Contact` had.
+3. Match the two sides **only where an email appears exactly once on each side**.
+   Anything ambiguous — a shared `info@` address, a person entered twice — is
+   deliberately left as a visible duplicate row for a human to merge, rather than
+   guessed at.
+4. Fill blanks on the survivor; for the two "last touched" dates take the later
+   of the two.
+5. Copy across every old person who had no match, splitting their name the same
+   way migration 0063 did.
+6. Move note attributions by insert-then-delete. A plain `UPDATE` would trip the
+   one-note-one-person unique index the instant a person already had the link,
+   and Postgres would abort the whole migration mid-deploy.
+7. Backfill contact numbers, then add the unique index.
+8. Rename the old table to `ContactLegacy` and **keep it**.
+
+`ContactLegacy` is the rollback copy. It is deliberately absent from
+`schema.prisma`, which means **`prisma db push` against production would drop
+it** — Amplify runs `prisma migrate deploy`, which leaves it alone. Do not run
+`db push` against prod while that table matters.
+
+### Second behaviour change worth knowing
+
+Deleting a person from a client's People tab now also removes their attribution
+on any sales notes they were tagged in. **The notes themselves are untouched** —
+only the "who was there" link goes. Previously that screen deleted a different
+record type that had no note links at all, so this is new.
+
+### Files
+
+- `prisma/schema.prisma` — `ClientContact` and `Contact` merged into one model.
+- `prisma/migrations/0070_merge_people_tables/migration.sql` — new.
+- `src/lib/contactNumber.js` — new, the one counter.
+- `src/app/api/crm/contacts/route.js` — uses the shared counter.
+- `src/app/api/clients/[id]/contacts/route.js` — issues a number on create.
+- `src/app/api/clients/[id]/contacts/[contactId]/route.js`,
+  `src/app/api/projects/[id]/people/route.js`, `src/lib/email/recorder.js` —
+  renamed accessor.
+- `scripts/tests/peopleTable.test.mjs` — new, 12 tests pinning the merge.
+
+Verified: **1,197/1,197** regression with the dev server up, `npm run verify`
+11/11, `node scripts/check-migrations-postgres.js` 70/70, `npx prisma validate`
+clean. Schema-guard reviewed the migration and found two deploy-halting bugs
+(steps 3 and 6 above), both fixed before this entry was written.
+
+---
+
+## [The whole knowledge library now reaches the sales bot] - September 8, 2026 (DEPLOYED 599fafa)
 
 Mike, 2026-09-08:
 
@@ -79,7 +505,7 @@ Verified: 1,185/1,185 regression, 11/11 verify gates, clean build reporting
 
 ---
 
-## [Every PDF on the live Bot Knowledge screen failed] - September 8, 2026 (BUILT, NOT DEPLOYED)
+## [Every PDF on the live Bot Knowledge screen failed] - September 8, 2026 (DEPLOYED 599fafa)
 
 Mike, 2026-09-08:
 

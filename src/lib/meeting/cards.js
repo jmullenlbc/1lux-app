@@ -106,7 +106,7 @@ export const MEETING_CARDS = [
   {
     key: 'wonAndLost',
     title: 'Won and lost since last week',
-    subtitle: 'Closed deals with the reason, so the reason gets read out loud',
+    subtitle: 'Closed projects with the reason, so the reason gets read out loud',
     ...DEALS,
     defaultOn: true,
   },
@@ -126,7 +126,7 @@ export const MEETING_CARDS = [
   },
   {
     key: 'flagged',
-    title: 'Flagged deals',
+    title: 'Flagged projects',
     subtitle: 'Anything somebody flagged for the room to look at',
     ...DEALS,
     defaultOn: false,

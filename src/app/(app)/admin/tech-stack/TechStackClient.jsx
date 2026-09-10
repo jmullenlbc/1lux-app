@@ -40,7 +40,7 @@ const DIR_TREE = [
   { indent: 1, name: 'app/(app)/',            desc: 'Authenticated routes — layout enforces auth' },
   { indent: 2, name: 'admin/',               desc: 'User mgmt, changelog, pricing, KB, tech stack' },
   { indent: 2, name: 'project/[id]/',        desc: 'Project hub — all project tabs' },
-  { indent: 2, name: 'crm/',                 desc: 'Pipeline, deals, notes' },
+  { indent: 2, name: 'crm/',                 desc: 'Pipeline, projects, notes' },
   { indent: 2, name: 'sales/',               desc: 'Proposals, templates, automation' },
   { indent: 2, name: 'market-intel/',        desc: 'Market Intelligence signals' },
   { indent: 1, name: 'app/api/',             desc: 'All route handlers — data mutations' },

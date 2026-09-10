@@ -71,7 +71,7 @@ export const DEFAULT_WIDGETS = [
     // Design at the same time, so it contributes two deals here. Segmenting by
     // pipeline makes that visible instead of leaving a client's count looking
     // mysteriously doubled.
-    name: 'Open Deals by Organization',
+    name: 'Open Projects by Organization',
     category: 'DEAL_COUNT',
     metric: 'count',
     viewBy: 'client',
@@ -118,7 +118,7 @@ export const DEFAULT_WIDGETS = [
     // Was grouped by "lost reason", which no longer exists as a picked value —
     // the reason is written out on the project. Grouped by organization instead,
     // which answers the question people actually ask about losses.
-    name: 'Lost Deal Analysis',
+    name: 'Lost Project Analysis',
     category: 'DEAL_COUNT',
     metric: 'count',
     viewBy: 'client',
@@ -134,7 +134,7 @@ export const DEFAULT_WIDGETS = [
     // won and procurement deals won." Losing the design and later winning the
     // procurement is a real outcome here, so one merged "deals won" number would
     // hide the thing worth knowing.
-    name: 'Deals Won by Owner',
+    name: 'Projects Won by Owner',
     category: 'DEAL_COUNT',
     metric: 'count',
     viewBy: 'owner',

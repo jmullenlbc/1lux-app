@@ -263,7 +263,7 @@ function TemplateDrawer({ open, onClose, template, onSaved }) {
 
           {/* Deal Stage */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Deal Stage <span className="text-slate-400 font-normal">(optional)</span></label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Project Stage <span className="text-slate-400 font-normal">(optional)</span></label>
             <input
               type="text"
               value={form.dealStage}

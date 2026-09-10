@@ -264,7 +264,7 @@ export default function ClientsClient({ clients: initial, user }) {
           { label: 'Total Clients', value: clients.length },
           { label: 'Developers',    value: clients.filter(c => clientTypeKeys(c).includes('developer')).length },
           { label: 'People',        value: clients.reduce((s, c) => s + (c._count?.contacts || 0), 0) },
-          { label: 'Open Deals',    value: clients.reduce((s, c) => s + clientDealCounts(c.projects).open, 0) },
+          { label: 'Open Projects',    value: clients.reduce((s, c) => s + clientDealCounts(c.projects).open, 0) },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-xl border border-slate-200 p-5">
             <div className="text-2xl font-bold text-slate-900">{s.value}</div>

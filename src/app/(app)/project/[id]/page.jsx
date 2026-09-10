@@ -6,7 +6,14 @@ import { prisma } from '@/lib/db';
 import { responsesToSections } from '@/lib/utils';
 import { calculateBudget } from '@/lib/calculations';
 import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
+import { PROJECT_TEAM_ROLES } from '@/lib/projectTeam';
 import ProjectHubClient from './ProjectHubClient';
+
+// The six companies on the project team, by name, so the team card reads right
+// on the first paint instead of filling in once the client list arrives.
+const TEAM_INCLUDE = Object.fromEntries(
+  PROJECT_TEAM_ROLES.map(role => [role.relation, { select: { id: true, name: true } }]),
+);
 
 export default async function ProjectHubPage({ params }) {
   const session = await getSession();
@@ -23,6 +30,7 @@ export default async function ProjectHubPage({ params }) {
       client: true,
       peerReviewItems: { orderBy: [{ section: 'asc' }, { sortOrder: 'asc' }] },
       assignees: { include: { user: { select: { id: true, name: true, email: true } } } },
+      ...TEAM_INCLUDE,
     },
   });
 

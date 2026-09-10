@@ -24,12 +24,12 @@ test('a status move names the board, both ends and the reason', () => {
   const line = describeStatusChange({
     pipeline: 'PROCUREMENT', fromStatus: 'OPEN', toStatus: 'LOST', reason: 'Price',
   });
-  assert.equal(line, 'Procurement deal moved from Open to **Lost** — Price');
+  assert.equal(line, 'Procurement project moved from Open to **Lost** — Price');
 });
 
 test('no reason given means no dangling dash', () => {
   const line = describeStatusChange({ pipeline: 'DESIGN', fromStatus: 'OPEN', toStatus: 'WON' });
-  assert.equal(line, 'Design deal moved from Open to **Won**');
+  assert.equal(line, 'Design project moved from Open to **Won**');
 });
 
 /** A stand-in for Prisma that just remembers what it was asked to write. */
@@ -52,7 +52,7 @@ test('the rows written come back so the History tab can use them', async () => {
   assert.equal(rows[0].pipeline, 'DESIGN');
   assert.equal(rows[0].toStatus, 'WON');
   assert.deepEqual(db.written, rows);
-  assert.equal(describeStatusChange(rows[0]), 'Design deal moved from Open to **Won**');
+  assert.equal(describeStatusChange(rows[0]), 'Design project moved from Open to **Won**');
 });
 
 test('joining the Design board is an opening row, not a status move', async () => {

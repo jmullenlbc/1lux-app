@@ -5,6 +5,14 @@ import { logActivity, PHASE_LABELS } from '@/lib/activity';
 import { sendNotification } from '@/lib/notify';
 import { NEXT_ACTION_KEYS, STAGE_KEYS, STAGE_LABEL, PIPELINE_LABEL } from '@/lib/pipeline';
 import { recordStatusChanges, describeStatusChange } from '@/lib/statusEvents';
+import { PROJECT_TEAM_ROLES, pickTeamUpdate } from '@/lib/projectTeam';
+
+// The six companies on a project's team, loaded by name so a screen can show
+// "Architect: Studio Nine" without a second round trip. Built from the shared
+// role list, so adding a seventh role never needs an edit here.
+const TEAM_INCLUDE = Object.fromEntries(
+  PROJECT_TEAM_ROLES.map(role => [role.relation, { select: { id: true, name: true } }]),
+);
 
 async function getProjectForUser(projectId, user) {
   const project = await prisma.project.findUnique({
@@ -13,6 +21,7 @@ async function getProjectForUser(projectId, user) {
       projectData: true,
       responses: true,
       createdBy: { select: { id: true, name: true, email: true } },
+      ...TEAM_INCLUDE,
     },
   });
   if (!project) return null;
@@ -80,6 +89,23 @@ export async function PATCH(request, { params }) {
     }
   }
 
+  // ── Project team (Mike, 2026-09-09) ──
+  // Only the six team keys are read off the body, and a cleared picker arrives
+  // as "" which has to land as null rather than as an id pointing at nothing.
+  // The ids are checked here so a company deleted on another screen comes back
+  // as a plain message instead of a database error.
+  const teamUpdate = pickTeamUpdate(body);
+  const teamIds = [...new Set(Object.values(teamUpdate).filter(Boolean))];
+  if (teamIds.length) {
+    const found = await prisma.client.findMany({ where: { id: { in: teamIds } }, select: { id: true } });
+    if (found.length !== teamIds.length) {
+      return NextResponse.json(
+        { error: 'One of the companies chosen for the project team no longer exists.' },
+        { status: 400 },
+      );
+    }
+  }
+
   const updated = await prisma.project.update({
     where: { id: params.id },
     data: {
@@ -131,8 +157,10 @@ export async function PATCH(request, { params }) {
       ...(nextActionType      !== undefined && { nextActionType: (nextActionType && NEXT_ACTION_KEYS.includes(nextActionType)) ? nextActionType : null }),
       ...(nextActionOwnerId   !== undefined && { nextActionOwnerId: nextActionOwnerId || null }),
       ...(nextActionDueDate   !== undefined && { nextActionDueDate: nextActionDueDate ? new Date(nextActionDueDate) : null }),
+      // The six Project Team seats. Always optional -- never required to save.
+      ...teamUpdate,
     },
-    include: { projectData: true },
+    include: { projectData: true, ...TEAM_INCLUDE },
   });
 
   // Write down the day this deal changed status, on whichever board moved.
@@ -159,7 +187,7 @@ export async function PATCH(request, { params }) {
     const from  = project[field] ? (STAGE_LABEL[project[field]] || project[field]) : 'no stage';
     const to    = STAGE_LABEL[updated[field]] || updated[field];
     await logActivity(params.id, user, 'deal_stage',
-      `${board} deal moved from ${from} to **${to}**`,
+      `${board} project moved from ${from} to **${to}**`,
       { pipeline, fromStage: project[field], toStage: updated[field] });
   }
 

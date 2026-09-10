@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { getSession, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { teamMemberWhere, PROJECT_TEAM_ID_FIELDS } from '@/lib/projectTeam';
 import ClientDetailClient from './ClientDetailClient';
 
 export const dynamic = 'force-dynamic';
@@ -24,7 +25,26 @@ export default async function ClientDetailPage({ params }) {
           status: true, createdAt: true, updatedAt: true,
         },
       },
-      contacts: { orderBy: { createdAt: 'asc' } },
+      // The jobs each person is attached to. Without these the Open / Won / Lost
+      // / Abandoned numbers beside a person were always blank on this screen —
+      // there was nothing to count. Mike, 2026-09-09, wants those numbers to
+      // open the list of jobs behind them without leaving the page.
+      contacts: {
+        orderBy: { createdAt: 'asc' },
+        include: {
+          projectLinks: {
+            select: {
+              id: true, isLead: true,
+              project: {
+                select: {
+                  id: true, name: true, projectNumber: true, serviceType: true,
+                  procurementStatus: true, designStatus: true,
+                },
+              },
+            },
+          },
+        },
+      },
       createdBy: { select: { name: true, email: true } },
       owner:     { select: { id: true, name: true, email: true } },
     },
@@ -46,9 +66,33 @@ export default async function ClientDetailPage({ params }) {
     select: { id: true, name: true, location: true, buildingType: true },
   });
 
+  // Jobs this company sits on the TEAM of, but did not bring us themselves.
+  // Maram, 2026-09-09: "CSI for example, they probably won't be bringing us a lot
+  // of projects, but they might be connected to several others." Those are two
+  // different lists and mixing them would make a busy engineering firm look like
+  // a big client.
+  const relatedProjects = await prisma.project.findMany({
+    where: {
+      AND: [
+        teamMemberWhere(params.id),
+        { NOT: { clientId: params.id } },
+        ...(canSeeAllData(session) ? [] : [{ createdById: session.id }]),
+      ],
+    },
+    orderBy: { updatedAt: 'desc' },
+    select: {
+      id: true, projectNumber: true, name: true, city: true, state: true,
+      serviceType: true, phase: true, status: true,
+      // The six seat columns, so the screen can say WHICH hat they wore here.
+      ...Object.fromEntries(PROJECT_TEAM_ID_FIELDS.map(field => [field, true])),
+      client: { select: { id: true, name: true } },
+    },
+  });
+
   return (
     <ClientDetailClient
       client={client}
+      relatedProjects={relatedProjects}
       availableProjects={unlinkableProjects}
       user={session}
       canEditStandards={canEditStandards}

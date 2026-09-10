@@ -224,8 +224,8 @@ export default function ProjectActivityFeed({ projectId }) {
     budgets: 'Budgets',
     file_upload: 'File Upload',
     file_delete: 'File Delete',
-    deal_status: 'Deal Status (Won / Lost)',
-    deal_stage: 'Deal Stage',
+    deal_status: 'Project Status (Won / Lost)',
+    deal_stage: 'Project Stage',
   };
 
   if (activities.length === 0) {

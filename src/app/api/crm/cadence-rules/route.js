@@ -26,7 +26,7 @@ import { prisma } from '@/lib/db';
  */
 const DEFAULT_TIERS = [
   { tier: 'VIP_CLIENT',    label: 'VIP Client',     cadenceDays: 30  },
-  { tier: 'ACTIVE_DEAL',   label: 'Active Deal',    cadenceDays: 45  },
+  { tier: 'ACTIVE_DEAL',   label: 'Active Project',    cadenceDays: 45  },
   { tier: 'WARM_PROSPECT', label: 'Warm Prospect',  cadenceDays: 75  },
   { tier: 'PAST_CLIENT',   label: 'Past Client',    cadenceDays: 180 },
   { tier: 'COLD_PROSPECT', label: 'Cold Prospect',  cadenceDays: 365 },

@@ -7,7 +7,7 @@ import { PIPELINE_STAGES } from '@/lib/pipeline';
 
 function fmtTrigger(type) {
   const map = {
-    DEAL_STALE:            'Deal Stale',
+    DEAL_STALE:            'Project Stale',
     INBOUND_EMAIL_INTENT:  'Scheduling Intent',
     MARKET_SIGNAL:         'Market Signal',
     DEAL_STAGE_CHANGE:     'Stage Change',
@@ -193,7 +193,7 @@ function TriggerConfig({ triggerType, config, onChange }) {
 
   if (triggerType === 'MANUAL') {
     return (
-      <p className="text-xs text-slate-400 italic">Triggered manually from a deal.</p>
+      <p className="text-xs text-slate-400 italic">Triggered manually from a project.</p>
     );
   }
 
@@ -347,7 +347,7 @@ function RuleDrawer({ open, onClose, rule, onSaved }) {
                     onChange={e => set('triggerType', e.target.value)}
                     className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400"
                   >
-                    <option value="DEAL_STALE">Deal Stale</option>
+                    <option value="DEAL_STALE">Project Stale</option>
                     <option value="INBOUND_EMAIL_INTENT">Scheduling Intent</option>
                     <option value="MARKET_SIGNAL">Market Signal</option>
                     <option value="DEAL_STAGE_CHANGE">Stage Change</option>

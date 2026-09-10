@@ -232,7 +232,7 @@ function EmptyState({ type }) {
       <p className="text-xs text-slate-400 max-w-xs leading-relaxed">
         {type === 'SCHEDULING_REPLY'
           ? 'The bot will populate this once scheduling rules are active and inbound emails are connected (Phase B).'
-          : 'Follow-up drafts will appear here once Bot Rules are active and deals become stale. Configure rules in Sales Automation.'}
+          : 'Follow-up drafts will appear here once Bot Rules are active and projects become stale. Configure rules in Sales Automation.'}
       </p>
     </div>
   );

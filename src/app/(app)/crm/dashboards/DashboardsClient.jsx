@@ -178,7 +178,7 @@ function wonMoneySub(won) {
 // design job is one job and two deals, and both numbers are true.
 function dealsSub(meta) {
   return meta.jobCount != null && meta.jobCount !== meta.dealCount
-    ? `${meta.jobCount} jobs`
+    ? `across ${meta.jobCount} jobs`
     : undefined;
 }
 
@@ -191,7 +191,7 @@ function WidgetStats({ data, widget }) {
       <div className="flex gap-3 flex-wrap mb-3">
         <StatCard label="Open" value={fmtDollar(meta.totalOpen)} color="blue" />
         <StatCard label="Won"  value={fmtDollar(meta.totalWon)}  sub={wonMoneySub(meta.won)} color="green" />
-        <StatCard label="Deals" value={meta.dealCount} sub={dealsSub(meta)} color="purple" />
+        <StatCard label="Projects" value={meta.dealCount} sub={dealsSub(meta)} color="purple" />
       </div>
     );
   }
@@ -208,7 +208,7 @@ function WidgetStats({ data, widget }) {
   if (category === 'DEAL_COUNT') {
     return (
       <div className="flex gap-3 flex-wrap mb-3">
-        <StatCard label="Total Deals" value={meta.dealCount} sub={dealsSub(meta)} color="blue" />
+        <StatCard label="Total Projects" value={meta.dealCount} sub={dealsSub(meta)} color="blue" />
         <StatCard label="Won"         value={meta.won?.total || 0} sub={wonSub(meta.won)} color="green" />
       </div>
     );
@@ -216,7 +216,7 @@ function WidgetStats({ data, widget }) {
   if (category === 'DURATION') {
     return (
       <div className="flex gap-3 flex-wrap mb-3">
-        <StatCard label="Deals Measured" value={meta.dealCount} color="purple" />
+        <StatCard label="Projects Measured" value={meta.dealCount} color="purple" />
         {meta.closedWithoutDate > 0 && (
           <StatCard label="No Close Date" value={meta.closedWithoutDate}
             sub="closed before we started recording" color="amber" />
@@ -358,7 +358,7 @@ const FILTER_FIELDS = [
   // Open / Won / Lost / Completed / Abandoned — the same five the boards use.
   // (This list used to offer "ON_HOLD", which is not a status a deal can hold,
   // so picking it always came back empty.)
-  { key: 'dealStatus',  label: 'Deal Status',  type: 'enum', options: PIPELINE_STATUS.map(s => s.key),
+  { key: 'dealStatus',  label: 'Project Status',  type: 'enum', options: PIPELINE_STATUS.map(s => s.key),
     labels: STATUS_LABEL },
   { key: 'stage',       label: 'Stage',        type: 'enum', options: STAGE_KEYS,
     labels: STAGE_LABEL },
@@ -405,7 +405,7 @@ const VIEW_BY_OPTIONS = [
 // The colour split inside each bar. Named properly here — the screen used to
 // build these names by chopping up the field name, which read "deal Status".
 const SEGMENT_OPTIONS = [
-  { key: 'dealStatus',  label: 'Deal Status' },
+  { key: 'dealStatus',  label: 'Project Status' },
   { key: 'serviceType', label: 'Service Type' },
   { key: 'projectType', label: 'Project Type' },
   { key: 'owner',       label: 'Owner' },
@@ -414,7 +414,7 @@ const SEGMENT_OPTIONS = [
 
 const CATEGORY_OPTIONS = [
   { key: 'REVENUE',        label: 'Revenue',        desc: 'Total revenue by period or dimension' },
-  { key: 'DEAL_COUNT',     label: 'Deal Count',     desc: 'Number of deals' },
+  { key: 'DEAL_COUNT',     label: 'Project Count',     desc: 'Number of projects' },
   { key: 'CONVERSION',     label: 'Conversion',     desc: 'Win / loss rate' },
   { key: 'FORECAST',       label: 'Forecast',       desc: 'Weighted revenue forecast' },
   { key: 'DURATION',       label: 'Duration',       desc: 'Sales cycle length in days' },
@@ -536,7 +536,7 @@ function WidgetEditModal({ widget, dashboardId, onSave, onClose }) {
 
   const metricOptions = {
     REVENUE:    [{ key:'value',label:'Revenue ($)' },{ key:'designFee',label:'Design Fee ($)' },{ key:'weighted_value',label:'Weighted Revenue' }],
-    DEAL_COUNT: [{ key:'count',label:'Deal Count' }],
+    DEAL_COUNT: [{ key:'count',label:'Project Count' }],
     CONVERSION: [{ key:'rate',label:'Win Rate (%)' }],
     FORECAST:   [{ key:'value',label:'Revenue ($)' },{ key:'weighted_value',label:'Weighted Revenue' }],
     DURATION:   [{ key:'days',label:'Days to Close' }],
@@ -632,7 +632,7 @@ function WidgetEditModal({ widget, dashboardId, onSave, onClose }) {
                   onRemove={() => setForm(f => ({ ...f, filters: f.filters.filter((_, ri) => ri !== i) }))} />
               ))}
               {form.filters.length === 0 && (
-                <p className="text-xs text-slate-400 py-2 text-center">No filters — shows all deals</p>
+                <p className="text-xs text-slate-400 py-2 text-center">No filters — shows all projects</p>
               )}
             </div>
           </div>

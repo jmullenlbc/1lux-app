@@ -229,9 +229,8 @@ model Client {
   createdById      String
   createdBy        User                    @relation(fields: [createdById], references: [id])
   projects         Project[]
-  contacts         ClientContact[]
+  contacts         Contact[]
   kbSections       ClientKBSection[]
-  crmContacts      Contact[]
   standardsAnswers ClientStandardsAnswer[]
   standardFixtures ClientStandardFixture[]
   productOptions   ClientProductOption[]
@@ -249,6 +248,15 @@ model Client {
   cadenceDays      Int?    // company-level cadence override; null = use individual tier defaults
   intakeSubmissions ConceptualSubmission[]
   tagLinks         ClientTagLink[]
+
+  // Projects where this company holds a seat on the team but is not the client
+  // we are selling to. `projects` above is still "their own jobs".
+  teamDeveloperOn            Project[] @relation("ProjectDeveloper")
+  teamGeneralContractorOn    Project[] @relation("ProjectGeneralContractor")
+  teamElectricalContractorOn Project[] @relation("ProjectElectricalContractor")
+  teamInteriorDesignerOn     Project[] @relation("ProjectInteriorDesigner")
+  teamElectricalEngineerOn   Project[] @relation("ProjectElectricalEngineer")
+  teamArchitectOn            Project[] @relation("ProjectArchitect")
 }
 
 model ClientPlaybook {
@@ -369,20 +377,42 @@ model PipelineProject {
 // be split into first/last, two phone numbers, LinkedIn, and the two email
 // timestamps that light up when email sync is built. Deal counts are derived
 // from ProjectContact links, never stored.
-model ClientContact {
-  id         String   @id @default(cuid())
-  clientId   String
-  client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+// ── One person ───────────────────────────────────────────────────────────────
+// There used to be TWO tables describing the same humans: ClientContact (people
+// who work at a client) and Contact (people we know, company optional). The same
+// person's last email lived on one row and their last coffee on the other, so no
+// screen could show both. They are one model now.
+//
+// The TABLE is still called ClientContact on purpose — renaming a live table
+// renames nothing else and risks every index and foreign key hanging off it, and
+// nobody but Prisma ever reads the name. The MODEL name is what the code says.
+model Contact {
+  id            String   @id @default(cuid())
+  contactNumber Int?     @unique  // human-readable number, same idea as clientNumber
+  // Optional: we meet people before we know where they work. Deleting a company
+  // must NOT delete the human — it just unhooks them (this was Cascade when the
+  // table only ever held employees of a client).
+  clientId   String?
+  client     Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
   name       String
   firstName  String?  // parsed from name on save; editable
   lastName   String?
+  preferredName String? // "Ryan" — used in email salutation
   title      String?
+  company    String?  // employer as typed (independent of clientId)
   email      String?
   phone      String?  // legacy single phone — kept in sync with workPhone
   cellPhone  String?
   workPhone  String?
   linkedInUrl String?
   department String?  // Development | Design | Pre-construction | Construction | Finance | custom
+  notes      String?
+  // Relationship intelligence
+  cadenceTier      String?    // VIP_CLIENT | ACTIVE_DEAL | WARM_PROSPECT | PAST_CLIENT | COLD_PROSPECT
+  cadenceDays      Int?       // null = use tier default from RelationshipCadenceRule
+  lastInPersonAt   DateTime?  // most recent in-person activity (Coffee/Lunch/Golf/etc.)
+  lastTouchpointAt DateTime?  // most recent ANY touchpoint
+  nextCheckInAt    DateTime?  // snoozed until this date (overrides cadence clock temporarily)
   // Email intelligence. Both are CACHES of the newest matching EmailContactLink
   // — kept so a list of 200 people does not have to scan the mailbox — and both
   // ignore mass sends (25+ people), calendar invites, replies and automatic
@@ -390,8 +420,14 @@ model ClientContact {
   lastEmailReceivedAt DateTime?
   lastEmailSentAt     DateTime?
   createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
   projectLinks ProjectContact[]
   emailLinks   EmailContactLink[]
+  noteLinks    NoteContact[]
+
+  @@index([clientId])
+
+  @@map("ClientContact")
 }
 
 // Person ↔ project link. isLead marks the Lead Person on that project; every
@@ -401,7 +437,7 @@ model ProjectContact {
   projectId String
   project   Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
   contactId String
-  contact   ClientContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contact   Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
   isLead    Boolean       @default(false)
   createdAt DateTime      @default(now())
 
@@ -497,6 +533,34 @@ model Project {
   clientId                 String?
   client                   Client?   @relation(fields: [clientId], references: [id])
 
+  // -- Project team (Mike, 2026-09-09) ----------------------------------------
+  // Mike: "we have six project team fields and they connect to clients." Six
+  // named roles, one company each, and ALWAYS optional -- never required to mark
+  // a project won.
+  //
+  // Six named columns rather than a role-tagged join table on purpose: he asked
+  // for six fields, each holds exactly one company, and named columns make
+  // "which projects is this company on the team of" a plain query with no role
+  // string anyone can mistype. A seventh role later is a migration, which is the
+  // cheaper problem.
+  //
+  // No filtering by client type, deliberately -- a developer sometimes acts as
+  // their own GC, and the picker should not argue with him.
+  //
+  // Deleting a company clears its seat on the team; it never deletes the project.
+  developerId              String?
+  developer                Client?   @relation("ProjectDeveloper", fields: [developerId], references: [id], onDelete: SetNull)
+  generalContractorId      String?
+  generalContractor        Client?   @relation("ProjectGeneralContractor", fields: [generalContractorId], references: [id], onDelete: SetNull)
+  electricalContractorId   String?
+  electricalContractor     Client?   @relation("ProjectElectricalContractor", fields: [electricalContractorId], references: [id], onDelete: SetNull)
+  interiorDesignerId       String?
+  interiorDesigner         Client?   @relation("ProjectInteriorDesigner", fields: [interiorDesignerId], references: [id], onDelete: SetNull)
+  electricalEngineerId     String?
+  electricalEngineer       Client?   @relation("ProjectElectricalEngineer", fields: [electricalEngineerId], references: [id], onDelete: SetNull)
+  architectId              String?
+  architect                Client?   @relation("ProjectArchitect", fields: [architectId], references: [id], onDelete: SetNull)
+
   lifecycleStatus     String              @default("ACTIVE") // PROSPECT | ACTIVE | COMPLETED | LOST
 
   projectData         ProjectData?
@@ -537,6 +601,14 @@ model Project {
   calibrationSamples  CalibrationSample[]
   contactLinks        ProjectContact[]
   statusEvents        ProjectStatusEvent[]
+
+  // A company's Related Projects reads all six of these at once.
+  @@index([developerId])
+  @@index([generalContractorId])
+  @@index([electricalContractorId])
+  @@index([interiorDesignerId])
+  @@index([electricalEngineerId])
+  @@index([architectId])
 }
 
 /// Every time a deal changes status on a board, one row lands here.
@@ -926,29 +998,6 @@ model ManufacturerProduct {
 
 
 
-model Contact {
-  id               String              @id @default(cuid())
-  contactNumber    Int                 @unique
-  clientId         String?
-  client           Client?             @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  name             String
-  title            String?
-  email            String?
-  phone            String?
-  notes            String?
-  linkedInUrl      String?                       // for LinkedIn automation (Phase C)
-  preferredName    String?                       // "Ryan" — used in email salutation
-  company          String?                       // employer as typed (independent of clientId)
-  // Relationship intelligence
-  cadenceTier      String?                       // VIP_CLIENT | ACTIVE_DEAL | WARM_PROSPECT | PAST_CLIENT | COLD_PROSPECT
-  cadenceDays      Int?                          // null = use tier default from RelationshipCadenceRule
-  lastInPersonAt   DateTime?                     // most recent in-person activity (Coffee/Lunch/Golf/etc.)
-  lastTouchpointAt DateTime?                     // most recent ANY touchpoint
-  nextCheckInAt    DateTime?                     // snoozed until this date (overrides cadence clock temporarily)
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
-  noteLinks        NoteContact[]
-}
 
 
 // ── Unified Note (merges SalesNote + project MeetingNote) ─────────────────────
@@ -1863,7 +1912,7 @@ model EmailContactLink {
   messageId String
   message   EmailMessage  @relation(fields: [messageId], references: [id], onDelete: Cascade)
   contactId String
-  contact   ClientContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contact   Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
   role      String        // FROM | TO | CC | BCC
   createdAt DateTime      @default(now())
 

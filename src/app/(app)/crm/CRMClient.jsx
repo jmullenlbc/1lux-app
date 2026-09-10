@@ -6,6 +6,7 @@ import {
   stageFieldFor, statusFieldFor, revenueFor, inDesignPipeline, stagesOutOfSync,
   winRate, averageProbability, WIN_RATE_DESCRIPTION,
 } from '@/lib/pipeline';
+import PipelineSidePanel from '@/components/crm/PipelineSidePanel';
 
 // Re-exported for the (orphaned, Phase-2) Deal components' imports.
 export { PIPELINE_STAGES };
@@ -335,7 +336,7 @@ function ListView({ projects, pipeline, onOpen, onUpdate }) {
       const word   = newStatus === 'LOST' ? 'lost' : 'abandoned';
       const reason = prompt(`Why was "${project.name}" ${word}? (required)`, project[`${statusField}Reason`] || '');
       if (reason === null) return;                 // they hit Cancel
-      if (!reason.trim()) { alert(`A reason is required to mark a deal ${word}.`); return; }
+      if (!reason.trim()) { alert(`A reason is required to mark a project ${word}.`); return; }
       body[`${statusField}Reason`] = reason.trim();
     }
 
@@ -437,6 +438,9 @@ export default function CRMClient({ initialProjects, users }) {
   const [needsAttention, setNeedsAttention] = useState(false);
   const dragId = useRef(null);
   const [draggingId, setDraggingId] = useState(null);
+  // Which job the side panel is showing, if any. Holds the id, not the row, so
+  // the panel always reads the freshest copy after a save.
+  const [panelId, setPanelId] = useState(null);
 
   const stages      = PIPELINE_STAGES[pipeline] || [];
   const stageField  = stageFieldFor(pipeline);
@@ -531,8 +535,16 @@ export default function CRMClient({ initialProjects, users }) {
     setProjects(prev => prev.map(p => p.id === updated.id ? { ...p, ...updated } : p));
   }
 
-  const openProject = p => router.push(`/project/${p.id}`);
+  // Mike, 2026-09-09: "So we don't have to go into a project and come back, go
+  // into a project, come back." Clicking a job on the board no longer leaves the
+  // board — it slides the sales fields out on the right. The panel still carries
+  // an "Open full project" link for everything else on the job.
+  const openProject = p => setPanelId(p.id);
   const newProject  = () => router.push('/project/new');
+
+  // Read the live row out of state, not a copy, so a save inside the panel shows
+  // on the card behind it at the same moment.
+  const panelProject = panelId ? projects.find(p => p.id === panelId) : null;
 
   return (
     <div className="flex flex-col h-screen bg-slate-50 overflow-hidden">
@@ -660,6 +672,14 @@ export default function CRMClient({ initialProjects, users }) {
           </div>
         )}
       </div>
+
+      {panelProject && (
+        <PipelineSidePanel
+          project={panelProject}
+          onClose={() => setPanelId(null)}
+          onUpdate={handleUpdated}
+        />
+      )}
     </div>
   );
 }

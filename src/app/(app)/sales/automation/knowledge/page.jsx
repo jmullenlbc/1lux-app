@@ -521,6 +521,83 @@ function ReachBanner({ refreshKey }) {
   );
 }
 
+// ── Delete confirmation ───────────────────────────────────────────────────────
+// Mike, 2026-09-09: "bot knowledge items needs a popup confirmation before
+// deleting because it pulls that data out of the bot which could be hugely
+// detrimental." Deleting here is final — the file and its record both go, and
+// the sales bot loses everything it knew from them. So this asks properly, on
+// the screen, and puts Archive right next to it as the way out.
+function ConfirmDeleteModal({
+  open, title, what, body, busy,
+  onArchive, archiveLabel = 'Archive instead', onCancel, onConfirm,
+}) {
+  useEffect(() => {
+    if (!open) return undefined;
+    function onKey(e) { if (e.key === 'Escape' && !busy) onCancel(); }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open, busy, onCancel]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      onClick={e => { if (e.target === e.currentTarget && !busy) onCancel(); }}
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+    >
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        <div className="px-6 pt-6 pb-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+              <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round"
+                  d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-base font-bold text-slate-900">{title}</h2>
+              {what && (
+                <p className="text-sm text-slate-600 mt-1 break-words line-clamp-4">“{what}”</p>
+              )}
+            </div>
+          </div>
+          <div className="mt-4 rounded-lg bg-red-50 border border-red-100 px-3 py-2.5 text-sm text-red-700 leading-relaxed">
+            {body}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2 px-6 pb-6">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={busy}
+            className="flex-1 min-w-[7rem] px-4 py-2 rounded-lg text-sm font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+          >
+            Keep it
+          </button>
+          {onArchive && (
+            <button
+              type="button"
+              onClick={onArchive}
+              disabled={busy}
+              className="flex-1 min-w-[7rem] px-4 py-2 rounded-lg text-sm font-semibold border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors disabled:opacity-50"
+            >
+              {archiveLabel}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={busy}
+            className="flex-1 min-w-[7rem] px-4 py-2 rounded-lg text-sm font-semibold bg-red-600 hover:bg-red-500 text-white transition-colors disabled:opacity-60"
+          >
+            {busy ? 'Deleting…' : 'Delete for good'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DocumentsPanel({ category, onChanged }) {
   const [docs,      setDocs]      = useState([]);
   const [loading,   setLoading]   = useState(true);
@@ -530,6 +607,8 @@ function DocumentsPanel({ category, onChanged }) {
   const [problems,  setProblems]  = useState([]);
   const [err,       setErr]       = useState('');
   const [rereading, setRereading] = useState(null);
+  const [deletingDoc, setDeletingDoc] = useState(null);
+  const [confirmDoc,  setConfirmDoc]  = useState(null);
   const inputRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -642,6 +721,25 @@ function DocumentsPanel({ category, onChanged }) {
       body:    JSON.stringify({ isActive: !doc.isActive }),
     });
     if (res.ok) load();
+  }
+
+  // Mike, 2026-09-09: he wants to be able to throw a file out for good, not only
+  // archive it. This removes the file from storage AND the row — the bot cannot
+  // quote it and nobody can open it again. Archive is still there for the softer
+  // "just get it out of the bot's way".
+  async function deleteDoc(doc) {
+    setDeletingDoc(doc.id);
+    try {
+      const res  = await fetch(`/api/automation/knowledge/docs/${doc.id}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setErr(data.error || 'That file could not be deleted.'); return; }
+      setConfirmDoc(null);
+      await load();
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setDeletingDoc(null);
+    }
   }
 
   // The file itself was kept even when reading it failed, so a file that failed
@@ -812,11 +910,42 @@ function DocumentsPanel({ category, onChanged }) {
                 >
                   {doc.isActive ? 'Archive' : 'Restore'}
                 </button>
+                <button
+                  onClick={() => setConfirmDoc(doc)}
+                  disabled={deletingDoc === doc.id}
+                  title="Delete this file for good — the file and the record both go"
+                  className="text-[11px] font-semibold text-slate-300 hover:text-red-600 px-2 py-1 rounded hover:bg-red-50 transition-colors disabled:opacity-50"
+                >
+                  {deletingDoc === doc.id ? 'Deleting…' : 'Delete'}
+                </button>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      <ConfirmDeleteModal
+        open={!!confirmDoc}
+        busy={!!confirmDoc && deletingDoc === confirmDoc.id}
+        title="Delete this file for good?"
+        what={confirmDoc?.title}
+        body={
+          <>
+            This pulls the file out of the bot. Everything the sales bot learned
+            from this document stops being available the moment it goes, the file
+            itself is deleted from storage, and none of it can be got back.
+            {confirmDoc?.isActive
+              ? ' Archive it instead if you only want it out of the bot’s way — archiving keeps the file.'
+              : ''}
+          </>
+        }
+        onArchive={confirmDoc?.isActive
+          ? () => { const d = confirmDoc; setConfirmDoc(null); toggleActive(d); }
+          : undefined}
+        archiveLabel="Archive instead"
+        onCancel={() => setConfirmDoc(null)}
+        onConfirm={() => deleteDoc(confirmDoc)}
+      />
     </div>
   );
 }
@@ -833,6 +962,8 @@ export default function KnowledgePage() {
   const [showImport,     setShowImport]     = useState(false);
   const [err,            setErr]            = useState('');
   const [reachTick,      setReachTick]      = useState(0);
+  const [confirmEntry,   setConfirmEntry]   = useState(null);
+  const [deletingEntry,  setDeletingEntry]  = useState(false);
   const debounceRef = useRef(null);
 
   // Stable on purpose — DocumentsPanel's loader depends on it.
@@ -875,6 +1006,25 @@ export default function KnowledgePage() {
         bumpReach();
       }
     } catch {}
+  }
+
+  // Same as the files: an entry can now be thrown out for good, not just
+  // archived. Mike, 2026-09-09 — he wants the library to stay clean rather than
+  // carry a growing pile of archived things he will never restore.
+  async function handleDelete(entry) {
+    setDeletingEntry(true);
+    try {
+      const res  = await fetch(`/api/automation/knowledge/${entry.id}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setErr(data.error || 'That entry could not be deleted.'); return; }
+      setEntries(prev => prev.filter(e => e.id !== entry.id));
+      setConfirmEntry(null);
+      bumpReach();
+    } catch {
+      setErr('That entry could not be deleted.');
+    } finally {
+      setDeletingEntry(false);
+    }
   }
 
   function openNew() {
@@ -1023,6 +1173,13 @@ export default function KnowledgePage() {
                           Archive
                         </button>
                       )}
+                      <button
+                        onClick={() => setConfirmEntry(entry)}
+                        title="Delete this entry for good"
+                        className="text-[11px] font-semibold text-slate-300 hover:text-red-600 px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                      >
+                        Delete
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -1033,11 +1190,22 @@ export default function KnowledgePage() {
           <DisabledSection count={entries.filter(e => !e.isActive).length} label="Archived entries">
             <div className="divide-y divide-slate-100">
               {entries.filter(e => !e.isActive).map(entry => (
-                <button key={entry.id} onClick={() => openEdit(entry)} className="w-full flex items-center gap-2 py-2 text-left">
-                  <span className="text-xs font-semibold text-slate-600 truncate">{entry.question}</span>
-                  <span className="text-[10px] text-slate-400 shrink-0">{entry.category}</span>
-                  <span className="ml-auto text-[10px] text-orange-600 font-semibold shrink-0">Edit to restore</span>
-                </button>
+                <div key={entry.id} className="w-full flex items-center gap-2 py-2 text-left">
+                  <button onClick={() => openEdit(entry)} className="flex items-center gap-2 min-w-0 flex-1 text-left">
+                    <span className="text-xs font-semibold text-slate-600 truncate">{entry.question}</span>
+                    <span className="text-[10px] text-slate-400 shrink-0">{entry.category}</span>
+                    <span className="ml-auto text-[10px] text-orange-600 font-semibold shrink-0">Edit to restore</span>
+                  </button>
+                  {/* Archived is where things go to be forgotten — so this is
+                      where getting rid of them for good has to be reachable. */}
+                  <button
+                    onClick={() => setConfirmEntry(entry)}
+                    title="Delete this entry for good"
+                    className="text-[10px] font-semibold text-slate-300 hover:text-red-600 px-2 py-0.5 rounded hover:bg-red-50 transition-colors shrink-0"
+                  >
+                    Delete
+                  </button>
+                </div>
               ))}
             </div>
           </DisabledSection>
@@ -1055,6 +1223,28 @@ export default function KnowledgePage() {
         open={showImport}
         onClose={() => setShowImport(false)}
         onImported={() => load(search, categoryFilter)}
+      />
+
+      <ConfirmDeleteModal
+        open={!!confirmEntry}
+        busy={deletingEntry}
+        title="Delete this answer for good?"
+        what={confirmEntry?.question}
+        body={
+          <>
+            This pulls the answer out of the bot. The sales bot stops being able
+            to use it the moment it goes, and it cannot be got back.
+            {confirmEntry?.isActive
+              ? ' Archive it instead if you only want it out of the bot’s way — archiving keeps it.'
+              : ''}
+          </>
+        }
+        onArchive={confirmEntry?.isActive
+          ? () => { const e = confirmEntry; setConfirmEntry(null); handleArchive(e); }
+          : undefined}
+        archiveLabel="Archive instead"
+        onCancel={() => setConfirmEntry(null)}
+        onConfirm={() => handleDelete(confirmEntry)}
       />
     </div>
   );

@@ -738,7 +738,7 @@ export default function ProposalTab({ projectId }) {
 
   async function handleAccept() {
     if (!proposal) return;
-    if (!confirm('Accept this proposal? This will mark the project as Active and advance the deal.')) return;
+    if (!confirm('Accept this proposal? This will mark the project as Active and move it forward on the pipeline.')) return;
     const res = await fetch(`/api/proposals/${proposal.id}/accept`, { method: 'POST' });
     if (res.ok) {
       const updated = await res.json();

@@ -2,7 +2,228 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-08 (latest) — Mike's Claude — ⚠️ **BUILT, NOT DEPLOYED**: the whole Bot Knowledge library now reaches the sales bot
+### 2026-09-09 (latest) — Mike's Claude — ✅ **DEPLOYED**: the whole 2026-09-09 CRM queue in one push, migrations 0070 + 0071 + 0072
+
+Everything that had been sitting BUILT-NOT-DEPLOYED went out together: the people-table
+merge (0070), Project Team + Project People (0071), items D/E/B/F/A, plus three final
+things Mike asked for after reading the last round. **Three migrations rode along in
+this push, applied oldest first, halting at the first failure.**
+
+- **Bot Knowledge delete now asks with a real in-app confirmation.** Mike: *"it pulls
+  that data out of the bot which could be hugely detrimental."* One shared
+  `ConfirmDeleteModal` in `sales/automation/knowledge/page.jsx` serves all three delete
+  surfaces (doc rows, active Q&A, archived Q&A), offers **Archive instead** wherever the
+  item is still active, and disables while the request is in flight. `confirm()` and
+  `alert()` are both gone from that file.
+- **Client Info tab edits in place.** `EditModal` and `Inp` are deleted from
+  `clients/[id]/ClientDetailClient.jsx` — no pop-out, no Save button, no Edit button in
+  the top bar. All twenty fields save on blur with an optimistic update and rollback.
+  **Trap for anyone editing this:** `PATCH /api/clients/[id]` returns the client's own
+  scalar columns plus `tagLinks` and **nothing else** — no `projects`, `contacts`,
+  `owner` or `createdBy`. Merging the whole response into page state wipes those, so
+  `patchClient` takes back only server-derived scalars and re-fetches when `ownerId`
+  changes. Same class of trap as `PATCH /api/projects/[id]`.
+- **0072_project_wording_reseed** — data-only. Renames the five pieces of wording that
+  were seeded into the database and therefore could not be fixed by changing code:
+  `RelationshipCadenceRule.label` 'Active Deal' → 'Active Project', and four
+  `DashboardWidget.name` rows (Open Deals by Organization, Deals by Service Type, Lost
+  Deal Analysis, Deals Won by Owner). Neither model has an `@@map`, so the Postgres
+  table names are the quoted model names. `prisma/seeds/dashboardTemplates.js` was
+  corrected to match so new dashboards are born right.
+- **Two fixes to 0070, caught by schema-guard before it shipped.** (1)
+  `PlaybookAssignment.contactId`, `PlaybookDistribution.contactId` and
+  `NoteAction.contactId` are soft links with no foreign key — the merge was not
+  remapping them, so for any deduped person a proposal signer / distribution seat /
+  note follow-up would have silently read as nobody. New step 6b remaps all three off
+  `_people_match`. (2) Step 4 now keeps `LEAST(createdAt)` so a merged person's "known
+  since" cannot move forward.
+
+**Standing warning that survives this push:** from now on, `prisma db push` against prod
+DROPS `ContactLegacy` — the only pre-merge copy of every CRM contact. `amplify.yml` runs
+`prisma migrate deploy`, not `db push`, which is what keeps it. There is no backup step
+in `amplify.yml`. Do not point `db push` at production.
+
+Checks before the push: 1,220/1,220 regression tests pass with the dev server up; clean
+production build with it stopped, all 43 runtime assets present; migration-Postgres,
+schema-sync and dynamic-page guards all pass; 0072 executed against a real database to
+prove every table and column name in it exists. 0070 is Postgres-only, so it has never
+run locally — its first execution is against production.
+
+### 2026-09-09 — Mike's Claude — ✅ **DEPLOYED**: items D, E, B, F, A — the rest of the CRM queue
+
+Finishes the approved queue from the 2026-09-09 CRM review (0 → C → D → E → B → A, F
+anywhere). **No migration and no schema change in any of this** — it is all screens
+plus one new derived helper.
+
+- **D — Related Projects.** A client screen now lists the jobs where that company sits
+  in one of the six Project Team seats but does not own the job, with a chip per seat.
+  Query lives in `clients/[id]/page.jsx`, AND-ing `teamMemberWhere(clientId)` with
+  `NOT clientId`, scoped by `canSeeAllData()`.
+- **E — Pipeline side panel.** `src/components/crm/PipelineSidePanel.jsx`. Clicking a
+  card on `/crm` opens it instead of navigating away. Writes through
+  `PATCH /api/projects/[id]` — the same fields and the same server-side Lost/Abandoned
+  reason rule as the project screen, so the two cannot drift. Note for anyone editing
+  it: that PATCH returns `projectData` + `TEAM_INCLUDE` only, **not** `client` or
+  `salesOwner`, so the panel re-attaches the owner's name itself before handing the row
+  back to the board.
+- **B — People tab rebuilt** on the client screen: two lines per person, every field
+  click-to-edit through `PATCH /api/clients/[id]/contacts/[contactId]` (which already
+  returns the contact with its project links), and the Open/Won/Lost/Abandoned numbers
+  now hover to list and click to open the jobs behind them. **Pre-existing bug fixed:**
+  the page loaded `contacts` with no `projectLinks`, so those four numbers were blank
+  for everyone. New `contactDealProjects()` in `src/lib/crmClient.js` shares
+  `projectOutcome` with `contactDealCounts`, so a chip's number and the list it opens
+  can never disagree.
+- **F — Bot Knowledge hard delete.** UI only. `DELETE /api/automation/knowledge/docs/[id]`
+  and `.../knowledge/[id]` already removed the S3 blob and the row and were already
+  admin-gated; there was simply no button. Archive is untouched.
+- **A — "Deal" → "Project" across the app.** Display text only, ~20 files. Identifiers,
+  enum keys, API fields, rule keys (`DEAL_STALE`, `dealStatus`, `deal_stage`, …) are all
+  unchanged on purpose. Two pinned test strings in `statusEvents.test.mjs` moved with the
+  history wording. **Careful:** the cadence tier label `Active Deal` and the three
+  starter dashboard names live in DB rows seeded from
+  `api/crm/cadence-rules/route.js` and `lib/defaultDashboard.js` — the code says
+  "Project" now, but the saved rows keep the old names until those defaults are
+  re-seeded.
+
+**Checks:** 1,220/1,220 regression tests green with the dev server up; `npm run build`
+clean with 43/43 runtime assets; migration-Postgres (71), schema-sync (124) and
+provider guards all pass.
+
+**Still queued, unchanged:** Phase B of the weekly-meeting widgets and the "gone quiet"
+card are ON HOLD by Mike; the real calendar import is still a dry run only; the
+Pipedrive import waits on Maram.
+
+---
+
+### 2026-09-09 — Mike's Claude — ✅ **DEPLOYED**: item C — six Project Team companies, Project People, and one main contact
+
+Item C of the approved CRM queue. Mike, 2026-09-09: *"we have six project team fields
+and they connect to clients"* and *"you can just kind of choose people are you want
+connected."* Maram, same call: *"there always has to be like the one main point person
+and that's the only person that's going to be considered for those fields."*
+
+**Six named FK columns on `Project`, not a role-tagged join table.** `developerId`,
+`generalContractorId`, `electricalContractorId`, `interiorDesignerId`,
+`electricalEngineerId`, `architectId` — every one optional, every one
+`onDelete: SetNull`, six matching `@@index`. Schema-guard endorsed the shape and named
+the costs plainly: a seventh role is a migration plus six code touchpoints; a seat can
+never carry anything extra (no per-seat contact, date or note); and a project now has
+two shapes for "who is involved" — people via `ProjectContact`, companies via six
+columns. The single source of truth for the six is `src/lib/projectTeam.js`, so a
+seventh role is that file plus the schema, not a hunt through screens.
+
+**Migration 0071 is purely additive** — 6 `ADD COLUMN`, 6 `ADD CONSTRAINT`, 6
+`CREATE INDEX`. No drops, renames, retypes, NOT NULLs or unique indexes. Schema-guard
+reviewed it and found schema and SQL in exact agreement (Prisma-convention constraint
+and index names, `ON UPDATE CASCADE` matching Prisma's default for an optional
+relation). `prisma validate` passes because the other six `Client`↔`Project` relations
+are named. Locally only the 6 columns + 6 indexes were applied — **SQLite cannot
+`ALTER TABLE ... ADD CONSTRAINT`**, and Prisma does not need the FKs locally.
+
+⚠️ **0071 rides behind 0070 in the same `migrate deploy`.** Prisma applies migrations in
+filename order and halts on the first failure. If 0070 fails — likeliest at its
+`CREATE UNIQUE INDEX "ClientContact_contactNumber_key"` — Prisma rolls that file back,
+records it as failed, and **0071 never applies**. Recovery is manual:
+`npx prisma migrate resolve --rolled-back "0070_merge_people_tables"` on the console.
+Deploy these two on a quiet moment, not mid-day.
+
+**Behaviour change to flag:** deleting a company now silently blanks its seat on every
+project's team. The projects survive untouched; the seat just goes empty. The
+alternative was refusing to delete any company that sits on any job anywhere.
+
+**Known overlap, deliberately left alone:** the free-text `PipelineProject.architect` /
+`gc` boxes on a client's Pipeline tab and the new project Architect / GC seats are two
+separate things and can disagree. The old ones are typed words; the new ones are real
+links to client records.
+
+**The main-contact rule changed how people's numbers read.** `contactDealCounts` now
+counts only the projects a person is `isLead` on. Before, everyone copied onto a big job
+inherited credit for winning it. One dependent test in `crmClientModule.test.mjs` was
+updated to mark its links `isLead: true` — its intent (one deal per project, junk links
+ignored) is unchanged.
+
+**Mike's "flag a person with no company"** is built as three states, since they are not
+the same problem: no employer at all (red badge), an employer typed by hand but never
+linked to a client record (amber hint), or properly linked. `companyLink()` /
+`countMissingCompany()` in `src/lib/crmClient.js`.
+
+Verified: regression **1,219/1,219** with the dev server up; `npm run build` clean
+(43/43 runtime assets); all three schema deploy guards green
+(`check-migrations-postgres` 71/71, `check-schema-migrations-sync` 124/124,
+`check-schema-provider`). New `scripts/tests/projectTeam.test.mjs`, 16 tests.
+
+⚠️ **Not deployed — Mike has not said "Deploy" this session.** 0070 and 0071 are both
+sitting in the working tree and would go up together. Next in the queue: D (Related
+Projects, which reads C's seats backwards through `teamMemberWhere`), then E (pipeline
+side panel), then B (People tab layout), then A (wording), with F anywhere.
+
+---
+
+### 2026-09-09 — Mike's Claude — ✅ **DEPLOYED**: the two people tables are now one
+
+Mike, 2026-09-09, after the CRM review with Maram: *"yes absolutely"* — merge them.
+
+**There were two tables for the same humans.** `ClientContact` (someone who works at a
+client, created from a client's People tab, where EMAIL history was recorded) and
+`Contact` (someone we know, company optional, created from the CRM contacts screen,
+where the CADENCE clock and last in-person were recorded). Same Ryan, two rows, and the
+two halves of his history on different records — which is why no screen could ever show
+both Last Email and Last In Person.
+
+**Merge direction: the TABLE `ClientContact` survives; the MODEL is renamed `Contact`
+with `@@map("ClientContact")`.** Three FKs already pointed at `ClientContact`
+(`ProjectContact`, `EmailContactLink`, `Client.contacts`) and only one at `Contact`
+(`NoteContact`), so this moves the fewest rows and changes 8 call sites in 4 files
+instead of 13 files. `scripts/check-schema-migrations-sync.js` honours `@@map`, so the
+gate still finds `CREATE TABLE "ClientContact"` in 0063.
+
+**Migration 0070 is non-destructive.** Nothing is dropped. Step 8 renames the old
+`Contact` to `ContactLegacy` and KEEPS it as the rollback copy. ⚠️ **`ContactLegacy` is
+deliberately absent from `schema.prisma` — `prisma db push` against prod would DROP it.
+amplify.yml runs `prisma migrate deploy`, which leaves it alone. Do not push.**
+
+**Schema-guard caught two deploy-halting bugs, both fixed before anything ran:**
+1. Step 6 originally moved note attributions with `UPDATE "NoteContact" SET contactId`,
+   which violates `NoteContact_noteId_contactId_key` **before** the dedupe DELETE meant
+   to guard it — Postgres checks unique indexes per row, immediately, and they are not
+   deferrable, so the DELETE never runs and `migrate deploy` halts mid-migration in
+   prod. Replaced with `INSERT ... SELECT DISTINCT ON ... ON CONFLICT DO NOTHING` then
+   `DELETE`. (`ON CONFLICT` alone does not protect against duplicates *within* the same
+   INSERT — `DISTINCT ON` is required alongside it.)
+2. The email match was a plain many-to-many join, so one old row matching two survivors
+   would write the same `contactNumber` onto both and break the unique index at step 7.
+   Narrowed to emails appearing **exactly once on each side**; anything ambiguous falls
+   through as its own visible duplicate row rather than a broken deploy.
+
+**Two behaviour changes Mike has been told about:** deleting a client now unhooks its
+people instead of deleting them (`onDelete: SetNull`); deleting a person from the People
+tab now also removes their attribution on sales notes (the notes survive, only the
+"who was there" link goes).
+
+**Also:** contact numbers now come from one counter (`src/lib/contactNumber.js`) used by
+both creation screens. Previously only the CRM screen numbered anyone.
+
+Verified: **1,197/1,197** regression with the dev server up, `npm run verify` 11/11,
+`check-migrations-postgres.js` 70/70, `prisma validate` clean, `npm run build` clean
+(43/43 runtime assets). New `scripts/tests/peopleTable.test.mjs`, 12 tests, pins the
+merge so the tables cannot silently split again.
+
+⚠️ **Not deployed. Schema-guard returned "needs Mike's sign-off" and he has not given it
+yet.** Open ask from schema-guard: run a duplicate-email count against PROD before he
+signs, so he decides on numbers rather than "probably clean" — local counts (0 overlaps
+across 4+2 rows) prove nothing about production.
+
+**This is item 0 of the approved CRM build queue** (Mike, 2026-09-09: *"agreed with your
+approach"*): merge → C (six Project Team fields + Project People multi-select) → D
+(Related Projects) → E (pipeline side panel) → B (People tab layout) → A ("Deals" →
+"Projects" wording, last). F (hard-delete Bot Knowledge items) slots in anywhere. The
+merge went FIRST because C's Project People picker points at the people table, and
+building it against a table about to change identity means building it twice.
+
+---
+
+### 2026-09-08 — Mike's Claude — ✅ **DEPLOYED 2026-09-09 (599fafa)**: the whole Bot Knowledge library now reaches the sales bot
 
 Mike: *"we just want the bot knowledge to feed into the sales bot like you said. We
 need every character or everything we upload to do that. It sounds like it isnt
@@ -39,12 +260,13 @@ Verified: **1,185/1,185** regression with the dev server up, `npm run verify` 11
 clean `npm run build` still reporting **43/43** runtime assets. No schema change, no
 migration.
 
-⚠️ **Two undeployed batches are now stacked** — this and the PDF fix below. One deploy
-ships both. **Waiting on Mike's word.**
+✅ **Shipped together in 599fafa on 2026-09-09** — this and the PDF fix below, one push.
+Mike still needs to click "Try again" on each red PDF on the live screen now that the
+reader works.
 
 ---
 
-### 2026-09-08 — Mike's Claude — ⚠️ **BUILT, NOT DEPLOYED**: every PDF on the live Bot Knowledge screen fails to open
+### 2026-09-08 — Mike's Claude — ✅ **DEPLOYED 2026-09-09 (599fafa)**: every PDF on the live Bot Knowledge screen fails to open
 
 Mike uploaded files to Bot Knowledge on the live app and a PDF failed. It is not
 that PDF — **every PDF uploaded to Bot Knowledge in prod since 2026-09-07 (d78e8f5)

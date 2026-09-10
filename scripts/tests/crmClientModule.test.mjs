@@ -15,7 +15,8 @@ import assert from 'node:assert/strict';
 import {
   dealCounts, dealLossReasons, parseList, deriveClientTypeKey,
   projectTypesFromProjects, splitName, joinName, isValidEmail, formatPhone,
-  contactDealCounts, clientDealCounts, projectOutcome, EMPTY_DEAL_COUNTS,
+  contactDealCounts, contactDealProjects, clientDealCounts, projectOutcome, EMPTY_DEAL_COUNTS,
+  companyLink, countMissingCompany,
 } from '../../src/lib/crmClient.js';
 import {
   CLIENT_TYPES, ORG_TYPE_OPTIONS, LOCATION_TYPES, DEVELOPER_TYPES, PROJECT_TYPES,
@@ -134,14 +135,39 @@ test('an empty or junk project list gives a client all zeros', () => {
 test('a person is counted from the projects they are attached to, one per project', () => {
   const contact = {
     projectLinks: [
-      { project: { serviceType: 'fullDesign', procurementStatus: 'OPEN', designStatus: 'OPEN' } },
-      { project: null },
+      { isLead: true, project: { serviceType: 'fullDesign', procurementStatus: 'OPEN', designStatus: 'OPEN' } },
+      { isLead: true, project: null },
     ],
   };
   // One job they are on, so one open deal against their name — not two.
   assert.equal(contactDealCounts(contact).open, 1);
   assert.equal(contactDealCounts(contact).total, 1);
   assert.deepEqual(contactDealCounts({}), EMPTY_DEAL_COUNTS);
+});
+
+test('the jobs behind a person’s numbers are the same jobs the numbers counted', () => {
+  const contact = {
+    projectLinks: [
+      { isLead: true,  project: { id: 'a', name: 'Trailhead', serviceType: 'bid',        procurementStatus: 'OPEN' } },
+      { isLead: true,  project: { id: 'b', name: 'Creekside', serviceType: 'fullDesign', procurementStatus: 'WON',  designStatus: 'OPEN' } },
+      { isLead: true,  project: { id: 'c', name: 'Shelved',   serviceType: 'bid',        procurementStatus: 'ABANDONED' } },
+      // Copied onto the job, not responsible for it — never counted, never listed.
+      { isLead: false, project: { id: 'd', name: 'Not theirs', serviceType: 'bid',       procurementStatus: 'WON' } },
+      { isLead: true,  project: null },
+    ],
+  };
+  const lists  = contactDealProjects(contact);
+  const counts = contactDealCounts(contact);
+
+  // The chip's number and the list it opens have to be the same thing, always.
+  for (const bucket of ['open', 'won', 'lost', 'abandoned']) {
+    assert.equal(lists[bucket].length, counts[bucket], bucket);
+  }
+  assert.deepEqual(lists.open.map(p => p.id),      ['a']);
+  assert.deepEqual(lists.won.map(p => p.id),       ['b']);
+  assert.deepEqual(lists.abandoned.map(p => p.id), ['c']);
+  assert.deepEqual(lists.lost, []);
+  assert.deepEqual(contactDealProjects({}), { open: [], won: [], lost: [], abandoned: [] });
 });
 
 test('the loss reasons come back with the project and the board that lost it', () => {
@@ -262,4 +288,55 @@ test('a ten-digit phone is displayed the way people read it out loud', () => {
   assert.equal(formatPhone('ext 42'),          'ext 42');   // anything unusual is left alone
   assert.equal(formatPhone(''),                '');
   assert.equal(formatPhone(null),              '');
+});
+
+// ── Who a person works for ───────────────────────────────────────────────────
+// Mike, 2026-09-09: "we need to flag a person with no company." Since the people
+// merge a person survives their company being deleted, so this is a state the
+// app can now reach on its own and has to say out loud.
+
+test('a person attached to a client record reads as linked', () => {
+  const linked = companyLink({ client: { id: 'c1', name: 'Alpine Development' } });
+  assert.equal(linked.state, 'linked');
+  assert.equal(linked.label, 'Alpine Development');
+});
+
+test('a client link wins over a stale typed company name', () => {
+  // Somebody typed the old employer, then we attached the real record. The
+  // record is the truth.
+  const c = companyLink({ client: { id: 'c1', name: 'Alpine Development' }, company: 'Old Firm' });
+  assert.equal(c.state, 'linked');
+  assert.equal(c.label, 'Alpine Development');
+});
+
+test('a typed company with no client record is flagged as not linked', () => {
+  // Nothing about this person rolls up to that company, which is worth saying.
+  const c = companyLink({ company: 'CSI Engineering' });
+  assert.equal(c.state, 'typed');
+  assert.equal(c.label, 'CSI Engineering');
+});
+
+test('no employer at all is its own state, not an empty string', () => {
+  for (const contact of [{}, { company: '' }, { company: '   ' }, { client: null }]) {
+    assert.equal(companyLink(contact).state, 'none');
+    assert.equal(companyLink(contact).label, null);
+  }
+});
+
+test('a clientId with no loaded client row still counts as linked', () => {
+  // List screens select the client; write paths often carry only the id. Neither
+  // should show a red flag on somebody who plainly has an employer.
+  assert.equal(companyLink({ clientId: 'c1' }).state, 'linked');
+});
+
+test('only people with no employer at all are counted for the flag', () => {
+  const people = [
+    { client: { id: 'c1', name: 'Alpine' } },
+    { company: 'CSI Engineering' },
+    {},
+    { company: '  ' },
+  ];
+  assert.equal(countMissingCompany(people), 2);
+  assert.equal(countMissingCompany([]), 0);
+  assert.equal(countMissingCompany(), 0);
 });

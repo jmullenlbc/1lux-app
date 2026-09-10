@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
+import { companyLink, countMissingCompany } from '@/lib/crmClient';
 
 function checkInStatus(contact) {
   const ref = contact.lastInPersonAt ?? contact.lastTouchpointAt;
@@ -26,20 +27,57 @@ function fmtDate(d) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+/**
+ * Who a person works for — and, when we do not know, say so out loud rather than
+ * printing a dash that looks like every other blank field.
+ */
+function CompanyCell({ contact }) {
+  const { state, label } = companyLink(contact);
+
+  if (state === 'linked') {
+    return contact.client?.id
+      ? <Link href={`/clients/${contact.client.id}`} className="hover:text-blue-600 underline">{label}</Link>
+      : <span>{label}</span>;
+  }
+  if (state === 'typed') {
+    return (
+      <span>
+        {label}
+        <span className="ml-2 text-xs text-amber-700" title="Typed by hand — not linked to a client record, so nothing about this person rolls up to that company">
+          not linked
+        </span>
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200 text-xs font-semibold">
+      No company
+    </span>
+  );
+}
+
 export default function ContactsClient({ contacts }) {
   const [search, setSearch] = useState('');
+  // Since a person now survives their company being deleted, people with no
+  // employer at all can appear on their own. This makes them findable instead of
+  // leaving them scattered down a long list.
+  const [onlyMissingCompany, setOnlyMissingCompany] = useState(false);
+
+  const missingCompany = useMemo(() => countMissingCompany(contacts), [contacts]);
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return contacts;
+    let rows = contacts;
+    if (onlyMissingCompany) rows = rows.filter(c => companyLink(c).state === 'none');
+    if (!search.trim()) return rows;
     const q = search.toLowerCase();
-    return contacts.filter(c =>
+    return rows.filter(c =>
       c.name?.toLowerCase().includes(q) ||
       c.email?.toLowerCase().includes(q) ||
       c.title?.toLowerCase().includes(q) ||
       c.company?.toLowerCase().includes(q) ||
       c.client?.name?.toLowerCase().includes(q)
     );
-  }, [contacts, search]);
+  }, [contacts, search, onlyMissingCompany]);
 
   return (
     <div className="min-h-screen bg-slate-50 p-6">
@@ -49,7 +87,23 @@ export default function ContactsClient({ contacts }) {
           ← Back to CRM
         </Link>
         <h1 className="text-3xl font-bold text-slate-900 mb-1">Contacts</h1>
-        <p className="text-slate-500 mb-6">{filtered.length} contact{filtered.length !== 1 ? 's' : ''}</p>
+        <div className="flex flex-wrap items-center gap-3 mb-6">
+          <p className="text-slate-500">{filtered.length} contact{filtered.length !== 1 ? 's' : ''}</p>
+          {missingCompany > 0 && (
+            <button
+              type="button"
+              onClick={() => setOnlyMissingCompany(v => !v)}
+              className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                onlyMissingCompany
+                  ? 'bg-red-600 border-red-600 text-white'
+                  : 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
+              }`}
+              title="People with no employer at all — neither a linked client nor a typed company name"
+            >
+              {missingCompany} with no company{onlyMissingCompany ? ' — showing only these' : ''}
+            </button>
+          )}
+        </div>
 
         {/* Search */}
         <div className="mb-6">
@@ -99,7 +153,7 @@ export default function ContactsClient({ contacts }) {
                         )}
                       </td>
                       <td className="px-4 py-3 text-slate-600">
-                        {contact.company || contact.client?.name || '—'}
+                        <CompanyCell contact={contact} />
                       </td>
                       <td className="px-4 py-3 text-slate-600">{contact.title || '—'}</td>
                       <td className="px-4 py-3 text-slate-600">{contact.email || '—'}</td>

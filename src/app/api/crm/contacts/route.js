@@ -1,11 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-
-async function nextContactNumber() {
-  const max = await prisma.contact.aggregate({ _max: { contactNumber: true } });
-  return (max._max.contactNumber ?? 0) + 1;
-}
+import { nextContactNumber } from '@/lib/contactNumber';
 
 // GET /api/crm/contacts
 // Query: search, clientId

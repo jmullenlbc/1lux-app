@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { splitName, joinName, isValidEmail } from '@/lib/crmClient';
+import { nextContactNumber } from '@/lib/contactNumber';
 
 // Each person carries the projects they are attached to, so the page can work
 // out their own open / won / lost / abandoned counts without storing them.
@@ -34,7 +35,7 @@ export async function GET(request, { params }) {
   const { err } = await authorizeClient(params.id, user);
   if (err) return err;
 
-  const contacts = await prisma.clientContact.findMany({
+  const contacts = await prisma.contact.findMany({
     where: { clientId: params.id },
     orderBy: { createdAt: 'asc' },
     include: PROJECT_LINK_INCLUDE,
@@ -67,8 +68,9 @@ export async function POST(request, { params }) {
   const parts = splitName(fullName);
   const work = workPhone !== undefined ? workPhone : phone;
 
-  const contact = await prisma.clientContact.create({
+  const contact = await prisma.contact.create({
     data: {
+      contactNumber: await nextContactNumber(),
       clientId:  params.id,
       name:      fullName,
       firstName: (firstName ?? '').trim() || parts.firstName,
