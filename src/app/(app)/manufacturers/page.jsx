@@ -13,7 +13,7 @@ export default async function ManufacturersPage() {
   try {
     manufacturers = await prisma.manufacturer.findMany({
       orderBy: { name: 'asc' },
-      include: { products: { orderBy: { partNumber: 'asc' } } },
+      include: { products: { where: { archivedAt: null }, orderBy: { partNumber: 'asc' } } },
     });
   } catch (err) {
     console.error('[/manufacturers] DB query failed:', err?.message ?? err);

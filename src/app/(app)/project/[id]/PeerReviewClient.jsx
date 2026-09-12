@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { oversizeMessage } from '@/lib/uploadErrorMessage';
 import { appendUpload } from '@/lib/uploadClient';
 import ReadingWait, { READING_TIME_HINT } from '@/components/ReadingWait';
+import ConfirmArchiveModal, { setArchived, ArchiveBoxIcon, KEPT_ON_ARCHIVE_PAGE } from '@/components/salesAutomation/ConfirmArchiveModal';
 
 // ── Location Tags ─────────────────────────────────────────────────────────────
 
@@ -1081,7 +1082,8 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
   const [selectedBidVer,    setSelectedBidVer]    = useState(null); // null = live current
   const [renamingBudgetId,  setRenamingBudgetId]  = useState(null);
   const [budgetRenameInput, setBudgetRenameInput] = useState('');
-  const [deleteBudgetConfirm, setDeleteBudgetConfirm] = useState(null); // { id, label }
+  const [deleteBudgetConfirm, setDeleteBudgetConfirm] = useState(null); // { id, label } - the version being asked about
+  const [archivingBudget, setArchivingBudget] = useState(false);
 
   useEffect(() => {
     fetch('/api/manufacturers').then(r => r.json()).then(d => setManufacturers(d.manufacturers || []));
@@ -1176,11 +1178,16 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
     setBudgetRenameInput('');
   }
 
-  async function deleteBudgetVersion(matrixId) {
-    await fetch(`/api/projects/${project.id}/design-bid-matrix/${matrixId}`, { method: 'DELETE' });
+  // Budget versions are archived, never deleted (migration 0076). The row only
+  // leaves the list once the server has really archived it.
+  async function archiveBudgetVersion(matrixId) {
+    setArchivingBudget(true);
+    const problem = await setArchived(`/api/projects/${project.id}/design-bid-matrix/${matrixId}`);
+    setArchivingBudget(false);
+    setDeleteBudgetConfirm(null);
+    if (problem) { alert(problem); return; }
     setBidHistory(prev => prev.filter(m => m.id !== matrixId));
     if (selectedBidVer === matrixId) setSelectedBidVer(null);
-    setDeleteBudgetConfirm(null);
   }
 
   // Freeze budget settings in DB on first open so they never drift with future code defaults
@@ -1674,12 +1681,10 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                     </button>
                     <button
                       onClick={() => { const m = bidHistory.find(x => x.id === selectedBidVer); setDeleteBudgetConfirm({ id: selectedBidVer, label: `v${m?.version}${m?.submissionTag ? ` · ${m.submissionTag}` : ''}` }); }}
-                      title="Delete this version"
-                      className="p-1.5 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      title="Archive this version"
+                      className="p-1.5 rounded text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
                     >
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
+                      <ArchiveBoxIcon />
                     </button>
                   </div>
                 )
@@ -2775,26 +2780,16 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
         );
       })()}
 
-      {/* Budget version delete confirm */}
-      {deleteBudgetConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
-            <h3 className="text-base font-bold text-slate-800 mb-2">Delete budget version?</h3>
-            <p className="text-sm text-slate-500 mb-1">
-              You're about to permanently delete <strong className="text-slate-700">{deleteBudgetConfirm.label}</strong> of the budget matrix.
-            </p>
-            <p className="text-sm text-red-600 mb-6">This cannot be undone. All pricing data in this version will be deleted.</p>
-            <div className="flex gap-3 justify-end">
-              <button onClick={() => setDeleteBudgetConfirm(null)} className="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">
-                Cancel
-              </button>
-              <button onClick={() => deleteBudgetVersion(deleteBudgetConfirm.id)} className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700">
-                Delete version
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Budget version archive confirm */}
+      <ConfirmArchiveModal
+        open={!!deleteBudgetConfirm}
+        title="Archive this budget version?"
+        what={deleteBudgetConfirm?.label}
+        body={`All of its pricing is kept, and its number is never reused by a later version. ${KEPT_ON_ARCHIVE_PAGE}`}
+        busy={archivingBudget}
+        onCancel={() => setDeleteBudgetConfirm(null)}
+        onConfirm={() => archiveBudgetVersion(deleteBudgetConfirm.id)}
+      />
 
     </div>
   );

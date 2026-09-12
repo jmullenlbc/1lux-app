@@ -2,11 +2,10 @@
 import { useState } from 'react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { cn } from '@/lib/utils';
+import InteriorTierPicker from '@/components/sections/InteriorTierPicker';
 import { formatCurrency } from '@/lib/calculations';
 import { PRICING } from '@/lib/pricing';
-
-const INT_RATES = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+import { INTERIOR_AMENITY_RATES } from '@/lib/interiorAmenityTiers';
 
 export default function AmenitiesSection({ responses, projectData, pricing, onSaveResponses, onNext, onPrev }) {
   const P = pricing || PRICING;
@@ -64,52 +63,23 @@ export default function AmenitiesSection({ responses, projectData, pricing, onSa
           Choose the $/SF rate based on your project's finish level.
         </p>
         <p className="text-xs text-slate-400 mb-5">
-          Interior amenities range from $6/SF (garden walk-up) to $16/SF (high-end mid-rise or high-rise).
+          Interior amenities range from $4/SF (garden walk-up) to $16/SF (high-end mid-rise or high-rise), in three finish tiers.
         </p>
 
-        {/* Rate selector grid */}
-        <div className="grid grid-cols-5 gap-2 mb-4">
-          {INT_RATES.map(rate => {
-            const isSelected = String(selectedRate) === String(rate);
-            let finish = '';
-            if (rate <= 7)       finish = 'Low';
-            else if (rate <= 10) finish = 'Medium';
-            else if (rate <= 13) finish = 'Upper Mid';
-            else                 finish = 'High End';
-
-            return (
-              <button
-                key={rate}
-                onClick={() => {
-                  setAnswers(a => ({ ...a, interiorLevel: String(rate) }));
-                  setDirty(d => new Set(d).add('interiorLevel'));
-                }}
-                className={cn(
-                  'rounded-lg border p-3 text-center transition-all',
-                  isSelected
-                    ? 'border-amber-400 bg-amber-50 shadow-sm'
-                    : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50',
-                )}
-              >
-                <div className={cn('text-lg font-bold', isSelected ? 'text-amber-600' : 'text-slate-700')}>
-                  ${rate}
-                </div>
-                <div className="text-xs text-slate-400 mt-0.5">/SF</div>
-                <div className={cn('text-xs font-medium mt-1', isSelected ? 'text-amber-500' : 'text-slate-400')}>
-                  {finish}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Reference guide */}
-        <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-500 space-y-1">
-          <div><span className="font-medium text-slate-600">$6–7/SF</span> — Garden walk-up, minimal amenity package</div>
-          <div><span className="font-medium text-slate-600">$8–10/SF</span> — Standard mid-market multifamily</div>
-          <div><span className="font-medium text-slate-600">$11–13/SF</span> — Upper mid-range, enhanced amenity package</div>
-          <div><span className="font-medium text-slate-600">$14–16/SF</span> — High-end mid-rise or high-rise, luxury finishes</div>
-        </div>
+        {/* A project priced by an old named level (low/medium/high) highlights the
+            matching dollar button; picking any button saves a number from then on. */}
+        <InteriorTierPicker
+          value={String(selectedRate)}
+          onChange={rate => {
+            setAnswers(a => ({ ...a, interiorLevel: rate }));
+            setDirty(d => new Set(d).add('interiorLevel'));
+          }}
+        />
+        {selectedRate > 0 && !INTERIOR_AMENITY_RATES.includes(selectedRate) && (
+          <p className="text-xs text-amber-600 mt-3">
+            This project is currently priced at ${selectedRate}/SF, which is outside the $4–$16 range. Pick a rate above to change it.
+          </p>
+        )}
       </div>
 
       {/* Manual adder */}

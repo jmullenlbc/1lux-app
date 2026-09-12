@@ -275,8 +275,16 @@ export default function ManufacturersClient({ initialManufacturers }) {
   async function deleteMfr(id) {
     const mfr = manufacturers.find(m => m.id === id);
     if (!confirm(`Delete "${mfr?.name}"?`)) return;
+    // A manufacturer with products (archived ones included) is refused: its
+    // products are archive-only and would go with it (migration 0076). Only
+    // take it off the list once the server has really deleted it.
+    const res = await fetch(`/api/manufacturers/${id}`, { method: 'DELETE' }).catch(() => null);
+    if (!res?.ok) {
+      const data = res ? await res.json().catch(() => ({})) : {};
+      alert(data.error || 'Could not delete it. Nothing was changed.');
+      return;
+    }
     setManufacturers(prev => prev.filter(m => m.id !== id));
-    await fetch(`/api/manufacturers/${id}`, { method: 'DELETE' });
   }
 
   async function addMfr(data) {

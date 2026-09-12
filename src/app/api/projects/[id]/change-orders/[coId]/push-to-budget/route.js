@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { INCLUDE_ARCHIVED } from '@/lib/archive';
 
 // POST /api/projects/[id]/change-orders/[coId]/push-to-budget
 // Creates a new DesignBidMatrix version containing ONLY the CO's line items.
@@ -39,7 +40,7 @@ export async function POST(req, { params }) {
 
   // Version number: next after last CO-sourced or standard matrix
   const lastMatrix = await prisma.designBidMatrix.findFirst({
-    where:   { projectId: params.id },
+    where:   { projectId: params.id, ...INCLUDE_ARCHIVED },
     orderBy: { version: 'desc' },
   });
   const nextVersion = (lastMatrix?.version ?? 0) + 1;

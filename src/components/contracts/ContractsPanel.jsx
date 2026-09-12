@@ -3,6 +3,7 @@ import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import PdfViewerModal from '@/components/ui/PdfViewerModal';
 import { oversizeMessage, uploadErrorMessage, uploadThrowMessage } from '@/lib/uploadErrorMessage';
 import { appendUpload } from '@/lib/uploadClient';
+import ConfirmArchiveModal, { setArchived, ArchiveBoxIcon, KEPT_ON_ARCHIVE_PAGE } from '@/components/salesAutomation/ConfirmArchiveModal';
 
 // ─── Tag definitions ──────────────────────────────────────────────────────────
 const CONTRACT_TAGS = [
@@ -513,15 +514,13 @@ function ContractFileRow({ file, projectId, onDelete, analysisOverride, onView =
             </svg>
           </a>
 
-          {/* Delete */}
+          {/* Archive */}
           <button
             onClick={() => onDelete(file.id)}
-            className="p-1 rounded-lg text-slate-300 hover:text-red-400 hover:bg-red-50 transition-colors"
-            title="Delete file"
+            className="p-1 rounded-lg text-slate-300 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+            title="Archive file"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
+            <ArchiveBoxIcon className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -645,11 +644,9 @@ function SimpleFileRow({ file, projectId, onDelete, onView }) {
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
           </svg>
         </a>
-        {/* Delete */}
-        <button onClick={() => onDelete(file.id)} className="p-1.5 rounded-lg text-slate-300 hover:text-red-400 hover:bg-red-50 transition-colors" title="Delete">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
+        {/* Archive */}
+        <button onClick={() => onDelete(file.id)} className="p-1.5 rounded-lg text-slate-300 hover:text-amber-600 hover:bg-amber-50 transition-colors" title="Archive">
+          <ArchiveBoxIcon className="w-4 h-4" />
         </button>
       </div>
     </div>
@@ -665,6 +662,8 @@ export default function ContractsPanel({ projectId, initialFiles = [], onFileAdd
   const [newAnalyses, setNewAnalyses] = useState({});   // fileId → analysis
   const [activeTag,   setActiveTag]   = useState(null);
   const [viewingFile, setViewingFile] = useState(null); // PDF viewer
+  const [archiveAsk,  setArchiveAsk]  = useState(null); // the file being asked about
+  const [archiving,   setArchiving]   = useState(false);
   const inputRef = useRef(null);
 
   // For designOnly mode: only show these two tag options
@@ -743,9 +742,18 @@ export default function ContractsPanel({ projectId, initialFiles = [], onFileAdd
     }
   }
 
-  async function deleteFile(fileId) {
-    if (!confirm('Delete this file? This cannot be undone.')) return;
-    await fetch(`/api/projects/${projectId}/files/${fileId}`, { method: 'DELETE' });
+  // The rows' Archive buttons call this; it only asks. Contracts are archived,
+  // never deleted (migration 0076).
+  function deleteFile(fileId) {
+    setArchiveAsk(files.find(f => f.id === fileId) ?? { id: fileId });
+  }
+
+  async function archiveFile(fileId) {
+    setArchiving(true);
+    const problem = await setArchived(`/api/projects/${projectId}/files/${fileId}`);
+    setArchiving(false);
+    setArchiveAsk(null);
+    if (problem) { alert(problem); return; }
     setFiles(prev => prev.filter(f => f.id !== fileId));
     onFileDeleted?.(fileId);
   }
@@ -777,6 +785,15 @@ export default function ContractsPanel({ projectId, initialFiles = [], onFileAdd
 
   return (
     <div className="space-y-4">
+      <ConfirmArchiveModal
+        open={!!archiveAsk}
+        title="Archive this file?"
+        what={archiveAsk?.originalName}
+        body={`It comes off this tab, along with its contract review. ${KEPT_ON_ARCHIVE_PAGE}`}
+        busy={archiving}
+        onCancel={() => setArchiveAsk(null)}
+        onConfirm={() => archiveFile(archiveAsk.id)}
+      />
       {/* PDF viewer */}
       {viewingFile && (
         <PdfViewerModal

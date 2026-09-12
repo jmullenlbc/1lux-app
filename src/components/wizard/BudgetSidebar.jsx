@@ -152,7 +152,7 @@ export default function BudgetSidebar({ budget, projectData, currentStep }) {
             <Divider />
 
             <TooltipBudgetRow
-              label="Controls (IECC 2021)"
+              label="Controls (IECC)"
               value={controls || 0}
               highlight={currentStep === 'controls'}
               details={[{ label: 'Controls product', value: controls || 0 }]}

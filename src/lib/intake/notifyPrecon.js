@@ -49,6 +49,10 @@ export async function notifyPrecon({ submission, answers, flags, drawings }) {
   const subject = `New conceptual budget request: ${submission.proposedName}`
     + (flags?.length ? ` (${flags.length} item${flags.length === 1 ? '' : 's'} to verify)` : '');
 
+  // "No drawings" submissions (Mike, 2026-09-11) still get a full takeoff —
+  // typed figures plus the ⚠ stand-in guesses for anything left blank.
+  const typedIn = Array.isArray(answers) && answers.some(a => a?.questionKey === 'noDrawings' && a?.answer === 'yes');
+
   const parts = [
     `A new conceptual budget request just came in on app.ilcstudios.com/conceptual_budget.`,
     ``,
@@ -57,12 +61,14 @@ export async function notifyPrecon({ submission, answers, flags, drawings }) {
     `COMPANY:   ${submission.submitterDomain}`,
     ``,
     `── What the drawings said ──`,
-    drawings ? summarizeDrawings(drawings) : 'No drawings were uploaded.',
+    drawings ? summarizeDrawings(drawings)
+      : typedIn ? 'No drawings — the submitter typed the figures in. Anything marked ⚠ is our estimate.'
+      : 'No drawings were uploaded.',
   ];
 
   // The full quantity takeoff — every count and SF the budget math needs,
   // with a ⚠ on anything that should be verified before it is trusted.
-  if (drawings) {
+  if (drawings || typedIn) {
     try {
       const pricing = await loadPricing().catch(() => null);
       const quantities = computeQuantities(drawings, answers, pricing);

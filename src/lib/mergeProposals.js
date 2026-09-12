@@ -38,8 +38,8 @@
 // siteVision.js). Listed for the same reason as `totals` below: a new field in
 // the vision schema must be a deliberate decision here too.
 const SITE_DATA_KEYS = [
-  'lotAcres', 'lotSf', 'totalUnits', 'parkingProvided', 'parkingRequired',
-  'surfaceParking', 'garages', 'carports', 'buildingCount', 'clubhouseSf',
+  'lotAcres', 'lotSf', 'totalUnits', 'parkingProvided', 'parkingRequired', 'parkingRatioRequired',
+  'surfaceParking', 'surfaceParkingCounted', 'garages', 'carports', 'buildingCount', 'clubhouseSf',
   'amenitySf', 'grossSf', 'stories', 'storiesCounted', 'egressStairwells',
   'egressStairwellsCounted', 'exitDoors', 'exitDoorsCounted',
   'buildingFootprintSf', 'lotCoveragePct', 'buildingType',

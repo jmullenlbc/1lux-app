@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { unlink } from 'fs/promises';
-import path from 'path';
+import { archiveData, readArchivedFlag, deleteRefused, ARCHIVED_FLAG_HELP } from '@/lib/archive';
 
 async function canAccess(projectId, user) {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
@@ -46,27 +45,33 @@ export async function PATCH(request, { params }) {
   return NextResponse.json({ submission });
 }
 
-// DELETE /api/projects/[id]/drawing-submissions/[submissionId]
-export async function DELETE(request, { params }) {
+// Drawing sets are archived, never deleted (Mike, 2026-09-11: "yes drawings
+// and budgets and products should be archive only"). Migration 0076. The PDFs
+// stay where they are, so a restored set opens exactly as before.
+export async function DELETE() {
+  return NextResponse.json({ error: deleteRefused('Drawing sets') }, { status: 405 });
+}
+
+// POST /api/projects/[id]/drawing-submissions/[submissionId]  { archived: true | false }
+export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
-  if (!(await canAccess(params.projectId || params.id, user))) {
+  if (!(await canAccess(params.id, user))) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const submission = await prisma.drawingSubmission.findUnique({
-    where:   { id: params.submissionId },
-    include: { files: true },
-  });
-  if (!submission) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  const archived = await readArchivedFlag(request);
+  if (archived === null) return NextResponse.json({ error: ARCHIVED_FLAG_HELP }, { status: 400 });
 
-  // Delete physical files
-  for (const f of submission.files) {
-    try {
-      await unlink(path.join(process.cwd(), 'uploads', f.storedPath));
-    } catch {}
+  const existing = await prisma.drawingSubmission.findUnique({ where: { id: params.submissionId }, select: { projectId: true } });
+  if (!existing || existing.projectId !== params.id) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  await prisma.drawingSubmission.delete({ where: { id: params.submissionId } });
-  return NextResponse.json({ success: true });
+  const submission = await prisma.drawingSubmission.update({
+    where:   { id: params.submissionId },
+    data:    archiveData(archived, user),
+    include: { files: { orderBy: { createdAt: 'asc' } } },
+  });
+  return NextResponse.json({ submission });
 }

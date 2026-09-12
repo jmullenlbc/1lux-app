@@ -269,7 +269,8 @@ function siteParkingChecks(output, ctx = {}) {
   // 0 ── Something has to have been read. A site plan that yielded nothing is a
   //      failed extraction, not a modest one — there is nothing here to apply.
   const READ_FIELDS = ['lotAcres', 'lotSf', 'totalUnits', 'parkingProvided', 'parkingRequired',
-                       'surfaceParking', 'garages', 'carports', 'buildingCount', 'clubhouseSf', 'amenitySf'];
+                       'parkingRatioRequired', 'surfaceParking', 'surfaceParkingCounted',
+                       'garages', 'carports', 'buildingCount', 'clubhouseSf', 'amenitySf'];
   const readCount = READ_FIELDS.filter(f => Number.isFinite(stated(output?.[f]))).length;
   if (!readCount) {
     return [result('read-anything', FAIL,
@@ -279,7 +280,8 @@ function siteParkingChecks(output, ctx = {}) {
   // 1 ── Counts are counts. Half a parking stall means a digit was misread or a
   //      dimension landed in a count field.
   const countFields = [
-    ['surfaceParking', 'surface stalls'], ['garages', 'garages'], ['carports', 'carports'],
+    ['surfaceParking', 'surface stalls'], ['surfaceParkingCounted', 'counted surface stalls'],
+    ['garages', 'garages'], ['carports', 'carports'],
     ['parkingProvided', 'parking provided'], ['parkingRequired', 'parking required'],
     ['totalUnits', 'total units'], ['buildingCount', 'building count'],
   ];

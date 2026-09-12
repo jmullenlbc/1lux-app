@@ -4,8 +4,9 @@ import DrawingDropzone from '@/components/intake/DrawingDropzone';
 import BudgetSidebar from '@/components/wizard/BudgetSidebar';
 import SummaryBudgetBreakdown from '@/app/(app)/project/[id]/summary/SummaryBudgetBreakdown';
 import QuestionCard from '@/components/sections/QuestionCard';
+import InteriorTierPicker from '@/components/sections/InteriorTierPicker';
 import { classifyIntakeEmail } from '@/lib/intake';
-import { INTAKE_QUESTIONS } from '@/lib/intake/questionnaire';
+import { INTAKE_QUESTIONS, noDrawingsReady } from '@/lib/intake/questionnaire';
 import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -77,6 +78,33 @@ const FIGURE_FIELDS = [
   // the visitor picks — ask for it whenever the unit matrix didn't list one.
   { key: 'figureBalconies',      qKey: 'balconies',        label: '# Balconies',              placeholder: 'e.g. 150' },
 ];
+
+/**
+ * The no-drawings form on the Drawings step (Mike, 2026-09-11: "some other
+ * way to say no and then all the square footage and count details that you
+ * need to fill in"). `need` marks the minimum no guess can stand in for —
+ * the same rule noDrawingsReady enforces on the server; 'either' means one
+ * of the two size figures will do. Blank optional fields are estimated
+ * server-side and the estimate is shown under the field.
+ */
+const MANUAL_FIELDS = [
+  { key: 'figureTotalUnits',        qKey: 'totalUnits',        label: 'Total units',               placeholder: 'e.g. 234',     need: 'required' },
+  { key: 'figureGrossSf',           qKey: 'grossSf',           label: 'Total building SF',         placeholder: 'e.g. 364,000', need: 'either' },
+  { key: 'figureAvgUnitSf',         qKey: null,                label: 'Average unit size SF',      placeholder: 'e.g. 950',     need: 'either' },
+  { key: 'figureBuildings',         qKey: null,                label: '# Residential buildings',   placeholder: 'e.g. 6',       hint: 'Helps us estimate stairwells.' },
+  { key: 'figureStories',           qKey: 'stories',           label: '# Stories',                 placeholder: 'e.g. 4' },
+  { key: 'figureStairLandings',     qKey: 'stairLandings',     label: '# Egress stairwell landings', placeholder: 'e.g. 15' },
+  { key: 'figureExitDoors',         qKey: 'exitDoors',         label: '# Exit doors',              placeholder: 'e.g. 8' },
+  { key: 'figureSurfaceParking',    qKey: 'surfaceParking',    label: '# Surface parking stalls',  placeholder: 'e.g. 120' },
+  { key: 'figureBalconies',         qKey: 'balconies',         label: '# Balconies',               placeholder: 'e.g. 150' },
+  { key: 'figureInteriorAmenitySf', qKey: 'interiorAmenitySf', label: 'Interior amenity SF',       placeholder: 'e.g. 5,000',   hint: 'Clubhouse, leasing, fitness.' },
+  { key: 'figureCorridorSf',        qKey: 'corridorSf',        label: 'Corridors & stairwells SF', placeholder: 'e.g. 30,000' },
+  { key: 'figureBohSf',             qKey: 'bohSf',             label: 'Back of house SF',          placeholder: 'e.g. 10,000',  hint: 'Mechanical, storage, trash, bike rooms.' },
+  { key: 'figureGarageSf',          qKey: 'garageSf',          label: 'Garage SF',                 placeholder: 'e.g. 80,000',  hint: 'Leave blank if there is no parking garage.' },
+  { key: 'figureExteriorAmenitySf', qKey: 'exteriorAmenitySf', label: 'Exterior amenity SF',       placeholder: 'e.g. 12,000',  hint: 'Pool deck, courtyards. Leave blank if none.' },
+];
+
+const PROJECT_TYPE_OPTIONS = INTAKE_QUESTIONS.find(q => q.key === 'projectType')?.options || [];
 
 function Field({ label, labelRight, hint, error, children }) {
   return (
@@ -205,12 +233,16 @@ export default function IntakeClient() {
   const [project,   setProject]   = useState('');
   const [touchedEmail, setTouchedEmail] = useState(false);
   const [drawings, setDrawings] = useState(null);
+  // "Do you have drawings?" — null until answered, then 'yes' (the dropzone)
+  // or 'no' (the typed-in figures form).
+  const [haveDrawings, setHaveDrawings] = useState(null);
+  const manual = haveDrawings === 'no';
   // Figures the visitor types when the drawings couldn't answer them (or to
   // override a derived estimate). Kept apart from `answers` so the radio-group
   // state stays purely INTAKE_QUESTIONS; merged in at the payload boundary.
   const [figures, setFigures] = useState(() => {
     const init = {};
-    for (const f of FIGURE_FIELDS) init[f.key] = '';
+    for (const f of [...FIGURE_FIELDS, ...MANUAL_FIELDS]) init[f.key] = '';
     return init;
   });
   const [answers, setAnswers] = useState(() => {
@@ -249,23 +281,29 @@ export default function IntakeClient() {
       const s = String(v ?? '').trim();
       if (s) out[k] = s;
     }
+    if (manual) out.noDrawings = 'yes';
     return out;
-  }, [answers, figures]);
+  }, [answers, figures, manual]);
+
+  // The no-drawings minimum (project type, units, and a size) — the same
+  // check the estimate route enforces before it will price anything.
+  const manualCheck = useMemo(() => noDrawingsReady(mergedAnswers), [mergedAnswers]);
 
   // ── Live server-side estimate ──────────────────────────────────────────────
   // Debounced: every answer flip re-prices, but a burst of changes is one call.
   // Drawings are the ticket in (Mike, 2026-09-04): no live number without
-  // them. Typed figures only REFINE an estimate the drawings started.
+  // them. Typed figures only REFINE an estimate the drawings started — unless
+  // the visitor said "no drawings" and filled in the minimum (Mike, 2026-09-11).
   const estimateSeq = useRef(0);
   useEffect(() => {
-    if (!drawings) { setEstimate(null); return; }
+    if (manual ? !manualCheck.ready : !drawings) { setEstimate(null); return; }
     const seq = ++estimateSeq.current;
     const t = setTimeout(async () => {
       try {
         const res = await fetch('/api/intake/estimate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ answers: mergedAnswers, drawings }),
+          body: JSON.stringify({ answers: mergedAnswers, drawings: manual ? null : drawings }),
         });
         if (!res.ok) return; // keep the last good estimate
         const data = await res.json();
@@ -273,7 +311,7 @@ export default function IntakeClient() {
       } catch { /* transient network failure — keep the last good estimate */ }
     }, 500);
     return () => clearTimeout(t);
-  }, [mergedAnswers, figures, drawings]);
+  }, [mergedAnswers, figures, drawings, manual, manualCheck.ready]);
 
   // ── "We couldn't find these" — the figures asked for on the Units page ────
   // Driven by the estimate's provenance rows: a figure whose source is
@@ -281,14 +319,84 @@ export default function IntakeClient() {
   // → show our estimate with its arithmetic and offer the override. Only
   // shown once drawings have been read — no drawings, no card, no number.
   const figureAsks = useMemo(() => {
-    if (!estimate) return [];
+    // A typed-in budget already asked for all of these on the Drawings step.
+    if (!estimate || manual) return [];
     const rows = new Map((estimate?.quantities || []).map(r => [r.key, r]));
     return FIGURE_FIELDS.map(f => {
       const row = rows.get(f.qKey) || null;
       if (row && row.source === 'drawing') return null;
       return { ...f, row };
     }).filter(Boolean);
-  }, [estimate]);
+  }, [estimate, manual]);
+
+  // Takeoff rows by key — the no-drawings form shows "we'll estimate N" under
+  // any optional field left blank.
+  const estimateRows = useMemo(
+    () => new Map((estimate?.quantities || []).map(r => [r.key, r])),
+    [estimate]);
+
+  // What the no-drawings form fills a blank box with (Mike, 2026-09-11: "can
+  // we fill out the field but say it's an estimate somehow and they can
+  // overwrite if they want"). Only the server's own estimates — rows it
+  // derived — plus the average unit size, which is the estimated unit area
+  // spread over the typed unit count. Nothing is shown until the required
+  // figures are in, so a stale estimate never sits in a box.
+  const manualEstimates = useMemo(() => {
+    const m = {};
+    if (!manual || !manualCheck.ready) return m;
+    for (const f of MANUAL_FIELDS) {
+      const row = f.qKey ? estimateRows.get(f.qKey) : null;
+      if (row?.source === 'derived' && row.value != null) m[f.key] = { value: row.value, how: row.how };
+    }
+    const unitsSf = estimateRows.get('unitsSf');
+    const units   = estimateRows.get('totalUnits')?.value;
+    if (unitsSf?.source === 'derived' && unitsSf.value && units > 0) {
+      m.figureAvgUnitSf = {
+        value: Math.round(unitsSf.value / units),
+        how:   `${unitsSf.how} Spread over ${Number(units).toLocaleString('en-US')} units.`,
+      };
+    }
+    return m;
+  }, [manual, manualCheck.ready, estimateRows]);
+
+  // The box being typed in. While it has focus, an emptied box stays empty
+  // (so the visitor can type a fresh number); on blur a blank box shows the
+  // estimate again.
+  const [editingKey, setEditingKey] = useState(null);
+
+  // A plain function, not a component, so React never remounts the input and
+  // steals focus mid-typing.
+  const manualInput = f => {
+    const typed = String(figures[f.key] ?? '');
+    const est = manualEstimates[f.key];
+    const showEst = !!est && !typed.trim() && editingKey !== f.key;
+    return (
+      <>
+        <div className="relative">
+          <input
+            className={cn(inputCls, showEst && 'bg-amber-50 border-amber-200 text-amber-700 italic pr-20')}
+            inputMode="numeric"
+            value={showEst ? Number(est.value).toLocaleString('en-US') : typed}
+            onFocus={e => { if (showEst) { const el = e.target; requestAnimationFrame(() => el.select()); } }}
+            onChange={e => { const v = e.target.value; setEditingKey(f.key); setFigures(x => ({ ...x, [f.key]: v })); }}
+            onBlur={() => setEditingKey(k => (k === f.key ? null : k))}
+            placeholder={f.placeholder}
+            title={showEst ? est.how || undefined : undefined}
+          />
+          {showEst && (
+            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">
+              Estimate
+            </span>
+          )}
+        </div>
+        {showEst && (
+          <p className="text-xs text-amber-600 mt-1.5">
+            Our estimate{est.how ? ` — ${est.how}` : '.'} Type over it if you know the real number.
+          </p>
+        )}
+      </>
+    );
+  };
 
   // ── Building summary on the Drawings page (Mike, 2026-09-04: "add a
   // building summary on the drawing page below of everything we pulled from
@@ -354,7 +462,7 @@ export default function IntakeClient() {
           contactEmail: email,
           companyName:  company || null,
           projectName:  project,
-          drawingsData: drawings || null,
+          drawingsData: manual ? null : (drawings || null),
           answers: mergedAnswers,
         }),
       });
@@ -569,6 +677,32 @@ export default function IntakeClient() {
                   'bg-white rounded-2xl border border-slate-200 p-6',
                   stepId !== 'drawings' && 'hidden'
                 )}>
+                    <h3 className="text-sm font-semibold text-slate-800 mb-3">Do you have drawings?</h3>
+                    <div className="grid sm:grid-cols-2 gap-3 mb-6">
+                      {[
+                        { v: 'yes', title: 'Yes — I have drawings', body: 'Drop them in and we read the square footage and counts for you.' },
+                        { v: 'no',  title: 'No drawings yet',       body: 'Type in what you know — we estimate the rest.' },
+                      ].map(o => (
+                        <button
+                          key={o.v}
+                          type="button"
+                          onClick={() => setHaveDrawings(o.v)}
+                          className={cn(
+                            'text-left rounded-xl border p-4 transition-colors',
+                            haveDrawings === o.v
+                              ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-100'
+                              : 'border-slate-200 hover:border-slate-300 bg-white'
+                          )}
+                        >
+                          <span className="block text-sm font-semibold text-slate-900">{o.title}</span>
+                          <span className="block text-xs text-slate-500 mt-1">{o.body}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* The dropzone stays MOUNTED when "No" is picked (hidden with
+                        CSS) so switching back keeps the uploaded files. */}
+                    <div className={cn(haveDrawings !== 'yes' && 'hidden')}>
                     <p className="text-sm text-slate-500 mb-5">
                       The most useful sheet is the one with the <strong>unit matrix</strong> — building square footage and
                       unit counts. We read it automatically so you don&apos;t have to type it in.
@@ -612,18 +746,73 @@ export default function IntakeClient() {
                         )}
                       </div>
                     )}
+                    </div>
+
+                    {/* ── No drawings: the typed-in figures form ── */}
+                    {manual && (
+                      <div className="space-y-6">
+                        <p className="text-sm text-slate-500">
+                          The items marked <strong>Required</strong> are all we need for a number. Leave anything else
+                          blank and we&apos;ll estimate it — our team checks every estimate before a budget goes out.
+                        </p>
+                        <div className="grid sm:grid-cols-3 gap-4">
+                          <div className="sm:col-span-3">
+                            <Field label="Project type" labelRight="Required">
+                              <select
+                                className={inputCls}
+                                value={answers.projectType ?? ''}
+                                onChange={e => setAnswers(a => ({ ...a, projectType: e.target.value }))}
+                              >
+                                <option value="">Choose one…</option>
+                                {PROJECT_TYPE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                              </select>
+                            </Field>
+                          </div>
+                          {MANUAL_FIELDS.filter(f => f.need).map(f => (
+                            <Field
+                              key={f.key}
+                              label={f.label}
+                              labelRight={f.need === 'required' ? 'Required' : f.key === 'figureGrossSf' ? 'Required — or unit size' : 'Or this'}
+                            >
+                              {manualInput(f)}
+                            </Field>
+                          ))}
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-semibold text-slate-800">Optional — we&apos;ll estimate anything left blank</h3>
+                          <div className="grid sm:grid-cols-2 gap-4 mt-3">
+                            {MANUAL_FIELDS.filter(f => !f.need).map(f => (
+                              <Field key={f.key} label={f.label} labelRight="Optional" hint={f.hint}>
+                                {manualInput(f)}
+                              </Field>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="flex items-center justify-between mt-6">
                       <button onClick={goPrev} className={backBtn}>← Back</button>
                       <div className="flex items-center gap-3">
                         <span className="text-xs text-slate-400">
-                          {drawings
-                            ? `${drawings.sources.length} drawing${drawings.sources.length !== 1 ? 's' : ''} read`
-                            : 'Upload drawings to see live pricing — you can still submit without them'}
+                          {haveDrawings === null
+                            ? 'Choose Yes or No above'
+                            : manual
+                              ? (manualCheck.ready
+                                  ? 'Your live budget is ready'
+                                  : `Still needed: ${manualCheck.missing.join(', ')}`)
+                              : drawings
+                                ? `${drawings.sources.length} drawing${drawings.sources.length !== 1 ? 's' : ''} read`
+                                : 'Upload drawings to see live pricing — you can still submit without them'}
                         </span>
-                        <button onClick={goNext} className={navBtn(true)}>
-                          {drawings ? 'Continue to units →' : 'Skip — continue to units →'}
-                        </button>
+                        {(() => {
+                          const ok = haveDrawings === 'yes' || (manual && manualCheck.ready);
+                          return (
+                            <button onClick={() => ok && goNext()} disabled={!ok} className={navBtn(ok)}>
+                              {manual || drawings || haveDrawings === null ? 'Continue to units →' : 'Skip — continue to units →'}
+                            </button>
+                          );
+                        })()}
                       </div>
                     </div>
                   </section>
@@ -667,6 +856,19 @@ export default function IntakeClient() {
                     <div className="space-y-4">
                       {step.sections.flatMap(name => questionsBySection.get(name) || []).map(q => (
                         <div key={q.key}>
+                          {q.key === 'interiorAmenityFinish' ? (
+                            // $4–$16 in three finish tiers — same picker as the internal wizard.
+                            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                              <div className="mb-4">
+                                <p className="font-semibold text-slate-900">{q.question}</p>
+                                {q.hint && <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">{q.hint}</p>}
+                              </div>
+                              <InteriorTierPicker
+                                value={answers[q.key] ?? ''}
+                                onChange={v => setAnswers(a => ({ ...a, [q.key]: v }))}
+                              />
+                            </div>
+                          ) : (
                           <QuestionCard
                             question={q.question}
                             note={q.hint}
@@ -674,6 +876,7 @@ export default function IntakeClient() {
                             onChange={v => setAnswers(a => ({ ...a, [q.key]: v }))}
                             options={q.options.map(opt => ({ value: opt, label: optionLabel(q, opt) }))}
                           />
+                          )}
                           {q.key === 'projectType' && guessedType && answers.projectType === guessedType && (
                             <p className="text-xs text-amber-600 mt-1.5">Pre-filled from your drawings — change it if we got it wrong.</p>
                           )}
@@ -772,7 +975,9 @@ export default function IntakeClient() {
                       <div className="flex justify-between gap-3 border-b border-slate-100 py-1.5 sm:col-span-2">
                         <dt className="text-slate-400">Drawings</dt>
                         <dd className="text-slate-800 font-medium text-right">
-                          {drawings ? `${drawings.sources.length} file${drawings.sources.length !== 1 ? 's' : ''} read` : 'None uploaded'}
+                          {manual
+                            ? 'None — figures typed in'
+                            : drawings ? `${drawings.sources.length} file${drawings.sources.length !== 1 ? 's' : ''} read` : 'None uploaded'}
                         </dd>
                       </div>
                     </dl>
@@ -788,7 +993,7 @@ export default function IntakeClient() {
                             </dd>
                           </div>
                         ))}
-                        {FIGURE_FIELDS.filter(f => String(figures[f.key] ?? '').trim()).map(f => (
+                        {(manual ? MANUAL_FIELDS : FIGURE_FIELDS).filter(f => String(figures[f.key] ?? '').trim()).map(f => (
                           <div key={f.key} className="flex justify-between gap-3 py-1 border-b border-slate-50 min-w-0">
                             <dt className="text-slate-400 truncate min-w-0">{f.label} (entered by you)</dt>
                             <dd className="text-slate-700 font-medium text-right shrink-0">{figures[f.key]}</dd>

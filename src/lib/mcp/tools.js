@@ -375,7 +375,7 @@ const get_project_360 = {
           projectData: true,
           changeOrders: { include: { optionGroups: { include: { lineItems: true } } } },
           fixtureSchedules: { include: { items: true } },
-          designBidMatrices: { include: { items: true }, orderBy: { version: 'desc' }, take: 1 },
+          designBidMatrices: { where: { archivedAt: null }, include: { items: true }, orderBy: { version: 'desc' }, take: 1 },
           peerReviewItems: true,
         },
       }),

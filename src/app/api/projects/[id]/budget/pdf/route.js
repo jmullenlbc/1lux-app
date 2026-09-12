@@ -325,7 +325,7 @@ ${row(`Freight (${freightPct}%)`, budget.freight || 0)}
 ${row(`Warehousing (${warehousingPct}%)`, budget.warehousing || 0)}
 ${budget.lightingTaxAmount > 0 ? row(taxLabel, budget.lightingTaxAmount) : ''}
 ${row('Lighting Total', budget.subtotalLightingOnly, true)}
-${row('Controls (IECC 2021)', budget.controls || 0)}
+${row('Controls (IECC)', budget.controls || 0)}
 ${budget.energyCreditControls > 0 ? row(`Energy Credit (${Math.round((budget.energyCreditPct || 0) * 100)}%)`, budget.energyCreditControls) : ''}
 ${row(`Freight (${freightPct}%)`, budget.controlsFreight || 0)}
 ${row(`Warehousing (${warehousingPct}%)`, budget.controlsWarehousing || 0)}

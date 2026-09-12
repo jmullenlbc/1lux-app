@@ -5,6 +5,128 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Questionnaire wording: external amenity hours, no "Other", IECC without the year] - September 12, 2026 (DEPLOYED)
+
+Mike: *"get rid of the year 2021 after IECC. get rid of other options in what will be the
+amenity operational hours. also it should say external amenities operational hours."*
+Then: *"Change to 'If there is an exterior pool, what is the open/close schedule of it?'"*
+
+- The hours question now reads "What will be the external amenities' operational hours?
+  If there is an exterior pool, what is its open/close schedule?" and offers only **24hrs or after dark** and **Dusk to Dawn** (the new default). "Other"
+  priced exactly the same as Dusk to Dawn, so no budget moves. Jobs that already saved
+  "Other" still read, and show as Dusk to Dawn in the wizard.
+- "IECC 2021" is now just "IECC" wherever a person reads it: the project-type hint, the
+  Controls screen, the budget sidebar, the summary page and the budget PDF. The code
+  library the checkers use still names the real edition.
+
+Files: `src/lib/intake/questionnaire.js`, `src/components/sections/ExteriorSection.jsx`,
+`src/components/sections/ControlsSection.jsx`, `src/components/wizard/BudgetSidebar.jsx`,
+`src/app/(app)/project/[id]/summary/SummaryBudgetBreakdown.jsx`,
+`src/app/api/projects/[id]/budget/pdf/route.js`, `src/lib/pricing.js` (old answer's label),
+`scripts/tests/questionnaire.test.mjs`.
+
+## [Admin tabs on the Sales Automation screen were hidden] - September 12, 2026 (DEPLOYED)
+
+The app's "who am I" check (`/api/auth/me`) looked the user up by a name that was never
+defined, so it failed every time on the live site. The Sales Automation screen asks that check
+whether to show its admin-only tabs, so those tabs never appeared, even for Super Admins.
+One-line fix: it now looks the user up by the session it just read.
+
+Files: `src/app/api/auth/me/route.js`, `scripts/tests/authMe.test.mjs` (new).
+
+## [Files, drawings, budget versions and products are archive-only] - September 12, 2026 (DEPLOYED)
+
+Mike: *"yes drawings and budgets and products should be archive only"* and *"like budget matrix, conceptual budget, design questionnaire I don't want to be deleted."*
+
+**1. Delete is now Archive** on project files (every tab, including contracts and the bulk
+select), drawing sets, budget matrix versions and products. Each asks with the amber
+"Archive this …?" box and says where it goes. Nothing is removed from the screen unless the
+server really archived it; if it didn't, you see why.
+- One drawing sheet belongs to its set, so archiving a sheet archives the whole set (the box says so).
+- A budget version's number is never reused: archive v3 and the next one is still v4.
+
+**2. The Archive page** has four new lists (Files, Drawing sets, Budget versions, Products),
+each with Restore. Products show only to people who see everything, since only an admin can
+archive or restore one.
+
+**3. Locked from deletion.** Conceptual budget submissions and questionnaire answers (and the
+four above, and drawing sheets) can no longer be deleted by any code in the app, now or later;
+the database connection refuses. Two deletes that would have taken them along now refuse
+with a reason: a manufacturer that still has products, and a fixture-schedule version a
+budget was built from. The project History tab shows "File Archived" / "File Restored".
+
+**Migration 0076** (additive only): `archivedAt` + `archivedById` on ProjectFile,
+DrawingSubmission, ManufacturerProduct and DesignBidMatrix. Schema-guard: pass.
+
+Files: `prisma/schema.prisma`, `prisma/migrations/0076_archive_only_documents/`,
+`src/lib/archive.js`, the five DELETE routes (now 405 + archive/restore POST), manufacturer and
+fixture-schedule-version DELETE routes, `src/app/(app)/archive/*`, `ConfirmArchiveModal.jsx`,
+ProductsClient, ProductDetailClient, FixtureScheduleTab, DrawingsTab, PeerReviewClient,
+ProjectHubClient, ContractsPanel, FileDropZone, ManufacturersClient, FixtureScheduleEditor,
+ProjectActivityFeed, `scripts/tests/documentArchive.test.mjs`.
+
+---
+
+## [Conceptual budget: no-drawings path, finish tiers, smarter parking] - September 12, 2026 (DEPLOYED)
+
+Mike: *"someone without any drawings can do a conceptual budget in that first screen ... we need to figure out which ones are actually required and which ones can be guessed."*
+
+**1. No drawings? You can still get a budget.** The Drawings step of the public
+conceptual budget now starts with **"Do you have drawings?"**
+- **Yes** shows the same drop-your-drawings box as before.
+- **No drawings yet** opens a short form.
+  - **Required** (nothing can stand in for these): project type, total units, and
+    either total building SF or average unit size.
+  - **Optional**: stories, number of buildings, stair landings, exit doors,
+    surface parking, balconies, interior amenity SF, corridor SF, back of house
+    SF, garage SF and exterior amenity SF.
+  - Mike: *"can we fill out the field but say it's an estimate somehow and they
+    can overwrite if they want."* Once the three required figures are in, every
+    optional box we can work out **fills itself in** with our number, in amber
+    italics with an **ESTIMATE** tag and a line saying how we got it. Clicking
+    the box selects the number so typing replaces it; clearing the box brings
+    the estimate back. Garage and exterior amenity stay blank (blank = none).
+  - **New: back of house SF.** It can be typed in, and on a no-drawings budget
+    it is estimated as building SF minus units, corridors and amenity, capped
+    at 5% of the building. Budgets without drawings now include back-of-house
+    lighting, so they read a little higher than before (a 200-unit, 250,000 SF
+    garden job went from about $289K to $321,710).
+- The live budget on the right lights up the moment the three required figures
+  are in. Continue stays locked until they are, and names what is missing.
+- **Our stand-in guesses** (only for no-drawing budgets, each marked ⚠ ESTIMATED):
+  - typical stories by building type
+  - surface stalls per unit by type (garden 1.5, townhomes 0.5, garage buildings 0)
+  - corridors at 12% of building SF for corridor buildings (0 for breezeway types)
+  - 20 SF of clubhouse, leasing and fitness per unit
+  - one balcony per unit, unless balcony lighting is "None"
+  - building SF = unit SF × 1.25, or unit SF = building SF ÷ 1.25
+- Garage SF and exterior amenity SF are never guessed. Blank means none.
+- The server enforces the same required three, so the address still can't be
+  used as a free pricing calculator. The precon email and the admin intake
+  screen show the takeoff for typed-in requests, with every guess flagged.
+
+**2. Interior amenity finish tiers.** The rate picker offers every dollar from
+$4 to $16 per SF, grouped into Low ($4–$8), Medium ($9–$12) and High ($13–$16).
+It appears on the internal wizard and the public form.
+
+**3. Parking ladder.** When the drawings don't state a surface-stall number:
+1. We use units × the required parking ratio printed on the plans.
+2. If that's missing, the drawing reader counts the stalls on the site plan.
+A typed figure beats every estimate but never a number written on the drawings.
+
+### Files
+- New: `src/lib/intake/noDrawingGuesses.js`, `src/lib/interiorAmenityTiers.js`,
+  `src/components/sections/InteriorTierPicker.jsx`
+- Changed: `quantities.js`, `questionnaire.js`, `siteVision.js`, `combineResult.js`,
+  `mergeProposals.js`, `autoChecks.js`, `notifyPrecon.js`, `api/intake/estimate`,
+  `conceptual_budget/IntakeClient.jsx`, `admin/intake/IntakeClient.jsx`,
+  `AmenitiesSection.jsx`
+- Tests: `noDrawings.test.mjs` (9), `parkingLadder.test.mjs` (13),
+  `interiorAmenityTiers.test.mjs`. Full suite 1305/1305 (one upload test hit a
+  dev-server restart hiccup and passed 4/4 on rerun). Build clean. No migration.
+
+---
+
 ## [Companies, projects, people and notes are archived, never deleted] - September 11, 2026 (DEPLOYED)
 
 Mike: *"yes archive only for everything. it won't be that much data."*

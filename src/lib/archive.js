@@ -15,8 +15,37 @@
 //     screens that list projects or people under a client filter them by hand.
 //
 // No `@/` imports here so the tests can load this file directly.
+//
+// 2026-09-11, migration 0076 — project files, drawing sets, budget matrix
+// versions and products joined them (Mike: "yes drawings and budgets and
+// products should be archive only"). These four are hidden from findFirst as
+// well: code asks for "the latest schedule file" or "the newest budget" with a
+// findFirst, and an archived one must never answer that. Their pages open with
+// findUnique, which stays unfiltered. The lookups that pick the NEXT budget
+// version number spread INCLUDE_ARCHIVED so an archived v3 still counts and
+// the next one is v4, not a second v3.
 
 export const ARCHIVABLE = ['client', 'project', 'contact', 'note'];
+export const ARCHIVABLE_DOCUMENTS = ['projectFile', 'drawingSubmission', 'manufacturerProduct', 'designBidMatrix'];
+
+// Records that may never be deleted through the app's database client, even by
+// code written later. Deleting one of these throws. Conceptual budget
+// submissions and questionnaire answers have no archive columns because no
+// screen deletes them — this is what keeps it that way (Mike, 2026-09-11:
+// "like budget matrix, conceptual budget, design questionnaire I don't want to
+// be deleted"). Drawing files ride with their drawing set.
+export const NEVER_DELETED = [
+  ...ARCHIVABLE_DOCUMENTS,
+  'drawingFile', 'conceptualSubmission', 'conceptualSubmissionAnswer', 'questionnaireResponse',
+];
+
+export class DeleteRefusedError extends Error {
+  constructor(model) {
+    super(`${model} records are archived, never deleted.`);
+    this.name = 'DeleteRefusedError';
+    this.model = model;
+  }
+}
 
 // Spread into a where to opt a list back in to archived rows. Prisma ignores an
 // undefined value; the key being present is what tells the rule to stand back.
@@ -57,14 +86,24 @@ export function deleteRefused(what) {
 }
 
 const OPS = ['findMany', 'count', 'groupBy'];
+const DOCUMENT_OPS = [...OPS, 'findFirst'];
 
 export function withArchiveFilter(base) {
   const query = {};
+  const scoped = ({ args, query: run }) => run(scopeArchived(args));
   for (const model of ARCHIVABLE) {
     query[model] = {};
-    for (const op of OPS) {
-      query[model][op] = ({ args, query: run }) => run(scopeArchived(args));
-    }
+    for (const op of OPS) query[model][op] = scoped;
+  }
+  for (const model of ARCHIVABLE_DOCUMENTS) {
+    query[model] = {};
+    for (const op of DOCUMENT_OPS) query[model][op] = scoped;
+  }
+  for (const model of NEVER_DELETED) {
+    query[model] = query[model] || {};
+    const refuse = async () => { throw new DeleteRefusedError(model); };
+    query[model].delete = refuse;
+    query[model].deleteMany = refuse;
   }
   return base.$extends({ name: 'archive-filter', query });
 }

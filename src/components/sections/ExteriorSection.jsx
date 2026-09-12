@@ -21,7 +21,9 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
   const P = pricing || PRICING;
   const [answers, setAnswers] = useState({
     amenityLevel:      responses.amenityLevel      || 'medium',
-    amenityHours:      responses.amenityHours      || 'beforeDusk',
+    // 'beforeDusk' was the old "Other" answer (removed 2026-09-11); it priced the same
+    // as Dusk to Dawn, so it shows as that.
+    amenityHours:      !responses.amenityHours || responses.amenityHours === 'beforeDusk' ? 'duskToDawn' : responses.amenityHours,
     siteDesignLevel:   responses.siteDesignLevel   || 'base',
     exteriorOverride:  responses.exteriorOverride  ?? '',
     // Building wallpack overrides. 'auto' (not '') is the cleared state — see the
@@ -302,7 +304,7 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
 
       {/* Amenity hours */}
       <QuestionCard
-        question="What will be the amenity operational hours? If one exists, does the pool close at or before dusk?"
+        question="What will be the external amenities' operational hours? If there is an exterior pool, what is its open/close schedule?"
         note="A pool area open after dark needs much higher light levels around the deck per code and in turn add 2x or more the cost."
         costSuffix=" total"
         options={[
@@ -316,12 +318,6 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
             value: 'duskToDawn',
             label: 'Dusk to Dawn',
             sub:   'Standard exterior amenity budget — lights run on the normal dusk-to-dawn schedule',
-            cost:  0,
-          },
-          {
-            value: 'beforeDusk',
-            label: 'Other',
-            sub:   'Standard exterior amenity budget applies (e.g., closes at or before dusk)',
             cost:  0,
           },
         ]}

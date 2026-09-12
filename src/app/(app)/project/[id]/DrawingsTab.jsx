@@ -4,6 +4,7 @@ import PdfViewerModal from '@/components/ui/PdfViewerModal';
 import DrawingMarkupModal from '@/components/drawing/DrawingMarkupModal';
 import { batchOversizeMessage } from '@/lib/uploadErrorMessage';
 import { appendUploads } from '@/lib/uploadClient';
+import ConfirmArchiveModal, { setArchived, ArchiveBoxIcon, KEPT_ON_ARCHIVE_PAGE } from '@/components/salesAutomation/ConfirmArchiveModal';
 
 const PHASE_TAGS = ['SD', 'DD', 'CD', 'IFC', 'ASI', 'RFI', 'OTHER'];
 
@@ -258,15 +259,16 @@ function SubmissionCard({ submission, projectId, onUpdate, onDelete }) {
     if (res.ok) onUpdate(data.submission);
   }
 
-  async function handleDelete() {
-    if (!confirm(`Delete this drawing set (${submission.files.length} file${submission.files.length !== 1 ? 's' : ''})?`)) return;
+  const [asking, setAsking] = useState(false);
+
+  // Drawing sets are archived, never deleted (Mike, 2026-09-11).
+  async function handleArchive() {
     setDeleting(true);
-    try {
-      const res = await fetch(`/api/projects/${projectId}/drawing-submissions/${submission.id}`, { method: 'DELETE' });
-      if (res.ok) onDelete(submission.id);
-    } catch {
-      setDeleting(false);
-    }
+    const problem = await setArchived(`/api/projects/${projectId}/drawing-submissions/${submission.id}`);
+    setDeleting(false);
+    setAsking(false);
+    if (problem) { alert(problem); return; }
+    onDelete(submission.id);
   }
 
   function openMarkup(df) {
@@ -307,17 +309,27 @@ function SubmissionCard({ submission, projectId, onUpdate, onDelete }) {
         </div>
 
         <button
-          onClick={handleDelete}
+          onClick={() => setAsking(true)}
           disabled={deleting}
-          className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-slate-300 hover:text-red-400 hover:bg-red-50 transition-all disabled:opacity-50"
-          title="Delete submission"
+          className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-slate-300 hover:text-amber-600 hover:bg-amber-50 transition-all disabled:opacity-50"
+          title="Archive drawing set"
         >
           {deleting
             ? <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
-            : <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+            : <ArchiveBoxIcon />
           }
         </button>
       </div>
+
+      <ConfirmArchiveModal
+        open={asking}
+        title="Archive this drawing set?"
+        what={`${submission.files.length} file${submission.files.length !== 1 ? 's' : ''}${submission.phaseTag ? ` · ${submission.phaseTag.toUpperCase()}` : ''}`}
+        body={`The whole set comes off this tab, every sheet in it. ${KEPT_ON_ARCHIVE_PAGE}`}
+        busy={deleting}
+        onCancel={() => setAsking(false)}
+        onConfirm={handleArchive}
+      />
 
       {/* File list */}
       <div className="divide-y divide-slate-50">
@@ -361,13 +373,17 @@ function DrawingFileRow({ file, projectId, onDeleteSubmission }) {
 
   const downloadUrl = file.pdfUrl; // served from drawing-submissions route
 
-  async function handleDelete() {
-    if (!confirm(`Delete "${file.fileName}"? This removes the entire drawing set upload.`)) return;
+  const [asking, setAsking] = useState(false);
+
+  // One sheet can't be archived on its own: it belongs to the set it was
+  // uploaded with, so this archives that whole set (as Delete used to).
+  async function handleArchive() {
     setDeleting(true);
-    try {
-      const res = await fetch(`/api/projects/${projectId}/drawing-submissions/${file.submissionId}`, { method: 'DELETE' });
-      if (res.ok) onDeleteSubmission();
-    } catch { setDeleting(false); }
+    const problem = await setArchived(`/api/projects/${projectId}/drawing-submissions/${file.submissionId}`);
+    setDeleting(false);
+    setAsking(false);
+    if (problem) { alert(problem); return; }
+    onDeleteSubmission();
   }
 
   return (
@@ -409,17 +425,25 @@ function DrawingFileRow({ file, projectId, onDeleteSubmission }) {
           </svg>
         </a>
 
-        {/* Delete */}
-        <button onClick={handleDelete} disabled={deleting}
-          className="p-1.5 rounded-lg text-slate-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0 disabled:opacity-50" title="Delete">
+        {/* Archive */}
+        <button onClick={() => setAsking(true)} disabled={deleting}
+          className="p-1.5 rounded-lg text-slate-300 hover:text-amber-600 hover:bg-amber-50 transition-colors shrink-0 disabled:opacity-50" title="Archive">
           {deleting
             ? <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
-            : <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
+            : <ArchiveBoxIcon className="w-4 h-4" />
           }
         </button>
       </div>
+
+      <ConfirmArchiveModal
+        open={asking}
+        title="Archive this drawing set?"
+        what={file.fileName}
+        body={`This sheet came in as part of a set, so the whole set is archived with it. ${KEPT_ON_ARCHIVE_PAGE}`}
+        busy={deleting}
+        onCancel={() => setAsking(false)}
+        onConfirm={handleArchive}
+      />
 
       {markupOpen && (
         <DrawingMarkupModal

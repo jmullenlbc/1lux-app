@@ -2,7 +2,57 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-11 (latest) — Mike's Claude — ✅ **DEPLOYED**: companies, projects, people and notes are archive-only, migration 0075
+### 2026-09-11 (latest) — Mike's Claude — 🟡 **LOCAL, NOT DEPLOYED**: files, drawing sets, budget versions and products are archive-only, migration 0076
+
+Sign-off: Mike, in chat (*"yes drawings and budgets and products should be archive only"*,
+*"like budget matrix, conceptual budget, design questionnaire I don't want to be deleted"*).
+
+**Migration 0076_archive_only_documents** (additive only; schema-guard PASS): `archivedAt` +
+`archivedById` (FK User, SET NULL) on ProjectFile, DrawingSubmission, ManufacturerProduct,
+DesignBidMatrix. **The 0076 folder must be committed together with schema.prisma.** Local
+SQLite took the ADD COLUMNs via `prisma db execute`; its `ADD CONSTRAINT` lines fail on
+SQLite (expected — Postgres runs them in `migrate deploy`).
+
+- `src/lib/archive.js`: those four join the filter, and **also on `findFirst`** ("latest
+  file/budget" must never be an archived one). `NEVER_DELETED` makes `delete`/`deleteMany`
+  THROW `DeleteRefusedError` for them plus DrawingFile, ConceptualSubmission,
+  ConceptualSubmissionAnswer, QuestionnaireResponse. Throwaway test rows must be cleaned up
+  with a raw `new PrismaClient()`.
+- Five DELETE routes → 405 + archive/restore POST (products, manufacturer products,
+  design-bid-matrix, drawing-submissions, files). One sheet archives its whole set.
+- Manufacturer DELETE (with products) and fixture-schedule-version DELETE (a budget was
+  built from it) → 409; the screens now show the reason instead of dropping the row.
+- Next budget version numbers count archived ones (`INCLUDE_ARCHIVED`).
+- **Same batch, separate fix:** `/api/auth/me` used an undefined `jwtUser.id` → 500 on every
+  call in prod → AutomationNav (its only caller) never showed the ADMIN_TABS. Now
+  `session.id`; pinned by `scripts/tests/authMe.test.mjs`.
+- **Calendar import to prod: NOT done yet.** 1,866 meetings from Mike's Outlook .ics are
+  batched; nothing has been sent to prod (the dry run never reached the server). Production
+  has 0 BotRules, so an import fires no automations.
+- `/archive` has Files / Drawing sets / Budget versions / Products (products only for
+  see-everything users). History tab: `file_archive` / `file_restore`.
+- Tests: `scripts/tests/documentArchive.test.mjs` (13).
+
+### 2026-09-11 — Mike's Claude — 🟡 **LOCAL, NOT DEPLOYED**: conceptual budget without drawings + interior amenity tiers + parking ladder
+
+- **No-drawings path** on /conceptual_budget. It asks "Do you have drawings?"
+  - **No** opens a figures form. Required: project type, units, and gross SF or average unit SF.
+  - Blanks get flagged guesses from `src/lib/intake/noDrawingGuesses.js`, a server-only module that is imported only by `quantities.js`.
+  - Marker: answer row `noDrawings: 'yes'`.
+  - `/api/intake/estimate` enforces `noDrawingsReady()` server-side and ignores drawings sent with a no-drawings answer.
+  - The old rule that "drawings are the ticket in" is relaxed by Mike's request.
+- **Prefilled estimates** (Mike: "fill out the field but say it's an estimate"): once the required three are in, the optional boxes show our derived number in amber with an ESTIMATE tag; typing replaces it, clearing restores it. Pure display — the payload still carries only what was typed.
+- **Back of house SF**: new `figureBohSf` figure; manual mode estimates BOH = gross − units − corridors − amenity, capped at `pricing.boh.maxPctOfGross` (5%). Drawing-read budgets still leave BOH null on an estimated gross. Manual budgets now price BOH, so they read higher.
+- **Interior amenity tiers**: $4–16 per SF (Low 4–8, Medium 9–12, High 13–16 — Mike picked option 2).
+- **Parking ladder**: stated count → typed figure → provided minus garages/carports → units × required ratio → counted stalls → no-drawings guess.
+  - `siteVision` reads `parkingRatioRequired` and `surfaceParkingCounted`. Prompt version `siteVision-2026-09-11`.
+- No migration. Tests 1305/1305 after one flaky rerun. Build clean.
+- **Waiting on Mike**:
+  - the tier edges
+  - whether the default guesses are right
+  - "Deploy"
+
+### 2026-09-11 — Mike's Claude — ✅ **DEPLOYED**: companies, projects, people and notes are archive-only, migration 0075
 
 Mike: *"yes archive only for everything. it won't be that much data."*
 

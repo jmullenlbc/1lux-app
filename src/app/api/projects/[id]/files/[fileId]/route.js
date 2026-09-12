@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { getProjectFileBuffer, deleteProjectFile } from '@/lib/projectFileStorage';
+import { getProjectFileBuffer } from '@/lib/projectFileStorage';
 import { logActivity, TAB_LABELS } from '@/lib/activity';
+import { archiveData, readArchivedFlag, deleteRefused, ARCHIVED_FLAG_HELP } from '@/lib/archive';
 
 // GET — serve the file inline (for PDF viewer)
 export async function GET(request, { params }) {
@@ -85,7 +86,16 @@ export async function PATCH(request, { params }) {
   return NextResponse.json({ file });
 }
 
-export async function DELETE(request, { params }) {
+// Project files are archived, never deleted (Mike, 2026-09-11: "yes drawings
+// and budgets and products should be archive only"). Migration 0076. The stored
+// file is kept, so the GET above still serves an archived one and a restored
+// file opens exactly as before.
+export async function DELETE() {
+  return NextResponse.json({ error: deleteRefused('Project files') }, { status: 405 });
+}
+
+// POST /api/projects/[id]/files/[fileId]  { archived: true | false }
+export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
@@ -94,23 +104,27 @@ export async function DELETE(request, { params }) {
     include: { project: true },
   });
 
-  if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (!record || record.projectId !== params.id) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   if (!canSeeAllData(user) && record.project.createdById !== user.id) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  await deleteProjectFile(record.storedPath);
+  const archived = await readArchivedFlag(request);
+  if (archived === null) return NextResponse.json({ error: ARCHIVED_FLAG_HELP }, { status: 400 });
 
-  await prisma.projectFile.delete({ where: { id: params.fileId } });
+  const file = await prisma.projectFile.update({
+    where: { id: params.fileId },
+    data:  archiveData(archived, user),
+  });
 
   const tabLabel = TAB_LABELS[record.tab] || record.tab;
   await logActivity(
     record.projectId,
     user,
-    'file_delete',
-    `Deleted **${record.originalName}** from ${tabLabel}`,
+    archived ? 'file_archive' : 'file_restore',
+    archived ? `Archived **${record.originalName}** from ${tabLabel}` : `Restored **${record.originalName}** to ${tabLabel}`,
     { fileName: record.originalName, tab: record.tab },
   );
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ file });
 }

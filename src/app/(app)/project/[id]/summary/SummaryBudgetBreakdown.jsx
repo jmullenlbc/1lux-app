@@ -204,10 +204,10 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
 
       {/* Controls */}
       <div className="print:hidden">
-        <TooltipBudgetRow label="Controls (IECC 2021)" value={controls || 0} details={[{ label: 'Controls product', value: controls || 0 }]} />
+        <TooltipBudgetRow label="Controls (IECC)" value={controls || 0} details={[{ label: 'Controls product', value: controls || 0 }]} />
       </div>
       <div className="hidden print:block">
-        <Row label="Controls (IECC 2021)" value={controls || 0} />
+        <Row label="Controls (IECC)" value={controls || 0} />
       </div>
 
       {/* Energy credit adder on the controls side */}

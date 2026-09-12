@@ -8,13 +8,14 @@ import ArchiveClient from './ArchiveClient';
 export const metadata = { title: 'Archive — ILC Studios' };
 
 // Everything that was archived instead of deleted (Mike, 2026-09-11:
-// "archive only for everything"): companies, projects, people and notes, each
-// with a Restore button. Reached from the small "Archived …" links at the
-// bottom of the client list and the projects list — there on purpose, not in
-// the main menu ("accessible but not easily").
+// "archive only for everything"): companies, projects, people and notes
+// (0075), and project files, drawing sets, budget versions and products
+// (0076), each with a Restore button. Reached from the small "Archived …"
+// links at the bottom of the client list and the projects list — there on
+// purpose, not in the main menu ("accessible but not easily").
 //
-// `archivedAt: { not: null }` is what lets these four lists through the rule
-// in src/lib/archive.js that hides archived rows everywhere else.
+// `archivedAt: { not: null }` is what lets these lists through the rule in
+// src/lib/archive.js that hides archived rows everywhere else.
 export default async function ArchivePage() {
   const session = await getSession();
   if (!session) redirect('/login');
@@ -24,7 +25,10 @@ export default async function ArchivePage() {
   const archived = { archivedAt: { not: null } };
   const by       = { archivedBy: { select: { name: true, email: true } } };
 
-  const [clients, projects, contacts, notes] = await Promise.all([
+  const ownProject = all ? {} : { project: { createdById: session.id } };
+  const onProject  = { projectId: true, project: { select: { name: true } } };
+
+  const [clients, projects, contacts, notes, files, drawings, budgets, products] = await Promise.all([
     prisma.client.findMany({
       where: { ...archived, ...(all ? {} : { createdById: session.id }) },
       orderBy: { archivedAt: 'desc' },
@@ -54,6 +58,33 @@ export default async function ArchivePage() {
         project: { select: { name: true } },
       },
     }),
+    prisma.projectFile.findMany({
+      where: { ...archived, ...ownProject },
+      orderBy: { archivedAt: 'desc' },
+      select: { id: true, originalName: true, tab: true, archivedAt: true, ...by, ...onProject },
+    }),
+    prisma.drawingSubmission.findMany({
+      where: { ...archived, ...ownProject },
+      orderBy: { archivedAt: 'desc' },
+      select: { id: true, phaseTag: true, archivedAt: true, ...by, ...onProject, _count: { select: { files: true } } },
+    }),
+    prisma.designBidMatrix.findMany({
+      where: { ...archived, ...ownProject },
+      orderBy: { archivedAt: 'desc' },
+      select: { id: true, version: true, submissionTag: true, archivedAt: true, ...by, ...onProject },
+    }),
+    // Products belong to the whole company and only an admin can archive or
+    // restore one, so they are listed only for people who see everything.
+    all
+      ? prisma.manufacturerProduct.findMany({
+          where: archived,
+          orderBy: { archivedAt: 'desc' },
+          select: {
+            id: true, partNumber: true, description: true, archivedAt: true, ...by,
+            manufacturer: { select: { name: true } },
+          },
+        })
+      : [],
   ]);
 
   const iso = d => (d ? d.toISOString() : null);
@@ -99,6 +130,38 @@ export default async function ArchivePage() {
         ? (n.projectId ? `/api/projects/${n.projectId}/meeting-notes/${n.id}` : null)
         : `/api/crm/notes/${n.id}`,
       archivedAt: iso(n.archivedAt), archivedBy: who(n),
+    })),
+    files: files.map(f => ({
+      id: f.id,
+      label: f.originalName || 'Unnamed file',
+      sub: [f.project?.name, f.tab ? `${f.tab} tab` : ''].filter(Boolean).join(' · '),
+      href: `/project/${f.projectId}`,
+      restoreUrl: `/api/projects/${f.projectId}/files/${f.id}`,
+      archivedAt: iso(f.archivedAt), archivedBy: who(f),
+    })),
+    drawings: drawings.map(d => ({
+      id: d.id,
+      label: `${d.phaseTag ? `${d.phaseTag} drawing set` : 'Drawing set'} · ${d._count.files} sheet file${d._count.files !== 1 ? 's' : ''}`,
+      sub: d.project?.name || '',
+      href: `/project/${d.projectId}`,
+      restoreUrl: `/api/projects/${d.projectId}/drawing-submissions/${d.id}`,
+      archivedAt: iso(d.archivedAt), archivedBy: who(d),
+    })),
+    budgets: budgets.map(b => ({
+      id: b.id,
+      label: `Budget v${b.version}${b.submissionTag ? ` · ${b.submissionTag}` : ''}`,
+      sub: b.project?.name || '',
+      href: `/project/${b.projectId}`,
+      restoreUrl: `/api/projects/${b.projectId}/design-bid-matrix/${b.id}`,
+      archivedAt: iso(b.archivedAt), archivedBy: who(b),
+    })),
+    products: products.map(p => ({
+      id: p.id,
+      label: p.partNumber,
+      sub: [p.manufacturer?.name, p.description].filter(Boolean).join(' · '),
+      href: `/products/${p.id}`,
+      restoreUrl: `/api/products/${p.id}`,
+      archivedAt: iso(p.archivedAt), archivedBy: who(p),
     })),
   };
 

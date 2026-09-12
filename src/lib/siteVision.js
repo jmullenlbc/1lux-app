@@ -18,6 +18,12 @@
  * pure geometry. So the prompt below is built around one rule: **report what is
  * written, return null for what is not, and never estimate from the drawing.**
  * A missing number is visible to a reviewer; an invented one is not.
+ *
+ * Mike's parking ladder (2026-09-11) keeps that rule but adds two rungs under
+ * it: when no stall total is written, the required-parking RATIO ("1.5 SPACES
+ * / UNIT") is read so code can multiply it by the units, and only after that
+ * may the striped surface stalls be COUNTED — in their own
+ * `surfaceParkingCounted` field, never merged into the stated one.
  */
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { loadPdfjs, pdfDocOptions } from './pdfjsNode.js';
@@ -223,7 +229,9 @@ Return ONLY valid JSON — no markdown, no commentary:
   "bedMix": { "studio": number or null, "oneBed": number or null, "twoBed": number or null, "threeBed": number or null },
   "parkingProvided": number or null,
   "parkingRequired": number or null,
+  "parkingRatioRequired": number or null,
   "surfaceParking": number or null,
+  "surfaceParkingCounted": number or null,
   "garages": number or null,
   "carports": number or null,
   "buildingCount": number or null,
@@ -247,9 +255,10 @@ Return ONLY valid JSON — no markdown, no commentary:
 CRITICAL RULES:
 - Report ONLY numbers that are WRITTEN on the drawing. Look hardest at any "SITE DATA", "PROJECT DATA", "ZONING", "UNIT MIX" or "PARKING" summary block, and at title-block callouts. These are often hand-lettered or marked up — read them anyway.
 - If a number is not written down, return null. NEVER estimate, infer, or count objects in the drawing to produce a number. A null is correct and useful; a guessed number is harmful because it becomes a budget.
-- In particular: do NOT count parking stalls, light fixtures, or building footprints by eye. If a parking total is not stated in text, parkingProvided and surfaceParking must be null.
+- In particular: do NOT count light fixtures or building footprints by eye. If a parking total is not stated in text, parkingProvided and surfaceParking must be null — a counted stall number goes ONLY in surfaceParkingCounted (see COUNTED FIGURES below), never in these.
 - lotAcres/lotSf: use the site area if stated. If only acres are given, still fill lotAcres and leave lotSf null — do not convert.
 - parkingProvided is what the drawing says is PROVIDED; parkingRequired is what code REQUIRES. They differ, and both may appear in a parking table.
+- parkingRatioRequired: the required parking RATE per dwelling unit, only if WRITTEN ("1.5 SPACES/UNIT", "PARKING REQUIRED: 1.75 PER D.U.", "2 STALLS PER UNIT"). Report the per-unit number exactly as written (1.5, not a total). If the rate is split by bedroom count (e.g. "1 PER 1BR, 2 PER 2BR"), return null and mention the rates in notes. Do NOT compute a total from it — code does that.
 - surfaceParking: only if the drawing distinguishes surface stalls from structured/garage parking.
 - grossSf: the TOTAL BUILDING gross square footage, only if a total is WRITTEN — look for a "TOTAL", "GROSS BUILDING AREA", "TOTAL BLDG", or "GSF" line in an area summary, code summary, or title block. If the sheet prints both a gross and a net (or rentable/leasable) total, report the GROSS figure. Do NOT add up per-floor or per-building areas yourself — a written total or null.
 - stories: the number of stories/levels, only if WRITTEN ("4 STORIES", "NO. OF STORIES: 5", "3-STORY WALK-UP") — a code summary or title block usually states it. If buildings differ in height, report the TALLEST and mention the range in notes.
@@ -258,10 +267,11 @@ CRITICAL RULES:
 - buildingFootprintSf: the building footprint area, only if a footprint figure is WRITTEN ("BUILDING FOOTPRINT", "FOOTPRINT AREA"). Do NOT derive it from a lot-coverage percentage — report the percentage separately instead (below).
 - lotCoveragePct: the lot/building coverage percentage, only if WRITTEN ("LOT COVERAGE: 28%", "BUILDING COVERAGE 32.5%"). Report the number only (28, not 0.28).
 
-COUNTED FIGURES — the one deliberate exception to the no-counting rule. These three "...Counted" fields are the ONLY fields you may fill by counting what is drawn, they are kept separate from the stated fields precisely so a human can tell the difference, and each one may only come from the kind of view named for it:
+COUNTED FIGURES — the one deliberate exception to the no-counting rule. These four "...Counted" fields are the ONLY fields you may fill by counting what is drawn, they are kept separate from the stated fields precisely so a human can tell the difference, and each one may only come from the kind of view named for it:
 - storiesCounted: ONLY from a building ELEVATION view (a straight-on exterior view of the building face). Count the distinct floor levels — rows of windows, floor lines. Never count stories from a plan, a rendering, or a section you are unsure of. If no elevation view is in the image, null.
 - egressStairwellsCounted: ONLY from a floor plan or life-safety plan. Count the distinct enclosed stair shafts — stair-run symbols inside shaft walls, often tagged "STAIR 1", "ST-2". Count stairwells (shafts), NOT flights or runs; a switchback stair is one stairwell. If the image is not a plan view, null.
 - exitDoorsCounted: ONLY from a ground-floor or life-safety plan. Count doors marked as exits — EXIT tags, exit-sign symbols, egress arrows discharging to the exterior. Unmarked exterior doors do not count. If the image is not a plan view showing grade level, null.
+- surfaceParkingCounted: ONLY from a SITE PLAN view (the whole property seen from above, with drive aisles and striped parking). Count the individual striped open-air surface stalls. Do NOT count stalls inside garages, under carports, in a parking structure, or on a podium level. Count it even when a total is stated elsewhere, so the two can be compared. If the stalls are too small or crowded to count one by one, or the image is not a site plan, null.
 - When a counted figure and a stated figure are both available, report BOTH — never overwrite a stated number with your count.
 
 BUILDING TYPE — the one classification you may make, and only from evidence that is on the sheet. The lighting budget prices stairs, wall packs and controls differently by type, so a wrong type is worse than a null. Look for the words first: a title block, code summary or site data block often says it outright ("GARDEN STYLE", "3-STORY WALK-UP", "PODIUM", "WRAP", "TOWNHOMES", "MID-RISE"). Then apply these rules, in order, and return the key:
@@ -328,8 +338,15 @@ BUILDING TYPE — the one classification you may make, and only from evidence th
  * package, the wall-pack count and the controls cap, so a guessed type is a
  * mispriced budget — the rules say null when there is no evidence on the
  * sheet, and the Site Data panel shows the pick as a dropdown a human confirms.
+ *
+ * 2026-09-11 adds Mike's parking ladder ("it says number spaces you find it
+ * and put it in. then do units times the minimum required number of spaces
+ * ... and if those don't work then you count it"): parkingRatioRequired
+ * (the written per-unit rate — code multiplies, the model never does) and
+ * surfaceParkingCounted, a fourth counted field, site-plan views only,
+ * striped open-air stalls only. The takeoff reaches for the count last.
  */
-export const SITE_VISION_PROMPT_VERSION = `siteVision-2026-09-05-${MAX_EDGE}px`;
+export const SITE_VISION_PROMPT_VERSION = `siteVision-2026-09-11-${MAX_EDGE}px`;
 
 /**
  * Run vision extraction over rendered pages.
@@ -444,8 +461,8 @@ export async function extractSiteData(images, anthropic, { model = modelFor('dra
 
 /** The fields a site read reports, other than the ones merged by hand below. */
 const SITE_FIELDS = [
-  'lotAcres', 'lotSf', 'totalUnits', 'parkingProvided', 'parkingRequired',
-  'surfaceParking', 'garages', 'carports', 'buildingCount', 'clubhouseSf',
+  'lotAcres', 'lotSf', 'totalUnits', 'parkingProvided', 'parkingRequired', 'parkingRatioRequired',
+  'surfaceParking', 'surfaceParkingCounted', 'garages', 'carports', 'buildingCount', 'clubhouseSf',
   'amenitySf', 'grossSf', 'stories', 'storiesCounted', 'egressStairwells',
   'egressStairwellsCounted', 'exitDoors', 'exitDoorsCounted',
   'buildingFootprintSf', 'lotCoveragePct', 'buildingType',
@@ -563,6 +580,16 @@ export function validateSiteData(data) {
     }
   }
 
+  // A required-parking rate is a small decimal, and a misread one multiplies
+  // straight into the stall count. Real codes run about 0.5–2.5 per unit.
+  if (typeof data.parkingRatioRequired === 'number'
+      && (data.parkingRatioRequired < 0.25 || data.parkingRatioRequired > 4)) {
+    warnings.push({
+      field: 'parkingRatioRequired',
+      message: `Required parking reads ${data.parkingRatioRequired} spaces per unit, outside the normal 0.25–4 range. Verify the rate.`,
+    });
+  }
+
   // A stated figure and a counted one disagreeing is exactly the situation the
   // separate ...Counted fields exist to surface. Neither is rewritten — the
   // warning hands the disagreement to a human, who has the drawing.
@@ -570,6 +597,7 @@ export function validateSiteData(data) {
     ['stories', 'storiesCounted', 'stories'],
     ['egressStairwells', 'egressStairwellsCounted', 'egress stairwells'],
     ['exitDoors', 'exitDoorsCounted', 'exit doors'],
+    ['surfaceParking', 'surfaceParkingCounted', 'surface parking stalls'],
   ]) {
     if (typeof data[statedField] === 'number' && typeof data[countedField] === 'number'
         && data[statedField] !== data[countedField]) {

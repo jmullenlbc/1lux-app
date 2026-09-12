@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import { setArchived } from '@/components/salesAutomation/ConfirmArchiveModal';
 
 const FIXTURE_TYPES = ['FIXTURE', 'CONTROL_DEVICE'];
 
@@ -161,13 +162,16 @@ export default function ProductsClient({ manufacturers, isAdmin }) {
     fetchProducts({ sortKey: key, sortDir: newDir });
   }
 
-  async function deleteProduct(id) {
+  // Products are archived, never deleted (Mike, 2026-09-11). The row only
+  // leaves the list once the server has really archived it.
+  async function archiveProduct(id) {
     setDeletingId(id);
-    await fetch(`/api/products/${id}`, { method: 'DELETE' });
-    setProducts(prev => prev.filter(x => x.id !== id));
-    setTotal(prev => prev - 1);
+    const problem = await setArchived(`/api/products/${id}`);
     setConfirmId(null);
     setDeletingId(null);
+    if (problem) { alert(problem); return; }
+    setProducts(prev => prev.filter(x => x.id !== id));
+    setTotal(prev => prev - 1);
   }
 
   async function patchProduct(id, field, value) {
@@ -346,21 +350,22 @@ export default function ProductsClient({ manufacturers, isAdmin }) {
                       <td className="px-2 py-1.5">
                         {confirmId === p.id ? (
                           <div className="flex items-center gap-1">
-                            <button onClick={() => deleteProduct(p.id)} disabled={deletingId === p.id}
-                              className="text-[10px] px-1.5 py-0.5 rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 transition-colors">
-                              {deletingId === p.id ? '…' : 'Yes'}
+                            <button onClick={() => archiveProduct(p.id)} disabled={deletingId === p.id}
+                              title="Archive it. Restore any time from the Archive page."
+                              className="text-[10px] px-1.5 py-0.5 rounded bg-amber-600 text-white hover:bg-amber-500 disabled:opacity-50 transition-colors">
+                              {deletingId === p.id ? '…' : 'Archive'}
                             </button>
                             <button onClick={() => setConfirmId(null)}
                               className="text-[10px] px-1.5 py-0.5 rounded border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
-                              No
+                              Keep
                             </button>
                           </div>
                         ) : (
                           <button onClick={e => { e.stopPropagation(); setConfirmId(p.id); }}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 hover:text-red-500"
-                            title="Delete product">
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 hover:text-amber-600"
+                            title="Archive product">
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
                             </svg>
                           </button>
                         )}

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { INCLUDE_ARCHIVED } from '@/lib/archive';
 
 const MFR_FIELDS = [
   'name','acctLastUpdated','setupToSell','terms','credit','notes',
@@ -29,7 +30,7 @@ export async function GET(request, { params }) {
   if (error) return error;
   const manufacturer = await prisma.manufacturer.findUnique({
     where: { id: params.id },
-    include: { products: { orderBy: { partNumber: 'asc' } } },
+    include: { products: { where: { archivedAt: null }, orderBy: { partNumber: 'asc' } } },
   });
   if (!manufacturer) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json({ manufacturer });
@@ -48,6 +49,16 @@ export async function PATCH(request, { params }) {
 export async function DELETE(request, { params }) {
   const { error } = await requireAuth();
   if (error) return error;
+  // Deleting a manufacturer took every one of its products with it, and
+  // products are archive-only (Mike, 2026-09-11). So a manufacturer can only
+  // be deleted while it has no products at all. Archived ones count: they are
+  // still kept.
+  const productCount = await prisma.manufacturerProduct.count({ where: { manufacturerId: params.id, ...INCLUDE_ARCHIVED } });
+  if (productCount > 0) {
+    return NextResponse.json({
+      error: `This manufacturer has ${productCount} product${productCount === 1 ? '' : 's'} on file. Products are archived, never deleted, so the manufacturer stays too.`,
+    }, { status: 409 });
+  }
   await prisma.manufacturer.delete({ where: { id: params.id } });
   return NextResponse.json({ ok: true });
 }

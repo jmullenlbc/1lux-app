@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { INCLUDE_ARCHIVED } from '@/lib/archive';
 
 // PATCH /api/projects/[id]/fixture-schedule/versions/[versionId]
 // Rename a published fixture schedule version (submissionTag only — state/version are immutable)
@@ -36,6 +37,14 @@ export async function DELETE(req, { params }) {
     return NextResponse.json({ error: 'Cannot delete the draft — clear it instead' }, { status: 400 });
 
   // Delete cascade handles FixtureScheduleItems
+  // Deleting a schedule version took every budget version built from it with
+  // it, and budgets are archive-only (Mike, 2026-09-11). Archived ones count.
+  const budgetCount = await prisma.designBidMatrix.count({ where: { sourceScheduleId: params.versionId, ...INCLUDE_ARCHIVED } });
+  if (budgetCount > 0) {
+    return NextResponse.json({
+      error: `${budgetCount} budget version${budgetCount === 1 ? ' was' : 's were'} built from this schedule. Budgets are never deleted, so the schedule has to stay too.`,
+    }, { status: 409 });
+  }
   await prisma.fixtureSchedule.delete({ where: { id: params.versionId } });
   return NextResponse.json({ ok: true });
 }

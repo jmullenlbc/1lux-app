@@ -7,6 +7,7 @@ import ProjectSidebar from '@/components/project/ProjectSidebar';
 import { formatCurrency } from '@/lib/calculations';
 import { buildingTypeLabel, phaseLabel, serviceTypeLabel, clientTypeLabel, locationTypeLabel, PROJECT_PHASES, SERVICE_TYPES, BUILDING_TYPES } from '@/lib/utils';
 import FileDropZone from '@/components/files/FileDropZone';
+import ConfirmArchiveModal, { setArchived, ArchiveBoxIcon, KEPT_ON_ARCHIVE_PAGE } from '@/components/salesAutomation/ConfirmArchiveModal';
 import { oversizeMessage, uploadErrorMessage, uploadThrowMessage } from '@/lib/uploadErrorMessage';
 import ProjectChat from '@/components/ProjectChat';
 import TakeoffDashboard from '@/components/TakeoffDashboard';
@@ -222,6 +223,8 @@ function AutoTaggedFileTab({ title, subtitle, autoTag, files, projectId, tab, on
   const [reparsing,   setReparsing]   = useState({}); // { fileId: true }
   const [reparseMsg,  setReparseMsg]  = useState({}); // { fileId: 'message' }
   const [uploadErrors, setUploadErrors] = useState([]); // [{ id, msg }] — shown until dismissed
+  const [archiveAsk,  setArchiveAsk]  = useState(null); // the file being asked about
+  const [archiving,   setArchiving]   = useState(false);
   const fileRef = useRef(null);
 
   async function upload(fileList) {
@@ -260,9 +263,13 @@ function AutoTaggedFileTab({ title, subtitle, autoTag, files, projectId, tab, on
     setUploading(prev => prev.filter(n => !arr.map(f => f.name).includes(n)));
   }
 
-  async function deleteFile(id) {
-    if (!confirm('Delete this file?')) return;
-    await fetch(`/api/projects/${projectId}/files/${id}`, { method: 'DELETE' });
+  // Project files are archived, never deleted (migration 0076).
+  async function archiveFile(id) {
+    setArchiving(true);
+    const problem = await setArchived(`/api/projects/${projectId}/files/${id}`);
+    setArchiving(false);
+    setArchiveAsk(null);
+    if (problem) { alert(problem); return; }
     onFileDeleted?.(id);
   }
 
@@ -289,6 +296,15 @@ function AutoTaggedFileTab({ title, subtitle, autoTag, files, projectId, tab, on
   return (
     <div className="space-y-5">
       {viewingFile && <PdfViewerModal file={viewingFile} projectId={projectId} onClose={() => setViewingFile(null)} />}
+      <ConfirmArchiveModal
+        open={!!archiveAsk}
+        title="Archive this file?"
+        what={archiveAsk?.originalName}
+        body={`It comes off this tab. ${KEPT_ON_ARCHIVE_PAGE}`}
+        busy={archiving}
+        onCancel={() => setArchiveAsk(null)}
+        onConfirm={() => archiveFile(archiveAsk.id)}
+      />
       {!hideHeader && (
         <>
           <div>
@@ -389,12 +405,10 @@ function AutoTaggedFileTab({ title, subtitle, autoTag, files, projectId, tab, on
                       <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                     </svg>
                   </a>
-                  {/* Delete */}
-                  <button onClick={() => deleteFile(f.id)}
-                    className="p-1.5 rounded-lg text-slate-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0" title="Delete">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
+                  {/* Archive */}
+                  <button onClick={() => setArchiveAsk(f)}
+                    className="p-1.5 rounded-lg text-slate-300 hover:text-amber-600 hover:bg-amber-50 transition-colors shrink-0" title="Archive">
+                    <ArchiveBoxIcon className="w-4 h-4" />
                   </button>
                 </div>
               );

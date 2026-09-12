@@ -46,6 +46,12 @@ export async function POST(request, { params }) {
   const existing = await prisma.manufacturerProduct.findUnique({
     where: { manufacturerId_partNumber: { manufacturerId: params.id, partNumber: body.partNumber.trim() } },
   });
+  if (existing?.archivedAt) {
+    return NextResponse.json({
+      error: `${existing.partNumber} is already on file but archived. Restore it from the Archive page instead of adding it again.`,
+      archivedProductId: existing.id,
+    }, { status: 409 });
+  }
   if (existing) return NextResponse.json({ product: existing, alreadyExists: true });
 
   const data = parseProductBody(body);

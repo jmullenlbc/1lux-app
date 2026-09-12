@@ -20,6 +20,7 @@
  * @see src/lib/calculations.js — the engine these map into
  * @see src/lib/pricing.js      — the option keys the maps must hit
  */
+import { INTERIOR_AMENITY_RATES } from '../interiorAmenityTiers.js';
 
 export const INTAKE_QUESTIONS = [
   // ── RESIDENTIAL UNITS ──────────────────────────────────────────────────────
@@ -178,8 +179,11 @@ export const INTAKE_QUESTIONS = [
     key: 'interiorAmenityFinish',
     section: 'Interior amenities',
     question: 'Please choose what $/SF of interior amenity SF based on the level of finish of the project..',
-    hint: 'Interior amenities range from $6/SF on the low end (i.e. garden walk-up) to $16/SF (i.e. high-end mid-rise or high-rise).',
-    options: ['3', '6', '7', '8', '9', '10', '11', '12', '13', '14'],
+    hint: 'Lower finish $4–$8/SF (e.g. garden walk-up), medium finish $9–$12/SF, high finish $13–$16/SF (e.g. high-end mid-rise or high-rise).',
+    // $4–$16 in three finish tiers — the tier edges live in interiorAmenityTiers.js.
+    options: INTERIOR_AMENITY_RATES.map(String),
+    // '3' was offered before 2026-09-11; a stored '3' still reads as $3, not the default.
+    legacyOptions: ['3'],
     default: '10',
     format: 'perSf',
     // Numeric answers pass straight through — the engine parseFloats them.
@@ -245,10 +249,12 @@ export const INTAKE_QUESTIONS = [
   {
     key: 'amenityHours',
     section: 'Exterior',
-    question: 'What will be the amenity operational hours? If one exists, does the pool close at or before dusk?',
+    question: 'What will be the external amenities\' operational hours? If there is an exterior pool, what is its open/close schedule?',
     hint: 'A pool area open after dark needs much higher light levels around the deck per code and in turn add 2x or more the cost.',
-    options: ['24hrs or after dark', 'Dusk to Dawn', 'Other'],
-    default: 'Other',
+    // Mike 2026-09-11: "get rid of other options". 'Other' stays in the map only so
+    // answers saved before then still read; it priced the same as Dusk to Dawn.
+    options: ['24hrs or after dark', 'Dusk to Dawn'],
+    default: 'Dusk to Dawn',
     engine: { section: 'exterior', field: 'amenityHours',
       map: {
         '24hrs or after dark': 'afterSunset',
@@ -262,7 +268,7 @@ export const INTAKE_QUESTIONS = [
     key: 'projectType',
     section: 'Controls',
     question: 'What type of project is this?',
-    hint: 'Drives the common-area control system requirements (IECC 2021).',
+    hint: 'Drives the common-area control system requirements (IECC).',
     options: [
       'Single Family (1-2 Levels)',
       'Town Houses (2-3 Levels)',
@@ -324,7 +330,48 @@ export const FIGURE_KEYS = [
   { key: 'figureBalconies',       section: 'Project figures', question: '# Balconies (entered by the submitter — not found on the drawings)' },
   { key: 'figureExitDoors',       section: 'Project figures', question: '# Egress/exit doors (entered by the submitter — not found on the drawings)' },
   { key: 'figureSurfaceParking',  section: 'Project figures', question: '# Surface parking stalls (entered by the submitter — not found on the drawings)' },
+  // The no-drawings form (Mike, 2026-09-11: "someone without any drawings can
+  // do a conceptual budget") asks for the areas a drawing would have given.
+  { key: 'figureAvgUnitSf',          section: 'Project figures', question: 'Average unit size SF (entered by the submitter)' },
+  { key: 'figureInteriorAmenitySf',  section: 'Project figures', question: 'Interior amenity SF (entered by the submitter)' },
+  { key: 'figureCorridorSf',         section: 'Project figures', question: 'Corridors & stairwells SF (entered by the submitter)' },
+  { key: 'figureGarageSf',           section: 'Project figures', question: 'Garage SF (entered by the submitter)' },
+  { key: 'figureExteriorAmenitySf',  section: 'Project figures', question: 'Exterior amenity SF (entered by the submitter)' },
+  { key: 'figureBuildings',          section: 'Project figures', question: '# Residential buildings (entered by the submitter)' },
+  { key: 'figureBohSf',              section: 'Project figures', question: 'Back of house SF (entered by the submitter)' },
 ];
+
+/**
+ * "No, I don't have drawings" — stored as its own answer row so a reviewer
+ * (and a query) can tell a typed-in budget from a drawing-read one. The only
+ * accepted value is 'yes'.
+ */
+export const NO_DRAWINGS_KEY = 'noDrawings';
+
+const digitsOnly = v => (typeof v === 'string' ? v.replace(/[,\s]/g, '') : '');
+const typedFigure = v => (/^\d{1,9}$/.test(digitsOnly(v)) && Number(digitsOnly(v)) > 0 ? Number(digitsOnly(v)) : null);
+
+/**
+ * The minimum a no-drawings budget needs before it can be priced — the three
+ * things no guess can stand in for: what kind of building, how many units,
+ * and how big (total building SF, or an average unit size to scale from).
+ * Everything else on the form is estimated when left blank. Shared by the
+ * wizard (to enable Continue) and the estimate route (to enforce it).
+ *
+ * @param {object} answers  plain {key: string} map
+ * @returns {{ready: boolean, missing: string[]}}
+ */
+export function noDrawingsReady(answers) {
+  const a = answers && typeof answers === 'object' ? answers : {};
+  const missing = [];
+  const typeQ = INTAKE_QUESTIONS.find(q => q.key === 'projectType');
+  if (!typeQ?.options.includes(a.projectType)) missing.push('Project type');
+  if (typedFigure(a.figureTotalUnits) == null) missing.push('Total units');
+  if (typedFigure(a.figureGrossSf) == null && typedFigure(a.figureAvgUnitSf) == null) {
+    missing.push('Total building SF or average unit size');
+  }
+  return { ready: missing.length === 0, missing };
+}
 
 /**
  * Validate submitted answers against the questionnaire.
@@ -340,7 +387,7 @@ export function validateAnswers(input) {
     const raw = typeof given[q.key] === 'string' ? given[q.key].trim() : '';
     // Map keys count as valid too — they carry aliases for option strings a
     // stored submission used before a wording change (still a fixed whitelist).
-    const known = q.options.includes(raw) ||
+    const known = q.options.includes(raw) || !!q.legacyOptions?.includes(raw) ||
       (q.engine?.map != null && Object.prototype.hasOwnProperty.call(q.engine.map, raw));
     const answer = known ? raw : (q.default ?? '');
     if (!answer) continue; // no answer and no default (e.g. projectType left blank)
@@ -352,6 +399,9 @@ export function validateAnswers(input) {
     const raw = typeof given[f.key] === 'string' ? given[f.key].replace(/[,\s]/g, '') : '';
     if (!/^\d{1,9}$/.test(raw) || Number(raw) <= 0) continue;
     rows.push({ section: f.section, questionKey: f.key, question: f.question, answer: raw });
+  }
+  if (given[NO_DRAWINGS_KEY] === 'yes') {
+    rows.push({ section: 'Project figures', questionKey: NO_DRAWINGS_KEY, question: 'Submitted without drawings', answer: 'yes' });
   }
   return rows;
 }
@@ -387,7 +437,7 @@ export function answersToEngine(answers) {
     const raw = typeof given[q.key] === 'string' ? given[q.key].trim() : '';
     // Map keys count as valid too — they carry aliases for option strings a
     // stored submission used before a wording change (still a fixed whitelist).
-    const known = q.options.includes(raw) ||
+    const known = q.options.includes(raw) || !!q.legacyOptions?.includes(raw) ||
       (q.engine?.map != null && Object.prototype.hasOwnProperty.call(q.engine.map, raw));
     const answer = known ? raw : (q.default ?? '');
     if (!answer) continue;

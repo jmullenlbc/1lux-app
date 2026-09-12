@@ -124,11 +124,25 @@ test('the finish-word options map, and the old bare-finish strings still map (st
   assert.equal(sections.corridors.unitSconce, 'medium');
 });
 
-test('Dusk to Dawn keeps its own engine value so it also triggers the after-dark multiplier', () => {
+test('Dusk to Dawn keeps its own engine value; an old saved "Other" still reads', () => {
   const { sections } = answersToEngine({ amenityHours: 'Dusk to Dawn' });
   assert.equal(sections.exterior.amenityHours, 'duskToDawn');
   const other = answersToEngine({ amenityHours: 'Other' });
   assert.equal(other.sections.exterior.amenityHours, 'beforeDusk');
+});
+
+// Mike 2026-09-11: drop "Other", say "external amenities", and no year after IECC.
+test('amenity hours offers only the two real choices and names external amenities', () => {
+  const q = INTAKE_QUESTIONS.find(x => x.key === 'amenityHours');
+  assert.deepEqual(q.options, ['24hrs or after dark', 'Dusk to Dawn']);
+  assert.equal(q.default, 'Dusk to Dawn');
+  assert.match(q.question, /external amenities/);
+});
+
+test('project type hint says IECC with no year', () => {
+  const q = INTAKE_QUESTIONS.find(x => x.key === 'projectType');
+  assert.match(q.hint, /\(IECC\)/);
+  assert.doesNotMatch(q.hint, /2021/);
 });
 
 test('energy credit None means program none and engine credit no', () => {

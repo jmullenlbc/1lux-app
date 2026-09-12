@@ -8,6 +8,10 @@ const SECTIONS = [
   { key: 'projects', title: 'Projects',  empty: 'No archived projects.' },
   { key: 'contacts', title: 'People',    empty: 'No archived people.' },
   { key: 'notes',    title: 'Notes',     empty: 'No archived notes.' },
+  { key: 'files',    title: 'Files',           empty: 'No archived files.' },
+  { key: 'drawings', title: 'Drawing sets',    empty: 'No archived drawing sets.' },
+  { key: 'budgets',  title: 'Budget versions', empty: 'No archived budget versions.' },
+  { key: 'products', title: 'Products',        empty: 'No archived products.' },
 ];
 
 function fmt(iso) {
@@ -48,9 +52,9 @@ export default function ArchiveClient({ sections }) {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-900">Archive</h1>
         <p className="text-slate-500 text-sm mt-1">
-          Companies, projects, people and notes are never deleted. Archived ones are hidden from
-          every list, picker and dashboard, and everything linked to them is kept. Restore puts
-          one back exactly as it was.
+          Companies, projects, people, notes, files, drawing sets, budget versions and products
+          are never deleted. Archived ones are hidden from every list, picker and dashboard, and
+          everything linked to them is kept. Restore puts one back exactly as it was.
         </p>
       </div>
 

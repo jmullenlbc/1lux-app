@@ -38,7 +38,7 @@ export async function GET() {
       id: true, numericId: true, name: true, setupToSell: true, terms: true,
       credit: true, ffa: true, accountingEmail: true, mainPhone: true,
       website: true, city: true, state: true, notes: true, acctLastUpdated: true,
-      products: { select: { id: true, numericId: true, partNumber: true, description: true, cct: true, wattage: true, dimming: true, finish: true, fixtureType: true }, orderBy: { partNumber: 'asc' } },
+      products: { select: { id: true, numericId: true, partNumber: true, description: true, cct: true, wattage: true, dimming: true, finish: true, fixtureType: true }, where: { archivedAt: null }, orderBy: { partNumber: 'asc' } },
     },
   });
   return NextResponse.json({ manufacturers });

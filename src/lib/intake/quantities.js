@@ -43,7 +43,8 @@
 import { lotSquareFeet, ACRE_SF } from '../siteFields.js';
 import { PRICING } from '../pricing.js';
 import { estimateStairLandings } from '../stairLandings.js';
-import { answersToEngine } from './questionnaire.js';
+import { answersToEngine, NO_DRAWINGS_KEY } from './questionnaire.js';
+import { NO_DRAWING_GUESSES } from './noDrawingGuesses.js';
 
 /** A stated, usable number — or null. Number(null) is 0, hence the dance. */
 function stated(v) {
@@ -75,6 +76,13 @@ function statedAnswer(v) {
  * footprint × stories is available.
  */
 const UNITS_TO_GROSS = PRICING.estimation.unitsToGross;
+
+/**
+ * Building types that park mostly inside a structure. A site-wide stall total
+ * (provided or code-required) says nothing about how many of their stalls are
+ * out in the open, so the parking ladder skips its total-based rungs for them.
+ */
+const STRUCTURED_PARKING_TYPES = new Set(['wrap', 'podium', 'midRise', 'highRise']);
 
 /** Answers however they arrive — DB rows, validated rows, or a plain map. */
 export function answersToMap(answers) {
@@ -161,6 +169,15 @@ export function computeQuantities(drawings, answers, pricing = null) {
   const site = (drawings?.siteData && typeof drawings.siteData === 'object') ? drawings.siteData : null;
   const totals = (drawings?.projectTotals && typeof drawings.projectTotals === 'object') ? drawings.projectTotals : null;
   const ans = answersToMap(answers);
+  // No-drawings budget (Mike, 2026-09-11): the visitor said "no drawings" and
+  // typed the figures in. Only then do blanks get a stand-in guess from
+  // noDrawingGuesses.js; a drawing-read budget asks for its blanks instead.
+  const manual = ans[NO_DRAWINGS_KEY] === 'yes'
+    && !(Array.isArray(drawings?.sources) && drawings.sources.length > 0);
+  const typeKey = answersToEngine(answers).buildingTypeKey ?? null;
+  const guess = table => (manual && typeKey && NO_DRAWING_GUESSES[table][typeKey] != null
+    ? NO_DRAWING_GUESSES[table][typeKey] : null);
+  const GUESS_FLAG = 'ESTIMATED — no drawings were uploaded and this was left blank. Enter the real figure if you have it.';
   const out = [];
   const add = (key, label, unit, value, source, how, flag = null) =>
     out.push({ key, label, unit, value, source: value == null ? null : source, how, flag });
@@ -236,6 +253,10 @@ export function computeQuantities(drawings, answers, pricing = null) {
     // budget?") — so the wizard now asks for the count when drawings lack it.
     add('balconies', '# Balconies', 'count', statedAnswer(ans.figureBalconies), 'questionnaire',
       'Entered on the questionnaire — no balcony counts were found on the drawings.');
+  } else if (guess('balconiesPerUnit') != null && unitCount > 0 && ans.balconyLighting !== 'None') {
+    const est = Math.round(unitCount * guess('balconiesPerUnit'));
+    add('balconies', '# Balconies', 'count', est, 'derived',
+      `${fmt(unitCount)} units × ${guess('balconiesPerUnit')} balcony per unit — a typical figure for this building type.`, GUESS_FLAG);
   } else {
     add('balconies', '# Balconies', 'count', null, null, 'No balcony counts found in any drawing, and the questionnaire did not rule them out.');
   }
@@ -311,27 +332,43 @@ export function computeQuantities(drawings, answers, pricing = null) {
 
   // ── SQUARE FOOTAGE BY CATEGORY ─────────────────────────────────────────────
   const unitSf = sumPerUnit(rows, 'unitSf');
-  add('unitsSf', 'Residential Units SF', 'sf', unitSf ? unitSf.sum : null, 'derived',
-    unitSf ? 'Unit SF per type × unit quantities, from the unit matrix.' : 'The unit matrix did not list square footage per type.',
-    partialFlag(unitSf, 'a unit SF'));
+  const avgUnitTyped = statedAnswer(ans.figureAvgUnitSf);
+  const grossTypedEarly = statedAnswer(ans.figureGrossSf);
+  if (unitSf) {
+    add('unitsSf', 'Residential Units SF', 'sf', unitSf.sum, 'derived',
+      'Unit SF per type × unit quantities, from the unit matrix.',
+      partialFlag(unitSf, 'a unit SF'));
+  } else if (avgUnitTyped != null && unitCount > 0) {
+    add('unitsSf', 'Residential Units SF', 'sf', Math.round(unitCount * avgUnitTyped), 'questionnaire',
+      `${fmt(unitCount)} units × ${fmt(avgUnitTyped)} SF average unit size (entered on the questionnaire).`);
+  } else if (manual && grossTypedEarly != null) {
+    // Without a unit size the engine would price the WHOLE building as unit
+    // area — the inverse of the units→gross factor is the better stand-in.
+    add('unitsSf', 'Residential Units SF', 'sf', Math.round(grossTypedEarly / unitsToGross), 'derived',
+      `Building ${fmt(grossTypedEarly)} SF ÷ ${unitsToGross} — the rest is corridors, walls and back of house.`,
+      'ESTIMATED from the building total — enter the average unit size if you know it.');
+  } else {
+    add('unitsSf', 'Residential Units SF', 'sf', null, null, 'The unit matrix did not list square footage per type.');
+  }
 
-  const garageSf = stated(totals?.garageSf);
-  add('garageSf', 'Garage SF', 'sf', garageSf, 'drawing',
-    garageSf != null ? 'Stated on the drawings.' : 'Not stated on any drawing.');
-
-  const corridorSf = stated(totals?.corridorSf);
-  add('corridorSf', 'Corridors & Stairwells SF', 'sf', corridorSf, 'drawing',
-    corridorSf != null ? 'Stated on the drawings.' : 'Not stated on any drawing.');
-
-  const interiorAmenitySf = stated(site?.clubhouseSf);
-  add('interiorAmenitySf', 'Interior Amenity SF', 'sf', interiorAmenitySf, 'drawing',
-    interiorAmenitySf != null ? 'From the clubhouse figure on the site plan.' : 'Not stated on any drawing.');
-
-  const exteriorAmenitySf = stated(site?.amenitySf);
-  add('exteriorAmenitySf', 'Exterior Amenity SF', 'sf', exteriorAmenitySf, 'drawing',
-    exteriorAmenitySf != null
-      ? 'From the amenity-area figure on the site plan — usually the outdoor programme (pool deck, courtyards).'
-      : 'Not stated on any drawing.');
+  // Stated on the drawings wins; a figure typed on the questionnaire (the
+  // no-drawings form) is next; otherwise not found.
+  const areaRow = (key, label, statedVal, statedHow, figureKey) => {
+    const typed = statedVal == null ? statedAnswer(ans[figureKey]) : null;
+    add(key, label, 'sf', statedVal ?? typed, statedVal != null ? 'drawing' : 'questionnaire',
+      statedVal != null ? statedHow
+        : typed != null ? 'Entered on the questionnaire — not found on the drawings.'
+        : 'Not stated on any drawing.');
+    return statedVal ?? typed;
+  };
+  areaRow('garageSf', 'Garage SF', stated(totals?.garageSf), 'Stated on the drawings.', 'figureGarageSf');
+  const corridorSf = areaRow('corridorSf', 'Corridors & Stairwells SF', stated(totals?.corridorSf),
+    'Stated on the drawings.', 'figureCorridorSf');
+  const interiorAmenitySf = areaRow('interiorAmenitySf', 'Interior Amenity SF', stated(site?.clubhouseSf),
+    'From the clubhouse figure on the site plan.', 'figureInteriorAmenitySf');
+  areaRow('exteriorAmenitySf', 'Exterior Amenity SF', stated(site?.amenitySf),
+    'From the amenity-area figure on the site plan — usually the outdoor programme (pool deck, courtyards).',
+    'figureExteriorAmenitySf');
 
   // Gross SF ladder: a drawing-stated (or per-building-summed) total wins,
   // then a figure the visitor typed. Two derived estimates (footprint ×
@@ -357,18 +394,23 @@ export function computeQuantities(drawings, answers, pricing = null) {
   // Back of house is the remainder — what's left of the stated gross after
   // the categories the drawings itemized. Only computable when the two big
   // numbers (gross and total unit SF) both exist, and always flagged as
-  // arithmetic rather than a reading.
-  if (grossSf != null && unitSf && !unitSf.partial) {
+  // arithmetic rather than a reading. A figure the visitor typed (the
+  // no-drawings form) beats the arithmetic.
+  //
+  // Mike's cap (2026-09-04): BOH is never more than 5% of gross SF. The
+  // remainder also holds corridors/walls when those weren't stated, and
+  // uncapped it overprices BOH badly (Fulshear: 63,953 SF ≈ 15.6% of gross).
+  const bohMaxPct = Number(pricing?.boh?.maxPctOfGross) > 0
+    ? Number(pricing.boh.maxPctOfGross)
+    : (PRICING.boh.maxPctOfGross ?? 0.05);
+  const bohTyped = statedAnswer(ans.figureBohSf);
+  if (bohTyped != null) {
+    add('bohSf', 'Back of House SF', 'sf', bohTyped, 'questionnaire', 'Entered on the questionnaire.');
+  } else if (grossSf != null && unitSf && !unitSf.partial) {
     const itemized = unitSf.sum + (corridorSf ?? 0) + (interiorAmenitySf ?? 0);
     const remainder = grossSf - itemized;
     const skipped = [corridorSf == null && 'corridors', interiorAmenitySf == null && 'interior amenity'].filter(Boolean);
     if (remainder >= 0) {
-      // Mike's cap (2026-09-04): BOH is never more than 5% of gross SF. The
-      // remainder also holds corridors/walls when those weren't stated, and
-      // uncapped it overprices BOH badly (Fulshear: 63,953 SF ≈ 15.6% of gross).
-      const bohMaxPct = Number(pricing?.boh?.maxPctOfGross) > 0
-        ? Number(pricing.boh.maxPctOfGross)
-        : (PRICING.boh.maxPctOfGross ?? 0.05);
       const bohCap = Math.round(grossSf * bohMaxPct);
       const capped = remainder > bohCap;
       add('bohSf', 'Back of House SF (remainder)', 'sf', capped ? bohCap : Math.round(remainder), 'derived',
@@ -395,15 +437,19 @@ export function computeQuantities(drawings, answers, pricing = null) {
   const storiesStated = stated(site?.stories);
   const storiesCounted = stated(site?.storiesCounted);
   const storiesTyped = storiesStated == null && storiesCounted == null ? statedAnswer(ans.figureStories) : null;
-  const stories = storiesStated ?? storiesCounted ?? storiesTyped;
+  const storiesGuess = storiesStated == null && storiesCounted == null && storiesTyped == null
+    ? guess('storiesByType') : null;
+  const stories = storiesStated ?? storiesCounted ?? storiesTyped ?? storiesGuess;
   add('stories', '# Stories', 'count', stories,
-    storiesTyped != null ? 'questionnaire' : 'drawing',
+    storiesTyped != null ? 'questionnaire' : storiesGuess != null ? 'derived' : 'drawing',
     storiesStated != null ? 'Stated on the drawings (code summary or title block).'
       : storiesCounted != null ? 'Counted off the building elevation (floor levels / window rows).'
       : storiesTyped != null ? 'Entered on the questionnaire — not found on the drawings.'
+      : storiesGuess != null ? 'A typical story count for this building type.'
       : 'Not stated on any sheet that was read.',
     storiesStated == null && storiesCounted != null
-      ? 'Counted off the elevation, not stated in writing — confirm against the code summary.' : null);
+      ? 'Counted off the elevation, not stated in writing — confirm against the code summary.'
+      : storiesGuess != null ? GUESS_FLAG : null);
 
   const stairsStated = stated(site?.egressStairwells);
   const stairsCounted = stated(site?.egressStairwellsCounted);
@@ -460,18 +506,73 @@ export function computeQuantities(drawings, answers, pricing = null) {
       ? 'Counted off the plan, not stated in writing — confirm against the code summary.' : null);
 
   // ── PARKING ────────────────────────────────────────────────────────────────
-  const surfaceStated = stated(site?.surfaceParking);
-  const provided = stated(site?.parkingProvided);
-  const surfaceTyped = surfaceStated == null ? statedAnswer(ans.figureSurfaceParking) : null;
-  const surface = surfaceStated ?? surfaceTyped;
-  add('surfaceParking', '# Surface Parking Stalls', 'count', surface,
-    surfaceTyped != null ? 'questionnaire' : 'drawing',
-    surfaceStated != null ? 'Stated on the site plan.'
-      : surfaceTyped != null ? 'Entered on the questionnaire — not found on the site plan.'
-      : provided != null ? `Only a total of ${fmt(provided)} provided stalls was stated, without a surface/structured split.`
-      : 'Not stated on the site plan.',
-    surface != null && provided != null && surface > provided
-      ? `More surface stalls (${fmt(surface)}) than total provided (${fmt(provided)}) — one was misread.` : null);
+  // Mike's ladder (2026-09-11): "it says number spaces you find it and put it
+  // in. then do units times the minimum required number of spaces ... and if
+  // those don't work then you count it." So: the stall number WRITTEN on the
+  // drawings → units × the code-required rate → the stalls COUNTED off the
+  // site plan. A figure typed on the questionnaire outranks every estimate
+  // (it is a human answering), but never a written number.
+  //
+  // The total-based rungs subtract garages and carports (they are lit by their
+  // own lines) and are skipped outright for structured-parking buildings,
+  // where most stalls are inside the garage and a site total says nothing
+  // about how many are out in the open.
+  const surfaceStated  = stated(site?.surfaceParking);
+  const provided       = stated(site?.parkingProvided);
+  const requiredTotal  = stated(site?.parkingRequired);
+  const ratio          = stated(site?.parkingRatioRequired);
+  const surfaceCounted = stated(site?.surfaceParkingCounted);
+  const surfaceTyped   = surfaceStated == null ? statedAnswer(ans.figureSurfaceParking) : null;
+  const parkingType    = answersToEngine(answers).buildingTypeKey ?? site?.buildingType ?? totals?.buildingType ?? null;
+  const structuredParking = STRUCTURED_PARKING_TYPES.has(parkingType);
+  const covered   = (stated(site?.garages) ?? 0) + (stated(site?.carports) ?? 0);
+  const lessCovered = covered ? `, less ${fmt(covered)} garage and carport stalls` : '';
+  const openAir   = total => (total - covered > 0 ? total - covered : null);
+
+  let surface = null, surfaceSource = null, surfaceHow = 'Not stated on the site plan.', surfaceFlag = null;
+  if (surfaceStated != null) {
+    surface = surfaceStated; surfaceSource = 'drawing';
+    surfaceHow = 'Stated on the site plan.';
+    if (provided != null && surface > provided) {
+      surfaceFlag = `More surface stalls (${fmt(surface)}) than total provided (${fmt(provided)}) — one was misread.`;
+    }
+  } else if (surfaceTyped != null) {
+    surface = surfaceTyped; surfaceSource = 'questionnaire';
+    surfaceHow = 'Entered on the questionnaire — not found on the site plan.';
+  } else if (!structuredParking && provided != null && openAir(provided) != null) {
+    surface = openAir(provided); surfaceSource = 'derived';
+    surfaceHow = `The site plan states ${fmt(provided)} stalls provided${lessCovered}.`;
+    surfaceFlag = 'Only a total was stated, with no surface / garage split — confirm how many stalls are open-air.';
+  } else if (!structuredParking && (requiredTotal != null || (ratio != null && unitCount > 0))
+             && openAir(requiredTotal ?? Math.ceil(unitCount * ratio)) != null) {
+    const total = requiredTotal ?? Math.ceil(unitCount * ratio);
+    surface = openAir(total); surfaceSource = 'derived';
+    surfaceHow = requiredTotal != null
+      ? `The drawings give no stall count, so this uses the ${fmt(requiredTotal)} stalls code requires${lessCovered}.`
+      : `The drawings give no stall count, so this is ${fmt(unitCount)} units × ${ratio} required spaces per unit = ${fmt(total)}${lessCovered}.`;
+    surfaceFlag = 'Estimated from the code-required parking — the drawings do not state a stall count.';
+  } else if (surfaceCounted != null) {
+    surface = surfaceCounted; surfaceSource = 'drawing';
+    surfaceHow = 'Counted as striped surface stalls on the site plan — no stall number was written anywhere.';
+    surfaceFlag = 'Counted off the site plan, not stated in writing — confirm the count.';
+  } else if (guess('surfaceParkingPerUnit') != null && unitCount > 0) {
+    // No drawings at all: units × a typical surface-stall rate for the type.
+    const perUnit = guess('surfaceParkingPerUnit');
+    surface = Math.ceil(unitCount * perUnit); surfaceSource = 'derived';
+    surfaceHow = perUnit > 0
+      ? `${fmt(unitCount)} units × ${perUnit} surface stalls per unit — a typical figure for this building type.`
+      : 'This building type parks in its own garage, so no surface lot is assumed.';
+    surfaceFlag = GUESS_FLAG;
+  } else if (structuredParking && provided != null) {
+    surfaceHow = `Only a total of ${fmt(provided)} provided stalls was stated, and this building type parks mostly in a garage — how many are surface stalls?`;
+  }
+  // The count is also a cross-check on an estimate: a big gap means the
+  // estimate's inputs (rate, garage count) deserve a second look.
+  if (surfaceSource === 'derived' && surfaceCounted != null
+      && Math.abs(surfaceCounted - surface) / Math.max(surfaceCounted, surface) > 0.2) {
+    surfaceFlag += ` The site plan shows about ${fmt(surfaceCounted)} striped stalls.`;
+  }
+  add('surfaceParking', '# Surface Parking Stalls', 'count', surface, surfaceSource, surfaceHow, surfaceFlag);
 
   add('carports', '# Carports', 'count', stated(site?.carports), 'drawing',
     stated(site?.carports) != null ? 'Stated on the site plan.' : 'Not stated on the site plan.');
@@ -538,6 +639,59 @@ export function computeQuantities(drawings, answers, pricing = null) {
       grossRow.source = 'derived';
       grossRow.how = `Residential unit SF ${fmt(unitSf.sum)} × ${unitsToGross} = ${fmt(est)} SF — no stated total and no footprint, so the unit areas are scaled up to cover corridors, walls, and back of house.`;
       grossRow.flag = `ROUGH ESTIMATE from unit areas alone (×${unitsToGross}, the master pricing sheet's units→gross factor). Enter the real gross SF if you have it.`;
+    } else if (!unitSf && avgUnitTyped != null && unitCount > 0) {
+      const unitsTotal = Math.round(unitCount * avgUnitTyped);
+      const est = Math.round(unitsTotal * unitsToGross);
+      grossRow.value = est;
+      grossRow.source = 'derived';
+      grossRow.how = `${fmt(unitCount)} units × ${fmt(avgUnitTyped)} SF average = ${fmt(unitsTotal)} SF of units, × ${unitsToGross} for corridors, walls and back of house = ${fmt(est)} SF.`;
+      grossRow.flag = `ESTIMATED from the average unit size (×${unitsToGross}). Enter the real building SF if you have it.`;
+    }
+  }
+
+  // ── NO-DRAWINGS AREA GUESSES ───────────────────────────────────────────────
+  // Corridors and the clubhouse would otherwise price at $0 on a typed-in
+  // budget. Garage and exterior amenity SF are too project-specific to guess
+  // and stay blank unless typed.
+  if (manual) {
+    const corrRow = out.find(r => r.key === 'corridorSf');
+    const pct = guess('corridorPctOfGross');
+    if (corrRow && corrRow.value == null && pct != null && grossRow?.value) {
+      corrRow.value  = Math.round(grossRow.value * pct);
+      corrRow.source = 'derived';
+      corrRow.how    = pct > 0
+        ? `${Math.round(pct * 100)}% of the ${fmt(grossRow.value)} SF building — a typical corridor share for this building type.`
+        : 'This building type has open breezeways or private entries, so no interior corridors are assumed.';
+      corrRow.flag   = GUESS_FLAG;
+    }
+    const amenRow = out.find(r => r.key === 'interiorAmenitySf');
+    const perUnit = guess('interiorAmenitySfPerUnit');
+    if (amenRow && amenRow.value == null && perUnit != null && unitCount > 0) {
+      amenRow.value  = Math.round(unitCount * perUnit);
+      amenRow.source = 'derived';
+      amenRow.how    = perUnit > 0
+        ? `${fmt(unitCount)} units × ${perUnit} SF of clubhouse / leasing / fitness per unit.`
+        : 'No shared clubhouse is assumed for this building type.';
+      amenRow.flag   = GUESS_FLAG;
+    }
+    // Back of house (Mike, 2026-09-11: "how much BOH based on gross SF"). The
+    // building total here is the visitor's own figure, or their units × unit
+    // size, so the remainder is worth taking — a drawing-read budget still
+    // never takes a remainder off an estimated gross.
+    const bohRow   = out.find(r => r.key === 'bohSf');
+    const unitsRow = out.find(r => r.key === 'unitsSf');
+    if (bohRow && bohRow.value == null && grossRow?.value && unitsRow?.value != null) {
+      const g = grossRow.value;
+      const corr = corrRow?.value ?? 0;
+      const amen = amenRow?.value ?? 0;
+      const remainder = Math.max(0, Math.round(g - unitsRow.value - corr - amen));
+      const cap = Math.round(g * bohMaxPct);
+      bohRow.value  = Math.min(remainder, cap);
+      bohRow.source = 'derived';
+      bohRow.how    = remainder > cap
+        ? `${Math.round(bohMaxPct * 100)}% of the ${fmt(g)} SF building — the most back of house we assume (mechanical, storage, trash, bike rooms).`
+        : `Building ${fmt(g)} SF minus units ${fmt(unitsRow.value)}${corr ? `, corridors ${fmt(corr)}` : ''}${amen ? `, interior amenity ${fmt(amen)}` : ''}.`;
+      bohRow.flag   = GUESS_FLAG;
     }
   }
 
@@ -557,7 +711,7 @@ export function computeQuantities(drawings, answers, pricing = null) {
     const { buildingTypeKey } = answersToEngine(answers);
     const est = estimateStairLandings({
       stories, stairs,
-      buildings:   stated(site?.buildingCount),
+      buildings:   stated(site?.buildingCount) ?? statedAnswer(ans.figureBuildings),
       footprintSf: fpRow?.value ?? null,
       grossSf:     grossRow?.value ?? null,
       buildingTypeKey,

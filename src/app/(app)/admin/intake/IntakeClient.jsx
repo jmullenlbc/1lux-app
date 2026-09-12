@@ -63,7 +63,10 @@ function ReviewFlags({ submission }) {
  */
 function QuantityTakeoff({ submission }) {
   const drawings = drawingsOf(submission);
-  if (!drawings) return null;
+  // A no-drawings submission still has a full takeoff — typed figures plus
+  // the stand-in guesses — so it gets the panel too.
+  const typedIn = (submission?.answers || []).some(a => a?.questionKey === 'noDrawings' && a?.answer === 'yes');
+  if (!drawings && !typedIn) return null;
   let quantities;
   try {
     quantities = computeQuantities(drawings, submission?.answers);

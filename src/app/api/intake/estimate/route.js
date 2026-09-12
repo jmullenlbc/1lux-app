@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
-import { answersToEngine } from '@/lib/intake/questionnaire';
-import { computeQuantities } from '@/lib/intake/quantities';
+import { answersToEngine, NO_DRAWINGS_KEY, noDrawingsReady } from '@/lib/intake/questionnaire';
+import { computeQuantities, answersToMap } from '@/lib/intake/quantities';
 import { calculateBudget } from '@/lib/calculations';
 import { loadPricing } from '@/lib/pricingLoader';
 
@@ -63,14 +63,22 @@ export async function POST(req) {
   // number only after uploading drawings. Typed figures refine that estimate;
   // they never start one. Enforced here, not just in the wizard UI, so the
   // bare endpoint can't be used as a free pricing calculator.
-  if (!drawings || typeof drawings !== 'object') {
+  //
+  // The one other way in (Mike, 2026-09-11): the visitor answered "no
+  // drawings" and typed the minimum no guess can replace — project type,
+  // total units, and total building SF or an average unit size. Any drawings
+  // sent alongside a "no drawings" answer are ignored.
+  const typedIn = answersToMap(answers)[NO_DRAWINGS_KEY] === 'yes';
+  const hasDrawings = !typedIn && drawings && typeof drawings === 'object';
+  if (!hasDrawings && !(typedIn && noDrawingsReady(answersToMap(answers)).ready)) {
     return NextResponse.json({ budget: null, projectData: null, quantities: [] });
   }
 
   const pricing = await loadPricing();
 
-  // Drawings → quantities (null stays null: "the drawing did not say").
-  const rows = computeQuantities(drawings, answers || null, pricing);
+  // Drawings → quantities (null stays null: "the drawing did not say"). A
+  // typed-in budget passes no drawings; its blanks get the stand-in guesses.
+  const rows = computeQuantities(hasDrawings ? drawings : null, answers || null, pricing);
   const q = {};
   for (const r of rows) if (r && r.key) q[r.key] = r.value;
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { INCLUDE_ARCHIVED } from '@/lib/archive';
 
 // POST /api/projects/[id]/design-bid-matrix/duplicate
 // Body: { sourceVersion?: number, name: string }
@@ -26,9 +27,9 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: 'No bid matrix found to duplicate' }, { status: 404 });
   }
 
-  // Next version number
+  // Next version number. An archived version still holds its number.
   const lastMatrix = await prisma.designBidMatrix.findFirst({
-    where:   { projectId: params.id },
+    where:   { projectId: params.id, ...INCLUDE_ARCHIVED },
     orderBy: { version: 'desc' },
     select:  { version: true },
   });

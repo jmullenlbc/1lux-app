@@ -13,7 +13,7 @@ export default async function ManufacturerDetailPage({ params }) {
   try {
     manufacturer = await prisma.manufacturer.findUnique({
       where: { id: params.id },
-      include: { products: { orderBy: { partNumber: 'asc' } } },
+      include: { products: { where: { archivedAt: null }, orderBy: { partNumber: 'asc' } } },
     });
   } catch (err) {
     console.error('[/manufacturers/id] DB query failed:', err?.message ?? err);

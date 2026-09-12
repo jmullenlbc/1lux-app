@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import PdfViewerModal from '@/components/ui/PdfViewerModal';
 import { oversizeMessage } from '@/lib/uploadErrorMessage';
 import { appendUpload } from '@/lib/uploadClient';
+import ConfirmArchiveModal, { setArchived, ArchiveBoxIcon, KEPT_ON_ARCHIVE_PAGE } from '@/components/salesAutomation/ConfirmArchiveModal';
 
 const PHASE_OPTIONS = ['SD', 'DD', 'CD', 'IFC', 'ASI'];
 
@@ -90,19 +91,29 @@ function FileCard({ file, projectId, onDelete, onView }) {
   const tags  = (() => { try { return JSON.parse(file.tags || '[]'); } catch { return []; } })();
   const phase = PHASE_OPTIONS.find(p => tags.includes(p));
 
-  async function handleDelete(e) {
-    e.stopPropagation();
-    if (!confirm(`Delete "${file.originalName}"?`)) return;
+  const [asking, setAsking] = useState(false);
+
+  // Files are archived, never deleted (Mike, 2026-09-11).
+  async function handleArchive() {
     setDeleting(true);
-    try {
-      await fetch(`/api/projects/${projectId}/files/${file.id}`, { method: 'DELETE' });
-      onDelete(file.id);
-    } catch {
-      setDeleting(false);
-    }
+    const problem = await setArchived(`/api/projects/${projectId}/files/${file.id}`);
+    setDeleting(false);
+    setAsking(false);
+    if (problem) { alert(problem); return; }
+    onDelete(file.id);
   }
 
   return (
+    <>
+    <ConfirmArchiveModal
+      open={asking}
+      title="Archive this file?"
+      what={file.originalName}
+      body={KEPT_ON_ARCHIVE_PAGE}
+      busy={deleting}
+      onCancel={() => setAsking(false)}
+      onConfirm={handleArchive}
+    />
     <div
       onClick={onView}
       className="flex items-center gap-3 px-4 py-3 bg-white rounded-xl border border-slate-200 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer group"
@@ -158,19 +169,20 @@ function FileCard({ file, projectId, onDelete, onView }) {
         Open PDF
       </button>
 
-      {/* Delete */}
+      {/* Archive */}
       <button
-        onClick={handleDelete}
+        onClick={e => { e.stopPropagation(); setAsking(true); }}
         disabled={deleting}
-        className="w-7 h-7 flex items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all disabled:opacity-50"
-        title="Delete"
+        className="w-7 h-7 flex items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 text-slate-300 hover:text-amber-600 hover:bg-amber-50 transition-all disabled:opacity-50"
+        title="Archive"
       >
         {deleting
           ? <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
-          : <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+          : <ArchiveBoxIcon />
         }
       </button>
     </div>
+    </>
   );
 }
 

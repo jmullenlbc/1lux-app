@@ -76,7 +76,7 @@ export default function ControlsSection({ responses, projectData, budget, pricin
       <div>
         <h2 className="text-xl font-bold text-slate-900">Controls &amp; Energy Codes</h2>
         <p className="text-slate-500 text-sm mt-1">
-          Common area lighting controls required by IECC 2021. Cost is based on building type
+          Common area lighting controls required by IECC. Cost is based on building type
           and applied to total gross SF. Each building type has a hard cap.
         </p>
       </div>
@@ -121,7 +121,7 @@ export default function ControlsSection({ responses, projectData, budget, pricin
           {
             value: 'none',
             label: 'None',
-            sub:   'Standard code-compliant LPDs (IECC 2021 minimum)',
+            sub:   'Standard code-compliant LPDs (IECC minimum)',
             cost:  grossSf > 0 ? baseEst : undefined,
           },
           {

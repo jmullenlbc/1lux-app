@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { INCLUDE_ARCHIVED } from '@/lib/archive';
 
 const ITEM_ORDERBY = [{ sortOrder: 'asc' }, { createdAt: 'asc' }];
 const SCHEDULE_INCLUDE = { items: { orderBy: ITEM_ORDERBY }, publishedBy: { select: { id: true, name: true } } };
@@ -104,7 +105,15 @@ export async function POST(request, { params }) {
   }
 
   // Next bid version number
-  const nextBidVersion = (lastBid?.version ?? 0) + 1;
+  // An archived budget version still holds its number, so count those too.
+  // (lastBid above stays live-only: pricing carries forward from a budget
+  // somebody can still see.)
+  const lastBidNumber = await prisma.designBidMatrix.findFirst({
+    where: { projectId: params.id, ...INCLUDE_ARCHIVED },
+    orderBy: { version: 'desc' },
+    select: { version: true },
+  });
+  const nextBidVersion = (lastBidNumber?.version ?? 0) + 1;
 
   // Build bid matrix items — split on ' + ' delimiter
   const bidItems = [];

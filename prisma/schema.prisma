@@ -47,6 +47,10 @@ model User {
   archivedProjects Project[] @relation("ProjectArchiver")
   archivedContacts Contact[] @relation("ContactArchiver")
   archivedNotes    Note[]    @relation("NoteArchiver")
+  archivedProjectFiles   ProjectFile[]         @relation("ProjectFileArchiver")
+  archivedDrawingSets    DrawingSubmission[]   @relation("DrawingSubmissionArchiver")
+  archivedProducts       ManufacturerProduct[] @relation("ProductArchiver")
+  archivedBidMatrices    DesignBidMatrix[]     @relation("BidMatrixArchiver")
   standardsAnswers   ClientStandardsAnswer[]    @relation("AnsweredByUser")
   standardsOverrides ProjectStandardsOverride[] @relation("OverrideActivator")
   confirmedFixtures  PlacedFixture[]            @relation("FixtureConfirmer")
@@ -684,6 +688,10 @@ model ProjectFile {
   placedFixtures    PlacedFixture[]
   rfiAttachments    RFIAttachment[]       @relation("RFIDrawing")
   drawingRevisions  DrawingRevisionFlag[] @relation("DrawingRevisionFlags")
+  // Archived, never deleted (Mike, 2026-09-11: "drawings and budgets and products should be archive only").
+  archivedAt   DateTime?
+  archivedById String?
+  archivedBy   User?     @relation("ProjectFileArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
 }
 
 model ProjectAssignee {
@@ -1016,6 +1024,10 @@ model ManufacturerProduct {
   notes          String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+  // Archived, never deleted (Mike, 2026-09-11: "drawings and budgets and products should be archive only").
+  archivedAt   DateTime?
+  archivedById String?
+  archivedBy   User?     @relation("ProductArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
 
   @@unique([manufacturerId, partNumber])
 }
@@ -1216,6 +1228,10 @@ model DesignBidMatrix {
   matrixType       String                @default("DESIGN_BID")
   changeSummary    String?
   items            DesignBidMatrixItem[]
+  // Archived, never deleted (Mike, 2026-09-11: "drawings and budgets and products should be archive only").
+  archivedAt   DateTime?
+  archivedById String?
+  archivedBy   User?     @relation("BidMatrixArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
 }
 
 model Dashboard {
@@ -1826,6 +1842,10 @@ model DrawingSubmission {
   uploadedBy   User          @relation("DrawingUploader", fields: [uploadedById], references: [id])
   createdAt    DateTime      @default(now())
   files        DrawingFile[]
+  // Archived, never deleted (Mike, 2026-09-11: "drawings and budgets and products should be archive only").
+  archivedAt   DateTime?
+  archivedById String?
+  archivedBy   User?     @relation("DrawingSubmissionArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
 }
 
 model DrawingFile {

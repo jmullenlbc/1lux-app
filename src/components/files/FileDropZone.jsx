@@ -3,6 +3,7 @@ import { useState, useRef, useCallback, useMemo } from 'react';
 import PdfViewerModal from '@/components/ui/PdfViewerModal';
 import { oversizeMessage, uploadErrorMessage, uploadThrowMessage } from '@/lib/uploadErrorMessage';
 import { appendUpload } from '@/lib/uploadClient';
+import ConfirmArchiveModal, { setArchived, ArchiveBoxIcon, KEPT_ON_ARCHIVE_PAGE } from '@/components/salesAutomation/ConfirmArchiveModal';
 
 // Flat tag list used for filter chips and ordering
 const TAB_TAGS = {
@@ -176,7 +177,8 @@ export default function FileDropZone({ projectId, tab, initialFiles = [], onFile
   const [pendingFile,  setPendingFile]  = useState(null);
   const [uploading,    setUploading]    = useState([]);
   const [selected,     setSelected]     = useState(new Set());
-  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false); // archiving the selected files
+  const [askBulk,      setAskBulk]      = useState(false);
   const [activeTag,    setActiveTag]    = useState(null);
   const [aiFilter,     setAiFilter]     = useState(null); // null | 'readable' | 'unreadable'
   const [viewingFile,  setViewingFile]  = useState(null);
@@ -281,17 +283,20 @@ export default function FileDropZone({ projectId, tab, initialFiles = [], onFile
     });
   }
 
-  async function deleteSelected() {
-    if (!confirm(`Delete ${selected.size} file${selected.size !== 1 ? 's' : ''}? This cannot be undone.`)) return;
+  // Files are archived, never deleted (migration 0076). Only the ones the
+  // server really archived leave the list; any that failed stay selected.
+  async function archiveSelected() {
     setBulkDeleting(true);
-    await Promise.all([...selected].map(id =>
-      fetch(`/api/projects/${projectId}/files/${id}`, { method: 'DELETE' })
-    ));
-    const deleted = new Set(selected);
-    setFiles(prev => prev.filter(f => !deleted.has(f.id)));
-    deleted.forEach(id => onFileDeleted?.(id));
-    setSelected(new Set());
+    const ids = [...selected];
+    const problems = await Promise.all(ids.map(id => setArchived(`/api/projects/${projectId}/files/${id}`)));
+    const done = new Set(ids.filter((_, i) => !problems[i]));
+    setFiles(prev => prev.filter(f => !done.has(f.id)));
+    done.forEach(id => onFileDeleted?.(id));
+    setSelected(new Set(ids.filter(id => !done.has(id))));
     setBulkDeleting(false);
+    setAskBulk(false);
+    const failed = problems.filter(Boolean);
+    if (failed.length) alert(`${failed.length} of ${ids.length} could not be archived and are still selected. ${failed[0]}`);
   }
 
   const visibleIds          = visibleFiles.map(f => f.id);
@@ -301,6 +306,14 @@ export default function FileDropZone({ projectId, tab, initialFiles = [], onFile
 
   return (
     <div>
+      <ConfirmArchiveModal
+        open={askBulk}
+        title={`Archive ${selected.size} file${selected.size !== 1 ? 's' : ''}?`}
+        body={`They come off this tab. ${KEPT_ON_ARCHIVE_PAGE}`}
+        busy={bulkDeleting}
+        onCancel={() => setAskBulk(false)}
+        onConfirm={archiveSelected}
+      />
       {viewingFile && (
         <PdfViewerModal
           file={viewingFile}
@@ -439,14 +452,12 @@ export default function FileDropZone({ projectId, tab, initialFiles = [], onFile
               <div className="flex items-center gap-3 flex-1">
                 <span className="text-xs font-semibold text-slate-600">{selected.size} selected</span>
                 <button
-                  onClick={deleteSelected}
+                  onClick={() => setAskBulk(true)}
                   disabled={bulkDeleting}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-red-500 hover:bg-red-400 text-white text-xs font-semibold transition-colors disabled:opacity-60"
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold transition-colors disabled:opacity-60"
                 >
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                  {bulkDeleting ? 'Deleting…' : 'Delete'}
+                  <ArchiveBoxIcon className="w-3 h-3" />
+                  {bulkDeleting ? 'Archiving…' : 'Archive'}
                 </button>
                 <button
                   disabled

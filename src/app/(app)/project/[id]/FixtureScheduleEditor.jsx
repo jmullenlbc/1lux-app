@@ -789,7 +789,15 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
   }
 
   async function deleteVersion(versionId) {
-    await fetch(`/api/projects/${projectId}/fixture-schedule/versions/${versionId}`, { method: 'DELETE' });
+    // Refused when a budget version was built from this schedule: budget
+    // versions are archive-only and would go with it (migration 0076).
+    const res = await fetch(`/api/projects/${projectId}/fixture-schedule/versions/${versionId}`, { method: 'DELETE' }).catch(() => null);
+    if (!res?.ok) {
+      const data = res ? await res.json().catch(() => ({})) : {};
+      setDeleteConfirm(null);
+      alert(data.error || 'Could not delete it. Nothing was changed.');
+      return;
+    }
     setPublished(prev => prev.filter(p => p.id !== versionId));
     if (selectedId === versionId) setSelectedId('draft');
     setDeleteConfirm(null);

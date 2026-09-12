@@ -95,7 +95,7 @@ export const PHASE_LABELS = {
  * Log a project activity event.
  * @param {string} projectId
  * @param {{ id: string, name?: string, email?: string }} user
- * @param {string} type  - file_upload | file_delete | questionnaire | project_data | phase_change | project_meta | note_added | deal_status | deal_stage
+ * @param {string} type  - file_upload | file_delete (before 0076) | file_archive | file_restore | questionnaire | project_data | phase_change | project_meta | note_added | deal_status | deal_stage
  * @param {string} description - Human-readable description
  * @param {object} [metadata] - Extra JSON data stored for future use
  */

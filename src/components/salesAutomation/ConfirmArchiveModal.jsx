@@ -11,6 +11,40 @@ import { useEffect } from 'react';
 // asking about: an archived item is invisible to the bot from that moment on,
 // and nobody reading the bot's work later would guess why. Everything is kept,
 // so this is a question, not a warning. The caller supplies the words.
+// The words every "archive a document" confirm uses (files, drawing sets,
+// budget versions, products - migration 0076).
+export const KEPT_ON_ARCHIVE_PAGE =
+  'Nothing is deleted. It moves to the Archive page, where anyone can restore it exactly as it was.';
+
+// The archive-box outline used on every Archive button (in place of the old
+// red trash can).
+export function ArchiveBoxIcon({ className = 'w-3.5 h-3.5' }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round"
+        d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+    </svg>
+  );
+}
+
+// POST { archived } to a record's own route. Resolves to '' on success or to
+// the words to show when it did not work, so the caller only takes a row off
+// the screen once the server has really archived it.
+export async function setArchived(url, archived = true) {
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ archived }),
+    });
+    if (res.ok) return '';
+    const data = await res.json().catch(() => ({}));
+    return data.error || 'Could not archive it. Nothing was changed.';
+  } catch {
+    return 'Could not reach the server. Nothing was changed.';
+  }
+}
+
 export default function ConfirmArchiveModal({
   open, title, what, body, busy, onCancel, onConfirm, confirmLabel = 'Archive it',
 }) {

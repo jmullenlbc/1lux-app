@@ -32,8 +32,8 @@
  * presence proves nothing. "Found something" means an actual site NUMBER.
  */
 export const SITE_NUMBER_KEYS = [
-  'lotAcres', 'lotSf', 'totalUnits', 'parkingProvided', 'parkingRequired',
-  'surfaceParking', 'garages', 'carports', 'buildingCount', 'clubhouseSf', 'amenitySf',
+  'lotAcres', 'lotSf', 'totalUnits', 'parkingProvided', 'parkingRequired', 'parkingRatioRequired',
+  'surfaceParking', 'surfaceParkingCounted', 'garages', 'carports', 'buildingCount', 'clubhouseSf', 'amenitySf',
   'grossSf', 'stories', 'storiesCounted', 'egressStairwells', 'egressStairwellsCounted',
   'exitDoors', 'exitDoorsCounted', 'buildingFootprintSf', 'lotCoveragePct',
 ];

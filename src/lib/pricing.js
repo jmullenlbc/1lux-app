@@ -617,7 +617,7 @@ export const OPTION_LABELS = {
     high:      '$5/SF — High finish (may include façade lighting)',
   },
   amenityHours: {
-    beforeDusk:  'Other (closes at or before dusk)',
+    beforeDusk:  'Closes at or before dusk',
     afterSunset: '24hrs or after dark',
     duskToDawn:  'Dusk to Dawn',
   },
