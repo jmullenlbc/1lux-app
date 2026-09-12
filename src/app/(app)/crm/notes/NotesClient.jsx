@@ -1,5 +1,6 @@
 'use client';
 import { useState, useRef, useCallback, useEffect } from 'react';
+import ConfirmArchiveModal from '@/components/salesAutomation/ConfirmArchiveModal';
 
 // ── Contact tag chip + inline link picker ────────────────────────────────────
 function ContactChip({ name, linked, onClick }) {
@@ -513,6 +514,8 @@ function AddLinkDropdown({ placeholder, items, onAdd, onClose }) {
 
 function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }) {
   const isAdmin = ['SUPER_ADMIN', 'ILC_ADMIN', 'COMPANY_ADMIN', 'ADMIN'].includes(currentUser?.role);
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [archiving,   setArchiving]   = useState(false);
 
   const [publishing, setPublishing] = useState(false);
 
@@ -713,10 +716,25 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
     else alert('Failed to unlink project: ' + await res.text());
   }
 
-  async function handleDelete() {
-    if (!confirm(`Delete note #${note.noteNumber}? This cannot be undone.`)) return;
-    const res = await fetch(`/api/crm/notes/${note.id}`, { method: 'DELETE' });
-    if (res.ok) onDelete(note.id);
+  // Notes are archived, never deleted (Mike, 2026-09-11).
+  async function handleArchive() {
+    setArchiving(true);
+    try {
+      const res = await fetch(`/api/crm/notes/${note.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archived: true }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'Could not archive that note.');
+        return;
+      }
+      setArchiveOpen(false);
+      onDelete(note.id);
+    } finally {
+      setArchiving(false);
+    }
   }
 
   const availableClients = clients.filter(c => !linkedClientIds.has(c.id)).map(c => ({
@@ -989,11 +1007,20 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
       {isAdmin && (
         <div className="shrink-0 px-6 py-3 border-t border-slate-200">
           <button
-            onClick={handleDelete}
-            className="text-xs text-slate-600 hover:text-red-600 transition-colors"
+            onClick={() => setArchiveOpen(true)}
+            className="text-xs text-slate-600 hover:text-amber-600 transition-colors"
           >
-            Delete this note
+            Archive this note
           </button>
+          <ConfirmArchiveModal
+            open={archiveOpen}
+            title="Archive this note?"
+            what={note.title || `Note #${note.noteNumber}`}
+            body="It disappears from the notes list and from the companies and projects it is linked to. Any follow-up emails it set up that have not gone out yet are held. Nothing is deleted, and you can restore it from the Archive page at any time."
+            busy={archiving}
+            onCancel={() => setArchiveOpen(false)}
+            onConfirm={handleArchive}
+          />
         </div>
       )}
     </div>

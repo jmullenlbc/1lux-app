@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, isClientViewer } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { INCLUDE_ARCHIVED, archiveData, readArchivedFlag, deleteRefused, ARCHIVED_FLAG_HELP } from '@/lib/archive';
 import { logActivity, PHASE_LABELS } from '@/lib/activity';
 import { sendNotification } from '@/lib/notify';
 import { NEXT_ACTION_KEYS, STAGE_KEYS, STAGE_LABEL, PIPELINE_LABEL } from '@/lib/pipeline';
@@ -97,7 +98,8 @@ export async function PATCH(request, { params }) {
   const teamUpdate = pickTeamUpdate(body);
   const teamIds = [...new Set(Object.values(teamUpdate).filter(Boolean))];
   if (teamIds.length) {
-    const found = await prisma.client.findMany({ where: { id: { in: teamIds } }, select: { id: true } });
+    // An archived company keeps any seat it already holds, so it must count here.
+    const found = await prisma.client.findMany({ where: { id: { in: teamIds }, ...INCLUDE_ARCHIVED }, select: { id: true } });
     if (found.length !== teamIds.length) {
       return NextResponse.json(
         { error: 'One of the companies chosen for the project team no longer exists.' },
@@ -243,7 +245,15 @@ export async function PATCH(request, { params }) {
   return NextResponse.json({ project: updated });
 }
 
-export async function DELETE(request, { params }) {
+// DELETE /api/projects/[id] — refused. Projects are archived, never deleted
+// (Mike, 2026-09-11). A delete took the budget, files, notes and history with it.
+export async function DELETE() {
+  return NextResponse.json({ error: deleteRefused('Projects') }, { status: 405 });
+}
+
+// POST /api/projects/[id]  { archived: true | false } — archive or restore.
+// Written to the project's History tab either way.
+export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
@@ -254,7 +264,17 @@ export async function DELETE(request, { params }) {
   const project = await getProjectForUser(params.id, user);
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  await prisma.project.delete({ where: { id: params.id } });
+  const archived = await readArchivedFlag(request);
+  if (archived === null) return NextResponse.json({ error: ARCHIVED_FLAG_HELP }, { status: 400 });
 
-  return NextResponse.json({ success: true });
+  const updated = await prisma.project.update({
+    where:  { id: params.id },
+    data:   archiveData(archived, user),
+    select: { id: true, name: true, archivedAt: true },
+  });
+
+  await logActivity(params.id, user, archived ? 'project_archived' : 'project_restored',
+    archived ? 'Archived the project' : 'Restored the project from the archive');
+
+  return NextResponse.json({ project: updated });
 }

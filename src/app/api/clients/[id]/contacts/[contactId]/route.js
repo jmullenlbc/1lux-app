@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { archiveData, readArchivedFlag, deleteRefused, ARCHIVED_FLAG_HELP } from '@/lib/archive';
 import { splitName, joinName, isValidEmail } from '@/lib/crmClient';
 
 const PROJECT_LINK_INCLUDE = {
   projectLinks: {
+    where: { project: { archivedAt: null } },
     include: {
       project: {
         select: {
@@ -87,13 +89,26 @@ export async function PATCH(request, { params }) {
   return NextResponse.json({ contact: updated });
 }
 
-export async function DELETE(request, { params }) {
+// DELETE — refused. People are archived, never deleted (Mike, 2026-09-11).
+export async function DELETE() {
+  return NextResponse.json({ error: deleteRefused('People') }, { status: 405 });
+}
+
+// POST /api/clients/[id]/contacts/[contactId]  { archived: true | false }
+export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
   const { err, contact } = await authorizeContact(params.id, params.contactId, user);
   if (err) return err;
 
-  await prisma.contact.delete({ where: { id: contact.id } });
-  return NextResponse.json({ ok: true });
+  const archived = await readArchivedFlag(request);
+  if (archived === null) return NextResponse.json({ error: ARCHIVED_FLAG_HELP }, { status: 400 });
+
+  const updated = await prisma.contact.update({
+    where:   { id: contact.id },
+    data:    archiveData(archived, user),
+    include: PROJECT_LINK_INCLUDE,
+  });
+  return NextResponse.json({ contact: updated });
 }

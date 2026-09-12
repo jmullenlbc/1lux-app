@@ -8,6 +8,7 @@ import { calculateBudget } from '@/lib/calculations';
 import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
 import { PROJECT_TEAM_ROLES } from '@/lib/projectTeam';
 import ProjectHubClient from './ProjectHubClient';
+import ArchivedBanner from '@/components/ArchivedBanner';
 
 // The six companies on the project team, by name, so the team card reads right
 // on the first paint instead of filling in once the client list arrives.
@@ -23,11 +24,12 @@ export default async function ProjectHubPage({ params }) {
     where: { id: params.id },
     include: {
       _count: {
-        select: { notes: { where: { noteType: 'PROJECT_MEETING' } } },
+        select: { notes: { where: { noteType: 'PROJECT_MEETING', archivedAt: null } } },
       },
       projectData: true,
       responses: true,
       client: true,
+      archivedBy: { select: { name: true, email: true } },
       peerReviewItems: { orderBy: [{ section: 'asc' }, { sortOrder: 'asc' }] },
       assignees: { include: { user: { select: { id: true, name: true, email: true } } } },
       ...TEAM_INCLUDE,
@@ -81,6 +83,12 @@ export default async function ProjectHubPage({ params }) {
   };
 
   return (
+    <>
+    {project.archivedAt && (
+      <ArchivedBanner kind="project" id={project.id} archivedAt={project.archivedAt.toISOString()}
+        archivedBy={project.archivedBy?.name || project.archivedBy?.email || null}
+        canRestore={!isClientViewer(session.role)} />
+    )}
     <ProjectHubClient
       userId={session.id}
       userRole={session.role}
@@ -99,5 +107,6 @@ export default async function ProjectHubPage({ params }) {
       masterTypes={masterTypes}
       meetingNotesCount={project._count?.notes ?? 0}
     />
+    </>
   );
 }

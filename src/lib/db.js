@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { withArchiveFilter } from './archive';
 
 const globalForPrisma = globalThis;
 
@@ -6,14 +7,17 @@ const globalForPrisma = globalThis;
 // process.env at runtime, so DATABASE_URL is always available here.
 // The `datasources.db.url` override is kept to be explicit and ensure the
 // correct URL is used even when @prisma/client is loaded as an external module.
-export const prisma = globalForPrisma.prisma ?? new PrismaClient({
+// Wrapped so archived clients, projects, people and notes drop out of every
+// list and count on their own — see src/lib/archive.js (migration 0075).
+// Cached under its own name so a dev reload never reuses an unwrapped client.
+export const prisma = globalForPrisma.prismaArchiveAware ?? withArchiveFilter(new PrismaClient({
     datasources: {
           db: {
                   url: process.env.DATABASE_URL,
           },
     },
-});
+}));
 
 if (process.env.NODE_ENV !== 'production') {
-    globalForPrisma.prisma = prisma;
+    globalForPrisma.prismaArchiveAware = prisma;
 }

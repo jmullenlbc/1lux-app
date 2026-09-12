@@ -2,7 +2,41 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-11 (latest) — Mike's Claude — ✅ **DEPLOYED**: email templates archive-only + removed prebuilt dashboard cards stay removed, migration 0074
+### 2026-09-11 (latest) — Mike's Claude — ✅ **DEPLOYED**: companies, projects, people and notes are archive-only, migration 0075
+
+Mike: *"yes archive only for everything. it won't be that much data."*
+
+**Migration 0075**: `archivedAt DateTime?` + `archivedById String?` (FK User, SET NULL) on
+Client, Project, ClientContact (model `Contact`) and Note. Additive only; schema guard
+approved. Local SQLite got it through `prisma db execute`, never `db push`.
+
+**One rule, not fifty filters.** `src/lib/archive.js` → `withArchiveFilter`, a Prisma
+`$extends` query extension wrapped around the client in `src/lib/db.js`. It adds
+`archivedAt: null` to `findMany`, `count` and `groupBy` on the four models unless the
+`where` already names `archivedAt`. Deliberately NOT on `findUnique`/`findFirst`
+(archived pages still open) or `aggregate` (next-number lookups). **Nested `include`s
+and `_count` are NOT covered by the extension — filter those by hand** (done in the
+client list, client page, CRM page, project page, contacts routes).
+`...INCLUDE_ARCHIVED` (`{archivedAt: undefined}`) opts a query back in: used by the
+budget-number lookup (unique column), the Project Team seat check and the admin
+user-delete counts.
+
+**Routes:** DELETE on clients/[id], projects/[id], contacts/[contactId], crm/notes/[id]
+and meeting-notes/[noteId] returns 405 `deleteRefused()`. New POST `{archived: bool}` on
+each (400 without the flag) writes `archiveData()`. Project archive/restore logs
+`project_archived`/`project_restored` activity. Client archive no longer nulls
+`Project.clientId`. Screens use the shared `ConfirmArchiveModal`; `ArchivedBanner`
+on the client and project pages; `/archive` lists and restores all four.
+
+**Pre-existing bug fixed:** `POST /api/clients` passed `type: null` into a required
+column (default "developer"), so any company made with no Client Type ticked 500'd —
+Prisma reports it as the misleading "Argument `createdBy` is missing". Now `undefined`.
+
+**Tests:** `crmArchive.test.mjs` (14, incl. an e2e). `uploadFlow.e2e` cleans up with
+Prisma `deleteMany`. Full suite 1277/1277 with the dev server up; build clean; both
+migration checks clean.
+
+### 2026-09-11 — Mike's Claude — ✅ **DEPLOYED (65f8d7f)**: email templates archive-only + removed prebuilt dashboard cards stay removed, migration 0074
 
 Mike: *"Do it for email templates in the CRM definitely."* / *"Make it stick."*
 

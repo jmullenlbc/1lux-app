@@ -3,6 +3,7 @@ import { getSession, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { teamMemberWhere, PROJECT_TEAM_ID_FIELDS } from '@/lib/projectTeam';
 import ClientDetailClient from './ClientDetailClient';
+import ArchivedBanner from '@/components/ArchivedBanner';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +19,7 @@ export default async function ClientDetailPage({ params }) {
     where: { id: params.id },
     include: {
       projects: {
+        where: { archivedAt: null },
         orderBy: { updatedAt: 'desc' },
         select: {
           id: true, projectNumber: true, name: true, location: true, city: true, state: true,
@@ -30,9 +32,11 @@ export default async function ClientDetailPage({ params }) {
       // there was nothing to count. Mike, 2026-09-09, wants those numbers to
       // open the list of jobs behind them without leaving the page.
       contacts: {
+        where: { archivedAt: null },
         orderBy: { createdAt: 'asc' },
         include: {
           projectLinks: {
+            where: { project: { archivedAt: null } },
             select: {
               id: true, isLead: true,
               project: {
@@ -47,6 +51,7 @@ export default async function ClientDetailPage({ params }) {
       },
       createdBy: { select: { name: true, email: true } },
       owner:     { select: { id: true, name: true, email: true } },
+      archivedBy: { select: { name: true, email: true } },
     },
   });
 
@@ -90,6 +95,11 @@ export default async function ClientDetailPage({ params }) {
   });
 
   return (
+    <>
+    {client.archivedAt && (
+      <ArchivedBanner kind="client" id={client.id} archivedAt={client.archivedAt.toISOString()}
+        archivedBy={client.archivedBy?.name || client.archivedBy?.email || null} />
+    )}
     <ClientDetailClient
       client={client}
       relatedProjects={relatedProjects}
@@ -99,5 +109,6 @@ export default async function ClientDetailPage({ params }) {
       canEditPlaybook={canEditPlaybook}
       initialStandardsAnswers={standardsAnswers}
     />
+    </>
   );
 }

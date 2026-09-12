@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import ConfirmArchiveModal from '@/components/salesAutomation/ConfirmArchiveModal';
 import { formatCurrency } from '@/lib/calculations';
 import { buildingTypeLabel, phaseLabel, serviceTypeLabel, PROJECT_PHASES, SERVICE_TYPES } from '@/lib/utils';
 
@@ -69,6 +70,7 @@ export default function DashboardClient({ projects = [], user }) {
   const [sortCol,     setSortCol]     = useState('updatedAt');
   const [sortDir,     setSortDir]     = useState('desc');
   const [actionRow,   setActionRow]   = useState(null);
+  const [archiveTarget, setArchiveTarget] = useState(null); // { id, name } waiting on "Archive it"
 
   useEffect(() => {
     router.refresh();
@@ -77,11 +79,24 @@ export default function DashboardClient({ projects = [], user }) {
     return () => window.removeEventListener('focus', onFocus);
   }, [router]);
 
-  async function deleteProject(id) {
-    if (!confirm('Delete this project? This cannot be undone.')) return;
-    setActionRow(id);
+  // Projects are archived, never deleted (Mike, 2026-09-11). The budget, files,
+  // notes and history are all kept; the Archive page puts it back.
+  async function archiveProject() {
+    const target = archiveTarget;
+    if (!target) return;
+    setActionRow(target.id);
     try {
-      await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/projects/${target.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archived: true }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'Could not archive that project.');
+        return;
+      }
+      setArchiveTarget(null);
       router.refresh();
     } finally {
       setActionRow(null);
@@ -377,9 +392,9 @@ export default function DashboardClient({ projects = [], user }) {
                             </svg>
                           )}
                         </button>
-                        <button onClick={() => deleteProject(project.id)} title="Delete"
+                        <button onClick={() => setArchiveTarget({ id: project.id, name: project.name })} title="Archive"
                           disabled={actionRow === project.id}
-                          className="p-1.5 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50">
+                          className="p-1.5 rounded text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-50">
                           {actionRow === project.id ? (
                             <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -387,7 +402,7 @@ export default function DashboardClient({ projects = [], user }) {
                             </svg>
                           ) : (
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
                             </svg>
                           )}
                         </button>
@@ -400,6 +415,22 @@ export default function DashboardClient({ projects = [], user }) {
           </table>
         )}
       </div>
+
+      <div className="mt-8 text-center">
+        <Link href="/archive" className="text-xs text-slate-400 hover:text-slate-600 transition-colors">
+          Archived companies, projects, people and notes →
+        </Link>
+      </div>
+
+      <ConfirmArchiveModal
+        open={!!archiveTarget}
+        title="Archive this project?"
+        what={archiveTarget?.name || 'Untitled project'}
+        body="It disappears from this list, the pipeline boards and every dashboard number. Nothing is deleted: its budget, files, notes and history are all kept, and you can restore it from the Archive page at any time."
+        busy={!!actionRow}
+        onCancel={() => setArchiveTarget(null)}
+        onConfirm={archiveProject}
+      />
     </div>
   );
 }

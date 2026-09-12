@@ -23,10 +23,10 @@ export async function GET() {
     where: canSeeAllData(user) ? {} : { createdById: user.id },
     orderBy: { clientNumber: 'asc' },
     include: {
-      _count: { select: { projects: true, contacts: true } },
+      _count: { select: { projects: { where: { archivedAt: null } }, contacts: { where: { archivedAt: null } } } },
       createdBy: { select: { name: true, email: true } },
       owner:     { select: { id: true, name: true, email: true } },
-      projects:  { select: DEAL_COUNT_PROJECT_SELECT },
+      projects:  { where: { archivedAt: null }, select: DEAL_COUNT_PROJECT_SELECT },
       tagLinks:  { include: { tag: true } },
     },
   });
@@ -67,7 +67,9 @@ export async function POST(request) {
     data: {
       clientNumber,
       name:         name.trim(),
-      type:         derivedType  || type || null,
+      // type is required in the schema (default "developer"): undefined lets the
+      // default apply; null made Prisma reject the whole create.
+      type:         derivedType  || type || undefined,
       locationType: locationType || 'standalone',
       notes:        notes        || null,
       email:        email        || null,

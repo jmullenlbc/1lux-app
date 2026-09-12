@@ -1,5 +1,6 @@
 'use client';
 import { useState, useRef, useEffect, useCallback } from 'react';
+import ConfirmArchiveModal from '@/components/salesAutomation/ConfirmArchiveModal';
 
 // ── Toolbar button ────────────────────────────────────────────────────────────
 function Btn({ title, onMouseDown, children }) {
@@ -80,7 +81,8 @@ function NoteDetail({ note, projectId, onBack, onUpdated, onDeleted }) {
   const [attendeeInput, setAttendeeInput] = useState('');
   const [dirty,    setDirty]   = useState(false);
   const [saving,   setSaving]  = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [deleting, setDeleting] = useState(false);       // archiving in flight
+  const [archiveOpen, setArchiveOpen] = useState(false);
   const editorRef = useRef(null);
 
   // @mention state
@@ -218,11 +220,25 @@ function NoteDetail({ note, projectId, onBack, onUpdated, onDeleted }) {
     patch({ attendees: JSON.stringify(next) });
   }
 
-  async function del() {
-    if (!confirm('Delete this meeting note?')) return;
+  // Meeting notes are archived, never deleted (Mike, 2026-09-11).
+  async function archive() {
     setDeleting(true);
-    await fetch(`/api/projects/${projectId}/meeting-notes/${note.id}`, { method: 'DELETE' });
-    onDeleted(note.id);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/meeting-notes/${note.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archived: true }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'Could not archive that note.');
+        return;
+      }
+      setArchiveOpen(false);
+      onDeleted(note.id);
+    } finally {
+      setDeleting(false);
+    }
   }
 
   const createdStr = new Date(note.createdAt).toLocaleDateString('en-US', {
@@ -417,12 +433,21 @@ function NoteDetail({ note, projectId, onBack, onUpdated, onDeleted }) {
         {/* Footer */}
         <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-slate-50 rounded-b-xl">
           <button
-            onClick={del}
+            onClick={() => setArchiveOpen(true)}
             disabled={deleting}
-            className="text-xs text-slate-300 hover:text-red-400 transition-colors disabled:opacity-60"
+            className="text-xs text-slate-400 hover:text-amber-600 transition-colors disabled:opacity-60"
           >
-            {deleting ? 'Deleting…' : 'Delete note'}
+            {deleting ? 'Archiving…' : 'Archive note'}
           </button>
+          <ConfirmArchiveModal
+            open={archiveOpen}
+            title="Archive this meeting note?"
+            what={note.title || 'Untitled meeting note'}
+            body="It disappears from this project's meeting notes. Nothing is deleted, and you can restore it from the Archive page at any time."
+            busy={deleting}
+            onCancel={() => setArchiveOpen(false)}
+            onConfirm={archive}
+          />
           <button
             onClick={saveContent}
             disabled={saving || !dirty}

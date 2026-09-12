@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, isClientViewer } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { INCLUDE_ARCHIVED } from '@/lib/archive';
 import { loadPricing } from '@/lib/pricingLoader';
 import { recordProjectCreated } from '@/lib/statusEvents';
 
@@ -60,7 +61,9 @@ export async function POST(request) {
   const resolvedBudgetType = ['design', 'peer_review'].includes(budgetType) ? budgetType : 'conceptual';
   const prefix = resolvedBudgetType === 'peer_review' ? 'B' : resolvedBudgetType === 'design' ? 'D' : 'C';
   const existingNums = await prisma.project.findMany({
-    where: { budgetNumber: { startsWith: prefix } },
+    // Archived projects keep their budget numbers, so they must be counted or
+    // the next number would collide with one (budgetNumber is unique).
+    where: { budgetNumber: { startsWith: prefix }, ...INCLUDE_ARCHIVED },
     select: { budgetNumber: true },
   });
   const maxSeq = existingNums.reduce((max, p) => {

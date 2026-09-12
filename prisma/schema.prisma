@@ -43,6 +43,10 @@ model User {
   ownedDashboards    Dashboard[]                @relation("DashboardOwner")
   dashboardShares    DashboardShare[]           @relation("DashboardSharedWith")
   hiddenDashboardWidgets DashboardHiddenWidget[] @relation("DashboardWidgetHider")
+  archivedClients  Client[]  @relation("ClientArchiver")
+  archivedProjects Project[] @relation("ProjectArchiver")
+  archivedContacts Contact[] @relation("ContactArchiver")
+  archivedNotes    Note[]    @relation("NoteArchiver")
   standardsAnswers   ClientStandardsAnswer[]    @relation("AnsweredByUser")
   standardsOverrides ProjectStandardsOverride[] @relation("OverrideActivator")
   confirmedFixtures  PlacedFixture[]            @relation("FixtureConfirmer")
@@ -193,6 +197,12 @@ model DesignStandard {
 model Client {
   id           String @id @default(cuid())
   clientNumber Int?   @unique
+  // Archived, never deleted (Mike, 2026-09-11: "archive only for everything").
+  // Set = hidden from every list, picker and count; the row and everything
+  // hanging off it is kept, and Restore on the Archive page clears it.
+  archivedAt   DateTime?
+  archivedById String?
+  archivedBy   User?     @relation("ClientArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
   name         String
   type         String @default("developer")
   locationType String @default("standalone")
@@ -391,6 +401,12 @@ model PipelineProject {
 model Contact {
   id            String   @id @default(cuid())
   contactNumber Int?     @unique  // human-readable number, same idea as clientNumber
+  // Archived, never deleted (Mike, 2026-09-11: "archive only for everything").
+  // Set = hidden from every list, picker and count; the row and everything
+  // hanging off it is kept, and Restore on the Archive page clears it.
+  archivedAt   DateTime?
+  archivedById String?
+  archivedBy   User?     @relation("ContactArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
   // Optional: we meet people before we know where they work. Deleting a company
   // must NOT delete the human — it just unhooks them (this was Cascade when the
   // table only ever held employees of a client).
@@ -473,6 +489,12 @@ model ClientKBAttachment {
 model Project {
   id                       String    @id @default(cuid())
   projectNumber            Int?      @unique
+  // Archived, never deleted (Mike, 2026-09-11: "archive only for everything").
+  // Set = hidden from every list, picker and count; the row and everything
+  // hanging off it is kept, and Restore on the Archive page clears it.
+  archivedAt   DateTime?
+  archivedById String?
+  archivedBy   User?     @relation("ProjectArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
   name                     String
   buildingType             String?
   location                 String?
@@ -1008,6 +1030,12 @@ model ManufacturerProduct {
 model Note {
   id           String   @id @default(cuid())
   noteNumber   Int?     @unique
+  // Archived, never deleted (Mike, 2026-09-11: "archive only for everything").
+  // Set = hidden from every list, picker and count; the row and everything
+  // hanging off it is kept, and Restore on the Archive page clears it.
+  archivedAt   DateTime?
+  archivedById String?
+  archivedBy   User?     @relation("NoteArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
   noteType     String   @default("SALES")  // SALES | PROJECT_MEETING
   title        String   @default("")
   body         String   @default("")

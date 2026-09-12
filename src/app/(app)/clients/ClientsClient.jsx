@@ -9,6 +9,7 @@ import {
 } from '@/lib/utils';
 import { clientDealCounts, parseList } from '@/lib/crmClient';
 import MultiSelect from '@/components/ui/MultiSelect';
+import ConfirmArchiveModal from '@/components/salesAutomation/ConfirmArchiveModal';
 
 function ClientTypeTag({ type }) {
   if (!type) return null;
@@ -192,7 +193,8 @@ export default function ClientsClient({ clients: initial, user }) {
   const [clients, setClients] = useState(initial);
   const [search,  setSearch]  = useState('');
   const [modal,   setModal]   = useState(null); // null | 'new' | clientObject
-  const [deletingId, setDeletingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);      // the one being archived
+  const [archiveTarget, setArchiveTarget] = useState(null); // { id, name } waiting on "Archive it"
   const [tagFilter,  setTagFilter]  = useState('');   // '' = every client
 
   // Every tag actually in use, for the filter row.
@@ -213,11 +215,24 @@ export default function ClientsClient({ clients: initial, user }) {
     router.refresh();
   }
 
-  async function deleteClient(id, name) {
-    if (!confirm(`Delete "${name}"? Their projects will be unlinked but not deleted.`)) return;
-    setDeletingId(id);
+  // Companies are archived, never deleted (Mike, 2026-09-11). Its projects,
+  // people and notes stay linked to it; the Archive page puts it back.
+  async function archiveClient() {
+    const target = archiveTarget;
+    if (!target) return;
+    setDeletingId(target.id);
     try {
-      await fetch(`/api/clients/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/clients/${target.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archived: true }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'Could not archive that company.');
+        return;
+      }
+      setArchiveTarget(null);
       await refresh();
     } finally {
       setDeletingId(null);
@@ -374,13 +389,13 @@ export default function ClientsClient({ clients: initial, user }) {
                     </svg>
                   </button>
                   <button
-                    onClick={() => deleteClient(client.id, client.name)}
+                    onClick={() => setArchiveTarget({ id: client.id, name: client.name })}
                     disabled={deletingId === client.id}
-                    title="Delete"
+                    title="Archive"
                     className={`p-1.5 rounded-lg transition-colors ${
                       deletingId === client.id
                         ? 'text-slate-300 cursor-not-allowed opacity-50'
-                        : 'text-slate-400 hover:text-red-500 hover:bg-red-50'
+                        : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'
                     }`}
                   >
                     {deletingId === client.id ? (
@@ -390,7 +405,7 @@ export default function ClientsClient({ clients: initial, user }) {
                       </svg>
                     ) : (
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
                       </svg>
                     )}
                   </button>
@@ -457,6 +472,22 @@ export default function ClientsClient({ clients: initial, user }) {
           ))}
         </div>
       )}
+
+      <div className="mt-8 text-center">
+        <Link href="/archive" className="text-xs text-slate-400 hover:text-slate-600 transition-colors">
+          Archived companies, projects, people and notes →
+        </Link>
+      </div>
+
+      <ConfirmArchiveModal
+        open={!!archiveTarget}
+        title="Archive this company?"
+        what={archiveTarget?.name}
+        body="It disappears from the client list, every picker and the dashboards. Nothing is deleted: its projects, people and notes stay exactly as they are and stay linked to it. You can restore it from the Archive page at any time."
+        busy={!!deletingId}
+        onCancel={() => setArchiveTarget(null)}
+        onConfirm={archiveClient}
+      />
 
       {/* Modal */}
       {modal && (

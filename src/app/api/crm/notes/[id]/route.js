@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { archiveData, readArchivedFlag, deleteRefused, ARCHIVED_FLAG_HELP } from '@/lib/archive';
 import { extractNoteActions } from '@/lib/bot/extractNoteActions';
 import { getActiveActionTypes } from '@/lib/noteActionTypesStore';
 import { executeNotePublished, pauseNoteOnUnpublish } from '@/lib/bot/noteActionRunner';
@@ -171,17 +172,35 @@ export async function PATCH(request, { params }) {
   return NextResponse.json(updated);
 }
 
-// DELETE /api/crm/notes/[id]
-export async function DELETE(request, { params }) {
+// DELETE /api/crm/notes/[id] — refused. Notes are archived, never deleted
+// (Mike, 2026-09-11).
+export async function DELETE() {
+  return NextResponse.json({ error: deleteRefused('Notes') }, { status: 405 });
+}
+
+// POST /api/crm/notes/[id]  { archived: true | false } — archive or restore.
+// Admins only, as deleting was. Archiving holds any follow-up emails the note
+// queued that have not gone out yet (same as un-publishing it); restoring does
+// not send them — publish the note again to re-run its actions.
+export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
   const isAdmin = ['SUPER_ADMIN', 'ILC_ADMIN', 'COMPANY_ADMIN', 'ADMIN'].includes(user.role);
-  if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!isAdmin) return NextResponse.json({ error: 'Only an admin can archive or restore a note.' }, { status: 403 });
 
-  const note = await prisma.note.findUnique({ where: { id: params.id } });
+  const note = await prisma.note.findUnique({ where: { id: params.id }, select: { id: true } });
   if (!note) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  await prisma.note.delete({ where: { id: params.id } });
-  return NextResponse.json({ ok: true });
+  const archived = await readArchivedFlag(request);
+  if (archived === null) return NextResponse.json({ error: ARCHIVED_FLAG_HELP }, { status: 400 });
+
+  const updated = await prisma.note.update({
+    where:   { id: params.id },
+    data:    archiveData(archived, user),
+    include: NOTE_INCLUDE,
+  });
+  if (archived) await pauseNoteOnUnpublish(params.id).catch(() => {});
+
+  return NextResponse.json(updated);
 }

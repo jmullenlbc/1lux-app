@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
+import { INCLUDE_ARCHIVED } from '@/lib/archive';
 import { requireAdmin, isSuperAdmin } from '@/lib/auth';
 
 export async function PATCH(request, { params }) {
@@ -72,8 +73,9 @@ export async function DELETE(request, { params }) {
   // Count records with required (non-nullable) FK references that can't be nullified
   const [projects, clients, tasks, changeOrders, designBidMatrices] =
     await Promise.all([
-      prisma.project.count({ where: { createdById: params.id } }),
-      prisma.client.count({ where: { createdById: params.id } }),
+      // Archived rows still point at the user, so they block a delete too.
+      prisma.project.count({ where: { createdById: params.id, ...INCLUDE_ARCHIVED } }),
+      prisma.client.count({ where: { createdById: params.id, ...INCLUDE_ARCHIVED } }),
       prisma.task.count({ where: { createdById: params.id } }),
       prisma.changeOrder.count({ where: { createdById: params.id } }),
       prisma.designBidMatrix.count({ where: { pushedById: params.id } }),

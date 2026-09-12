@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import ConfirmArchiveModal from '@/components/salesAutomation/ConfirmArchiveModal';
 import {
   buildingTypeLabel, ORG_TYPE_OPTIONS, DEVELOPER_TYPES, developerTypeLabel,
   PROJECT_TYPES as CLIENT_PROJECT_TYPES, projectTypeLabel,
@@ -1036,7 +1037,8 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
   }, [contacts]);
   const [addForm,   setAddForm]   = useState(null); // null | {}
   const [saving,    setSaving]    = useState(false);
-  const [deletingId, setDeletingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);      // the one being archived
+  const [archiveTarget, setArchiveTarget] = useState(null); // { id, name } waiting on "Archive it"
 
   const [formErr, setFormErr] = useState('');
 
@@ -1076,18 +1078,43 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
     setContacts(c => c.map(x => x.id === contact.id ? data.contact : x));
   }
 
-  async function deleteContact(id, name) {
-    if (!confirm(`Remove "${name}" from contacts?`)) return;
-    setDeletingId(id);
-    await fetch(`/api/clients/${clientId}/contacts/${id}`, { method: 'DELETE' });
-    setContacts(c => c.filter(x => x.id !== id));
-    setDeletingId(null);
+  // People are archived, never deleted (Mike, 2026-09-11).
+  async function archiveContact() {
+    const target = archiveTarget;
+    if (!target) return;
+    setDeletingId(target.id);
+    try {
+      const res = await fetch(`/api/clients/${clientId}/contacts/${target.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archived: true }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'Could not archive that person.');
+        return;
+      }
+      setContacts(c => c.filter(x => x.id !== target.id));
+      setArchiveTarget(null);
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   const inputCls = 'w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-amber-400';
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <ConfirmArchiveModal
+        open={!!archiveTarget}
+        title="Archive this person?"
+        what={archiveTarget?.name}
+        body="They disappear from this company's People list and every picker, and the sales bot stops matching emails and meetings to them. Nothing is deleted: their history and the projects they are on are kept, and you can restore them from the Archive page at any time."
+        busy={!!deletingId}
+        onCancel={() => setArchiveTarget(null)}
+        onConfirm={archiveContact}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
         <div>
@@ -1179,10 +1206,10 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
 
               <div className="flex items-center gap-2 shrink-0">
                 <DealChips contact={c} onOpenList={setDealList} />
-                <button onClick={() => deleteContact(c.id, c.name)} disabled={deletingId === c.id}
-                  className="p-1 rounded text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all" title="Remove this person">
+                <button onClick={() => setArchiveTarget({ id: c.id, name: c.name })} disabled={deletingId === c.id}
+                  className="p-1 rounded text-slate-300 hover:text-amber-600 hover:bg-amber-50 opacity-0 group-hover:opacity-100 transition-all" title="Archive this person">
                   {deletingId === c.id ? <Spinner className="w-3.5 h-3.5" /> : (
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" /></svg>
                   )}
                 </button>
               </div>

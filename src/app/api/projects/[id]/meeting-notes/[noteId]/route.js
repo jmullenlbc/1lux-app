@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { archiveData, readArchivedFlag, deleteRefused, ARCHIVED_FLAG_HELP } from '@/lib/archive';
 import { sendNotification } from '@/lib/notify';
 import { toMeetingNote } from '../route';
 
@@ -40,11 +41,27 @@ export async function PATCH(request, { params }) {
   return NextResponse.json({ note: toMeetingNote(updated) });
 }
 
-export async function DELETE(request, { params }) {
+// DELETE — refused. Meeting notes are archived, never deleted (Mike, 2026-09-11).
+export async function DELETE() {
+  return NextResponse.json({ error: deleteRefused('Notes') }, { status: 405 });
+}
+
+// POST /api/projects/[id]/meeting-notes/[noteId]  { archived: true | false }
+export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
   if (!await canAccess(params.id, user)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  await prisma.note.delete({ where: { id: params.noteId } });
-  return NextResponse.json({ success: true });
+  // The note has to belong to this project, not just be a note somewhere.
+  const note = await prisma.note.findFirst({
+    where:  { id: params.noteId, projectId: params.id, noteType: 'PROJECT_MEETING' },
+    select: { id: true },
+  });
+  if (!note) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  const archived = await readArchivedFlag(request);
+  if (archived === null) return NextResponse.json({ error: ARCHIVED_FLAG_HELP }, { status: 400 });
+
+  const updated = await prisma.note.update({ where: { id: note.id }, data: archiveData(archived, user) });
+  return NextResponse.json({ note: toMeetingNote(updated) });
 }

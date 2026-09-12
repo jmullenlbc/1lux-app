@@ -8,6 +8,7 @@ import { nextContactNumber } from '@/lib/contactNumber';
 // out their own open / won / lost / abandoned counts without storing them.
 const PROJECT_LINK_INCLUDE = {
   projectLinks: {
+    where: { project: { archivedAt: null } },
     include: {
       project: {
         select: {

@@ -5,6 +5,72 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Companies, projects, people and notes are archived, never deleted] - September 11, 2026 (DEPLOYED)
+
+Mike: *"yes archive only for everything. it won't be that much data."*
+
+The same rule the bot's library and the email templates already follow now covers
+the four big ones: companies, projects, people and notes (sales notes and project
+meeting notes). Nothing in the app can delete them any more.
+
+- **Delete is gone** from the client list, the project list on the dashboard, a
+  company's People tab, the Sales Notes screen and a project's Meeting Notes. In
+  its place: **Archive**, behind the same amber pop-up the Bot Knowledge and
+  Templates screens use. It says plainly that nothing is deleted.
+- **Archived things drop out of every list, picker, count and chart on their
+  own.** Nobody has to remember to filter them.
+- **Their own page still opens**, with an amber banner at the top: "This company
+  is archived", who did it and when, and a **Restore** button.
+- **New Archive page** at `/archive`, reached from a small link at the bottom of
+  the dashboard and the client list ("Archived companies, projects, people and
+  notes"). Everything archived, newest first, each with Restore.
+- **Archiving a company no longer unlinks its projects** (Delete used to), and
+  its Project Team seats on other jobs stay filled.
+- Archiving or restoring a project writes a line on its **History** tab.
+- The addresses behind all five screens refuse to delete, with a plain-English
+  message pointing at Archive.
+- Budget numbers still count archived projects, so a number is never handed out
+  twice.
+
+**Worth knowing:** an archived project drops out of win rates and dashboard totals.
+For a job that was really lost, mark it Lost or Abandoned instead.
+
+**Bug fixed on the way:** creating a company with no Client Type ticked failed with
+a server error. That had been the case since the first version of the app. It now
+gets the normal default.
+
+### Database
+
+**Migration 0075** adds two columns, `archivedAt` and `archivedById`, to `Client`,
+`Project`, `ClientContact` (people) and `Note`. Purely additive: every existing row
+starts as "not archived", so everything looks exactly as it did. Reviewed by the
+schema guard: nothing existing is dropped, renamed or changed.
+
+### Files
+
+- `prisma/schema.prisma`, `prisma/migrations/0075_archive_only_records/`
+- `src/lib/archive.js` (new), `src/lib/db.js`
+- `src/components/ArchivedBanner.jsx` (new), `src/app/(app)/archive/` (new)
+- `src/app/api/clients/route.js`, `clients/[id]/route.js`,
+  `clients/[id]/contacts/route.js`, `clients/[id]/contacts/[contactId]/route.js`
+- `src/app/api/projects/route.js`, `projects/[id]/route.js`,
+  `projects/[id]/meeting-notes/[noteId]/route.js`
+- `src/app/api/crm/notes/[id]/route.js`, `src/app/api/admin/users/[id]/route.js`
+- `src/app/(app)/clients/ClientsClient.jsx`, `clients/page.jsx`,
+  `clients/[id]/page.jsx`, `clients/[id]/ClientDetailClient.jsx`
+- `src/app/(app)/dashboard/DashboardClient.jsx`, `project/[id]/page.jsx`,
+  `crm/page.jsx`, `crm/notes/NotesClient.jsx`, `src/components/MeetingNotes.jsx`
+
+### Tests
+
+- New `scripts/tests/crmArchive.test.mjs` (14 tests, one of them end to end
+  against the dev server).
+- `uploadFlow.e2e.test.mjs` removes its throwaway project straight from the
+  database, since the app no longer deletes projects.
+- Full suite: 1277 of 1277 pass.
+
+---
+
 ## [Email templates are archive-only, and a card taken off a dashboard stays off] - September 11, 2026 (DEPLOYED)
 
 Mike: *"Do it for email templates in the CRM definitely."* and *"Make it stick."*

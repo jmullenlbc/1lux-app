@@ -11,7 +11,8 @@
 //   2. upload a synthetic unit-matrix .xlsx → AI parse → commit → ProjectData updated
 //   3. upload a synthetic site-plan .pdf → AI vision parse → numBuildings proposed →
 //      commit a corrected value → ProjectData updated + verdict recorded
-//   4. delete the project
+//   4. remove the throwaway project straight from the database (the app itself
+//      only archives projects now, never deletes them — migration 0075)
 //
 // Both fixtures are generated in memory — no client documents involved. The site
 // plan states "NUMBER OF BUILDINGS: 8 (7 RESIDENTIAL + 1 CLUBHOUSE)" on purpose:
@@ -19,6 +20,7 @@
 // commits the corrected value (7) to exercise the CORRECTED-verdict path.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { PrismaClient } from '@prisma/client';
 import { BASE, login, get, post, serverUp } from './_auth.mjs';
 
 // ─── in-memory fixtures ─────────────────────────────────────────────────────
@@ -93,9 +95,16 @@ async function uploadFile(projectId, cookie, { name, type, buffer, tab }) {
   return { status: res.status, json };
 }
 
-async function del(path, cookie) {
-  const res = await fetch(`${BASE}${path}`, { method: 'DELETE', headers: { cookie } });
-  return { status: res.status };
+// The app refuses to delete projects (they are archived instead), so the
+// throwaway project is removed straight from the database. deleteMany, so a
+// missing row is not an error.
+async function removeProject(id) {
+  const prisma = new PrismaClient();
+  try {
+    return await prisma.project.deleteMany({ where: { id } });
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
 // ─── the test ───────────────────────────────────────────────────────────────
@@ -187,7 +196,7 @@ test('questionnaire drawing-upload flow, end to end', { timeout: 300_000 }, asyn
       assert.ok(back.json.unitTypes?.length >= 3, 'unit types did not persist');
     });
   } finally {
-    const gone = await del(`/api/projects/${projectId}`, cookie);
-    assert.equal(gone.status, 200, 'cleanup: project delete failed — remove it by hand');
+    const gone = await removeProject(projectId);
+    assert.equal(gone.count, 1, 'cleanup: project delete failed — remove it by hand');
   }
 });
