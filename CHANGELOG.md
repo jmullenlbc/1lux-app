@@ -5,6 +5,81 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Email templates are archive-only, and a card taken off a dashboard stays off] - September 11, 2026 (DEPLOYED)
+
+Mike: *"Do it for email templates in the CRM definitely."* and *"Make it stick."*
+
+---
+
+## Email templates can no longer be deleted — only archived
+
+Same rule as the bot's library. The Templates screen never had a Delete button,
+but the address behind it would still destroy a template if anything called it.
+That address now refuses with a plain-English message pointing at Archive.
+
+- The **Active** tick box in the template editor is gone. In its place, bottom
+  left of the editor: **Archive** (or **Restore** on an archived one).
+- Each row in the list gets an **Archive** button next to **Edit** when you hover.
+- Archiving asks first, with the same amber pop-up the Bot Knowledge screen uses:
+  the sales bot stops using the template when it drafts messages, nothing is
+  deleted, and it can be restored any time.
+- The section at the bottom is now **Archived templates**, and each one has a
+  real **Restore** button (it used to say "Edit to re-enable").
+- The bot already skipped archived templates — both places it picks one filter
+  on "not archived". A test now pins that.
+
+**Bug fixed on the way:** saving a template handed the list the wrong thing, so an
+edited row did not update and a new template appeared blank until the page was
+reloaded.
+
+The archive pop-up moved into its own shared file so both screens use one copy.
+
+---
+
+## Taking a prebuilt card off a dashboard now sticks
+
+Before this, removing **Things Needing a Look** (or one of the pricing
+calibration cards) from a dashboard only lasted until the next load — the
+dashboard re-adds every prebuilt card it is missing, so it came straight back.
+
+- Removing a prebuilt card now records that this dashboard does not want it, and
+  the load skips it from then on.
+- A small **Put back a card (N)** menu appears in the dashboard toolbar, next to
+  Reset to default, whenever a card has been taken off. Pick one and it returns.
+- **Reset to default** brings every card back, as you would expect.
+- If an admin takes a card off the shared default, a personal copy made from it
+  afterwards leaves it off too.
+
+**Bug fixed on the way:** prebuilt cards were recognised by their title, so a card
+somebody renamed got a second copy added next to it. They are now recognised by
+what they are, not what they are called.
+
+**Security fix on the way:** removing or editing a card did not check that the
+card was actually on the dashboard being edited. It does now.
+
+### Database
+
+**Migration 0074** adds one table, `DashboardHiddenWidget`. Purely additive — the
+table starts empty, so every dashboard looks exactly as it did before the first
+time anybody removes a card. Reviewed by the schema guard: nothing existing is
+dropped, renamed or changed.
+
+### Files
+
+- `prisma/schema.prisma`, `prisma/migrations/0074_dashboard_hidden_widgets/`
+- `src/lib/dashboards/prebuilt.js` (new)
+- `src/app/api/dashboards/route.js`, `[id]/widgets/[widgetId]/route.js`,
+  `[id]/fork/route.js`, `[id]/hidden/route.js` (new)
+- `src/app/(app)/dashboards/[section]/DashboardView.jsx`
+- `src/app/api/automation/templates/[id]/route.js`
+- `src/app/(app)/sales/automation/templates/page.jsx`
+- `src/components/salesAutomation/ConfirmArchiveModal.jsx` (new, moved out of
+  the Bot Knowledge screen), `src/app/(app)/sales/automation/knowledge/page.jsx`
+- Tests: `scripts/tests/dashboardPrebuilt.test.mjs`,
+  `scripts/tests/templatesArchive.test.mjs`
+
+---
+
 ## [Nothing gets deleted any more — the bot's library is archive-only, and buried cards go to an archive] - September 10, 2026 (DEPLOYED — add8bec)
 
 Mike: *"I think we should make all knowledge base probably be archived and not

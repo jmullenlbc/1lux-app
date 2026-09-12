@@ -12,7 +12,7 @@ export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
-  const src = await prisma.dashboard.findUnique({ where: { id: params.id }, include: { widgets: true } });
+  const src = await prisma.dashboard.findUnique({ where: { id: params.id }, include: { widgets: true, hiddenWidgets: true } });
   if (!src) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const existing = await prisma.dashboard.findFirst({
@@ -28,6 +28,9 @@ export async function POST(request, { params }) {
         name: w.name, category: w.category, metric: w.metric, viewBy: w.viewBy, segmentBy: w.segmentBy,
         filters: w.filters, chartType: w.chartType, dataSpec: w.dataSpec, position: w.position, width: w.width,
       })) },
+      // Cards taken off the default stay off the copy. Without this, the first
+      // edit anybody made would bring back every card an admin had removed.
+      hiddenWidgets: { create: src.hiddenWidgets.map(h => ({ widgetKey: h.widgetKey, hiddenById: h.hiddenById })) },
     },
     include: { widgets: { orderBy: { position: 'asc' } } },
   });

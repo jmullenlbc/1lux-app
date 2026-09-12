@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, isAnyAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { prebuiltKey } from '@/lib/dashboards/prebuilt';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +19,11 @@ export async function PATCH(request, { params }) {
   const forbidden = await assertEdit(params.id, user);
   if (forbidden) return forbidden;
 
+  // The widget has to be on the dashboard the caller may edit, or anybody who
+  // owns one dashboard could edit a widget on another by its id.
+  const existing = await prisma.dashboardWidget.findUnique({ where: { id: params.widgetId }, select: { dashboardId: true } });
+  if (!existing || existing.dashboardId !== params.id) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
   const b = await request.json().catch(() => ({}));
   const widget = await prisma.dashboardWidget.update({
     where: { id: params.widgetId },
@@ -33,12 +39,29 @@ export async function PATCH(request, { params }) {
   return NextResponse.json({ widget });
 }
 
-// DELETE — remove a widget
+// DELETE — remove a widget.
+//
+// A prebuilt card (dataSpec.kind set) is re-added automatically on every load,
+// so removing one also records that this dashboard does not want it — otherwise
+// it is back on the next load (Mike, 2026-09-11: "Make it stick"). An upsert,
+// because createMany's duplicate-skipping is Postgres-only and throws in dev.
 export async function DELETE(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
   const forbidden = await assertEdit(params.id, user);
   if (forbidden) return forbidden;
-  await prisma.dashboardWidget.delete({ where: { id: params.widgetId } });
-  return NextResponse.json({ ok: true });
+
+  const widget = await prisma.dashboardWidget.findUnique({ where: { id: params.widgetId } });
+  if (!widget || widget.dashboardId !== params.id) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  const key = prebuiltKey(widget.dataSpec);
+  await prisma.$transaction([
+    ...(key ? [prisma.dashboardHiddenWidget.upsert({
+      where:  { dashboardId_widgetKey: { dashboardId: params.id, widgetKey: key } },
+      update: {},
+      create: { dashboardId: params.id, widgetKey: key, hiddenById: user.id },
+    })] : []),
+    prisma.dashboardWidget.delete({ where: { id: widget.id } }),
+  ]);
+  return NextResponse.json({ ok: true, hidden: key || null });
 }

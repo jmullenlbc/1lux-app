@@ -36,23 +36,16 @@ export async function PATCH(req, { params }) {
   return NextResponse.json({ template: updated });
 }
 
-export async function DELETE(req, { params }) {
-  const { user, error } = await requireAuth();
-  if (error) return error;
-
-  const adminRoles = ['SUPER_ADMIN', 'ILC_ADMIN', 'COMPANY_ADMIN'];
-  if (!adminRoles.includes(user.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
-  const { id } = params;
-
-  const existing = await prisma.messageTemplate.findUnique({ where: { id } });
-  if (!existing) {
-    return NextResponse.json({ error: 'Template not found' }, { status: 404 });
-  }
-
-  await prisma.messageTemplate.delete({ where: { id } });
-
-  return NextResponse.json({ ok: true });
+// Email templates are archived, never deleted. Mike, 2026-09-11: "Do it for
+// email templates in the CRM definitely." Archiving (PATCH isActive: false)
+// takes a template out of everything that picks one, and keeps it.
+//
+// Kept as a refusal rather than removed, like the bot-knowledge routes, so an
+// old open tab or anything written later cannot destroy a template by calling a
+// URL the screen no longer uses.
+export async function DELETE() {
+  return NextResponse.json(
+    { error: 'Email templates are archived, never deleted. Archive it instead — it stops being used and is kept.' },
+    { status: 405 },
+  );
 }

@@ -2,7 +2,49 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-10 (latest) — Mike's Claude — ✅ **DEPLOYED (add8bec)**: nothing gets deleted any more — the bot's library is archive-only, buried cards go to an archive, plus the "Things Needing a Look" card and migration 0073
+### 2026-09-11 (latest) — Mike's Claude — ✅ **DEPLOYED**: email templates archive-only + removed prebuilt dashboard cards stay removed, migration 0074
+
+Mike: *"Do it for email templates in the CRM definitely."* / *"Make it stick."*
+
+**1. Email templates (`MessageTemplate`) are archive-only.** `DELETE
+/api/automation/templates/[id]` now returns 405 with a plain-English refusal (kept, not
+removed — same reasoning as the two bot-knowledge routes). Archive = `isActive: false`
+via the existing PATCH. The screen's Active checkbox is replaced by Archive / Restore in
+the drawer footer plus a hover Archive on each row, behind the amber
+`ConfirmArchiveModal` — **now its own file at
+`src/components/salesAutomation/ConfirmArchiveModal.jsx`**, imported by both the
+knowledge and templates pages. `followUpDrafter.findTemplate` already filtered
+`isActive: true` in both queries; `templatesArchive.test.mjs` pins that and forbids any
+`messageTemplate.delete*` anywhere in `src`. Pre-existing bug fixed: the drawer passed the
+`{ template }` response wrapper to the list instead of the template.
+
+**2. Removing a prebuilt dashboard card sticks. Migration 0074** adds
+`DashboardHiddenWidget (dashboardId, widgetKey, hiddenById?, hiddenAt)`, unique on
+(dashboardId, widgetKey), **CASCADE on Dashboard** (so Reset to default — which deletes
+the personal copy — brings every card back) and SET NULL on User. Purely additive; the
+schema guard reviewed it and found nothing destructive.
+- **Cards are keyed by identity, not title:** `prebuiltKey()` in
+  `src/lib/dashboards/prebuilt.js` = `dataSpec.kind`, or `kind:report` for the
+  calibration set. `appendMissingPrebuilt` used to match by NAME, so a retitled prebuilt
+  card got a duplicate — fixed.
+- Widget DELETE records the hide in the same `$transaction` (upsert, never
+  `skipDuplicates`). GET `/api/dashboards` skips hidden keys and returns `hiddenCards`;
+  new `POST /api/dashboards/[id]/hidden { key }` puts one back (clears the preference
+  row). DashboardView shows a **Put back a card (N)** select beside Reset.
+- Fork copies the source's hidden rows, so an admin's removal from the default survives
+  the first personal edit.
+- **Ownership gap closed:** widget PATCH and DELETE never checked
+  `widget.dashboardId === params.id`, so owning one dashboard let you edit or delete a
+  widget on another by id. Both now 404 in that case.
+
+**Local DB:** table created with `prisma db execute` (SQLite DDL) — `db push` still wants
+to drop `ContactLegacy`. **Prod gets it from `migrate deploy`.** Commit the 0074 folder
+together with the schema change.
+
+**Still open with Mike:** archive-only for clients, projects and people (recommended,
+not built — deleting a company still silently blanks its Project Team seats).
+
+### 2026-09-10 — Mike's Claude — ✅ **DEPLOYED (add8bec)**: nothing gets deleted any more — the bot's library is archive-only, buried cards go to an archive, plus the "Things Needing a Look" card and migration 0073
 
 Mike: *"I think we should make all knowledge base probably be archived and not be deleted
 at all if it takes it out of the bot box reach... I don't think these cards should ever

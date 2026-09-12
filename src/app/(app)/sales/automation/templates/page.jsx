@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import AutomationNav from '@/components/salesAutomation/AutomationNav';
 import DisabledSection from '@/components/salesAutomation/DisabledSection';
+import ConfirmArchiveModal from '@/components/salesAutomation/ConfirmArchiveModal';
 
 // ── CreatableSelect ───────────────────────────────────────────────────────────
 // A combo-box that lets admins pick an existing option OR type a new one.
@@ -138,7 +139,7 @@ const TAB_CHANNELS = {
 
 // ── Drawer ────────────────────────────────────────────────────────────────────
 
-function TemplateDrawer({ open, onClose, template, onSaved }) {
+function TemplateDrawer({ open, onClose, template, onSaved, onArchive, onRestore }) {
   const [form,    setForm]   = useState(EMPTY_FORM);
   const [saving,  setSaving] = useState(false);
   const [err,     setErr]    = useState('');
@@ -191,7 +192,7 @@ function TemplateDrawer({ open, onClose, template, onSaved }) {
         throw new Error(d.error || `Error ${res.status}`);
       }
       const saved = await res.json();
-      onSaved(saved, !!template);
+      onSaved(saved.template || saved, !!template);
       onClose();
     } catch (e) {
       setErr(e.message);
@@ -348,15 +349,9 @@ function TemplateDrawer({ open, onClose, template, onSaved }) {
               />
               <span className="text-xs text-slate-700 font-medium">Default template</span>
             </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={form.isActive}
-                onChange={e => set('isActive', e.target.checked)}
-                className="w-4 h-4 rounded accent-orange-600"
-              />
-              <span className="text-xs text-slate-700 font-medium">Active</span>
-            </label>
+            {template && !template.isActive && (
+              <span className="text-xs text-amber-700 font-medium">Archived — the bot does not use this one</span>
+            )}
           </div>
 
           {err && (
@@ -366,6 +361,17 @@ function TemplateDrawer({ open, onClose, template, onSaved }) {
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-slate-200 shrink-0">
+          {template && (template.isActive ? (
+            <button type="button" onClick={() => onArchive(template)}
+              className="mr-auto px-3 py-2 rounded-lg text-sm font-semibold text-amber-700 hover:bg-amber-50 transition-colors">
+              Archive
+            </button>
+          ) : (
+            <button type="button" onClick={() => onRestore(template)}
+              className="mr-auto px-3 py-2 rounded-lg text-sm font-semibold text-green-700 hover:bg-green-50 transition-colors">
+              Restore
+            </button>
+          ))}
           <button
             type="button"
             onClick={onClose}
@@ -389,7 +395,7 @@ function TemplateDrawer({ open, onClose, template, onSaved }) {
 
 // ── Templates Table ───────────────────────────────────────────────────────────
 
-function TemplatesTable({ templates, onEdit }) {
+function TemplatesTable({ templates, onEdit, onArchive, onRestore }) {
   if (templates.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-14 text-center">
@@ -420,7 +426,7 @@ function TemplatesTable({ templates, onEdit }) {
         </thead>
         <tbody className="divide-y divide-slate-50">
           {templates.filter(t => t.isActive).length === 0 ? (
-            <tr><td colSpan={7} className="py-6 text-center text-xs text-slate-400">No active templates — all are disabled below.</td></tr>
+            <tr><td colSpan={7} className="py-6 text-center text-xs text-slate-400">No active templates — they are all archived below.</td></tr>
           ) : templates.filter(t => t.isActive).map(t => (
             <tr
               key={t.id}
@@ -446,20 +452,29 @@ function TemplatesTable({ templates, onEdit }) {
                 >
                   Edit
                 </button>
+                <button
+                  onClick={e => { e.stopPropagation(); onArchive(t); }}
+                  className="text-[11px] font-semibold text-slate-500 hover:text-amber-700 transition-colors opacity-0 group-hover:opacity-100 px-2 py-1 rounded hover:bg-amber-50"
+                >
+                  Archive
+                </button>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
 
-      <DisabledSection count={templates.filter(t => !t.isActive).length} label="Disabled templates">
+      <DisabledSection count={templates.filter(t => !t.isActive).length} label="Archived templates">
+        <p className="text-[11px] text-slate-400 mb-1">Kept, never deleted. The bot does not use these until they are restored.</p>
         <div className="divide-y divide-slate-100">
           {templates.filter(t => !t.isActive).map(t => (
-            <button key={t.id} onClick={() => onEdit(t)} className="w-full flex items-center gap-2 py-2 text-left">
-              <span className="text-xs font-semibold text-slate-600">{t.name}</span>
-              <span className="text-[10px] text-slate-400 capitalize">{t.scenario?.replace(/_/g, ' ')}</span>
-              <span className="ml-auto text-[10px] text-orange-600 font-semibold">Edit to re-enable</span>
-            </button>
+            <div key={t.id} className="w-full flex items-center gap-2 py-2">
+              <button onClick={() => onEdit(t)} className="flex items-center gap-2 text-left min-w-0">
+                <span className="text-xs font-semibold text-slate-600">{t.name}</span>
+                <span className="text-[10px] text-slate-400 capitalize">{t.scenario?.replace(/_/g, ' ')}</span>
+              </button>
+              <button onClick={() => onRestore(t)} className="ml-auto text-[10px] text-green-700 font-semibold px-2 py-1 rounded hover:bg-green-50">Restore</button>
+            </div>
           ))}
         </div>
       </DisabledSection>
@@ -478,6 +493,8 @@ export default function TemplatesPage() {
   const [seeding,          setSeeding]          = useState(false);
   const [seeded,           setSeeded]           = useState(false);
   const [err,              setErr]              = useState('');
+  const [archiving,        setArchiving]        = useState(null);   // template waiting on the archive popup
+  const [archiveBusy,      setArchiveBusy]      = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -523,6 +540,48 @@ export default function TemplatesPage() {
       setTemplates(prev => prev.map(t => t.id === saved.id ? saved : t));
     } else {
       setTemplates(prev => [...prev, saved]);
+    }
+  }
+
+  // Archive / restore. Email templates are archived, never deleted (Mike,
+  // 2026-09-11). Archiving only flips isActive, which everything that picks a
+  // template already honours, so the template and its wording are kept.
+  async function setActive(t, isActive) {
+    const res = await fetch(`/api/automation/templates/${t.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isActive }),
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      throw new Error(d.error || `Error ${res.status}`);
+    }
+    const { template } = await res.json();
+    setTemplates(prev => prev.map(x => x.id === template.id ? template : x));
+    return template;
+  }
+
+  async function confirmArchive() {
+    if (!archiving) return;
+    setArchiveBusy(true);
+    setErr('');
+    try {
+      await setActive(archiving, false);
+      setShowDrawer(false);
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setArchiving(null);
+      setArchiveBusy(false);
+    }
+  }
+
+  async function restore(t) {
+    setErr('');
+    try {
+      const saved = await setActive(t, true);
+      if (editingTemplate?.id === saved.id) setEditingTemplate(saved);
+    } catch (e) {
+      setErr(e.message);
     }
   }
 
@@ -593,7 +652,7 @@ export default function TemplatesPage() {
             <div className="w-5 h-5 border-2 border-slate-200 border-t-orange-500 rounded-full animate-spin" />
           </div>
         ) : (
-          <TemplatesTable templates={filtered} onEdit={openEdit} />
+          <TemplatesTable templates={filtered} onEdit={openEdit} onArchive={setArchiving} onRestore={restore} />
         )}
       </div>
 
@@ -602,6 +661,18 @@ export default function TemplatesPage() {
         onClose={() => setShowDrawer(false)}
         template={editingTemplate}
         onSaved={handleSaved}
+        onArchive={setArchiving}
+        onRestore={restore}
+      />
+
+      <ConfirmArchiveModal
+        open={!!archiving}
+        title="Archive this template?"
+        what={archiving?.name}
+        body={<>Once it is archived, the sales bot stops using this template when it drafts messages. Nothing is deleted — the template and its wording are kept, and you can restore it any time from <b>Archived templates</b> at the bottom of this list.</>}
+        busy={archiveBusy}
+        onCancel={() => setArchiving(null)}
+        onConfirm={confirmArchive}
       />
     </div>
   );

@@ -12,7 +12,7 @@ const MATH_OPTS = MATH_OPS.map(k => ({ k, label: MATH_LABEL[k] }));
 
 export default function DashboardView({ section, sectionLabel }) {
   const [dash, setDash]       = useState(null);     // active dashboard { id, name, ownerUserId, widgets[] }
-  const [meta, setMeta]       = useState({ isPersonal: false, isAdmin: false, shared: [] });
+  const [meta, setMeta]       = useState({ isPersonal: false, isAdmin: false, shared: [], hiddenCards: [] });
   const [series, setSeries]   = useState({});       // widgetId -> { chartType, series }
   const [loading, setLoading] = useState(true);
   const [editor, setEditor]   = useState(null);     // null | { widget? , spec }
@@ -31,7 +31,7 @@ export default function DashboardView({ section, sectionLabel }) {
     const res = await fetch(`/api/dashboards?section=${section}`);
     const d = res.ok ? await res.json() : {};
     setDash(d.active || null);
-    setMeta({ isPersonal: !!d.isPersonal, isAdmin: !!d.isAdmin, shared: d.shared || [] });
+    setMeta({ isPersonal: !!d.isPersonal, isAdmin: !!d.isAdmin, shared: d.shared || [], hiddenCards: d.hiddenCards || [] });
     setLoading(false);
   }, [section]);
 
@@ -112,6 +112,15 @@ export default function DashboardView({ section, sectionLabel }) {
     await reloadKeepId(target.id);
   }
 
+  // Put back a prebuilt card that was taken off. Taking one off now lasts
+  // (Mike, 2026-09-11: "Make it stick"), so there has to be a way back.
+  async function putBack(key) {
+    if (!key) return;
+    const target = await ensureEditable(); if (!target) return;
+    await fetch(`/api/dashboards/${target.id}/hidden`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key }) });
+    await reloadKeepId(target.id);
+  }
+
   async function toggleWidth(w) {
     const target = await ensureEditable(); if (!target) return;
     const wid = resolveWidgetId(target, w); if (!wid) return;
@@ -142,7 +151,7 @@ export default function DashboardView({ section, sectionLabel }) {
 
   async function reloadKeepId(id) {
     const res = await fetch(`/api/dashboards?section=${section}`);
-    if (res.ok) { const d = await res.json(); setDash(d.active); setMeta(m => ({ ...m, isPersonal: !!d.isPersonal })); }
+    if (res.ok) { const d = await res.json(); setDash(d.active); setMeta(m => ({ ...m, isPersonal: !!d.isPersonal, hiddenCards: d.hiddenCards || [] })); }
   }
 
   async function openShare() {
@@ -169,6 +178,13 @@ export default function DashboardView({ section, sectionLabel }) {
         <div className="flex items-center gap-2">
           {dash && <button onClick={() => setEditor({ spec: newSpec() })} className="px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-semibold hover:bg-orange-600">+ Widget</button>}
           {dash && <button onClick={openShare} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50">Share</button>}
+          {dash && meta.hiddenCards?.length > 0 && (
+            <select value="" onChange={e => putBack(e.target.value)} title="Cards that were taken off this dashboard"
+              className="text-xs rounded-lg border border-slate-200 px-2 py-1.5 text-slate-500 hover:bg-slate-50">
+              <option value="">Put back a card ({meta.hiddenCards.length})</option>
+              {meta.hiddenCards.map(c => <option key={c.key} value={c.key}>{c.name}</option>)}
+            </select>
+          )}
           {dash?.ownerUserId && <button onClick={resetToDefault} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-500 hover:bg-slate-50">Reset to default</button>}
         </div>
       </div>

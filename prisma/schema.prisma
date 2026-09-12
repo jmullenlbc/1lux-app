@@ -42,6 +42,7 @@ model User {
   dashboards         Dashboard[]                @relation("DashboardCreator")
   ownedDashboards    Dashboard[]                @relation("DashboardOwner")
   dashboardShares    DashboardShare[]           @relation("DashboardSharedWith")
+  hiddenDashboardWidgets DashboardHiddenWidget[] @relation("DashboardWidgetHider")
   standardsAnswers   ClientStandardsAnswer[]    @relation("AnsweredByUser")
   standardsOverrides ProjectStandardsOverride[] @relation("OverrideActivator")
   confirmedFixtures  PlacedFixture[]            @relation("FixtureConfirmer")
@@ -1202,6 +1203,7 @@ model Dashboard {
   updatedAt   DateTime          @updatedAt
   widgets     DashboardWidget[]
   shares      DashboardShare[]
+  hiddenWidgets DashboardHiddenWidget[]
   @@index([section, ownerUserId])
 }
 
@@ -1220,6 +1222,28 @@ model DashboardWidget {
   position    Int
   width       String    @default("HALF")
   createdAt   DateTime  @default(now())
+}
+
+/// A prebuilt card somebody took off a dashboard, so it stays off.
+///
+/// Mike, 2026-09-11: "Make it stick." Prebuilt cards (Things Needing a Look,
+/// the pricing-calibration set) are added to every dashboard automatically at
+/// load time, so a new one reaches everybody without a rebuild. Before this
+/// table, removing one did nothing lasting: the next load put it straight back.
+///
+/// One row = "this dashboard does not want this card". widgetKey is the card's
+/// identity from src/lib/dashboards/prebuilt.js ("verification",
+/// "calibration:rateDrift" ...), NOT its title, because a card can be retitled.
+/// A personal copy inherits the rows of the default it was copied from.
+model DashboardHiddenWidget {
+  id          String    @id @default(cuid())
+  dashboardId String
+  dashboard   Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  widgetKey   String
+  hiddenById  String?
+  hiddenBy    User?     @relation("DashboardWidgetHider", fields: [hiddenById], references: [id], onDelete: SetNull)
+  hiddenAt    DateTime  @default(now())
+  @@unique([dashboardId, widgetKey])
 }
 
 /// Things Needing a Look — the memory behind the Main-dashboard card.

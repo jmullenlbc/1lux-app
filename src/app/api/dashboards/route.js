@@ -2,17 +2,24 @@ import { NextResponse } from 'next/server';
 import { requireAuth, isAnyAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { TEMPLATES_BY_SECTION } from '@/lib/defaultDashboard';
+import { missingPrebuilt, hiddenCards } from '@/lib/dashboards/prebuilt';
 
 export const dynamic = 'force-dynamic';
 
 const WITH_WIDGETS = { widgets: { orderBy: { position: 'asc' } } };
 
-// Templates flagged as "prebuilt" (dataSpec.kind set) are guaranteed on the
-// section default even when it was created before the template existed.
-async function appendMissingPrebuilt(dash, section) {
-  const templates = (TEMPLATES_BY_SECTION[section] || []).filter(t => t.dataSpec?.kind);
-  const have = new Set((dash.widgets || []).map(w => w.name));
-  const missing = templates.filter(t => !have.has(t.name));
+// The prebuilt cards somebody has taken off this dashboard (migration 0074).
+async function hiddenKeysFor(dashboardId) {
+  const rows = await prisma.dashboardHiddenWidget.findMany({ where: { dashboardId }, select: { widgetKey: true } });
+  return rows.map(r => r.widgetKey);
+}
+
+// Templates flagged as "prebuilt" (dataSpec.kind set) are added to a dashboard
+// that lacks them, even one created before the template existed — unless that
+// dashboard had the card taken off. Matched by what the card is, not its title,
+// so a renamed card is not added a second time. Rules: src/lib/dashboards/prebuilt.js.
+async function appendMissingPrebuilt(dash, section, hiddenKeys) {
+  const missing = missingPrebuilt(TEMPLATES_BY_SECTION[section] || [], dash.widgets, hiddenKeys);
   if (!missing.length) return dash;
   let position = dash.widgets.length;
   await prisma.dashboardWidget.createMany({
@@ -48,11 +55,16 @@ export async function GET(request) {
   // a dashboard to get them.
   //
   // This runs on personal copies as well as the admin default, because most
-  // people are on a personal copy and would otherwise never see a new card. The
-  // price is that deleting a prebuilt widget from a personal dashboard does not
-  // stick — it returns on the next load. Hiding one for good needs somewhere to
-  // record that it was hidden, which is a table we have not built.
-  if (active) active = await appendMissingPrebuilt(active, section);
+  // people are on a personal copy and would otherwise never see a new card.
+  //
+  // Taking a prebuilt card off now sticks (Mike, 2026-09-11: "Make it stick"):
+  // the widget DELETE route records it in DashboardHiddenWidget and this load
+  // skips it. hiddenCards goes back to the screen so it can offer to put one back.
+  let hidden = [];
+  if (active) {
+    hidden = await hiddenKeysFor(active.id);
+    active = await appendMissingPrebuilt(active, section, hidden);
+  }
 
   const shared = await prisma.dashboardShare.findMany({
     where: { sharedWithUserId: user.id },
@@ -62,6 +74,7 @@ export async function GET(request) {
   return NextResponse.json({
     active, isPersonal, isAdmin: isAnyAdmin(user.role),
     shared: shared.map(s => s.dashboard),
+    hiddenCards: hiddenCards(TEMPLATES_BY_SECTION[section] || [], hidden),
   });
 }
 
