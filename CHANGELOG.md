@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [What each answer costs, with estimated labor] - September 13, 2026 (DEPLOYED — ships with the September 12–13 entries below)
+## [What each answer costs, with estimated labor] - September 13, 2026 (DEPLOYED c884238 — ships with the September 12–13 entries below)
 
 Mike: *"Yes both internally and externally we should show correlated unit cost, total cost and
 labor total cost. We want the client to be able to make better informed decisions."* ... *"Leave

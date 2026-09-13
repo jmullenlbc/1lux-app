@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-13 (latest) — Mike's Claude — ✅ **DEPLOYED** (SHA below): everything from Sept 12–13 + per-answer cost & labor, migrations 0077 + 0078 + 0079
+### 2026-09-13 (latest) — Mike's Claude — ✅ **DEPLOYED c884238**: everything from Sept 12–13 + per-answer cost & labor, migrations 0077 + 0078 + 0079
 
 - **Per-answer cost + estimated labor.** `calculateBudget` now returns `questionCosts`, keyed `"section.field"`, shaped `{ lines:[{label,count,countLabel,each,product,laborEach,labor}], product, labor }`. `CostImpact` (in QuestionCard.jsx) prints the chosen answer's entry under it on every internal screen and on the public form.
   - **Labor is never added to any total.** Rates come from the new top-level `PRICING.labor` (raw, no OH&P; `fillPricingDefaults` reaches old snapshots). $/SF and pathway lines carry `count:null, labor:0`.
