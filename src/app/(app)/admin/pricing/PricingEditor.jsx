@@ -42,10 +42,7 @@ const PRICING_FIELDS = [
   // ── CORRIDORS ─────────────────────────────────────────────────────────
   { group: 'Corridors & Stairwells', key: 'corridors.diskPerSf',                       label: 'Corridor Disk Rate',       desc: '7" disk @ 10ft spacing, flat $/SF', unit: '$/SF' },
   { group: 'Corridors & Stairwells', key: 'corridors.stairwellPerLanding.product',     label: 'Stairwell Per Landing',    desc: '4ft LED strip + occupancy + battery — enclosed corridor-building stairs (wrap / podium / mid-rise / high-rise)', unit: '$/landing' },
-  { group: 'Corridors & Stairwells', key: 'breezewayStair.landingLight',        label: 'Breezeway Stair — Landing Disk (regular)', desc: 'Garden / stacked-flat / gurban walk-ups only: a regular disk on each floor landing (Lowell C4 position). One per level per stair. Mike 2026-09-05: $12 — decorative landing lights are not a conceptual item.', unit: '$/ea' },
-  { group: 'Corridors & Stairwells', key: 'breezewayStair.wallpackWithBattery', label: 'Breezeway Stair — Wall Pack w/ Battery', desc: 'LED wall pack with integrated battery on the stair runs and egress (Lowell W1). 2 × levels + 1 per stair. The ground-floor egress pack is in Exterior wallpacks. Mike 2026-09-05: $300.', unit: '$/ea' },
-  { group: 'Corridors & Stairwells', key: 'breezewayStair.frogeye',             label: 'Breezeway Stair — Emergency Frogeye', desc: 'Twin-head emergency unit (Lowell X1). One per level per stair. Mike 2026-09-05: $25.', unit: '$/ea' },
-  { group: 'Corridors & Stairwells', key: 'breezewayStair.vestibuleDisk',       label: 'Breezeway Stair — Vestibule Disk w/ Battery', desc: 'Disk with emergency battery in the upper-level vestibules (Lowell C6). Levels − 1 per stair. Mike 2026-09-05: $50.', unit: '$/ea' },
+  { group: 'Corridors & Stairwells', key: 'corridors.breezewayLandingMultiplier',     label: 'Breezeway Landing Multiplier', desc: 'Garden / stacked-flat / gurban walk-ups only: each landing prices at Stairwell Per Landing × this, because an open breezeway is the corridor and the stairwell in one. Mike 2026-09-12: 2.2 (2.2 × $175 = $385 a landing).', unit: '×' },
   { group: 'Corridors & Stairwells', key: 'breezewayStair.storiesDefault.garden',       label: 'Breezeway Levels — Garden (default)',       desc: 'Levels each stair serves when Project Data has no story count.', unit: 'levels' },
   { group: 'Corridors & Stairwells', key: 'breezewayStair.storiesDefault.stackedFlats', label: 'Breezeway Levels — Stacked Flats (default)', desc: 'Same, for stacked flats.', unit: 'levels' },
   { group: 'Corridors & Stairwells', key: 'breezewayStair.storiesDefault.gurban',       label: 'Breezeway Levels — Gurban (default)',       desc: 'Same, for gurban walk-ups.', unit: 'levels' },
@@ -126,7 +123,6 @@ const PRICING_FIELDS = [
   // ── EMERGENCY ─────────────────────────────────────────────────────────
   { group: 'Emergency — Frogeyes', key: 'emergency.strategies.frogeyes.corridorPerSf', label: 'Corridor $/SF', desc: '', unit: '$/SF' },
   { group: 'Emergency — Frogeyes', key: 'emergency.strategies.frogeyes.amenityPerSf',  label: 'Amenity $/SF',  desc: '', unit: '$/SF' },
-  { group: 'Emergency — Frogeyes', key: 'emergency.strategies.frogeyes.garagePerSf',   label: 'Garage $/SF',   desc: '', unit: '$/SF' },
 
   { group: 'Emergency — Frogeyes + Inverters', key: 'emergency.strategies.frogeyes_inv.corridorPerSf', label: 'Corridor $/SF', desc: '', unit: '$/SF' },
   { group: 'Emergency — Frogeyes + Inverters', key: 'emergency.strategies.frogeyes_inv.amenityPerSf',  label: 'Amenity $/SF',  desc: '', unit: '$/SF' },
@@ -139,11 +135,10 @@ const PRICING_FIELDS = [
 
   { group: 'Emergency — Inverters', key: 'emergency.strategies.inverters.corridorPerSf', label: 'Corridor $/SF', desc: '', unit: '$/SF' },
   { group: 'Emergency — Inverters', key: 'emergency.strategies.inverters.amenityPerSf',  label: 'Amenity $/SF',  desc: '', unit: '$/SF' },
-  { group: 'Emergency — Inverters', key: 'emergency.strategies.inverters.garagePerSf',   label: 'Garage $/SF',   desc: '', unit: '$/SF' },
 
   { group: 'Emergency — Battery Backup (Garage)', key: 'emergency.batteryGarage.sfPerFixture',   label: 'SF Per Fixture',     desc: '1 fixture per N SF', unit: 'SF' },
   { group: 'Emergency — Battery Backup (Garage)', key: 'emergency.batteryGarage.fixtureEvery',   label: 'Battery Every N Fixtures', desc: 'Every other = 2', unit: 'fixtures' },
-  { group: 'Emergency — Battery Backup (Garage)', key: 'emergency.batteryGarage.costPerFixture', label: 'Cost Per Fixture',   desc: 'Per battery-integrated fixture', unit: '$/fixture' },
+  { group: 'Emergency — Battery Backup (Garage)', key: 'emergency.batteryGarage.costPerFixture', label: 'Cost Per Fixture',   desc: 'Per battery-integrated fixture. Applies to every strategy except generator whenever the project has garage SF', unit: '$/fixture' },
 
   // ── EXIT SIGNS ────────────────────────────────────────────────────────
   { group: 'Exit Signs', key: 'exitSigns.perSf', label: 'Rate', desc: '% of total gross SF (0.025 = 2.5%)', unit: 'decimal' },
@@ -180,6 +175,34 @@ const PRICING_FIELDS = [
   { group: 'Unit Design Upgrades', key: 'designUpgrades.entryDecorative', label: 'Decorative Entry Mount',   desc: 'Per unit', unit: '$/unit' },
   { group: 'Unit Design Upgrades', key: 'designUpgrades.boilerRoomDisk',  label: 'Boiler Room Disk',         desc: 'Per unit', unit: '$/unit' },
   { group: 'Unit Design Upgrades', key: 'designUpgrades.fanSize52Adder',  label: '52" Fan Upcharge',         desc: 'Over 48" (0 = no upcharge)', unit: '$/fan' },
+
+  // ── INSTALL LABOR (shown beside each answer; never added to a total) ──
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.sconce',            label: 'Wall Sconce / Frogeye / Wallpack', desc: 'Raw install labor, no OH&P. Also bath bars.', unit: '$/ea' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.surfaceDisk',       label: 'Surface Disk',          desc: 'Raw install labor, no OH&P', unit: '$/ea' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.recessedDownlight', label: 'Recessed Downlight',    desc: 'Raw install labor, no OH&P', unit: '$/ea' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.canless',           label: 'Canless Downlight',     desc: 'Raw install labor, no OH&P', unit: '$/ea' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.strip4ft',          label: '4 ft Strip (stair landing)', desc: 'Raw install labor, no OH&P', unit: '$/ea' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.garageFixture',     label: 'Garage Fixture',        desc: 'Raw install labor, no OH&P', unit: '$/ea' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.exitSign',          label: 'Exit Sign',             desc: 'Raw install labor, no OH&P', unit: '$/ea' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.ceilingFan',        label: 'Ceiling Fan',           desc: 'Raw install labor, no OH&P', unit: '$/ea' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.areaPole',          label: 'Area Light + Pole',     desc: 'Raw install labor, no OH&P', unit: '$/ea' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.trenching',         label: 'Trenching per Pole',    desc: 'Added to each area light; none on solar sites', unit: '$/pole' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.bollard',           label: 'Bollard',               desc: 'Raw install labor, no OH&P', unit: '$/ea' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.landscapeBullet',   label: 'Landscape Bullet',      desc: 'Raw install labor, no OH&P', unit: '$/ea' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.pendant',           label: 'Pendant',               desc: 'Per pendant hung', unit: '$/ea' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.stepLight',         label: 'Step Light',            desc: 'Raw install labor, no OH&P', unit: '$/ea' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.tapePerFt',         label: 'Low-Voltage Tape',      desc: 'Per foot', unit: '$/ft' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.undercabinet24in',  label: '120V Undercabinet',     desc: 'Per 24" piece', unit: '$/ea' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.linear4ft',         label: 'Linear',                desc: 'Per 4 ft', unit: '$/4ft' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.troffer',           label: 'Troffer',               desc: 'Raw install labor, no OH&P', unit: '$/ea' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.floorUplight',      label: 'Floor Uplight',         desc: 'Raw install labor, no OH&P', unit: '$/ea' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.switch',            label: 'Switch',                desc: 'Raw install labor, no OH&P', unit: '$/ea' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.receptacle',        label: 'Receptacle',            desc: 'Raw install labor, no OH&P', unit: '$/ea' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.emergencyCircuit',  label: 'Emergency Circuit',     desc: 'Raw install labor, no OH&P', unit: '$/ea' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.fanJBox',           label: 'Fan J-Box',             desc: 'Raw install labor, no OH&P', unit: '$/ea' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.mirrorJBox',        label: 'Lighted Mirror J-Box',  desc: 'Labor for each illuminated-mirror vanity', unit: '$/ea' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.undercabinetFtPerUnit', label: 'Undercabinet Feet per Kitchen', desc: 'Assumed run length used to estimate undercabinet labor', unit: 'ft' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.frogeyeSfEach',     label: 'SF per Frogeye',        desc: 'Assumed one frogeye per this many SF of corridor, for the labor estimate', unit: 'SF' },
 
   // ── FREIGHT / WAREHOUSING ─────────────────────────────────────────────
   { group: 'Freight & Warehousing', key: 'freight',     label: 'Freight Rate',     desc: '% of product subtotal (0.06 = 6%)', unit: 'decimal' },

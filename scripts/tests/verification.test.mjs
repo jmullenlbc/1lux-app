@@ -12,6 +12,7 @@ import assert from 'node:assert/strict';
 import {
   normalizeCompany, companiesAgree, inScope, runChecks, selectItems, startOfWeek,
   checkTeamMismatch, checkCloseDate, checkNoLead, checkDuplicateEmail, checkPersonNoCompany,
+  checkRequestLooksLikeJob,
   SCOPE_DAYS, WEEKLY_NEW_LIMIT, VISIBLE_LIMIT,
 } from '../../src/lib/verification/checks.js';
 
@@ -312,4 +313,50 @@ test('one noisy check cannot take the whole card', () => {
   assert.equal(kinds.length, VISIBLE_LIMIT);
   assert.equal(new Set(kinds).size, 4, `expected all four kinds, got ${kinds.join(', ')}`);
   assert.equal(kinds.filter(k => k === 'CLOSE_DATE_MISSING').length, 2);
+});
+
+// ── Web request looks like a job ─────────────────────────────────────────────
+
+function request(over = {}) {
+  return {
+    id: 's1', proposedName: 'Trailhead Apartments', city: 'Denver', state: 'CO',
+    submitterEmail: 'pm@acme.com', submitterDomain: 'acme.com', clientId: null,
+    status: 'PENDING', duplicateMatchId: null, suggestionDismissedAt: null, createdAt: daysAgo(2),
+    ...over,
+  };
+}
+const ctxFor = (submissions, projects = [project({ city: 'Denver', state: 'CO' })]) =>
+  ({ now: NOW, submissions, projects });
+
+test('a waiting web request that looks like a job shows up, pointing at the request', () => {
+  const items = checkRequestLooksLikeJob(ctxFor([request()]));
+  assert.equal(items.length, 1);
+  assert.equal(items[0].kind, 'REQUEST_LOOKS_LIKE_JOB');
+  assert.equal(items[0].key, 'request_looks_like_job:s1:p1');
+  assert.equal(items[0].href, '/admin/intake?id=s1');
+  assert.match(items[0].title, /Trailhead/);
+});
+
+test('a request already linked, answered "Not the same", or no longer pending stays off the card', () => {
+  assert.equal(checkRequestLooksLikeJob(ctxFor([request({ duplicateMatchId: 'p1' })])).length, 0);
+  assert.equal(checkRequestLooksLikeJob(ctxFor([request({ suggestionDismissedAt: daysAgo(1) })])).length, 0);
+  assert.equal(checkRequestLooksLikeJob(ctxFor([request({ status: 'REJECTED' })])).length, 0);
+});
+
+test('a request older than 90 days is out of scope', () => {
+  assert.equal(checkRequestLooksLikeJob(ctxFor([request({ createdAt: daysAgo(SCOPE_DAYS + 1) })])).length, 0);
+});
+
+test('an unrelated name is not flagged', () => {
+  assert.equal(checkRequestLooksLikeJob(ctxFor([request({ proposedName: 'Creekside Commons' })])).length, 0);
+});
+
+test('runChecks puts a waiting request first', () => {
+  const items = runChecks({
+    now: NOW,
+    projects: [project({ city: 'Denver', state: 'CO', contactLinks: [] })],
+    statusEvents: [], pipelineRows: [], contacts: [],
+    submissions: [request()],
+  });
+  assert.equal(items[0].kind, 'REQUEST_LOOKS_LIKE_JOB');
 });

@@ -210,8 +210,32 @@ function ProjectCard({ project, pipeline, onOpen, onDragStart, onDragEnd, isDrag
   );
 }
 
+// ── New web request card ──────────────────────────────────────────────────────
+// A request from the public budget form that nobody has linked or turned into
+// a project yet. Its own colour so it can't be mistaken for a job, and not
+// draggable — it isn't a job until someone says so on the review screen.
+function WebRequestCard({ request }) {
+  const where = [request.city, request.state].filter(Boolean).join(', ');
+  const looksLike = request.suggestedProject && !request.suggestionDismissedAt ? request.suggestedProject : null;
+  const age = daysSince(request.createdAt);
+  return (
+    <a href={`/admin/intake?id=${request.id}`}
+      className="block rounded-xl border-2 border-sky-300 bg-sky-50 hover:bg-sky-100 p-3 transition-colors">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[9px] font-bold uppercase tracking-wider text-white bg-sky-600 rounded px-1.5 py-0.5">New web request</span>
+        <span className="text-[10px] text-sky-700">{age < 1 ? 'today' : `${age}d ago`}</span>
+      </div>
+      <p className="text-sm font-semibold text-slate-900 mt-1.5 leading-tight">{request.proposedName}</p>
+      {where && <p className="text-[11px] text-slate-500">{where}</p>}
+      <p className="text-[11px] text-slate-600 mt-1">From {request.submitterName}</p>
+      {looksLike && <p className="text-[10px] font-semibold text-amber-700 mt-1">Looks like: {looksLike.name}</p>}
+      <p className="text-[10px] font-semibold text-sky-700 mt-1.5">Review and follow up →</p>
+    </a>
+  );
+}
+
 // ── Kanban Column ─────────────────────────────────────────────────────────────
-function KanbanColumn({ stageCfg, projects, pipeline, onOpen, onAdd, draggingId, onDragStart, onDragEnd, onDrop }) {
+function KanbanColumn({ stageCfg, projects, requests = [], pipeline, onOpen, onAdd, draggingId, onDragStart, onDragEnd, onDrop }) {
   const [dragOver, setDragOver] = useState(false);
   const totalValue = projects.reduce((s, p) => s + (revenueFor(p, pipeline) || 0), 0);
   const isActiveDrop = dragOver && draggingId;
@@ -233,13 +257,14 @@ function KanbanColumn({ stageCfg, projects, pipeline, onOpen, onAdd, draggingId,
         onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(false); }}
         onDrop={() => { setDragOver(false); onDrop(stageCfg.key); }}
       >
+        {requests.map(r => <WebRequestCard key={`req-${r.id}`} request={r} />)}
         {projects.map(p => (
           <ProjectCard key={p.id} project={p} pipeline={pipeline} onOpen={onOpen} onDragStart={onDragStart} onDragEnd={onDragEnd} isDragging={draggingId === p.id} />
         ))}
         {isActiveDrop && projects.length === 0 && (
           <div className="flex items-center justify-center h-16 rounded-lg text-xs font-semibold text-orange-500">Drop here → {stageCfg.label}</div>
         )}
-        {!isActiveDrop && projects.length === 0 && (
+        {!isActiveDrop && projects.length === 0 && requests.length === 0 && (
           <div className="flex items-center justify-center h-16 text-xs text-slate-400">No projects at this stage</div>
         )}
         <button onClick={onAdd} className="w-full py-2 rounded-lg text-xs text-slate-400 hover:text-slate-600 hover:bg-white border border-dashed border-slate-300 hover:border-slate-400 transition-all flex items-center justify-center gap-1">
@@ -429,7 +454,7 @@ function ListView({ projects, pipeline, onOpen, onUpdate }) {
 }
 
 // ── Main CRMClient ────────────────────────────────────────────────────────────
-export default function CRMClient({ initialProjects, users }) {
+export default function CRMClient({ initialProjects, users, newRequests = [] }) {
   const router = useRouter();
   const [projects, setProjects] = useState(initialProjects || []);
   const [pipeline, setPipeline] = useState('PROCUREMENT');
@@ -640,6 +665,14 @@ export default function CRMClient({ initialProjects, users }) {
 
       {/* Body */}
       <div className="flex-1 overflow-hidden flex flex-col px-6 py-4">
+        {newRequests.length > 0 && (
+          <a href="/admin/intake"
+            className="mb-3 flex items-center gap-2 rounded-xl border-2 border-sky-300 bg-sky-50 hover:bg-sky-100 px-4 py-2 text-sm text-sky-800 transition-colors shrink-0">
+            <span className="font-bold">{newRequests.length} new web budget request{newRequests.length !== 1 ? 's' : ''}</span>
+            <span className="text-sky-700">waiting for someone to follow up — they&apos;re the blue cards in the first column.</span>
+            <span className="ml-auto font-semibold">Review them →</span>
+          </a>
+        )}
         <PipelineSummary projects={activeList} pipeline={pipeline} />
 
         {activeViewMode === 'kanban' && (
@@ -653,6 +686,7 @@ export default function CRMClient({ initialProjects, users }) {
                   key={stageCfg.key}
                   stageCfg={stageCfg}
                   projects={stageProjMap[stageCfg.key] || []}
+                  requests={stageCfg.key === stages[0]?.key ? newRequests : []}
                   pipeline={pipeline}
                   onOpen={openProject}
                   onAdd={newProject}

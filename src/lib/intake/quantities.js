@@ -43,7 +43,7 @@
 import { lotSquareFeet, ACRE_SF } from '../siteFields.js';
 import { PRICING } from '../pricing.js';
 import { estimateStairLandings } from '../stairLandings.js';
-import { answersToEngine, NO_DRAWINGS_KEY } from './questionnaire.js';
+import { answersToEngine, NO_DRAWINGS_KEY, CLUBHOUSE_KEY } from './questionnaire.js';
 import { NO_DRAWING_GUESSES } from './noDrawingGuesses.js';
 
 /** A stated, usable number — or null. Number(null) is 0, hence the dance. */
@@ -66,6 +66,12 @@ function statedAnswer(v) {
   if (typeof v !== 'string') return stated(v);
   const n = stated(v.replace(/[,\s]/g, ''));
   return n != null && n > 0 ? n : null;
+}
+
+// Same, but 0 is a real answer — "no surface lot" (required on the
+// no-drawings form since 2026-09-12, so a typed 0 must not read as blank).
+function statedCount(v) {
+  return typeof v === 'string' ? stated(v.replace(/[,\s]/g, '')) : stated(v);
 }
 
 /**
@@ -522,7 +528,7 @@ export function computeQuantities(drawings, answers, pricing = null) {
   const requiredTotal  = stated(site?.parkingRequired);
   const ratio          = stated(site?.parkingRatioRequired);
   const surfaceCounted = stated(site?.surfaceParkingCounted);
-  const surfaceTyped   = surfaceStated == null ? statedAnswer(ans.figureSurfaceParking) : null;
+  const surfaceTyped   = surfaceStated == null ? statedCount(ans.figureSurfaceParking) : null;
   const parkingType    = answersToEngine(answers).buildingTypeKey ?? site?.buildingType ?? totals?.buildingType ?? null;
   const structuredParking = STRUCTURED_PARKING_TYPES.has(parkingType);
   const covered   = (stated(site?.garages) ?? 0) + (stated(site?.carports) ?? 0);
@@ -650,34 +656,76 @@ export function computeQuantities(drawings, answers, pricing = null) {
   }
 
   // ── NO-DRAWINGS AREA GUESSES ───────────────────────────────────────────────
-  // Corridors and the clubhouse would otherwise price at $0 on a typed-in
-  // budget. Garage and exterior amenity SF are too project-specific to guess
-  // and stay blank unless typed.
+  // Every blank on a typed-in budget would otherwise price at $0. Mike
+  // (2026-09-12): "we have to get all these percentages within 10% in the
+  // conceptual budget" — each figure below is calibrated against ten real ILC
+  // budgets (see noDrawingGuesses.js). A figure the visitor typed always wins.
   if (manual) {
+    const fill = (row, value, how, flag = GUESS_FLAG, source = 'derived') => {
+      row.value = value; row.source = source; row.how = how; row.flag = flag;
+    };
+    const perUnitRow = (key, table, sayWhat, sayNone) => {
+      const row = out.find(r => r.key === key);
+      const per = guess(table);
+      if (row && row.value == null && per != null && unitCount > 0) {
+        fill(row, Math.round(unitCount * per),
+          per > 0 ? `${fmt(unitCount)} units × ${per} ${sayWhat} per unit — typical for this building type.` : sayNone);
+      }
+      return row;
+    };
+
     const corrRow = out.find(r => r.key === 'corridorSf');
     const pct = guess('corridorPctOfGross');
     if (corrRow && corrRow.value == null && pct != null && grossRow?.value) {
-      corrRow.value  = Math.round(grossRow.value * pct);
-      corrRow.source = 'derived';
-      corrRow.how    = pct > 0
+      fill(corrRow, Math.round(grossRow.value * pct), pct > 0
         ? `${Math.round(pct * 100)}% of the ${fmt(grossRow.value)} SF building — a typical corridor share for this building type.`
-        : 'This building type has open breezeways or private entries, so no interior corridors are assumed.';
-      corrRow.flag   = GUESS_FLAG;
+        : 'This building type has open breezeways or private entries, so no interior corridors are assumed.');
     }
+
+    // Clubhouse (Mike, 2026-09-12: "Can we somehow read if there is a
+    // clubhouse or not?"). The visitor's yes/no answer beats the type's usual:
+    // "no" is $0; "yes" on a townhouse community is one clubhouse building,
+    // on an apartment type the per-unit share.
     const amenRow = out.find(r => r.key === 'interiorAmenitySf');
-    const perUnit = guess('interiorAmenitySfPerUnit');
-    if (amenRow && amenRow.value == null && perUnit != null && unitCount > 0) {
-      amenRow.value  = Math.round(unitCount * perUnit);
-      amenRow.source = 'derived';
-      amenRow.how    = perUnit > 0
-        ? `${fmt(unitCount)} units × ${perUnit} SF of clubhouse / leasing / fitness per unit.`
-        : 'No shared clubhouse is assumed for this building type.';
-      amenRow.flag   = GUESS_FLAG;
+    const club = ans[CLUBHOUSE_KEY];
+    if (amenRow && amenRow.value == null && club === 'no') {
+      fill(amenRow, 0, 'No clubhouse, leasing or fitness space — per the questionnaire.', null, 'questionnaire');
+    } else if (amenRow && amenRow.value == null && club === 'yes'
+        && NO_DRAWING_GUESSES.clubhouseSfWhenYes[typeKey] != null) {
+      fill(amenRow, NO_DRAWING_GUESSES.clubhouseSfWhenYes[typeKey],
+        `One ${fmt(NO_DRAWING_GUESSES.clubhouseSfWhenYes[typeKey])} SF clubhouse — the questionnaire says there is one but gave no size.`);
+    } else {
+      perUnitRow('interiorAmenitySf', 'interiorAmenitySfPerUnit', 'SF of clubhouse / leasing / fitness',
+        'No shared clubhouse is assumed for this building type — answer "Is there a clubhouse?" if there is one.');
     }
-    // Back of house (Mike, 2026-09-11: "how much BOH based on gross SF"). The
-    // building total here is the visitor's own figure, or their units × unit
-    // size, so the remainder is worth taking — a drawing-read budget still
-    // never takes a remainder off an estimated gross.
+
+    perUnitRow('garageSf', 'garageSfPerUnit', 'SF of structured parking garage',
+      'This building type parks on the surface or in private garages, so no parking structure is assumed.');
+    perUnitRow('exteriorAmenitySf', 'exteriorAmenitySfPerUnit', 'SF of pool deck / courtyards / outdoor amenity',
+      'No lit outdoor amenity area is assumed for this building type.');
+    perUnitRow('vanities', 'vanitiesPerUnit', 'bathroom vanities', 'No vanities assumed.');
+
+    // Drive-lane area lights — townhouse and single-family communities light their private drive
+    // with the same area light + pole a parking lot uses. Any poles the surface
+    // lot already carries count toward it.
+    const lanePer = NO_DRAWING_GUESSES.driveLaneLightsPerUnit[typeKey];
+    if (lanePer > 0 && unitCount > 0) {
+      const perFixture = Number(pricing?.exterior?.surfaceParking?.stallsPerFixture)
+        || PRICING.exterior.surfaceParking.stallsPerFixture || 9;
+      const stalls = Number(out.find(r => r.key === 'surfaceParking')?.value) || 0;
+      const lotPoles = Math.ceil(stalls / perFixture);
+      const lane = Math.max(0, Math.ceil(unitCount * lanePer) - lotPoles);
+      add('driveLaneLights', '# Drive-Lane Area Lights', 'count', lane, 'derived',
+        `${fmt(unitCount)} units × ${lanePer} area lights per unit along the private drive${lotPoles ? `, less the ${fmt(lotPoles)} the parking lot already carries` : ''}.`,
+        GUESS_FLAG);
+    }
+
+    // Back of house (Mike, 2026-09-11: "how much BOH based on gross SF"): the
+    // type's usual share of the building, never more than the master sheet's
+    // cap and never more than what's left after units, corridors and amenity.
+    // The building total here is the visitor's own figure, or their units ×
+    // unit size — a drawing-read budget still never takes a remainder off an
+    // estimated gross.
     const bohRow   = out.find(r => r.key === 'bohSf');
     const unitsRow = out.find(r => r.key === 'unitsSf');
     if (bohRow && bohRow.value == null && grossRow?.value && unitsRow?.value != null) {
@@ -685,13 +733,12 @@ export function computeQuantities(drawings, answers, pricing = null) {
       const corr = corrRow?.value ?? 0;
       const amen = amenRow?.value ?? 0;
       const remainder = Math.max(0, Math.round(g - unitsRow.value - corr - amen));
-      const cap = Math.round(g * bohMaxPct);
-      bohRow.value  = Math.min(remainder, cap);
-      bohRow.source = 'derived';
-      bohRow.how    = remainder > cap
-        ? `${Math.round(bohMaxPct * 100)}% of the ${fmt(g)} SF building — the most back of house we assume (mechanical, storage, trash, bike rooms).`
-        : `Building ${fmt(g)} SF minus units ${fmt(unitsRow.value)}${corr ? `, corridors ${fmt(corr)}` : ''}${amen ? `, interior amenity ${fmt(amen)}` : ''}.`;
-      bohRow.flag   = GUESS_FLAG;
+      const share = Math.min(guess('bohPctOfGross') ?? bohMaxPct, bohMaxPct);
+      const cap = Math.round(g * share);
+      const pctText = `${Math.round(share * 1000) / 10}%`;
+      fill(bohRow, Math.min(remainder, cap), remainder > cap
+        ? `${pctText} of the ${fmt(g)} SF building — typical back of house for this building type (mechanical, storage, trash, bike rooms).`
+        : `Building ${fmt(g)} SF minus units ${fmt(unitsRow.value)}${corr ? `, corridors ${fmt(corr)}` : ''}${amen ? `, interior amenity ${fmt(amen)}` : ''}.`);
     }
   }
 
@@ -714,6 +761,7 @@ export function computeQuantities(drawings, answers, pricing = null) {
       buildings:   stated(site?.buildingCount) ?? statedAnswer(ans.figureBuildings),
       footprintSf: fpRow?.value ?? null,
       grossSf:     grossRow?.value ?? null,
+      units:       unitCount,
       buildingTypeKey,
     }, pricing);
     if (est) {
@@ -730,6 +778,8 @@ export function computeQuantities(drawings, answers, pricing = null) {
             ? 'Townhouse-style — stairs are private, inside each unit, so no shared egress stairs.'
             : est.stories <= 1
             ? 'Single-story — no interior exit stairs assumed.'
+            : est.unitsBased
+            ? `Open breezeway stairs counted off the units: ${fmt(unitCount)} units ÷ ${fmt(est.unitsPerStair)} per stair ≈ ${fmt(est.stairs)} stairs.`
             : `Building-code estimate: ${fmt(est.buildings)} building${est.buildings === 1 ? '' : 's'} × ${fmt(est.stairsPerBuilding)} exit stairs — nothing on the drawings stated it.`;
           stairsRow.flag   = 'ESTIMATED from code minimums, not read off the drawings — confirm on the plans.';
         }

@@ -15,6 +15,7 @@ async function serializeReport(r) {
     screenshotUrl: r.screenshotKey ? await getQcObjectUrl(r.screenshotKey) : null,
     createdAt:     r.createdAt.toISOString(),
     updatedAt:     r.updatedAt.toISOString(),
+    archivedAt:    r.archivedAt ? r.archivedAt.toISOString() : null,
   };
 }
 
@@ -37,11 +38,14 @@ export default async function TasksPage({ searchParams }) {
           createdBy: { select: { id: true, name: true, email: true } },
         },
       }),
+      // Archived reports come along too: the board hides them until someone
+      // clicks "Show archived".
       prisma.bugReport.findMany({
         orderBy: { createdAt: 'desc' },
         include: {
-          reporter: { select: { id: true, name: true, email: true } },
-          assignee: { select: { id: true, name: true, email: true } },
+          reporter:   { select: { id: true, name: true, email: true } },
+          assignee:   { select: { id: true, name: true, email: true } },
+          archivedBy: { select: { id: true, name: true, email: true } },
         },
       }),
       prisma.user.findMany({

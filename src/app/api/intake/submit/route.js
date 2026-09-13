@@ -5,6 +5,10 @@ import { rateLimit, clientIp } from '@/lib/rateLimit';
 import { validateAnswers } from '@/lib/intake/questionnaire';
 import { computeReviewFlags } from '@/lib/intake/reviewFlags';
 import { notifyPrecon } from '@/lib/intake/notifyPrecon';
+import { checkLocation } from '@/lib/usStates';
+import { findLikelyProject } from '@/lib/intake/duplicateMatch';
+import { notifyUsers } from '@/lib/alerts';
+import { inDepartment, SALES_MARKETING } from '@/lib/departments';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,6 +63,13 @@ export async function POST(req) {
     return NextResponse.json({ error: emailCheck.message }, { status: 422 });
   }
 
+  // Project location is required (Mike, 2026-09-12) — the same check the form
+  // runs, enforced here because a direct POST skips the form.
+  const loc = checkLocation({ city: body.city, state: body.state, zip: body.zip });
+  if (!loc.ok) {
+    return NextResponse.json({ error: `Please check the project location: ${loc.missing.join(', ')}.` }, { status: 422 });
+  }
+
   const rawPayload = JSON.stringify({
     projectName,
     companyName: companyName || null,
@@ -95,6 +106,9 @@ export async function POST(req) {
       submitterDomain: emailCheck.domain,
       proposedName:    String(projectName).slice(0, 300),
       buildingType:    buildingType || null,
+      city:            loc.city,
+      state:           loc.state,
+      zip:             loc.zip,
       clientId,
       rawPayload,
       answers: answerRows.length ? { create: answerRows } : undefined,
@@ -108,6 +122,42 @@ export async function POST(req) {
     await notifyPrecon({ submission, answers: answerRows, flags, drawings: drawingsData || null });
   } catch (e) {
     console.error('intake/submit notify failed (non-fatal):', e);
+  }
+
+  // "Looks like [Project X]" — a guess for the reviewer, never shown to the
+  // visitor and never acted on by itself. A failure here must not fail the
+  // submission either.
+  try {
+    const projects = await prisma.project.findMany({
+      select: { id: true, name: true, city: true, state: true, clientId: true, contactEmail: true },
+    });
+    const match = findLikelyProject(submission, projects);
+    if (match) {
+      await prisma.conceptualSubmission.update({
+        where: { id: submission.id },
+        data: { suggestedProjectId: match.projectId, suggestedMatchReason: match.reason },
+      });
+    }
+  } catch (e) {
+    console.error('intake/submit duplicate check failed (non-fatal):', e);
+  }
+
+  // Everyone in Sales + marketing hears about it in the app so somebody follows up.
+  try {
+    const sales = await prisma.user.findMany({
+      where: { isActive: true, ...inDepartment(SALES_MARKETING) },
+      select: { id: true },
+    });
+    const where = [submission.city, submission.state].filter(Boolean).join(', ');
+    await notifyUsers(sales.map(u => u.id), {
+      type:    'NEW_WEB_REQUEST',
+      title:   `New web budget request: ${submission.proposedName}`,
+      message: `${where ? where + ' — ' : ''}from ${submission.submitterName} (${submission.submitterEmail})`,
+      link:    `/admin/intake?id=${submission.id}`,
+      dedupeKey: `intake:${submission.id}`,
+    });
+  } catch (e) {
+    console.error('intake/submit sales alert failed (non-fatal):', e);
   }
 
   return NextResponse.json({ id: submission.id });

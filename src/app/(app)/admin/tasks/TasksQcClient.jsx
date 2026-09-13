@@ -34,7 +34,7 @@ export default function TasksQcClient({ tasks, users, currentUser, reports, init
     router.replace(tab === 'bugs' ? `${pathname}?tab=bugs` : pathname, { scroll: false });
   }
 
-  const openBugs  = reports.filter(r => r.status !== 'FIXED').length;
+  const openBugs  = reports.filter(r => r.status !== 'FIXED' && !r.archivedAt).length;
   const openTasks = tasks.filter(t => t.status !== 'DONE').length;
 
   return (

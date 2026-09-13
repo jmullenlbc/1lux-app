@@ -189,11 +189,11 @@ export default function ProjectDashboard({
   const avgProbability = _probParts.length ? Math.round(_probParts.reduce((a, b) => a + Number(b), 0) / _probParts.length) : null;
   const outOfSync        = stagesOutOfSync(project);
 
-  // Sales Owner dropdown — Sales-division users only.
+  // Sales Owner dropdown — Sales + marketing department only.
   const [salesUsers, setSalesUsers] = useState([]);
   useEffect(() => {
     let alive = true;
-    fetch('/api/users?division=SALES')
+    fetch('/api/users?department=SALES_MARKETING')
       .then(r => (r.ok ? r.json() : null))
       .then(d => { if (alive && d) setSalesUsers(d.users || []); })
       .catch(() => {});

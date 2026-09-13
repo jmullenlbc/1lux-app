@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { redirect } from 'next/navigation';
 import { getSession, isAnyAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { DEPARTMENTS_SELECT, departmentKeys } from '@/lib/departments';
 import AdminClient from './AdminClient';
 
 export default async function AdminPage() {
@@ -19,8 +20,7 @@ export default async function AdminPage() {
           email:             true,
           name:              true,
           role:              true,
-          division:          true,
-          deptRoles:         true,
+          departments:       DEPARTMENTS_SELECT,
           permissions:       true,
           mustChangePassword: true,
           isActive:          true,
@@ -44,8 +44,7 @@ export default async function AdminPage() {
     email:             u.email,
     name:              u.name,
     role:              u.role,
-    division:          u.division,
-    deptRoles:         u.deptRoles,
+    departments:       departmentKeys(u),
     permissions:       u.permissions,
     mustChangePassword: u.mustChangePassword,
     isActive:          u.isActive,

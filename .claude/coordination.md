@@ -2,7 +2,149 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-11 (latest) — Mike's Claude — 🟡 **LOCAL, NOT DEPLOYED**: files, drawing sets, budget versions and products are archive-only, migration 0076
+### 2026-09-13 (latest) — Mike's Claude — ✅ **DEPLOYED** (SHA below): everything from Sept 12–13 + per-answer cost & labor, migrations 0077 + 0078 + 0079
+
+- **Per-answer cost + estimated labor.** `calculateBudget` now returns `questionCosts`, keyed `"section.field"`, shaped `{ lines:[{label,count,countLabel,each,product,laborEach,labor}], product, labor }`. `CostImpact` (in QuestionCard.jsx) prints the chosen answer's entry under it on every internal screen and on the public form.
+  - **Labor is never added to any total.** Rates come from the new top-level `PRICING.labor` (raw, no OH&P; `fillPricingDefaults` reaches old snapshots). $/SF and pathway lines carry `count:null, labor:0`.
+  - The public form reads `estimate.budget.questionCosts` from `/api/intake/estimate`. It still has no PRICING/calculations import, and `intakePdf.test` + `questionCosts.test` pin that.
+  - Internal screens recompute live with `useMemo(calculateBudget(...))`, because answers only save on Next. They need the `allSections` prop; DesignWizardClient sharedProps now passes it.
+- **Migrations 0077–0079** ship together. Schema-guard found them additive only; nothing dropped, and ContactLegacy is untouched. One flag: `UserDepartment` rows cascade-delete with their user; `division`/`deptRoles` still hold the source data.
+- Also in this push: the low-finish lighted mirror on the public form, plus every Sept 12 "LOCAL ONLY" entry below (single-family bollards/drive lanes, one area-light count, Frogeyes default, design matches conceptual, calibration + clubhouse + ±10% range, departments + bug-report archive, beta prep, location required, stories + stalls form). Intended deletions: `src/lib/divisions.js` (→ departments.js) and `DesignCommonSection.jsx`.
+- Debug pass: offline 1,346/1,346, dev-server tests 67/67, `npm test` green, `npm run build` clean.
+
+### 2026-09-13 — Mike's Claude — (shipped in the push above) Low-finish lighted mirror on the public form
+
+- `vanityLighting` in `src/lib/intake/questionnaire.js` gains 'Illuminated mirror (Low finish)' → `illuminatedMirrorLow`, matching Units/Design screens. Test in designMatch.test.mjs. No schema change.
+
+### 2026-09-12 — Mike's Claude — 🛠 LOCAL ONLY (not deployed): single-family bollards/drive lanes, one area-light count, desktop range, Frogeyes default
+
+- `singleFamily` joins townHouses in `pathwayAsksBollards` (engine + ExteriorSection), the public filter (`BOLLARD_PROJECT_TYPES`) and `driveLaneLightsPerUnit` (0.5). ⚠️ Existing single-family projects drop pathway until answered Yes.
+- New `exterior.areaLightsQty` ('auto' = cleared, via `priceOverride`) replaces lot poles + drive lanes together; engine returns `parking.qtyOverridden`. New card on ExteriorSection.
+- `BudgetSidebar` takes an optional `range` prop; only the public form passes it.
+- Emergency fallback `'integrated_inverters'` → `'frogeyes'` in calculations.js, both Emergency screens, DesignGarageSection, summary, PDF, share page, calibration lines (excelImportParser left alone). ⚠️ Projects with no saved strategy reprice lower.
+- No schema change. Tests ✓.
+
+### 2026-09-12 — Mike's Claude — 🛠 LOCAL ONLY (not deployed): Design budget matches Conceptual — garage batteries, townhome bollard Yes/No, project type on the Drawings step
+
+- **Garage batteries:** every emergency strategy except `generator` now buys a battery in every other garage fixture (625 SF/fixture, $120). One copy of the math, `src/lib/emergencyCost.js` (client-safe, reads only master pricing), used by `calculations.js` and BOTH Emergency screens. frogeyes/inverters garage $/SF dropped. Design garage `battery` adds $0 / `batteryAndSensor` adds only the sensor when Emergency already buys the batteries.
+- **Townhome pathway:** `exterior.pathwayBollards` Yes/No, townHouses only; No/blank = $0. ⚠️ Existing townhome projects drop their pathway line until answered Yes.
+- **Public intake:** project type moved to the Drawings step (both paths, required to continue); question section renamed `'Project type'`; Controls step shows Energy codes only; bollard question renders only for Town Houses.
+- Design screens/summary/PDF now read the price sheet (exit signs 120/75/22, garage 0.20/0.25). `DesignCommonSection.jsx` deleted (unused).
+- No schema change, no migration. Build ✓, `npm test` ✓, new `scripts/tests/designMatch.test.mjs`.
+
+### 2026-09-12 — Mike's Claude — 🛠 LOCAL ONLY (not deployed): conceptual accuracy calibration, clubhouse question, ±10% range, departments + bug-report archive (migration 0079)
+
+**Accuracy:**
+- `noDrawingGuesses.js` was re-calibrated against ten real budgets. It covers amenity/garage/
+  exterior amenity/vanities per unit by type, BOH % of gross by type (under the 5% cap), a new
+  `clubhouseSfWhenYes`, and `driveLaneLightsPerUnit` (townhouses 0.5).
+- `quantities.js` manual block: new `hasClubhouse` answer (`CLUBHOUSE_KEY`, whitelisted
+  yes/no in `validateAnswers`) and a new `driveLaneLights` row.
+- The engine seam is `sections.exterior.driveLaneLightsQty` → added to the parking fixture count
+  in `calculations.js`.
+- Breezeway landings = `breezewayLandingMultiplier` 2.2 × $175. When no stair count is known,
+  stairs = units ÷ `breezewayUnitsPerStair` (15).
+- `computeIntakeEstimate` now returns `range {low, high, pct}` (±10%, typed-in only; null with
+  drawings). The public form shows it.
+- Average miss: 17% → 5% (required only) and 11% → 6% (all answers); 9/10 within 10% each run.
+
+**0079 (additive):**
+- user departments, multi-select, from `src/lib/departments.js` (replaces `divisions.js`);
+- QC bug reports are archive-only.
+- **Commit 0077 + 0078 + 0079 together with schema.prisma.**
+
+**Checks:** related tests all pass; verify:units passes. Waiting on Mike's "Deploy".
+
+### 2026-09-12 — Mike's Claude — 🛠 LOCAL ONLY (not deployed): beta prep — duplicate flag + fill-blanks merge, Sales intake review, public bug button, intake PDF, migration 0078
+
+**Intake matching:** `src/lib/intake/duplicateMatch.js` (`findLikelyProject`) scores name +
+city/state + email domain. The submit route stores `suggestedProjectId`; the visitor never sees
+it. **Migration 0078** is additive (suggestion FK + `suggestionDismissedAt` on
+`ConceptualSubmission`). **Mike approved 0078 (9-12).** **Commit 0077 and
+0078 together with schema.prisma.** Linking goes through `mergeRequest.js`, which fills blanks
+only; conflicts come back side by side and the project value wins unless picked.
+`/api/admin/intake/[id]/link` and `/create-project` (the latter via shared
+`src/lib/projects/createProject.js`). The old hand-set `linkedProjectId` is gone from the UI.
+**Auth:** new `requireIntakeReviewer` (admins + active SALES-division users). Portal invites
+stay admin-only. `User.division` is not in the JWT, so it is a DB read.
+**Sales:** submit alerts SALES-division users via `notifyUsers` (`NEW_WEB_REQUEST` is
+deliberately NOT in notify.js `NOTIFICATION_TYPES` — that list is per-project settings). /crm
+shows PENDING unlinked requests as sky cards in the first stage column plus a banner. Cards are
+not draggable. The verification card has a 6th check, `checkRequestLooksLikeJob`, which runs
+first (90-day scope; skips linked/dismissed/non-pending).
+**Public page:** `PublicBugButton` → `/api/intake/bug-report` (3/min/IP, BugReport
+`source 'PUBLIC'`, reporterId null, shown as "Beta client" on QC). `/api/intake/pdf` recomputes via
+shared `computeIntakeEstimate` (estimate route now uses it too) and renders with chromium. It is
+registered in next.config + check-runtime-assets (44). There is a leak test for DN/buy/margin/
+ILC_ONLY_FIELDS and a test that IntakeClient never imports pricing. The email button is
+disabled on purpose (no mail connection).
+**Pre-existing, not touched:**
+- The QC board still HARD-deletes bug reports; a task chip was offered.
+- ~~Schema drift~~ **Fixed 9-12:** the schema's reporter relation is now `onDelete: NoAction`, and
+  the three 0027 indexes are declared as `@@index`. This is a schema-only change; there is no
+  migration.
+**Follow-up 9-12:** every public contact string is now `precon@ilcstudios.com` (was budgets@):
+`INTAKE_PDF_CONTACT`, the share page, uploadClient, stagedParse, siteVision and DrawingDropzone.
+The commented-out Resend line in the share route is untouched.
+**Checks:** verify:units 915/915, build clean, all guards OK. Local PDF total $321,710.23,
+matching the estimate. Staff screens were not clicked through because the preview browser is not
+logged in. Waiting on Mike's "Deploy".
+
+### 2026-09-12 — Mike's Claude — 🛠 LOCAL ONLY (not deployed): project location required on conceptual requests, migration 0077
+
+Mike: *"We need a city and state and zip code. We need location for data tracking."* Every public
+conceptual-budget request now requires **city, state and zip** on About You. **Migration 0077**
+adds three nullable TEXT columns to `ConceptualSubmission` (`city`, `state`, `zip`). It is
+additive only and ships via `migrate deploy`; schema-guard: PASS. Old rows stay blank. They are
+real columns rather than answer rows, so "every request in Texas" is one query. One shared
+check, `checkLocation()` in the new `src/lib/usStates.js` (50 states + DC; ZIP+4 stored as
+`12345-6789`), runs in the form and in `/api/intake/submit`, which answers **422** without it
+(verified with a direct POST; no row was created). The location shows in the /admin/intake queue as a
+new column plus a block in the panel, and as a LOCATION line in the precon email. The panel had
+labelled the project name "Company", now fixed to "Project". The landings estimate note on the
+public form is now one short sentence (`estNote`), and reviewers still see the full reasoning.
+**Heads-up:** `Project` has city/state but no zip. `duplicateMatchId` is still hand-set only; an
+auto-flag for likely duplicates has been proposed to Mike, not built. Commit the 0077 folder
+together with schema.prisma. Verified in the local preview at desktop and 375px, with no console
+or server errors. `noDrawings.test.mjs` and `usStates.test.mjs` are now registered in
+verify:units, and the suite passes 849/849.
+Waiting on Mike's "Deploy".
+
+### 2026-09-12 — Mike's Claude — 🛠 LOCAL ONLY (not deployed): no-drawings form asks for stories + surface stalls, adds a progress bar
+
+Mike approved: the no-drawings form now **requires # stories and # surface parking stalls**
+along with type, units and size. **0 stalls is a real answer** (all-garage), so it has its own
+zero-allowed check in `noDrawingsReady`, `validateAnswers` and quantities.js `statedCount`;
+0 stories is still rejected. New copy ("the more detail you give us, the more accurate your
+budget") and a bar, "You've given us N of 14 figures". The stories/parking guesses in
+`noDrawingGuesses.js` stay as a backstop for older submissions. No schema change. Tests
+1,322 pass; verified in the local preview (podium, 0 stalls → ready, $472,817, no errors).
+Same batch, a layout clean-up of the figure boxes (Mike: fields hold 8 characters at most). A new
+`FigureField` in IntakeClient.jsx uses a CSS subgrid so boxes in a row stay aligned. Boxes are
+capped by `figureBoxCls` (`max-w-[11rem]`, on the wrapper, because the ESTIMATE pill is
+absolute). The optional grid is 2/3 columns, and the "Optional" tags are gone. Measured at
+1280px and 375px: 14 boxes, all labels on one line, rows aligned, no sideways scroll.
+Waiting on Mike's "Deploy".
+
+### 2026-09-12 — Mike's Claude — ✅ **DEPLOYED e93c9c3**: migration 0076 + no-drawings conceptual budget + auth/me fix + questionnaire wording
+
+Mike said "deploy". Full debug pass first: `npm test` exit 0 with 0 failures; `npm run build`
+clean; check-runtime-assets 43/43. One push carries the two entries below (both were local)
+plus: the amenity-hours question now says "external amenities" and asks for the exterior pool's
+open/close schedule, "Other" removed (old saved "Other" still reads as `beforeDusk`), and "IECC
+2021" reads "IECC" on every screen/PDF label. amplify.yml runs `migrate deploy`, so 0076
+applies on this build. `package-lock.json` left unstaged as usual.
+Mike also said **no** to Google/Outlook live calendar sync — the calendar is a one-time import.
+
+**Calendar import to prod: DONE 2026-09-12.** Mike's 1,866 meetings went through
+`POST /api/automation/intake/calendar` from his logged-in browser (organizer moved into
+attendees, `ownerEmail: mike@ilcstudios.com`). Result: **883 DRAFT notes created, 983 skipped
+by the normal worth-a-note rules** (cancelled, ILC-only, personal, same-slot duplicates, nothing
+business-like), **0 errors**, 252s. Owner verified: notes show created by Mike Kershner. Keyed
+on `calendarRef`, so a re-run updates instead of duplicating. 0 BotRules → no automations
+fired. Temp batch copies deleted. After the build went live `/api/auth/me` returns 200.
+
+### 2026-09-11 — Mike's Claude — (shipped in e93c9c3) files, drawing sets, budget versions and products are archive-only, migration 0076
 
 Sign-off: Mike, in chat (*"yes drawings and budgets and products should be archive only"*,
 *"like budget matrix, conceptual budget, design questionnaire I don't want to be deleted"*).
@@ -33,7 +175,7 @@ SQLite (expected — Postgres runs them in `migrate deploy`).
   see-everything users). History tab: `file_archive` / `file_restore`.
 - Tests: `scripts/tests/documentArchive.test.mjs` (13).
 
-### 2026-09-11 — Mike's Claude — 🟡 **LOCAL, NOT DEPLOYED**: conceptual budget without drawings + interior amenity tiers + parking ladder
+### 2026-09-11 — Mike's Claude — (shipped in e93c9c3) conceptual budget without drawings + interior amenity tiers + parking ladder
 
 - **No-drawings path** on /conceptual_budget. It asks "Do you have drawings?"
   - **No** opens a figures form. Required: project type, units, and gross SF or average unit SF.

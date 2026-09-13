@@ -134,6 +134,11 @@ export async function GET(request) {
   if (status)   where.status   = status;
   if (severity) where.severity = severity;
   if (module)   where.module   = module;
+  // Archived reports are left out unless asked for: ?archived=include lists
+  // everything, ?archived=only lists just the archived ones.
+  const archived = searchParams.get('archived');
+  if (archived === 'only')         where.archivedAt = { not: null };
+  else if (archived !== 'include') where.archivedAt = null;
 
   const reports = await prisma.bugReport.findMany({
     where,

@@ -98,7 +98,10 @@ export const INTAKE_QUESTIONS = [
     section: 'Residential units',
     question: 'How do you want to light unit bathroom vanities? ("Mirror and bath bar (Low finish)" is already included in the budget if chosen or left blank.)',
     hint: 'Illuminated mirrors often cost the same or less overall and need less coordination between trades.',
+    // Low finish added 2026-09-13 (Mike: "Yes should match the design
+    // questionnaire") — the internal Units and Design screens always had it.
     options: [
+      'Illuminated mirror (Low finish)',
       'Illuminated mirror (Medium finish)',
       'Illuminated mirror (High finish)',
       'Mirror and bath bar (Low finish)',
@@ -108,6 +111,7 @@ export const INTAKE_QUESTIONS = [
     default: 'Mirror and bath bar (Low finish)',
     engine: { section: 'units', field: 'vanity',
       map: {
+        'Illuminated mirror (Low finish)':    'illuminatedMirrorLow',
         'Illuminated mirror (Medium finish)': 'illuminatedMirrorMedium',
         'Illuminated mirror (High finish)': 'illuminatedMirrorHigh',
         'Mirror and bath bar (Low finish)': 'bathBarLow',
@@ -262,13 +266,30 @@ export const INTAKE_QUESTIONS = [
         'Other': 'beforeDusk',
       } },
   },
+  {
+    // Mike 2026-09-12: townhome and single-family communities are asked whether
+    // to light the walking paths. No = $0; Yes = the pathway model line. The
+    // public page shows it only for those two project types; the engine ignores
+    // it for every other type.
+    key: 'pathwayBollards',
+    section: 'Exterior',
+    question: 'Light the walking paths with bollards?',
+    hint: 'Townhome and single-family communities only. No is $0; Yes adds pathway bollards priced by the home.',
+    options: ['No', 'Yes'],
+    default: 'No',
+    engine: { section: 'exterior', field: 'pathwayBollards', map: { 'No': 'no', 'Yes': 'yes' } },
+  },
 
-  // ── CONTROLS ───────────────────────────────────────────────────────────────
+  // ── PROJECT TYPE ───────────────────────────────────────────────────────────
+  // Asked on the Drawings step (Mike 2026-09-12: "ask what kind of building type
+  // this is on the drawing screen ... If we put it further at the front it can
+  // conditionally change other questions"). The section name only groups it —
+  // no section step renders 'Project type', the Drawings step does.
   {
     key: 'projectType',
-    section: 'Controls',
+    section: 'Project type',
     question: 'What type of project is this?',
-    hint: 'Drives the common-area control system requirements (IECC).',
+    hint: 'Drives stairs, wall packs, pathway lighting and the common-area control system (IECC).',
     options: [
       'Single Family (1-2 Levels)',
       'Town Houses (2-3 Levels)',
@@ -348,15 +369,29 @@ export const FIGURE_KEYS = [
  */
 export const NO_DRAWINGS_KEY = 'noDrawings';
 
+/**
+ * "Is there a clubhouse?" on the no-drawings form (Mike, 2026-09-12: "Can we
+ * somehow read if there is a clubhouse or not?"). A drawing read finds it on
+ * the site plan; a typed-in budget asks. 'no' prices the interior amenity at
+ * $0; 'yes' with no SF typed estimates one; unanswered falls to the building
+ * type's usual. Stored as its own answer row, like NO_DRAWINGS_KEY.
+ */
+export const CLUBHOUSE_KEY = 'hasClubhouse';
+export const CLUBHOUSE_ANSWERS = ['yes', 'no'];
+
 const digitsOnly = v => (typeof v === 'string' ? v.replace(/[,\s]/g, '') : '');
 const typedFigure = v => (/^\d{1,9}$/.test(digitsOnly(v)) && Number(digitsOnly(v)) > 0 ? Number(digitsOnly(v)) : null);
+// A count where 0 is a real answer (no surface lot at all).
+const typedCount = v => (/^\d{1,9}$/.test(digitsOnly(v)) ? Number(digitsOnly(v)) : null);
 
 /**
- * The minimum a no-drawings budget needs before it can be priced — the three
- * things no guess can stand in for: what kind of building, how many units,
- * and how big (total building SF, or an average unit size to scale from).
- * Everything else on the form is estimated when left blank. Shared by the
- * wizard (to enable Continue) and the estimate route (to enforce it).
+ * The minimum a no-drawings budget needs before it can be priced: what kind
+ * of building, how many units, how big (total building SF, or an average unit
+ * size to scale from), how many stories and how many surface stalls. Mike
+ * added the last two on 2026-09-12 — easy numbers for an owner to know. 0
+ * surface stalls is a valid answer. Everything else on the form is estimated
+ * when left blank. Shared by the wizard (to enable Continue) and the
+ * estimate route (to enforce it).
  *
  * @param {object} answers  plain {key: string} map
  * @returns {{ready: boolean, missing: string[]}}
@@ -370,6 +405,8 @@ export function noDrawingsReady(answers) {
   if (typedFigure(a.figureGrossSf) == null && typedFigure(a.figureAvgUnitSf) == null) {
     missing.push('Total building SF or average unit size');
   }
+  if (typedFigure(a.figureStories) == null) missing.push('Stories');
+  if (typedCount(a.figureSurfaceParking) == null) missing.push('Surface parking stalls');
   return { ready: missing.length === 0, missing };
 }
 
@@ -395,13 +432,18 @@ export function validateAnswers(input) {
   }
   // Visitor-typed figures ride along under their own whitelist — digits only,
   // commas and spaces tolerated, anything else dropped (public endpoint).
+  // Surface stalls keep a 0 — "no surface lot" is a real, required answer.
   for (const f of FIGURE_KEYS) {
     const raw = typeof given[f.key] === 'string' ? given[f.key].replace(/[,\s]/g, '') : '';
-    if (!/^\d{1,9}$/.test(raw) || Number(raw) <= 0) continue;
+    if (!/^\d{1,9}$/.test(raw)) continue;
+    if (Number(raw) <= 0 && f.key !== 'figureSurfaceParking') continue;
     rows.push({ section: f.section, questionKey: f.key, question: f.question, answer: raw });
   }
   if (given[NO_DRAWINGS_KEY] === 'yes') {
     rows.push({ section: 'Project figures', questionKey: NO_DRAWINGS_KEY, question: 'Submitted without drawings', answer: 'yes' });
+  }
+  if (CLUBHOUSE_ANSWERS.includes(given[CLUBHOUSE_KEY])) {
+    rows.push({ section: 'Project figures', questionKey: CLUBHOUSE_KEY, question: 'Is there a clubhouse?', answer: given[CLUBHOUSE_KEY] });
   }
   return rows;
 }

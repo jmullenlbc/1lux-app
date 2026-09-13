@@ -6,6 +6,9 @@ import Sidebar from '@/components/layout/Sidebar';
 import AppBreadcrumb from '@/components/layout/AppBreadcrumb';
 import QcCapture from '@/components/qc/QcCapture';
 import GlobalAIButton from '@/components/GlobalAIButton';
+// react-hot-toast ships its own "use client", so Toaster can sit in this server
+// layout. QcCapture calls toast() — before this was mounted its messages went nowhere.
+import { Toaster } from 'react-hot-toast';
 
 export default async function AppLayout({ children }) {
   const session = await getSession();
@@ -23,6 +26,7 @@ export default async function AppLayout({ children }) {
         <div className="print:hidden">
           <QcCapture />
           <GlobalAIButton />
+          <Toaster position="top-center" />
         </div>
       </main>
     </div>

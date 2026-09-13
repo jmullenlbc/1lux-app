@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
-import { answersToEngine, NO_DRAWINGS_KEY, noDrawingsReady } from '@/lib/intake/questionnaire';
-import { computeQuantities, answersToMap } from '@/lib/intake/quantities';
-import { calculateBudget } from '@/lib/calculations';
+import { computeIntakeEstimate, intakeEstimateGate } from '@/lib/intake/estimate';
 import { loadPricing } from '@/lib/pricingLoader';
 
 export const dynamic = 'force-dynamic';
@@ -22,6 +20,10 @@ export const dynamic = 'force-dynamic';
  * the one validated engine. If this estimate and the internal budget for the
  * same inputs ever disagree, something upstream broke.
  *
+ * The computation itself lives in src/lib/intake/estimate.js (2026-09-12) so
+ * the PDF download at /api/intake/pdf prices from the same function.
+ *
+ * @see src/lib/intake/estimate.js      — gate + answers → budget
  * @see src/lib/intake/questionnaire.js — the verbatim answers + engine maps
  * @see src/lib/intake/quantities.js    — drawings → counts and square footage
  * @see src/lib/calculations.js         — the engine
@@ -29,13 +31,6 @@ export const dynamic = 'force-dynamic';
 
 const LIMIT = { limit: 30, windowMs: 60_000 }; // fires on every answer change, debounced client-side
 const MAX_PAYLOAD_CHARS = 200_000;             // same ceiling as the submit route
-
-/** A stated, usable number — or null (Number(null) is 0, hence the dance). */
-function num(v) {
-  if (v === null || v === undefined || v === '') return null;
-  const n = Number(v);
-  return Number.isFinite(n) && n >= 0 ? n : null;
-}
 
 export async function POST(req) {
   const ip = clientIp(req);
@@ -59,79 +54,14 @@ export async function POST(req) {
 
   const { answers, drawings } = body || {};
 
-  // Drawings are the ticket in (Mike, 2026-09-04): a visitor gets a live
-  // number only after uploading drawings. Typed figures refine that estimate;
-  // they never start one. Enforced here, not just in the wizard UI, so the
-  // bare endpoint can't be used as a free pricing calculator.
-  //
-  // The one other way in (Mike, 2026-09-11): the visitor answered "no
-  // drawings" and typed the minimum no guess can replace — project type,
-  // total units, and total building SF or an average unit size. Any drawings
-  // sent alongside a "no drawings" answer are ignored.
-  const typedIn = answersToMap(answers)[NO_DRAWINGS_KEY] === 'yes';
-  const hasDrawings = !typedIn && drawings && typeof drawings === 'object';
-  if (!hasDrawings && !(typedIn && noDrawingsReady(answersToMap(answers)).ready)) {
+  // No drawings and no typed-in minimum → no number (and no pricing load).
+  if (!intakeEstimateGate(answers, drawings).ready) {
     return NextResponse.json({ budget: null, projectData: null, quantities: [] });
   }
 
   const pricing = await loadPricing();
 
-  // Drawings → quantities (null stays null: "the drawing did not say"). A
-  // typed-in budget passes no drawings; its blanks get the stand-in guesses.
-  const rows = computeQuantities(hasDrawings ? drawings : null, answers || null, pricing);
-  const q = {};
-  for (const r of rows) if (r && r.key) q[r.key] = r.value;
-
-
-  const { sections, buildingTypeKey } = answersToEngine(answers);
-
-  // A known exit-door count (drawing-stated, counted, or visitor-typed) is a
-  // better wallpack quantity than the engine's per-building fallback model —
-  // wallpacks are the one door fixture, one per egress door. Passed as the
-  // engine's own quantity-override seam, so the reviewed budget behaves the
-  // same way when it inherits these sections.
-  if (num(q.exitDoors) != null) {
-    sections.exterior = { ...(sections.exterior || {}), wallpacksQty: num(q.exitDoors) };
-  }
-
-  const pd = {
-    grossSf:             num(q.grossSf),
-    unitsSf:             num(q.unitsSf),
-    numUnits:            num(q.totalUnits),
-    numBalconies:        num(q.balconies),
-    numVanities:         num(q.vanities),
-    numBathrooms:        num(q.bathrooms),
-    corridorSf:          num(q.corridorSf),
-    interiorAmenitySf:   num(q.interiorAmenitySf),
-    exteriorAmenitySf:   num(q.exteriorAmenitySf),
-    garageSf:            num(q.garageSf),
-    bohSf:               num(q.bohSf),
-    // The engine field is named numEgressStairwells but HOLDS LANDINGS — the
-    // internal wizard labels it "Stairwell Landings" and prices $175 per
-    // landing. The takeoff's stairLandings row (stairs × (2×stories−1)) is
-    // the matching figure; the raw shaft count would underprice 5-9×.
-    numEgressStairwells: num(q.stairLandings),
-    numSurfaceParking:   num(q.surfaceParking),
-    numCarports:         num(q.carports),
-    numGarages:          num(q.garages),
-    lotSf:               num(q.lotSf),
-    buildingFootprintSf: num(q.buildingFootprintSf),
-    buildingTypeKey:     buildingTypeKey || undefined,
-    // Sales tax is unknown at intake; the reviewed budget adds it later.
-  };
-
-  const budget = calculateBudget(pd, sections, pricing);
-
-  // The wizard's "we couldn't find these" card keys off where each figure
-  // came from: null = ask for it, 'derived' = show our estimate and offer an
-  // override, 'drawing'/'questionnaire' = settled. Values + provenance only —
-  // no pricing.
-  const quantities = rows.map(r => ({
-    key: r.key, label: r.label, unit: r.unit,
-    value: r.value, source: r.source, how: r.how, flag: r.flag,
-  }));
-
   // The budget object is derived output (the visitor's own numbers) — the
   // pricing model itself never leaves the server.
-  return NextResponse.json({ budget, projectData: pd, quantities });
+  return NextResponse.json(computeIntakeEstimate({ answers, drawings, pricing }));
 }

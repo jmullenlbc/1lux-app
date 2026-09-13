@@ -149,6 +149,7 @@ export default function DesignWizardClient({ project, projectData, initialSectio
   const sharedProps = {
     projectId:   project.id,
     projectData: localPD,
+    allSections: sections,
     budget,
     pricing,
     isDesign: true,
@@ -226,6 +227,7 @@ export default function DesignWizardClient({ project, projectData, initialSectio
           {currentStep === 'design-garage' && (
             <DesignGarageSection
               {...sharedProps}
+              emergencyStrategy={sections['emergency']?.strategy}
               responses={sections['corridors'] || {}}
               onSaveResponses={(r) => saveResponses('corridors', r)}
             />

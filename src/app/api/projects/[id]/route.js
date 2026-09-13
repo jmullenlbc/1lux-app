@@ -54,7 +54,7 @@ export async function PATCH(request, { params }) {
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const body = await request.json();
-  const { name, buildingType, location, address, date, status, currentStep, completedSteps, contactEmail, clientId, phase, city, state, serviceType, flagged, flagNote, contractValue, contractSignedDate, designContractValue, designContractSignedDate, constructionStartDate, mepRoughInDate, constructionEndDate, budgetType, budgetSentDate, peerReviewMatrixType,
+  const { name, buildingType, location, address, date, status, currentStep, completedSteps, contactEmail, contactName, clientId, phase, city, state, zip, serviceType, flagged, flagNote, contractValue, contractSignedDate, designContractValue, designContractSignedDate, constructionStartDate, mepRoughInDate, constructionEndDate, budgetType, budgetSentDate, peerReviewMatrixType,
     // ── Pipeline / CRM fields (merged from Deal) ──
     projectType, procurementStage, designStage, pipelineProbability, probabilityToWin, probabilityToMoveForward, procurementStatus, designStatus, expectedOrderDate, salesOwnerId,
     procurementStatusReason, designStatusReason,
@@ -124,6 +124,8 @@ export async function PATCH(request, { params }) {
       ...(phase          !== undefined && validPhases.includes(phase) && { phase }),
       ...(city           !== undefined && { city: city  || null }),
       ...(state          !== undefined && { state: state || null }),
+      ...(zip            !== undefined && { zip: zip ? String(zip).trim().slice(0, 10) : null }),
+      ...(contactName    !== undefined && { contactName: contactName ? String(contactName).trim().slice(0, 200) : null }),
       ...(serviceType    !== undefined && (validServiceTypes.includes(serviceType) || serviceType === null) && { serviceType: serviceType || null }),
       ...(flagged        !== undefined && { flagged: Boolean(flagged) }),
       ...(flagNote       !== undefined && { flagNote: flagNote || null }),

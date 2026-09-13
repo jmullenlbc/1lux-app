@@ -442,7 +442,7 @@ export async function extractSiteData(images, anthropic, { model = modelFor('dra
     // 2026-08-31: it surfaced as "Could not read the drawing", which blames
     // the drawing and sends everyone hunting phone bugs. V3 = pay the bill.
     if (/credit balance/i.test(e?.message ?? '')) {
-      return { ok: false, code: 'ai_unavailable', message: 'Our drawing reader is temporarily unavailable — this is on our side, not your file. Please email the set to budgets@ilcstudios.com and we will run it for you. (V3)' };
+      return { ok: false, code: 'ai_unavailable', message: 'Our drawing reader is temporarily unavailable — this is on our side, not your file. Please email the set to precon@ilcstudios.com and we will run it for you. (V3)' };
     }
     return { ok: false, code: 'extraction_failed', message: `Could not read the drawing. (V1${e?.status ? '-' + e.status : ''})` };
   }

@@ -1,9 +1,9 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import QuestionCard from './QuestionCard';
-import { formatCurrency, priceOverride } from '@/lib/calculations';
+import QuestionCard, { CostImpact } from './QuestionCard';
+import { formatCurrency, priceOverride, calculateBudget } from '@/lib/calculations';
 import { PRICING } from '@/lib/pricing';
 import StandardsHint from '@/components/wizard/StandardsHint';
 
@@ -15,7 +15,7 @@ const EXT_MANUAL_ITEMS = [
   ['manualExteriorAdder', 'Manual exterior adder'],
 ];
 
-export default function ExteriorSection({ responses, projectData, pricing, onSaveResponses, onSaveData, onNext, onPrev, isDesign = false }) {
+export default function ExteriorSection({ responses, projectData, allSections, pricing, onSaveResponses, onSaveData, onNext, onPrev, isDesign = false }) {
   // Single source of truth: read rates/costs from the live master pricing. (Landscape
   // 2% and door averaging are hardcoded in the engine, so kept hardcoded here to match.)
   const P = pricing || PRICING;
@@ -25,12 +25,16 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
     // as Dusk to Dawn, so it shows as that.
     amenityHours:      !responses.amenityHours || responses.amenityHours === 'beforeDusk' ? 'duskToDawn' : responses.amenityHours,
     siteDesignLevel:   responses.siteDesignLevel   || 'base',
+    // Townhomes only (Mike 2026-09-12) — 'no' is the default and prices $0.
+    pathwayBollards:   responses.pathwayBollards   || 'no',
     exteriorOverride:  responses.exteriorOverride  ?? '',
     // Building wallpack overrides. 'auto' (not '') is the cleared state — see the
     // OverrideBox note in QuestionCard.jsx: the responses store refuses to overwrite
     // a real value with a blank, so clearing must write something non-blank.
     wallpacksQty:      responses.wallpacksQty      ?? '',
     wallpacksPrice:    responses.wallpacksPrice    ?? '',
+    // One area-light count (lot poles + drive-lane lights), same 'auto' rule.
+    areaLightsQty:     responses.areaLightsQty     ?? '',
     // Design-only
     exteriorEmergency: responses.exteriorEmergency || 'wallpack',
     exteriorPoleControl: responses.exteriorPoleControl || 'photocell',
@@ -56,6 +60,12 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
   const manualTotal = EXT_MANUAL_ITEMS.reduce((s, [key]) => s + (parseFloat(manualItems[key]) || 0), 0);
 
   const [saving, setSaving] = useState(false);
+  // What each answer costs (+ estimated labor), recomputed live as answers
+  // change — local answers only save on Next (Mike 2026-09-13).
+  const qc = useMemo(
+    () => calculateBudget(projectData, { ...(allSections || {}), exterior: { ...(allSections?.exterior || {}), ...answers } }, pricing || null).questionCosts || {},
+    [projectData, allSections, answers, pricing],
+  );
 
   const extSf       = Number(projectData?.exteriorAmenitySf)    || 0;
   const parking     = Number(projectData?.numSurfaceParking)     || 0;
@@ -90,7 +100,14 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
   // Live cost breakdown (mirrors calculations.js exterior block — reads master pricing)
   const sp = P.exterior?.surfaceParking || {};
   const amenityProduct  = extSf * baseRate * nightMult;
-  const parkingFixtures = Math.ceil(parking / (sp.stallsPerFixture ?? 9));
+  // Drive-lane area lights ride the same line — mirrors calculations.js. Only a
+  // typed-in townhouse/single-family estimate sets them (driveLaneLightsQty).
+  // A typed "Area lights" total replaces lot poles + drive lanes together.
+  const driveLane       = Math.max(0, Math.round(Number(responses.driveLaneLightsQty) || 0));
+  const stallFixtures   = Math.ceil(parking / (sp.stallsPerFixture ?? 9));
+  const areaAutoQty     = stallFixtures + driveLane;
+  const areaQtyOv       = priceOverride(answers.areaLightsQty);
+  const parkingFixtures = areaQtyOv != null ? Math.max(0, Math.round(areaQtyOv)) : areaAutoQty;
   // Solar site design multiplies the area-lighting line (fixture carries its
   // own panel/battery/controller) — mirrors calculations.js. Mike 2026-09-04.
   const solarSite       = answers.siteDesignLevel === 'solar';
@@ -147,13 +164,20 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
   const pathwayBase    = numUnitsPD > 0 && pathwayRate > 0
     ? Math.max(numUnitsPD * pathwayRate, pathwayFloor)
     : 0;
-  const pathwayAuto    = pathwayBase * pathwaySolarMult;
+  // Townhomes and single-family are asked "Light the walking paths with
+  // bollards?" (Mike 2026-09-12). No — the default — is $0; Yes is the model
+  // line. Mirrors the engine (calculations.js, pathwayBollardsDeclined).
+  const pathwayAsksBollards = wpType === 'townHouses' || wpType === 'singleFamily';
+  const pathwayDeclined     = pathwayAsksBollards && answers.pathwayBollards !== 'yes';
+  const pathwayAuto    = pathwayDeclined ? 0 : pathwayBase * pathwaySolarMult;
   const pathwayProduct = pathwayManual > 0 ? 0 : pathwayAuto;
   const pathwayFloored = pathwayProduct > 0 && numUnitsPD * pathwayRate < pathwayFloor;
   const pathwaySolarSuffix = solarSite ? ` × ${pathwaySolarMult} solar` : '';
   const pathwayMath = pathwayManual > 0
     ? 'manual pathway entry below carries this scope'
-    : numUnitsPD <= 0 || pathwayRate <= 0
+    : pathwayDeclined
+      ? 'walking-path bollards: No — $0'
+      : numUnitsPD <= 0 || pathwayRate <= 0
       ? 'no units yet — $0'
       : pathwayFloored
         ? `${numUnitsPD.toLocaleString()} units × $${pathwayRate}/unit = $${Math.round(numUnitsPD * pathwayRate).toLocaleString()}, floored at $${pathwayFloor.toLocaleString()}${pathwaySolarSuffix}`
@@ -171,7 +195,9 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
   // amenity question cards above. They stay in the exterior total via the engine.
   const frozenLines = [
     { label: solarSite ? 'Surface parking (solar)' : 'Surface parking',
-      math: `${parking} stalls ÷ ${sp.stallsPerFixture ?? 9} = ${parkingFixtures} fixture${parkingFixtures === 1 ? '' : 's'} × $${(sp.perFixture ?? 1325).toLocaleString()}${solarSite ? ` × ${solarMult} solar` : ''}`, value: parkingProduct },
+      math: `${areaQtyOv != null
+        ? `${parkingFixtures} area light${parkingFixtures === 1 ? '' : 's'} (manual)`
+        : `${parking} stalls ÷ ${sp.stallsPerFixture ?? 9} = ${stallFixtures}${driveLane ? ` + ${driveLane} drive-lane = ${parkingFixtures}` : ''} fixture${parkingFixtures === 1 ? '' : 's'}`} × $${(sp.perFixture ?? 1325).toLocaleString()}${solarSite ? ` × ${solarMult} solar` : ''}`, value: parkingProduct },
     { label: 'Carports',              math: `${carports} ÷ 2 = ${Math.floor(carports / 2)} disk${Math.floor(carports / 2) === 1 ? '' : 's'} × $${P.exterior?.carport?.diskEveryOther ?? 30}`, value: carportProduct },
     { label: 'Detached garages',      math: `${numGarages} × $${P.exterior?.detachedGarage?.sconcePerDoor ?? 80}/door`, value: garageProduct },
     { label: 'Building wallpacks',    math: wpMath, value: wallpackProduct },
@@ -269,9 +295,9 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
         options={[
           { value: 'base',     label: 'Base design',                                sub: 'Code-required site and parking lighting', cost: 0 },
           { value: 'upgraded', label: 'Upgraded landscape and/or path lighting',    sub: 'Recorded for the designer — add dollars via the manual adder below', cost: 0 },
-          { value: 'solar',    label: `Solar lighting — ${P.exterior?.solarMultiplier ?? 2.3}× area lighting, ${PW.solarMultiplier ?? 1.6}× pathway`, sub: 'Self-contained solar fixtures; labor drops dramatically (no trenching, conduit, or wire runs)', cost: solarExtra + (pathwayManual > 0 ? 0 : pathwayBase * ((PW.solarMultiplier ?? 1.6) - 1)) },
+          { value: 'solar',    label: `Solar lighting — ${P.exterior?.solarMultiplier ?? 2.3}× area lighting, ${PW.solarMultiplier ?? 1.6}× pathway`, sub: 'Self-contained solar fixtures; labor drops dramatically (no trenching, conduit, or wire runs)', cost: solarExtra + (pathwayManual > 0 || pathwayDeclined ? 0 : pathwayBase * ((PW.solarMultiplier ?? 1.6) - 1)) },
         ]}
-        value={answers.siteDesignLevel}
+        value={answers.siteDesignLevel} impact={qc['exterior.siteDesignLevel']}
         onChange={val => {
           setAnswers(a => ({ ...a, siteDesignLevel: val }));
           setDirtyAnswers(d => new Set(d).add('siteDesignLevel'));
@@ -282,6 +308,24 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
           <span className="font-semibold">Solar site lighting</span> — area lighting priced at {solarMult}× conventional, pathway at {pathwaySolarMult}×.
           Install labor should be reduced dramatically — no trenching, conduit, or wire runs to the poles.
         </div>
+      )}
+
+      {/* Townhomes + single-family only — walking-path bollards yes/no (Mike 2026-09-12) */}
+      {pathwayAsksBollards && (
+        <QuestionCard
+          question="Light the walking paths with bollards?"
+          note={`Townhome and single-family communities often skip pathway lighting. No is $0. Yes prices bollards by the home ($${pathwayRate}/home, $${pathwayFloor.toLocaleString()} minimum${solarSite ? `, × ${pathwaySolarMult} solar` : ''}).${pathwayManual > 0 ? ' A manual pathway figure is entered below, so that figure is used either way.' : ''}`}
+          costSuffix=" total"
+          options={[
+            { value: 'no',  label: 'No',                                   sub: 'No walking-path bollards', cost: 0 },
+            { value: 'yes', label: 'Yes — bollards along the walking paths', sub: numUnitsPD > 0 ? `${numUnitsPD.toLocaleString()} homes × $${pathwayRate}/home${pathwayBase > numUnitsPD * pathwayRate ? `, floored at $${pathwayFloor.toLocaleString()}` : ''}${pathwaySolarSuffix}` : 'Enter the number of units to see a price', cost: pathwayBase * pathwaySolarMult },
+          ]}
+          value={answers.pathwayBollards} impact={qc['exterior.pathwayBollards']}
+          onChange={val => {
+            setAnswers(a => ({ ...a, pathwayBollards: val }));
+            setDirtyAnswers(d => new Set(d).add('pathwayBollards'));
+          }}
+        />
       )}
 
       {/* Exterior amenity level */}
@@ -295,7 +339,7 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
           { value: 'medium',    label: `$${rateMap.medium}/SF — Medium finish`,        sub: 'Standard mid-market exterior amenity package',                     cost: extSf * rateMap.medium },
           { value: 'high',      label: `$${rateMap.high}/SF — High finish`,            sub: 'High-end mid-rise / high-rise; may include façade accent lighting', cost: extSf * rateMap.high },
         ]}
-        value={answers.amenityLevel}
+        value={answers.amenityLevel} impact={qc['exterior.amenityLevel']}
         onChange={val => {
           setAnswers(a => ({ ...a, amenityLevel: val }));
           setDirtyAnswers(d => new Set(d).add('amenityLevel'));
@@ -321,7 +365,7 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
             cost:  0,
           },
         ]}
-        value={answers.amenityHours}
+        value={answers.amenityHours} impact={qc['exterior.amenityHours']}
         onChange={val => {
           setAnswers(a => ({ ...a, amenityHours: val }));
           setDirtyAnswers(d => new Set(d).add('amenityHours'));
@@ -372,6 +416,48 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
             <span className="font-mono text-sm">{formatCurrency(formulaBreakdownSubtotal)}</span>
           </div>
         </div>
+      </div>
+
+      {/* ── Area lights — one count for parking-lot poles + drive-lane lights ── */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <div className="flex items-start justify-between gap-4 mb-1">
+          <div>
+            <p className="font-semibold text-slate-900">Area Lights (parking lot + drives)</p>
+            <p className="text-[11px] text-slate-400">
+              Auto-counted: {parking} stalls ÷ {sp.stallsPerFixture ?? 9} = {stallFixtures}
+              {driveLane ? ` + ${driveLane} along the drives` : ''} = {areaAutoQty} — override below if the site says otherwise.
+            </p>
+          </div>
+          <div className="text-right shrink-0">
+            <div className="text-[10px] uppercase tracking-widest text-slate-400">Line Total</div>
+            <div className="text-lg font-bold text-slate-900 font-mono">{formatCurrency(parkingProduct)}</div>
+          </div>
+        </div>
+        <p className="text-xs text-slate-400 mb-4">
+          Every pole light on the site — the parking lot and any private drive — is one count.
+          Type the total you want and it replaces both automatic numbers. Leave it blank to keep
+          the automatic count.
+        </p>
+        <div className="w-40">
+          <Input
+            label="Area lights (override)"
+            type="number"
+            placeholder={String(areaAutoQty)}
+            value={areaQtyOv != null ? answers.areaLightsQty : ''}
+            onChange={e => {
+              const v = e.target.value === '' ? 'auto' : e.target.value;
+              setAnswers(a => ({ ...a, areaLightsQty: v }));
+              setDirtyAnswers(d => new Set(d).add('areaLightsQty'));
+            }}
+            min={0}
+          />
+        </div>
+        {areaQtyOv != null && (
+          <p className="mt-2 text-xs text-amber-700">
+            Manual override in use — {parkingFixtures} area light{parkingFixtures === 1 ? '' : 's'} instead of the automatic {areaAutoQty}.
+            Clear the box to go back to automatic.
+          </p>
+        )}
       </div>
 
       {/* ── Building Wallpacks — auto count with quantity + price overrides ── */}
@@ -425,6 +511,7 @@ export default function ExteriorSection({ responses, projectData, pricing, onSav
             />
           </div>
         </div>
+        <CostImpact impact={qc['exterior.wallpacksQty']} />
         {(wpQtyOv != null || wpPriceOv != null) && (
           <p className="mt-2 text-xs text-amber-700">
             Manual override in use

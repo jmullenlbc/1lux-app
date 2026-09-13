@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { INCLUDE_ARCHIVED } from '@/lib/archive';
 import { requireAdmin, isSuperAdmin } from '@/lib/auth';
+import { DEPARTMENT_KEYS, cleanDepartments, departmentKeys } from '@/lib/departments';
 
 export async function PATCH(request, { params }) {
   const { user: actor, error } = await requireAdmin(request);
@@ -21,13 +22,21 @@ export async function PATCH(request, { params }) {
     return NextResponse.json({ error: 'Use account settings to modify your own account' }, { status: 400 });
   }
 
-  const { name, role, division, deptRoles, permissions, mustChangePassword, isActive, newPassword } = await request.json();
+  const { name, role, departments, permissions, mustChangePassword, isActive, newPassword } = await request.json();
+
+  // departments: the full list of department keys this person belongs to
+  // (a multi-select, Mike 2026-09-12). Sending it replaces the whole list.
+  let deptKeys;
+  if (departments !== undefined) {
+    deptKeys = cleanDepartments(departments);
+    if (!deptKeys) {
+      return NextResponse.json({ error: `departments must be a list. Use any of: ${DEPARTMENT_KEYS.join(', ')}` }, { status: 400 });
+    }
+  }
 
   const data = {};
   if (name !== undefined)              data.name              = name;
   if (role !== undefined)              data.role              = role;
-  if (division !== undefined)          data.division          = division || null;
-  if (deptRoles !== undefined)         data.deptRoles         = JSON.stringify(Array.isArray(deptRoles) ? deptRoles : []);
   if (permissions !== undefined)       data.permissions       = JSON.stringify(permissions);
   if (mustChangePassword !== undefined) data.mustChangePassword = mustChangePassword;
   if (isActive !== undefined)          data.isActive          = isActive;
@@ -38,15 +47,23 @@ export async function PATCH(request, { params }) {
     data.passwordHash = await bcrypt.hash(newPassword, 12);
   }
 
-  const updated = await prisma.user.update({ where: { id: params.id }, data });
+  // createMany without skipDuplicates: that option throws on SQLite, and
+  // cleanDepartments has already removed repeats.
+  const [updated] = await prisma.$transaction([
+    prisma.user.update({ where: { id: params.id }, data }),
+    ...(deptKeys ? [
+      prisma.userDepartment.deleteMany({ where: { userId: params.id } }),
+      prisma.userDepartment.createMany({ data: deptKeys.map(department => ({ userId: params.id, department })) }),
+    ] : []),
+  ]);
+  const depts = await prisma.userDepartment.findMany({ where: { userId: params.id }, select: { department: true } });
 
   return NextResponse.json({
     id:                updated.id,
     email:             updated.email,
     name:              updated.name,
     role:              updated.role,
-    division:          updated.division,
-    deptRoles:         updated.deptRoles,
+    departments:       departmentKeys({ departments: depts }),
     permissions:       updated.permissions,
     mustChangePassword: updated.mustChangePassword,
     isActive:          updated.isActive,

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/auth';
+import { requireIntakeReviewer } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -7,10 +7,11 @@ export const dynamic = 'force-dynamic';
 export async function PATCH(request, { params }) {
   // requireAdmin needs the request to read the auth cookie — calling it bare
   // threw on every request, 500ing the review queue's approve/reject.
-  const { user, error } = await requireAdmin(request);
+  // Sales can work the queue too (2026-09-12); the portal invite stays admin-only.
+  const { user, error } = await requireIntakeReviewer(request);
   if (error) return error;
 
-  const { status, reviewNote, clientId, duplicateMatchId } = await request.json();
+  const { status, reviewNote, clientId, duplicateMatchId, dismissSuggestion } = await request.json();
 
   const submission = await prisma.conceptualSubmission.findUnique({
     where: { id: params.id },
@@ -31,6 +32,9 @@ export async function PATCH(request, { params }) {
       // unlinked it, which would break the Task 27 invite bridge.
       clientId: clientId !== undefined ? (clientId || null) : submission.clientId,
       duplicateMatchId: duplicateMatchId !== undefined ? (duplicateMatchId || null) : submission.duplicateMatchId,
+      // "Not the same job" — the guess stays on the row (so we can see later
+      // what it thought), it just stops being shown.
+      ...(dismissSuggestion ? { suggestionDismissedAt: new Date() } : {}),
       reviewedById: user.id,
       // NOTE: no `reviewedAt` — the model has no such column, and writing it
       // made Prisma reject the entire update, 500ing every approve/reject
@@ -39,6 +43,7 @@ export async function PATCH(request, { params }) {
     include: {
       reviewedBy: { select: { name: true } },
       client: { select: { id: true, name: true } },
+      suggestedProject: { select: { id: true, name: true, city: true, state: true, zip: true } },
     },
   });
 

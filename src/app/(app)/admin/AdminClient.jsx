@@ -3,18 +3,49 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Badge from '@/components/ui/Badge';
-import { DIVISIONS } from '@/lib/divisions';
+import { DEPARTMENTS, DEPARTMENT_LABEL } from '@/lib/departments';
 
-const DEPT_ROLES = ['Operations', 'Finance', 'Design', 'Pre-construction', 'Construction', 'Sales'];
-
-const DEPT_ROLE_COLORS = {
-  Operations:       'bg-slate-100 text-slate-700 border-slate-300',
-  Finance:          'bg-green-50 text-green-700 border-green-300',
-  Design:           'bg-violet-50 text-violet-700 border-violet-300',
-  'Pre-construction': 'bg-blue-50 text-blue-700 border-blue-300',
-  Construction:     'bg-amber-50 text-amber-700 border-amber-300',
-  Sales:            'bg-pink-50 text-pink-700 border-pink-300',
+// Tailwind needs the full class strings written out here to keep them.
+const DEPARTMENT_COLORS = {
+  SALES_MARKETING:    'bg-pink-50 text-pink-700 border-pink-300',
+  OPERATIONS:         'bg-slate-100 text-slate-700 border-slate-300',
+  PRECONSTRUCTION:    'bg-blue-50 text-blue-700 border-blue-300',
+  CONSTRUCTION:       'bg-amber-50 text-amber-700 border-amber-300',
+  PROJECT_MANAGEMENT: 'bg-teal-50 text-teal-700 border-teal-300',
+  DESIGN:             'bg-violet-50 text-violet-700 border-violet-300',
+  FINANCE:            'bg-green-50 text-green-700 border-green-300',
 };
+
+// Departments — pick any number (Mike, 2026-09-12). Being in Sales + marketing
+// is what puts someone in the Sales Owner dropdowns and the web request queue.
+function DepartmentPicker({ value, onChange }) {
+  function toggle(key) {
+    onChange(value.includes(key) ? value.filter(k => k !== key) : [...value, key]);
+  }
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-slate-600 mb-2">
+        Departments
+        <span className="text-slate-400 font-normal ml-1">— select all that apply</span>
+      </label>
+      <div className="flex flex-wrap gap-2">
+        {DEPARTMENTS.map(d => {
+          const active = value.includes(d.key);
+          return (
+            <button key={d.key} type="button" onClick={() => toggle(d.key)} aria-pressed={active}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                active
+                  ? `${DEPARTMENT_COLORS[d.key]} ring-2 ring-offset-1 ring-current`
+                  : 'bg-white text-slate-400 border-slate-200 hover:border-slate-400 hover:text-slate-600'
+              }`}>
+              {active && <span className="mr-1">✓</span>}{d.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 const ROLE_OPTIONS = [
   { value: 'SUPER_ADMIN',   label: 'Super Admin',   desc: 'Full access — ILC Studios team only'        },
@@ -45,6 +76,7 @@ function CreateUserForm({ currentUserRole, onCreated }) {
     password:          '',
     role:              'USER',
     mustChangePassword: true,
+    departments:       [],
   });
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
@@ -68,7 +100,7 @@ function CreateUserForm({ currentUserRole, onCreated }) {
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Failed to create user'); return; }
       onCreated(data);
-      setForm({ name: '', email: '', password: '', role: 'USER', mustChangePassword: true });
+      setForm({ name: '', email: '', password: '', role: 'USER', mustChangePassword: true, departments: [] });
     } catch {
       setError('Network error');
     } finally {
@@ -121,6 +153,8 @@ function CreateUserForm({ currentUserRole, onCreated }) {
             </div>
           </div>
 
+          <DepartmentPicker value={form.departments} onChange={v => set('departments', v)} />
+
           <label className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
             <input type="checkbox" checked={form.mustChangePassword} onChange={e => set('mustChangePassword', e.target.checked)}
               className="accent-amber-500" />
@@ -148,13 +182,11 @@ function CreateUserForm({ currentUserRole, onCreated }) {
 
 function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
   const parsedPerms = (() => { try { return JSON.parse(user.permissions || '{}'); } catch { return {}; } })();
-  const parsedDeptRoles = (() => { try { return JSON.parse(user.deptRoles || '[]'); } catch { return []; } })();
 
   const [form, setForm] = useState({
     name:              user.name || '',
     role:              user.role,
-    division:          user.division || '',
-    deptRoles:         parsedDeptRoles,
+    departments:       user.departments || [],
     mustChangePassword: user.mustChangePassword,
     isActive:          user.isActive !== false,
     newPassword:       '',
@@ -163,14 +195,6 @@ function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
     permSalesAdmin:       parsedPerms.salesAdmin       === true,
   });
 
-  function toggleDeptRole(dr) {
-    setForm(f => ({
-      ...f,
-      deptRoles: f.deptRoles.includes(dr)
-        ? f.deptRoles.filter(r => r !== dr)
-        : [...f.deptRoles, dr],
-    }));
-  }
   const [saving, setSaving]   = useState(false);
   const [error,  setError]    = useState('');
   const [success, setSuccess] = useState('');
@@ -189,8 +213,7 @@ function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
       const body = {
         name:              form.name,
         role:              form.role,
-        division:          form.division || null,
-        deptRoles:         form.deptRoles,
+        departments:       form.departments,
         mustChangePassword: form.mustChangePassword,
         isActive:          form.isActive,
         permissions:       { knowledgeBase: form.permKnowledgeBase, clientStandards: form.permClientStandards, salesAdmin: form.permSalesAdmin },
@@ -261,44 +284,7 @@ function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
               {/* ── RIGHT COLUMN ── */}
               <div className="space-y-4">
 
-                {/* Division — one per user; drives the Sales Owner dropdown */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-2">
-                    Division
-                    <span className="text-slate-400 font-normal ml-1">— primary team</span>
-                  </label>
-                  <select
-                    value={form.division}
-                    onChange={e => set('division', e.target.value)}
-                    className="w-full text-sm border border-slate-200 rounded-lg px-2.5 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
-                  >
-                    <option value="">— None —</option>
-                    {DIVISIONS.map(d => <option key={d.key} value={d.key}>{d.label}</option>)}
-                  </select>
-                </div>
-
-                {/* Department Roles */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-2">
-                    Department Roles
-                    <span className="text-slate-400 font-normal ml-1">— select all that apply</span>
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {DEPT_ROLES.map(dr => {
-                      const active = form.deptRoles.includes(dr);
-                      return (
-                        <button key={dr} type="button" onClick={() => toggleDeptRole(dr)}
-                          className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-                            active
-                              ? `${DEPT_ROLE_COLORS[dr]} ring-2 ring-offset-1 ring-current`
-                              : 'bg-white text-slate-400 border-slate-200 hover:border-slate-400 hover:text-slate-600'
-                          }`}>
-                          {active && <span className="mr-1">✓</span>}{dr}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                <DepartmentPicker value={form.departments} onChange={v => set('departments', v)} />
 
                 {/* Reset Password */}
                 <div>
@@ -553,18 +539,17 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
                         <Badge variant={badge.variant}>{badge.label}</Badge>
                       </td>
                       <td className="px-6 py-4">
-                        {(() => {
-                          const depts = (() => { try { return JSON.parse(u.deptRoles || '[]'); } catch { return []; } })();
-                          return depts.length > 0 ? (
-                            <div className="flex flex-wrap gap-1">
-                              {depts.map(dr => (
-                                <span key={dr} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${DEPT_ROLE_COLORS[dr] || 'bg-slate-100 text-slate-600 border-slate-300'}`}>
-                                  {dr}
-                                </span>
-                              ))}
-                            </div>
-                          ) : <span className="text-xs text-slate-300">—</span>;
-                        })()}
+                        {(u.departments || []).length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {u.departments.map(key => (
+                              <span key={key} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${DEPARTMENT_COLORS[key] || 'bg-slate-100 text-slate-600 border-slate-300'}`}>
+                                {DEPARTMENT_LABEL[key] || key}
+                              </span>
+                            ))}
+                          </div>
+                        ) : u.role === 'CLIENT_VIEWER'
+                          ? <span className="text-xs text-slate-300">—</span>
+                          : <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-300">No department</span>}
                       </td>
                       <td className="px-6 py-4">
                         {u.isActive === false

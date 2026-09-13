@@ -13,8 +13,11 @@ model User {
   name               String?
   passwordHash       String?
   role               String                     @default("USER")
+  // Retired 2026-09-12 (migration 0079): replaced by `departments` below. Kept,
+  // never dropped; the app no longer reads or writes them.
   division           String?                    // SALES | OPERATIONS | FINANCE | PRECONSTRUCTION | CONSTRUCTION
   deptRoles          String                     @default("[]") // JSON: ["Operations","Design",...]
+  departments        UserDepartment[]
   // Roles: SUPER_ADMIN | COMPANY_ADMIN | USER | CLIENT_VIEWER
   // Legacy roles still supported: ILC_ADMIN (=SUPER_ADMIN), ADMIN (=COMPANY_ADMIN)
   permissions        String                     @default("{}") // JSON: { projects, clients, preCon, manufacturers, admin, knowledgeBase }
@@ -96,6 +99,7 @@ model User {
   proposalRatesUpdated      ProposalRate[]                  @relation("ProposalRateUpdater")
   bugReportsCreated  BugReport[] @relation("BugReportReporter")
   bugReportsAssigned BugReport[] @relation("BugReportAssignee")
+  archivedBugReports BugReport[] @relation("BugReportArchiver")
   preconManagedProjects  Project[]              @relation("ProjectPreconManager")
   reviewedSubmissions    ConceptualSubmission[] @relation("SubmissionReviewer")
 }
@@ -131,12 +135,39 @@ model BugReport {
   pageStateJson String?
   browserInfo   String?
   viewport      String?
-  reporterId    String
-  reporter      User     @relation("BugReportReporter", fields: [reporterId], references: [id])
+  // Null for a public beta visitor, who has no account (migration 0078): their
+  // typed name and email ride in reporterName/reporterEmail instead.
+  reporterId    String?
+  reporter      User?    @relation("BugReportReporter", fields: [reporterId], references: [id], onDelete: NoAction)
+  reporterName  String?
+  reporterEmail String?
+  source        String   @default("STAFF")      // STAFF | PUBLIC
   assigneeId    String?
   assignee      User?    @relation("BugReportAssignee", fields: [assigneeId], references: [id])
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  // Archived, never deleted (migration 0079). The S3 screenshot stays too.
+  archivedAt    DateTime?
+  archivedById  String?
+  archivedBy    User?    @relation("BugReportArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
+
+  // Declared to match what migration 0027 already built, so the schema and the
+  // database agree. No database change.
+  @@index([status])
+  @@index([reporterId])
+  @@index([assigneeId])
+}
+
+// One row per person per department (migration 0079). Keys and labels live in
+// src/lib/departments.js.
+model UserDepartment {
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department String   // SALES_MARKETING | OPERATIONS | PRECONSTRUCTION | CONSTRUCTION | PROJECT_MANAGEMENT | DESIGN | FINANCE
+  createdAt  DateTime @default(now())
+
+  @@id([userId, department])
+  @@index([department])
 }
 
 model Task {
@@ -511,6 +542,8 @@ model Project {
   phase                    String    @default("sd")
   city                     String?
   state                    String?
+  zip                      String?   // 5 digits or ZIP+4 (migration 0078)
+  contactName              String?   // the client-side contact; pairs with contactEmail (0078)
   status                   String    @default("DRAFT")
   serviceType              String?
   peerReviewMatrixType     String    @default("PEER_REVIEW")
@@ -626,6 +659,7 @@ model Project {
   proposals           Proposal[]         @relation("ProjectProposals")
   unitTypes           ProjectUnitType[]
   submissions         ConceptualSubmission[] @relation("SubmissionDuplicateMatch")
+  suggestedSubmissions ConceptualSubmission[] @relation("SubmissionSuggestedMatch")
   calibrationSamples  CalibrationSample[]
   contactLinks        ProjectContact[]
   statusEvents        ProjectStatusEvent[]
@@ -2642,6 +2676,11 @@ model ConceptualSubmission {
   submitterDomain  String   // extracted from email; used to resolve clientId
   proposedName     String
   buildingType     String?
+  // Where the job is (Mike, 2026-09-12: "We need location for data tracking").
+  // Required on new requests; blank on anything older. Migration 0077.
+  city             String?
+  state            String?  // two-letter code, e.g. TX
+  zip              String?  // 5 digits, or ZIP+4 stored as 12345-6789
   rawPayload       String?  // JSON: full wizard answers from /start
   fileRefs         String   @default("[]") // JSON: uploaded drawing keys/refs
   duplicateMatchId String?  // Project id if a likely duplicate was detected
@@ -2656,6 +2695,15 @@ model ConceptualSubmission {
   reviewedBy  User?    @relation("SubmissionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
   duplicateMatch Project? @relation("SubmissionDuplicateMatch", fields: [duplicateMatchId], references: [id], onDelete: SetNull)
   answers        ConceptualSubmissionAnswer[]
+
+  // "Looks like [Project X]" (Mike, 2026-09-12, migration 0078). Our guess,
+  // made at submit time and never shown to the visitor. Kept apart from
+  // duplicateMatchId on purpose: only a person links a request to a job.
+  // "Not the same" stamps suggestionDismissedAt; nothing is deleted.
+  suggestedProjectId    String?
+  suggestedMatchReason  String?   // plain English: "same name, same city"
+  suggestionDismissedAt DateTime?
+  suggestedProject      Project?  @relation("SubmissionSuggestedMatch", fields: [suggestedProjectId], references: [id], onDelete: SetNull)
 }
 
 // One row per questionnaire answer on a public conceptual-budget submission.

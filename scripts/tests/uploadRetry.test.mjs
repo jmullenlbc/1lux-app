@@ -46,7 +46,7 @@ test('the wall message tells the user to stop retrying and email it instead', ()
   const msg = describeDrop(stats(21), [1.2 * MB, 1.2 * MB, 1.21 * MB, 1.19 * MB]);
   assert.match(msg, /same point/i);
   assert.match(msg, /limit/i);
-  assert.match(msg, /budgets@ilcstudios\.com/);
+  assert.match(msg, /precon@ilcstudios\.com/);
   assert.doesNotMatch(msg, /stronger connection/i);
 });
 

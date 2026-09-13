@@ -62,7 +62,7 @@ export default async function SharePage({ params }) {
       { q: 'Amenity Hours',     a: getLabel('amenityHours',      sections.exterior?.amenityHours   || 'beforeDusk') },
     ]},
     { section: 'Emergency & Controls', rows: [
-      { q: 'Emergency Strategy', a: getLabel('emergency',    sections.emergency?.strategy       || 'integrated_inverters') },
+      { q: 'Emergency Strategy', a: getLabel('emergency',    sections.emergency?.strategy       || 'frogeyes') },
       { q: 'Building Type',      a: getLabel('buildingType', pd.buildingTypeKey                 || 'midRise') },
       { q: 'Energy Credit',      a: getLabel('energyCredit', sections.controls?.energyCredit    || 'no') },
     ]},
@@ -159,7 +159,7 @@ export default async function SharePage({ params }) {
           </p>
           <p className="text-sm text-slate-500">
             Questions? Contact{' '}
-            <a href="mailto:budgets@ilcstudios.com" className="text-amber-600 hover:underline">budgets@ilcstudios.com</a>
+            <a href="mailto:precon@ilcstudios.com" className="text-amber-600 hover:underline">precon@ilcstudios.com</a>
           </p>
         </div>
       </div>

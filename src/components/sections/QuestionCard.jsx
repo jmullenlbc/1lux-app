@@ -80,7 +80,44 @@ function OverrideBox({ value, onChange, masterPrice, suffix = '/unit', disabled 
   );
 }
 
-export default function QuestionCard({ question, note, options, value, onChange, highlight, costSuffix = '/unit', override }) {
+const money = v => `$${Math.round(Number(v) || 0).toLocaleString()}`;
+const moneyEach = v => {
+  const x = Number(v) || 0;
+  return `$${x.toLocaleString(undefined, { minimumFractionDigits: x % 1 ? 2 : 0, maximumFractionDigits: 2 })}`;
+};
+
+/**
+ * What the chosen answer costs, printed right under it (Mike 2026-09-13: "show
+ * the cost impact of that exact question next to the answer"). `impact` is one
+ * entry of budget.questionCosts: { lines:[{label,count,countLabel,each,product,
+ * laborEach,labor}], product, labor }. Labor is an estimate, never in a total.
+ */
+export function CostImpact({ impact }) {
+  if (!impact || !impact.lines?.length || !(impact.product > 0 || impact.labor > 0)) return null;
+  return (
+    <div className="mt-2 rounded-md bg-white/70 border border-amber-200 px-3 py-2 text-xs text-slate-600 space-y-0.5">
+      {impact.lines.map((l, i) => (
+        <div key={i}>
+          {l.count != null
+            ? <span>{l.label}: {Number(l.count).toLocaleString()} {l.countLabel} × {moneyEach(l.each)} = <span className="font-mono font-semibold text-slate-800">{money(l.product)}</span></span>
+            : <span>{l.label}: <span className="font-mono font-semibold text-slate-800">{money(l.product)}</span></span>}
+          {l.labor > 0 && (
+            <div className="text-slate-500">
+              Estimated labor: {Number(l.count).toLocaleString()} × {moneyEach(l.laborEach)} = <span className="font-mono">{money(l.labor)}</span>
+            </div>
+          )}
+        </div>
+      ))}
+      {impact.labor > 0 && (
+        <div className="pt-1 mt-1 border-t border-amber-100 font-medium text-slate-800">
+          Estimated labor + materials: <span className="font-mono">{money(impact.product + impact.labor)}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function QuestionCard({ question, note, options, value, onChange, highlight, costSuffix = '/unit', override, impact }) {
   return (
     <div className={cn(
       'bg-white rounded-xl border p-5 transition-all',
@@ -117,6 +154,7 @@ export default function QuestionCard({ question, note, options, value, onChange,
               {opt.sub && (
                 <div className="text-xs text-slate-400 mt-0.5">{opt.sub}</div>
               )}
+              {value === opt.value && <CostImpact impact={impact} />}
             </div>
             {opt.cost != null && (
               <div className={cn(

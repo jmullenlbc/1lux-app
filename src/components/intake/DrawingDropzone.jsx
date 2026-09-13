@@ -122,7 +122,7 @@ export default function DrawingDropzone({ onResults }) {
         const next = prev.map(i => i.id === item.id
           // No instructions to a GC standing on a job site about how to split a
           // PDF. Say the number, say what to do, and give him a person.
-          ? { ...i, status: 'error', error: `This file is ${fmtBytes(item.file.size)}, which is past what we can take (${fmtBytes(MAX_UPLOAD_BYTES)}). Send it to us at budgets@ilcstudios.com and we'll take it from there. (F1)` }
+          ? { ...i, status: 'error', error: `This file is ${fmtBytes(item.file.size)}, which is past what we can take (${fmtBytes(MAX_UPLOAD_BYTES)}). Send it to us at precon@ilcstudios.com and we'll take it from there. (F1)` }
           : i);
         publish(next);
         return next;
@@ -241,7 +241,7 @@ export default function DrawingDropzone({ onResults }) {
         ? err.message
         : slept
           ? `Your phone put this page to sleep while we were ${STEP_WORDS[atStep] ?? 'reading the file'}, and that cuts the line mid-read. Keep the screen on and this page in front until the read finishes, then try again. (R1/${atStep}/slept)`
-          : `We kept losing the connection while ${STEP_WORDS[atStep] ?? 'reading the file'}, even after retrying. Please try again — and if it happens twice, send the file to budgets@ilcstudios.com. (R1/${atStep})` };
+          : `We kept losing the connection while ${STEP_WORDS[atStep] ?? 'reading the file'}, even after retrying. Please try again — and if it happens twice, send the file to precon@ilcstudios.com. (R1/${atStep})` };
     }
 
     settle();
@@ -263,7 +263,7 @@ export default function DrawingDropzone({ onResults }) {
     const accepted = incoming.slice(0, room);
     const turnedAway = incoming.length - accepted.length;
     setNotice(turnedAway > 0
-      ? `We can read ${MAX_FILES} files at a time, so ${turnedAway} ${turnedAway === 1 ? 'file was' : 'files were'} left out. Remove one below to make room, or send the rest to budgets@ilcstudios.com.`
+      ? `We can read ${MAX_FILES} files at a time, so ${turnedAway} ${turnedAway === 1 ? 'file was' : 'files were'} left out. Remove one below to make room, or send the rest to precon@ilcstudios.com.`
       : null);
     if (!accepted.length) return;
 

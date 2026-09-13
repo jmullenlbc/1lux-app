@@ -1,20 +1,35 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Button from '@/components/ui/Button';
 import QuestionCard from './QuestionCard';
-import { formatCurrency } from '@/lib/calculations';
+import { formatCurrency, calculateBudget } from '@/lib/calculations';
+import { PRICING } from '@/lib/pricing';
 
-const SIGN_RATES = { thermoplastic: 22, mixed: 75, edgelit: 127 };
+export default function ExitSignsSection({ responses, projectData, allSections, pricing, onSaveResponses, onNext, onPrev }) {
+  // Rates and the SF-per-sign come from the master price sheet — the same
+  // numbers the engine charges (calculations.js, designExitSigns).
+  const DX = (pricing || PRICING).designExitSigns || {};
+  const SIGN_RATES = {
+    thermoplastic: DX.thermoplasticPerSign ?? 22,
+    mixed:         DX.mixedPerSign         ?? 75,
+    edgelit:       DX.edgelitPerSign       ?? 120,
+  };
+  const sfPerSign = DX.sfPerSign || 5000;
 
-export default function ExitSignsSection({ responses, projectData, onSaveResponses, onNext, onPrev }) {
   const [ans, setAns] = useState({
     exitSignType: responses.exitSignType || 'thermoplastic',
   });
   const [saving, setSaving] = useState(false);
+  // What each answer costs (+ estimated labor), recomputed live as answers
+  // change — local answers only save on Next (Mike 2026-09-13).
+  const qc = useMemo(
+    () => calculateBudget(projectData, { ...(allSections || {}), corridors: { ...(allSections?.corridors || {}), ...ans } }, pricing || null).questionCosts || {},
+    [projectData, allSections, ans, pricing],
+  );
 
   const grossSf    = Number(projectData?.grossSf) || 0;
-  const signCount  = grossSf > 0 ? Math.max(1, Math.ceil(grossSf / 5000)) : 0;
-  const signRate   = SIGN_RATES[ans.exitSignType] ?? 22;
+  const signCount  = grossSf > 0 ? Math.max(1, Math.ceil(grossSf / sfPerSign)) : 0;
+  const signRate   = SIGN_RATES[ans.exitSignType] ?? SIGN_RATES.thermoplastic;
   const signTotal  = signCount * signRate;
 
   async function handleNext() {
@@ -31,7 +46,7 @@ export default function ExitSignsSection({ responses, projectData, onSaveRespons
         <h2 className="text-xl font-bold text-slate-900">Exit Signs</h2>
         <p className="text-slate-500 text-sm mt-1">
           Exit sign type throughout the building. Counts are estimated at 1 exit sign
-          per 5,000 gross SF. Final count is determined by the egress drawings.
+          per {sfPerSign.toLocaleString()} gross SF. Final count is determined by the egress drawings.
         </p>
       </div>
 
@@ -51,7 +66,7 @@ export default function ExitSignsSection({ responses, projectData, onSaveRespons
           ))}
         </div>
         <p className="text-xs text-slate-400 mt-3">
-          1 exit sign per 5,000 gross SF is a conservative estimate.
+          1 exit sign per {sfPerSign.toLocaleString()} gross SF is a conservative estimate.
           Enter Gross SF in Project Data to see a count.
         </p>
       </div>
@@ -64,23 +79,23 @@ export default function ExitSignsSection({ responses, projectData, onSaveRespons
           {
             value: 'thermoplastic',
             label: 'Thermoplastic',
-            sub:   '~$22 ea — code-compliant, bulkier housing; use throughout',
-            cost:  signCount * 22,
+            sub:   `~$${SIGN_RATES.thermoplastic} ea — code-compliant, bulkier housing; use throughout`,
+            cost:  signCount * SIGN_RATES.thermoplastic,
           },
           {
             value: 'mixed',
             label: 'Mixed — Edge-lit FOH + Thermoplastic BOH/Garage',
-            sub:   '~$75 ea blended avg — design-forward in lobbies/corridors, code-min in BOH',
-            cost:  signCount * 75,
+            sub:   `~$${SIGN_RATES.mixed} ea blended avg — design-forward in lobbies/corridors, code-min in BOH`,
+            cost:  signCount * SIGN_RATES.mixed,
           },
           {
             value: 'edgelit',
             label: 'Edge-lit everywhere',
-            sub:   '~$127 ea — cleanest appearance throughout; highest cost',
-            cost:  signCount * 127,
+            sub:   `~$${SIGN_RATES.edgelit} ea — cleanest appearance throughout; highest cost`,
+            cost:  signCount * SIGN_RATES.edgelit,
           },
         ]}
-        value={ans.exitSignType}
+        value={ans.exitSignType} impact={qc['corridors.exitSignType']}
         onChange={v => setAns(a => ({ ...a, exitSignType: v }))}
       />
 

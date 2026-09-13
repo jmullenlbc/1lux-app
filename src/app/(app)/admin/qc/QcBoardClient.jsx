@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import ConfirmArchiveModal, { ArchiveBoxIcon, setArchived } from '@/components/salesAutomation/ConfirmArchiveModal';
 
 const SEV_STYLE = {
   BLOCKER:  'bg-red-50 border-red-200 text-red-700',
@@ -40,6 +41,23 @@ function shortId(id = '') {
   return '#' + id.slice(-6).toUpperCase();
 }
 
+// Staff reports link a user. A public beta visitor has no account (reporterId
+// is null), so the name/email they typed ride on the report itself.
+function reporterLabel(bug, short = false) {
+  const trim = email => (email && short ? email.split('@')[0] : email);
+  return bug.reporter?.name || trim(bug.reporter?.email)
+      || bug.reporterName   || trim(bug.reporterEmail)
+      || 'No name given';
+}
+
+function BetaTag() {
+  return (
+    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-violet-700 font-semibold uppercase tracking-wide">
+      Beta client
+    </span>
+  );
+}
+
 function BugCard({ bug, active, onClick }) {
   return (
     <div
@@ -68,7 +86,10 @@ function BugCard({ bug, active, onClick }) {
         )}
       </div>
       <div className="mt-2 flex items-center justify-between text-[10px] text-slate-400">
-        <span>{bug.reporter?.name || bug.reporter?.email?.split('@')[0]}</span>
+        <span className="flex items-center gap-1.5">
+          {bug.source === 'PUBLIC' && <BetaTag />}
+          {reporterLabel(bug, true)}
+        </span>
         <span>{timeAgo(bug.createdAt)}</span>
       </div>
     </div>
@@ -80,6 +101,9 @@ export default function QcBoardClient({ reports: initial, users, currentUser, fo
   const [activeId, setActiveId] = useState(focusId || null);
   const [open,     setOpen]     = useState(!!focusId);
   const [saving,   setSaving]   = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const [confirmArchive, setConfirmArchive] = useState(false);
+  const [archiveError, setArchiveError] = useState('');
 
   const active = reports.find(r => r.id === activeId) || null;
 
@@ -102,25 +126,29 @@ export default function QcBoardClient({ reports: initial, users, currentUser, fo
     }
   }
 
-  async function deleteReport(id, title) {
-    if (!window.confirm(`Delete "${title}"?\n\nThis removes the report and its screenshot permanently.`)) return;
+  // Bug reports are archived, never deleted (Mike, 2026-09-12). The report,
+  // its screenshot and its recording all stay; Restore puts it back.
+  async function archiveReport(id, archived) {
     setSaving(true);
+    setArchiveError('');
     try {
-      const res = await fetch(`/api/qc/reports/${id}`, { method: 'DELETE' });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        alert(body?.error || 'Delete failed');
-        return;
-      }
-      setReports(prev => prev.filter(r => r.id !== id));
-      closeDrawer();
+      const err = await setArchived(`/api/qc/reports/${id}`, archived);
+      if (err) { setArchiveError(err); return false; }
+      setReports(prev => prev.map(r => r.id === id ? {
+        ...r,
+        archivedAt: archived ? new Date().toISOString() : null,
+        archivedBy: archived ? { id: currentUser?.id, name: currentUser?.name, email: currentUser?.email } : null,
+      } : r));
+      return true;
     } finally {
       setSaving(false);
     }
   }
 
-  const byStatus = s => reports.filter(r => r.status === s);
-  const counts   = Object.fromEntries(STATUSES.map(s => [s, byStatus(s).length]));
+  const live       = reports.filter(r => !r.archivedAt);
+  const archivedList = reports.filter(r => r.archivedAt);
+  const byStatus   = s => live.filter(r => r.status === s);
+  const counts     = Object.fromEntries(STATUSES.map(s => [s, byStatus(s).length]));
 
   return (
     <div className="p-6 min-h-screen bg-slate-50">
@@ -156,8 +184,33 @@ export default function QcBoardClient({ reports: initial, users, currentUser, fo
               {sevLabel(k)}
             </span>
           ))}
+          {archivedList.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowArchived(v => !v)}
+              className="ml-auto text-[11px] text-slate-500 hover:text-slate-700 hover:underline"
+            >
+              {showArchived ? 'Hide archived' : `Show archived (${archivedList.length})`}
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Archived reports — off the board, one click to open or restore */}
+      {showArchived && archivedList.length > 0 && (
+        <div className="mb-5">
+          <div className="flex items-center gap-2 mb-3 px-1">
+            <span className="w-2 h-2 rounded-full bg-slate-300" />
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Archived</span>
+            <span className="ml-auto text-[10px] text-slate-400">{archivedList.length}</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 opacity-75">
+            {archivedList.map(b => (
+              <BugCard key={b.id} bug={b} active={activeId === b.id} onClick={openDrawer} />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Board */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -203,6 +256,22 @@ export default function QcBoardClient({ reports: initial, users, currentUser, fo
                 &times;
               </button>
             </div>
+
+            {active.archivedAt && (
+              <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <span className="text-xs text-slate-600">
+                  Archived {formatDate(active.archivedAt)}
+                  {active.archivedBy && <> by {active.archivedBy.name || active.archivedBy.email}</>}
+                </span>
+                <button
+                  onClick={() => archiveReport(active.id, false)}
+                  disabled={saving}
+                  className="text-xs font-semibold text-amber-700 hover:underline disabled:opacity-40"
+                >
+                  Restore
+                </button>
+              </div>
+            )}
 
             {/* Severity + module badges */}
             <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -278,8 +347,21 @@ export default function QcBoardClient({ reports: initial, users, currentUser, fo
             <div className="space-y-1.5 text-xs text-slate-600 mb-4 pt-1 border-t border-slate-100">
               <div className="flex justify-between pt-2">
                 <span className="text-slate-400">Reporter</span>
-                <span className="font-medium">{active.reporter?.name || active.reporter?.email}</span>
+                <span className="font-medium flex items-center gap-1.5">
+                  {active.source === 'PUBLIC' && <BetaTag />}
+                  {reporterLabel(active)}
+                </span>
               </div>
+              {/* A beta client who gave both a name and an email: the label shows
+                  the name, so surface the email here for the follow-up. */}
+              {active.source === 'PUBLIC' && active.reporterName && active.reporterEmail && (
+                <div className="flex justify-between gap-3">
+                  <span className="text-slate-400 shrink-0">Email</span>
+                  <a href={`mailto:${active.reporterEmail}`} className="text-blue-600 hover:underline truncate text-right">
+                    {active.reporterEmail}
+                  </a>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-slate-400">Reported</span>
                 <span className="font-mono text-[11px]">{formatDate(active.createdAt)}</span>
@@ -350,20 +432,42 @@ export default function QcBoardClient({ reports: initial, users, currentUser, fo
               </>
             )}
 
-            {/* Delete */}
-            <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end">
-              <button
-                onClick={() => deleteReport(active.id, active.title)}
-                disabled={saving}
-                className="text-xs text-slate-400 hover:text-red-600 hover:underline disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Delete report
-              </button>
-            </div>
+            {archiveError && (
+              <div className="mt-4 text-xs text-red-600">{archiveError}</div>
+            )}
+
+            {/* Archive — never delete */}
+            {!active.archivedAt && (
+              <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end">
+                <button
+                  onClick={() => setConfirmArchive(true)}
+                  disabled={saving}
+                  className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-700 hover:underline disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <ArchiveBoxIcon className="w-3.5 h-3.5" />
+                  Archive report
+                </button>
+              </div>
+            )}
 
           </div>
         )}
       </div>
+
+      <ConfirmArchiveModal
+        open={confirmArchive && !!active}
+        title="Archive this bug report?"
+        what={active?.title}
+        body="It leaves the board. The report, its screenshot and everything it captured are kept, and you can restore it any time from “Show archived”."
+        busy={saving}
+        onCancel={() => setConfirmArchive(false)}
+        onConfirm={async () => {
+          const ok = await archiveReport(active.id, true);
+          setConfirmArchive(false);
+          if (ok) closeDrawer();
+        }}
+        confirmLabel="Archive"
+      />
 
     </div>
   );

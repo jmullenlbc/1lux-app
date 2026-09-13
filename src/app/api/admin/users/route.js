@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { requireAdmin, isSuperAdmin } from '@/lib/auth';
+import { DEPARTMENT_KEYS, DEPARTMENTS_SELECT, cleanDepartments, departmentKeys } from '@/lib/departments';
 
 const ALLOWED_ROLES = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'USER', 'CLIENT_VIEWER'];
 
@@ -15,6 +16,7 @@ export async function GET(request) {
       email:             true,
       name:              true,
       role:              true,
+      departments:       DEPARTMENTS_SELECT,
       permissions:       true,
       mustChangePassword: true,
       isActive:          true,
@@ -30,6 +32,7 @@ export async function GET(request) {
     email:             u.email,
     name:              u.name,
     role:              u.role,
+    departments:       departmentKeys(u),
     permissions:       u.permissions,
     mustChangePassword: u.mustChangePassword,
     isActive:          u.isActive,
@@ -43,10 +46,14 @@ export async function POST(request) {
   const { user: actor, error } = await requireAdmin(request);
   if (error) return error;
 
-  const { name, email, password, role, permissions, mustChangePassword } = await request.json();
+  const { name, email, password, role, permissions, mustChangePassword, departments } = await request.json();
 
   if (!email || !password || !role) {
     return NextResponse.json({ error: 'email, password, and role are required' }, { status: 400 });
+  }
+  const deptKeys = departments === undefined ? [] : cleanDepartments(departments);
+  if (!deptKeys) {
+    return NextResponse.json({ error: `departments must be a list. Use any of: ${DEPARTMENT_KEYS.join(', ')}` }, { status: 400 });
   }
   if (!ALLOWED_ROLES.includes(role)) {
     return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
@@ -77,6 +84,7 @@ export async function POST(request) {
       role,
       permissions:       permissions ? JSON.stringify(permissions) : JSON.stringify(defaultPermissions),
       mustChangePassword: mustChangePassword ?? true,
+      departments:       deptKeys.length ? { create: deptKeys.map(department => ({ department })) } : undefined,
     },
   });
 
@@ -85,6 +93,7 @@ export async function POST(request) {
     email:             newUser.email,
     name:              newUser.name,
     role:              newUser.role,
+    departments:       deptKeys,
     mustChangePassword: newUser.mustChangePassword,
   }, { status: 201 });
 }

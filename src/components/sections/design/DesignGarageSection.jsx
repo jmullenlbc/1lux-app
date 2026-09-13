@@ -9,6 +9,7 @@ export default function DesignGarageSection({
   responses,
   projectData,
   pricing,
+  emergencyStrategy,
   onSaveResponses,
   onNext,
   onPrev,
@@ -26,11 +27,19 @@ export default function DesignGarageSection({
   const garageSf = Number(projectData?.garageSf) || 0;
 
   // Base rate from master pricing (engine: designGarage.baseMediumPerSf / baseHighPerSf).
-  const GARAGE_MED  = P.designGarage?.baseMediumPerSf ?? 0.30;
-  const GARAGE_HIGH = P.designGarage?.baseHighPerSf   ?? 0.45;
+  const DG = P.designGarage || {};
+  const GARAGE_MED  = DG.baseMediumPerSf ?? 0.20;
+  const GARAGE_HIGH = DG.baseHighPerSf   ?? 0.25;
   const baseRate = ans.garageDesignLevel === 'high' ? GARAGE_HIGH : GARAGE_MED;
-  // Control adders are hardcoded in the engine — keep them hardcoded here to match.
-  const ctrlAdder = { none: 0, occSensor: 0.02, battery: 0.05, batteryAndSensor: 0.06 }[ans.garageControls] ?? 0;
+  const OCC = DG.occSensorAdderPerSf ?? 0.02;
+  // Garage batteries are priced on the Emergency step whenever the building has
+  // no generator (Mike 2026-09-12), so the battery choices here only add their
+  // battery cost when the chosen emergency strategy is 'generator'. Mirrors the
+  // double-charge guard in calculations.js.
+  const batteriesOnEmergency = (emergencyStrategy || 'frogeyes') !== 'generator' && garageSf > 0;
+  const BATT     = batteriesOnEmergency ? 0   : (DG.batteryAdderPerSf     ?? 0.05);
+  const BATT_OCC = batteriesOnEmergency ? OCC : (DG.batteryAndSensorPerSf ?? 0.06);
+  const ctrlAdder = { none: 0, occSensor: OCC, battery: BATT, batteryAndSensor: BATT_OCC }[ans.garageControls] ?? 0;
   const totalRate  = baseRate + ctrlAdder;
   const liveTotal  = garageSf * totalRate;
 
@@ -106,13 +115,15 @@ export default function DesignGarageSection({
       {/* Controls / emergency */}
       <QuestionCard
         question="Garage controls & emergency backup approach?"
-        note="Occupancy sensors dim fixtures when no motion is detected — required by most energy codes. Integrated battery backup (every other fixture) provides code-compliant emergency egress lighting without separate frogeye fixtures."
+        note={batteriesOnEmergency
+          ? 'Occupancy sensors dim fixtures when no motion is detected — required by most energy codes. With no building generator, the garage battery (every other fixture) is already priced on the Emergency step, so the battery choices below add only the sensor cost.'
+          : 'Occupancy sensors dim fixtures when no motion is detected — required by most energy codes. Integrated battery backup (every other fixture) provides code-compliant emergency egress lighting without separate frogeye fixtures.'}
         costSuffix="/SF adder"
         options={[
-          { value: 'none',             label: 'None — no added controls or battery',            sub: 'Manual switch only; frogeyes required for emergency egress', cost: 0    },
-          { value: 'occSensor',        label: 'Integrated occupancy sensors',                   sub: '+$0.02/SF — dims to 10% on vacancy; code compliant',        cost: 0.02 },
-          { value: 'battery',          label: 'Integrated battery backup (every other fixture)', sub: '+$0.05/SF — eliminates separate frogeye fixtures',           cost: 0.05 },
-          { value: 'batteryAndSensor', label: 'Battery + occupancy sensors',                    sub: '+$0.06/SF — best all-in solution (recommended)',             cost: 0.06 },
+          { value: 'none',             label: 'None — no added controls',                        sub: batteriesOnEmergency ? 'Manual switch only; garage battery still priced on the Emergency step' : 'Manual switch only; the building generator covers emergency egress', cost: 0 },
+          { value: 'occSensor',        label: 'Integrated occupancy sensors',                   sub: `+$${OCC}/SF — dims to 10% on vacancy; code compliant`,        cost: OCC },
+          { value: 'battery',          label: 'Integrated battery backup (every other fixture)', sub: batteriesOnEmergency ? '$0 here — the battery is priced on the Emergency step' : `+$${BATT}/SF — eliminates separate frogeye fixtures`, cost: BATT },
+          { value: 'batteryAndSensor', label: 'Battery + occupancy sensors',                    sub: batteriesOnEmergency ? `+$${BATT_OCC}/SF for the sensors — battery priced on the Emergency step (recommended)` : `+$${BATT_OCC}/SF — best all-in solution (recommended)`, cost: BATT_OCC },
         ]}
         value={ans.garageControls}
         onChange={v => set('garageControls', v)}

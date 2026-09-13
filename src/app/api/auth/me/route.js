@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession, isSuperAdmin, isSalesAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { DEPARTMENTS_SELECT, departmentKeys } from '@/lib/departments';
 
 export async function GET(request) {
   const session = await getSession();
@@ -9,10 +10,10 @@ export async function GET(request) {
   }
   const user = await prisma.user.findUnique({
     where: { id: session.id },
-    select: { id: true, email: true, name: true, role: true, deptRoles: true, permissions: true, createdAt: true },
+    select: { id: true, email: true, name: true, role: true, departments: DEPARTMENTS_SELECT, permissions: true, createdAt: true },
   });
   return NextResponse.json({
-    user,
+    user: user && { ...user, departments: departmentKeys(user) },
     superAdmin: isSuperAdmin(user?.role),
     salesAdmin: isSalesAdmin(user),
   });

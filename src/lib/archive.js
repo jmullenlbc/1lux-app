@@ -34,9 +34,13 @@ export const ARCHIVABLE_DOCUMENTS = ['projectFile', 'drawingSubmission', 'manufa
 // screen deletes them — this is what keeps it that way (Mike, 2026-09-11:
 // "like budget matrix, conceptual budget, design questionnaire I don't want to
 // be deleted"). Drawing files ride with their drawing set.
+// Bug reports joined 2026-09-12 (migration 0079): archived from the QC board,
+// never deleted. They are not auto-hidden like the lists above; the board and
+// the reports API filter archivedAt themselves.
 export const NEVER_DELETED = [
   ...ARCHIVABLE_DOCUMENTS,
   'drawingFile', 'conceptualSubmission', 'conceptualSubmissionAnswer', 'questionnaireResponse',
+  'bugReport',
 ];
 
 export class DeleteRefusedError extends Error {

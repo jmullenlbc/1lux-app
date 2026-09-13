@@ -249,16 +249,228 @@ function SortIcon({ col, sortCol, sortDir }) {
   );
 }
 
-export default function IntakeClient({ submissions: initialSubmissions, clients, projects, currentUser }) {
+/** Is there a live "looks like" guess on this request? */
+function activeSuggestion(s) {
+  return s?.suggestedProject && !s.suggestionDismissedAt && !s.duplicateMatchId ? s.suggestedProject : null;
+}
+
+function placeOf(p) {
+  return [p?.city, [p?.state, p?.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+}
+
+/**
+ * Is this web request a job we already have?
+ *
+ * Mike, 2026-09-12: flag likely duplicates with one click to confirm or
+ * dismiss, never merge on our own, and never overwrite. So "link" always goes
+ * through the side-by-side: blanks on the job fill in from the request, and
+ * where the two disagree the job's answer is kept unless a person picks the
+ * request's. The visitor is never told any of this.
+ */
+function JobLinkPanel({ submission, projects, onUpdated }) {
+  const suggestion = activeSuggestion(submission);
+  const [pickId, setPickId] = useState('');
+  const [merge, setMerge] = useState(null);          // { project, plan } from the server
+  const [choices, setChoices] = useState({});
+  const [confirmCreate, setConfirmCreate] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+
+  async function call(url, opts) {
+    setBusy(true);
+    setErr(null);
+    try {
+      const res = await fetch(url, opts);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Something went wrong (${res.status}). Please try again.`);
+      return data;
+    } catch (e) {
+      setErr(e.message);
+      return null;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function compare(projectId) {
+    const data = await call(`/api/admin/intake/${submission.id}/link?projectId=${encodeURIComponent(projectId)}`);
+    if (data) { setMerge(data); setChoices({}); }
+  }
+
+  async function link() {
+    const data = await call(`/api/admin/intake/${submission.id}/link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectId: merge.project.id, choices }),
+    });
+    if (data) { setMerge(null); onUpdated(data.submission); }
+  }
+
+  async function dismiss() {
+    const data = await call(`/api/admin/intake/${submission.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dismissSuggestion: true }),
+    });
+    if (data) onUpdated(data.submission);
+  }
+
+  async function createNew() {
+    const data = await call(`/api/admin/intake/${submission.id}/create-project`, { method: 'POST' });
+    if (data) { setConfirmCreate(false); onUpdated(data.submission); }
+  }
+
+  if (submission.duplicateMatchId) {
+    return (
+      <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+        ✓ Linked to{' '}
+        <Link href={`/project/${submission.duplicateMatchId}`} className="font-semibold underline">
+          {submission.duplicateMatch?.name || 'the project'}
+        </Link>
+      </div>
+    );
+  }
+
+  if (merge) {
+    const rows = merge.plan.filter(r => r.kind !== 'empty');
+    const anyChange = rows.some(r => r.kind === 'fill' || (r.kind === 'conflict' && choices[r.field] === 'request'));
+    return (
+      <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 space-y-3">
+        <div>
+          <p className="text-sm font-semibold text-slate-900">Link to {merge.project.name}</p>
+          <p className="text-xs text-slate-600 mt-0.5">
+            Blank spots on the job fill in from this request. Where they disagree, the job keeps its own answer unless you pick the request&apos;s. The job&apos;s name never changes.
+          </p>
+        </div>
+        <div className="space-y-2">
+          {rows.map(r => (
+            <div key={r.field} className="rounded-md bg-white border border-slate-200 px-2.5 py-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold text-slate-700">{r.label}</span>
+                {r.kind === 'fill' && <span className="text-[10px] font-bold uppercase text-green-700">Will fill in</span>}
+                {r.kind === 'same' && <span className="text-[10px] font-bold uppercase text-slate-400">Already matches</span>}
+                {r.kind === 'conflict' && <span className="text-[10px] font-bold uppercase text-amber-700">They disagree</span>}
+              </div>
+              <div className="grid grid-cols-2 gap-2 mt-1 text-xs">
+                <div>
+                  <p className="text-[10px] text-slate-400">The job has</p>
+                  <p className={r.projectShown ? 'text-slate-800' : 'text-slate-300 italic'}>{r.projectShown || 'blank'}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-400">The request says</p>
+                  <p className={r.requestShown ? 'text-slate-800' : 'text-slate-300 italic'}>{r.requestShown || 'blank'}</p>
+                </div>
+              </div>
+              {r.kind === 'conflict' && (
+                <div className="flex gap-3 mt-1.5 text-xs">
+                  <label className="flex items-center gap-1 cursor-pointer">
+                    <input type="radio" name={`c-${r.field}`} checked={choices[r.field] !== 'request'}
+                      onChange={() => setChoices(c => ({ ...c, [r.field]: 'project' }))} />
+                    Keep the job&apos;s
+                  </label>
+                  <label className="flex items-center gap-1 cursor-pointer">
+                    <input type="radio" name={`c-${r.field}`} checked={choices[r.field] === 'request'}
+                      onChange={() => setChoices(c => ({ ...c, [r.field]: 'request' }))} />
+                    Use the request&apos;s
+                  </label>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        {!anyChange && <p className="text-xs text-slate-500">Nothing on the job will change — this just connects the two.</p>}
+        {err && <p className="text-xs text-red-600">{err}</p>}
+        <div className="flex gap-2">
+          <button onClick={link} disabled={busy}
+            className="flex-1 bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold py-2 rounded-lg disabled:opacity-50">
+            {busy ? 'Linking…' : 'Link to this job'}
+          </button>
+          <button onClick={() => setMerge(null)} disabled={busy}
+            className="flex-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-semibold py-2 rounded-lg">
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {suggestion && (
+        <div className="rounded-lg border border-sky-300 bg-sky-50 p-3">
+          <p className="text-sm text-slate-900">
+            Looks like a job we already have:{' '}
+            <Link href={`/project/${suggestion.id}`} className="font-semibold text-sky-700 underline" target="_blank">
+              {suggestion.name}
+            </Link>
+            {placeOf(suggestion) ? <span className="text-slate-500"> · {placeOf(suggestion)}</span> : null}
+          </p>
+          {submission.suggestedMatchReason && (
+            <p className="text-xs text-slate-600 mt-0.5">Why we think so: {submission.suggestedMatchReason}</p>
+          )}
+          <div className="flex gap-2 mt-2">
+            <button onClick={() => compare(suggestion.id)} disabled={busy}
+              className="flex-1 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold py-1.5 rounded-lg disabled:opacity-50">
+              Same job — compare and link
+            </button>
+            <button onClick={dismiss} disabled={busy}
+              className="flex-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold py-1.5 rounded-lg disabled:opacity-50">
+              Not the same
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-lg border border-slate-200 p-3 space-y-2">
+        <p className="text-sm font-semibold text-slate-900">Is this a job we already have?</p>
+        <div className="flex gap-2">
+          <select value={pickId} onChange={e => setPickId(e.target.value)}
+            className="flex-1 min-w-0 rounded-lg border border-slate-200 px-2 py-1.5 text-sm">
+            <option value="">Pick a project…</option>
+            {projects.map(p => (
+              <option key={p.id} value={p.id}>{p.name}{p.city ? ` — ${[p.city, p.state].filter(Boolean).join(', ')}` : ''}</option>
+            ))}
+          </select>
+          <button onClick={() => compare(pickId)} disabled={!pickId || busy}
+            className="px-3 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold disabled:opacity-40">
+            Compare
+          </button>
+        </div>
+        <div className="pt-2 border-t border-slate-100">
+          {confirmCreate ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-700 flex-1">Make a new project called “{submission.proposedName}”?</span>
+              <button onClick={createNew} disabled={busy}
+                className="px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold disabled:opacity-50">
+                {busy ? 'Creating…' : 'Yes, create it'}
+              </button>
+              <button onClick={() => setConfirmCreate(false)} disabled={busy}
+                className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold">
+                No
+              </button>
+            </div>
+          ) : (
+            <button onClick={() => setConfirmCreate(true)} disabled={busy}
+              className="text-xs font-semibold text-orange-600 hover:text-orange-700">
+              No — it&apos;s a new job. Create a project from this request →
+            </button>
+          )}
+        </div>
+      </div>
+      {err && <p className="text-xs text-red-600">{err}</p>}
+    </div>
+  );
+}
+
+export default function IntakeClient({ submissions: initialSubmissions, clients, projects, currentUser, canInvite = false, initialSelectedId = null }) {
   const router = useRouter();
   const [submissions, setSubmissions] = useState(initialSubmissions);
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedId, setSelectedId] = useState(initialSelectedId);
   const selected = submissions.find(s => s.id === selectedId);
   const [status, setStatus] = useState(selected?.status || 'PENDING');
   const [reviewNote, setReviewNote] = useState(selected?.reviewNote || '');
   const [clientId, setClientId] = useState(selected?.clientId || '');
   const [saving, setSaving] = useState(false);
-  const [linkedProjectId, setLinkedProjectId] = useState('');
   const [inviting, setInviting] = useState(false);
   const [inviteResult, setInviteResult] = useState(null);
   const [inviteError, setInviteError] = useState(null);
@@ -297,12 +509,13 @@ export default function IntakeClient({ submissions: initialSubmissions, clients,
           status,
           reviewNote,
           clientId: clientId || null,
-          duplicateMatchId: linkedProjectId || null,
+          // No duplicateMatchId: linking a project only happens through the
+          // compare-and-link panel, so a plain Save can never unlink or re-link.
         }),
       });
       if (!res.ok) throw new Error('Failed to save');
 
-      setSubmissions(subs => subs.map(s => s.id === selected.id ? { ...s, status, reviewNote, clientId, duplicateMatchId: linkedProjectId } : s));
+      setSubmissions(subs => subs.map(s => s.id === selected.id ? { ...s, status, reviewNote, clientId } : s));
       setSelectedId(null);
       router.refresh();
     } catch (err) {
@@ -327,11 +540,23 @@ export default function IntakeClient({ submissions: initialSubmissions, clients,
     }
   }
 
+  // A link, a dismiss or a new project comes back as the updated request. Keep
+  // the answers already loaded (the routes don't send them) and pick up a status
+  // change — creating a project approves the request.
+  function applyUpdate(u) {
+    setSubmissions(subs => subs.map(s => s.id === u.id ? { ...s, ...u } : s));
+    if (u.id === selectedId) {
+      setStatus(u.status);
+      setReviewNote(u.reviewNote || '');
+    }
+    router.refresh();
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 p-6">
       <div className="max-w-7xl mx-auto">
-        <Link href="/admin" className="text-xs text-slate-400 hover:text-amber-600 transition-colors mb-4 inline-block">
-          ← Admin
+        <Link href={canInvite ? '/admin' : '/crm'} className="text-xs text-slate-400 hover:text-amber-600 transition-colors mb-4 inline-block">
+          ← {canInvite ? 'Admin' : 'Pipeline'}
         </Link>
         <h1 className="text-3xl font-bold text-slate-900 mb-6">Conceptual Submissions</h1>
 
@@ -361,7 +586,8 @@ export default function IntakeClient({ submissions: initialSubmissions, clients,
                       Name <SortIcon col="name" sortCol={sortCol} sortDir={sortDir} />
                     </th>
                     <th className="px-4 py-3 text-left font-semibold text-slate-700">Email</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-700">Company</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700">Project</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700">Location</th>
                     <th className="px-4 py-3 text-left font-semibold text-slate-700">Type</th>
                     <th onClick={() => toggleSort('status')} className="px-4 py-3 text-left font-semibold text-slate-700 cursor-pointer select-none group hover:text-slate-900">
                       Status <SortIcon col="status" sortCol={sortCol} sortDir={sortDir} />
@@ -371,7 +597,7 @@ export default function IntakeClient({ submissions: initialSubmissions, clients,
                 <tbody className="divide-y divide-slate-100">
                   {sorted.length === 0 ? (
                     <tr>
-                      <td colSpan="6" className="px-4 py-12 text-center text-slate-500">
+                      <td colSpan="7" className="px-4 py-12 text-center text-slate-500">
                         <p className="text-sm mb-3">{statusFilter === 'ALL' ? 'No submissions yet.' : 'No ' + statusFilter.toLowerCase() + ' submissions.'}</p>
                         {statusFilter === 'ALL' && (
                           <button
@@ -395,7 +621,6 @@ export default function IntakeClient({ submissions: initialSubmissions, clients,
                         setStatus(s.status);
                         setReviewNote(s.reviewNote || '');
                         setClientId(s.clientId || '');
-                        setLinkedProjectId(s.duplicateMatchId ?? '');
                         setInviteResult(null);
                         setInviteError(null);
                         setCopied(false);
@@ -405,7 +630,20 @@ export default function IntakeClient({ submissions: initialSubmissions, clients,
                       <td className="px-4 py-3 text-slate-600 text-xs">{fmtDate(s.createdAt)}</td>
                       <td className="px-4 py-3 font-semibold text-slate-900">{s.submitterName}</td>
                       <td className="px-4 py-3 text-slate-600">{s.submitterEmail}</td>
-                      <td className="px-4 py-3 text-slate-600">{s.proposedName}</td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {s.proposedName}
+                        {activeSuggestion(s) && (
+                          <span className="block mt-0.5 text-[10px] font-semibold text-sky-700">
+                            Looks like: {activeSuggestion(s).name}
+                          </span>
+                        )}
+                        {s.duplicateMatchId && (
+                          <span className="block mt-0.5 text-[10px] font-semibold text-green-700">
+                            ✓ Linked{s.duplicateMatch?.name ? ` to ${s.duplicateMatch.name}` : ''}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">{[s.city, s.state].filter(Boolean).join(', ') || '—'}</td>
                       <td className="px-4 py-3 text-slate-600">{s.buildingType || '—'}</td>
                       <td className="px-4 py-3">
                         <span className={`text-xs font-semibold px-2 py-1 rounded-full ${STATUS_CONFIG[s.status].color}`}>
@@ -424,6 +662,10 @@ export default function IntakeClient({ submissions: initialSubmissions, clients,
             <div className="bg-white rounded-lg border border-slate-200 p-6">
               <h2 className="text-lg font-bold text-slate-900 mb-4">Review Submission</h2>
 
+              <div className="mb-4">
+                <JobLinkPanel key={selected.id} submission={selected} projects={projects} onUpdated={applyUpdate} />
+              </div>
+
               <div className="space-y-4">
                 {/* Fields */}
                 <div>
@@ -438,9 +680,19 @@ export default function IntakeClient({ submissions: initialSubmissions, clients,
                   </a>
                 </div>
 
+                {/* proposedName is the PROJECT name (see /api/intake/submit);
+                    it was labelled "Company" here by mistake. */}
                 <div>
-                  <label className="block text-sm font-semibold text-slate-900 mb-1">Company</label>
+                  <label className="block text-sm font-semibold text-slate-900 mb-1">Project</label>
                   <p className="text-slate-600">{selected.proposedName}</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-900 mb-1">Location</label>
+                  <p className="text-slate-600">
+                    {[selected.city, selected.state].filter(Boolean).join(', ') || '—'}
+                    {selected.zip ? ` ${selected.zip}` : ''}
+                  </p>
                 </div>
 
                 <div>
@@ -510,7 +762,6 @@ export default function IntakeClient({ submissions: initialSubmissions, clients,
                       setStatus('PENDING');
                       setReviewNote('');
                       setClientId('');
-                      setLinkedProjectId('');
                       setInviteResult(null);
                       setInviteError(null);
                       setCopied(false);
@@ -527,25 +778,13 @@ export default function IntakeClient({ submissions: initialSubmissions, clients,
                       Portal Access
                     </p>
 
-                    {/* Part A: Link to project */}
-                    <div className="mb-4">
-                      <label className="block text-sm font-semibold text-slate-700 mb-1">
-                        Linked Project
-                      </label>
-                      <select
-                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                        value={linkedProjectId}
-                        onChange={e => setLinkedProjectId(e.target.value)}
-                      >
-                        <option value="">— not linked —</option>
-                        {projects.map(p => (
-                          <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
-                      </select>
-                      <p className="text-xs text-slate-400 mt-1">
-                        Pick the project, save above, then send the invite below.
-                      </p>
-                    </div>
+                    {/* Part A: which project. Linking happens in the panel at
+                        the top, which never overwrites the job's answers. */}
+                    <p className="text-xs text-slate-500 mb-3">
+                      {selected.duplicateMatchId
+                        ? `The invite gives ${selected.submitterEmail} access to ${selected.duplicateMatch?.name || 'the linked project'}.`
+                        : 'Link this request to a project at the top of this panel first.'}
+                    </p>
 
                     {/* Part B: Send invite */}
                     <div>
@@ -578,10 +817,10 @@ export default function IntakeClient({ submissions: initialSubmissions, clients,
                         </div>
                       ) : (
                         <button
-                          disabled={!selected.duplicateMatchId || inviting}
+                          disabled={!canInvite || !selected.duplicateMatchId || inviting}
                           onClick={handleSendInvite}
                           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                            selected.duplicateMatchId && !inviting
+                            canInvite && selected.duplicateMatchId && !inviting
                               ? 'bg-amber-500 hover:bg-amber-400 text-white'
                               : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                           }`}
@@ -593,9 +832,9 @@ export default function IntakeClient({ submissions: initialSubmissions, clients,
                       {inviteError && (
                         <p className="text-xs text-red-500 mt-2">{inviteError}</p>
                       )}
-                      {!selected.duplicateMatchId && (
+                      {!canInvite && (
                         <p className="text-xs text-slate-400 mt-1">
-                          Link a project above and save first.
+                          Only an admin can send portal invites.
                         </p>
                       )}
                     </div>

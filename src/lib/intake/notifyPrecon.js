@@ -53,10 +53,14 @@ export async function notifyPrecon({ submission, answers, flags, drawings }) {
   // typed figures plus the ⚠ stand-in guesses for anything left blank.
   const typedIn = Array.isArray(answers) && answers.some(a => a?.questionKey === 'noDrawings' && a?.answer === 'yes');
 
+  const where = [submission.city, submission.state].filter(Boolean).join(', ')
+    + (submission.zip ? ` ${submission.zip}` : '');
+
   const parts = [
     `A new conceptual budget request just came in on app.ilcstudios.com/conceptual_budget.`,
     ``,
     `PROJECT:   ${submission.proposedName}`,
+    `LOCATION:  ${where.trim() || '—'}`,
     `FROM:      ${submission.submitterName} <${submission.submitterEmail}>`,
     `COMPANY:   ${submission.submitterDomain}`,
     ``,

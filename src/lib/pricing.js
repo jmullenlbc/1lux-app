@@ -83,34 +83,21 @@ export const PRICING = {
       product: 175,              // 4ft LED strip w/ occupancy sensor + integrated battery backup
       labor:   0,
     },
+    // Breezeway walk-ups (garden / stacked flats / gurban) price each landing
+    // at this multiple of the stairwell rate: 2.2 × $175 = $385 a landing.
+    // Mike 2026-09-12: "Maybe move to 2.2x ... in the breezeway situation it's
+    // a corridor and stairwell in one. Yes stacked flats should count too."
+    // This replaced the 2026-09-05 per-stair package (landing disks, wall packs
+    // w/ battery, frogeyes, vestibule disks) — the open breezeway is the
+    // building's corridor too, so its landings carry the corridor lighting.
+    breezewayLandingMultiplier: 2.2,
   },
 
-  // ─── BREEZEWAY STAIR PACKAGE (garden / stacked flats / gurban walk-ups) ───
-  // Mike 2026-09-05: "Does it really matter what the SF of stairwells are. We
-  // just really care about the landings. Where it does matter a lot is
-  // breezeways ... Then you have landings and you have the lighting on the
-  // stairs and egress." Read off the Lowell + I76 GMP set (E-sheets, 7 × 3-story
-  // buildings, 25 breezeway stairs): each open stair serving N levels carries
-  //   N     C4  decorative surface mounts on the floor landings
-  //   2N+1  W1  breezeway LED wall packs w/ integrated battery (stair + egress)
-  //   N     X1  emergency twin-heads (frogeyes)
-  //   N−1   C6  7" disks w/ battery in the upper-level vestibules
-  // The ground-floor egress wall pack (EW2) is already in the exterior
-  // wallpacks line and is NOT repeated here. Enclosed corridor-building
-  // stairs stay on corridors.stairwellPerLanding.
-  // Unit prices are PLACEHOLDERS pending Mike's numbers (landing light = the
-  // corridor stairwell rate, wall pack = a small battery pack, not the $350
-  // exterior cutoff).
-  // Prices are Mike's (2026-09-05): "Wallpack with battery = $300. Frogeyes
-  // emergency twin head = $25. Vestibule disk with emergency battery = $50.
-  // Regular disks = $12. Decorative landing light we don't do in a conceptual
-  // budget." So the per-landing fixture on an open stair is a REGULAR disk.
+  // ─── BREEZEWAY STAIRS (garden / stacked flats / gurban walk-ups) ──────────
+  // Priced per landing at corridors.breezewayLandingMultiplier (above). The
+  // level defaults below only turn a landing count back into a stair count
+  // for display ("≈ 25 stairs") when Project Data has no story count.
   breezewayStair: {
-    landingLight:         12,  // C4 position — a regular disk, not a decorative fixture
-    wallpackWithBattery: 300,  // W1 — per stair + egress wall pack
-    frogeye:              25,  // X1 — emergency twin-head
-    vestibuleDisk:        50,  // C6 — disk w/ emergency battery, upper vestibules
-    // Levels served per stair when Project Data has no story count.
     storiesDefault: { garden: 3, stackedFlats: 3, gurban: 4 },
   },
 
@@ -409,17 +396,22 @@ export const PRICING = {
   },
 
   emergency: {
+    // Mike 2026-09-12: "garage fixtures should get integrated batteries when
+    // there are garages and no generator". Every strategy except generator backs
+    // the garage up with batteryGarage below, so no strategy charges a garage
+    // $/SF any more. The math lives in src/lib/emergencyCost.js and keys off
+    // the strategy NAME (frozen project snapshots still carry the old flags).
     strategies: {
       generator: {
         corridorPerSf: 0,    amenityPerSf: 0,    garagePerSf: 0,    batteryGarage: false,
       },
       frogeyes: {
-        // Flat rate everywhere — driven by emergency.frogeyesPerSf (the editable knob)
-        corridorPerSf: 0.17, amenityPerSf: 0.17, garagePerSf: 0.17, batteryGarage: false,
+        // Flat rate in corridors + amenity — driven by emergency.frogeyesPerSf (the editable knob)
+        corridorPerSf: 0.17, amenityPerSf: 0.17, garagePerSf: 0,    batteryGarage: true,
       },
       frogeyes_inv: {
         // Frogeyes in corridors + inverters in amenities
-        corridorPerSf: 0.15, amenityPerSf: 1.25, garagePerSf: 0,    batteryGarage: false,
+        corridorPerSf: 0.15, amenityPerSf: 1.25, garagePerSf: 0,    batteryGarage: true,
       },
       integrated_frogeyes: {
         // Integrated batteries in garage + frogeyes corridors + inverters amenity
@@ -430,8 +422,8 @@ export const PRICING = {
         corridorPerSf: 0.50, amenityPerSf: 1.25, garagePerSf: 0,    batteryGarage: true,
       },
       inverters: {
-        // Inverters everywhere
-        corridorPerSf: 0.50, amenityPerSf: 1.25, garagePerSf: 0.25, batteryGarage: false,
+        // Inverters in corridors + amenity; the garage gets integrated batteries
+        corridorPerSf: 0.50, amenityPerSf: 1.25, garagePerSf: 0,    batteryGarage: true,
       },
     },
     // Flat $/SF for the "frogeyes everywhere" strategy — editable in master pricing
@@ -500,6 +492,11 @@ export const PRICING = {
     exitStairsMinPerBuilding:     2,
     floorPlateSfPerExitStair:     15000,
     breezewayPlateSfPerExitStair: 5000,
+    // No footprint and no stair count on a breezeway walk-up (a typed-in
+    // budget): stairs ≈ units ÷ this. Real gardens on file (2026-09-12) ran
+    // ~12–20 units per open stair; the 2-per-building code minimum gave 11
+    // landings where real jobs had 81–144.
+    breezewayUnitsPerStair:       15,
   },
 
   // ─── DESIGN BUDGET UNIT UPGRADES ─────────────────────────────────────────
@@ -552,6 +549,42 @@ export const PRICING = {
     mixedPerSign:         75,   // blended avg: edge-lit in FOH ($118), thermo in BOH/garage ($22)
     edgelitPerSign:      120,   // edge-lit everywhere — split of $118 (sheet) / $127 (prior), rounded
     sfPerSign:          5000,   // approx 1 sign per 5,000 gross SF
+  },
+
+  // ─── INSTALL LABOR (estimate only — never added to any budget total) ──────
+  // RAW electrician labor per fixture, no 20% OH&P (Mike 2026-09-13: "Without
+  // to be conservative"). Source: the ILC labor cheat sheet (Google Sheet
+  // 14InNdKBej69m9Gzq-1AiCZKVb-dQMXYfSzF11CZGlJk). Excludes the fixture itself.
+  // Shown next to each answer as "estimated labor + materials" so a client can
+  // see the whole cost of a choice. $/SF lines (corridor disks, amenities, BOH,
+  // garage) carry no labor figure (Mike: "Leave labor off of those").
+  labor: {
+    sconce:             72.46,  // wall sconce / frogeye / wallpack / bath bar
+    surfaceDisk:        98.56,
+    recessedDownlight:  98.56,
+    canless:           105.33,
+    strip4ft:           56.62,  // stair landing strip
+    garageFixture:     234.64,
+    exitSign:          101.69,
+    ceilingFan:        225,
+    areaPole:          869.79,  // area light + pole base
+    trenching:         290,     // per pole — none on solar sites
+    bollard:           384.35,
+    landscapeBullet:   319.36,
+    pendant:           104.36,
+    stepLight:          64.97,
+    tapePerFt:          14.54,  // low-voltage tape, per foot
+    undercabinet24in:   57.63,  // 120V undercabinet, per 24" piece
+    linear4ft:         130.31,
+    troffer:            80.43,
+    floorUplight:       98.56,
+    switch:             49,
+    receptacle:         72.56,
+    emergencyCircuit:  200.76,
+    fanJBox:           100.04,
+    mirrorJBox:         86.05,  // lighted mirror j-box
+    undercabinetFtPerUnit: 8,   // assumed feet of undercabinet per kitchen
+    frogeyeSfEach:        300,  // assumed 1 frogeye per 300 SF of corridor
   },
 };
 

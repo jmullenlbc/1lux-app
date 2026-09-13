@@ -17,7 +17,7 @@ export default async function NewProjectPage({ searchParams }) {
     [existing, clients] = await Promise.all([
       prisma.project.findMany({
         orderBy: { updatedAt: 'desc' },
-        select: { id: true, name: true, buildingType: true, location: true, city: true, state: true, clientId: true },
+        select: { id: true, name: true, buildingType: true, location: true, city: true, state: true, zip: true, clientId: true },
       }),
       prisma.client.findMany({
         orderBy: { name: 'asc' },

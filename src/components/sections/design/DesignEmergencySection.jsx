@@ -1,12 +1,15 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Button from '@/components/ui/Button';
-import QuestionCard from '@/components/sections/QuestionCard';
+import QuestionCard, { CostImpact } from '@/components/sections/QuestionCard';
+import { calculateBudget } from '@/lib/calculations';
 import { PRICING } from '@/lib/pricing';
+import { emergencyStrategyCost } from '@/lib/emergencyCost';
 
 export default function DesignEmergencySection({
   responses,
   projectData,
+  allSections,
   pricing,
   onSaveResponses,
   onNext,
@@ -15,37 +18,29 @@ export default function DesignEmergencySection({
   const P = pricing || PRICING;
   const existing = responses || {};
   const [ans, setAns] = useState({
-    strategy: existing.strategy || 'integrated_inverters',
+    strategy: existing.strategy || 'frogeyes',
   });
   const [saving, setSaving] = useState(false);
+  // What each answer costs (+ estimated labor), recomputed live as answers
+  // change — local answers only save on Next (Mike 2026-09-13).
+  const qc = useMemo(
+    () => calculateBudget(projectData, { ...(allSections || {}), emergency: { ...(allSections?.emergency || {}), ...ans } }, pricing || null).questionCosts || {},
+    [projectData, allSections, ans, pricing],
+  );
 
   const corridorSf    = Number(projectData?.corridorSf)          || 0;
   const intAmenitySf  = Number(projectData?.interiorAmenitySf)   || 0;
   const garageSf      = Number(projectData?.garageSf)            || 0;
 
-  // Strategy → rates
-  const STRATEGIES = {
-    generator:            { corridorPerSf: 0,    amenityPerSf: 0,    garagePerSf: 0,    batteryGarage: false, label: 'Building generator',                                                  tag: '' },
-    frogeyes:             { corridorPerSf: 0.15, amenityPerSf: 0.15, garagePerSf: 0.10, batteryGarage: false, label: 'Frogeyes everywhere',                                                 tag: '' },
-    frogeyes_inv:         { corridorPerSf: 0.15, amenityPerSf: 1.25, garagePerSf: 0,    batteryGarage: false, label: 'Frogeyes in corridors + inverters in amenities',                        tag: '' },
-    integrated_frogeyes:  { corridorPerSf: 0.15, amenityPerSf: 1.25, garagePerSf: 0,    batteryGarage: true,  label: 'Integrated batteries in garage / frogeyes in corridors / inverters in amenity spaces', tag: '' },
-    integrated_inverters: { corridorPerSf: 0.50, amenityPerSf: 1.25, garagePerSf: 0,    batteryGarage: true,  label: 'Integrated batteries in garage / inverters in corridors + amenity spaces',    tag: 'Recommended' },
-    inverters:            { corridorPerSf: 0.50, amenityPerSf: 1.25, garagePerSf: 0.25, batteryGarage: false, label: 'Inverters everywhere',                                  tag: 'Best optics' },
-  };
-
+  // Rates and garage batteries come from the same helper the engine uses, so
+  // the estimate beside each option IS the budget line.
   function calcCost(key) {
-    // Rates come from master pricing (engine: PRICING.emergency.strategies); the
-    // local STRATEGIES map only supplies labels/tags + a fallback.
-    const s = P.emergency?.strategies?.[key] || STRATEGIES[key];
-    if (!s) return 0;
-    let cost = corridorSf * s.corridorPerSf + intAmenitySf * s.amenityPerSf + garageSf * s.garagePerSf;
-    if (s.batteryGarage && garageSf > 0) {
-      const bg = P.emergency?.batteryGarage || { sfPerFixture: 625, fixtureEvery: 2, costPerFixture: 120 };
-      const battCount = Math.floor((garageSf / bg.sfPerFixture) / bg.fixtureEvery);
-      cost += battCount * bg.costPerFixture;
-    }
-    return Math.round(cost);
+    return Math.round(emergencyStrategyCost(P, key, { corridorSf, intAmenitySf, garageSf }).total);
   }
+  const S    = P.emergency?.strategies || {};
+  const rate = (k, f) => `$${(S[k]?.[f] ?? 0).toFixed(2)}/SF`;
+  const fe   = `$${Number(P.emergency?.frogeyesPerSf ?? 0.17).toFixed(2)}/SF`;
+  const batt = garageSf > 0 ? ' + garage battery in every other fixture' : '';
 
   async function handleNext() {
     setSaving(true);
@@ -62,7 +57,7 @@ export default function DesignEmergencySection({
         <h2 className="text-xl font-bold text-slate-900">Emergency &amp; Egress Lighting</h2>
         <p className="text-slate-500 text-sm mt-1">
           Life-safety egress lighting strategy for corridors, amenity spaces, and the
-          enclosed parking garage. Exit signs are set in the Corridors step.
+          enclosed parking garage. Exit signs are the next step.
         </p>
       </div>
 
@@ -98,37 +93,37 @@ export default function DesignEmergencySection({
             {
               key:   'generator',
               label: 'Building generator covers all emergency lighting',
-              sub:   'No additional lighting budget required for emergency egress',
+              sub:   'No additional lighting budget required for emergency egress (garage included)',
               tag:   null,
             },
             {
               key:   'frogeyes',
-              label: 'Frogeyes everywhere',
-              sub:   `Corridors $0.15/SF + amenity $0.15/SF + garage $0.10/SF${hasSf ? ` — est. $${calcCost('frogeyes').toLocaleString()}` : ''}`,
+              label: 'Frogeyes in corridors + amenity, batteries in garage',
+              sub:   `Corridors + amenity ${fe}${batt}${hasSf ? ` — est. $${calcCost('frogeyes').toLocaleString()}` : ''}`,
               tag:   null,
             },
             {
               key:   'frogeyes_inv',
-              label: 'Frogeyes in corridors + inverters in amenity spaces',
-              sub:   `Corridors $0.15/SF + amenity $1.25/SF${hasSf ? ` — est. $${calcCost('frogeyes_inv').toLocaleString()}` : ''}`,
+              label: 'Frogeyes in corridors + inverters in amenity spaces, batteries in garage',
+              sub:   `Corridors ${rate('frogeyes_inv', 'corridorPerSf')} + amenity ${rate('frogeyes_inv', 'amenityPerSf')}${batt}${hasSf ? ` — est. $${calcCost('frogeyes_inv').toLocaleString()}` : ''}`,
               tag:   null,
             },
             {
               key:   'integrated_frogeyes',
               label: 'Integrated batteries (garage) + frogeyes (corridors) + inverters (amenity)',
-              sub:   `Garage fixtures w/ battery + corridors $0.15/SF + amenity $1.25/SF${hasSf ? ` — est. $${calcCost('integrated_frogeyes').toLocaleString()}` : ''}`,
+              sub:   `Corridors ${rate('integrated_frogeyes', 'corridorPerSf')} + amenity ${rate('integrated_frogeyes', 'amenityPerSf')}${batt}${hasSf ? ` — est. $${calcCost('integrated_frogeyes').toLocaleString()}` : ''}`,
               tag:   null,
             },
             {
               key:   'integrated_inverters',
               label: 'Integrated batteries (garage) + inverters (corridors + amenity)',
-              sub:   `Garage fixtures w/ battery + corridors $0.50/SF + amenity $1.25/SF${hasSf ? ` — est. $${calcCost('integrated_inverters').toLocaleString()}` : ''}`,
+              sub:   `Corridors ${rate('integrated_inverters', 'corridorPerSf')} + amenity ${rate('integrated_inverters', 'amenityPerSf')}${batt}${hasSf ? ` — est. $${calcCost('integrated_inverters').toLocaleString()}` : ''}`,
               tag:   'Recommended',
             },
             {
               key:   'inverters',
-              label: 'Inverters everywhere',
-              sub:   `Corridors $0.50/SF + amenity $1.25/SF + garage $0.25/SF${hasSf ? ` — est. $${calcCost('inverters').toLocaleString()}` : ''}`,
+              label: 'Inverters in corridors + amenity, batteries in garage',
+              sub:   `Corridors ${rate('inverters', 'corridorPerSf')} + amenity ${rate('inverters', 'amenityPerSf')}${batt}${hasSf ? ` — est. $${calcCost('inverters').toLocaleString()}` : ''}`,
               tag:   'Best optics',
             },
           ].map(opt => (
@@ -161,6 +156,7 @@ export default function DesignEmergencySection({
                 {opt.sub && (
                   <div className="text-xs text-slate-400 mt-0.5">{opt.sub}</div>
                 )}
+                {ans.strategy === opt.key && <CostImpact impact={qc['emergency.strategy']} />}
               </div>
             </label>
           ))}
@@ -171,6 +167,7 @@ export default function DesignEmergencySection({
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-blue-800">
         <p className="font-semibold mb-2">Strategy Comparison</p>
         <div className="space-y-1.5">
+          <div><span className="font-medium">Garage:</span> Unless a building generator covers it, every other garage fixture gets an integrated battery under every strategy.</div>
           <div><span className="font-medium">Frogeyes:</span> Battery-backed emergency heads — visible, lower cost, meets code.</div>
           <div><span className="font-medium">Integrated batteries:</span> Battery module inside every other normal fixture — invisible, meets code, cleaner look.</div>
           <div><span className="font-medium">Inverters:</span> Central or room-level inverter powers normal circuits during outage — best optical consistency, highest cost.</div>

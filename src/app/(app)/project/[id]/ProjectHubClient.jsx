@@ -491,10 +491,10 @@ export default function ProjectHubClient({ userId, userRole, project, budget, pe
   }, [budget, peerReviewTotal, project.id]);
   const [assignedClient, setAssignedClient] = useState(project.client || null);
 
-  // Project info editing (city, state, buildingType)
+  // Project info editing (city, state, zip, buildingType)
   const [editingInfo,   setEditingInfo]   = useState(false);
-  const [infoDraft,     setInfoDraft]     = useState({ city: project.city || '', state: project.state || '', buildingType: project.buildingType || '' });
-  const [savedInfo,     setSavedInfo]     = useState({ city: project.city || '', state: project.state || '', buildingType: project.buildingType || '' });
+  const [infoDraft,     setInfoDraft]     = useState({ city: project.city || '', state: project.state || '', zip: project.zip || '', buildingType: project.buildingType || '' });
+  const [savedInfo,     setSavedInfo]     = useState({ city: project.city || '', state: project.state || '', zip: project.zip || '', buildingType: project.buildingType || '' });
   const [savingInfo,    setSavingInfo]    = useState(false);
 
   async function saveProjectInfo() {
@@ -505,6 +505,7 @@ export default function ProjectHubClient({ userId, userRole, project, budget, pe
       body: JSON.stringify({
         city:         infoDraft.city.trim()         || null,
         state:        infoDraft.state.trim()        || null,
+        zip:          infoDraft.zip.trim()          || null,
         buildingType: infoDraft.buildingType        || null,
       }),
     });
@@ -847,14 +848,14 @@ export default function ProjectHubClient({ userId, userRole, project, budget, pe
                         {buildingTypeLabel(savedInfo.buildingType)}
                       </span>
                     )}
-                    {(savedInfo.city || savedInfo.state) && (
+                    {(savedInfo.city || savedInfo.state || savedInfo.zip) && (
                       <span className="text-xs text-slate-400">
-                        {[savedInfo.city, savedInfo.state].filter(Boolean).join(', ')}
+                        {[savedInfo.city, [savedInfo.state, savedInfo.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
                       </span>
                     )}
                     <button
                       onClick={() => { setInfoDraft({ ...savedInfo }); setEditingInfo(true); }}
-                      title="Edit city, state, building type"
+                      title="Edit city, state, zip, building type"
                       className="flex items-center gap-1 text-xs text-slate-300 hover:text-amber-500 transition-colors"
                     >
                       <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -873,9 +874,18 @@ export default function ProjectHubClient({ userId, userRole, project, budget, pe
                     />
                     <input
                       value={infoDraft.state}
-                      onChange={e => setInfoDraft(d => ({ ...d, state: e.target.value }))}
+                      onChange={e => setInfoDraft(d => ({ ...d, state: e.target.value.toUpperCase() }))}
                       placeholder="ST"
+                      maxLength={2}
                       className="text-xs border border-slate-200 rounded-lg px-2 py-1 w-14 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+                    />
+                    <input
+                      value={infoDraft.zip}
+                      onChange={e => setInfoDraft(d => ({ ...d, zip: e.target.value }))}
+                      placeholder="Zip"
+                      inputMode="numeric"
+                      maxLength={10}
+                      className="text-xs border border-slate-200 rounded-lg px-2 py-1 w-20 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
                     />
                     <select
                       value={infoDraft.buildingType}

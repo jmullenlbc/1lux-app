@@ -100,6 +100,9 @@ export default function NewProjectForm({ existingProjects = [], clients: initial
     buildingType: '',
     city:         '',
     state:        '',
+    zip:          '',
+    contactName:  '',
+    contactEmail: '',
     phase:        'sd',
     serviceType:  '',
     budgetType:   initialBudgetType,
@@ -138,6 +141,7 @@ export default function NewProjectForm({ existingProjects = [], clients: initial
       buildingType: project.buildingType || f.buildingType,
       city:         project.city         || f.city,
       state:        project.state        || f.state,
+      zip:          project.zip          || f.zip,
       clientId:     project.clientId     || f.clientId,
     }));
     setSourceProject(project);
@@ -183,6 +187,9 @@ export default function NewProjectForm({ existingProjects = [], clients: initial
           buildingType: form.buildingType || null,
           city:         form.city.trim()  || null,
           state:        form.state.trim() || null,
+          zip:          form.zip.trim()   || null,
+          contactName:  form.contactName.trim()  || null,
+          contactEmail: form.contactEmail.trim() || null,
           phase:        form.phase,
           serviceType:  form.serviceType  || null,
           budgetType:   form.budgetType,
@@ -272,6 +279,19 @@ export default function NewProjectForm({ existingProjects = [], clients: initial
               )}
             </div>
 
+            {/* Contact + location sit right under the name (Mike, 2026-09-12:
+                "add all 3 to the conceptual tool on the 1st page with name and
+                email") — the same facts the public request form asks first. */}
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="Contact Name" placeholder="e.g., Jordan Smith" value={form.contactName} onChange={set('contactName')} />
+              <Input label="Contact Email" type="email" placeholder="name@company.com" value={form.contactEmail} onChange={set('contactEmail')} />
+            </div>
+            <div className="grid grid-cols-[1fr_5rem_7rem] gap-4">
+              <Input label="City" placeholder="e.g., Denver" value={form.city} onChange={set('city')} />
+              <Input label="State" placeholder="CO" maxLength={2} value={form.state} onChange={e => setForm(f => ({ ...f, state: e.target.value.toUpperCase() }))} />
+              <Input label="Zip" placeholder="80202" inputMode="numeric" maxLength={10} value={form.zip} onChange={set('zip')} />
+            </div>
+
             {/* Client */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Client</label>
@@ -314,12 +334,6 @@ export default function NewProjectForm({ existingProjects = [], clients: initial
               <option value="">Select building type...</option>
               {BUILDING_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </Select>
-
-            {/* City + State */}
-            <div className="grid grid-cols-2 gap-4">
-              <Input label="City" placeholder="e.g., Denver" value={form.city} onChange={set('city')} />
-              <Input label="State" placeholder="e.g., CO" value={form.state} onChange={set('state')} />
-            </div>
 
             {/* Phase */}
             <Select label="Current Phase" value={form.phase} onChange={set('phase')}>

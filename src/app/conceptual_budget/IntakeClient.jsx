@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { US_STATES, checkLocation } from '@/lib/usStates';
 import DrawingDropzone from '@/components/intake/DrawingDropzone';
 import BudgetSidebar from '@/components/wizard/BudgetSidebar';
 import SummaryBudgetBreakdown from '@/app/(app)/project/[id]/summary/SummaryBudgetBreakdown';
@@ -44,17 +45,36 @@ const CONFIRM_NOTE = 'We will confirm all numbers are correct and send you a bud
  * (units → corridors → amenities → exterior → emergency → controls).
  * `sections` names the INTAKE_QUESTIONS groups shown on that page;
  * `budgetStep` is the internal step id BudgetSidebar highlights.
+ * `hint` is the one line under the page heading — what to do there and why
+ * (beta prep, 2026-09-12). Plain words; keep them true to what the page does.
  */
 const STEPS = [
-  { id: 'about',     short: 'About You',     label: 'About You & Your Project' },
-  { id: 'drawings',  short: 'Drawings',      label: 'Upload Drawings' },
-  { id: 'units',     short: 'Units',         label: 'Residential Units',      sections: ['Residential units'],        budgetStep: 'units' },
-  { id: 'corridors', short: 'Corridors',     label: 'Corridors & Stairwells', sections: ['Corridors and stairwells'], budgetStep: 'corridors' },
-  { id: 'amenities', short: 'Amenities',     label: 'Interior Amenities',     sections: ['Interior amenities'],       budgetStep: 'amenities' },
-  { id: 'exterior',  short: 'Exterior',      label: 'Exterior & Site',        sections: ['Exterior'],                 budgetStep: 'exterior' },
-  { id: 'emergency', short: 'Emergency',     label: 'Emergency Lighting',     sections: ['Emergency'],                budgetStep: 'emergency' },
-  { id: 'controls',  short: 'Controls',      label: 'Controls & Energy',      sections: ['Controls', 'Energy codes'], budgetStep: 'controls' },
-  { id: 'review',    short: 'Review & Send', label: 'Review & Send' },
+  { id: 'about',     short: 'About You',     label: 'About You & Your Project',
+    hint: 'Start with your details and where the project is, so we can put your budget together and get back to you.' },
+  { id: 'drawings',  short: 'Drawings',      label: 'Upload Drawings',
+    hint: 'Upload your drawing set if you have one — we read unit counts and sizes from it. No drawings? Choose “No drawings yet” and type in a few numbers instead.' },
+  { id: 'units',     short: 'Units',         label: 'Residential Units',      sections: ['Residential units'],        budgetStep: 'units',
+    hint: 'Choose the lighting inside the apartments. Each choice updates your budget.' },
+  { id: 'corridors', short: 'Corridors',     label: 'Corridors & Stairwells', sections: ['Corridors and stairwells'], budgetStep: 'corridors',
+    hint: 'Choose the light at each apartment door. Hallway and stair lighting is priced from your building figures.' },
+  { id: 'amenities', short: 'Amenities',     label: 'Interior Amenities',     sections: ['Interior amenities'],       budgetStep: 'amenities',
+    hint: 'Pick the finish level for shared indoor spaces like the clubhouse, leasing office and gym.' },
+  { id: 'exterior',  short: 'Exterior',      label: 'Exterior & Site',        sections: ['Exterior'],                 budgetStep: 'exterior',
+    hint: 'Choose the outdoor lighting for the site, parking and outdoor amenities like a pool deck.' },
+  { id: 'emergency', short: 'Emergency',     label: 'Emergency Lighting',     sections: ['Emergency'],                budgetStep: 'emergency',
+    hint: 'Code requires backup lighting on every exit path. Choose how you want it powered.' },
+  { id: 'controls',  short: 'Controls',      label: 'Controls & Energy',      sections: ['Energy codes'], budgetStep: 'controls',
+    hint: 'Tell us about any energy program. Together with your project type, it sets the lighting controls the code requires.' },
+  { id: 'review',    short: 'Review & Send', label: 'Review & Send',
+    hint: 'Check your budget and download a PDF copy. When you’re ready, send it to our team to review.' },
+];
+
+/** "How this works" on the About step — four short steps, plain words. */
+const HOW_IT_WORKS = [
+  { title: 'Tell us about your project', body: 'your name, work email, project name and location.' },
+  { title: 'Add your drawings, or skip them', body: 'upload your drawing set if you have one. No drawings? Type in the building type, number of units and rough size.' },
+  { title: 'Pick your lighting', body: 'a few quick choices for each part of the building. Your budget updates as you go.' },
+  { title: 'Get your budget', body: 'see the summary and download it as a PDF. Send it to us and our team reviews it and follows up within 48 hours.' },
 ];
 
 /**
@@ -82,20 +102,25 @@ const FIGURE_FIELDS = [
 /**
  * The no-drawings form on the Drawings step (Mike, 2026-09-11: "some other
  * way to say no and then all the square footage and count details that you
- * need to fill in"). `need` marks the minimum no guess can stand in for —
- * the same rule noDrawingsReady enforces on the server; 'either' means one
- * of the two size figures will do. Blank optional fields are estimated
- * server-side and the estimate is shown under the field.
+ * need to fill in"). `need` marks the minimum we ask for — the same rule
+ * noDrawingsReady enforces on the server; 'either' means one of the two size
+ * figures will do. Stories and surface stalls joined the required list on
+ * 2026-09-12 (0 stalls is allowed). Blank optional fields are estimated
+ * server-side and the estimate is shown in the field.
  */
 const MANUAL_FIELDS = [
   { key: 'figureTotalUnits',        qKey: 'totalUnits',        label: 'Total units',               placeholder: 'e.g. 234',     need: 'required' },
   { key: 'figureGrossSf',           qKey: 'grossSf',           label: 'Total building SF',         placeholder: 'e.g. 364,000', need: 'either' },
   { key: 'figureAvgUnitSf',         qKey: null,                label: 'Average unit size SF',      placeholder: 'e.g. 950',     need: 'either' },
   { key: 'figureBuildings',         qKey: null,                label: '# Residential buildings',   placeholder: 'e.g. 6',       hint: 'Helps us estimate stairwells.' },
-  { key: 'figureStories',           qKey: 'stories',           label: '# Stories',                 placeholder: 'e.g. 4' },
-  { key: 'figureStairLandings',     qKey: 'stairLandings',     label: '# Egress stairwell landings', placeholder: 'e.g. 15' },
+  // Stories and surface stalls required too (Mike, 2026-09-12: "surface parking
+  // should be an easy number for them to figure out. Stories too.").
+  { key: 'figureStories',           qKey: 'stories',           label: '# Stories',                 placeholder: 'e.g. 4',       need: 'required', hint: 'The tallest building.' },
+  // `estNote` replaces the engine's long working-out under the estimate — the
+  // landings one ran seven lines (Mike, 2026-09-12). Reviewers still see it all.
+  { key: 'figureStairLandings',     qKey: 'stairLandings',     label: '# Egress stairwell landings', placeholder: 'e.g. 15', estNote: 'based on your building type, size and number of stories.' },
   { key: 'figureExitDoors',         qKey: 'exitDoors',         label: '# Exit doors',              placeholder: 'e.g. 8' },
-  { key: 'figureSurfaceParking',    qKey: 'surfaceParking',    label: '# Surface parking stalls',  placeholder: 'e.g. 120' },
+  { key: 'figureSurfaceParking',    qKey: 'surfaceParking',    label: '# Surface parking stalls',  placeholder: 'e.g. 120',     need: 'required', hint: 'Open-air stalls only. Enter 0 if all parking is in a garage.' },
   { key: 'figureBalconies',         qKey: 'balconies',         label: '# Balconies',               placeholder: 'e.g. 150' },
   { key: 'figureInteriorAmenitySf', qKey: 'interiorAmenitySf', label: 'Interior amenity SF',       placeholder: 'e.g. 5,000',   hint: 'Clubhouse, leasing, fitness.' },
   { key: 'figureCorridorSf',        qKey: 'corridorSf',        label: 'Corridors & stairwells SF', placeholder: 'e.g. 30,000' },
@@ -104,12 +129,38 @@ const MANUAL_FIELDS = [
   { key: 'figureExteriorAmenitySf', qKey: 'exteriorAmenitySf', label: 'Exterior amenity SF',       placeholder: 'e.g. 12,000',  hint: 'Pool deck, courtyards. Leave blank if none.' },
 ];
 
-const PROJECT_TYPE_OPTIONS = INTAKE_QUESTIONS.find(q => q.key === 'projectType')?.options || [];
+/**
+ * A figure box in a grid. CSS subgrid gives every cell the same three rows —
+ * label/hint, box, estimate note — so the boxes across a row sit on one line
+ * even when a neighbour's tag or hint wraps. Where subgrid isn't supported it
+ * falls back to a plain stacked field.
+ */
+function FigureField({ label, labelRight, hint, note, children }) {
+  return (
+    <label className="row-span-3 grid [grid-template-rows:subgrid] gap-y-0">
+      <span className="block">
+        <span className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
+          <span className="text-sm font-semibold text-slate-700">{label}</span>
+          {labelRight && <span className="text-xs text-slate-400 shrink-0">{labelRight}</span>}
+        </span>
+        {hint && <span className="block text-xs text-slate-400 mt-0.5">{hint}</span>}
+      </span>
+      <div className="mt-1.5">{children}</div>
+      <div className={note ? 'mt-1.5' : undefined}>{note}</div>
+    </label>
+  );
+}
+
+const PROJECT_TYPE_OPTIONS =INTAKE_QUESTIONS.find(q => q.key === 'projectType')?.options || [];
+// Project types that get the walking-path bollard question (Mike, 2026-09-12).
+const BOLLARD_PROJECT_TYPES = ['Town Houses (2-3 Levels)', 'Single Family (1-2 Levels)'];
 
 function Field({ label, labelRight, hint, error, children }) {
   return (
     <label className="block">
-      <span className="flex items-baseline justify-between gap-2">
+      {/* flex-wrap: in a narrow column the tag drops under the label instead
+          of squeezing the label into a one-word-per-line stack. */}
+      <span className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
         <span className="text-sm font-semibold text-slate-700">{label}</span>
         {labelRight && <span className="text-xs text-slate-400 shrink-0">{labelRight}</span>}
       </span>
@@ -123,6 +174,10 @@ function Field({ label, labelRight, hint, error, children }) {
 const inputCls =
   'w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 ' +
   'placeholder:text-slate-300 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-100';
+
+// Figure boxes hold 8 characters at most ("1,250,000"-ish) — sized for that,
+// plus room for the ESTIMATE pill, rather than stretching across the column.
+const figureBoxCls = 'max-w-[11rem]';
 
 // Map the AI drawing read's buildingType (free text) onto the questionnaire's
 // project-type options so the question arrives pre-answered when possible.
@@ -231,6 +286,11 @@ export default function IntakeClient() {
   const [email,     setEmail]     = useState('');
   const [company,   setCompany]   = useState('');
   const [project,   setProject]   = useState('');
+  // Project location, required (Mike, 2026-09-12: "We need location for data tracking").
+  const [projCity,  setProjCity]  = useState('');
+  const [projState, setProjState] = useState('');
+  const [projZip,   setProjZip]   = useState('');
+  const [touchedZip, setTouchedZip] = useState(false);
   const [touchedEmail, setTouchedEmail] = useState(false);
   const [drawings, setDrawings] = useState(null);
   // "Do you have drawings?" — null until answered, then 'yes' (the dropzone)
@@ -250,10 +310,16 @@ export default function IntakeClient() {
     for (const q of INTAKE_QUESTIONS) init[q.key] = q.default ?? '';
     return init;
   });
-  const [estimate, setEstimate] = useState(null); // { budget, projectData } from the server
+  // "Is there a clubhouse?" on the no-drawings form (Mike, 2026-09-12: "Can we
+  // somehow read if there is a clubhouse or not?"). '' = not sure → the
+  // server's usual for the building type.
+  const [hasClubhouse, setHasClubhouse] = useState('');
+  const [estimate, setEstimate] = useState(null); // { budget, projectData, range } from the server
   const [submitting, setSubmitting] = useState(false);
   const [submitted,  setSubmitted]  = useState(false);
   const [submitError, setSubmitError] = useState(null);
+  const [pdfBusy,  setPdfBusy]  = useState(false);
+  const [pdfError, setPdfError] = useState(null);
   const mainRef = useRef(null);
 
   const stepIndex = STEPS.findIndex(s => s.id === stepId);
@@ -282,12 +348,16 @@ export default function IntakeClient() {
       if (s) out[k] = s;
     }
     if (manual) out.noDrawings = 'yes';
+    if (manual && hasClubhouse) out.hasClubhouse = hasClubhouse;
     return out;
-  }, [answers, figures, manual]);
+  }, [answers, figures, manual, hasClubhouse]);
 
   // The no-drawings minimum (project type, units, and a size) — the same
   // check the estimate route enforces before it will price anything.
   const manualCheck = useMemo(() => noDrawingsReady(mergedAnswers), [mergedAnswers]);
+  // The progress bar (Mike, 2026-09-12: "the more detailed data the more
+  // accurate the budget") — boxes the visitor typed, not our estimates.
+  const manualFilled = MANUAL_FIELDS.filter(f => String(figures[f.key] ?? '').trim() !== '').length;
 
   // ── Live server-side estimate ──────────────────────────────────────────────
   // Debounced: every answer flip re-prices, but a burst of changes is one call.
@@ -372,7 +442,7 @@ export default function IntakeClient() {
     const showEst = !!est && !typed.trim() && editingKey !== f.key;
     return (
       <>
-        <div className="relative">
+        <div className={cn('relative', figureBoxCls)}>
           <input
             className={cn(inputCls, showEst && 'bg-amber-50 border-amber-200 text-amber-700 italic pr-20')}
             inputMode="numeric"
@@ -389,13 +459,20 @@ export default function IntakeClient() {
             </span>
           )}
         </div>
-        {showEst && (
-          <p className="text-xs text-amber-600 mt-1.5">
-            Our estimate{est.how ? ` — ${est.how}` : '.'} Type over it if you know the real number.
-          </p>
-        )}
       </>
     );
+  };
+  // The "Our estimate — …" line under a figure box. Kept apart from the box
+  // so FigureField can hold every box in a row on the same line.
+  const manualNote = f => {
+    const est = manualEstimates[f.key];
+    const showEst = !!est && !String(figures[f.key] ?? '').trim() && editingKey !== f.key;
+    const how = f.estNote || est?.how;
+    return showEst ? (
+      <p className="text-xs text-amber-600">
+        Our estimate{how ? ` — ${how}` : '.'} Type over it if you know the real number.
+      </p>
+    ) : null;
   };
 
   // ── Building summary on the Drawings page (Mike, 2026-09-04: "add a
@@ -419,8 +496,9 @@ export default function IntakeClient() {
     return out;
   }, []);
 
+  const projLoc = checkLocation({ city: projCity, state: projState, zip: projZip });
   const contactReady =
-    firstName.trim() && lastName.trim() && project.trim() && emailCheck?.ok;
+    firstName.trim() && lastName.trim() && project.trim() && emailCheck?.ok && projLoc.ok;
 
   // Any step is reachable once the contact details are in — the same freedom
   // the internal sidebar gives — but nothing past About You before that.
@@ -462,6 +540,9 @@ export default function IntakeClient() {
           contactEmail: email,
           companyName:  company || null,
           projectName:  project,
+          city:         projCity,
+          state:        projState,
+          zip:          projZip,
           drawingsData: manual ? null : (drawings || null),
           answers: mergedAnswers,
         }),
@@ -478,9 +559,55 @@ export default function IntakeClient() {
     }
   }
 
+  // ── Download PDF ──────────────────────────────────────────────────────────
+  // Sends the same inputs as the live estimate — never a number. The server
+  // recomputes the budget and renders only what this summary already shows.
+  async function handleDownloadPdf() {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    setPdfError(null);
+    try {
+      const res = await fetch('/api/intake/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectName: project,
+          city:        projCity,
+          state:       projState,
+          zip:         projZip,
+          answers:     mergedAnswers,
+          drawings:    manual ? null : drawings,
+          timeZone:    Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        const e = new Error(body.error || '');
+        e.friendly = Boolean(body.error);
+        throw e;
+      }
+      const blob = await res.blob();
+      const named = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') || '');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = named ? named[1] : 'ILC-Conceptual-Budget.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    } catch (err) {
+      setPdfError(err?.friendly ? err.message : 'We couldn’t make the PDF just now. Please try again in a minute.');
+    } finally {
+      setPdfBusy(false);
+    }
+  }
+
   const budget     = estimate?.budget || null;
   const estimatePd = estimate?.projectData || null;
   const hasEstimate = (estimatePd?.grossSf || 0) > 0 && budget;
+  // Typed-in budgets only: the ±10% band the server works out (estimate.js).
+  const range = estimate?.range || null;
 
   // ── Review page — the EXACT internal summary top (Mike, 2026-09-04: "The
   // summary page should match the exact summary page we have internally. You
@@ -536,6 +663,11 @@ export default function IntakeClient() {
             <div className="text-right">
               <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Live budget</div>
               <div className="text-base font-bold text-slate-900 tabular-nums">{formatCurrency(budget.totalWithControls)}</div>
+              {range && (
+                <div className="text-[10px] text-slate-400 tabular-nums">
+                  likely {formatCurrency(range.low)}–{formatCurrency(range.high)}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -593,6 +725,7 @@ export default function IntakeClient() {
                   </div>
                 </div>
                 <h1 className="text-xl font-semibold text-slate-900">{step.label}</h1>
+                {step.hint && <p className="text-sm text-slate-500 mt-1 max-w-xl">{step.hint}</p>}
               </div>
             )}
 
@@ -612,10 +745,24 @@ export default function IntakeClient() {
                 {/* ── About you ── */}
                 {stepId === 'about' && (
                   <section className="bg-white rounded-2xl border border-slate-200 p-6">
-                    <p className="text-sm text-slate-500 mb-6 max-w-xl">
-                      Tell us about your project and upload your drawings. We&apos;ll read the building data
-                      straight from them and build a conceptual lighting and controls budget as you answer.
-                    </p>
+                    {/* How this works — what the tool is, what you'll need,
+                        how long, and what happens after. Kept light. */}
+                    <div className="mb-6 max-w-xl">
+                      <p className="text-sm text-slate-600">
+                        Get a quick ballpark lighting budget for your project from ILC Studios. It takes a few minutes.
+                      </p>
+                      <h2 className="text-xs font-bold uppercase tracking-wide text-slate-400 mt-4 mb-2">How this works</h2>
+                      <ol className="space-y-2">
+                        {HOW_IT_WORKS.map((s, i) => (
+                          <li key={s.title} className="flex gap-3 text-sm text-slate-600">
+                            <span className="w-5 h-5 mt-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold flex items-center justify-center shrink-0">
+                              {i + 1}
+                            </span>
+                            <span><span className="font-semibold text-slate-800">{s.title}</span> — {s.body}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
 
                     <div className="grid sm:grid-cols-2 gap-4">
                       <Field label="First name">
@@ -651,6 +798,33 @@ export default function IntakeClient() {
                       <Field label="Project name">
                         <input className={inputCls} value={project} onChange={e => setProject(e.target.value)} placeholder="Lincoln Avenue Phase 2" />
                       </Field>
+
+                      {/* Where the project is. City takes the room; State fits
+                          "District of Columbia"; Zip fits ZIP+4. */}
+                      <div className="sm:col-span-2 grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_12rem_8rem] gap-4">
+                        <div className="col-span-2 sm:col-span-1">
+                          <Field label="Project city">
+                            <input className={inputCls} value={projCity} onChange={e => setProjCity(e.target.value)} placeholder="Austin" maxLength={100} />
+                          </Field>
+                        </div>
+                        <Field label="State">
+                          <select className={inputCls} value={projState} onChange={e => setProjState(e.target.value)}>
+                            <option value="">Choose…</option>
+                            {US_STATES.map(([code, name]) => <option key={code} value={code}>{name}</option>)}
+                          </select>
+                        </Field>
+                        <Field label="Zip code" error={touchedZip && projZip.trim() && !projLoc.zip ? 'Enter a 5-digit zip code.' : null}>
+                          <input
+                            className={inputCls}
+                            inputMode="numeric"
+                            maxLength={10}
+                            value={projZip}
+                            onChange={e => setProjZip(e.target.value)}
+                            onBlur={() => setTouchedZip(true)}
+                            placeholder="78701"
+                          />
+                        </Field>
+                      </div>
                     </div>
 
                     <div className="flex items-center justify-between mt-6">
@@ -699,6 +873,30 @@ export default function IntakeClient() {
                         </button>
                       ))}
                     </div>
+
+                    {/* Project type — asked here, up front, for both paths (Mike,
+                        2026-09-12: "ask what kind of building type this is on the
+                        drawing screen … If we put it further at the front it can
+                        conditionally change other questions"). Town Houses and Single
+                        Family turn on the walking-path bollard question on the Exterior page. */}
+                    {haveDrawings !== null && (
+                      <div className="mb-6">
+                        <Field label="What type of project is this?" labelRight="Required"
+                          hint="Sets stairs, wall packs, pathway lighting and the controls the code requires.">
+                          <select
+                            className={cn(inputCls, 'sm:max-w-xs')}
+                            value={answers.projectType ?? ''}
+                            onChange={e => setAnswers(a => ({ ...a, projectType: e.target.value }))}
+                          >
+                            <option value="">Choose one…</option>
+                            {PROJECT_TYPE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        </Field>
+                        {guessedType && answers.projectType === guessedType && (
+                          <p className="text-xs text-amber-600 mt-1.5">Pre-filled from your drawings — change it if we got it wrong.</p>
+                        )}
+                      </div>
+                    )}
 
                     {/* The dropzone stays MOUNTED when "No" is picked (hidden with
                         CSS) so switching back keeps the uploaded files. */}
@@ -751,40 +949,70 @@ export default function IntakeClient() {
                     {/* ── No drawings: the typed-in figures form ── */}
                     {manual && (
                       <div className="space-y-6">
-                        <p className="text-sm text-slate-500">
-                          The items marked <strong>Required</strong> are all we need for a number. Leave anything else
-                          blank and we&apos;ll estimate it — our team checks every estimate before a budget goes out.
+                        <p className="text-sm text-slate-600">
+                          <strong>The more detail you give us, the more accurate your budget.</strong> Fill in everything
+                          you know — real numbers beat our estimates. If you don&apos;t know something, leave it and
+                          we&apos;ll estimate it from our past projects; you can type over any estimate. Our team checks
+                          every estimate before a budget goes out.
                         </p>
-                        <div className="grid sm:grid-cols-3 gap-4">
-                          <div className="sm:col-span-3">
-                            <Field label="Project type" labelRight="Required">
-                              <select
-                                className={inputCls}
-                                value={answers.projectType ?? ''}
-                                onChange={e => setAnswers(a => ({ ...a, projectType: e.target.value }))}
-                              >
-                                <option value="">Choose one…</option>
-                                {PROJECT_TYPE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                              </select>
-                            </Field>
+                        <div>
+                          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-xs mb-1.5">
+                            <span className="font-semibold text-slate-700">
+                              You&apos;ve given us {manualFilled} of {MANUAL_FIELDS.length} figures
+                            </span>
+                            <span className="text-slate-500">
+                              {manualFilled === MANUAL_FIELDS.length
+                                ? 'Every figure is yours — the most accurate budget we can give without drawings'
+                                : 'We estimate the rest'}
+                            </span>
                           </div>
+                          <div
+                            className="h-2 w-full overflow-hidden rounded-full bg-slate-100"
+                            role="progressbar"
+                            aria-label="Figures filled in"
+                            aria-valuemin={0}
+                            aria-valuemax={MANUAL_FIELDS.length}
+                            aria-valuenow={manualFilled}
+                          >
+                            <div
+                              className="h-full rounded-full bg-amber-500 transition-all duration-300"
+                              style={{ width: `${Math.round((manualFilled / MANUAL_FIELDS.length) * 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                        <div className="grid sm:grid-cols-3 gap-4">
                           {MANUAL_FIELDS.filter(f => f.need).map(f => (
-                            <Field
+                            <FigureField
                               key={f.key}
                               label={f.label}
                               labelRight={f.need === 'required' ? 'Required' : f.key === 'figureGrossSf' ? 'Required — or unit size' : 'Or this'}
+                              hint={f.hint}
+                              note={manualNote(f)}
                             >
                               {manualInput(f)}
-                            </Field>
+                            </FigureField>
                           ))}
                         </div>
                         <div>
-                          <h3 className="text-sm font-semibold text-slate-800">Optional — we&apos;ll estimate anything left blank</h3>
-                          <div className="grid sm:grid-cols-2 gap-4 mt-3">
+                          <h3 className="text-sm font-semibold text-slate-800">The more of these you know, the more accurate your budget</h3>
+                          <p className="text-xs text-slate-500 mt-0.5">Don&apos;t know one? Leave it and we&apos;ll estimate it.</p>
+                          {/* No "Optional" tag on each box — the heading already says it. */}
+                          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
+                            <FigureField label="Is there a clubhouse?" hint="A clubhouse, leasing office or fitness room.">
+                              <select
+                                className={inputCls}
+                                value={hasClubhouse}
+                                onChange={e => setHasClubhouse(e.target.value)}
+                              >
+                                <option value="">Not sure</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                              </select>
+                            </FigureField>
                             {MANUAL_FIELDS.filter(f => !f.need).map(f => (
-                              <Field key={f.key} label={f.label} labelRight="Optional" hint={f.hint}>
+                              <FigureField key={f.key} label={f.label} hint={f.hint} note={manualNote(f)}>
                                 {manualInput(f)}
-                              </Field>
+                              </FigureField>
                             ))}
                           </div>
                         </div>
@@ -797,6 +1025,8 @@ export default function IntakeClient() {
                         <span className="text-xs text-slate-400">
                           {haveDrawings === null
                             ? 'Choose Yes or No above'
+                            : !answers.projectType
+                              ? 'Choose the project type above'
                             : manual
                               ? (manualCheck.ready
                                   ? 'Your live budget is ready'
@@ -806,7 +1036,7 @@ export default function IntakeClient() {
                                 : 'Upload drawings to see live pricing — you can still submit without them'}
                         </span>
                         {(() => {
-                          const ok = haveDrawings === 'yes' || (manual && manualCheck.ready);
+                          const ok = !!answers.projectType && (haveDrawings === 'yes' || (manual && manualCheck.ready));
                           return (
                             <button onClick={() => ok && goNext()} disabled={!ok} className={navBtn(ok)}>
                               {manual || drawings || haveDrawings === null ? 'Continue to units →' : 'Skip — continue to units →'}
@@ -835,7 +1065,7 @@ export default function IntakeClient() {
                             <div key={f.key}>
                               <Field label={f.label}>
                                 <input
-                                  className={inputCls}
+                                  className={cn(inputCls, figureBoxCls)}
                                   inputMode="numeric"
                                   value={figures[f.key]}
                                   onChange={e => setFigures(x => ({ ...x, [f.key]: e.target.value }))}
@@ -854,7 +1084,10 @@ export default function IntakeClient() {
                       </section>
                     )}
                     <div className="space-y-4">
-                      {step.sections.flatMap(name => questionsBySection.get(name) || []).map(q => (
+                      {step.sections.flatMap(name => questionsBySection.get(name) || [])
+                        // Walking-path bollards: townhomes and single-family only (Mike, 2026-09-12).
+                        .filter(q => q.key !== 'pathwayBollards' || BOLLARD_PROJECT_TYPES.includes(answers.projectType))
+                        .map(q => (
                         <div key={q.key}>
                           {q.key === 'interiorAmenityFinish' ? (
                             // $4–$16 in three finish tiers — same picker as the internal wizard.
@@ -875,10 +1108,9 @@ export default function IntakeClient() {
                             value={answers[q.key] ?? ''}
                             onChange={v => setAnswers(a => ({ ...a, [q.key]: v }))}
                             options={q.options.map(opt => ({ value: opt, label: optionLabel(q, opt) }))}
+                            // Per-answer cost comes from the server's estimate — never priced here.
+                            impact={q.engine ? estimate?.budget?.questionCosts?.[`${q.engine.section}.${q.engine.field}`] : undefined}
                           />
-                          )}
-                          {q.key === 'projectType' && guessedType && answers.projectType === guessedType && (
-                            <p className="text-xs text-amber-600 mt-1.5">Pre-filled from your drawings — change it if we got it wrong.</p>
                           )}
                         </div>
                       ))}
@@ -909,6 +1141,11 @@ export default function IntakeClient() {
                             <div className="text-3xl font-bold tabular-nums mb-2">
                               {formatCurrency(budget.totalWithControls)}
                             </div>
+                            {range && (
+                              <div className="text-sm mb-2 tabular-nums" style={{ color: '#cbd5e1' }}>
+                                Likely between {formatCurrency(range.low)} and {formatCurrency(range.high)} — built from typed-in figures, without drawings.
+                              </div>
+                            )}
                             <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
                               <div><span style={{ color: '#94a3b8' }}>Lighting Only: </span><span className="font-semibold">{formatCurrency(budget.subtotalLightingOnly)}</span></div>
                               <div><span style={{ color: '#94a3b8' }}>Controls (w/ F&amp;W): </span><span className="font-semibold">{formatCurrency(budget.controlsTotal)}</span></div>
@@ -950,6 +1187,39 @@ export default function IntakeClient() {
                           <span className="text-xs text-slate-400 italic">Hover a line for details</span>
                         </div>
                         <SummaryBudgetBreakdown budget={budget} freightPct={freightPct} warehousingPct={warehousingPct} />
+                      </div>
+                    )}
+
+                    {/* Keep a copy — PDF download, plus email once it's wired up */}
+                    {hasEstimate && (
+                      <div className="bg-white rounded-xl border border-slate-200 p-5">
+                        <h3 className="font-bold text-slate-900">Keep a copy</h3>
+                        <p className="text-xs text-slate-500 mt-0.5">Download this budget as a PDF to share with your team.</p>
+                        <div className="flex flex-wrap items-center gap-3 mt-3">
+                          <button
+                            type="button"
+                            onClick={handleDownloadPdf}
+                            disabled={pdfBusy}
+                            className={cn(
+                              'px-5 py-2.5 rounded-lg font-semibold text-sm border transition-colors',
+                              pdfBusy
+                                ? 'border-slate-200 text-slate-400 cursor-wait'
+                                : 'border-slate-300 text-slate-700 hover:bg-slate-50'
+                            )}
+                          >
+                            {pdfBusy ? 'Preparing…' : 'Download PDF'}
+                          </button>
+                          <button
+                            type="button"
+                            disabled
+                            aria-disabled="true"
+                            className="px-5 py-2.5 rounded-lg font-semibold text-sm border border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed"
+                          >
+                            Email this budget
+                          </button>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-2">Coming soon — email isn&apos;t connected yet.</p>
+                        {pdfError && <p className="text-xs text-red-600 mt-2" role="alert">{pdfError}</p>}
                       </div>
                     )}
 
@@ -1030,7 +1300,7 @@ export default function IntakeClient() {
         {!submitted && (
           hasEstimate ? (
             <div className="hidden lg:flex shrink-0">
-              <BudgetSidebar budget={budget} projectData={estimatePd} currentStep={step.budgetStep || null} />
+              <BudgetSidebar budget={budget} projectData={estimatePd} currentStep={step.budgetStep || null} range={range} />
             </div>
           ) : (
             <aside className="hidden lg:flex w-64 bg-white border-l border-slate-100 flex-col shrink-0">

@@ -27,6 +27,7 @@
  */
 
 import { pipelinesFor } from '../pipeline.js';
+import { findLikelyProject } from '../intake/duplicateMatch.js';
 
 /** How far back a closed job stays interesting. Mike's number, not a guess. */
 export const SCOPE_DAYS = 90;
@@ -307,6 +308,36 @@ export function checkNoLead(ctx) {
   return out;
 }
 
+/**
+ * 6. A web budget request whose name looks like a job we already have (Mike,
+ *    2026-09-12: "anything that seems the similar name to a job" should come
+ *    to this card).
+ *
+ * Worked out fresh against today's jobs, so a job entered AFTER the request
+ * came in still gets caught. Only requests still waiting (pending, not linked,
+ * not already answered "Not the same") and from the last 90 days.
+ */
+export function checkRequestLooksLikeJob(ctx) {
+  const { submissions, projects, now } = ctx;
+  const cutoff = now.getTime() - SCOPE_DAYS * DAY_MS;
+  const out = [];
+  for (const s of submissions) {
+    if (s.status !== 'PENDING' || s.duplicateMatchId || s.suggestionDismissedAt) continue;
+    if (new Date(s.createdAt).getTime() < cutoff) continue;
+    const match = findLikelyProject(s, projects);
+    if (!match) continue;
+    out.push({
+      key:       `request_looks_like_job:${s.id}:${match.projectId}`,
+      kind:      'REQUEST_LOOKS_LIKE_JOB',
+      title:     `Web request “${s.proposedName}” looks like ${match.projectName}`,
+      detail:    `Why: ${match.reason}. If it is the same job, link them so the follow-up lands on the right project; if not, say so and it goes away.`,
+      href:      `/admin/intake?id=${s.id}`,
+      hrefLabel: 'Open the request',
+    });
+  }
+  return out;
+}
+
 // ── Putting it together ──────────────────────────────────────────────────────
 
 /** Every live problem, in the order they should be looked at. */
@@ -327,11 +358,14 @@ export function runChecks(data) {
     eventsByProject,
     pipelineRows: (data.pipelineRows || []),
     contacts:     (data.contacts || []),
+    submissions:  (data.submissions || []),
   };
 
   // Order matters: this is the order they queue up in, so the ones that quietly
-  // break a number come before the ones that are merely untidy.
+  // break a number come before the ones that are merely untidy. A new request
+  // goes first — it is a customer waiting.
   return [
+    ...checkRequestLooksLikeJob(ctx),
     ...checkTeamMismatch(ctx),
     ...checkCloseDate(ctx),
     ...checkNoLead(ctx),

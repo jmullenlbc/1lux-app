@@ -131,7 +131,8 @@ test('no screen still asks the browser "are you sure" before removing one of the
 // ─── places that must still count archived rows ─────────────────────────────
 
 test('the next budget number counts archived projects (budgetNumber is unique)', () => {
-  const src = read('src/app/api/projects/route.js');
+  // Numbering moved into createProject (shared with "create from a web request").
+  const src = read('src/lib/projects/createProject.js');
   assert.match(src, /budgetNumber: \{ startsWith: prefix \}, \.\.\.INCLUDE_ARCHIVED/);
 });
 

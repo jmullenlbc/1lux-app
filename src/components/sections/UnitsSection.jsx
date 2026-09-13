@@ -1,9 +1,9 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import QuestionCard from './QuestionCard';
-import { formatCurrency } from '@/lib/calculations';
+import { formatCurrency, calculateBudget } from '@/lib/calculations';
 import { PRICING } from '@/lib/pricing';
 import StandardsHint from '@/components/wizard/StandardsHint';
 
@@ -13,7 +13,7 @@ const FAN_ROOMS = {
   masterSecondaryTertiary: 2.5, masterSecondaryTertiaryLiving: 2.75,
 };
 
-export default function UnitsSection({ responses, projectData, pricing, onSaveResponses, onNext, onPrev, isDesign = false }) {
+export default function UnitsSection({ responses, projectData, allSections, pricing, onSaveResponses, onNext, onPrev, isDesign = false }) {
   // Single source of truth: read costs from the live master pricing (same object
   // the engine uses), falling back to static defaults. Prevents UI/engine drift.
   const P = pricing || PRICING;
@@ -51,6 +51,12 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
   }));
   const [dirty, setDirty] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
+  // What each answer costs (+ estimated labor), recomputed live as answers
+  // change — local answers only save on Next (Mike 2026-09-13).
+  const qc = useMemo(
+    () => calculateBudget(projectData, { ...(allSections || {}), units: { ...(allSections?.units || {}), ...ans } }, pricing || null).questionCosts || {},
+    [projectData, allSections, ans, pricing],
+  );
 
   function set(k, v) {
     setAns(a => ({ ...a, [k]: v }));
@@ -231,7 +237,7 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
                 { value: 'yes', label: 'Yes — 7" disk w/ occupancy sensor', cost: P.designUpgrades?.boilerRoomDisk ?? 15 },
               ]}
               value={ans.boilerRoom}
-              onChange={v => set('boilerRoom', v)}
+              onChange={v => set('boilerRoom', v)} impact={qc['units.boilerRoom']}
             />
 
           </div>
@@ -252,7 +258,7 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
               { value: 'lowVoltage',  label: 'Low voltage',      sub: 'Slim tape + remote driver', cost: P.undercabinet.lowVoltage.product },
             ]}
             value={ans.undercabinet}
-            onChange={v => set('undercabinet', v)}
+            onChange={v => set('undercabinet', v)} impact={qc['units.undercabinet']}
           />
 
           {isDesign && hasUndercab120v && (
@@ -282,7 +288,7 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
               { value: 'oneLinear',        label: '1 linear pendant',      cost: P.kitchenPendants.oneLinear.product },
             ]}
             value={ans.kitchenPendants}
-            onChange={v => set('kitchenPendants', v)}
+            onChange={v => set('kitchenPendants', v)} impact={qc['units.kitchenPendants']}
             override={{
               value:       ans.kitchenPendantsPrice,
               onChange:    v => set('kitchenPendantsPrice', v),
@@ -313,7 +319,7 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
               { value: 'masterSecondaryTertiaryLiving',label: 'Master bed/Secondary bed/Tertiary bed + Living room',   sub: '~2.75 fans avg/unit',  cost: isDesign ? undefined : fanOptionCost(2.75) },
             ]}
             value={ans.fans}
-            onChange={v => set('fans', v)}
+            onChange={v => set('fans', v)} impact={qc['units.fans']}
             costSuffix="/unit"
             override={{
               value:       ans.fansPrice,
@@ -339,7 +345,7 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
                   { value: 'high',   label: 'Ceiling fan (High finish)',   sub: 'custom/premium',           cost: Math.max(0, (P.designFanLevels?.high   ?? 270) - fanDiskCredit) },
                 ]}
                 value={ans.fanLevel}
-                onChange={v => set('fanLevel', v)}
+                onChange={v => set('fanLevel', v)} impact={qc['units.fanLevel']}
               />
 
               <QuestionCard
@@ -388,7 +394,7 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
                   { value: '4small', label: '(4) 5"/7" Disks — more even light spread',    sub: '+$34/unit adder',       cost: 34 },
                 ]}
                 value={ans.livingRoomDisks}
-                onChange={v => set('livingRoomDisks', v)}
+                onChange={v => set('livingRoomDisks', v)} impact={qc['units.livingRoomDisks']}
               />
 
               <QuestionCard
@@ -424,7 +430,7 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
               { value: 'bathBarHigh',             label: 'Mirror and bath bar (High finish)',       cost: vanNet('bathBarHigh') },
             ]}
             value={ans.vanity}
-            onChange={v => set('vanity', v)}
+            onChange={v => set('vanity', v)} impact={qc['units.vanity']}
             override={{
               value:       ans.vanityPrice,
               onChange:    v => set('vanityPrice', v),
@@ -481,7 +487,7 @@ export default function UnitsSection({ responses, projectData, pricing, onSaveRe
                 { value: 'sconceHigh',   label: 'Exterior balcony sconce (High finish)',   sub: 'premium priority', cost: P.balcony.sconceHigh.product },
               ]}
               value={ans.balcony}
-              onChange={v => set('balcony', v)}
+              onChange={v => set('balcony', v)} impact={qc['units.balcony']}
               override={{
                 value:       ans.balconyPrice,
                 onChange:    v => set('balconyPrice', v),

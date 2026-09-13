@@ -39,14 +39,52 @@ test('high-rise: units × the high-rise rate (Modera Town Lake shape: 381 units)
 
 test('every building type prices at its own master-pricing rate', () => {
   for (const [type, rate] of Object.entries(PRICING.exterior.pathway.dollarsPerUnit)) {
-    const p = pathway({ numUnits: 200, buildingTypeKey: type });
+    // Townhomes and single-family only get the line when someone answers Yes to
+    // the bollard question.
+    const resp = ['townHouses', 'singleFamily'].includes(type) ? { exterior: { pathwayBollards: 'yes' } } : {};
+    const p = pathway({ numUnits: 200, buildingTypeKey: type }, resp);
     assert.equal(p.product, Math.max(200 * rate, PRICING.exterior.pathway.minTotal),
       `expected ${type} at $${rate}/unit`);
   }
 });
 
-test('townhomes keep the $320 actuals-grounded rate', () => {
-  assert.equal(pathway({ numUnits: 100, buildingTypeKey: 'townHouses' }).product, 32000);
+test('townhomes keep the $320 actuals-grounded rate when bollards are Yes', () => {
+  assert.equal(pathway({ numUnits: 100, buildingTypeKey: 'townHouses' }, { exterior: { pathwayBollards: 'yes' } }).product, 32000);
+});
+
+// ── townhome walking-path bollards (Mike, 2026-09-12) ───────────────────────
+// "if townhomes are chosen we then ask on the exterior section screen if they
+// want to light walking paths with bollards. It should be yes or no and no is $0"
+
+test('townhomes and single-family: No or unanswered = $0, and the line says it was declined', () => {
+  for (const type of ['townHouses', 'singleFamily']) {
+    for (const ans of [undefined, '', 'no']) {
+      const p = pathway({ numUnits: 100, buildingTypeKey: type }, { exterior: { pathwayBollards: ans } });
+      assert.equal(p.product, 0, `${type} answer ${JSON.stringify(ans)} should be $0`);
+      assert.equal(p.asksBollards, true);
+      assert.equal(p.bollardsDeclined, true);
+    }
+  }
+});
+
+test('single-family Yes prices bollards at its own rate (Mike 2026-09-12: "Yes")', () => {
+  const p = pathway({ numUnits: 100, buildingTypeKey: 'singleFamily' }, { exterior: { pathwayBollards: 'yes' } });
+  assert.equal(p.product, Math.max(100 * PRICING.exterior.pathway.dollarsPerUnit.singleFamily, PRICING.exterior.pathway.minTotal));
+  assert.equal(p.bollardsDeclined, false);
+});
+
+test('the bollard question is townhome/single-family only — other types ignore a No', () => {
+  for (const type of ['stackedFlats', 'garden', 'podium']) {
+    const p = pathway({ numUnits: 200, buildingTypeKey: type }, { exterior: { pathwayBollards: 'no' } });
+    assert.ok(p.product > 0, `${type} should still price pathway`);
+    assert.equal(p.asksBollards, false);
+  }
+});
+
+test('townhomes Yes on a solar site gets the 1.6× bump', () => {
+  const p = pathway({ numUnits: 100, buildingTypeKey: 'townHouses' },
+    { exterior: { pathwayBollards: 'yes', siteDesignLevel: 'solar' } });
+  assert.ok(Math.abs(p.product - 32000 * 1.6) < 0.01, `got ${p.product}`);
 });
 
 test("Mike's 2026-09-04 corrections landed: garden/wrap $60, podium tier $35", () => {

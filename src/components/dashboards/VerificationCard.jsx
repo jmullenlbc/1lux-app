@@ -21,6 +21,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 
 const TONE = {
+  REQUEST_LOOKS_LIKE_JOB: 'bg-violet-50 text-violet-700 border-violet-200',
   TEAM_MISMATCH:     'bg-red-50 text-red-700 border-red-200',
   CLOSE_DATE_MISSING:'bg-amber-50 text-amber-700 border-amber-200',
   CLOSE_DATE_GUESSED:'bg-amber-50 text-amber-700 border-amber-200',
@@ -30,6 +31,7 @@ const TONE = {
 };
 
 const LABEL = {
+  REQUEST_LOOKS_LIKE_JOB: 'Looks like a job',
   TEAM_MISMATCH:     'Two answers',
   CLOSE_DATE_MISSING:'No close date',
   CLOSE_DATE_GUESSED:'Guessed date',

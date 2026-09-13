@@ -15,10 +15,11 @@ import { runChecks } from './checks';
  * fresh every time, so fixing a record makes the item disappear on its own.
  */
 export async function runChecksFromDb(now) {
-  const [projects, statusEvents, pipelineRows, contacts] = await Promise.all([
+  const [projects, statusEvents, pipelineRows, contacts, submissions] = await Promise.all([
     prisma.project.findMany({
       select: {
         id: true, name: true, clientId: true, serviceType: true, updatedAt: true,
+        city: true, state: true, contactEmail: true,       // for "looks like a job"
         procurementStatus: true, designStatus: true,
         architect:         { select: { id: true, name: true } },
         generalContractor: { select: { id: true, name: true } },
@@ -37,9 +38,16 @@ export async function runChecksFromDb(now) {
         projectLinks: { select: { projectId: true } },
       },
     }),
+    prisma.conceptualSubmission.findMany({
+      where: { status: 'PENDING', duplicateMatchId: null, suggestionDismissedAt: null },
+      select: {
+        id: true, proposedName: true, city: true, state: true, submitterDomain: true, submitterEmail: true,
+        clientId: true, status: true, duplicateMatchId: true, suggestionDismissedAt: true, createdAt: true,
+      },
+    }),
   ]);
 
-  return runChecks({ now, projects, statusEvents, pipelineRows, contacts });
+  return runChecks({ now, projects, statusEvents, pipelineRows, contacts, submissions });
 }
 
 /**

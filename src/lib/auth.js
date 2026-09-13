@@ -1,6 +1,7 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { DEPARTMENTS_SELECT, hasDepartment, SALES_MARKETING } from './departments';
 
 const SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'ilc-studios-secret'
@@ -151,6 +152,25 @@ export async function requireSalesAdmin(request) {
   const { prisma } = await import('@/lib/db');
   const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { permissions: true } });
   if (!isSalesAdmin({ role: user.role, permissions: dbUser?.permissions })) {
+    return { user: null, error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
+  }
+  return { user, error: null };
+}
+
+// Who can work the web budget request queue: any admin, plus anyone in the
+// Sales + marketing department (Mike, 2026-09-12 — sales follows up on every
+// new request). Departments aren't in the JWT, so non-admins cost one DB read.
+export async function requireIntakeReviewer(request) {
+  const { user, error } = await requireAuth(request);
+  if (error) return { user: null, error };
+  if (isAnyAdmin(user.role)) return { user, error: null };
+
+  const { prisma } = await import('@/lib/db');
+  const dbUser = await prisma.user.findUnique({
+    where:  { id: user.id },
+    select: { isActive: true, departments: DEPARTMENTS_SELECT },
+  });
+  if (!dbUser?.isActive || !hasDepartment(dbUser, SALES_MARKETING)) {
     return { user: null, error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
   }
   return { user, error: null };

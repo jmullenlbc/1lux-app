@@ -3,6 +3,7 @@
 // resolve './pricing'.
 import { PRICING as STATIC_PRICING } from './pricing.js';
 import { breezewayStairPackage } from './stairLandings.js';
+import { emergencyStrategyCost } from './emergencyCost.js';
 
 // Safely convert any value to a finite number
 function n(val, fallback = 0) {
@@ -222,10 +223,9 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const sconceProduct    = sconceUnit * numUnits;
 
   // Stairwells. Enclosed corridor-building stairs: LED strip + battery per
-  // landing. Breezeway walk-ups (garden / stacked flats / gurban): the open
-  // stair carries its own landing disks, wall packs on the stair and egress,
-  // frogeyes and vestibule disks — the Lowell + I76 package (Mike 2026-09-05:
-  // "Where it does matter a lot is breezeways"). Same landings count feeds both.
+  // landing. Breezeway walk-ups (garden / stacked flats / gurban): the same
+  // landing × 2.2, because the open breezeway is the corridor and the stair in
+  // one (Mike 2026-09-12). Same landings count feeds both.
   const breezewayStairs  = breezewayStairPackage(
     { landings: stairwells, stories: n(pd.numFloors), buildingTypeKey },
     PRICING,
@@ -287,7 +287,18 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const extAmenityProduct = extAmenitySf * extAmenityRate * nightMultiplier;
 
   const stallsPerFixture = PRICING.exterior.surfaceParking.stallsPerFixture ?? 9;
-  const parkingFixtures  = Math.ceil(surfaceParking / stallsPerFixture);
+  // Drive-lane area lights: the same area light + pole, along a private drive
+  // with no parking lot to hang them on (a townhouse community's one road).
+  // Set by the no-drawings estimate (quantities.js driveLaneLights); 0 unless
+  // something passed a count.
+  const driveLaneLights  = Math.max(0, Math.round(n(exterior.driveLaneLightsQty, 0)));
+  const stallFixtures    = Math.ceil(surfaceParking / stallsPerFixture);
+  // One editable area-light count (Mike, 2026-09-12): a typed total on the
+  // Exterior screen replaces lot poles + drive-lane lights together.
+  const areaLightsOverride = priceOverride(exterior.areaLightsQty);
+  const parkingFixtures  = areaLightsOverride != null
+    ? Math.max(0, Math.round(areaLightsOverride))
+    : stallFixtures + driveLaneLights;
   // Solar site design multiplies the area-lighting (surface parking) line —
   // each fixture carries its own panel, battery and controller. Mike 2026-09-04
   // (Fulshear review): "Solar lighting should add 2.5x to the area lighting.
@@ -402,7 +413,12 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const pathwayBase    = numUnits > 0 && pathwayRate > 0
     ? Math.max(numUnits * pathwayRate, pathwayFloor)
     : 0;
-  const pathwayAuto    = pathwayBase * pathwaySolarMultiplier;
+  // Townhomes and single-family are asked "Light the walking paths with
+  // bollards?" (Mike, 2026-09-12). No — the default, and what the real townhome
+  // budgets on file show — is $0; Yes is the model line above.
+  const pathwayAsksBollards = wpBuildingType === 'townHouses' || wpBuildingType === 'singleFamily';
+  const pathwayBollardsDeclined = pathwayAsksBollards && exterior.pathwayBollards !== 'yes';
+  const pathwayAuto    = pathwayBollardsDeclined ? 0 : pathwayBase * pathwaySolarMultiplier;
   const pathwayProduct = pathwayManual > 0 ? 0 : pathwayAuto;
 
   // Misc buffer = 5% of formula-line subtotal + manual adder. Both contribute.
@@ -419,28 +435,15 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     : exteriorFormulaTotal + exteriorManualTotal;
 
   // ─── EMERGENCY LIGHTING ───────────────────────────────────────────────────
-  const strategyKey = emergency.strategy || 'integrated_inverters';
-  const strat = PRICING.emergency.strategies[strategyKey] || PRICING.emergency.strategies.frogeyes;
-
-  // Frogeyes uses a single flat $/SF across all zones (editable: emergency.frogeyesPerSf).
-  const frogeyesFlat = strategyKey === 'frogeyes' ? n(PRICING.emergency.frogeyesPerSf, 0.17) : null;
-  const cRate = frogeyesFlat ?? strat.corridorPerSf;
-  const aRate = frogeyesFlat ?? strat.amenityPerSf;
-  const gRate = frogeyesFlat ?? strat.garagePerSf;
-
-  let emergencyProduct =
-    corridorSf   * cRate +
-    intAmenitySf * aRate +
-    garageSf     * gRate;
-
-  if (strat.batteryGarage && garageSf > 0) {
-    const b = PRICING.emergency.batteryGarage;
-    const battCount = Math.floor((garageSf / b.sfPerFixture) / b.fixtureEvery);
-    emergencyProduct += battCount * b.costPerFixture;
-  }
-
-  // Manual adder
-  emergencyProduct += n(emergency.manualAdder);
+  // One shared helper (src/lib/emergencyCost.js) so both Emergency screens show
+  // exactly this number. Every strategy but 'generator' puts a battery in every
+  // other garage fixture when there is a garage (Mike, 2026-09-12).
+  // Unanswered = Frogeyes, the lowest-cost fixture strategy — the same starting
+  // answer as the public form (Mike, 2026-09-12: "should start in frogeyes").
+  const strategyKey = emergency.strategy || 'frogeyes';
+  const emergencyCost = emergencyStrategyCost(PRICING, strategyKey, { corridorSf, intAmenitySf, garageSf });
+  const emergencyManualAdder = n(emergency.manualAdder);
+  const emergencyProduct = emergencyCost.total + emergencyManualAdder;
 
   // ─── EXIT SIGNS ───────────────────────────────────────────────────────────
   // Large-project threshold: per pricing.js, exit signs cost is halved when
@@ -475,20 +478,20 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
 
   // Entry disk upgrade — 12" oversized or decorative surface mount.
   // Default 'typical' (5"/7" disk, included in base) has no adder.
-  if (r.entryDisk === '12inch') {
+  // Both answers are saved on the Units step, so they live under `units` —
+  // reading them off the top-level responses (as this did before 2026-09-12)
+  // never found them, and the upgrade the screen showed was never charged.
+  // 'upgraded12' is the older spelling of the 12" answer.
+  if (units.entryDisk === '12inch' || units.entryDisk === 'upgraded12') {
     designAdderTotal += numUnits * n(PRICING.designUpgrades?.entryway12inch, 25);
-  } else if (r.entryDisk === 'decorative') {
+  } else if (units.entryDisk === 'decorative') {
     designAdderTotal += numUnits * n(PRICING.designUpgrades?.entryDecorative, 30);
   }
 
-  // 52" fan upgrade — $25/fan over 48" default (only counts when fans are present)
-  if (r.fanSize52 === 'yes' && fanCount > 0) {
-    designAdderTotal += fanCount * n(PRICING.designUpgrades?.fanSize52Adder, 25);
-  }
-
-  // Corridor elevated design adder (only when no specific spacing is set)
-  if (corridorSf > 0 && !corridors.fixtureSpacing && corridors.corridorLevel === 'elevated') {
-    designAdderTotal += corridorSf * n(PRICING.designCorridors?.elevatedAdderPerSf, 0.25);
+  // 52" fan upgrade over the 48" default (only counts when fans are present).
+  // Master pricing sets this to $0 today — no upcharge, per Mike.
+  if (units.fanSize52 === 'yes' && fanCount > 0) {
+    designAdderTotal += fanCount * n(PRICING.designUpgrades?.fanSize52Adder, 0);
   }
 
   // Stairwell elevated design adder
@@ -496,35 +499,42 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     designAdderTotal += stairwells * n(PRICING.designCorridors?.stairwellElevatedAdder, 50);
   }
 
-  // Garage design level — replaces flat $0.27/SF
-  // CorridorsSection sends 'standard' ($0.30/SF) or 'enhanced' ($0.45/SF)
+  // Garage design level — replaces the flat garage $/SF. Rates come from master
+  // pricing (designGarage); the fallbacks match the sheet. 'standard'/'medium'
+  // is the base level, 'enhanced'/'high' the upgraded one.
+  // Only the BASE garage line is swapped out — a typed garage manual adder
+  // stays on top (it used to be wiped out here).
   if (corridors.garageDesignLevel && garageSf > 0) {
-    let baseGarageRate;
-    if (corridors.garageDesignLevel === 'enhanced' || corridors.garageDesignLevel === 'high') {
-      baseGarageRate = n(PRICING.designGarage?.baseHighPerSf, 0.45);
-    } else {
-      // 'standard' or legacy 'medium'
-      baseGarageRate = n(PRICING.designGarage?.baseMediumPerSf, 0.30);
-    }
-    // Controls adder
+    const DG = PRICING.designGarage || {};
+    const baseGarageRate = (corridors.garageDesignLevel === 'enhanced' || corridors.garageDesignLevel === 'high')
+      ? n(DG.baseHighPerSf, 0.25)
+      : n(DG.baseMediumPerSf, 0.20);
+    // Controls adder. When the Emergency line already buys the garage
+    // batteries (every strategy but generator), the battery part of these
+    // options is not charged twice: 'battery' adds nothing and
+    // 'batteryAndSensor' adds only the sensor.
+    const batteriesOnEmergency = emergencyCost.garageBattery;
     let garageCtrlRate = 0;
-    if      (corridors.garageControls === 'daylighting')     garageCtrlRate = 0.10;
-    else if (corridors.garageControls === 'batteryAndSensor') garageCtrlRate = 0.06;
-    else if (corridors.garageControls === 'battery')          garageCtrlRate = 0.05;
-    else if (corridors.garageControls === 'occSensor')        garageCtrlRate = 0.02;
+    if      (corridors.garageControls === 'daylighting')      garageCtrlRate = n(DG.daylightingAdderPerSf, 0.10);
+    else if (corridors.garageControls === 'batteryAndSensor') garageCtrlRate = batteriesOnEmergency ? n(DG.occSensorAdderPerSf, 0.02) : n(DG.batteryAndSensorPerSf, 0.06);
+    else if (corridors.garageControls === 'battery')          garageCtrlRate = batteriesOnEmergency ? 0 : n(DG.batteryAdderPerSf, 0.05);
+    else if (corridors.garageControls === 'occSensor')        garageCtrlRate = n(DG.occSensorAdderPerSf, 0.02);
 
     const garageDesignTotal = garageSf * (baseGarageRate + garageCtrlRate);
-    designAdderTotal += garageDesignTotal - garageProduct; // replaces flat garage product
+    designAdderTotal += garageDesignTotal - garageBaseProduct;
   }
 
-  // Exit sign type override — use count-based formula for all three types
+  // Exit sign type — count-based for all three types. Replaces only the base
+  // exit-sign line; a typed exit-sign manual adder stays on top.
+  // Count and price live out here so the per-answer cost table can reuse them.
+  const DX = PRICING.designExitSigns || {};
+  const signCount = grossSf > 0 ? Math.max(1, Math.ceil(grossSf / n(DX.sfPerSign, 5000))) : 0;
+  let signCost = 0;
+  if      (corridors.exitSignType === 'edgelit')  signCost = n(DX.edgelitPerSign,       120);
+  else if (corridors.exitSignType === 'mixed')    signCost = n(DX.mixedPerSign,          75);
+  else if (corridors.exitSignType)                signCost = n(DX.thermoplasticPerSign,  22);
   if (corridors.exitSignType && grossSf > 0) {
-    const signCount = Math.max(1, Math.ceil(grossSf / n(PRICING.designExitSigns?.sfPerSign, 5000)));
-    let signCost;
-    if      (corridors.exitSignType === 'edgelit')  signCost = n(PRICING.designExitSigns?.edgelitPerSign,       127);
-    else if (corridors.exitSignType === 'mixed')    signCost = n(PRICING.designExitSigns?.mixedPerSign,          75);
-    else                                            signCost = n(PRICING.designExitSigns?.thermoplasticPerSign,  22);
-    designAdderTotal += signCount * signCost - exitSignsProduct;
+    designAdderTotal += signCount * signCost - exitSignsBaseProduct;
   }
 
   // ─── SUBTOTALS ────────────────────────────────────────────────────────────
@@ -603,6 +613,105 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const perSf   = grossSf  > 0 ? totalWithContingency / grossSf  : 0;
   const perUnit = numUnits > 0 ? totalWithContingency / numUnits : 0;
 
+  // ─── PER-ANSWER COST + LABOR ──────────────────────────────────────────────
+  // What each answer costs, shown next to that answer on every questionnaire
+  // screen (internal and public) so a client can weigh the choice (Mike
+  // 2026-09-13). Keyed "section.field". Labor is an ESTIMATE shown beside the
+  // product; it is never added to any total above. RAW rates, no OH&P.
+  const L = PRICING.labor || {};
+  const lab = k => n(L[k]);
+  const questionCosts = {};
+  const line = (label, count, countLabel, each, laborEach) => ({
+    label, count, countLabel, each, product: count * each,
+    laborEach, labor: count * laborEach,
+  });
+  const addQ = (key, lines) => {
+    const ls = lines.filter(Boolean);
+    questionCosts[key] = {
+      lines:   ls,
+      product: ls.reduce((s, l) => s + l.product, 0),
+      labor:   ls.reduce((s, l) => s + l.labor, 0),
+    };
+  };
+
+  // Undercabinet: 8 ft per kitchen — 120V in 24" pieces, low voltage per foot of tape.
+  const ucKey = units.undercabinet || 'none';
+  const ucFt  = n(L.undercabinetFtPerUnit, 8);
+  const ucLaborEach = ucKey === 'lineVoltage' ? Math.ceil(ucFt / 2) * lab('undercabinet24in')
+                    : ucKey === 'lowVoltage'  ? ucFt * lab('tapePerFt')
+                    : 0;
+  addQ('units.undercabinet', [ucKey !== 'none' && line('Undercabinet', numUnits, 'units', n(ucPricing.product), ucLaborEach)]);
+
+  // Pendants: labor per pendant hung, by how many the answer hangs.
+  const pKey = units.kitchenPendants || 'none';
+  const pendantsPerUnit = pKey.startsWith('threeSmall') ? 3 : pKey.startsWith('twoMedium') ? 2 : pKey === 'none' ? 0 : 1;
+  addQ('units.kitchenPendants', [pendantsChosen && line('Kitchen pendants', numUnits, 'units', pendantsUnit, pendantsPerUnit * lab('pendant'))]);
+
+  // Fans — the fan-rooms answer and the design fan-level answer share one line.
+  const fansLine = fanCount > 0 ? line('Ceiling fans', fanCount, 'fans', fanPricePerFan, lab('ceilingFan')) : null;
+  addQ('units.fans',     [fansLine]);
+  addQ('units.fanLevel', [fansLine]);
+
+  // Vanity: a lighted mirror installs on a mirror j-box; a bath bar like a sconce.
+  const vKey = units.vanity || 'bathBarLow';
+  const vanityLaborEach = vKey.startsWith('illuminatedMirror') ? lab('mirrorJBox') : lab('sconce');
+  addQ('units.vanity', [numVanities > 0 && line('Vanity lighting', numVanities, 'vanities', vanityNet, vanityLaborEach)]);
+
+  // Balcony: 5" disk or a sconce, one per balcony.
+  const bKey = units.balcony || 'none';
+  addQ('units.balcony', [balconyChosen && line('Balcony fixture', numBalconies, 'balconies', balconyUnit, bKey === 'disk5inch' ? lab('surfaceDisk') : lab('sconce'))]);
+
+  // Design-screen unit adders.
+  addQ('units.boilerRoom', [units.boilerRoom === 'yes' && line('Boiler room disk', numUnits, 'units', n(PRICING.designUpgrades?.boilerRoomDisk, 15), lab('surfaceDisk'))]);
+  addQ('units.livingRoomDisks', [units.livingRoomDisks === '4small' && line('Living room (4) small disks', numUnits, 'units', n(PRICING.designUpgrades?.livingRoom4Disks, 34), 3 * lab('surfaceDisk'))]);
+
+  // Corridors: one unit-entry sconce per unit.
+  addQ('corridors.unitSconce', [sconceChosen && line('Unit entry sconce', numUnits, 'units', sconceUnit, lab('sconce'))]);
+
+  // Stairs: one 4 ft strip per landing (a breezeway landing carries the
+  // breezeway multiplier's worth of fixtures), plus the elevated adder.
+  const elevatedAdder = corridors.stairwellDesign === 'elevated' ? n(PRICING.designCorridors?.stairwellElevatedAdder, 50) : 0;
+  const perLanding = breezewayStairs ? n(breezewayStairs.ratePerLanding) : n(PRICING.corridors.stairwellPerLanding.product);
+  const stripsPerLanding = breezewayStairs ? n(breezewayStairs.multiplier, 1) : 1;
+  addQ('corridors.stairwellDesign', [stairwells > 0 && line('Stair landings', stairwells, 'landings', perLanding + elevatedAdder, stripsPerLanding * lab('strip4ft'))]);
+
+  // Exit signs.
+  addQ('corridors.exitSignType', [corridors.exitSignType && signCount > 0 && line('Exit signs', signCount, 'signs', signCost, lab('exitSign'))]);
+
+  // Area lights: pole + base, plus trenching (none on a solar site).
+  const poleEach = (PRICING.exterior.surfaceParking.perFixture ?? PRICING.exterior.surfaceParking.perStall ?? 1325) * solarMultiplier;
+  addQ('exterior.siteDesignLevel', [parkingFixtures > 0 && line(solarSite ? 'Solar area lights' : 'Area lights', parkingFixtures, 'poles', poleEach, lab('areaPole') + (solarSite ? 0 : lab('trenching')))]);
+
+  // Wallpacks.
+  addQ('exterior.wallpacksQty', [wpQty > 0 && line('Wallpacks', wpQty, 'wallpacks', wpEach, lab('sconce'))]);
+
+  // Pathway bollards: priced per unit, no fixture count → product only.
+  addQ('exterior.pathwayBollards', [pathwayProduct > 0 && { label: 'Walking-path lighting', count: null, countLabel: null, each: null, product: pathwayProduct, laborEach: null, labor: 0 }]);
+
+  // $/SF lines — cost only, no labor (Mike 2026-09-13: "Leave labor off of those").
+  const sfLine = (label, product) => product > 0 ? { label, count: null, countLabel: null, each: null, product, laborEach: null, labor: 0 } : null;
+  addQ('amenities.interiorLevel', [sfLine('Interior amenity lighting', intAmenityBaseProduct)]);
+  addQ('exterior.amenityLevel',   [sfLine('Exterior amenity lighting', extAmenityProduct)]);
+  addQ('exterior.amenityHours',   [sfLine('Exterior amenity lighting', extAmenityProduct)]);
+
+  // Emergency: each frogeye installs like a wall sconce (Mike 2026-09-13).
+  // One per 300 SF of corridor (plus amenity when frogeyes go everywhere).
+  // Inverters, generators and integrated garage batteries: no labor figure.
+  const frogeyeStrategies = ['frogeyes', 'frogeyes_inv', 'integrated_frogeyes'];
+  const frogeyeSf = frogeyeStrategies.includes(strategyKey)
+    ? corridorSf + (strategyKey === 'frogeyes' ? intAmenitySf : 0)
+    : 0;
+  const frogeyeCount = frogeyeSf > 0 ? Math.ceil(frogeyeSf / (n(L.frogeyeSfEach, 300) || 300)) : 0;
+  const emergencyFixtureProduct = emergencyCost.total - n(emergencyCost.batteryCost);
+  addQ('emergency.strategy', [
+    frogeyeCount > 0
+      ? { label: 'Frogeyes', count: frogeyeCount, countLabel: 'frogeyes', each: emergencyFixtureProduct / frogeyeCount, product: emergencyFixtureProduct, laborEach: lab('sconce'), labor: frogeyeCount * lab('sconce') }
+      : sfLine('Emergency lighting', emergencyFixtureProduct),
+    emergencyCost.garageBattery && n(emergencyCost.batteryCount) > 0
+      ? line('Garage fixture batteries', n(emergencyCost.batteryCount), 'batteries', n(emergencyCost.batteryCost) / n(emergencyCost.batteryCount), 0)
+      : null,
+  ]);
+
   return {
     sections: {
       units: {
@@ -639,7 +748,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
       garage:   { product: garageProduct     },
       exterior: {
         amenities: { product: extAmenityProduct    },
-        parking:   { product: parkingProduct       },
+        parking:   { product: parkingProduct, fixtures: parkingFixtures, driveLaneLights, qtyOverridden: areaLightsOverride != null },
         carports:  { product: carportProduct       },
         garages:   { product: garageExtProduct     },
         // `doors` (sconce line) removed 2026-08-12 — same fixture as wallpacks.
@@ -674,6 +783,8 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
           floorApplied:       pathwayProduct > 0 && numUnits * pathwayRate < pathwayFloor,
           suppressedByManual: pathwayManual > 0,
           solarMultiplier:    pathwaySolarMultiplier,
+          asksBollards:       pathwayAsksBollards,
+          bollardsDeclined:   pathwayBollardsDeclined,
         },
         // Solar site design (Fulshear review, 2026-09-04): the parking product
         // above already includes the multiplier; the note rides along for every
@@ -688,7 +799,16 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
         manualAdderTotal: exteriorManualTotal,
         total:     { product: exteriorProductTotal },
       },
-      emergency:   { product: emergencyProduct  },
+      emergency:   {
+        product:     emergencyProduct,
+        strategy:    strategyKey,
+        manualAdder: emergencyManualAdder,
+        // Battery-in-every-other-fixture garage backup (every strategy but
+        // generator, when there is a garage) — the count behind the dollars.
+        garageBatteries: emergencyCost.garageBattery
+          ? { count: emergencyCost.batteryCount, cost: emergencyCost.batteryCost }
+          : null,
+      },
       exitSigns:   { product: exitSignsProduct  },
       designAdder: { product: designAdderTotal  },
     },
@@ -714,6 +834,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     contingencyAmount,
     totalWithContingency,
     fanCount,
+    questionCosts,
     perSf:   Math.round(perSf   * 100) / 100,
     perUnit: Math.round(perUnit),
   };

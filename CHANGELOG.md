@@ -5,6 +5,276 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [What each answer costs, with estimated labor] - September 13, 2026 (DEPLOYED — ships with the September 12–13 entries below)
+
+Mike: *"Yes both internally and externally we should show correlated unit cost, total cost and
+labor total cost. We want the client to be able to make better informed decisions."* ... *"Leave
+labor off of those"* (the $/SF answers) ... *"Frogeyes = what a wall sconce is."*
+
+- **Under the chosen answer, every priced question now shows what it costs:** how many, the price
+  each, the total, and — where there's a fixture count — the estimated labor (count × labor each)
+  and "labor + materials". On both the internal screens (Units, Design Units, Corridors, Design
+  Corridors, Exit Signs, Exterior incl. wallpacks, Design Interior Amenities, both Emergency
+  screens) and the public form.
+- **Labor is an estimate only — it is never added to the budget.** Rates are the RAW labor +
+  materials figures (no 20% OH&P), kept on the master price sheet under a new
+  "Labor (raw — estimated labor + materials)" group so they can be edited.
+- **$/SF answers (interior/exterior amenity, amenity hours) show cost only, no labor.** Pathway
+  lighting too (priced per home, no fixture count).
+- Assumptions: 8 ft of undercabinet per kitchen (120V = four 24" pieces, low voltage = per foot of
+  tape); a frogeye installs like a wall sconce, one per 300 SF of corridor; a bath bar installs like
+  a sconce, a lighted mirror on a mirror j-box; solar area lights have no trenching; garage
+  batteries add no labor figure. In-grade uplights and track are not priced on a questionnaire.
+- The public form gets these figures from the server with its estimate — the price sheet still
+  never reaches a visitor's browser.
+- Files: `src/lib/pricing.js` (labor block), `src/lib/calculations.js` (`budget.questionCosts`),
+  `src/components/sections/QuestionCard.jsx` (`CostImpact`), the section screens above,
+  `src/app/conceptual_budget/IntakeClient.jsx`, `src/app/(app)/admin/pricing/PricingEditor.jsx`.
+- Tests: `scripts/tests/questionCosts.test.mjs` (labor never moves the total; fans, undercabinet
+  and frogeye labor math; no labor on $/SF; every priced public question has an entry).
+
+## [Low-finish lighted mirror on the public form] - September 13, 2026 (DEPLOYED)
+
+Mike: "Yes should match the design questionnaire."
+
+- The public form's bathroom vanity question now offers **Illuminated mirror (Low finish)**
+  ($175, or $130 per vanity after the $45 bath-bar credit), the same as the internal Units and
+  Design screens. File: `src/lib/intake/questionnaire.js`.
+- Test added in `scripts/tests/designMatch.test.mjs`.
+
+## [Single-family bollards + drive lights, one area-light count, range on the side panel, Frogeyes first] - September 12, 2026 (DEPLOYED — ships with the September 13 entries above)
+
+Mike's answers: single-family gets the drive lights and bollard question ("Yes"), the drive-light
+count folds into one editable area-light count ("Yes they should"), the range shows on the computer
+side panel ("Yes"), and emergency "should start in frogeyes the lowest cost".
+
+- **Single-family** now gets the walking-path bollard Yes/No question (internal Exterior screen and
+  public form), and typed-in single-family budgets get drive-lane area lights at ½ per home, less
+  the parking lot's own poles — same as townhomes.
+  ⚠️ Existing single-family projects show $0 for pathway until someone answers Yes.
+- **One area-light count:** the internal Exterior screen has a new "Area Lights (parking lot +
+  drives)" box. Typing a number replaces the lot poles and drive-lane lights together; clearing it
+  goes back to the automatic count. Saved as `exterior.areaLightsQty` (no schema change).
+- **"Likely between $X and $Y"** now also shows under the total on the public form's side budget
+  panel on a computer (typed-in budgets only).
+- **Emergency starts on Frogeyes** everywhere: both Emergency screens, the Design Garage screen,
+  the budget engine, the summary page, the PDF, share links and calibration notes.
+  ⚠️ A project that never saved an emergency answer now prices as Frogeyes (lower) instead of
+  integrated batteries + inverters.
+- Tests: single-family bollards and drive lanes, the area-light override, the Frogeyes default.
+
+## [Design budget matches Conceptual: garage batteries, townhome bollard question, project type up front] - September 12, 2026 (DEPLOYED — ships with the September 13 entries above)
+
+Mike: *"We need the design questionnaire to match everything we have done with the conceptual
+questionnaire."* ... *"garage fixtures should get integrated batteries when there are garages and
+no generator"* ... *"if townhomes are chosen we then ask on the exterior section screen if they
+want to light walking paths with bollards. It should be yes or no and no is $0."*
+
+**Garage batteries on every emergency choice except a generator**
+- When a project has a garage, every emergency choice except generator now puts a battery in every
+  other garage light (one light per 625 SF, $120 per battery). A generator covers the garage itself.
+- The math lives in one place (`src/lib/emergencyCost.js`). The budget, the Conceptual Emergency
+  screen and the Design Emergency screen all use it, so they can't show different numbers.
+- The Frogeyes and Inverters choices no longer charge a separate garage $/SF on top.
+- On the Design Garage screen, the "battery" options add $0 for the battery when the Emergency
+  line already buys it, so there is no double charge.
+
+**Townhomes: "Light the walking paths with bollards?"**
+- Townhome projects now get a Yes/No question on the Exterior screen (internal and public).
+  No = $0 (what the real townhome budgets show); Yes = the bollard figure we already worked out
+  ($320 per home, × 1.6 on solar sites).
+- ⚠️ Existing townhome projects show $0 for pathway until someone answers Yes.
+
+**Public form: project type is asked on the Drawings page**
+- "What type of project is this?" is now asked right after "Do you have drawings?", for both
+  paths, and must be answered to continue. It is still pre-filled from the drawings when we can
+  read it. The Controls page now asks only about energy programs.
+
+**Design screens now use the same prices as the budget**
+- Exit signs: edge-lit $120, mixed $75, thermoplastic $22 per sign, read from the price sheet.
+- Garage: $0.20/SF standard, $0.25/SF enhanced, and daylighting uses its price-sheet rate.
+- The summary page and the budget PDF now show those same figures, and name the 12" entry disk.
+- Removed an unused old Design screen (`DesignCommonSection.jsx`).
+
+**Tests**
+- New `scripts/tests/designMatch.test.mjs` (garage batteries, no double charge, exit signs, entry
+  disk, public-form wiring); `pathwayLighting.test.mjs` updated for the townhome Yes/No.
+
+Files: `src/lib/pricing.js`, `src/lib/emergencyCost.js`, `src/lib/activity.js`,
+`src/lib/intake/questionnaire.js`, `src/app/conceptual_budget/IntakeClient.jsx`,
+`src/app/(app)/admin/pricing/PricingEditor.jsx`, `src/app/(app)/project/[id]/DesignWizardClient.jsx`,
+`src/app/(app)/project/[id]/summary/page.jsx`, `src/app/api/projects/[id]/budget/pdf/route.js`,
+`src/components/sections/{EmergencySection,ExitSignsSection,CorridorsSection,ExteriorSection}.jsx`,
+`src/components/sections/design/{DesignEmergencySection,DesignGarageSection}.jsx`.
+
+---
+
+## [Conceptual budget within 10%, clubhouse question, likely range, departments, bug reports archive-only] - September 12, 2026 (DEPLOYED — ships with the September 13 entries above)
+
+Mike: *"we have to get all these percentages within 10% in the conceptual budget."* ... *"Can we
+somehow read if there is a clubhouse or not?"* ... *"We need to start with departments for every
+use."*
+
+**Budgets typed in without drawings now land close to real budgets**
+- The stand-in guesses were re-set from ten real ILC budgets:
+  - clubhouse/amenity SF by building type;
+  - vanities at 1.4 per apartment and 2.5 per townhome;
+  - garage SF for wrap, podium and towers;
+  - pool deck and courtyard SF;
+  - back of house at 1–3.5% of the building by type, instead of the 5% cap.
+- **Breezeway stairs:** garden, gurban and stacked-flat landings now price at 2.2 × $175 = $385
+  (a breezeway is a corridor and a stair in one). When no stair count is known, open stairs are
+  counted from the units (1 stair per 15 units).
+- **Townhome drive-lane lights:** half an area light per home, less any parking-lot poles, priced
+  like parking-lot lights. They show as "+ N drive-lane" on the Exterior screen.
+- **New question on the public form: "Is there a clubhouse?"** (Not sure / Yes / No). "No" means
+  no amenity. "Yes" on a townhome community means one 4,000 SF clubhouse. A typed SF still wins.
+- **"Likely between $X and $Y"** (±10%) now shows under the total on typed-in budgets. It is
+  worked out on the server.
+- Mirror upgrades price per vanity.
+- **Result on the ten real jobs:**
+  - the average miss fell from 17% to 5% (required answers only) and from 11% to 6% (all answers);
+  - 9 of 10 jobs land within 10% on each run.
+  - See "Conceptual Budget Accuracy Report - After Fixes - 2026-09-12" in the shared drive.
+
+**Departments**
+- Every user can belong to one or more departments: Sales + marketing, Operations,
+  Pre-construction, Construction, Project management, Design, Finance.
+- Migration 0079, which is additive.
+
+**Bug reports are archive-only**
+- The QC board archives a bug report instead of deleting it (also migration 0079).
+
+Checks:
+- noDrawings 20/20, quantities 46/46, intake 22/22, intakePdf 9/9, breezewayStair 13/13 and
+  bugArchiveDepartments 9/9 all pass.
+- verify:units passes.
+
+Files:
+- `src/lib/intake/noDrawingGuesses.js`, `quantities.js`, `questionnaire.js`, `estimate.js`
+- `src/lib/calculations.js`, `stairLandings.js`, `pricing.js`
+- `src/lib/departments.js` (new; replaces `divisions.js`)
+- `src/components/sections/ExteriorSection.jsx`, `CorridorsSection.jsx`
+- `src/app/conceptual_budget/IntakeClient.jsx`
+- the QC report routes
+- `prisma/migrations/0079_bug_report_archive_user_departments`
+- `scripts/tests/noDrawings.test.mjs`, `bugArchiveDepartments.test.mjs`
+
+---
+
+## [Beta prep: duplicate flag + safe merge, Sales follow-up, bug button, PDF download, instructions] - September 12, 2026 (DEPLOYED — ships with the September 13 entries above)
+
+Mike: *"We need a project merging process so we never overwrite important data."* ... *"I want
+some kind of alert to come into anyone assigned to sales that a new conceptual budget was
+inputted ... It should come into the pipeline and almost have a different color."*
+
+**Web requests that look like an existing job**
+- Every new request is compared to existing projects by name, city/state and email domain. A
+  likely match shows in the review queue as "Looks like: X" with **Yes, link it** / **No, it's
+  new**. The visitor is never told, and nothing is linked automatically.
+- **Linking never overwrites.** Linking a request to a project only fills fields that are blank
+  on the project. Where both have a value and they differ, the two are shown side by side and the
+  project's value is kept unless someone picks the other one.
+- **Create a project from a request** in one click, when it is a new job.
+- The same "looks like a job" item appears on the home-screen **Things Needing a Look** card
+  (violet tag), first in line, until someone links it or says it's new.
+- **Migration 0078**: adds the "suggested project" and "suggestion dismissed" fields to
+  conceptual requests. Additive only; nothing removed.
+
+**Sales follow-up**
+- Everyone in the Sales division gets an in-app alert when a new web budget request comes in.
+- The Sales pipeline shows new requests as **blue cards** at the top of the first column, with a
+  banner: "N new web budget requests waiting for someone to follow up."
+- Sales users can now open the review queue, link requests and create projects from them.
+  Sending portal invites stays admin-only.
+
+**Beta-tester experience (public budget page)**
+- A **Report a bug** button sits in the bottom-right corner of every step. Reports land on the
+  QC board tagged "Beta client" and alert admins. Limited to 3 a minute per visitor.
+- The first page opens with **How this works** in four steps, and each step has a short hint
+  saying what to do there.
+- The review step has **Download PDF**: an ILC-branded one-page budget. The server works the
+  numbers out again from the visitor's answers, so the PDF always matches the screen, and it
+  shows only what the screen shows — no DN, buy price, margin or cost.
+- **Email this budget** is on the page but greyed out: "Coming soon — email isn't connected yet."
+
+Checks: verify:units **915/915**, build clean, check-runtime-assets 44/44, all guard scripts
+pass. Test PDF generated locally: total $321,710.23, the same as the on-screen estimate.
+
+**Follow-up (same day, after Mike's answers)**
+- Mike approved migration 0078.
+- **Contact address is now precon@ilcstudios.com** everywhere the public sees one: the PDF, the
+  share page, and the drawing-upload and drawing-reader messages. It was budgets@. The upload
+  test was updated to match.
+- **Bug-report schema tidy-up:** the schema now matches what migration 0027 built (reporter link
+  "no action"; three indexes declared). No database change, no new migration.
+- A real-budget accuracy re-check with Mike's rulings is in the shared drive. No prices changed.
+- Checks: verify:units 915/915; the schema, migration and Postgres guards pass.
+Schema review of 0078: needs Mike's sign-off.
+
+Files: `src/lib/intake/duplicateMatch.js`, `mergeRequest.js`, `estimate.js`, `pdfHtml.js` (new);
+`src/lib/projects/createProject.js` (new); `src/app/api/admin/intake/[id]/link` and
+`create-project` (new); `src/app/api/intake/pdf`, `bug-report` (new);
+`src/components/PublicBugButton` (new); `src/app/api/intake/submit/route.js`,
+`src/app/api/intake/estimate/route.js`, `src/lib/auth.js`,
+`src/app/(app)/admin/intake/*`, `src/app/(app)/crm/*`, `src/lib/verification/*`,
+`src/components/dashboards/VerificationCard.jsx`, `src/app/conceptual_budget/*`,
+QC board, `next.config.mjs`, `scripts/check-runtime-assets.mjs`,
+`prisma/migrations/0078_*`, `prisma/schema.prisma`, tests in `scripts/tests/`.
+
+## [Conceptual budget requests now require the project's city, state and zip] - September 12, 2026 (DEPLOYED — ships with the September 13 entries above)
+
+Mike: *"We need a city and state and zip code. We need location for data tracking."*
+
+- The first step of the public conceptual-budget form asks for **Project city, State and Zip code**.
+  All three are required before Continue works. State is a list of the 50 states plus DC. A zip
+  that isn't 5 digits (or ZIP+4) says "Enter a 5-digit zip code." The server runs the same check,
+  so a request sent without a location is turned away (tested directly, nothing saved).
+- The location is saved as its own searchable fields (**migration 0077**: three new, empty-by-default
+  columns on conceptual requests; nothing removed or changed). Requests sent before this stay blank.
+- The review queue at /admin/intake has a new **Location** column, and the detail panel shows the
+  city, state and zip. The precon notification email has a **LOCATION** line under PROJECT.
+- Fixed: the review panel labelled the project name "Company". It now says "Project".
+- The stairwell-landings estimate note on the no-drawings form is now one short sentence: "Our
+  estimate — based on your building type, size and number of stories." Reviewers still see
+  the full working.
+- The no-drawings and location tests are now part of the standard unit test run (they had been
+  left off the list).
+
+Files: `src/lib/usStates.js` (new), `scripts/tests/usStates.test.mjs` (new),
+`prisma/migrations/0077_conceptual_submission_location/` (new), `prisma/schema.prisma`,
+`src/app/api/intake/submit/route.js`, `src/app/conceptual_budget/IntakeClient.jsx`,
+`src/app/(app)/admin/intake/IntakeClient.jsx`, `src/lib/intake/notifyPrecon.js`, `package.json`
+(verify:units). Tests: verify:units 849/849, npm test clean. Schema review: PASS. Checked in the
+local preview at desktop and phone width, with no errors.
+
+## [No-drawings budget: stories + surface stalls required, "more detail = more accurate", progress bar] - September 12, 2026 (DEPLOYED — ships with the September 13 entries above)
+
+Mike: *"We want to tell them the more detailed data the more accurate the budget. I love the
+progress bar. Surface parking should be an easy number for them to figure out. Stories too."*
+
+- The no-drawings form now opens with "The more detail you give us, the more accurate your
+  budget", says we estimate anything left blank from our past projects, and shows a bar:
+  "You've given us N of 14 figures", which fills as the visitor types (estimates don't count).
+- **# Stories** and **# Surface parking stalls** are now required, with project type, total
+  units and building SF (or unit size). **0 stalls is a valid answer** for an all-garage
+  building, and is kept and priced as typed rather than replaced by a guess. 0 stories is not accepted.
+  The wizard and the server enforce the same rule.
+- The optional section is headed "The more of these you know, the more accurate your budget".
+- **Layout clean-up** (Mike: *"Fix any weird UI issues like that. Most of these fields might
+  have 8 characters at most."*): labels like "Total building SF" no longer get squeezed onto
+  two lines by the "Required" tag. Every figure box is now 176px wide, enough for 8 characters
+  plus the ESTIMATE tag, where before they stretched the whole column. Boxes in the same row
+  line up even when one field has a longer hint or an estimate note under it. The optional
+  figures sit three across on a wide screen, and the "Optional" tags are gone because the
+  heading already says it. Checked at desktop and phone width: no label wraps, nothing overlaps,
+  and the page never scrolls sideways.
+
+Files: `src/app/conceptual_budget/IntakeClient.jsx`, `src/lib/intake/questionnaire.js`
+(`noDrawingsReady`, `validateAnswers`), `src/lib/intake/quantities.js` (`statedCount`),
+`src/lib/intake/noDrawingGuesses.js` (comment), `scripts/tests/noDrawings.test.mjs`.
+Tests: 1,322 pass (npm test clean).
+
 ## [Questionnaire wording: external amenity hours, no "Other", IECC without the year] - September 12, 2026 (DEPLOYED)
 
 Mike: *"get rid of the year 2021 after IECC. get rid of other options in what will be the

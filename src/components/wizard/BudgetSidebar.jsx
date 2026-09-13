@@ -32,7 +32,9 @@ function PlainRow({ label, value, indent, highlight, bold }) {
   );
 }
 
-export default function BudgetSidebar({ budget, projectData, currentStep }) {
+// `range` ({ low, high }) is passed only by the public no-drawings form, whose
+// server estimate carries a ±10% band; the internal wizard never passes it.
+export default function BudgetSidebar({ budget, projectData, currentStep, range = null }) {
   if (!budget) return null;
 
   const { sections, freight, warehousing, freightRate, warehousingRate, lightingProductSubtotal, subtotalLightingOnly, controls, controlsFreight, controlsWarehousing, totalWithControls, perSf, perUnit, energyCreditPct, energyCreditLighting, energyCreditControls } = budget;
@@ -53,6 +55,11 @@ export default function BudgetSidebar({ budget, projectData, currentStep }) {
           <div className="flex gap-3 mt-1.5">
             {perSf   > 0 && <span className="text-xs text-navy-400">${perSf.toFixed(2)}/SF</span>}
             {perUnit > 0 && <span className="text-xs text-navy-400">{formatCurrency(perUnit)}/unit</span>}
+          </div>
+        )}
+        {hasData && range && (
+          <div className="mt-2 text-xs text-navy-300 tabular-nums leading-snug">
+            Likely between {formatCurrency(range.low)} and {formatCurrency(range.high)}
           </div>
         )}
       </div>
@@ -94,7 +101,7 @@ export default function BudgetSidebar({ budget, projectData, currentStep }) {
                 { label: 'Corridor disks',       value: sections.corridors?.disks?.product      || 0 },
                 { label: 'Unit entry sconces',   value: sections.corridors?.sconces?.product    || 0 },
                 { label: sections.corridors?.stairwells?.breezeway
-                           ? `Breezeway stairs (${sections.corridors.stairwells.breezeway.stairs})`
+                           ? `Breezeway stairs (${sections.corridors.stairwells.breezeway.landings} landings)`
                            : 'Stairwell fixtures',
                   value: sections.corridors?.stairwells?.product || 0 },
                 { label: 'Accent downlights',    value: sections.corridors?.accents?.product    || 0 },

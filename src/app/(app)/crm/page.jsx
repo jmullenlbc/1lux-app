@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, isAnyAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { DEPARTMENTS_SELECT, hasDepartment, SALES_MARKETING } from '@/lib/departments';
 import { redirect } from 'next/navigation';
 import CRMClient from './CRMClient';
 
@@ -43,5 +44,29 @@ export default async function CRMPage() {
     console.error('[/crm] DB query failed:', err?.message ?? err);
   }
 
-  return <CRMClient initialProjects={projects} users={users} />;
+  // Web budget requests nobody has dealt with yet, shown as their own coloured
+  // cards so Sales can see what just came in (Mike, 2026-09-12). Only for the
+  // people who can open the review queue — anyone else would click into a
+  // page that turns them away.
+  let newRequests = [];
+  try {
+    const me = isAnyAdmin(user.role)
+      ? null
+      : await prisma.user.findUnique({ where: { id: user.id }, select: { departments: DEPARTMENTS_SELECT } });
+    if (isAnyAdmin(user.role) || hasDepartment(me, SALES_MARKETING)) {
+      newRequests = await prisma.conceptualSubmission.findMany({
+        where:   { status: 'PENDING', duplicateMatchId: null },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true, proposedName: true, city: true, state: true, submitterName: true,
+          createdAt: true, suggestionDismissedAt: true,
+          suggestedProject: { select: { id: true, name: true } },
+        },
+      });
+    }
+  } catch (err) {
+    console.error('[/crm] web request query failed (non-fatal):', err?.message ?? err);
+  }
+
+  return <CRMClient initialProjects={projects} users={users} newRequests={newRequests} />;
 }

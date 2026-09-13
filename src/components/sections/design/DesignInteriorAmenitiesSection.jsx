@@ -1,12 +1,14 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Button from '@/components/ui/Button';
 import QuestionCard from '@/components/sections/QuestionCard';
 import { PRICING } from '@/lib/pricing';
+import { calculateBudget } from '@/lib/calculations';
 
 export default function DesignInteriorAmenitiesSection({
   responses,
   projectData,
+  allSections,
   pricing,
   onSaveResponses,
   onNext,
@@ -18,6 +20,11 @@ export default function DesignInteriorAmenitiesSection({
     interiorLevel: existing.interiorLevel || 'medium',
   });
   const [saving, setSaving] = useState(false);
+  // What the chosen answer costs, recomputed live (Mike 2026-09-13).
+  const qc = useMemo(
+    () => calculateBudget(projectData, { ...(allSections || {}), amenities: { ...(allSections?.amenities || {}), ...ans } }, pricing || null).questionCosts || {},
+    [projectData, allSections, ans, pricing],
+  );
 
   const intAmenitySf = Number(projectData?.interiorAmenitySf) || 0;
   const rateMap = {
@@ -95,6 +102,7 @@ export default function DesignInteriorAmenitiesSection({
           },
         ]}
         value={ans.interiorLevel}
+        impact={qc['amenities.interiorLevel']}
         onChange={v => setAns(a => ({ ...a, interiorLevel: v }))}
       />
 

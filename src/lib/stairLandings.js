@@ -79,6 +79,7 @@ export function landingFactors(pricing = null) {
     minStairs:                Math.max(1, Math.round(num('exitStairsMinPerBuilding', 1))),
     plateSfPerStair:          num('floorPlateSfPerExitStair', 1000),
     breezewayPlateSfPerStair: num('breezewayPlateSfPerExitStair', 500),
+    breezewayUnitsPerStair:   num('breezewayUnitsPerStair', 1),
   };
 }
 
@@ -93,23 +94,23 @@ export function isBreezewayType(buildingTypeKey) {
 }
 
 /**
- * What one breezeway stair costs to light — the Lowell + I76 package (see
- * PRICING.breezewayStair): per stair serving N levels, N landing disks (a
- * regular disk — Mike 2026-09-05: "Decorative landing light we don't do in a
- * conceptual budget"), 2N+1 wall packs with battery (stair + egress), N
- * frogeyes, N−1 vestibule disks with battery. The ground-level egress wall
- * pack lives in the exterior wallpacks line and is not counted here.
+ * What breezeway stairs cost to light. Mike 2026-09-12: "Maybe move to 2.2x
+ * ... in the breezeway situation it's a corridor and stairwell in one. Yes
+ * stacked flats should count too." So each landing on a garden / stacked-flat
+ * / gurban walk-up prices at the stairwell rate × the breezeway multiplier
+ * (2.2 × $175 = $385), both on the master pricing sheet.
  *
  * Landings stay the number the budget stores (2N−1 per stair, contingency
- * included), so the stair count is landings ÷ (2N−1), never below one.
+ * included). The stair count (landings ÷ (2N−1), never below one) is only for
+ * the label — it does not change the price.
  *
  * @param {object} input
  *   landings        — the stored landing count (Project Data numEgressStairwells)
  *   stories         — levels each stair serves; falls back to the type default
  *   buildingTypeKey — engine building type
  * @param {object|null} pricing  loadPricing() output, or null for static defaults
- * @returns {null|{ stairs, stories, landings, perStair: {...}, counts: {...},
- *   rates: {...}, perStairProduct, product, how }}
+ * @returns {null|{ stairs, stories, storiesDefaulted, landings, perLanding,
+ *   multiplier, ratePerLanding, product, how }}
  *   null for non-breezeway types or when there are no landings to price.
  */
 export function breezewayStairPackage(input, pricing = null) {
@@ -118,53 +119,29 @@ export function breezewayStairPackage(input, pricing = null) {
   const landings = pos(input?.landings);
   if (!landings) return null;
 
+  const num = (v, fallback) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 && v !== null && v !== '' ? n : fallback;
+  };
+  const perLanding = num(pricing?.corridors?.stairwellPerLanding?.product, PRICING.corridors.stairwellPerLanding.product);
+  const multiplier = num(pricing?.corridors?.breezewayLandingMultiplier, PRICING.corridors.breezewayLandingMultiplier);
+  const ratePerLanding = Math.round(perLanding * multiplier * 100) / 100;
+  const product = Math.round(landings * ratePerLanding * 100) / 100;
+
   const def  = PRICING.breezewayStair;
   const live = pricing?.breezewayStair || {};
-  const rate = (k) => {
-    const n = Number(live[k]);
-    return Number.isFinite(n) && n >= 0 ? n : def[k];
-  };
-  const rates = {
-    landingLight:        rate('landingLight'),
-    wallpackWithBattery: rate('wallpackWithBattery'),
-    frogeye:             rate('frogeye'),
-    vestibuleDisk:       rate('vestibuleDisk'),
-  };
-
   const typeDefault = pos(live.storiesDefault?.[typeKey]) ?? pos(def.storiesDefault?.[typeKey]) ?? 3;
   const stories = Math.max(1, Math.round(pos(input?.stories) ?? typeDefault));
   const storiesDefaulted = pos(input?.stories) == null;
-
-  const per    = landingsPerStair(stories);
-  const stairs = Math.max(1, Math.round(landings / per));
-
-  const perStair = {
-    landingLights:  stories,
-    wallpacks:      2 * stories + 1,
-    frogeyes:       stories,
-    vestibuleDisks: Math.max(0, stories - 1),
-  };
-  const counts = {
-    landingLights:  stairs * perStair.landingLights,
-    wallpacks:      stairs * perStair.wallpacks,
-    frogeyes:       stairs * perStair.frogeyes,
-    vestibuleDisks: stairs * perStair.vestibuleDisks,
-  };
-  const perStairProduct =
-    perStair.landingLights  * rates.landingLight +
-    perStair.wallpacks      * rates.wallpackWithBattery +
-    perStair.frogeyes       * rates.frogeye +
-    perStair.vestibuleDisks * rates.vestibuleDisk;
-  const product = stairs * perStairProduct;
+  const stairs = Math.max(1, Math.round(landings / landingsPerStair(stories)));
 
   const how =
-    `${fmt(landings)} landings ÷ (2 × ${stories} levels − 1) ≈ ${fmt(stairs)} breezeway stair${stairs === 1 ? '' : 's'}` +
-    (storiesDefaulted ? ` (no story count on file — ${stories} levels assumed for a ${typeKey} walk-up)` : '') +
-    `. Each stair: ${perStair.landingLights} landing disks, ${perStair.wallpacks} wall packs w/ battery on the stair and egress, ` +
-    `${perStair.frogeyes} emergency frogeyes, ${perStair.vestibuleDisks} vestibule disks w/ battery = $${fmt(perStairProduct)}/stair. ` +
-    'The ground-floor egress wall pack is in the exterior wallpacks line.';
+    `${fmt(landings)} landings × $${fmt(perLanding)} × ${multiplier} = $${fmt(ratePerLanding)} a landing ` +
+    '— an open breezeway is the corridor and the stairwell in one, so each landing carries both. ' +
+    `About ${fmt(stairs)} stair${stairs === 1 ? '' : 's'} of ${stories} levels` +
+    (storiesDefaulted ? ` (no story count on file — ${stories} levels assumed for a ${typeKey} walk-up)` : '') + '.';
 
-  return { stairs, stories, storiesDefaulted, landings, perStair, counts, rates, perStairProduct, product, how };
+  return { stairs, stories, storiesDefaulted, landings, perLanding, multiplier, ratePerLanding, product, how };
 }
 
 /** Building types whose stairs are PRIVATE, inside each unit — no shared
@@ -213,7 +190,7 @@ export function estimateStairLandings(input, pricing = null) {
 
   let stairs = count(input?.stairs);
   let stairsEstimated = false;
-  let buildings = null, perBuilding = null, plate = null;
+  let buildings = null, perBuilding = null, plate = null, unitsBased = false;
   if (stairs == null) {
     stairsEstimated = true;
     buildings = Math.max(1, Math.round(pos(input?.buildings) ?? 1));
@@ -231,6 +208,16 @@ export function estimateStairLandings(input, pricing = null) {
         : f.minStairs;
     }
     stairs = buildings * perBuilding;
+    // Breezeway walk-up with no footprint (a typed-in budget): the code
+    // minimum of 2 stairs badly undercounts a campus of open stairs, so count
+    // them off the units — each open stair serves only the units around it.
+    // Real gardens on file ran ~12–20 units a stair (Firestone, Fulshear,
+    // Easton, Eastchase: 81–144 landings).
+    const units = pos(input?.units);
+    if (breezeway && !plate && units && stories > 1) {
+      const byUnits = Math.ceil(units / f.breezewayUnitsPerStair);
+      if (byUnits > stairs) { stairs = byUnits; perBuilding = null; unitsBased = true; }
+    }
   }
 
   const per  = stories >= 1 ? 2 * stories - 1 : 0;
@@ -248,6 +235,8 @@ export function estimateStairLandings(input, pricing = null) {
       parts.push('Townhouse-style stairs are private, inside each unit — no shared egress stairs, so no shared landings to light.');
     } else if (stories <= 1) {
       parts.push('No exit-stair count was found and the building is single-story, so no interior stairs are assumed.');
+    } else if (unitsBased) {
+      parts.push(`No exit-stair count or footprint was found, so the open breezeway stairs were counted off the units: ${fmt(pos(input?.units))} units ÷ ${fmt(f.breezewayUnitsPerStair)} units per stair ≈ ${fmt(stairs)} stairs (each open stair serves only the units around it).`);
     } else if (plate) {
       parts.push(`No exit-stair count was found, so the building code minimum was used: ${fmt(buildings)} building${buildings === 1 ? '' : 's'} × ${fmt(perBuilding)} exit stairs (a ~${fmt(Math.round(plate))} SF floor plate needs about one ${breezeway ? 'breezeway stair per ' + fmt(sfPerStair) + ' SF — open walk-up stairs each serve only the units around them' : 'stair per ' + fmt(sfPerStair) + ' SF for travel distance'}, never fewer than ${f.minStairs}) = ${fmt(stairs)} stairs.`);
     } else {
@@ -266,6 +255,7 @@ export function estimateStairLandings(input, pricing = null) {
 
   return {
     landings, base, stories, stairs, buildings, stairsPerBuilding: perBuilding, plateSf: plate,
+    unitsBased, unitsPerStair: unitsBased ? f.breezewayUnitsPerStair : null,
     storiesEstimated, stairsEstimated, estimated, privateStairs, contingency: f.contingency,
     how: parts.join(' '), flag,
   };

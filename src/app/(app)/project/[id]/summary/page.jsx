@@ -68,7 +68,7 @@ export default async function SummaryPage({ params }) {
 
   const LOCAL_LABELS = {
     diskType:           { flatEdgeLit: 'Flat Edge-Lit (standard)', backlit: 'Backlit Rounded (–$0.04/SF credit)' },
-    entryDisk:          { typical: 'Standard (matches rooms)', upgraded12: '12" Oversized Entry Disk (+$25/unit)', decorative: 'Decorative Surface Mount (+$30/unit)' },
+    entryDisk:          { typical: 'Standard (matches rooms)', '12inch': '12" Oversized Entry Disk (+$25/unit)', upgraded12: '12" Oversized Entry Disk (+$25/unit)', decorative: 'Decorative Surface Mount (+$30/unit)' },
     fixtureType:        { disk: 'Surface-Mount Disk', recessed: 'Recessed Downlight' },
     corridorFireRating: { surfaceMount: 'Surface Mount (no fire rating required)', fireRated: 'Fire-Rated Concealed' },
     stairwellDesign:    { code: 'Code Minimum', elevated: 'Elevated / Upgraded Design' },
@@ -76,9 +76,9 @@ export default async function SummaryPage({ params }) {
     corridorEnds:       { none: 'None', sconce: 'Sconce at Corridor Ends', downlight: 'Downlight at Corridor Ends' },
     elevatorLobby:      { no: 'No', yes: 'Yes' },
     corridorSpecial:    { no: 'No', yes: 'Yes' },
-    exitSignType:       { thermoplastic: 'Thermoplastic — Code Minimum (~$22/sign)', mixed: 'Mixed — Edge-Lit FOH / Thermoplastic BOH (~$75/sign)', edgelit: 'Edge-Lit Throughout (~$127/sign)' },
-    garageDesignLevel:  { medium: 'Standard — LED Linear Grid ($0.30/SF)', enhanced: 'Enhanced — Higher Uniformity ($0.45/SF)', high: 'Enhanced — Higher Uniformity ($0.45/SF)' },
-    garageControls:     { none: 'None', occSensor: 'Occupancy Sensors (+$0.02/SF)', battery: 'Integrated Battery Backup (+$0.05/SF)', batteryAndSensor: 'Battery + Occupancy Sensor (+$0.06/SF)', daylighting: 'Daylight Harvesting (+$0.10/SF)' },
+    exitSignType:       { thermoplastic: 'Thermoplastic — Code Minimum (~$22/sign)', mixed: 'Mixed — Edge-Lit FOH / Thermoplastic BOH (~$75/sign)', edgelit: 'Edge-Lit Throughout (~$120/sign)' },
+    garageDesignLevel:  { medium: 'Standard — LED Linear Grid ($0.20/SF)', standard: 'Standard — LED Linear Grid ($0.20/SF)', enhanced: 'Enhanced — Higher Uniformity ($0.25/SF)', high: 'Enhanced — Higher Uniformity ($0.25/SF)' },
+    garageControls:     { none: 'None', occSensor: 'Occupancy Sensors (+$0.02/SF)', occupancy: 'Occupancy Sensors', battery: 'Integrated Battery Backup (on the Emergency line unless there is a generator)', batteryAndSensor: 'Battery + Occupancy Sensor (battery on the Emergency line unless there is a generator)', daylighting: 'Daylight Harvesting (+$0.10/SF)' },
     livingRoomDisks:    { '1large': '(1) Large 12" Disk (standard)', '4small': '(4) Small Disks (+$34/unit)' },
     boilerRoom:         { no: 'No', yes: 'Yes (+$15/unit)' },
     closetControl:      { switch: 'Standard Switch', occSensor: 'Occupancy Sensor' },
@@ -157,7 +157,7 @@ export default async function SummaryPage({ params }) {
     ].filter(row => row.a && row.a !== '—')},
 
     { section: 'Emergency Lighting', rows: [
-      { q: 'Strategy', a: getLabel('emergency', r.emergency?.strategy || 'integrated_inverters') },
+      { q: 'Strategy', a: getLabel('emergency', r.emergency?.strategy || 'frogeyes') },
     ]},
 
     { section: 'Controls & Energy', rows: [

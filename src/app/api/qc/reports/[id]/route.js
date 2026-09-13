@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { getQcObjectUrl, deleteQcObject } from '@/lib/qcStorage';
+import { getQcObjectUrl } from '@/lib/qcStorage';
+import { archiveData, readArchivedFlag, ARCHIVED_FLAG_HELP, deleteRefused } from '@/lib/archive';
 
 function isSuperAdmin(user) {
   return ['SUPER_ADMIN', 'ILC_ADMIN'].includes(user.role);
@@ -18,8 +19,9 @@ async function serialize(r) {
 }
 
 const INCLUDE = {
-  reporter: { select: { id: true, name: true, email: true } },
-  assignee: { select: { id: true, name: true, email: true } },
+  reporter:   { select: { id: true, name: true, email: true } },
+  assignee:   { select: { id: true, name: true, email: true } },
+  archivedBy: { select: { id: true, name: true, email: true } },
 };
 
 export async function GET(request, { params }) {
@@ -51,23 +53,29 @@ export async function PATCH(request, { params }) {
   return NextResponse.json(await serialize(report));
 }
 
-export async function DELETE(request, { params }) {
+// Archive or restore: { archived: true | false }. Bug reports are archived,
+// never deleted (Mike, 2026-09-12). The row, the screenshot and the recording
+// in S3 all stay; an archived report just leaves the board until restored.
+export async function POST(request, { params }) {
   const { user, error } = await requireAuth(request);
   if (error) return error;
   if (!isSuperAdmin(user)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const existing = await prisma.bugReport.findUnique({
-    where:  { id: params.id },
-    select: { id: true, screenshotKey: true, recordingKey: true },
-  });
+  const archived = await readArchivedFlag(request);
+  if (archived === null) return NextResponse.json({ error: ARCHIVED_FLAG_HELP }, { status: 400 });
+
+  const existing = await prisma.bugReport.findUnique({ where: { id: params.id }, select: { id: true } });
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  // Best-effort S3 cleanup before the DB delete. deleteQcObject never throws,
-  // so an orphan blob doesn't block removing the row from the board.
-  if (existing.screenshotKey) await deleteQcObject(existing.screenshotKey);
-  if (existing.recordingKey)  await deleteQcObject(existing.recordingKey);
+  const report = await prisma.bugReport.update({
+    where: { id: params.id },
+    data: archiveData(archived, user),
+    include: INCLUDE,
+  });
 
-  await prisma.bugReport.delete({ where: { id: params.id } });
+  return NextResponse.json(await serialize(report));
+}
 
-  return NextResponse.json({ ok: true });
+export async function DELETE() {
+  return NextResponse.json({ error: deleteRefused('Bug reports') }, { status: 405 });
 }

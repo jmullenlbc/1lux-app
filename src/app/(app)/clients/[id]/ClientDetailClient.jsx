@@ -567,9 +567,7 @@ function OverviewTab({ client, onPatch }) {
   useEffect(() => {
     fetch('/api/users').then(r => r.json()).then(d => setUsers(d.users || [])).catch(() => {});
   }, []);
-  const salespeople = users.filter(u =>
-    u.division === 'SALES' ||
-    (Array.isArray(u.deptRoles) ? u.deptRoles : parseJSON(u.deptRoles)).includes('Sales'));
+  const salespeople = users.filter(u => (u.departments || []).includes('SALES_MARKETING'));
   const ownerOptions = salesOnly && salespeople.length ? salespeople : users;
 
   return (

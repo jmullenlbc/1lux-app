@@ -1,64 +1,73 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { PRICING } from '@/lib/pricing';
-import { formatCurrency } from '@/lib/calculations';
+import { formatCurrency, calculateBudget } from '@/lib/calculations';
+import { CostImpact } from './QuestionCard';
 import { cn } from '@/lib/utils';
+import { emergencyStrategyCost } from '@/lib/emergencyCost';
 
+// Same helper the engine uses — the estimate on each option IS the budget line.
 function calcEmergency(P, strategyKey, corridorSf, intAmenitySf, garageSf) {
-  const strat = P.emergency.strategies[strategyKey];
-  if (!strat) return 0;
-  let total = corridorSf * strat.corridorPerSf + intAmenitySf * strat.amenityPerSf + garageSf * strat.garagePerSf;
-  if (strat.batteryGarage && garageSf > 0) {
-    const b = P.emergency.batteryGarage;
-    const battCount = Math.floor((garageSf / b.sfPerFixture) / b.fixtureEvery);
-    total += battCount * b.costPerFixture;
-  }
-  return Math.round(total);
+  return Math.round(emergencyStrategyCost(P, strategyKey, { corridorSf, intAmenitySf, garageSf }).total);
 }
 
-const STRATEGIES = [
-  {
-    value: 'generator',
-    label: 'Building generator',
-    sub:   'Generator covers all lighting circuits — no separate emergency fixtures required. Most cost-effective when a generator already exists.',
-  },
-  {
-    value: 'frogeyes',
-    label: 'Frogeyes everywhere',
-    sub:   'Emergency combo units (light head + exit sign) in all spaces. Corridors $0.15/SF · Amenity $0.15/SF · Garage $0.10/SF.',
-  },
-  {
-    value: 'frogeyes_inv',
-    label: 'Frogeyes in corridors + inverters in amenities',
-    sub:   'Frogeyes $0.15/SF in corridors. Central inverter $1.25/SF in interior amenity spaces.',
-  },
-  {
-    value: 'integrated_frogeyes',
-    label: 'Integrated batteries in garage / frogeyes in corridors / inverters in amenity spaces',
-    sub:   'Garage: battery-integrated fixtures ($120 ea, every other). Corridors: frogeyes $0.15/SF. Amenity: inverters $1.25/SF.',
-  },
-  {
-    value: 'integrated_inverters',
-    label: 'Integrated batteries in garage / inverters in corridors + amenity spaces',
-    sub:   'Garage: battery-integrated fixtures ($120 ea, every other). Corridors: inverters $0.50/SF. Amenity: inverters $1.25/SF. Common for high-rise.',
-  },
-  {
-    value: 'inverters',
-    label: 'Inverters everywhere',
-    sub:   'Inverter units power existing fixtures. Corridors $0.50/SF · Amenity $1.25/SF · Garage $0.25/SF. Cost-effective at large scale.',
-  },
-];
+// Option wording reads the live price sheet so the words match the math.
+function strategyOptions(P) {
+  const S  = P.emergency?.strategies || {};
+  const fe = P.emergency?.frogeyesPerSf ?? 0.17;
+  const b  = P.emergency?.batteryGarage || {};
+  const batt = `Garage: battery in every other fixture ($${b.costPerFixture ?? 120} ea)`;
+  const r = (k, f) => `$${(S[k]?.[f] ?? 0).toFixed(2)}/SF`;
+  return [
+    {
+      value: 'generator',
+      label: 'Building generator',
+      sub:   'Generator covers all lighting circuits — no separate emergency fixtures or garage batteries required. Most cost-effective when a generator already exists.',
+    },
+    {
+      value: 'frogeyes',
+      label: 'Frogeyes in corridors + amenity, batteries in garage',
+      sub:   `Emergency combo units in corridors and amenity spaces at a flat $${Number(fe).toFixed(2)}/SF. ${batt}.`,
+    },
+    {
+      value: 'frogeyes_inv',
+      label: 'Frogeyes in corridors + inverters in amenities, batteries in garage',
+      sub:   `Frogeyes ${r('frogeyes_inv', 'corridorPerSf')} in corridors. Central inverter ${r('frogeyes_inv', 'amenityPerSf')} in interior amenity spaces. ${batt}.`,
+    },
+    {
+      value: 'integrated_frogeyes',
+      label: 'Integrated batteries in garage / frogeyes in corridors / inverters in amenity spaces',
+      sub:   `${batt}. Corridors: frogeyes ${r('integrated_frogeyes', 'corridorPerSf')}. Amenity: inverters ${r('integrated_frogeyes', 'amenityPerSf')}.`,
+    },
+    {
+      value: 'integrated_inverters',
+      label: 'Integrated batteries in garage / inverters in corridors + amenity spaces',
+      sub:   `${batt}. Corridors: inverters ${r('integrated_inverters', 'corridorPerSf')}. Amenity: inverters ${r('integrated_inverters', 'amenityPerSf')}. Common for high-rise.`,
+    },
+    {
+      value: 'inverters',
+      label: 'Inverters in corridors + amenity, batteries in garage',
+      sub:   `Inverter units power existing fixtures. Corridors ${r('inverters', 'corridorPerSf')} · Amenity ${r('inverters', 'amenityPerSf')}. ${batt}.`,
+    },
+  ];
+}
 
-export default function EmergencySection({ responses, projectData, pricing, onSaveResponses, onNext, onPrev }) {
+export default function EmergencySection({ responses, projectData, allSections, pricing, onSaveResponses, onNext, onPrev }) {
   const P = pricing || PRICING;
   const [answers, setAnswers] = useState({
-    strategy:   responses.strategy   || 'integrated_inverters',
+    strategy:   responses.strategy   || 'frogeyes',
     manualAdder: responses.manualAdder ?? '',
   });
   const [dirty, setDirty] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
+  // What each answer costs (+ estimated labor), recomputed live as answers
+  // change — local answers only save on Next (Mike 2026-09-13).
+  const qc = useMemo(
+    () => calculateBudget(projectData, { ...(allSections || {}), emergency: { ...(allSections?.emergency || {}), ...answers } }, pricing || null).questionCosts || {},
+    [projectData, allSections, answers, pricing],
+  );
 
   const corridorSf = Number(projectData?.corridorSf)       || 0;
   const intSf      = Number(projectData?.interiorAmenitySf) || 0;
@@ -128,7 +137,7 @@ export default function EmergencySection({ responses, projectData, pricing, onSa
           Each strategy has different cost and installation complexity trade-offs.
         </p>
         <div className="space-y-2">
-          {STRATEGIES.map(opt => {
+          {strategyOptions(P).map(opt => {
             const est        = calcEmergency(P, opt.value, corridorSf, intSf, garageSf);
             const isSelected = answers.strategy === opt.value;
             return (
@@ -153,6 +162,7 @@ export default function EmergencySection({ responses, projectData, pricing, onSa
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-slate-800">{opt.label}</div>
                   <div className="text-xs text-slate-400 mt-0.5 leading-relaxed">{opt.sub}</div>
+                  {isSelected && <CostImpact impact={qc['emergency.strategy']} />}
                 </div>
                 {totalEmSf > 0 && (
                   <div className={cn(
@@ -170,6 +180,9 @@ export default function EmergencySection({ responses, projectData, pricing, onSa
 
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
         <strong>Note:</strong> Stairwell integrated battery backup is required by code regardless of strategy selected. This cost is included in the Corridors & Stairwells line item.
+        {garageSf > 0 && (
+          <> Garage fixtures get an integrated battery (every other fixture) under every strategy except the building generator — that cost is in the prices above.</>
+        )}
       </div>
 
       {/* Manual adder */}

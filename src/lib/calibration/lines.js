@@ -117,11 +117,11 @@ export function buildSamples({ projectData = {}, sections = {}, budget, pricing 
   const breezeway    = s.corridors?.stairwells?.breezeway;
   push({ lineKey: 'corridors.stairwells', quantity: landings, quantityUnit: 'landings',
     modelAmount: stairProduct,
-    // breezeway walk-ups price a per-stair package, so the effective $/landing
-    // is whatever the engine really charged, not the corridor-stair rate
+    // breezeway walk-ups price each landing at stairwell rate × the breezeway
+    // multiplier, so the effective $/landing is the engine's, not the plain rate
     rateUsed: breezeway && landings > 0 ? stairProduct / landings : n(pricing.corridors?.stairwellPerLanding?.product),
-    // no single key to "apply" an implied $/landing to on a package — leave it for a person
-    pricingKey: breezeway ? null : 'corridors.stairwellPerLanding.product',
+    // a breezeway drift is tuned on the multiplier, not the shared stairwell rate
+    pricingKey: breezeway ? 'corridors.breezewayLandingMultiplier' : 'corridors.stairwellPerLanding.product',
     note: breezeway ? breezeway.how : null });
 
   // ── BOH / interior / garage ──────────────────────────────────────────────
@@ -189,7 +189,7 @@ export function buildSamples({ projectData = {}, sections = {}, budget, pricing 
   const emSf = corridorSf + intSf + garageSf;
   push({ lineKey: 'emergency', quantity: emSf, quantityUnit: 'sf', modelAmount: s.emergency?.product,
     rateUsed: emSf > 0 ? n(s.emergency?.product) / emSf : null, pricingKey: null,
-    note: `strategy: ${em.strategy || 'integrated_inverters'}` });
+    note: `strategy: ${em.strategy || 'frogeyes'}` });
 
   const exitCutoff = n(pricing.exitSigns?.largeProjectThreshold, 300000);
   const exitRate   = n(pricing.exitSigns?.perSf) * (grossSf > exitCutoff ? 0.5 : 1);

@@ -1,9 +1,9 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import QuestionCard from './QuestionCard';
-import { formatCurrency, priceOverride } from '@/lib/calculations';
+import { formatCurrency, priceOverride, calculateBudget } from '@/lib/calculations';
 import { PRICING } from '@/lib/pricing';
 import { breezewayStairPackage } from '@/lib/stairLandings';
 import StandardsHint from '@/components/wizard/StandardsHint';
@@ -12,7 +12,7 @@ import StandardsHint from '@/components/wizard/StandardsHint';
 const DISK_RATES     = { 6: 0.40, 7: 0.35, 8: 0.30, 9: 0.28, 10: 0.25, 11: 0.23, 12: 0.23 };
 const RECESSED_RATES = { 6: 3.00, 7: 2.625, 8: 2.25, 9: 2.10, 10: 1.875, 11: 1.725, 12: 1.725 };
 
-export default function CorridorsSection({ responses, projectData, pricing, onSaveResponses, onNext, onPrev, isDesign = false }) {
+export default function CorridorsSection({ responses, projectData, allSections, pricing, onSaveResponses, onNext, onPrev, isDesign = false }) {
   // Single source of truth: read rates/costs from the live master pricing.
   const P = pricing || PRICING;
   const DISK_RATE_TABLE     = P.designCorridors?.diskSpacingRates     || DISK_RATES;
@@ -36,6 +36,12 @@ export default function CorridorsSection({ responses, projectData, pricing, onSa
   });
   const [dirty, setDirty] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
+  // What each answer costs (+ estimated labor), recomputed live as answers
+  // change — local answers only save on Next (Mike 2026-09-13).
+  const qc = useMemo(
+    () => calculateBudget(projectData, { ...(allSections || {}), corridors: { ...(allSections?.corridors || {}), ...ans } }, pricing || null).questionCosts || {},
+    [projectData, allSections, ans, pricing],
+  );
 
   function set(k, v) {
     setAns(a => ({ ...a, [k]: v }));
@@ -66,7 +72,7 @@ export default function CorridorsSection({ responses, projectData, pricing, onSa
   const STAIR_EACH    = P.corridors?.stairwellPerLanding?.product ?? 175;
   const STAIR_ELEV    = P.designCorridors?.stairwellElevatedAdder ?? 50;
   const ACCENT_EACH   = P.designCorridors?.accentDownlightEach ?? 120;
-  // Breezeway walk-ups price a per-stair package instead of $/landing — same
+  // Breezeway walk-ups price each landing at the breezeway multiple — same
   // helper the engine uses, so this card and the sidebar agree.
   const breezeway     = breezewayStairPackage(
     { landings: stairwells, stories: projectData?.numFloors, buildingTypeKey: projectData?.buildingTypeKey },
@@ -74,7 +80,7 @@ export default function CorridorsSection({ responses, projectData, pricing, onSa
   );
   const stairwellProd = breezeway ? breezeway.product : stairwells * STAIR_EACH;
   const stairLabel    = breezeway
-    ? `Breezeway stairs (${breezeway.stairs} stairs × $${breezeway.perStairProduct.toLocaleString()} — landing disks, wall packs, frogeyes)`
+    ? `Breezeway stairs (${stairwells} landings × $${breezeway.ratePerLanding.toLocaleString()} — corridor + stair in one)`
     : `Stairwells (${stairwells} landings × $${STAIR_EACH})`;
   const stairElevated = ans.stairwellDesign === 'elevated' ? stairwells * STAIR_ELEV : 0;
   const sconceRates   = {
@@ -292,7 +298,7 @@ export default function CorridorsSection({ responses, projectData, pricing, onSa
         <QuestionCard
           question="Stairwell lighting approach?"
           note={breezeway
-            ? `Open breezeway stairs: each stair gets landing disks, wall packs with battery on the stair runs and egress, emergency frogeyes and vestibule disks (about $${breezeway.perStairProduct.toLocaleString()} per stair, ${breezeway.stairs} stairs from ${stairwells} landings). Elevated design adds $${STAIR_ELEV}/landing.`
+            ? `Open breezeway stairs are the corridor and the stairwell in one, so each landing prices at ${breezeway.multiplier} × $${STAIR_EACH} = $${breezeway.ratePerLanding.toLocaleString()} (${stairwells} landings, about ${breezeway.stairs} stairs). Elevated design adds $${STAIR_ELEV}/landing.`
             : `Code minimum uses a 4ft LED strip with integrated battery backup at each landing ($${STAIR_EACH}/landing). Elevated design adds $${STAIR_ELEV}/landing. ${stairwells > 0 ? `(${stairwells} landings)` : ''}`}
           costSuffix=" total"
           options={[
@@ -300,7 +306,7 @@ export default function CorridorsSection({ responses, projectData, pricing, onSa
               value: 'code',
               label: 'Code minimum',
               sub:   breezeway
-                ? `Breezeway stair package — landing disks, wall packs w/ battery, frogeyes, vestibule disks`
+                ? `$${breezeway.ratePerLanding.toLocaleString()}/landing — breezeway (corridor + stair in one)`
                 : `$${STAIR_EACH}/landing — 4ft LED strip w/ integrated battery backup`,
               cost:  stairwellProd,
             },
@@ -308,13 +314,13 @@ export default function CorridorsSection({ responses, projectData, pricing, onSa
               value: 'elevated',
               label: 'Elevated design',
               sub:   breezeway
-                ? `Package + $${STAIR_ELEV}/landing aesthetic upgrade`
+                ? `$${(breezeway.ratePerLanding + STAIR_ELEV).toLocaleString()}/landing — aesthetic upgrade (+$${STAIR_ELEV}/landing)`
                 : `$${STAIR_EACH + STAIR_ELEV}/landing — aesthetic upgrade (+$${STAIR_ELEV}/landing)`,
               cost:  stairwellProd + stairwells * STAIR_ELEV,
             },
           ]}
           value={ans.stairwellDesign}
-          onChange={v => set('stairwellDesign', v)}
+          onChange={v => set('stairwellDesign', v)} impact={qc['corridors.stairwellDesign']}
         />
       )}
 
@@ -331,7 +337,7 @@ export default function CorridorsSection({ responses, projectData, pricing, onSa
           { value: 'integrated', label: '1 Integrated unit number/light', sub: '$200 ea', cost: 200 },
         ]}
         value={ans.unitSconce}
-        onChange={v => set('unitSconce', v)}
+        onChange={v => set('unitSconce', v)} impact={qc['corridors.unitSconce']}
         override={{
           value:       ans.unitSconcePrice,
           onChange:    v => set('unitSconcePrice', v),
@@ -363,14 +369,14 @@ export default function CorridorsSection({ responses, projectData, pricing, onSa
                 {
                   value: 'standard',
                   label: 'Standard — LED linear strips on grid',
-                  sub:   '$0.30/SF — code-compliant, efficient',
-                  cost:  garageSf * 0.30,
+                  sub:   `$${P.designGarage?.baseMediumPerSf ?? 0.20}/SF — code-compliant, efficient`,
+                  cost:  garageSf * (P.designGarage?.baseMediumPerSf ?? 0.20),
                 },
                 {
                   value: 'enhanced',
                   label: 'Enhanced — better uniformity and CRI',
-                  sub:   '$0.45/SF — improved tenant and safety experience',
-                  cost:  garageSf * 0.45,
+                  sub:   `$${P.designGarage?.baseHighPerSf ?? 0.25}/SF — improved tenant and safety experience`,
+                  cost:  garageSf * (P.designGarage?.baseHighPerSf ?? 0.25),
                 },
               ]}
               value={ans.garageDesignLevel || 'standard'}
@@ -382,7 +388,7 @@ export default function CorridorsSection({ responses, projectData, pricing, onSa
               note="Occupancy sensors in garages are code-required in most jurisdictions. Daylight harvesting adds cost but can generate energy credits."
               options={[
                 { value: 'occupancy',   label: 'Occupancy sensors only — code minimum',               sub: 'Required in most jurisdictions', cost: 0 },
-                { value: 'daylighting', label: 'Occupancy + daylight harvesting sensors',              sub: 'Additional cost; potential energy credit', cost: 0 },
+                { value: 'daylighting', label: 'Occupancy + daylight harvesting sensors',              sub: `+$${P.designGarage?.daylightingAdderPerSf ?? 0.10}/SF; potential energy credit`, cost: garageSf * (P.designGarage?.daylightingAdderPerSf ?? 0.10) },
               ]}
               value={ans.garageControls || 'occupancy'}
               onChange={v => set('garageControls', v)}

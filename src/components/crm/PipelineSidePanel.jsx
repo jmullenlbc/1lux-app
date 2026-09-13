@@ -115,7 +115,7 @@ export default function PipelineSidePanel({ project, onClose, onUpdate }) {
 
   useEffect(() => {
     let alive = true;
-    fetch('/api/users?division=SALES')
+    fetch('/api/users?department=SALES_MARKETING')
       .then(r => (r.ok ? r.json() : null))
       .then(d => { if (alive && d) setSalesUsers(d.users || []); })
       .catch(() => {});
