@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Drive-lane lights by drive length] - September 13, 2026 (LOCAL — not deployed)
+## [Drive-lane lights by drive length + garages/carports] - September 13, 2026 (DEPLOYED d4cdeb0)
 
 Mike: *"correlate it to the width of 9 spaces and just keep that and measure the drive."* Townhome and single-family communities now get one area light per 81 ft of private drive (9 stalls × 9 ft).
 
