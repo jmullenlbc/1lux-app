@@ -634,9 +634,10 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     };
   };
 
-  // Undercabinet: 8 ft per kitchen — 120V in 24" pieces, low voltage per foot of tape.
+  // Undercabinet: 5 ft per kitchen on average (Mike 2026-09-13) — 120V in 24"
+  // pieces, low voltage per foot of tape.
   const ucKey = units.undercabinet || 'none';
-  const ucFt  = n(L.undercabinetFtPerUnit, 8);
+  const ucFt  = n(L.undercabinetFtPerUnit, 5);
   const ucLaborEach = ucKey === 'lineVoltage' ? Math.ceil(ucFt / 2) * lab('undercabinet24in')
                     : ucKey === 'lowVoltage'  ? ucFt * lab('tapePerFt')
                     : 0;
@@ -678,15 +679,24 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // Exit signs.
   addQ('corridors.exitSignType', [corridors.exitSignType && signCount > 0 && line('Exit signs', signCount, 'signs', signCost, lab('exitSign'))]);
 
-  // Area lights: pole + base, plus trenching (none on a solar site).
+  // Area lights: pole + base, plus trenching. A solar site credits back 70% of
+  // that wired-pole labor (Mike 2026-09-13: "70% of the pole labor cost credited").
   const poleEach = (PRICING.exterior.surfaceParking.perFixture ?? PRICING.exterior.surfaceParking.perStall ?? 1325) * solarMultiplier;
-  addQ('exterior.siteDesignLevel', [parkingFixtures > 0 && line(solarSite ? 'Solar area lights' : 'Area lights', parkingFixtures, 'poles', poleEach, lab('areaPole') + (solarSite ? 0 : lab('trenching')))]);
+  const poleLabor = lab('areaPole') + lab('trenching');
+  const solarCreditPct = n(L.solarPoleCreditPct, 0.7);
+  addQ('exterior.siteDesignLevel', [
+    parkingFixtures > 0 && line(solarSite ? 'Solar area lights' : 'Area lights', parkingFixtures, 'poles', poleEach, poleLabor),
+    parkingFixtures > 0 && solarSite && poleLabor * solarCreditPct > 0 && line(`Solar credit (${Math.round(solarCreditPct * 100)}% of pole labor)`, parkingFixtures, 'poles', 0, -poleLabor * solarCreditPct),
+  ]);
 
   // Wallpacks.
   addQ('exterior.wallpacksQty', [wpQty > 0 && line('Wallpacks', wpQty, 'wallpacks', wpEach, lab('sconce'))]);
 
-  // Pathway bollards: priced per unit, no fixture count → product only.
-  addQ('exterior.pathwayBollards', [pathwayProduct > 0 && { label: 'Walking-path lighting', count: null, countLabel: null, each: null, product: pathwayProduct, laborEach: null, labor: 0 }]);
+  // Pathway: the per-unit rates were built as bollards × $800, so the line
+  // divides back into a light count; $500 labor per light (Mike 2026-09-13).
+  const pathwayEach  = n(PRICING.exterior.bollard?.perUnit, 800) * pathwaySolarMultiplier || 800;
+  const pathwayCount = pathwayProduct > 0 ? Math.max(1, Math.round(pathwayProduct / pathwayEach)) : 0;
+  addQ('exterior.pathwayBollards', [pathwayCount > 0 && { label: 'Walking-path lights', count: pathwayCount, countLabel: 'lights', each: pathwayProduct / pathwayCount, product: pathwayProduct, laborEach: lab('pathwayFixture'), labor: pathwayCount * lab('pathwayFixture') }]);
 
   // $/SF lines — cost only, no labor (Mike 2026-09-13: "Leave labor off of those").
   const sfLine = (label, product) => product > 0 ? { label, count: null, countLabel: null, each: null, product, laborEach: null, labor: 0 } : null;
@@ -695,13 +705,15 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   addQ('exterior.amenityHours',   [sfLine('Exterior amenity lighting', extAmenityProduct)]);
 
   // Emergency: each frogeye installs like a wall sconce (Mike 2026-09-13).
-  // One per 300 SF of corridor (plus amenity when frogeyes go everywhere).
-  // Inverters, generators and integrated garage batteries: no labor figure.
+  // Corridors: one per 25 ft of corridor (Mike), feet = corridor SF ÷ width.
+  // Amenity rooms (frogeyes everywhere only): one per 300 SF.
+  // Inverters, generators and garage batteries: no labor (batteries are future).
   const frogeyeStrategies = ['frogeyes', 'frogeyes_inv', 'integrated_frogeyes'];
-  const frogeyeSf = frogeyeStrategies.includes(strategyKey)
-    ? corridorSf + (strategyKey === 'frogeyes' ? intAmenitySf : 0)
-    : 0;
-  const frogeyeCount = frogeyeSf > 0 ? Math.ceil(frogeyeSf / (n(L.frogeyeSfEach, 300) || 300)) : 0;
+  const usesFrogeyes = frogeyeStrategies.includes(strategyKey);
+  const corridorFt = corridorSf / (n(L.corridorWidthFt, 6) || 6);
+  const frogeyeCount = !usesFrogeyes ? 0
+    : (corridorSf > 0 ? Math.ceil(corridorFt / (n(L.frogeyeFtEach, 25) || 25)) : 0)
+    + (strategyKey === 'frogeyes' && intAmenitySf > 0 ? Math.ceil(intAmenitySf / (n(L.frogeyeSfEach, 300) || 300)) : 0);
   const emergencyFixtureProduct = emergencyCost.total - n(emergencyCost.batteryCost);
   addQ('emergency.strategy', [
     frogeyeCount > 0

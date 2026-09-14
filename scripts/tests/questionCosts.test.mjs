@@ -7,7 +7,8 @@
  *   1. Labor is an estimate beside the product — it never moves any total.
  *   2. Labor uses the RAW rates on the master sheet (no OH&P).
  *   3. $/SF answers carry no labor ("Leave labor off of those").
- *   4. A frogeye installs like a wall sconce, one per 300 SF of corridor.
+ *   4. A frogeye installs like a wall sconce, one per 25 ft of corridor.
+ *      Walking-path lights $500 each; solar poles show trenching as a saving.
  *   5. Every priced public-form question has an entry, and the public form
  *      never prices anything itself.
  *
@@ -43,7 +44,7 @@ test('questionCosts is on the budget', () => {
 
 test('labor never changes the budget total', () => {
   // Zero every dollar rate; keep the two quantity knobs (feet, SF per frogeye).
-  const QTY = ['undercabinetFtPerUnit', 'frogeyeSfEach'];
+  const QTY = ['undercabinetFtPerUnit', 'frogeyeSfEach', 'frogeyeFtEach', 'corridorWidthFt'];
   const zeroLabor = Object.fromEntries(Object.entries(PRICING.labor).map(([k, v]) => [k, QTY.includes(k) ? v : 0]));
   const noLabor = calculateBudget(PD, RESP, { ...PRICING, labor: zeroLabor });
   assert.equal(noLabor.totalWithContingency, b.totalWithContingency);
@@ -64,15 +65,44 @@ test('fans: fan count × $225 raw labor', () => {
   assert.deepEqual(qc['units.fanLevel'], qc['units.fans'], 'both fan questions show the same line');
 });
 
-test('120V undercabinet: 8 ft per kitchen = four 24" pieces × $57.63', () => {
-  close(qc['units.undercabinet'].labor, PD.numUnits * 4 * PRICING.labor.undercabinet24in, 'undercabinet labor');
+test('120V undercabinet: 5 ft per kitchen = three 24" pieces × $57.63', () => {
+  assert.equal(PRICING.labor.undercabinetFtPerUnit, 5);
+  close(qc['units.undercabinet'].labor, PD.numUnits * 3 * PRICING.labor.undercabinet24in, 'undercabinet labor');
 });
 
-test('frogeyes: one per 300 SF of corridor + amenity, each at sconce labor', () => {
-  const count = Math.ceil((PD.corridorSf + PD.interiorAmenitySf) / 300);
+test('frogeyes: one per 25 ft of corridor (SF ÷ 6 ft wide) + one per 300 SF of amenity, at sconce labor', () => {
+  const count = Math.ceil(PD.corridorSf / 6 / 25) + Math.ceil(PD.interiorAmenitySf / 300); // 60 + 10
   const fe = qc['emergency.strategy'].lines.find(l => l.label === 'Frogeyes');
   assert.equal(fe.count, count);
   close(fe.labor, count * PRICING.labor.sconce, 'frogeye labor');
+});
+
+test('walking-path lights: count = line ÷ $800, labor $500 each', () => {
+  const found = ['garden', 'podium', 'wrap', 'townHouses']
+    .map(t => calculateBudget({ ...PD, buildingTypeKey: t }, { ...RESP, exterior: { ...RESP.exterior, pathwayBollards: 'yes' } }).questionCosts['exterior.pathwayBollards'])
+    .filter(e => e && e.product > 0);
+  assert.ok(found.length > 0, 'some building type should price pathway');
+  for (const e of found) {
+    const l = e.lines[0];
+    assert.equal(l.count, Math.max(1, Math.round(e.product / 800)));
+    assert.equal(l.laborEach, 500);
+    close(e.labor, l.count * 500, 'pathway labor');
+  }
+});
+
+test('solar site: 70% of wired-pole labor credited back as a saving', () => {
+  const pd = { ...PD, numSurfaceParking: 90 };
+  const wired = calculateBudget(pd, RESP).questionCosts['exterior.siteDesignLevel'];
+  const solar = calculateBudget(pd, { ...RESP, exterior: { ...RESP.exterior, siteDesignLevel: 'solar' } }).questionCosts['exterior.siteDesignLevel'];
+  const poleLabor = PRICING.labor.areaPole + PRICING.labor.trenching;
+  assert.equal(PRICING.labor.solarPoleCreditPct, 0.7);
+  assert.ok(wired.lines.length === 1 && wired.lines[0].count > 0, 'wired site has poles');
+  close(wired.labor, wired.lines[0].count * poleLabor, 'wired pole labor');
+  const saved = solar.lines.find(l => l.labor < 0);
+  assert.ok(saved, 'solar shows a credit line');
+  assert.equal(saved.product, 0);
+  close(saved.labor, -saved.count * poleLabor * 0.7, '70% credit');
+  close(solar.labor, solar.lines[0].count * poleLabor * 0.3, 'net solar labor = 30% of wired');
 });
 
 test('$/SF answers show cost only — no labor', () => {

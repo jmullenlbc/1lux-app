@@ -186,7 +186,8 @@ const PRICING_FIELDS = [
   { group: 'Labor (raw — estimated labor + materials)', key: 'labor.exitSign',          label: 'Exit Sign',             desc: 'Raw install labor, no OH&P', unit: '$/ea' },
   { group: 'Labor (raw — estimated labor + materials)', key: 'labor.ceilingFan',        label: 'Ceiling Fan',           desc: 'Raw install labor, no OH&P', unit: '$/ea' },
   { group: 'Labor (raw — estimated labor + materials)', key: 'labor.areaPole',          label: 'Area Light + Pole',     desc: 'Raw install labor, no OH&P', unit: '$/ea' },
-  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.trenching',         label: 'Trenching per Pole',    desc: 'Added to each area light; none on solar sites', unit: '$/pole' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.trenching',         label: 'Trenching per Pole',    desc: 'Added to each area light', unit: '$/pole' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.solarPoleCreditPct', label: 'Solar Pole Labor Credit', desc: 'Share of a wired pole\'s labor (pole + trenching) credited back on a solar site. 0.70 = 70%', unit: '×' },
   { group: 'Labor (raw — estimated labor + materials)', key: 'labor.bollard',           label: 'Bollard',               desc: 'Raw install labor, no OH&P', unit: '$/ea' },
   { group: 'Labor (raw — estimated labor + materials)', key: 'labor.landscapeBullet',   label: 'Landscape Bullet',      desc: 'Raw install labor, no OH&P', unit: '$/ea' },
   { group: 'Labor (raw — estimated labor + materials)', key: 'labor.pendant',           label: 'Pendant',               desc: 'Per pendant hung', unit: '$/ea' },
@@ -202,7 +203,10 @@ const PRICING_FIELDS = [
   { group: 'Labor (raw — estimated labor + materials)', key: 'labor.fanJBox',           label: 'Fan J-Box',             desc: 'Raw install labor, no OH&P', unit: '$/ea' },
   { group: 'Labor (raw — estimated labor + materials)', key: 'labor.mirrorJBox',        label: 'Lighted Mirror J-Box',  desc: 'Labor for each illuminated-mirror vanity', unit: '$/ea' },
   { group: 'Labor (raw — estimated labor + materials)', key: 'labor.undercabinetFtPerUnit', label: 'Undercabinet Feet per Kitchen', desc: 'Assumed run length used to estimate undercabinet labor', unit: 'ft' },
-  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.frogeyeSfEach',     label: 'SF per Frogeye',        desc: 'Assumed one frogeye per this many SF of corridor, for the labor estimate', unit: 'SF' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.frogeyeFtEach',     label: 'Corridor Feet per Frogeye', desc: 'One frogeye per this many feet of corridor, for the labor estimate', unit: 'ft' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.corridorWidthFt',   label: 'Corridor Width',        desc: 'Turns corridor SF into feet of corridor for the frogeye count', unit: 'ft' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.frogeyeSfEach',     label: 'Amenity SF per Frogeye', desc: 'Amenity rooms (frogeyes everywhere): one frogeye per this many SF', unit: 'SF' },
+  { group: 'Labor (raw — estimated labor + materials)', key: 'labor.pathwayFixture',    label: 'Walking-Path Light',    desc: 'Raw install labor per path light', unit: '$/ea' },
 
   // ── FREIGHT / WAREHOUSING ─────────────────────────────────────────────
   { group: 'Freight & Warehousing', key: 'freight',     label: 'Freight Rate',     desc: '% of product subtotal (0.06 = 6%)', unit: 'decimal' },

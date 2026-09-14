@@ -2,7 +2,13 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-13 (latest) — Mike's Claude — ✅ **DEPLOYED c884238**: everything from Sept 12–13 + per-answer cost & labor, migrations 0077 + 0078 + 0079
+### 2026-09-13 (latest) — Mike's Claude — ✅ **DEPLOYED**: labor numbers corrected to Mike's answers (no migration)
+- Undercabinet 5 ft/kitchen; frogeye 1 per 25 ft of corridor (corridor SF ÷ new `labor.corridorWidthFt` 6); walking-path lights $500 labor each (count = pathway line ÷ $800); solar sites credit back 70% of wired-pole labor (`labor.solarPoleCreditPct`) as a negative "labor saved" line; garage batteries stay no labor. New pricing-screen rows. Labor still never enters a total, so no budget dollars move.
+- Files: `pricing.js`, `calculations.js`, `PricingEditor.jsx`, `QuestionCard.jsx` (green "Estimated labor saved"), `questionCosts.test.mjs` (11 tests).
+- Accuracy triple check (report on G:): real figures verified; corrected 5.7% / 4.9% average miss, 7 of 9 / 8 of 9 within 10% (Sheridan A+B counted once). "Other" energy code keeps its 3% credit (Mike).
+- Debug pass: `verify --full` 13/13 gates incl. build, offline units 957/957, `npm test` green, dev-server smoke/dn-leak/mcp 63/63.
+
+### 2026-09-13 — Mike's Claude — ✅ **DEPLOYED c884238**: everything from Sept 12–13 + per-answer cost & labor, migrations 0077 + 0078 + 0079
 
 - **Per-answer cost + estimated labor.** `calculateBudget` now returns `questionCosts`, keyed `"section.field"`, shaped `{ lines:[{label,count,countLabel,each,product,laborEach,labor}], product, labor }`. `CostImpact` (in QuestionCard.jsx) prints the chosen answer's entry under it on every internal screen and on the public form.
   - **Labor is never added to any total.** Rates come from the new top-level `PRICING.labor` (raw, no OH&P; `fillPricingDefaults` reaches old snapshots). $/SF and pathway lines carry `count:null, labor:0`.

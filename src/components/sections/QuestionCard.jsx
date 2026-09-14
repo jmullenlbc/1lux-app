@@ -98,12 +98,17 @@ export function CostImpact({ impact }) {
     <div className="mt-2 rounded-md bg-white/70 border border-amber-200 px-3 py-2 text-xs text-slate-600 space-y-0.5">
       {impact.lines.map((l, i) => (
         <div key={i}>
-          {l.count != null
+          {l.product === 0 && l.labor < 0 ? <span>{l.label}</span> : l.count != null
             ? <span>{l.label}: {Number(l.count).toLocaleString()} {l.countLabel} × {moneyEach(l.each)} = <span className="font-mono font-semibold text-slate-800">{money(l.product)}</span></span>
             : <span>{l.label}: <span className="font-mono font-semibold text-slate-800">{money(l.product)}</span></span>}
           {l.labor > 0 && (
             <div className="text-slate-500">
               Estimated labor: {Number(l.count).toLocaleString()} × {moneyEach(l.laborEach)} = <span className="font-mono">{money(l.labor)}</span>
+            </div>
+          )}
+          {l.labor < 0 && (
+            <div className="text-emerald-700">
+              Estimated labor saved: {Number(l.count).toLocaleString()} × {moneyEach(-l.laborEach)} = <span className="font-mono">−{money(-l.labor)}</span>
             </div>
           )}
         </div>

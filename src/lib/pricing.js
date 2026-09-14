@@ -568,8 +568,10 @@ export const PRICING = {
     exitSign:          101.69,
     ceilingFan:        225,
     areaPole:          869.79,  // area light + pole base
-    trenching:         290,     // per pole — none on solar sites
+    trenching:         290,     // per pole, wired sites
+    solarPoleCreditPct: 0.70,   // solar site: 70% of a wired pole's labor credited back (Mike 2026-09-13)
     bollard:           384.35,
+    pathwayFixture:    500,     // walking-path light (Mike 2026-09-13: "$500/fixture")
     landscapeBullet:   319.36,
     pendant:           104.36,
     stepLight:          64.97,
@@ -583,8 +585,10 @@ export const PRICING = {
     emergencyCircuit:  200.76,
     fanJBox:           100.04,
     mirrorJBox:         86.05,  // lighted mirror j-box
-    undercabinetFtPerUnit: 8,   // assumed feet of undercabinet per kitchen
-    frogeyeSfEach:        300,  // assumed 1 frogeye per 300 SF of corridor
+    undercabinetFtPerUnit: 5,   // average feet of undercabinet per kitchen (Mike 2026-09-13)
+    frogeyeFtEach:        25,   // 1 frogeye per 25 ft of corridor (Mike 2026-09-13)
+    corridorWidthFt:       6,   // turns corridor SF into feet of corridor
+    frogeyeSfEach:        300,  // amenity rooms: 1 frogeye per 300 SF (assumed)
   },
 };
 

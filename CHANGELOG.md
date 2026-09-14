@@ -5,6 +5,19 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Labor numbers corrected to Mike's figures] - September 13, 2026 (DEPLOYED)
+
+Mike's answers to the labor assumptions shipped in c884238. Labor is still an estimate shown beside the price and never added to any total.
+
+- **Undercabinet:** 5 ft per kitchen on average (was an assumed 8 ft). A 120V kitchen now counts three 24" pieces.
+- **Frogeyes:** one per 25 ft of corridor (was 1 per 300 SF). Corridor feet = corridor SF ÷ a 6 ft corridor width, which is editable on the pricing screen. Amenity rooms stay at 1 per 300 SF when frogeyes go everywhere.
+- **Walking-path lights:** $500 labor per light (was none). The light count is the pathway line ÷ $800 per bollard, which is how the per-unit rates were built.
+- **Solar site lighting:** 70% of a wired pole's labor (pole + trenching, $1,159.79) is credited back as a green "estimated labor saved" line, so a solar pole shows about $348 of labor (Mike). The 70% is editable on the pricing screen ("Solar Pole Labor Credit").
+- **"Other" energy code** keeps adding the 3% energy credit (Mike confirmed). Frogeyes at $29 each and a 6 ft corridor are confirmed.
+- **Garage batteries:** still no labor, because they're a future item (Mike).
+- Pricing screen: new rows for Corridor Feet per Frogeye, Corridor Width, Amenity SF per Frogeye, and Walking-Path Light.
+- Accuracy triple check against the real budgets on today's code. Every real figure was re-read from the workbooks and matches. The average miss is 5.7% on required answers only and 4.9% on all answers. After counting Sheridan's two options as one site, 7 of 9 jobs are within 10% on required answers and 8 of 9 on all answers. The Sept 12 figure of "9 of 10" was too generous. Found in passing: the tool adds a 3% energy credit when the energy code answer is "Other"; the workbooks don't.
+
 ## [What each answer costs, with estimated labor] - September 13, 2026 (DEPLOYED c884238 — ships with the September 12–13 entries below)
 
 Mike: *"Yes both internally and externally we should show correlated unit cost, total cost and
