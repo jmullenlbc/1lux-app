@@ -289,9 +289,15 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const stallsPerFixture = PRICING.exterior.surfaceParking.stallsPerFixture ?? 9;
   // Drive-lane area lights: the same area light + pole, along a private drive
   // with no parking lot to hang them on (a townhouse community's one road).
-  // Set by the no-drawings estimate (quantities.js driveLaneLights); 0 unless
-  // something passed a count.
-  const driveLaneLights  = Math.max(0, Math.round(n(exterior.driveLaneLightsQty, 0)));
+  // Two ways in: a drive LENGTH (feet) — one light per the width of 9 stalls,
+  // 81 ft (Mike 2026-09-13) — or a straight COUNT from the estimate
+  // (quantities.js driveLaneLights). A length wins; 0 unless something passed one.
+  const driveLaneFt      = Math.max(0, n(exterior.driveLaneFt, 0));
+  const driveLaneFtPer   = n(PRICING.exterior.surfaceParking.driveLaneFtPerLight, 81) > 0
+    ? n(PRICING.exterior.surfaceParking.driveLaneFtPerLight, 81) : 81;
+  const driveLaneLights  = driveLaneFt > 0
+    ? Math.ceil(driveLaneFt / driveLaneFtPer)
+    : Math.max(0, Math.round(n(exterior.driveLaneLightsQty, 0)));
   const stallFixtures    = Math.ceil(surfaceParking / stallsPerFixture);
   // One editable area-light count (Mike, 2026-09-12): a typed total on the
   // Exterior screen replaces lot poles + drive-lane lights together.

@@ -35,7 +35,7 @@ export const SITE_NUMBER_KEYS = [
   'lotAcres', 'lotSf', 'totalUnits', 'parkingProvided', 'parkingRequired', 'parkingRatioRequired',
   'surfaceParking', 'surfaceParkingCounted', 'garages', 'carports', 'buildingCount', 'clubhouseSf', 'amenitySf',
   'grossSf', 'stories', 'storiesCounted', 'egressStairwells', 'egressStairwellsCounted',
-  'exitDoors', 'exitDoorsCounted', 'buildingFootprintSf', 'lotCoveragePct',
+  'exitDoors', 'exitDoorsCounted', 'buildingFootprintSf', 'lotCoveragePct', 'driveLengthFtMeasured',
 ];
 
 /** True when a vision read actually found a site number worth keeping. */

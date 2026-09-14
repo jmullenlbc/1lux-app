@@ -5,6 +5,28 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Drive-lane lights by drive length] - September 13, 2026 (LOCAL — not deployed)
+
+Mike: *"correlate it to the width of 9 spaces and just keep that and measure the drive."* Townhome and single-family communities now get one area light per 81 ft of private drive (9 stalls × 9 ft).
+
+- **Master pricing:** new knob `exterior.surfaceParking.driveLaneFtPerLight` = 81, editable on the pricing screen ("Drive Lane Ft Per Light").
+- **Budget engine:** a drive length in feet becomes ceil(ft ÷ 81) lights on top of the parking-lot poles. It beats the old straight count, and a typed area-light total still beats both.
+- **Internal Exterior screen:** new "Private drive length (ft)" box on the Area Lights card, with the math shown in the auto-count line.
+- **Drawing reader:** new `driveLengthFtMeasured` field. It is measured only off a site plan that shows a scale, covers private drives only (no parking-lot aisles, no public streets), and is flagged for a human to confirm. Prompt version bumped to `siteVision-2026-09-13`.
+- **Public form:** "Private drive length (ft)" box, shown only for Town Houses and Single Family, on both the typed-in and drawings paths. No pricing reaches the browser.
+- **Takeoff order:** typed length, then measured length, then ½ light per home less the lot poles.
+- ⚠️ **Behavior change:** drawing-read townhome and single-family budgets used to get 0 drive-lane lights. With no length, they now get the ½-per-home estimate, flagged.
+- Tests: `scripts/tests/driveLength.test.mjs` (15). Files: `pricing.js`, `calculations.js`, `ExteriorSection.jsx`, `PricingEditor.jsx`, `siteVision.js`, `mergeProposals.js`, `combineResult.js`, `quantities.js`, `estimate.js`, `questionnaire.js`, `IntakeClient.jsx`.
+
+**Garages and carports on the public form** (same push). Mike: *"we should only have detached garages for single family homes, townhomes and, garden walk-up and stacked flats. For carports the same, but add wraps."*
+
+- **Public form:** new "# Garages" and "# Carport bays" boxes on both the typed-in and drawings paths. Garages show for Single Family, Town Houses, Stacked Flats and Garden; carports show for those plus Wrap. A typed 0 is kept as a real "none".
+- **Takeoff order:** count written on the site plan, then the typed number, then (townhomes with no drawings only) **1 garage per home**, flagged as an estimate. Other types are asked, never guessed.
+- **Other building types (podium, mid-rise, high-rise, gurban):** no garage or carport lights, even if the site plan shows some. The row says so, so a reviewer sees it.
+- **Not changed:** the internal Project Data screen's garage and carport boxes still accept any building type.
+- Tests: `scripts/tests/garagesCarports.test.mjs` (10). Both new test files now run in `npm run verify`. Files: `noDrawingGuesses.js`, `questionnaire.js`, `quantities.js`, `IntakeClient.jsx`, `verify.mjs`.
+- **Trenching labor stays at $290 per pole** until Mike gives the new number.
+
 ## [Labor numbers corrected to Mike's figures] - September 13, 2026 (DEPLOYED 94fa973)
 
 Mike's answers to the labor assumptions shipped in c884238. Labor is still an estimate shown beside the price and never added to any total.

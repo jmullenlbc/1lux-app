@@ -247,6 +247,7 @@ Return ONLY valid JSON — no markdown, no commentary:
   "buildingFootprintSf": number or null,
   "lotCoveragePct": number or null,
   "buildingType": one of "singleFamily" | "townHouses" | "stackedFlats" | "garden" | "gurban" | "wrap" | "podium" | "midRise" | "highRise", or null,
+  "driveLengthFtMeasured": number or null,
   "confidence": number (0.0-1.0),
   "foundSiteDataBlock": boolean,
   "notes": "string - what you read it from, and anything ambiguous. AT MOST TWO SENTENCES."
@@ -273,6 +274,12 @@ COUNTED FIGURES — the one deliberate exception to the no-counting rule. These 
 - exitDoorsCounted: ONLY from a ground-floor or life-safety plan. Count doors marked as exits — EXIT tags, exit-sign symbols, egress arrows discharging to the exterior. Unmarked exterior doors do not count. If the image is not a plan view showing grade level, null.
 - surfaceParkingCounted: ONLY from a SITE PLAN view (the whole property seen from above, with drive aisles and striped parking). Count the individual striped open-air surface stalls. Do NOT count stalls inside garages, under carports, in a parking structure, or on a podium level. Count it even when a total is stated elsewhere, so the two can be compared. If the stalls are too small or crowded to count one by one, or the image is not a site plan, null.
 - When a counted figure and a stated figure are both available, report BOTH — never overwrite a stated number with your count.
+
+MEASURED FIGURE — driveLengthFtMeasured is the one field you may MEASURE rather than read or count:
+- ONLY from a SITE PLAN that shows a scale — a written one ("1\\" = 40'-0\\"", "SCALE: 1:50") or a graphic scale bar. No scale on the sheet means null; never assume one.
+- Measure the total centerline length, in feet, of the PRIVATE drives / private streets the homes front onto — the community's own internal road, typical of townhome and single-family layouts. Add up every branch.
+- Do NOT include drive aisles between striped parking stalls (those are lit by the stall count) and do NOT include public streets outside the property line.
+- If there is no private drive, or you cannot follow it end to end, null. Round to the nearest 10 ft.
 
 BUILDING TYPE — the one classification you may make, and only from evidence that is on the sheet. The lighting budget prices stairs, wall packs and controls differently by type, so a wrong type is worse than a null. Look for the words first: a title block, code summary or site data block often says it outright ("GARDEN STYLE", "3-STORY WALK-UP", "PODIUM", "WRAP", "TOWNHOMES", "MID-RISE"). Then apply these rules, in order, and return the key:
 - "townHouses": units labelled TOWNHOME / TOWNHOUSE / ROWHOUSE, each with its own front door and garage, 2–3 stories, no shared corridor or shared stair.
@@ -345,8 +352,14 @@ BUILDING TYPE — the one classification you may make, and only from evidence th
  * (the written per-unit rate — code multiplies, the model never does) and
  * surfaceParkingCounted, a fourth counted field, site-plan views only,
  * striped open-air stalls only. The takeoff reaches for the count last.
+ *
+ * 2026-09-13 adds driveLengthFtMeasured, the first MEASURED field (Mike:
+ * "correlate it to the width of 9 spaces ... and measure the drive"). Only off
+ * a site plan with a scale, private drives only — lot aisles and public
+ * streets excluded. The takeoff turns it into one area light per 81 ft and
+ * flags it for a human to confirm.
  */
-export const SITE_VISION_PROMPT_VERSION = `siteVision-2026-09-11-${MAX_EDGE}px`;
+export const SITE_VISION_PROMPT_VERSION = `siteVision-2026-09-13-${MAX_EDGE}px`;
 
 /**
  * Run vision extraction over rendered pages.
@@ -465,7 +478,7 @@ const SITE_FIELDS = [
   'surfaceParking', 'surfaceParkingCounted', 'garages', 'carports', 'buildingCount', 'clubhouseSf',
   'amenitySf', 'grossSf', 'stories', 'storiesCounted', 'egressStairwells',
   'egressStairwellsCounted', 'exitDoors', 'exitDoorsCounted',
-  'buildingFootprintSf', 'lotCoveragePct', 'buildingType',
+  'buildingFootprintSf', 'lotCoveragePct', 'buildingType', 'driveLengthFtMeasured',
 ];
 const BED_FIELDS = ['studio', 'oneBed', 'twoBed', 'threeBed'];
 

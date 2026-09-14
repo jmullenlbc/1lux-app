@@ -35,6 +35,9 @@ export default function ExteriorSection({ responses, projectData, allSections, p
     wallpacksPrice:    responses.wallpacksPrice    ?? '',
     // One area-light count (lot poles + drive-lane lights), same 'auto' rule.
     areaLightsQty:     responses.areaLightsQty     ?? '',
+    // Private drive length in feet (townhouse / single-family) — one area light
+    // per 81 ft (Mike 2026-09-13). Same 'auto' cleared state.
+    driveLaneFt:       responses.driveLaneFt       ?? '',
     // Design-only
     exteriorEmergency: responses.exteriorEmergency || 'wallpack',
     exteriorPoleControl: responses.exteriorPoleControl || 'photocell',
@@ -103,7 +106,12 @@ export default function ExteriorSection({ responses, projectData, allSections, p
   // Drive-lane area lights ride the same line — mirrors calculations.js. Only a
   // typed-in townhouse/single-family estimate sets them (driveLaneLightsQty).
   // A typed "Area lights" total replaces lot poles + drive lanes together.
-  const driveLane       = Math.max(0, Math.round(Number(responses.driveLaneLightsQty) || 0));
+  // A typed drive length wins: one light per the width of 9 stalls (81 ft).
+  const driveFt         = Math.max(0, Number(answers.driveLaneFt) || 0);
+  const driveFtPer      = Number(sp.driveLaneFtPerLight) > 0 ? Number(sp.driveLaneFtPerLight) : 81;
+  const driveLane       = driveFt > 0
+    ? Math.ceil(driveFt / driveFtPer)
+    : Math.max(0, Math.round(Number(responses.driveLaneLightsQty) || 0));
   const stallFixtures   = Math.ceil(parking / (sp.stallsPerFixture ?? 9));
   const areaAutoQty     = stallFixtures + driveLane;
   const areaQtyOv       = priceOverride(answers.areaLightsQty);
@@ -425,7 +433,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
             <p className="font-semibold text-slate-900">Area Lights (parking lot + drives)</p>
             <p className="text-[11px] text-slate-400">
               Auto-counted: {parking} stalls ÷ {sp.stallsPerFixture ?? 9} = {stallFixtures}
-              {driveLane ? ` + ${driveLane} along the drives` : ''} = {areaAutoQty} — override below if the site says otherwise.
+              {driveLane ? ` + ${driveLane} along the drives${driveFt > 0 ? ` (${driveFt.toLocaleString()} ft ÷ ${driveFtPer})` : ''}` : ''} = {areaAutoQty} — override below if the site says otherwise.
             </p>
           </div>
           <div className="text-right shrink-0">
@@ -438,20 +446,40 @@ export default function ExteriorSection({ responses, projectData, allSections, p
           Type the total you want and it replaces both automatic numbers. Leave it blank to keep
           the automatic count.
         </p>
-        <div className="w-40">
-          <Input
-            label="Area lights (override)"
-            type="number"
-            placeholder={String(areaAutoQty)}
-            value={areaQtyOv != null ? answers.areaLightsQty : ''}
-            onChange={e => {
-              const v = e.target.value === '' ? 'auto' : e.target.value;
-              setAnswers(a => ({ ...a, areaLightsQty: v }));
-              setDirtyAnswers(d => new Set(d).add('areaLightsQty'));
-            }}
-            min={0}
-          />
+        <div className="flex flex-wrap gap-4">
+          <div className="w-40">
+            <Input
+              label="Private drive length (ft)"
+              type="number"
+              placeholder="e.g. 2400"
+              value={driveFt > 0 ? answers.driveLaneFt : ''}
+              onChange={e => {
+                const v = e.target.value === '' ? 'auto' : e.target.value;
+                setAnswers(a => ({ ...a, driveLaneFt: v }));
+                setDirtyAnswers(d => new Set(d).add('driveLaneFt'));
+              }}
+              min={0}
+            />
+          </div>
+          <div className="w-40">
+            <Input
+              label="Area lights (override)"
+              type="number"
+              placeholder={String(areaAutoQty)}
+              value={areaQtyOv != null ? answers.areaLightsQty : ''}
+              onChange={e => {
+                const v = e.target.value === '' ? 'auto' : e.target.value;
+                setAnswers(a => ({ ...a, areaLightsQty: v }));
+                setDirtyAnswers(d => new Set(d).add('areaLightsQty'));
+              }}
+              min={0}
+            />
+          </div>
         </div>
+        <p className="mt-2 text-[11px] text-slate-400">
+          Drive length: the private road the homes face, end to end. One light per {driveFtPer} ft
+          (the width of 9 parking stalls). Leave blank if there is no private drive.
+        </p>
         {areaQtyOv != null && (
           <p className="mt-2 text-xs text-amber-700">
             Manual override in use — {parkingFixtures} area light{parkingFixtures === 1 ? '' : 's'} instead of the automatic {areaAutoQty}.

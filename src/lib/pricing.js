@@ -127,6 +127,10 @@ export const PRICING = {
     surfaceParking: {
       perFixture:      1325, // cost per area light + 30ft pole
       stallsPerFixture:   9, // approx 1 fixture covers 9 stalls
+      // Private drive (townhouse / single-family road): one area light per the
+      // width of 9 stalls, 9 × 9 ft (Mike 2026-09-13: "correlate it to the
+      // width of 9 spaces ... and measure the drive").
+      driveLaneFtPerLight: 81,
     },
 
     // Solar site lighting costs more than conventional because the fixture

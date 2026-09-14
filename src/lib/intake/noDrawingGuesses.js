@@ -92,6 +92,12 @@ export const NO_DRAWING_GUESSES = {
     singleFamily: 0.5,
     townHouses: 0.5,
   },
+  // Garages (one sconce per door) when the visitor leaves the box blank. Mike
+  // 2026-09-13: townhomes start at 1 garage per home. Other garage types
+  // (see GARAGE_TYPE_KEYS in questionnaire.js) are asked, not guessed.
+  garagesPerUnit: {
+    townHouses: 1,
+  },
   // Back of house as a share of building gross (mechanical, storage, trash,
   // bike rooms). Real: gardens 0.7–0.9% (Fulshear 2.8%), wrap 1.7–2.6%,
   // podium 2.4%, high-rise 3.5%; townhouses none. Never above the master

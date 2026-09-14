@@ -43,7 +43,7 @@
 import { lotSquareFeet, ACRE_SF } from '../siteFields.js';
 import { PRICING } from '../pricing.js';
 import { estimateStairLandings } from '../stairLandings.js';
-import { answersToEngine, NO_DRAWINGS_KEY, CLUBHOUSE_KEY } from './questionnaire.js';
+import { answersToEngine, NO_DRAWINGS_KEY, CLUBHOUSE_KEY, GARAGE_TYPE_KEYS, CARPORT_TYPE_KEYS } from './questionnaire.js';
 import { NO_DRAWING_GUESSES } from './noDrawingGuesses.js';
 
 /** A stated, usable number — or null. Number(null) is 0, hence the dance. */
@@ -580,13 +580,37 @@ export function computeQuantities(drawings, answers, pricing = null) {
   }
   add('surfaceParking', '# Surface Parking Stalls', 'count', surface, surfaceSource, surfaceHow, surfaceFlag);
 
-  add('carports', '# Carports', 'count', stated(site?.carports), 'drawing',
-    stated(site?.carports) != null ? 'Stated on the site plan.' : 'Not stated on the site plan.');
-
-  add('garages', '# Garages', 'count', stated(site?.garages), 'drawing',
-    stated(site?.garages) != null
-      ? 'Stated on the site plan. Drawings rarely split attached from detached — confirm the mix.'
-      : 'Not stated on the site plan.');
+  // Garages and carports (Mike, 2026-09-13): garages only on single-family,
+  // townhouse, stacked-flat and garden jobs; carports on those plus wraps. Any
+  // other type prices neither, even when the site plan shows some. Ladder:
+  // written on the site plan → typed by the visitor → townhomes 1 garage per
+  // home (no-drawings only). A typed 0 is a real "none".
+  const coverType = typeKey || site?.buildingType || null;
+  const coveredRow = (key, label, noun, allowed, siteVal, typedRaw, statedHow) => {
+    const fromSite = stated(siteVal);
+    if (coverType && !allowed.includes(coverType)) {
+      add(key, label, 'count', null, 'drawing',
+        `This building type gets no ${noun} lights.`,
+        fromSite ? `The site plan shows ${fmt(fromSite)} ${noun} — not priced for this building type.` : null);
+      return;
+    }
+    const typed = fromSite == null ? statedCount(typedRaw) : null;
+    const perUnit = key === 'garages' ? guess('garagesPerUnit') : null;
+    if (fromSite != null) {
+      add(key, label, 'count', fromSite, 'drawing', statedHow);
+    } else if (typed != null) {
+      add(key, label, 'count', typed, 'questionnaire', 'Entered by the submitter — not found on the site plan.');
+    } else if (perUnit > 0 && unitCount > 0) {
+      add(key, label, 'count', Math.ceil(unitCount * perUnit), 'derived',
+        `${fmt(unitCount)} homes × ${perUnit} garage per home — typical for this building type.`, GUESS_FLAG);
+    } else {
+      add(key, label, 'count', null, 'drawing', 'Not stated on the site plan.');
+    }
+  };
+  coveredRow('carports', '# Carports', 'carport', CARPORT_TYPE_KEYS, site?.carports, ans.figureCarports,
+    'Stated on the site plan.');
+  coveredRow('garages', '# Garages', 'garage', GARAGE_TYPE_KEYS, site?.garages, ans.figureGarages,
+    'Stated on the site plan. Drawings rarely split attached from detached — confirm the mix.');
 
   // ── SITE ───────────────────────────────────────────────────────────────────
   const lot = site ? lotSquareFeet(site) : null;
@@ -705,20 +729,8 @@ export function computeQuantities(drawings, answers, pricing = null) {
       'No lit outdoor amenity area is assumed for this building type.');
     perUnitRow('vanities', 'vanitiesPerUnit', 'bathroom vanities', 'No vanities assumed.');
 
-    // Drive-lane area lights — townhouse and single-family communities light their private drive
-    // with the same area light + pole a parking lot uses. Any poles the surface
-    // lot already carries count toward it.
-    const lanePer = NO_DRAWING_GUESSES.driveLaneLightsPerUnit[typeKey];
-    if (lanePer > 0 && unitCount > 0) {
-      const perFixture = Number(pricing?.exterior?.surfaceParking?.stallsPerFixture)
-        || PRICING.exterior.surfaceParking.stallsPerFixture || 9;
-      const stalls = Number(out.find(r => r.key === 'surfaceParking')?.value) || 0;
-      const lotPoles = Math.ceil(stalls / perFixture);
-      const lane = Math.max(0, Math.ceil(unitCount * lanePer) - lotPoles);
-      add('driveLaneLights', '# Drive-Lane Area Lights', 'count', lane, 'derived',
-        `${fmt(unitCount)} units × ${lanePer} area lights per unit along the private drive${lotPoles ? `, less the ${fmt(lotPoles)} the parking lot already carries` : ''}.`,
-        GUESS_FLAG);
-    }
+    // Drive-lane area lights moved below the no-drawings block (2026-09-13) —
+    // they now run with drawings too.
 
     // Back of house (Mike, 2026-09-11: "how much BOH based on gross SF"): the
     // type's usual share of the building, never more than the master sheet's
@@ -793,6 +805,49 @@ export function computeQuantities(drawings, answers, pricing = null) {
           storiesRow.flag   = 'ESTIMATED from gross ÷ footprint, not read off the drawings — confirm on the elevations or code summary.';
         }
       }
+    }
+  }
+
+  // ── DRIVE-LANE AREA LIGHTS (townhouse / single-family) ────────────────────
+  // These communities light their private drive with the same area light +
+  // pole a parking lot uses. Mike 2026-09-13: "correlate it to the width of 9
+  // spaces ... and measure the drive" — one light per 81 ft (9 stalls × 9 ft).
+  // Ladder: a length the visitor typed → a length measured off a scaled site
+  // plan → ½ light per home, less the poles the parking lot already carries.
+  // Runs with or without drawings; a drawing-read townhouse budget used to
+  // get no drive-lane lights at all.
+  const laneType = typeKey || site?.buildingType || null;
+  const lanePer = laneType ? NO_DRAWING_GUESSES.driveLaneLightsPerUnit[laneType] : null;
+  if (lanePer > 0) {
+    const ftPer = Number(pricing?.exterior?.surfaceParking?.driveLaneFtPerLight)
+      || PRICING.exterior.surfaceParking.driveLaneFtPerLight || 81;
+    const typedRaw = statedAnswer(ans.figureDriveLengthFt);
+    const typedFt = typedRaw > 0 ? typedRaw : null;
+    const measuredFt = stated(site?.driveLengthFtMeasured);
+    const ft = typedFt ?? (measuredFt > 0 ? measuredFt : null);
+    if (ft != null) {
+      const perHome = unitCount > 0 ? ft / unitCount : null;
+      const odd = perHome != null && (perHome < 10 || perHome > 150)
+        ? `${fmt(Math.round(perHome))} ft of drive per home is unusual — check the length.` : null;
+      if (typedFt != null) {
+        add('driveLengthFt', 'Private drive length', 'ft', ft, 'questionnaire',
+          'Entered by the submitter.', odd);
+      } else {
+        add('driveLengthFt', 'Private drive length', 'ft', ft, 'drawing',
+          'Measured along the private drive centerline on the scaled site plan.',
+          ['Measured off the site plan, not written on it — confirm.', odd].filter(Boolean).join(' '));
+      }
+      add('driveLaneLights', '# Drive-Lane Area Lights', 'count', Math.ceil(ft / ftPer), 'derived',
+        `${fmt(ft)} ft of private drive ÷ ${fmt(ftPer)} ft per light (the width of 9 parking stalls).`, null);
+    } else if (unitCount > 0) {
+      const perFixture = Number(pricing?.exterior?.surfaceParking?.stallsPerFixture)
+        || PRICING.exterior.surfaceParking.stallsPerFixture || 9;
+      const stalls = Number(out.find(r => r.key === 'surfaceParking')?.value) || 0;
+      const lotPoles = Math.ceil(stalls / perFixture);
+      const lane = Math.max(0, Math.ceil(unitCount * lanePer) - lotPoles);
+      add('driveLaneLights', '# Drive-Lane Area Lights', 'count', lane, 'derived',
+        `${fmt(unitCount)} units × ${lanePer} area lights per unit along the private drive${lotPoles ? `, less the ${fmt(lotPoles)} the parking lot already carries` : ''}.`,
+        manual ? GUESS_FLAG : 'ESTIMATED — the drawings gave no private drive length. Enter it if you know it.');
     }
   }
 

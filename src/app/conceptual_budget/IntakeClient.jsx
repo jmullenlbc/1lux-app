@@ -84,16 +84,40 @@ const HOW_IT_WORKS = [
  * FIGURE_KEYS in questionnaire.js — the server-side whitelist that lets these
  * ride inside `answers`; `qKey` is the computeQuantities row each one settles.
  */
+// Some boxes only exist for some project types (`types`, matched against the
+// projectType answer). The drive length: townhomes and single-family. Garages:
+// those plus stacked flats and garden walk-ups; carports: those plus wraps
+// (Mike, 2026-09-13). The server does the arithmetic; no pricing reaches here.
+const DRIVE_PROJECT_TYPES   = ['Town Houses (2-3 Levels)', 'Single Family (1-2 Levels)'];
+const GARAGE_PROJECT_TYPES  = [...DRIVE_PROJECT_TYPES, 'Town House/Stacked Flats (3 Levels)', 'Garden (3 Levels)'];
+const CARPORT_PROJECT_TYPES = [...GARAGE_PROJECT_TYPES, 'Wrap (3-5 Levels)'];
+const DRIVE_LENGTH_FIELD = {
+  key: 'figureDriveLengthFt', qKey: 'driveLengthFt', label: 'Private drive length (ft)', placeholder: 'e.g. 2,400',
+  hint: 'The private road the homes face, end to end.', types: DRIVE_PROJECT_TYPES,
+};
+const GARAGE_FIELD = {
+  key: 'figureGarages', qKey: 'garages', label: '# Garages', placeholder: 'e.g. 64',
+  hint: 'Attached or detached. Enter 0 if none.', types: GARAGE_PROJECT_TYPES,
+};
+const CARPORT_FIELD = {
+  key: 'figureCarports', qKey: 'carports', label: '# Carport bays', placeholder: 'e.g. 40',
+  hint: 'Covered parking spaces. Enter 0 if none.', types: CARPORT_PROJECT_TYPES,
+};
+const fieldsFor = (list, projectType) => list.filter(f => !f.types || f.types.includes(projectType));
+
 const FIGURE_FIELDS = [
   { key: 'figureGrossSf',        qKey: 'grossSf',          label: 'Total building gross SF',  placeholder: 'e.g. 364,000' },
   { key: 'figureTotalUnits',     qKey: 'totalUnits',       label: 'Total units',              placeholder: 'e.g. 234' },
   { key: 'figureStories',        qKey: 'stories',          label: '# Stories',                placeholder: 'e.g. 4' },
+  DRIVE_LENGTH_FIELD,
   // Landings, not shafts (Mike, 2026-09-04): the internal Project Data field
   // asks for landings, and the engine prices $175 per LANDING — so the visitor
   // types the same figure. A switchback stair serving N floors has 2N−1.
   { key: 'figureStairLandings',  qKey: 'stairLandings',    label: '# Egress stairwell landings', placeholder: 'e.g. 15' },
   { key: 'figureExitDoors',      qKey: 'exitDoors',        label: '# Exit doors',             placeholder: 'e.g. 8' },
   { key: 'figureSurfaceParking', qKey: 'surfaceParking',   label: '# Surface parking stalls', placeholder: 'e.g. 120' },
+  GARAGE_FIELD,
+  CARPORT_FIELD,
   // Without a balcony count the balcony-lighting answer prices to $0 whatever
   // the visitor picks — ask for it whenever the unit matrix didn't list one.
   { key: 'figureBalconies',      qKey: 'balconies',        label: '# Balconies',              placeholder: 'e.g. 150' },
@@ -121,12 +145,16 @@ const MANUAL_FIELDS = [
   { key: 'figureStairLandings',     qKey: 'stairLandings',     label: '# Egress stairwell landings', placeholder: 'e.g. 15', estNote: 'based on your building type, size and number of stories.' },
   { key: 'figureExitDoors',         qKey: 'exitDoors',         label: '# Exit doors',              placeholder: 'e.g. 8' },
   { key: 'figureSurfaceParking',    qKey: 'surfaceParking',    label: '# Surface parking stalls',  placeholder: 'e.g. 120',     need: 'required', hint: 'Open-air stalls only. Enter 0 if all parking is in a garage.' },
+  GARAGE_FIELD,
+  CARPORT_FIELD,
   { key: 'figureBalconies',         qKey: 'balconies',         label: '# Balconies',               placeholder: 'e.g. 150' },
   { key: 'figureInteriorAmenitySf', qKey: 'interiorAmenitySf', label: 'Interior amenity SF',       placeholder: 'e.g. 5,000',   hint: 'Clubhouse, leasing, fitness.' },
   { key: 'figureCorridorSf',        qKey: 'corridorSf',        label: 'Corridors & stairwells SF', placeholder: 'e.g. 30,000' },
   { key: 'figureBohSf',             qKey: 'bohSf',             label: 'Back of house SF',          placeholder: 'e.g. 10,000',  hint: 'Mechanical, storage, trash, bike rooms.' },
   { key: 'figureGarageSf',          qKey: 'garageSf',          label: 'Garage SF',                 placeholder: 'e.g. 80,000',  hint: 'Leave blank if there is no parking garage.' },
   { key: 'figureExteriorAmenitySf', qKey: 'exteriorAmenitySf', label: 'Exterior amenity SF',       placeholder: 'e.g. 12,000',  hint: 'Pool deck, courtyards. Leave blank if none.' },
+  // Townhomes / single-family only (`types`) — Mike 2026-09-13.
+  DRIVE_LENGTH_FIELD,
 ];
 
 /**
@@ -357,7 +385,9 @@ export default function IntakeClient() {
   const manualCheck = useMemo(() => noDrawingsReady(mergedAnswers), [mergedAnswers]);
   // The progress bar (Mike, 2026-09-12: "the more detailed data the more
   // accurate the budget") — boxes the visitor typed, not our estimates.
-  const manualFilled = MANUAL_FIELDS.filter(f => String(figures[f.key] ?? '').trim() !== '').length;
+  // The drive-length box only exists for townhome / single-family projects.
+  const manualFields = fieldsFor(MANUAL_FIELDS, answers.projectType);
+  const manualFilled = manualFields.filter(f => String(figures[f.key] ?? '').trim() !== '').length;
 
   // ── Live server-side estimate ──────────────────────────────────────────────
   // Debounced: every answer flip re-prices, but a burst of changes is one call.
@@ -392,12 +422,12 @@ export default function IntakeClient() {
     // A typed-in budget already asked for all of these on the Drawings step.
     if (!estimate || manual) return [];
     const rows = new Map((estimate?.quantities || []).map(r => [r.key, r]));
-    return FIGURE_FIELDS.map(f => {
+    return fieldsFor(FIGURE_FIELDS, answers.projectType).map(f => {
       const row = rows.get(f.qKey) || null;
       if (row && row.source === 'drawing') return null;
       return { ...f, row };
     }).filter(Boolean);
-  }, [estimate, manual]);
+  }, [estimate, manual, answers.projectType]);
 
   // Takeoff rows by key — the no-drawings form shows "we'll estimate N" under
   // any optional field left blank.
@@ -958,10 +988,10 @@ export default function IntakeClient() {
                         <div>
                           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-xs mb-1.5">
                             <span className="font-semibold text-slate-700">
-                              You&apos;ve given us {manualFilled} of {MANUAL_FIELDS.length} figures
+                              You&apos;ve given us {manualFilled} of {manualFields.length} figures
                             </span>
                             <span className="text-slate-500">
-                              {manualFilled === MANUAL_FIELDS.length
+                              {manualFilled === manualFields.length
                                 ? 'Every figure is yours — the most accurate budget we can give without drawings'
                                 : 'We estimate the rest'}
                             </span>
@@ -971,12 +1001,12 @@ export default function IntakeClient() {
                             role="progressbar"
                             aria-label="Figures filled in"
                             aria-valuemin={0}
-                            aria-valuemax={MANUAL_FIELDS.length}
+                            aria-valuemax={manualFields.length}
                             aria-valuenow={manualFilled}
                           >
                             <div
                               className="h-full rounded-full bg-amber-500 transition-all duration-300"
-                              style={{ width: `${Math.round((manualFilled / MANUAL_FIELDS.length) * 100)}%` }}
+                              style={{ width: `${Math.round((manualFilled / manualFields.length) * 100)}%` }}
                             />
                           </div>
                         </div>
@@ -1009,7 +1039,7 @@ export default function IntakeClient() {
                                 <option value="no">No</option>
                               </select>
                             </FigureField>
-                            {MANUAL_FIELDS.filter(f => !f.need).map(f => (
+                            {manualFields.filter(f => !f.need).map(f => (
                               <FigureField key={f.key} label={f.label} hint={f.hint} note={manualNote(f)}>
                                 {manualInput(f)}
                               </FigureField>
@@ -1263,7 +1293,7 @@ export default function IntakeClient() {
                             </dd>
                           </div>
                         ))}
-                        {(manual ? MANUAL_FIELDS : FIGURE_FIELDS).filter(f => String(figures[f.key] ?? '').trim()).map(f => (
+                        {fieldsFor(manual ? MANUAL_FIELDS : FIGURE_FIELDS, answers.projectType).filter(f => String(figures[f.key] ?? '').trim()).map(f => (
                           <div key={f.key} className="flex justify-between gap-3 py-1 border-b border-slate-50 min-w-0">
                             <dt className="text-slate-400 truncate min-w-0">{f.label} (entered by you)</dt>
                             <dd className="text-slate-700 font-medium text-right shrink-0">{figures[f.key]}</dd>

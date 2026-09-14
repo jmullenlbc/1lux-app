@@ -360,7 +360,24 @@ export const FIGURE_KEYS = [
   { key: 'figureExteriorAmenitySf',  section: 'Project figures', question: 'Exterior amenity SF (entered by the submitter)' },
   { key: 'figureBuildings',          section: 'Project figures', question: '# Residential buildings (entered by the submitter)' },
   { key: 'figureBohSf',              section: 'Project figures', question: 'Back of house SF (entered by the submitter)' },
+  // Townhouse / single-family private drive, end to end (Mike, 2026-09-13).
+  { key: 'figureDriveLengthFt',      section: 'Project figures', question: 'Private drive length, feet (entered by the submitter)' },
+  // Garages and carports (Mike, 2026-09-13). 0 is a real answer for both — it
+  // overrides the townhome "1 garage per home" estimate.
+  { key: 'figureGarages',            section: 'Project figures', question: '# Garages (entered by the submitter)' },
+  { key: 'figureCarports',           section: 'Project figures', question: '# Carport bays (entered by the submitter)' },
 ];
+
+// Figures where a typed 0 is a real answer rather than a blank.
+const ZERO_OK_FIGURES = new Set(['figureSurfaceParking', 'figureGarages', 'figureCarports']);
+
+/**
+ * Which building types get detached-garage and carport lights (Mike,
+ * 2026-09-13: garages only on single-family, townhomes, garden walk-ups and
+ * stacked flats; carports on the same plus wraps). Engine building-type keys.
+ */
+export const GARAGE_TYPE_KEYS  = ['singleFamily', 'townHouses', 'stackedFlats', 'garden'];
+export const CARPORT_TYPE_KEYS = [...GARAGE_TYPE_KEYS, 'wrap'];
 
 /**
  * "No, I don't have drawings" — stored as its own answer row so a reviewer
@@ -432,11 +449,11 @@ export function validateAnswers(input) {
   }
   // Visitor-typed figures ride along under their own whitelist — digits only,
   // commas and spaces tolerated, anything else dropped (public endpoint).
-  // Surface stalls keep a 0 — "no surface lot" is a real, required answer.
+  // Surface stalls, garages and carports keep a 0 — "none" is a real answer.
   for (const f of FIGURE_KEYS) {
     const raw = typeof given[f.key] === 'string' ? given[f.key].replace(/[,\s]/g, '') : '';
     if (!/^\d{1,9}$/.test(raw)) continue;
-    if (Number(raw) <= 0 && f.key !== 'figureSurfaceParking') continue;
+    if (Number(raw) <= 0 && !ZERO_OK_FIGURES.has(f.key)) continue;
     rows.push({ section: f.section, questionKey: f.key, question: f.question, answer: raw });
   }
   if (given[NO_DRAWINGS_KEY] === 'yes') {

@@ -74,6 +74,7 @@ const PRICING_FIELDS = [
   // $1,325 buys one area light + pole covering ~9 stalls, not one stall.
   { group: 'Exterior Site', key: 'exterior.surfaceParking.perFixture',   label: 'Surface Parking — Per Fixture', desc: 'Area light + 30ft pole (covers ~9 stalls)', unit: '$/fixture' },
   { group: 'Exterior Site', key: 'exterior.surfaceParking.stallsPerFixture', label: 'Stalls Per Fixture',    desc: 'How many stalls one area light covers', unit: 'stalls' },
+  { group: 'Exterior Site', key: 'exterior.surfaceParking.driveLaneFtPerLight', label: 'Drive Lane Ft Per Light', desc: 'One area light per this many feet of private drive (townhouse / single-family). 81 = the width of 9 stalls — Mike 2026-09-13', unit: 'ft' },
   { group: 'Exterior Site', key: 'exterior.solarMultiplier',             label: 'Solar Multiplier',          desc: 'Multiplies the surface-parking (area lighting) line when the site design is Solar. From Avilla actuals — area lights run 2.4–2.5x, bollards 1.53x. Replaces the old flat $3,000 solar adder. Confirmed 2.3 by Mike 2026-09-04', unit: '×' },
   { group: 'Exterior Site', key: 'exterior.carport.diskEveryOther',      label: 'Carport Disk (every other)', desc: '7" disk per every other bay', unit: '$/disk' },
   { group: 'Exterior Site', key: 'exterior.detachedGarage.sconcePerDoor', label: 'Garage Sconce Per Door',   desc: 'Per detached garage door', unit: '$/door' },

@@ -42,7 +42,7 @@ const SITE_DATA_KEYS = [
   'surfaceParking', 'surfaceParkingCounted', 'garages', 'carports', 'buildingCount', 'clubhouseSf',
   'amenitySf', 'grossSf', 'stories', 'storiesCounted', 'egressStairwells',
   'egressStairwellsCounted', 'exitDoors', 'exitDoorsCounted',
-  'buildingFootprintSf', 'lotCoveragePct', 'buildingType',
+  'buildingFootprintSf', 'lotCoveragePct', 'buildingType', 'driveLengthFtMeasured',
 ];
 
 /**

@@ -73,9 +73,12 @@ export function computeIntakeEstimate({ answers, drawings, pricing = null }) {
   if (num(q.exitDoors) != null) {
     sections.exterior = { ...(sections.exterior || {}), wallpacksQty: num(q.exitDoors) };
   }
-  // Drive-lane area lights (typed-in townhouse budgets only) ride the engine's
-  // surface-parking line through the same kind of seam.
-  if (num(q.driveLaneLights) > 0) {
+  // Drive-lane area lights (townhouse / single-family) ride the engine's
+  // surface-parking line through the same kind of seam. A known drive length
+  // goes in as feet so the reviewed budget keeps the ÷ 81 ft rule live.
+  if (num(q.driveLengthFt) > 0) {
+    sections.exterior = { ...(sections.exterior || {}), driveLaneFt: num(q.driveLengthFt) };
+  } else if (num(q.driveLaneLights) > 0) {
     sections.exterior = { ...(sections.exterior || {}), driveLaneLightsQty: num(q.driveLaneLights) };
   }
 
