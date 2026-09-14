@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Labor numbers corrected to Mike's figures] - September 13, 2026 (DEPLOYED)
+## [Labor numbers corrected to Mike's figures] - September 13, 2026 (DEPLOYED 94fa973)
 
 Mike's answers to the labor assumptions shipped in c884238. Labor is still an estimate shown beside the price and never added to any total.
 
