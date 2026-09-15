@@ -2,7 +2,13 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-14 (latest) — Mike's Claude — 🛠 LOCAL ONLY (not deployed): admin and user privileges, steps 1–3 — migrations 0084 + 0085
+### 2026-09-15 (latest) — Mike's Claude — ✅ **DEPLOYED 3e7db3b**: every Sept 14–15 "LOCAL ONLY" entry below, migrations 0080–0085
+- Ships the three 9-14 entries below plus the 9-15 fixture-share lockdown. Debug pass: `verify --full` 13/13 incl. build, `npm test` 1498/1498.
+- **0080 changed before shipping (Mike 9-15: "We just need the master pricing inside the live app to show $200"):** it now sets the saved sheet's `corridors.stairwellPerLanding.product` to 200 whatever it reads, not only while it reads 175. Old jobs are NOT re-run.
+- **Mike 9-15, settled:** "Other" energy code keeps +3%; exit signs stay halved over 300k SF; the MCP key may read DN (ILC-only — "Clients or external groups can never see DN pricing"); calendar DRAFT notes never expire (a never-dismissed reminder is coming instead); townhome controls only when there's a clubhouse (coming).
+- **For Sean — action still needed:** set **`MCP_API_TOKEN`** (random, 32+ characters) in Amplify env vars for main. `/api/mcp` answers 503 until you do.
+
+### 2026-09-14 — Mike's Claude — (shipped in 3e7db3b) admin and user privileges, steps 1–3 — migrations 0084 + 0085
 - **Live account check:** `getSession()`/`requireAuth()` now load the user from the DB on every request (role, active, permissions, departments), so turning someone off or changing a role applies on the next click.
 - **One permissions table:** `src/lib/permissions.js`. `can(user, action)` for `editMasterPricing` (Pre-con), `editJobMoney` (Construction, Operations, Finance), `editProducts` (Pre-con, Design, Construction) and `manageUsers`. Admins always pass. **A USER in OPERATIONS = COMPANY_ADMIN** (`effectiveRole`/`actsAsAdmin`). CLIENT_VIEWER is always false. `requirePermission(req, action)` in auth.js returns the plain-English 403. **Use `actsAsAdmin(user)`, never `isAnyAdmin(user.role)`** — a test fails on any new `isAnyAdmin(` outside auth.js.
 - **0085:** PROJECT_MANAGEMENT rows are moved into CONSTRUCTION, labelled "Construction".
