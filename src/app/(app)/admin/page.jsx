@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { redirect } from 'next/navigation';
-import { getSession, isAnyAdmin } from '@/lib/auth';
+import { getSession, actsAsAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { DEPARTMENTS_SELECT, departmentKeys } from '@/lib/departments';
 import AdminClient from './AdminClient';
@@ -9,7 +9,8 @@ import AdminClient from './AdminClient';
 export default async function AdminPage() {
   const session = await getSession();
   if (!session) redirect('/login');
-  if (!isAnyAdmin(session.role)) redirect('/dashboard');
+  // Any admin, or anyone in Operations (src/lib/permissions.js).
+  if (!actsAsAdmin(session)) redirect('/dashboard');
 
   let users = [], projects = [];
   try {

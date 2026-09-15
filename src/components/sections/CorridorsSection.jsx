@@ -5,14 +5,15 @@ import Input from '@/components/ui/Input';
 import QuestionCard from './QuestionCard';
 import { formatCurrency, priceOverride, calculateBudget } from '@/lib/calculations';
 import { PRICING } from '@/lib/pricing';
-import { breezewayStairPackage } from '@/lib/stairLandings';
+import { breezewayStairPackage, BREEZEWAY_STYLES } from '@/lib/stairLandings';
 import StandardsHint from '@/components/wizard/StandardsHint';
+import StairTypeQuestions from './StairTypeQuestions';
 
 // Static fallbacks — live values come from the master pricing prop (see P below).
 const DISK_RATES     = { 6: 0.40, 7: 0.35, 8: 0.30, 9: 0.28, 10: 0.25, 11: 0.23, 12: 0.23 };
 const RECESSED_RATES = { 6: 3.00, 7: 2.625, 8: 2.25, 9: 2.10, 10: 1.875, 11: 1.725, 12: 1.725 };
 
-export default function CorridorsSection({ responses, projectData, allSections, pricing, onSaveResponses, onNext, onPrev, isDesign = false }) {
+export default function CorridorsSection({ responses, projectData, allSections, pricing, onSaveResponses, onNext, onPrev, hasDrawings = false, isDesign = false }) {
   // Single source of truth: read rates/costs from the live master pricing.
   const P = pricing || PRICING;
   const DISK_RATE_TABLE     = P.designCorridors?.diskSpacingRates     || DISK_RATES;
@@ -21,6 +22,8 @@ export default function CorridorsSection({ responses, projectData, allSections, 
   const [ans, setAns] = useState({
     unitSconce:        existing.unitSconce        || 'none',
     unitSconcePrice:   existing.unitSconcePrice   ?? '', // blank = use the master price sheet
+    stairType:         existing.stairType         || '',  // blank = follow the building type, both modes
+    breezewayStyle:    existing.breezewayStyle    || '',  // small / long off the drawings; blank = average
     // Design-only
     corridorFireRating:existing.corridorFireRating || 'surfaceMount',
     fixtureType:       existing.fixtureType       || 'disk',
@@ -69,18 +72,19 @@ export default function CorridorsSection({ responses, projectData, allSections, 
         ? (RECESSED_RATE_TABLE[spacing] ?? DEFAULT_DISK_RATE)
         : (DISK_RATE_TABLE[spacing]     ?? DEFAULT_DISK_RATE));
   const corridorProd  = corridorSf * fixtureRate;
-  const STAIR_EACH    = P.corridors?.stairwellPerLanding?.product ?? 175;
+  const STAIR_EACH    = P.corridors?.stairwellPerLanding?.product ?? 200;
   const STAIR_ELEV    = P.designCorridors?.stairwellElevatedAdder ?? 50;
   const ACCENT_EACH   = P.designCorridors?.accentDownlightEach ?? 120;
-  // Breezeway walk-ups price each landing at the breezeway multiple — same
-  // helper the engine uses, so this card and the sidebar agree.
+  // Breezeway stairs price each landing at the small, long or average
+  // breezeway multiple — same helper the engine uses, so this card and the
+  // sidebar agree.
   const breezeway     = breezewayStairPackage(
-    { landings: stairwells, stories: projectData?.numFloors, buildingTypeKey: projectData?.buildingTypeKey },
+    { landings: stairwells, stories: projectData?.numFloors, buildingTypeKey: projectData?.buildingTypeKey, stairType: ans.stairType, style: ans.breezewayStyle },
     P,
   );
   const stairwellProd = breezeway ? breezeway.product : stairwells * STAIR_EACH;
   const stairLabel    = breezeway
-    ? `Breezeway stairs (${stairwells} landings × $${breezeway.ratePerLanding.toLocaleString()} — corridor + stair in one)`
+    ? `Breezeway stairs (${stairwells} landings × $${breezeway.ratePerLanding.toLocaleString()} — ${BREEZEWAY_STYLES[breezeway.style].label.toLowerCase()})`
     : `Stairwells (${stairwells} landings × $${STAIR_EACH})`;
   const stairElevated = ans.stairwellDesign === 'elevated' ? stairwells * STAIR_ELEV : 0;
   const sconceRates   = {
@@ -129,6 +133,8 @@ export default function CorridorsSection({ responses, projectData, allSections, 
       payload.stairwellPainting  = null;
       payload.stairwellDesign    = null;
     }
+    // Small vs long is only asked with drawings; without them it is the average.
+    if (!hasDrawings) payload.breezewayStyle = null;
     if (Object.keys(dirty).length > 0 || Object.keys(existing).length > 0) {
       await onSaveResponses(payload);
     }
@@ -293,12 +299,23 @@ export default function CorridorsSection({ responses, projectData, allSections, 
         />
       )}
 
+      {/* ── Interior vs breezeway stairs; small / long only with drawings (both modes) ── */}
+      <StairTypeQuestions
+        ans={ans}
+        set={set}
+        projectData={projectData}
+        pricing={P}
+        hasDrawings={hasDrawings}
+        stairwells={stairwells}
+        impact={qc['corridors.breezewayStyle']}
+      />
+
       {/* ── DESIGN-ONLY: Stairwell design level ─────────────────────────── */}
       {isDesign && (
         <QuestionCard
           question="Stairwell lighting approach?"
           note={breezeway
-            ? `Open breezeway stairs are the corridor and the stairwell in one, so each landing prices at ${breezeway.multiplier} × $${STAIR_EACH} = $${breezeway.ratePerLanding.toLocaleString()} (${stairwells} landings, about ${breezeway.stairs} stairs). Elevated design adds $${STAIR_ELEV}/landing.`
+            ? `${BREEZEWAY_STYLES[breezeway.style].label}: each landing prices at ${breezeway.multiplier} × $${STAIR_EACH} = $${breezeway.ratePerLanding.toLocaleString()} (${stairwells} landings, about ${breezeway.stairs} stairs). Elevated design adds $${STAIR_ELEV}/landing.`
             : `Code minimum uses a 4ft LED strip with integrated battery backup at each landing ($${STAIR_EACH}/landing). Elevated design adds $${STAIR_ELEV}/landing. ${stairwells > 0 ? `(${stairwells} landings)` : ''}`}
           costSuffix=" total"
           options={[
@@ -306,7 +323,7 @@ export default function CorridorsSection({ responses, projectData, allSections, 
               value: 'code',
               label: 'Code minimum',
               sub:   breezeway
-                ? `$${breezeway.ratePerLanding.toLocaleString()}/landing — breezeway (corridor + stair in one)`
+                ? `$${breezeway.ratePerLanding.toLocaleString()}/landing — ${BREEZEWAY_STYLES[breezeway.style].label.toLowerCase()}`
                 : `$${STAIR_EACH}/landing — 4ft LED strip w/ integrated battery backup`,
               cost:  stairwellProd,
             },

@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic';
 
+import { redirect } from 'next/navigation';
 import { getSession, isClientViewer } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { calculateBudget } from '@/lib/calculations';
@@ -9,6 +10,7 @@ import DashboardClient from './DashboardClient';
 
 export default async function DashboardPage() {
   const session = await getSession();
+  if (!session) redirect('/login');
 
   // Projects are visible to all ILC staff; Client Viewers stay scoped to their own.
   const where = isClientViewer(session.role) ? { createdById: session.id } : {};

@@ -21,6 +21,8 @@ import PipelineTab from './PipelineTab';
 import StandardFixtureScheduleTab from './StandardFixtureScheduleTab';
 import ProductOptionsTab from './ProductOptionsTab';
 import ShareStandardsButton from './ShareStandardsButton';
+import WorkHistoryPanel from './WorkHistoryPanel';
+import { WORK_HISTORY_READY } from '@/lib/workHistory';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -1025,6 +1027,7 @@ function PersonField({
 function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
   const [contacts,  setContacts]  = useState(initial);
   const [dealList,  setDealList]  = useState(null); // {contact, bucket, projects} | null
+  const [historyFor, setHistoryFor] = useState(null); // contact id whose work history is open
 
   // Propagate any contact change up so the Overview count, tab badge, and
   // Playbook "primary national contact" dropdown stay in sync without a refresh.
@@ -1256,6 +1259,12 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
                 <a href={c.linkedInUrl} target="_blank" rel="noopener noreferrer"
                   className="text-slate-300 hover:text-amber-600" title="Open their LinkedIn in a new tab">↗</a>
               )}
+              {WORK_HISTORY_READY && (
+                <button type="button" onClick={() => setHistoryFor(h => (h === c.id ? null : c.id))}
+                  className="text-slate-400 hover:text-amber-600" title="Where they have worked — paste from LinkedIn or type it in">
+                  {historyFor === c.id ? '▾' : '▸'} Work history
+                </button>
+              )}
               {(c.lastEmailReceivedAt || c.lastEmailSentAt) && (
                 <span className="text-slate-300">
                   Last email {c.lastEmailReceivedAt ? `in ${new Date(c.lastEmailReceivedAt).toLocaleDateString()}` : ''}
@@ -1264,6 +1273,7 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
                 </span>
               )}
             </div>
+            {WORK_HISTORY_READY && historyFor === c.id && <WorkHistoryPanel clientId={clientId} contactId={c.id} name={c.name} />}
           </div>
         ))}
       </div>

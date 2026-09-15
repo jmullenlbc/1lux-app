@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { NOTIFICATION_TYPES, NOTIFICATION_MODULES } from '@/lib/notify';
+import { ROLE_LABEL } from '@/lib/roles';
 
 // ── Tone Profile Section ──────────────────────────────────────────────────────
 function ToneProfileSection() {
@@ -147,14 +148,6 @@ const INTERNAL_MODULES = NOTIFICATION_MODULES
 
 const PATTERN_LABEL = { EVENT: 'Immediate', DIGEST: 'Wed Digest', THRESHOLD: 'Daily check' };
 
-const ROLE_LABELS = {
-  SUPER_ADMIN:    'Super Admin',
-  ILC_ADMIN:      'Super Admin',
-  COMPANY_ADMIN:  'Company Admin',
-  ADMIN:          'Company Admin',
-  USER:           'User',
-  CLIENT_VIEWER:  'Client Viewer',
-};
 
 function InternalNotificationsSection() {
   const [prefs,   setPrefs]   = useState({});
@@ -325,7 +318,7 @@ export default function ProfileClient({ user }) {
             <div className="text-lg font-semibold text-slate-800">{user?.name || user?.email}</div>
             <div className="text-sm text-slate-500">{user?.email}</div>
             <span className="inline-block mt-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-700">
-              {ROLE_LABELS[user?.role] || user?.role}
+              {ROLE_LABEL[user?.role] || user?.role}
             </span>
           </div>
         </div>

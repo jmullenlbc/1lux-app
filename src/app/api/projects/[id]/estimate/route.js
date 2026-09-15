@@ -5,7 +5,7 @@ import { runParametricEstimate, deriveWizardCounts } from '@/lib/parametricEstim
 
 // GET /api/projects/[id]/estimate?tierPrefs=<json>
 export async function GET(req, { params }) {
-  const { user, error } = await requireAuth(request);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
 
   const project = await prisma.project.findUnique({
@@ -64,7 +64,7 @@ export async function GET(req, { params }) {
 
 // POST /api/projects/[id]/estimate/apply — write wizard counts back to projectData
 export async function POST(req, { params }) {
-  const { user, error } = await requireAuth(request);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
 
   const project = await prisma.project.findUnique({ where: { id: params.id } });

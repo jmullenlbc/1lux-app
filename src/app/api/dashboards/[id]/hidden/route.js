@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth, isAnyAdmin } from '@/lib/auth';
+import { requireAuth, actsAsAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -16,7 +16,7 @@ export async function POST(request, { params }) {
 
   const dash = await prisma.dashboard.findUnique({ where: { id: params.id } });
   if (!dash) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  const ok = dash.ownerUserId === user.id || (dash.ownerUserId === null && isAnyAdmin(user.role));
+  const ok = dash.ownerUserId === user.id || (dash.ownerUserId === null && actsAsAdmin(user));
   if (!ok) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { key } = await request.json().catch(() => ({}));

@@ -4,6 +4,7 @@
 import { PRICING as STATIC_PRICING } from './pricing.js';
 import { breezewayStairPackage } from './stairLandings.js';
 import { emergencyStrategyCost } from './emergencyCost.js';
+import { allowsGarages, allowsCarports } from './coveredParkingTypes.js';
 
 // Safely convert any value to a finite number
 function n(val, fallback = 0) {
@@ -117,8 +118,12 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const bohSf          = bohCapSf != null ? Math.min(bohSfEntered, bohCapSf) : bohSfEntered;
   const stairwells     = n(pd.numEgressStairwells);
   const surfaceParking = n(pd.numSurfaceParking);
-  const numCarports    = n(pd.numCarports);
-  const numGarages     = n(pd.numGarages);
+  // Garages and carports only count on the building types that have them
+  // (Mike 2026-09-13). Judged on the type actually chosen — not the mid-rise
+  // fallback — so a project with no type yet keeps whatever was typed.
+  const chosenTypeKey  = pd.buildingTypeKey || controls.buildingType || controls.projectType || null;
+  const numCarports    = allowsCarports(chosenTypeKey) ? n(pd.numCarports) : 0;
+  const numGarages     = allowsGarages(chosenTypeKey)  ? n(pd.numGarages)  : 0;
   const lotSf          = n(pd.lotSf);
   const footprintSf    = n(pd.buildingFootprintSf);
   // Accent qty: prefer the value entered in the Corridors section, else Project Data
@@ -223,11 +228,12 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const sconceProduct    = sconceUnit * numUnits;
 
   // Stairwells. Enclosed corridor-building stairs: LED strip + battery per
-  // landing. Breezeway walk-ups (garden / stacked flats / gurban): the same
-  // landing × 2.2, because the open breezeway is the corridor and the stair in
-  // one (Mike 2026-09-12). Same landings count feeds both.
+  // landing. Breezeway stairs (the Corridors "stair type" answer, else garden /
+  // stacked flats / gurban): the same landing × the small (1.125) or long
+  // (1.225) breezeway multiplier — or the average of the two (1.175) until the
+  // drawings show which (Mike 2026-09-14). Same landings count feeds both.
   const breezewayStairs  = breezewayStairPackage(
-    { landings: stairwells, stories: n(pd.numFloors), buildingTypeKey },
+    { landings: stairwells, stories: n(pd.numFloors), buildingTypeKey, stairType: corridors.stairType, style: corridors.breezewayStyle },
     PRICING,
   );
   const stairwellProduct = breezewayStairs
@@ -681,14 +687,22 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const perLanding = breezewayStairs ? n(breezewayStairs.ratePerLanding) : n(PRICING.corridors.stairwellPerLanding.product);
   const stripsPerLanding = breezewayStairs ? n(breezewayStairs.multiplier, 1) : 1;
   addQ('corridors.stairwellDesign', [stairwells > 0 && line('Stair landings', stairwells, 'landings', perLanding + elevatedAdder, stripsPerLanding * lab('strip4ft'))]);
+  // Interior vs breezeway, and small vs long, set the landing rate itself (Mike 2026-09-14).
+  addQ('corridors.stairType', [stairwells > 0 && line(breezewayStairs ? 'Breezeway landings' : 'Stair landings', stairwells, 'landings', perLanding, stripsPerLanding * lab('strip4ft'))]);
+  if (breezewayStairs) {
+    addQ('corridors.breezewayStyle', [stairwells > 0 && line('Breezeway landings', stairwells, 'landings', perLanding, stripsPerLanding * lab('strip4ft'))]);
+  }
 
   // Exit signs.
   addQ('corridors.exitSignType', [corridors.exitSignType && signCount > 0 && line('Exit signs', signCount, 'signs', signCost, lab('exitSign'))]);
 
-  // Area lights: pole + base, plus trenching. A solar site credits back 70% of
-  // that wired-pole labor (Mike 2026-09-13: "70% of the pole labor cost credited").
+  // Area lights: pole + base, plus trenching and conduit priced per foot over an
+  // average run per pole ($15 × 60 ft = $900, Mike 2026-09-14). A solar site
+  // credits back 70% of that wired-pole labor (Mike 2026-09-13: "70% of the
+  // pole labor cost credited").
   const poleEach = (PRICING.exterior.surfaceParking.perFixture ?? PRICING.exterior.surfaceParking.perStall ?? 1325) * solarMultiplier;
-  const poleLabor = lab('areaPole') + lab('trenching');
+  const trenchPerPole = n(L.trenchingPerFt, 15) * n(L.trenchFtPerPole, 60);
+  const poleLabor = lab('areaPole') + trenchPerPole;
   const solarCreditPct = n(L.solarPoleCreditPct, 0.7);
   addQ('exterior.siteDesignLevel', [
     parkingFixtures > 0 && line(solarSite ? 'Solar area lights' : 'Area lights', parkingFixtures, 'poles', poleEach, poleLabor),

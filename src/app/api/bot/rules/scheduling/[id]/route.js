@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, actsAsAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-const adminRoles = ['SUPER_ADMIN', 'ILC_ADMIN', 'COMPANY_ADMIN'];
-
 function canModify(user, rule) {
-  if (adminRoles.includes(user.role)) return true;
+  if (actsAsAdmin(user)) return true;
   return rule.userId === user.id;
 }
 

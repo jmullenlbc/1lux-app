@@ -14,13 +14,11 @@ export const dynamic = 'force-dynamic';
  * Operational view for the backend dashboard: usage, uploads, errors, AI spend.
  *
  * ── Super admin only, and not via requireAdmin ───────────────────────────────
- * `requireAdmin` admits COMPANY_ADMIN, which in this app is a *client-side*
- * administrator. This endpoint aggregates across every project and every client
- * at once — who is uploading what, which modules break — so it is gated on
- * `isSuperAdmin` (SUPER_ADMIN | ILC_ADMIN), matching how `/admin/pricing` gates
- * its page. Using the looser guard here would hand one client a census of all
- * the others' activity, which is the same class of mistake the MCP row-scope fix
- * closed in August.
+ * `requireAdmin` also lets in Company Admins and anyone in Operations. Every
+ * admin is ILC staff (Mike, 2026-09-14: only internal people can be admins), so
+ * this is not about keeping outsiders out: it is an engineering view that spans
+ * every project and client at once — who is uploading what, which modules break —
+ * and it stays on `isSuperAdmin` (SUPER_ADMIN | ILC_ADMIN).
  */
 export async function GET(request) {
   const { user, error } = await requireAuth(request);

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, actsAsAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 function isSuperAdmin(user) {
@@ -7,7 +7,7 @@ function isSuperAdmin(user) {
 }
 
 function canEdit(user) {
-  if (['SUPER_ADMIN', 'ILC_ADMIN', 'COMPANY_ADMIN'].includes(user.role)) return true;
+  if (actsAsAdmin(user)) return true;
   try { return JSON.parse(user.permissions || '{}').knowledgeBase === true; } catch { return false; }
 }
 

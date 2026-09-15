@@ -1,12 +1,12 @@
 export const dynamic = 'force-dynamic';
 
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, actsAsAdmin } from '@/lib/auth';
 import { redirect, notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import CategoryClient from './CategoryClient';
 
 function canEdit(user) {
-  if (['SUPER_ADMIN', 'ILC_ADMIN', 'COMPANY_ADMIN'].includes(user.role)) return true;
+  if (actsAsAdmin(user)) return true;
   try { return JSON.parse(user.permissions || '{}').knowledgeBase === true; } catch { return false; }
 }
 

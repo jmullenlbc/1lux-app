@@ -80,21 +80,24 @@ export const PRICING = {
   corridors: {
     diskPerSf: 0.27,             // $/SF of corridor area (7" disk @ 10ft spacing)
     stairwellPerLanding: {
-      product: 175,              // 4ft LED strip w/ occupancy sensor + integrated battery backup
-      labor:   0,
+      product: 200,              // 4ft LED strip w/ occupancy sensor + integrated battery backup
+      labor:   0,                // $175 → $200 (Mike 2026-09-14: "We have seen a cost increase")
     },
     // Breezeway walk-ups (garden / stacked flats / gurban) price each landing
-    // at this multiple of the stairwell rate: 2.2 × $175 = $385 a landing.
-    // Mike 2026-09-12: "Maybe move to 2.2x ... in the breezeway situation it's
-    // a corridor and stairwell in one. Yes stacked flats should count too."
-    // This replaced the 2026-09-05 per-stair package (landing disks, wall packs
-    // w/ battery, frogeyes, vestibule disks) — the open breezeway is the
-    // building's corridor too, so its landings carry the corridor lighting.
-    breezewayLandingMultiplier: 2.2,
+    // at a multiple of the stairwell rate, by breezeway style (Mike 2026-09-14):
+    //   Small (like Lowell + I76): EM disk at the ground floor, a wall pack up
+    //     each flight, a 7" disk + frogeye at the 2nd-floor landing, a 7" disk
+    //     at the open landing — "a 10-15% increase". 1.125 × $200 = $225.
+    //   Long (like Lone Tree Ranch): 2 wall packs over long stairs, 4 disks
+    //     along the open corridor above, 2 of them with integrated EM — "a
+    //     20-25% increase". 1.225 × $200 = $245.
+    // These replaced the flat 2.2× (2026-09-12), which ran budgets high.
+    breezewaySmallMultiplier: 1.125,
+    breezewayLongMultiplier:  1.225,
   },
 
   // ─── BREEZEWAY STAIRS (garden / stacked flats / gurban walk-ups) ──────────
-  // Priced per landing at corridors.breezewayLandingMultiplier (above). The
+  // Priced per landing at corridors.breezewaySmall/LongMultiplier (above). The
   // level defaults below only turn a landing count back into a stair count
   // for display ("≈ 25 stairs") when Project Data has no story count.
   breezewayStair: {
@@ -572,7 +575,8 @@ export const PRICING = {
     exitSign:          101.69,
     ceilingFan:        225,
     areaPole:          869.79,  // area light + pole base
-    trenching:         290,     // per pole, wired sites
+    trenchingPerFt:     15,     // trenching + conduit, per foot, wired sites (Mike 2026-09-14: "Price per foot")
+    trenchFtPerPole:    60,     // average run per pole → $900/pole (Mike 2026-09-14: "$900 per average 60ft")
     solarPoleCreditPct: 0.70,   // solar site: 70% of a wired pole's labor credited back (Mike 2026-09-13)
     bollard:           384.35,
     pathwayFixture:    500,     // walking-path light (Mike 2026-09-13: "$500/fixture")

@@ -12,10 +12,9 @@ export const dynamic = 'force-dynamic';
  * The review queue — Step 17 of the Governed AI Layer.
  *
  * ── Super admin only, same reasoning as /api/admin/metrics ───────────────────
- * `requireAdmin` admits COMPANY_ADMIN, which in this app is a *client-side*
- * administrator. This endpoint spans every project and every client at once, and
- * the rows carry AI-extracted output from their documents. Gated on
- * `isSuperAdmin` (SUPER_ADMIN | ILC_ADMIN).
+ * Every admin is ILC staff (Mike, 2026-09-14), but this is an engineering view:
+ * it spans every project and client at once, and the rows carry AI-extracted
+ * output from their documents. Gated on `isSuperAdmin` (SUPER_ADMIN | ILC_ADMIN).
  *
  * ── Why the store's health ships with the payload ────────────────────────────
  * An empty queue means either "nothing needs review" or "the AgentRun table does
@@ -25,7 +24,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request) {
   const { user, error } = await requireAuth();
   if (error) return error;
-  if (!isSuperAdmin(user)) {
+  if (!isSuperAdmin(user.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

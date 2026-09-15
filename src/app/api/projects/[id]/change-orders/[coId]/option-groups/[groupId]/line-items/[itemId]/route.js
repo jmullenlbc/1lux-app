@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requirePermission } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 // PATCH — update line item
 export async function PATCH(req, { params }) {
-  const { error } = await requireAuth();
+  const { error } = await requirePermission(req, 'editJobMoney'); // Construction, Operations, Finance, admins
   if (error) return error;
 
   const co = await prisma.changeOrder.findUnique({ where: { id: params.coId } });
@@ -48,7 +48,7 @@ export async function PATCH(req, { params }) {
 
 // DELETE — remove line item
 export async function DELETE(req, { params }) {
-  const { error } = await requireAuth();
+  const { error } = await requirePermission(req, 'editJobMoney'); // Construction, Operations, Finance, admins
   if (error) return error;
 
   const co = await prisma.changeOrder.findUnique({ where: { id: params.coId } });

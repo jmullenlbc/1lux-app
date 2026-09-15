@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requirePermission } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 // ── Simple CSV parser (handles quoted fields) ─────────────────────────────────
@@ -19,11 +19,9 @@ function normaliseHeader(h) {
 }
 
 export async function POST(req) {
-  const { user, error } = await requireAuth(request);
+  // Fixture library: Pre-con, Design, Construction and admins (src/lib/permissions.js).
+  const { error } = await requirePermission(req, 'editProducts');
   if (error) return error;
-  if (user.role !== 'ILC_ADMIN' && user.role !== 'SUPER_ADMIN') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
 
   const csvText = await req.text();
   const lines   = csvText.split(/\r?\n/).filter(l => l.trim());

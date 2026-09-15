@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth, isAnyAdmin } from '@/lib/auth';
+import { requireAuth, actsAsAdmin } from '@/lib/auth';
 import { captureAll } from '@/lib/calibration/capture';
 
 export const dynamic = 'force-dynamic';
@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export async function POST() {
   const { user, error } = await requireAuth();
   if (error) return error;
-  if (!isAnyAdmin(user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!actsAsAdmin(user)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const result = await captureAll();
   return NextResponse.json(result);
 }

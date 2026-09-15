@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-function perms(session) { try { return JSON.parse(user.permissions || '{}'); } catch { return {}; } }
-function isAdmin(session) { return user.role === 'ILC_ADMIN' || user.role === 'SUPER_ADMIN'; }
+// Everyone on staff can read and edit a company's playbook (Mike, 2026-09-14:
+// only a short list of things is locked by department, and this isn't one).
+// Contractors (Client Viewers) never can. Until 2026-09-14 both handlers below
+// crashed on every call: they read `request`, `session` and `user` names that
+// were never defined here.
+function forbidden(user) {
+  return canSeeAllData(user) ? null : NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+}
 
 // Flat ClientPlaybook columns the client may write (no id/clientId/timestamps).
 const WRITABLE = [
@@ -20,11 +26,10 @@ const WRITABLE = [
 
 // ── GET — scalars + all normalized collections ────────────────────────────────
 export async function GET(req, { params }) {
-  const { user, error } = await requireAuth(request);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
-  const p = perms(session);
-  if (!(isAdmin(session) || p.clients === true || p.clients === 'read'))
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const denied = forbidden(user);
+  if (denied) return denied;
 
   const [playbook, assignments, distribution, notes] = await Promise.all([
     prisma.clientPlaybook.findUnique({ where: { clientId: params.id } }),
@@ -39,10 +44,10 @@ export async function GET(req, { params }) {
 // ── PUT — partial save: only the keys present in the body are touched ──────────
 // Body: { scalars?, relationships?, assignments?, distribution?, notes? }
 export async function PUT(req, { params }) {
-  const { user, error } = await requireAuth(request);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
-  if (!(isAdmin(session) || perms(session).clients === true))
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const denied = forbidden(user);
+  if (denied) return denied;
 
   const clientId = params.id;
   const body = await req.json();

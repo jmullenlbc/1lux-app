@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, requirePermission, isClientViewer, can } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getProjectRates, calcCOTotal, nextCoNumber } from '@/lib/changeOrderRates';
 
@@ -17,6 +17,9 @@ const CO_INCLUDE = {
 export async function GET(req, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
+  // Line items carry ILC's buy price (originalDN). Contractors see change orders
+  // only through the client portal, which leaves it out.
+  if (isClientViewer(user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const [changeOrders, project, rates, legacyFiles] = await Promise.all([
     prisma.changeOrder.findMany({
@@ -56,6 +59,8 @@ export async function GET(req, { params }) {
   const newContractTotal  = originalContract + approvedCOTotal + legacyTotal;
 
   return NextResponse.json({
+    // So the screen can say "view only" up front instead of failing on click.
+    canEdit: can(user, 'editJobMoney'),
     changeOrders: cos,
     balance: {
       originalContract,
@@ -71,7 +76,9 @@ export async function GET(req, { params }) {
 // POST /api/projects/[id]/change-orders
 // Creates a new CO with one default option group
 export async function POST(req, { params }) {
-  const { user, error } = await requireAuth();
+  // Change orders are job money: Construction, Operations, Finance and admins
+  // (src/lib/permissions.js).
+  const { user, error } = await requirePermission(req, 'editJobMoney');
   if (error) return error;
 
   const body = await req.json().catch(() => ({}));

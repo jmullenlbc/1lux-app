@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { INCLUDE_ARCHIVED } from '@/lib/archive';
-import { requireAdmin, isSuperAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
+import { ROLE_KEYS, isValidRole, canAssignRole, canManageAccount } from '@/lib/roles';
+import { effectiveRole } from '@/lib/permissions';
 import { DEPARTMENT_KEYS, cleanDepartments, departmentKeys } from '@/lib/departments';
 
 export async function PATCH(request, { params }) {
@@ -12,9 +14,9 @@ export async function PATCH(request, { params }) {
   const target = await prisma.user.findUnique({ where: { id: params.id } });
   if (!target) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-  // Only SUPER_ADMIN can modify SUPER_ADMIN or COMPANY_ADMIN accounts
-  if ((target.role === 'SUPER_ADMIN' || target.role === 'ILC_ADMIN' ||
-       target.role === 'COMPANY_ADMIN' || target.role === 'ADMIN') && !isSuperAdmin(actor.role)) {
+  // Nobody but a Super Admin touches a Super Admin's account (src/lib/roles.js).
+  // Operations acts as a Company Admin (src/lib/permissions.js).
+  if (!canManageAccount(effectiveRole(actor), target.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
   // Can't modify yourself via this endpoint (use change-password)
@@ -23,6 +25,18 @@ export async function PATCH(request, { params }) {
   }
 
   const { name, role, departments, permissions, mustChangePassword, isActive, newPassword } = await request.json();
+
+  // Only the four real role names can be saved — this used to store any text it
+  // was sent. A Company Admin can make someone an admin (Mike, 2026-09-14);
+  // only a Super Admin can make a Super Admin.
+  if (role !== undefined) {
+    if (!isValidRole(role)) {
+      return NextResponse.json({ error: `Unknown role. Use one of: ${ROLE_KEYS.join(', ')}` }, { status: 400 });
+    }
+    if (!canAssignRole(effectiveRole(actor), role)) {
+      return NextResponse.json({ error: 'Only a Super Admin can make someone a Super Admin' }, { status: 403 });
+    }
+  }
 
   // departments: the full list of department keys this person belongs to
   // (a multi-select, Mike 2026-09-12). Sending it replaces the whole list.
@@ -81,9 +95,8 @@ export async function DELETE(request, { params }) {
   const target = await prisma.user.findUnique({ where: { id: params.id } });
   if (!target) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-  // Only SUPER_ADMIN can delete any admin-level account (matches PATCH protection)
-  if ((target.role === 'SUPER_ADMIN' || target.role === 'ILC_ADMIN' ||
-       target.role === 'COMPANY_ADMIN' || target.role === 'ADMIN') && !isSuperAdmin(actor.role)) {
+  // Same rule as PATCH: nobody but a Super Admin touches a Super Admin's account.
+  if (!canManageAccount(effectiveRole(actor), target.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

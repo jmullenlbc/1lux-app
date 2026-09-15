@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requirePermission } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 export async function PATCH(req, { params }) {
-  const { user, error } = await requireAuth(request);
+  // Fixture library: Pre-con, Design, Construction and admins (src/lib/permissions.js).
+  const { error } = await requirePermission(req, 'editProducts');
   if (error) return error;
-  if (user.role !== 'ILC_ADMIN' && user.role !== 'SUPER_ADMIN') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
 
   const { code } = params;
   const body = await req.json();

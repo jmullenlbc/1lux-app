@@ -17,7 +17,7 @@ import BudgetSidebar       from '@/components/wizard/BudgetSidebar';
 import SectionNav          from '@/components/wizard/SectionNav';
 import QuestionnaireUploads from '@/components/wizard/QuestionnaireUploads';
 
-export default function WizardClient({ project, projectData, initialSections, initialBudget, pricing, isDesign = false }) {
+export default function WizardClient({ project, projectData, initialSections, initialBudget, pricing, hasDrawings: initialHasDrawings = false, isDesign = false }) {
   const router = useRouter();
 
   const activeSteps = getActiveSteps(isDesign);
@@ -33,6 +33,9 @@ export default function WizardClient({ project, projectData, initialSections, in
   const [localPD,        setLocalPD]        = useState(projectData || {});
   const [budget,         setBudget]         = useState(initialBudget);
   const [saving,         setSaving]         = useState(false);
+  // Small vs long breezeway is asked only once drawings are on file; a drawing
+  // read committed on this screen flips it on.
+  const [hasDrawings,    setHasDrawings]    = useState(initialHasDrawings);
   const [projectMeta,    setProjectMeta]    = useState({
     name:         project.name         || '',
     location:     project.location     || '',
@@ -151,6 +154,7 @@ export default function WizardClient({ project, projectData, initialSections, in
     allSections: sections,
     budget,
     pricing,
+    hasDrawings,
     isDesign,
     onSaveData:       saveProjectData,
     onNext:           goToNext,
@@ -168,6 +172,7 @@ export default function WizardClient({ project, projectData, initialSections, in
   // no reload, and no second fetch.
   const handleDrawingCommit = useCallback((newPD) => {
     if (!newPD) return;
+    setHasDrawings(true);
     setLocalPD(newPD);
     recalculate(newPD, sections);
   }, [recalculate, sections]);

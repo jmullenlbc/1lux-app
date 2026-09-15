@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { requireIntakeReviewer, isAnyAdmin } from '@/lib/auth';
+import { requireIntakeReviewer, actsAsAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { cookies } from 'next/headers';
 import IntakeClient from './IntakeClient';
@@ -47,7 +47,7 @@ export default async function IntakePage({ searchParams }) {
       clients={clients}
       projects={projects}
       currentUser={user}
-      canInvite={isAnyAdmin(user.role)}
+      canInvite={actsAsAdmin(user)}
       initialSelectedId={submissions.some(s => s.id === openId) ? openId : null}
     />
   );

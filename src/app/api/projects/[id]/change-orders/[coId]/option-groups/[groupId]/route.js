@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requirePermission } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 // PATCH /api/projects/[id]/change-orders/[coId]/option-groups/[groupId]
 // Update label or set as selected (enforces single-selection in transaction)
 export async function PATCH(req, { params }) {
-  const { error } = await requireAuth();
+  const { error } = await requirePermission(req, 'editJobMoney'); // Construction, Operations, Finance, admins
   if (error) return error;
 
   const group = await prisma.changeOrderOptionGroup.findUnique({ where: { id: params.groupId } });
@@ -50,7 +50,7 @@ export async function PATCH(req, { params }) {
 // DELETE /api/projects/[id]/change-orders/[coId]/option-groups/[groupId]
 // Must keep at least one group
 export async function DELETE(req, { params }) {
-  const { error } = await requireAuth();
+  const { error } = await requirePermission(req, 'editJobMoney'); // Construction, Operations, Finance, admins
   if (error) return error;
 
   const co = await prisma.changeOrder.findUnique({

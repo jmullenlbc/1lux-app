@@ -94,7 +94,8 @@ test('solar site: 70% of wired-pole labor credited back as a saving', () => {
   const pd = { ...PD, numSurfaceParking: 90 };
   const wired = calculateBudget(pd, RESP).questionCosts['exterior.siteDesignLevel'];
   const solar = calculateBudget(pd, { ...RESP, exterior: { ...RESP.exterior, siteDesignLevel: 'solar' } }).questionCosts['exterior.siteDesignLevel'];
-  const poleLabor = PRICING.labor.areaPole + PRICING.labor.trenching;
+  const poleLabor = PRICING.labor.areaPole + PRICING.labor.trenchingPerFt * PRICING.labor.trenchFtPerPole;
+  assert.equal(PRICING.labor.trenchingPerFt * PRICING.labor.trenchFtPerPole, 900, '$15/ft × 60 ft = $900 trenching + conduit per pole');
   assert.equal(PRICING.labor.solarPoleCreditPct, 0.7);
   assert.ok(wired.lines.length === 1 && wired.lines[0].count > 0, 'wired site has poles');
   close(wired.labor, wired.lines[0].count * poleLabor, 'wired pole labor');

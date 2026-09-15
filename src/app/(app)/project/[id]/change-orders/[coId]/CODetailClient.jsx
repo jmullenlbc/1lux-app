@@ -78,7 +78,9 @@ function NewMfrInline({ onCreated }) {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: name.trim() }),
     });
+    // Adding a manufacturer is a Pre-con / Design / Construction / admin job.
     if (res.ok) { const d = await res.json(); onCreated(d.manufacturer); }
+    else alert(await refusalText(res, 'Could not add that manufacturer.'));
     setSaving(false);
   }
 
@@ -115,6 +117,12 @@ function fmtDate(d) {
   if (!d) return '';
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
+// The server's own words when it refuses (e.g. "only Construction, Operations,
+// Finance or an admin..."), so a click never just silently does nothing.
+async function refusalText(res, fallback) {
+  const body = await res.json().catch(() => ({}));
+  return body.error || fallback;
+}
 
 const STATUS_META = {
   DRAFT:    { label: 'Draft',    cls: 'bg-amber-50 text-amber-700 border-amber-200' },
@@ -123,14 +131,14 @@ const STATUS_META = {
 };
 
 // ── Inline editable cell ──────────────────────────────────────────────────────
-function InlineCell({ value, onSave, placeholder = '—', type = 'text', className = '', redIfNeg = false }) {
+function InlineCell({ value, onSave, placeholder = '—', type = 'text', className = '', redIfNeg = false, readOnly = false }) {
   const [editing, setEditing] = useState(false);
   const [local,   setLocal]   = useState(value ?? '');
   const inputRef = useRef(null);
 
   useEffect(() => { setLocal(value ?? ''); }, [value]);
 
-  function start() { setEditing(true); setTimeout(() => inputRef.current?.focus(), 0); }
+  function start() { if (readOnly) return; setEditing(true); setTimeout(() => inputRef.current?.focus(), 0); }
   function commit() {
     setEditing(false);
     const trimmed = type === 'number' ? (parseFloat(String(local)) || 0) : String(local).trim();
@@ -158,7 +166,7 @@ function InlineCell({ value, onSave, placeholder = '—', type = 'text', classNa
   return (
     <div
       onClick={start}
-      className={`px-1.5 py-0.5 text-xs cursor-text hover:bg-slate-50 rounded min-h-[26px] whitespace-normal break-words ${isNeg ? 'text-red-600 font-semibold' : ''} ${className}`}
+      className={`px-1.5 py-0.5 text-xs ${readOnly ? '' : 'cursor-text hover:bg-slate-50'} rounded min-h-[26px] whitespace-normal break-words ${isNeg ? 'text-red-600 font-semibold' : ''} ${className}`}
     >
       {displayVal ?? <span className="text-slate-300 italic">{placeholder}</span>}
     </div>
@@ -178,6 +186,7 @@ function LineItemRow({ item, groupId, projectId, coId, manufacturers, rates, onU
       { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fields) }
     );
     if (res.ok) onUpdate(await res.json());
+    else alert(await refusalText(res, 'Could not save that line.'));
   }
 
   async function handleDNChange(dn) {
@@ -326,6 +335,7 @@ function OptionGroupPanel({ group, co, projectId, coId, rates, manufacturers, on
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
     });
     if (res.ok) return await res.json();
+    alert(await refusalText(res, 'Could not add that line.'));
     return null;
   }
 
@@ -369,12 +379,13 @@ function OptionGroupPanel({ group, co, projectId, coId, rates, manufacturers, on
           return li;
         }),
       });
-    }
+    } else alert(await refusalText(res, 'Could not pick that option.'));
   }
 
   async function deleteItem(itemId) {
     if (!confirm('Delete this line item?')) return;
-    await fetch(`/api/projects/${projectId}/change-orders/${coId}/option-groups/${group.id}/line-items/${itemId}`, { method: 'DELETE' });
+    const res = await fetch(`/api/projects/${projectId}/change-orders/${coId}/option-groups/${group.id}/line-items/${itemId}`, { method: 'DELETE' });
+    if (!res.ok) { alert(await refusalText(res, 'Could not delete that line.')); return; }
     onGroupUpdated({ ...group, lineItems: lineItems.filter(li => li.id !== itemId) });
   }
 
@@ -383,16 +394,18 @@ function OptionGroupPanel({ group, co, projectId, coId, rates, manufacturers, on
   }
 
   async function setSelected() {
-    await fetch(`/api/projects/${projectId}/change-orders/${coId}/option-groups/${group.id}`, {
+    const res = await fetch(`/api/projects/${projectId}/change-orders/${coId}/option-groups/${group.id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isSelected: true }),
     });
+    if (!res.ok) alert(await refusalText(res, 'Could not pick that option.'));
     onUpdate();
   }
 
   async function patchLabel(label) {
-    await fetch(`/api/projects/${projectId}/change-orders/${coId}/option-groups/${group.id}`, {
+    const res = await fetch(`/api/projects/${projectId}/change-orders/${coId}/option-groups/${group.id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ label }),
     });
+    if (!res.ok) { alert(await refusalText(res, 'Could not rename that option.')); return; }
     onGroupUpdated({ ...group, label });
   }
 
@@ -621,7 +634,8 @@ function ShareCOModal({ co, projectId, onClose }) {
 
   async function revoke() {
     if (!confirm('Revoke this share link?')) return;
-    await fetch(`/api/projects/${projectId}/change-orders/${co.id}/share`, { method: 'DELETE' });
+    const res = await fetch(`/api/projects/${projectId}/change-orders/${co.id}/share`, { method: 'DELETE' });
+    if (!res.ok) { alert(await refusalText(res, 'Could not turn off that link.')); return; }
     setShare(null);
   }
 
@@ -785,7 +799,9 @@ export default function CODetailClient({ projectId, coId }) {
     const res = await fetch(`/api/projects/${projectId}/change-orders/${coId}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fields),
     });
-    if (res.ok) { const updated = await res.json(); setCo(updated); }
+    // PATCH answers with the change order minus canEdit - keep the one we have.
+    if (res.ok) { const updated = await res.json(); setCo(prev => ({ ...updated, canEdit: prev?.canEdit })); }
+    else alert(await refusalText(res, 'Could not save that change.'));
     setSavingHeader(false);
   }
 
@@ -794,11 +810,13 @@ export default function CODetailClient({ projectId, coId }) {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}),
     });
     if (res.ok) load();
+    else alert(await refusalText(res, 'Could not add an option.'));
   }
 
   async function deleteOptionGroup(groupId) {
     if (!confirm('Delete this option group and all its line items?')) return;
-    await fetch(`/api/projects/${projectId}/change-orders/${coId}/option-groups/${groupId}`, { method: 'DELETE' });
+    const res = await fetch(`/api/projects/${projectId}/change-orders/${coId}/option-groups/${groupId}`, { method: 'DELETE' });
+    if (!res.ok) alert(await refusalText(res, 'Could not delete that option.'));
     load();
   }
 
@@ -828,13 +846,22 @@ export default function CODetailClient({ projectId, coId }) {
     </div>
   );
 
-  const isLocked = co.status === 'APPROVED' || co.status === 'SENT';
+  // canEdit comes from the server: Construction, Operations, Finance and admins.
+  // Anyone else sees the change order but every field is read-only.
+  const viewOnly = co.canEdit === false;
+  const isLocked = co.status === 'APPROVED' || co.status === 'SENT' || viewOnly;
   const rates    = co.rates || {};
 
   return (
     <div className="min-h-screen bg-slate-50">
       {showSend  && <SendCOModal  co={co} projectId={projectId} onSent={updated => { setCo(updated); setShowSend(false); }}  onClose={() => setShowSend(false)} />}
       {showShare && <ShareCOModal co={co} projectId={projectId} onClose={() => setShowShare(false)} />}
+
+      {viewOnly && (
+        <div className="bg-slate-100 border-b border-slate-200 px-6 py-2 text-center text-xs text-slate-600">
+          View only. Only Construction, Operations, Finance or an admin can change change orders.
+        </div>
+      )}
 
       {/* Top bar */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-20">
@@ -856,7 +883,7 @@ export default function CODetailClient({ projectId, coId }) {
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {co.status !== 'APPROVED' && (
+            {co.status !== 'APPROVED' && !viewOnly && (
               <button onClick={() => setShowSend(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors">
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -872,17 +899,19 @@ export default function CODetailClient({ projectId, coId }) {
               </svg>
               PDF
             </a>
-            <button onClick={() => setShowShare(true)}
+            {!viewOnly && <button onClick={() => setShowShare(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-colors">
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
               </svg>
               Share
-            </button>
-            {/* Push CO → New Budget Version (for PO/RFQ) */}
-            <PushCOToBudgetButton projectId={projectId} coId={coId} coNumber={co.coNumber} />
-            {/* Push CO → Ship Schedule (supplemental batch) */}
-            <PushCOToShipButton projectId={projectId} coId={coId} coNumber={co.coNumber} />
+            </button>}
+            {!viewOnly && <>
+              {/* Push CO → New Budget Version (for PO/RFQ) */}
+              <PushCOToBudgetButton projectId={projectId} coId={coId} coNumber={co.coNumber} />
+              {/* Push CO → Ship Schedule (supplemental batch) */}
+              <PushCOToShipButton projectId={projectId} coId={coId} coNumber={co.coNumber} />
+            </>}
           </div>
         </div>
       </div>

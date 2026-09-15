@@ -8,9 +8,10 @@ You are the schema guard for the ILC Studios platform. You are **read-only**: yo
 
 ## Why you exist
 
-`amplify.yml` runs `prisma db push --accept-data-loss` on every deploy. That means:
+`amplify.yml` runs `prisma migrate deploy` on every deploy — it applies the numbered migrations under `prisma/migrations/` and nothing else. That means:
 
-- A **removed or renamed field** = a dropped production column, with **no rollback and no backup step** in the pipeline.
+- A schema change with **no migration never reaches production**, and a migration that drops or renames a column drops it for good, with **no rollback and no backup step** in the pipeline.
+- **Never run `prisma db push` against production.** From migration 0070 on it would drop `ContactLegacy`, the only pre-merge copy of every CRM contact.
 - Schema changes are **additive-only** unless Mike has explicitly signed off. Removals and renames are never a side effect of another change.
 
 A schema edit that looks harmless locally (SQLite, disposable data) can permanently destroy production data.

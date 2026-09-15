@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, actsAsAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 export async function GET(req) {
@@ -41,8 +41,7 @@ export async function POST(req) {
     isCompanyDefault,
   } = body;
 
-  const adminRoles = ['SUPER_ADMIN', 'ILC_ADMIN', 'COMPANY_ADMIN'];
-  const isAdmin = adminRoles.includes(user.role);
+  const isAdmin = actsAsAdmin(user);
 
   // Company defaults can only be set by admins; fall back to user-scoped
   const ownerId = isCompanyDefault && isAdmin ? null : user.id;

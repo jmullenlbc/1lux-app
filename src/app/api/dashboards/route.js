@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth, isAnyAdmin } from '@/lib/auth';
+import { requireAuth, actsAsAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { TEMPLATES_BY_SECTION } from '@/lib/defaultDashboard';
 import { missingPrebuilt, hiddenCards } from '@/lib/dashboards/prebuilt';
@@ -72,7 +72,7 @@ export async function GET(request) {
   });
 
   return NextResponse.json({
-    active, isPersonal, isAdmin: isAnyAdmin(user.role),
+    active, isPersonal, isAdmin: actsAsAdmin(user),
     shared: shared.map(s => s.dashboard),
     hiddenCards: hiddenCards(TEMPLATES_BY_SECTION[section] || [], hidden),
   });
@@ -84,7 +84,7 @@ export async function POST(request) {
   const { user, error } = await requireAuth();
   if (error) return error;
   const { section = 'SALES', name = 'Dashboard', makeDefault = false } = await request.json().catch(() => ({}));
-  const asDefault = isAnyAdmin(user.role) && makeDefault;
+  const asDefault = actsAsAdmin(user) && makeDefault;
 
   // Only ever one default per section — demote any existing default first so an
   // admin clicking "create default" twice can't leave two isDefault rows behind.

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requirePermission } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 const OPTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -9,7 +9,7 @@ const OPTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 // body.afterItemId: insert after this item ID
 // body.parentLineItemId: for add_option, the root of the group
 export async function POST(req, { params }) {
-  const { error } = await requireAuth();
+  const { error } = await requirePermission(req, 'editJobMoney'); // Construction, Operations, Finance, admins
   if (error) return error;
 
   const co = await prisma.changeOrder.findUnique({ where: { id: params.coId } });

@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { notFound, redirect } from 'next/navigation';
-import { getSession, isClientViewer } from '@/lib/auth';
+import { getSession, isClientViewer, can } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { responsesToSections } from '@/lib/utils';
 import { calculateBudget } from '@/lib/calculations';
@@ -92,6 +92,8 @@ export default async function ProjectHubPage({ params }) {
     <ProjectHubClient
       userId={session.id}
       userRole={session.role}
+      // Contract dollars: Construction, Operations, Finance and admins (src/lib/permissions.js).
+      canEditMoney={can(session, 'editJobMoney')}
       project={{
         ...project,
         responses:      undefined,

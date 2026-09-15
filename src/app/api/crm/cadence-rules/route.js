@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth, isAnyAdmin } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 /**

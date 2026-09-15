@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth, isAnyAdmin } from '@/lib/auth';
+import { requireAuth, actsAsAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { LINE_KEYS } from '@/lib/calibration/lines';
 import { captureProject } from '@/lib/calibration/capture';
@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(request) {
   const { user, error } = await requireAuth();
   if (error) return error;
-  if (!isAnyAdmin(user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!actsAsAdmin(user)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const b = await request.json().catch(() => ({}));
   const projectId = String(b.projectId || '');

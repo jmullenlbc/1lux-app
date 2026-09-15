@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, actsAsAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 // PATCH /api/knowledge-base/categories/[id]
@@ -7,8 +7,7 @@ export async function PATCH(request, { params }) {
   const { user, error } = await requireAuth(request);
   if (error) return error;
 
-  const isAdmin = ['ILC_ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN'].includes(user.role);
-  if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!actsAsAdmin(user)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   try {
     const body = await request.json();
@@ -33,8 +32,7 @@ export async function DELETE(request, { params }) {
   const { user, error } = await requireAuth(request);
   if (error) return error;
 
-  const isAdmin = ['ILC_ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN'].includes(user.role);
-  if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!actsAsAdmin(user)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   try {
     const cat = await prisma.kbCategory.findUnique({ where: { id: params.id } });

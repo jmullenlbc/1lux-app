@@ -15,10 +15,20 @@ function formatDateDisplay(val) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function EditableField({ display, onSave, inputType = 'text', placeholder }) {
+function EditableField({ display, onSave, inputType = 'text', placeholder, lockedNote }) {
   const [editing, setEditing] = useState(false);
   const [raw,     setRaw]     = useState('');
   const [saved,   setSaved]   = useState(false);
+
+  // Contract dollars are locked to Construction, Operations, Finance and admins
+  // (Mike, 2026-09-14). Everyone else sees the number but can't change it.
+  if (lockedNote) {
+    return (
+      <span title={lockedNote} className={display ? 'text-base font-semibold text-slate-800 truncate' : 'text-sm text-slate-300 italic'}>
+        {display || 'Not entered'}
+      </span>
+    );
+  }
 
   function start() { setRaw(''); setEditing(true); }
 
@@ -92,7 +102,10 @@ export default function ContractWidgets({
   // Filter flags — show only one contract type
   supplyOnly = false,
   designOnly  = false,
+  // False for anyone outside Construction, Operations, Finance and admins.
+  canEditMoney = true,
 }) {
+  const moneyLock = canEditMoney ? undefined : 'Only Construction, Operations, Finance or an admin can change contract values.';
 
   async function patch(body) {
     await fetch(`/api/projects/${projectId}`, {
@@ -129,7 +142,7 @@ export default function ContractWidgets({
       {!supplyOnly && (
         <div className="flex gap-3">
           <Widget label="Design Contract Value" autoParsed={designValue != null}>
-            <EditableField display={formatCurrencyDisplay(designValue)} onSave={saveDesignValue} placeholder="e.g. 36200" />
+            <EditableField display={formatCurrencyDisplay(designValue)} onSave={saveDesignValue} placeholder="e.g. 36200" lockedNote={moneyLock} />
           </Widget>
           <Widget label="Design Contract Signed Date" autoParsed={designDate != null}>
             <EditableField display={formatDateDisplay(designDate)} onSave={saveDesignDate} inputType="date" />
@@ -140,7 +153,7 @@ export default function ContractWidgets({
       {!designOnly && (
         <div className="flex gap-3">
           <Widget label="Supply Contract Value" autoParsed={value != null}>
-            <EditableField display={formatCurrencyDisplay(value)} onSave={saveSupplyValue} placeholder="e.g. 754000" />
+            <EditableField display={formatCurrencyDisplay(value)} onSave={saveSupplyValue} placeholder="e.g. 754000" lockedNote={moneyLock} />
           </Widget>
           <Widget label="Supply Contract Signed Date" autoParsed={signedDate != null}>
             <EditableField display={formatDateDisplay(signedDate)} onSave={saveSupplyDate} inputType="date" />

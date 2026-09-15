@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, requirePermission, isClientViewer, can } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getProjectRates, calcCOTotal } from '@/lib/changeOrderRates';
 
@@ -18,8 +18,11 @@ const CO_INCLUDE = {
 
 // GET /api/projects/[id]/change-orders/[coId]
 export async function GET(req, { params }) {
-  const { error } = await requireAuth();
+  const { user, error } = await requireAuth();
   if (error) return error;
+  // Line items carry ILC's buy price (originalDN). Contractors see change orders
+  // only through the client portal, which leaves it out.
+  if (isClientViewer(user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const co = await prisma.changeOrder.findUnique({
     where: { id: params.coId },
@@ -30,13 +33,14 @@ export async function GET(req, { params }) {
   }
 
   const rates = await getProjectRates(params.id);
-  return NextResponse.json({ ...co, totalValue: calcCOTotal(co, rates), rates });
+  return NextResponse.json({ ...co, totalValue: calcCOTotal(co, rates), rates, canEdit: can(user, 'editJobMoney') });
 }
 
 // PATCH /api/projects/[id]/change-orders/[coId]
 // Update header fields (title, date, status, notes, totalInvoiced on project)
 export async function PATCH(req, { params }) {
-  const { user, error } = await requireAuth();
+  // Change orders are job money: Construction, Operations, Finance and admins.
+  const { user, error } = await requirePermission(req, 'editJobMoney');
   if (error) return error;
 
   const co = await prisma.changeOrder.findUnique({ where: { id: params.coId } });
@@ -76,7 +80,7 @@ export async function PATCH(req, { params }) {
 // DELETE /api/projects/[id]/change-orders/[coId]
 // Only DRAFT COs can be deleted
 export async function DELETE(req, { params }) {
-  const { error } = await requireAuth();
+  const { error } = await requirePermission(req, 'editJobMoney');
   if (error) return error;
 
   const co = await prisma.changeOrder.findUnique({ where: { id: params.coId } });

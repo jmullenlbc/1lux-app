@@ -37,10 +37,12 @@ export const ARCHIVABLE_DOCUMENTS = ['projectFile', 'drawingSubmission', 'manufa
 // Bug reports joined 2026-09-12 (migration 0079): archived from the QC board,
 // never deleted. They are not auto-hidden like the lists above; the board and
 // the reports API filter archivedAt themselves.
+// A person's work history joined 2026-09-14 (migration 0083), the same way:
+// the work-history route and Meeting Prep filter archivedAt themselves.
 export const NEVER_DELETED = [
   ...ARCHIVABLE_DOCUMENTS,
   'drawingFile', 'conceptualSubmission', 'conceptualSubmissionAnswer', 'questionnaireResponse',
-  'bugReport',
+  'bugReport', 'contactEmployment',
 ];
 
 export class DeleteRefusedError extends Error {

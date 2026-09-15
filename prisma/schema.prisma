@@ -26,6 +26,10 @@ model User {
   inviteToken        String?                    @unique
   inviteExpiry       DateTime?
   dashboardConfig    String? // JSON: { version, widgets: [{id, order, size?}] }
+  // Which internal alerts this person wants (Profile screen). The screen saved
+  // here for months while the column did not exist, so every choice was lost.
+  // Added by migration 0084.
+  notificationPrefs  String? // JSON: { [notificationType]: boolean }
   createdAt          DateTime                   @default(now())
   updatedAt          DateTime                   @updatedAt
   invitedById        String?
@@ -163,7 +167,7 @@ model BugReport {
 model UserDepartment {
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  department String   // SALES_MARKETING | OPERATIONS | PRECONSTRUCTION | CONSTRUCTION | PROJECT_MANAGEMENT | DESIGN | FINANCE
+  department String   // SALES_MARKETING | OPERATIONS | PRECONSTRUCTION | CONSTRUCTION | DESIGN | FINANCE (PROJECT_MANAGEMENT folded into CONSTRUCTION, migration 0085)
   createdAt  DateTime @default(now())
 
   @@id([userId, department])
@@ -477,10 +481,38 @@ model Contact {
   projectLinks ProjectContact[]
   emailLinks   EmailContactLink[]
   noteLinks    NoteContact[]
+  employment   ContactEmployment[]
 
   @@index([clientId])
 
   @@map("ClientContact")
+}
+
+// A person's work history, one row per job (migration 0083). Filled from text a
+// salesperson pastes off the person's LinkedIn profile (source 'linkedin_paste')
+// or typed by hand ('manual'); the app never reads LinkedIn itself. Meeting Prep
+// reads it. Archive-only: a fresh paste archives the old pasted rows. Months are
+// 1–12 and optional; isCurrent means "to present" and leaves the end blank.
+model ContactEmployment {
+  id           String    @id @default(cuid())
+  contactId    String
+  contact      Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  company      String
+  title        String?
+  startYear    Int?
+  startMonth   Int?
+  endYear      Int?
+  endMonth     Int?
+  isCurrent    Boolean   @default(false)
+  position     Int       @default(0) // 0 = newest, as the profile lists them
+  source       String    @default("manual") // 'linkedin_paste' | 'manual'
+  createdById  String?
+  archivedAt   DateTime?
+  archivedById String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([contactId])
 }
 
 // Person ↔ project link. isLead marks the Lead Person on that project; every
@@ -1116,6 +1148,7 @@ model Note {
   clients  NoteClient[]
   projects NoteProject[]
   actions  NoteAction[]
+  meetingBriefs MeetingBrief[]
 
   // The calendar sync looks a note up by the event's own id on every pass, so
   // that lookup gets an index. Not unique: a manually typed calendarRef could
@@ -1150,6 +1183,69 @@ model NoteAction {
   botDraftId  String?                          // loose ref to the BotDraft this action produced
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// Meeting Prep (migration 0082). A brief built for one sales note, ahead of the
+// meeting: the facts the app already holds about the people and companies on
+// the note, and 3–5 talking points that each cite the facts they rest on.
+// Internal only — never shown to a CLIENT_VIEWER, and it never carries a price.
+// Every refresh adds a new brief; the screen shows the latest one.
+model MeetingBrief {
+  id          String   @id @default(cuid())
+  noteId      String
+  note        Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  createdById String?                         // soft link to the User who asked
+  status      String   @default("ok")         // ok | no_points | error
+  model       String?
+  error       String?
+  createdAt   DateTime @default(now())
+
+  facts  MeetingBriefFact[]
+  points MeetingBriefPoint[]
+
+  @@index([noteId, createdAt])
+}
+
+// One fact the brief was built from, numbered F1, F2… so a talking point can
+// point back at it. sourceKind/sourceId say which record it came from.
+model MeetingBriefFact {
+  id         String       @id @default(cuid())
+  briefId    String
+  brief      MeetingBrief @relation(fields: [briefId], references: [id], onDelete: Cascade)
+  ref        String                        // "F3"
+  block      String                        // client | people | deals | followups | intel | changeOrders | rfis | news | standards | history
+  position   Int
+  text       String
+  sourceKind String?                       // Client | Contact | Project | NoteAction | ChangeOrder | RFI | MarketSignal | Note
+  sourceId   String?
+
+  citations MeetingBriefCitation[]
+
+  @@index([briefId])
+}
+
+model MeetingBriefPoint {
+  id       String       @id @default(cuid())
+  briefId  String
+  brief    MeetingBrief @relation(fields: [briefId], references: [id], onDelete: Cascade)
+  position Int
+  text     String
+
+  citations MeetingBriefCitation[]
+
+  @@index([briefId])
+}
+
+// Which facts a talking point rests on. A point with no citation is never saved.
+model MeetingBriefCitation {
+  id      String            @id @default(cuid())
+  pointId String
+  point   MeetingBriefPoint @relation(fields: [pointId], references: [id], onDelete: Cascade)
+  factId  String
+  fact    MeetingBriefFact  @relation(fields: [factId], references: [id], onDelete: Cascade)
+
+  @@unique([pointId, factId])
+  @@index([factId])
 }
 
 // Admin-controlled action taxonomy: each "method" tells the bot what to do, and
@@ -2780,6 +2876,33 @@ model AgentRun {
   @@index([taskType, promptVersion])
   @@index([status])
   @@index([projectId])
+}
+
+// ── MCP audit log (2026-09-14, migration 0081) ──────────────────────────────
+// One row per MCP tool call: who asked, which tool, with what question, how
+// many rows came back. Row counts, never the rows — a record of access, not a
+// second copy of the data. src/lib/mcp/audit.js writes here; without this
+// table the production MCP server refuses every request (503) rather than
+// serve unlogged reads.
+model McpQueryLog {
+  id          String   @id @default(cuid())
+  at          DateTime @default(now())
+  callerKind  String?            // user | token
+  callerId    String?
+  callerEmail String?
+  callerRole  String?
+  audience    String?
+  tool        String             // get_client_360, ...
+  model       String?
+  params      String?            // JSON: the question asked (≤ 4000 chars), not the answer
+  rowCount    Int?
+  durationMs  Int?
+  status      String   @default("ok") // ok | error | denied
+  error       String?            // ≤ 500 chars
+
+  @@index([at])
+  @@index([tool])
+  @@index([callerEmail])
 }
 
 // ── Pricing calibration (learning loop, 2026-09-04) ─────────────────────────

@@ -14,6 +14,7 @@ import { computeQuantities } from '../../src/lib/intake/quantities.js';
 import { validateAnswers, GARAGE_TYPE_KEYS, CARPORT_TYPE_KEYS } from '../../src/lib/intake/questionnaire.js';
 import { computeIntakeEstimate } from '../../src/lib/intake/estimate.js';
 import { PRICING } from '../../src/lib/pricing.js';
+import { calculateBudget } from '../../src/lib/calculations.js';
 
 const TOWN = 'Town Houses (2-3 Levels)';
 const GARDEN = 'Garden (3 Levels)';
@@ -88,6 +89,20 @@ test('drawings: the townhome guess never fills a drawing-read budget', () => {
 test('the budget prices the townhome guess at one sconce per garage door', () => {
   const { budget } = computeIntakeEstimate({ answers: { noDrawings: 'yes', ...TOWN_BASE } });
   assert.equal(budget.sections.exterior.garages.product, 64 * PRICING.exterior.detachedGarage.sconcePerDoor);
+});
+
+test('internal budgets: garages/carports only count on the types that have them', () => {
+  const pd = t => ({ numUnits: 100, grossSf: 120000, numGarages: 20, numCarports: 40, ...(t ? { buildingTypeKey: t } : {}) });
+  const ext = t => calculateBudget(pd(t), {}).sections.exterior;
+  const door = PRICING.exterior.detachedGarage.sconcePerDoor;
+  const disk = PRICING.exterior.carport.diskEveryOther;
+  assert.equal(ext('garden').garages.product, 20 * door);
+  assert.equal(ext('garden').carports.product, 20 * disk);
+  assert.equal(ext('wrap').garages.product, 0, 'wrap: no garages');
+  assert.equal(ext('wrap').carports.product, 20 * disk, 'wrap: carports yes');
+  assert.equal(ext('podium').garages.product, 0);
+  assert.equal(ext('podium').carports.product, 0);
+  assert.equal(ext(null).garages.product, 20 * door, 'no type chosen yet: typed numbers kept');
 });
 
 test('the public form keeps a typed 0 for garages and carports', () => {

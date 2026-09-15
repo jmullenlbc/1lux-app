@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, can } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import ProductsClient from './ProductsClient';
@@ -19,6 +19,7 @@ export default async function ProductsPage() {
     console.error('[/products] DB query failed:', err?.message ?? err);
   }
 
-  const isAdmin = user.role === 'ILC_ADMIN' || user.role === 'SUPER_ADMIN';
+  // Pre-construction, Design, Construction and admins (src/lib/permissions.js).
+  const isAdmin = can(user, 'editProducts');
   return <ProductsClient manufacturers={manufacturers} isAdmin={isAdmin} />;
 }

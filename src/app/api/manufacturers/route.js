@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, requirePermission, isClientViewer } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 const MFR_FIELDS = [
@@ -30,8 +30,10 @@ async function nextMfrNumericId() {
 }
 
 export async function GET() {
-  const { error } = await requireAuth();
+  const { user, error } = await requireAuth();
   if (error) return error;
+  // Credit, terms and payment details are ILC's business. Staff only.
+  if (isClientViewer(user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const manufacturers = await prisma.manufacturer.findMany({
     orderBy: { name: 'asc' },
     select: {
@@ -45,7 +47,8 @@ export async function GET() {
 }
 
 export async function POST(request) {
-  const { error } = await requireAuth();
+  // Manufacturers and products: Pre-con, Design, Construction and admins (src/lib/permissions.js).
+  const { error } = await requirePermission(request, 'editProducts');
   if (error) return error;
   const body = await request.json();
   if (!body.name?.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 });

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { requireAuth, isClientViewer } from '@/lib/auth';
+import { requireAuth, isClientViewer, can } from '@/lib/auth';
+import { deniedMessage } from '@/lib/permissions';
 import { prisma } from '@/lib/db';
 import { INCLUDE_ARCHIVED, archiveData, readArchivedFlag, deleteRefused, ARCHIVED_FLAG_HELP } from '@/lib/archive';
 import { logActivity, PHASE_LABELS } from '@/lib/activity';
@@ -60,6 +61,16 @@ export async function PATCH(request, { params }) {
     procurementStatusReason, designStatusReason,
     // ── Weekly sales meeting fields ──
     proposalSentDate, nextActionType, nextActionOwnerId, nextActionDueDate } = body;
+
+  // Contract dollars: Construction, Operations, Finance and admins only (Mike,
+  // 2026-09-14). A screen may send the whole record back, so only a real change
+  // counts — resending the number already on file is not an edit.
+  const sameMoney = (next, stored) =>
+    next === undefined || (next === null ? stored == null : Number(next) === stored);
+  if (!(sameMoney(contractValue, project.contractValue) && sameMoney(designContractValue, project.designContractValue))
+      && !can(user, 'editJobMoney')) {
+    return NextResponse.json({ error: deniedMessage('editJobMoney') }, { status: 403 });
+  }
 
   const clampPct = v => v === null || v === '' ? null : Math.max(0, Math.min(100, Number(v)));
 

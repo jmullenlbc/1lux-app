@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, requirePermission, isClientViewer } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { INCLUDE_ARCHIVED } from '@/lib/archive';
 
@@ -26,8 +26,10 @@ function parseBody(body) {
 }
 
 export async function GET(request, { params }) {
-  const { error } = await requireAuth();
+  const { user, error } = await requireAuth();
   if (error) return error;
+  // Products carry ILC's buy price (cost). Staff only.
+  if (isClientViewer(user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const manufacturer = await prisma.manufacturer.findUnique({
     where: { id: params.id },
     include: { products: { where: { archivedAt: null }, orderBy: { partNumber: 'asc' } } },
@@ -37,7 +39,8 @@ export async function GET(request, { params }) {
 }
 
 export async function PATCH(request, { params }) {
-  const { error } = await requireAuth();
+  // Manufacturers and products: Pre-con, Design, Construction and admins.
+  const { error } = await requirePermission(request, 'editProducts');
   if (error) return error;
   const body = await request.json();
   if ('name' in body && !body.name?.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 });
@@ -47,7 +50,7 @@ export async function PATCH(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-  const { error } = await requireAuth();
+  const { error } = await requirePermission(request, 'editProducts');
   if (error) return error;
   // Deleting a manufacturer took every one of its products with it, and
   // products are archive-only (Mike, 2026-09-11). So a manufacturer can only

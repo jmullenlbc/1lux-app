@@ -111,7 +111,7 @@ const FIGURE_FIELDS = [
   { key: 'figureStories',        qKey: 'stories',          label: '# Stories',                placeholder: 'e.g. 4' },
   DRIVE_LENGTH_FIELD,
   // Landings, not shafts (Mike, 2026-09-04): the internal Project Data field
-  // asks for landings, and the engine prices $175 per LANDING — so the visitor
+  // asks for landings, and the engine prices $200 per LANDING — so the visitor
   // types the same figure. A switchback stair serving N floors has 2N−1.
   { key: 'figureStairLandings',  qKey: 'stairLandings',    label: '# Egress stairwell landings', placeholder: 'e.g. 15' },
   { key: 'figureExitDoors',      qKey: 'exitDoors',        label: '# Exit doors',             placeholder: 'e.g. 8' },

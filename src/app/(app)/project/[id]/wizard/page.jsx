@@ -35,12 +35,21 @@ export default async function ProjectWizardPage({ params }) {
   const budget         = calculateBudget(projectData, sections, pricing);
   const completedSteps = JSON.parse(project.completedSteps || '[]');
 
+  // Small vs long breezeway can only be judged off the drawings (Mike
+  // 2026-09-14), so the Corridors screens ask it only when a set is on file.
+  const [drawingSets, drawingFiles] = await Promise.all([
+    prisma.drawingSubmission.count({ where: { projectId: project.id, archivedAt: null } }).catch(() => 0),
+    prisma.projectFile.count({ where: { projectId: project.id, tab: 'drawings', archivedAt: null } }).catch(() => 0),
+  ]);
+  const hasDrawings = drawingSets + drawingFiles > 0;
+
   const sharedProps = {
     project: { ...project, completedSteps, responses: undefined },
     projectData,
     initialSections: sections,
     initialBudget:   budget,
     pricing,
+    hasDrawings,
   };
 
   if (project.budgetType === 'peer_review') {

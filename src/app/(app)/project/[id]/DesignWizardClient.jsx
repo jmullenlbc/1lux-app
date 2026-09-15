@@ -18,7 +18,7 @@ import DesignInteriorAmenitiesSection  from '@/components/sections/design/Design
 import DesignEmergencySection          from '@/components/sections/design/DesignEmergencySection';
 import ExitSignsSection                from '@/components/sections/ExitSignsSection';
 
-export default function DesignWizardClient({ project, projectData, initialSections, initialBudget, pricing }) {
+export default function DesignWizardClient({ project, projectData, initialSections, initialBudget, pricing, hasDrawings: initialHasDrawings = false }) {
   const router = useRouter();
 
   // Guard: reset to 'project-data' if:
@@ -81,8 +81,11 @@ export default function DesignWizardClient({ project, projectData, initialSectio
   // A drawing upload committed to Project Info. The commit route returns the
   // fresh ProjectData row, so the form and the live budget pick it up here —
   // no reload, and no second fetch.
+  // A drawing read just landed, so small vs long breezeway can now be asked.
+  const [hasDrawings, setHasDrawings] = useState(initialHasDrawings);
   const handleDrawingCommit = useCallback((newPD) => {
     if (!newPD) return;
+    setHasDrawings(true);
     setLocalPD(newPD);
     recalculate(newPD, sections);
   }, [recalculate, sections]);
@@ -152,6 +155,7 @@ export default function DesignWizardClient({ project, projectData, initialSectio
     allSections: sections,
     budget,
     pricing,
+    hasDrawings,
     isDesign: true,
     onNext: goToNext,
     onPrev: goToPrev,

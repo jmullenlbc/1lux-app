@@ -43,6 +43,8 @@ export const QUESTION_LABELS = {
   elevatorLobby:       'Elevator Lobby Design',
   stairwellPainting:   'Stairwell Finish',
   stairwellDesign:     'Stairwell Design',
+  breezewayStyle:      'Breezeway Style',
+  stairType:           'Stair Type',
   garageDesignLevel:   'Garage Design Level',
   garageControls:      'Garage Controls',
   exitSignType:        'Exit Sign Type',

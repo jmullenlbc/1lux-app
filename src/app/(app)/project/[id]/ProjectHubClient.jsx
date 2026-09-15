@@ -420,7 +420,7 @@ function AutoTaggedFileTab({ title, subtitle, autoTag, files, projectId, tab, on
   );
 }
 
-export default function ProjectHubClient({ userId, userRole, project, budget, peerReviewTotal, clients = [], allUsers = [], initialFiles = [], initialDesignInfo = {}, masterTypes = [], meetingNotesCount = 0 }) {
+export default function ProjectHubClient({ userId, userRole, canEditMoney = false, project,budget, peerReviewTotal, clients = [], allUsers = [], initialFiles = [], initialDesignInfo = {}, masterTypes = [], meetingNotesCount = 0 }) {
   // Inline super-admin check — the auth helper module imports next/headers
   // which isn't usable in a client component, so we replicate the predicate
   // here. Mirrors isSuperAdmin() in src/lib/auth.js exactly.
@@ -1465,6 +1465,7 @@ export default function ProjectHubClient({ userId, userRole, project, budget, pe
               onValueChange={setContractValue}
               onSignedDateChange={setContractSignedDate}
               supplyOnly
+              canEditMoney={canEditMoney}
             />
             <ContractsPanel
               projectId={project.id}
@@ -1610,6 +1611,7 @@ export default function ProjectHubClient({ userId, userRole, project, budget, pe
               onDesignValueChange={setDesignContractValue}
               onDesignDateChange={setDesignContractDate}
               designOnly
+              canEditMoney={canEditMoney}
             />
             {/* Design contract files */}
             <ContractsPanel

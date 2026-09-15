@@ -5,6 +5,113 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Admin and user privileges: steps 1–3 — live account check, departments, locked areas] - September 14, 2026, latest (DEPLOYED September 15, 2026)
+
+Mike: *"Pause on building out the CRM until we talk. Finish the admin and user privledges"*, then "Option B": everyone on staff sees and edits almost everything; a few areas are locked to the right department; Operations works like a Company Admin.
+
+- **Step 1: six bugs fixed.** A turned-off account or a role change now applies on the very next click. Every request reads the live account, not the week-long login pass. Also fixed: the notification-settings field that didn't exist, two notification calls that never sent, the playbook and client-standards crash (`req` vs `request`), company-page permissions, and free-typed roles (one role list in `src/lib/roles.js`).
+- **Step 2: Project management merged into Construction** (migration **0085** moves the rows, so nobody loses a department). The department is now named just **"Construction"**.
+- **Step 3: one list of who can do what** (`src/lib/permissions.js`: `can(user, action)`, `actsAsAdmin`, `effectiveRole`). Staff in **Operations** count as a Company Admin everywhere, including adding and turning off users. Client Viewers are always refused.
+  - **Master pricing:** Pre-con + admins. Super Admins were locked out before; they aren't now.
+  - **Job money** (contract value, design fee, every change-order write): Construction, Operations, Finance + admins. The contract boxes on a job show a lock note for everyone else.
+  - **Products, manufacturers, fixture library:** Pre-con, Design, Construction + admins.
+  - **Closed a leak:** change-order and product lists returned DN/cost to Client Viewer logins. They now get a 403.
+  - **Change-order screens say "View only"** up front for people without job-money rights. New CO, Delete, Send, Share and the push buttons are hidden for them. Every refusal now shows the server's reason instead of nothing happening.
+  - **Bug fixed:** change-order table cells ignored their read-only flag, so sent and approved change orders looked editable and then failed without a word.
+  - The admin Users screen offers only the roles you're allowed to give, and the Profile screen uses the shared role names.
+  - Dashboards, calibration, automation and cadence rules, the sales meeting layout, CRM and the intake invite button now use `actsAsAdmin`, so Operations counts there too.
+  - **Only ILC staff can be admins (Mike).** Eleven more places typed out their own admin list and left out Operations: scheduling rules, knowledge-base entries and categories, the follow-up check, classification and bot-rule deletes, and archiving a sales note. All now use `actsAsAdmin`. Two comments that called Company Admin a "client-side" admin were corrected.
+  - **Bug fixed:** the AI review queue and its verdict button turned away every Super Admin, because the check was handed the whole person instead of their role.
+  - **Change orders stay with Construction, Operations and Finance, and everyone else can still open and read them (Mike).** Already the case; no change.
+  - **Sales reps: anyone on staff may add or edit (Mike, Sept 15, "for now").** Not a locked area. The Sales Reps screen is still list-only.
+- **Sept 15 — fixture schedule share link locked down (security).** The public link sent outsiders every column, including **internal notes**. Worse, an "edit" link could change **any column on any fixture row, on any job**, by id. Now only the 13 schedule columns go out or can be edited, and the row must be on that link's job. The allowlist lives in `src/lib/share/fixtureShare.js`; new `scripts/tests/shareLinks.test.mjs`. The standards share page was checked: answers and playbook only, no prices.
+- **Sept 15 — Mike's answers, settled:** the "Other" energy code keeps its +3%; exit signs stay halved over 300,000 SF; the MCP key may read DN because it's ILC-only ("Clients or external groups can never see DN pricing"); old jobs are not re-run. **Migration 0080 now sets the live master sheet's stair landing to $200 whatever it reads**, not only when it still said $175. Still to build: townhome controls only when there's a clubhouse, and a calendar-draft reminder that never goes away until the note is published.
+- **Sept 15 — all 13 plan documents checked against the code.** Report: `Plans Status Check 2026-09-15.md` in the Software engineering folder.
+- **Tests:** `privileges.test.mjs` pins all of the above, including new checks that no screen hand-types an admin list and that role checks are handed a role. Full suite: 1493/1493.
+
+**Files:** `src/lib/permissions.js` (new), `roles.js`, `departments.js`, `auth.js`; change-order, manufacturer, product, fixture-library, pricing, cron and admin-user routes; `ChangeOrdersTab.jsx`, `CODetailClient.jsx`, `ContractWidgets.jsx`, `ProjectHubClient.jsx`, `project/[id]/page.jsx`, `AdminClient.jsx`, `ProfileClient.jsx`, `Sidebar`; migrations `0084`, `0085`.
+
+---
+
+## [Interior/exterior stair dropdown, Meeting Prep budgets + jobs + work history] - September 14, 2026, later (DEPLOYED September 15, 2026)
+
+Mike: *"If we don't have drawings can we ask corridors + stairwells or breezeways (Interior or Exterior) as a single select dropdown … and then we average the price?"* and *"meeting prep should pull in the person's Linkedin resume with years worked at places. How many projects we are working on with them and at what stages. Budgets of those jobs."*
+
+- **Stairs without drawings:** Small/Long breezeway choice replaced by one dropdown on the Corridors screens, **Interior or Exterior**. Exterior (breezeway) prices at the average of the two breezeway rates, **$235 a landing**. When drawings exist, the drawing read still decides.
+- **Meeting Prep now shows sell figures.** Mike: pricing in Meeting Prep is fine. It still stays staff-only (client viewers get a 403). Each job's **budget** (latest priced Bid Matrix, else the Design Questionnaire / Peer Review / Conceptual budget), **product sale** and **design fee** show. **DN, dealer net, buy price, net cost, margin, rebates and spiffs never show.** Any line or talking point that mentions them is dropped.
+- **Meeting Prep: jobs with each person.** New "Jobs with them" block: how many jobs we have with each person, which they lead, each board's stage (open / won / lost), the budget total, and the jobs listed largest first.
+- **⏸ Work history — ON HOLD (Mike, same day):** *"I'm not going to [paste] people's LinkedIn information, so let's just make that a feature for later when we can connect to LinkedIn."* The **Work history** button is hidden (`WORK_HISTORY_READY = false` in `src/lib/workHistory.js`). The table, route and panel below stay in place, unused, for when there is a LinkedIn connection; Meeting Prep's work-history block is simply empty until then. What was built:
+- **Work history (migration 0083, new table `ContactEmployment`).** Every person on a company's People tab gets a **Work history** button. Copy the Experience section off their LinkedIn profile, paste it in, press **Read it**, and the AI turns it into jobs (company, title, from–to). Jobs can also be added by hand. A new paste replaces the previous paste's jobs; hand-typed jobs stay. Archive only, never deleted. The app never reads LinkedIn itself. Meeting Prep shows it as "Jane Roe — Acme Dev, VP Development, Mar 2019 – now (7 yrs 7 mos); …".
+- Bug fixed: the email line in Meeting Prep lowercased the month ("sep 3").
+- **Tests:** `meetingPrep.test.mjs` rewritten (15), new `workHistory.test.mjs` (6); 91 pass across the six related files.
+
+**Files:** `src/lib/workHistory.js`, `src/lib/workHistoryExtract.js`, `src/lib/meetingPrep/budgets.js` (new); `src/lib/meetingPrep/brief.js`, `gather.js`, `src/app/api/crm/notes/[id]/meeting-prep/route.js`, `MeetingPrep.jsx`; `src/app/api/clients/[id]/contacts/[contactId]/work-history/route.js` (new); `src/app/(app)/clients/[id]/WorkHistoryPanel.jsx` (new), `ClientDetailClient.jsx`; `src/lib/archive.js`, `src/lib/aiModels.js`; `prisma/schema.prisma`, migration `0083_contact_employment`.
+
+---
+
+## [Stairs $200 a landing, small/long breezeways, MCP audit table, Meeting Prep] - September 14, 2026 (DEPLOYED September 15, 2026)
+
+Mike: *"regular stairwell = $200/landing (Up from $175/landing. We have seen a cost increase)"*. Small breezeways (like Lowell + I76) should run 10–15% over that and long ones (like Lone Tree Ranch) 20–25%. Meeting Prep: *"It's event related, so not on clients. It's in the sales notes."*
+
+- **Stairs:** the master stair rate is now **$200 a landing**. Migration **0080** moves the saved master sheet from 175 to 200, only if it still reads 175. Frozen project snapshots keep their own rate.
+- **Breezeways:** the flat 2.2× breezeway multiplier is replaced by two styles, asked on both Corridors screens ("Breezeway style?"):
+  - **Small** ×1.125 = **$225 a landing**, the default. Matches the fixture list: disk with integrated EM, wall packs up each run, 7" disks with frogeyes at the landings.
+  - **Long** ×1.225 = **$245 a landing**. Matches 2 wall packs over long stairs and 4 disks on the corridor above, 2 with EM batteries.
+  - Both multipliers are editable on the pricing screen. The summary, PDF and cost-per-answer lines say which style was used.
+  - ⚠️ **Behavior change:** existing garden, stacked-flats and gurban budgets reprice from about $385 to about $197 a landing: their frozen $175 × the small multiplier.
+- **MCP audit table:** migration **0081** adds `McpQueryLog`, one row per MCP tool call (who, which tool, how many rows, never the rows). Production `/api/mcp` stays switched off (503) until this table exists and `MCP_API_TOKEN` is set in Amplify; Sean was notified.
+- **Meeting Prep on sales notes** (migration **0082**, four new tables: `MeetingBrief`, `MeetingBriefFact`, `MeetingBriefPoint`, `MeetingBriefCitation`):
+  - Each sales note gets a **"Prep for this meeting"** panel. It gathers what the CRM already holds on the note's companies, people and deals into numbered facts (F1, F2…):
+    - last in-person meeting and last emails;
+    - each board's stage/status and track record;
+    - overdue next actions and open follow-ups from other notes;
+    - intel, open change orders and RFIs;
+    - news from the last 120 days;
+    - client standards on file;
+    - earlier meetings.
+  - Then the AI writes 3–5 talking points. Each one cites the facts it rests on, shown as clickable chips. A point that cites nothing real is dropped.
+  - **No prices, ever:** only safe fields are read, dollar amounts are stripped from typed text, and any line that still mentions money, DN or margin is dropped. A client-viewer login gets a 403.
+  - Every refresh saves a new brief as rows (the latest is shown), so "which facts did this point come from" is a query.
+- **Local database note:** `prisma db push` on the local copy now wants to drop the `ContactLegacy` backup table. That was refused. New local tables were added by hand-written SQL instead.
+- **Tests:**
+  - `breezewayStair.test.mjs` was rewritten for $200 / small / long;
+  - new `meetingPrep.test.mjs` (11 tests), added to `verify.mjs`;
+  - all pass.
+
+**Files:**
+- Stairs and breezeways: `src/lib/pricing.js`, `src/lib/stairLandings.js`, `src/lib/calculations.js`, `CorridorsSection.jsx`, `DesignCorridorsSection.jsx`, the summary and PDF labels, `SummaryBudgetBreakdown.jsx`, `activity.js`, calibration `lines.js`, `PricingEditor.jsx`.
+- Meeting Prep and MCP: `src/lib/aiModels.js`, `src/lib/meetingPrep/brief.js`, `gather.js`, `talkingPoints.js` (all new), `src/app/api/crm/notes/[id]/meeting-prep/route.js` (new), `src/app/(app)/crm/notes/MeetingPrep.jsx` (new), `NotesClient.jsx`.
+- Database: `prisma/schema.prisma`, migrations `0080_stair_landing_200`, `0081_mcp_query_log`, `0082_meeting_brief`.
+- Tests: `scripts/tests/breezewayStair.test.mjs`, `scripts/tests/meetingPrep.test.mjs`, `scripts/verify.mjs`.
+
+---
+
+## [Trenching per foot + garage/carport boxes on the internal screen] - September 14, 2026 (DEPLOYED September 15, 2026)
+
+Mike: *"Price per foot. Choose $900 per average 60ft. of trenching and conduit."* and *"yes"* to the internal Project Data screen following the same building-type rule as the public form.
+
+- **Trenching is now priced per foot:** the flat $290-per-pole trenching labor is replaced by two editable knobs:
+  - `labor.trenchingPerFt` = $15 a foot, covering trenching and conduit;
+  - `labor.trenchFtPerPole` = 60 ft, the average run.
+
+  $15 × 60 = **$900 per wired pole**. A wired area light now shows $1,769.79 of labor (pole $869.79 + trenching $900). A solar site credits back 70% of that, so a solar pole shows about $531. Both knobs are on the pricing screen ("Trenching + Conduit per Foot", "Average Trench Run per Pole"). Labor still never enters any total.
+- **One shared list of which building types get garages and carports:** new `src/lib/coveredParkingTypes.js`.
+  - Garages: single-family, townhomes, stacked flats, garden.
+  - Carports: those plus wrap.
+  - The public form's questionnaire re-exports it, so there is one copy.
+- **Internal Project Data screen:** "# of Carports" and "# of Attached/Detached Garages" now hide on building types that don't get them, like the public form. With no building type chosen yet, both still show.
+- **Budget math matches:** `calculateBudget` ignores a typed garage or carport count when the project's chosen type doesn't allow it. A hidden box can't quietly add dollars. It judges only a type actually chosen, never the mid-rise fallback, so a project with no type keeps its numbers.
+- **Comments corrected:** `src/lib/mcp/audit.js` and `.claude/agents/schema-guard.md` said deploys run `prisma db push`. They run `prisma migrate deploy`; fixed so nobody believes the old text.
+- **Dashboard crash when logged out fixed:** `/dashboard` read the session's role without checking that anyone was logged in, and threw a server error instead of showing the login page. It now sends a logged-out visitor to `/login`, like the wizard page does.
+- **Tests:**
+  - `garagesCarports.test.mjs` has a new internal-budget test: garden, wrap, podium, and no type chosen.
+  - `questionCosts.test.mjs` pins $15 × 60 = $900 and the 70% solar credit on the new pole labor.
+  - All 22 in those two files pass; `npm test` is green.
+
+**Files:** `src/lib/pricing.js`, `src/lib/calculations.js`, `src/lib/coveredParkingTypes.js` (new), `src/lib/intake/questionnaire.js`, `src/components/sections/ProjectDataSection.jsx`, `src/app/(app)/admin/pricing/PricingEditor.jsx`, `src/lib/mcp/audit.js`, `.claude/agents/schema-guard.md`, `scripts/tests/garagesCarports.test.mjs`, `scripts/tests/questionCosts.test.mjs`.
+
+---
+
 ## [Drive-lane lights by drive length + garages/carports] - September 13, 2026 (DEPLOYED d4cdeb0)
 
 Mike: *"correlate it to the width of 9 spaces and just keep that and measure the drive."* Townhome and single-family communities now get one area light per 81 ft of private drive (9 stalls × 9 ft).

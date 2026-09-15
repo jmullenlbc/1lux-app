@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requirePermission } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { INCLUDE_ARCHIVED } from '@/lib/archive';
 
@@ -9,7 +9,7 @@ import { INCLUDE_ARCHIVED } from '@/lib/archive';
 // Does NOT include pricing — DN/CN are carried if they exist on line items.
 
 export async function POST(req, { params }) {
-  const { user, error } = await requireAuth();
+  const { user, error } = await requirePermission(req, 'editJobMoney'); // Construction, Operations, Finance, admins
   if (error) return error;
 
   try {

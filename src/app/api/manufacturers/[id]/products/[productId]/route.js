@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, requirePermission, isClientViewer } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { archiveData, readArchivedFlag, deleteRefused, ARCHIVED_FLAG_HELP } from '@/lib/archive';
 
@@ -21,8 +21,10 @@ function parseBody(body) {
 }
 
 export async function GET(request, { params }) {
-  const { error } = await requireAuth();
+  const { user, error } = await requireAuth();
   if (error) return error;
+  // Products carry ILC's buy price (cost). Staff only.
+  if (isClientViewer(user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const product = await prisma.manufacturerProduct.findUnique({
     where: { id: params.productId },
     include: { manufacturer: { select: { id: true, name: true, numericId: true } } },
@@ -32,7 +34,8 @@ export async function GET(request, { params }) {
 }
 
 export async function PATCH(request, { params }) {
-  const { error } = await requireAuth();
+  // Manufacturers and products: Pre-con, Design, Construction and admins.
+  const { error } = await requirePermission(request, 'editProducts');
   if (error) return error;
   const body = await request.json();
   if ('partNumber' in body && !body.partNumber?.trim())
@@ -53,10 +56,9 @@ export async function DELETE() {
 
 // POST /api/manufacturers/[id]/products/[productId]  { archived: true | false }
 export async function POST(request, { params }) {
-  const { user, error } = await requireAuth();
+  // Archiving follows the same rule as editing (Mike, 2026-09-14).
+  const { user, error } = await requirePermission(request, 'editProducts');
   if (error) return error;
-  if (user.role !== 'ILC_ADMIN' && user.role !== 'SUPER_ADMIN')
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const archived = await readArchivedFlag(request);
   if (archived === null) return NextResponse.json({ error: ARCHIVED_FLAG_HELP }, { status: 400 });

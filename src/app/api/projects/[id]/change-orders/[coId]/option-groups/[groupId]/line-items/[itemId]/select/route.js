@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requirePermission } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 // POST — select this option as the active one within its group
 // Deselects all other siblings (same root)
 export async function POST(req, { params }) {
-  const { error } = await requireAuth();
+  const { error } = await requirePermission(req, 'editJobMoney'); // Construction, Operations, Finance, admins
   if (error) return error;
 
   const item = await prisma.changeOrderLineItem.findUnique({ where: { id: params.itemId } });

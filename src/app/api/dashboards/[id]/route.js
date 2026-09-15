@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth, isAnyAdmin } from '@/lib/auth';
+import { requireAuth, actsAsAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 async function canEdit(dash, user) {
   if (!dash) return false;
   if (dash.ownerUserId === user.id) return true;          // own personal
-  if (dash.ownerUserId === null && isAnyAdmin(user.role)) return true; // admin default
+  if (dash.ownerUserId === null && actsAsAdmin(user)) return true; // admin default
   return false;
 }
 

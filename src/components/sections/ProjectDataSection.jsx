@@ -4,6 +4,14 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Card, { CardHeader, CardBody } from '@/components/ui/Card';
 import QuestionCard from './QuestionCard';
+import { allowsGarages, allowsCarports } from '@/lib/coveredParkingTypes';
+
+// Boxes that only apply to some building types (Mike 2026-09-13) — the same
+// rule the public form and the budget engine use.
+const FIELD_ALLOWED = {
+  numCarports: allowsCarports,
+  numGarages:  allowsGarages,
+};
 
 const FIELDS = [
   { group: 'Building Metrics',
@@ -160,7 +168,7 @@ export default function ProjectDataSection({ projectId, projectData, responses =
           </CardHeader>
           <CardBody>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {group.fields.map(field => (
+              {group.fields.filter(field => !FIELD_ALLOWED[field.key] || FIELD_ALLOWED[field.key](projectData?.buildingTypeKey)).map(field => (
                 <Input
                   key={field.key}
                   label={field.label}

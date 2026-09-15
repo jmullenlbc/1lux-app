@@ -120,8 +120,11 @@ export function buildSamples({ projectData = {}, sections = {}, budget, pricing 
     // breezeway walk-ups price each landing at stairwell rate × the breezeway
     // multiplier, so the effective $/landing is the engine's, not the plain rate
     rateUsed: breezeway && landings > 0 ? stairProduct / landings : n(pricing.corridors?.stairwellPerLanding?.product),
-    // a breezeway drift is tuned on the multiplier, not the shared stairwell rate
-    pricingKey: breezeway ? 'corridors.breezewayLandingMultiplier' : 'corridors.stairwellPerLanding.product',
+    // a breezeway drift is tuned on its style's multiplier, not the shared stairwell rate
+    pricingKey: breezeway
+      // an average breezeway (no drawings) rides on both multipliers — no single knob to tune
+      ? ({ small: 'corridors.breezewaySmallMultiplier', long: 'corridors.breezewayLongMultiplier' }[breezeway.style] ?? null)
+      : 'corridors.stairwellPerLanding.product',
     note: breezeway ? breezeway.how : null });
 
   // ── BOH / interior / garage ──────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, actsAsAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { archiveData, readArchivedFlag, deleteRefused, ARCHIVED_FLAG_HELP } from '@/lib/archive';
 import { extractNoteActions } from '@/lib/bot/extractNoteActions';
@@ -186,8 +186,7 @@ export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
-  const isAdmin = ['SUPER_ADMIN', 'ILC_ADMIN', 'COMPANY_ADMIN', 'ADMIN'].includes(user.role);
-  if (!isAdmin) return NextResponse.json({ error: 'Only an admin can archive or restore a note.' }, { status: 403 });
+  if (!actsAsAdmin(user)) return NextResponse.json({ error: 'Only an admin can archive or restore a note.' }, { status: 403 });
 
   const note = await prisma.note.findUnique({ where: { id: params.id }, select: { id: true } });
   if (!note) return NextResponse.json({ error: 'Not found' }, { status: 404 });

@@ -1,7 +1,14 @@
+import * as React from 'react';
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { DEPARTMENTS_SELECT, hasDepartment, SALES_MARKETING } from './departments';
+import { DEPARTMENTS_SELECT, departmentKeys, hasDepartment, SALES_MARKETING } from './departments';
+import { ROLE_LABEL } from './roles';
+import { actsAsAdmin, can, deniedMessage } from './permissions';
+
+// The permission table lives in ./permissions (no server-only code, so screens
+// can use it too). Re-exported so routes import every guard from one place.
+export { actsAsAdmin, can };
 
 const SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'ilc-studios-secret'
@@ -60,15 +67,7 @@ export function isSalesAdmin(user) {
 }
 
 export function getRoleLabel(role) {
-  const map = {
-    SUPER_ADMIN:    'Super Admin',
-    ILC_ADMIN:      'Super Admin',
-    COMPANY_ADMIN:  'Company Admin',
-    ADMIN:          'Company Admin',
-    USER:           'User',
-    CLIENT_VIEWER:  'Client Viewer',
-  };
-  return map[role] || role;
+  return ROLE_LABEL[role] || role;
 }
 
 // ── JWT ──────────────────────────────────────────────────────────────────────
@@ -90,11 +89,52 @@ export async function verifyToken(token) {
   }
 }
 
+// ── The live account behind a login pass ─────────────────────────────────────
+// The login pass lasts seven days and only says who someone was when they
+// signed in. Until 2026-09-14 nothing else was checked, so a turned-off account
+// kept working for up to a week and a role change waited for the next sign-in.
+// Every request now reads the account itself: turning someone off or changing
+// their role takes effect on their very next click (Mike: "that's fine").
+//
+// The pass never carried permissions or departments either, so every screen
+// that read them from it quietly never matched. They come from the account now.
+//
+// cache(): a page and its layout both ask on the same request — one read, not two.
+const cache = React.cache || (fn => fn);
+
+const loadAccount = cache(async (id) => {
+  // Lazy import to avoid a hard dependency in edge/middleware contexts.
+  const { prisma } = await import('@/lib/db');
+  return prisma.user.findUnique({
+    where:  { id },
+    select: {
+      id: true, email: true, name: true, role: true, isActive: true,
+      mustChangePassword: true, permissions: true, departments: DEPARTMENTS_SELECT,
+    },
+  });
+});
+
+async function liveUser(payload) {
+  if (!payload?.id) return null;
+  const account = await loadAccount(payload.id);
+  if (!account || account.isActive === false) return null;
+  return {
+    ...payload,
+    id:                 account.id,
+    email:              account.email,
+    name:               account.name,
+    role:               account.role,
+    mustChangePassword: account.mustChangePassword || false,
+    permissions:        account.permissions,
+    departments:        departmentKeys(account),
+  };
+}
+
 export async function getSession() {
   const cookieStore = cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) return null;
-  return await verifyToken(token);
+  return await liveUser(await verifyToken(token));
 }
 
 export function setSessionCookie(response, token) {
@@ -119,39 +159,32 @@ export function clearSessionCookie(response) {
 
 // ── Route guards ─────────────────────────────────────────────────────────────
 
+const unauthorized = () => ({ user: null, error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) });
+
 export async function requireAuth(request) {
   const cookieStore = cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
-  if (!token) {
-    return { user: null, error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
-  }
-  const payload = await verifyToken(token);
-  if (!payload) {
-    return { user: null, error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
-  }
-  return { user: payload, error: null };
+  if (!token) return unauthorized();
+  const user = await liveUser(await verifyToken(token));
+  if (!user) return unauthorized();
+  return { user, error: null };
 }
 
+// Any admin — which includes everyone in Operations (Mike, 2026-09-14).
 export async function requireAdmin(request) {
   const { user, error } = await requireAuth(request);
   if (error) return { user: null, error };
-  if (!isAnyAdmin(user.role)) {
+  if (!actsAsAdmin(user)) {
     return { user: null, error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
   }
   return { user, error: null };
 }
 
-// Gate on Sales Admin (or Super Admin). Permissions aren't in the JWT, so for
-// non-super-admins we look up the user's permissions from the DB.
+// Gate on Sales Admin (or Super Admin). Permissions come from the live account.
 export async function requireSalesAdmin(request) {
   const { user, error } = await requireAuth(request);
   if (error) return { user: null, error };
-  if (isSuperAdmin(user.role)) return { user, error: null };
-
-  // Lazy import to avoid a hard dependency in edge/middleware contexts.
-  const { prisma } = await import('@/lib/db');
-  const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { permissions: true } });
-  if (!isSalesAdmin({ role: user.role, permissions: dbUser?.permissions })) {
+  if (!isSalesAdmin(user)) {
     return { user: null, error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
   }
   return { user, error: null };
@@ -159,19 +192,21 @@ export async function requireSalesAdmin(request) {
 
 // Who can work the web budget request queue: any admin, plus anyone in the
 // Sales + marketing department (Mike, 2026-09-12 — sales follows up on every
-// new request). Departments aren't in the JWT, so non-admins cost one DB read.
+// new request). Departments come from the live account.
 export async function requireIntakeReviewer(request) {
   const { user, error } = await requireAuth(request);
   if (error) return { user: null, error };
-  if (isAnyAdmin(user.role)) return { user, error: null };
+  if (actsAsAdmin(user) || hasDepartment(user, SALES_MARKETING)) return { user, error: null };
+  return { user: null, error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
+}
 
-  const { prisma } = await import('@/lib/db');
-  const dbUser = await prisma.user.findUnique({
-    where:  { id: user.id },
-    select: { isActive: true, departments: DEPARTMENTS_SELECT },
-  });
-  if (!dbUser?.isActive || !hasDepartment(dbUser, SALES_MARKETING)) {
-    return { user: null, error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
+// Gate on one row of the permission table (src/lib/permissions.js). The 403
+// says in plain words who can do it.
+export async function requirePermission(request, action) {
+  const { user, error } = await requireAuth(request);
+  if (error) return { user: null, error };
+  if (!can(user, action)) {
+    return { user: null, error: NextResponse.json({ error: deniedMessage(action) }, { status: 403 }) };
   }
   return { user, error: null };
 }

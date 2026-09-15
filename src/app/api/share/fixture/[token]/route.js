@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { publicFixtureItem, cleanShareEdit } from '@/lib/share/fixtureShare';
 
 // Public endpoint — no auth required
 // GET /api/share/fixture/[token]
-// Returns the fixture schedule (draft items + project info) for the share token
+// Returns the fixture schedule (draft items + project info) for the share token.
+// Only the allowlisted columns leave the building — see src/lib/share/fixtureShare.js.
 
 export async function GET(req, { params }) {
   const { token } = params;
@@ -32,7 +34,7 @@ export async function GET(req, { params }) {
   return NextResponse.json({
     permission: share.permission,
     project:   share.project,
-    schedule:  schedule ? { items: schedule.items } : { items: [] },
+    schedule:  { items: (schedule?.items ?? []).map(publicFixtureItem) },
   });
 }
 
@@ -49,10 +51,20 @@ export async function PATCH(req, { params }) {
   const { itemId, field, value } = body;
   if (!itemId || !field) return NextResponse.json({ error: 'itemId and field required' }, { status: 400 });
 
+  const edit = cleanShareEdit(field, value);
+  if (edit.error) return NextResponse.json({ error: edit.error }, { status: 400 });
+
+  // The row must be on THIS link's job, in the draft schedule the link shows.
+  const item = await prisma.fixtureScheduleItem.findFirst({
+    where:  { id: itemId, schedule: { projectId: share.projectId, state: 'DRAFT' } },
+    select: { id: true },
+  });
+  if (!item) return NextResponse.json({ error: 'That fixture isn’t on this shared schedule' }, { status: 404 });
+
   const updated = await prisma.fixtureScheduleItem.update({
-    where: { id: itemId },
-    data: { [field]: value ?? null },
+    where: { id: item.id },
+    data:  edit.data,
   });
 
-  return NextResponse.json(updated);
+  return NextResponse.json(publicFixtureItem(updated));
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth, isAnyAdmin } from '@/lib/auth';
+import { requireAuth, actsAsAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import {
   MEETING_CARDS, MEETING_SECTION, MEETING_CATEGORY,
@@ -48,7 +48,7 @@ export async function GET() {
     cards,
     source,                       // which layer the room is looking at
     hasPersonal: !!personal,
-    canEditShared: isAnyAdmin(user.role),
+    canEditShared: actsAsAdmin(user),
     catalog: MEETING_CARDS.map(c => ({
       key: c.key, title: c.title, subtitle: c.subtitle,
       showsOwner: c.showsOwner, needs: c.needs || null,
@@ -70,7 +70,7 @@ export async function PUT(request) {
   const scope = body.scope === 'shared' ? 'shared' : 'personal';
   const cards = normalizeLayout(body.cards);
 
-  if (scope === 'shared' && !isAnyAdmin(user.role)) {
+  if (scope === 'shared' && !actsAsAdmin(user)) {
     return NextResponse.json(
       { error: 'Only an admin can change the set everyone sees.' },
       { status: 403 },

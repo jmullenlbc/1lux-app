@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, requirePermission, isClientViewer } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 // GET — get existing share link
 export async function GET(req, { params }) {
-  const { error } = await requireAuth();
+  const { user, error } = await requireAuth();
   if (error) return error;
+  if (isClientViewer(user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const share = await prisma.changeOrderShare.findFirst({
     where:   { changeOrderId: params.coId },
@@ -16,7 +17,8 @@ export async function GET(req, { params }) {
 
 // POST — create or regenerate share link
 export async function POST(req, { params }) {
-  const { user, error } = await requireAuth();
+  // Change orders are job money: Construction, Operations, Finance and admins.
+  const { user, error } = await requirePermission(req, 'editJobMoney');
   if (error) return error;
 
   const co = await prisma.changeOrder.findUnique({ where: { id: params.coId } });
@@ -37,7 +39,7 @@ export async function POST(req, { params }) {
 
 // DELETE — revoke share link
 export async function DELETE(req, { params }) {
-  const { error } = await requireAuth();
+  const { error } = await requirePermission(req, 'editJobMoney');
   if (error) return error;
 
   await prisma.changeOrderShare.deleteMany({ where: { changeOrderId: params.coId } });

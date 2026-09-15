@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, requirePermission, isClientViewer } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 const PRODUCT_FIELDS = ['partNumber','description','finish','cct','wattage','dimming','voltage','mounting','fixtureType','cost','salePrice','notes'];
@@ -25,8 +25,10 @@ async function nextProductNumericId() {
 }
 
 export async function GET(request, { params }) {
-  const { error } = await requireAuth();
+  const { user, error } = await requireAuth();
   if (error) return error;
+  // Products carry ILC's buy price (cost). Staff only.
+  if (isClientViewer(user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const products = await prisma.manufacturerProduct.findMany({
     where: { manufacturerId: params.id },
     orderBy: { partNumber: 'asc' },
@@ -35,7 +37,8 @@ export async function GET(request, { params }) {
 }
 
 export async function POST(request, { params }) {
-  const { error } = await requireAuth();
+  // Manufacturers and products: Pre-con, Design, Construction and admins.
+  const { error } = await requirePermission(request, 'editProducts');
   if (error) return error;
   const body = await request.json();
   if (!body.partNumber?.trim()) return NextResponse.json({ error: 'Part number required' }, { status: 400 });

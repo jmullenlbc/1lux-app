@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { requireAuth, isAnyAdmin } from '@/lib/auth';
+import { requireAuth, actsAsAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { DEPARTMENTS_SELECT, hasDepartment, SALES_MARKETING } from '@/lib/departments';
 import { redirect } from 'next/navigation';
@@ -50,10 +50,10 @@ export default async function CRMPage() {
   // page that turns them away.
   let newRequests = [];
   try {
-    const me = isAnyAdmin(user.role)
+    const me = actsAsAdmin(user)
       ? null
       : await prisma.user.findUnique({ where: { id: user.id }, select: { departments: DEPARTMENTS_SELECT } });
-    if (isAnyAdmin(user.role) || hasDepartment(me, SALES_MARKETING)) {
+    if (actsAsAdmin(user) || hasDepartment(me, SALES_MARKETING)) {
       newRequests = await prisma.conceptualSubmission.findMany({
         where:   { status: 'PENDING', duplicateMatchId: null },
         orderBy: { createdAt: 'desc' },

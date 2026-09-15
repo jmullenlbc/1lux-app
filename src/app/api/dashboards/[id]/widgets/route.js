@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth, isAnyAdmin } from '@/lib/auth';
+import { requireAuth, actsAsAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 async function assertEdit(id, user) {
   const dash = await prisma.dashboard.findUnique({ where: { id } });
   if (!dash) return { error: NextResponse.json({ error: 'Not found' }, { status: 404 }) };
-  const ok = dash.ownerUserId === user.id || (dash.ownerUserId === null && isAnyAdmin(user.role));
+  const ok = dash.ownerUserId === user.id || (dash.ownerUserId === null && actsAsAdmin(user));
   if (!ok) return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
   return { dash };
 }

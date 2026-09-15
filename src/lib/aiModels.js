@@ -118,6 +118,8 @@ export const JOB_TIERS = {
   'bot.outreach.compose':     'QUICK',
   'bot.outreach.subject':     'QUICK',
   'bot.noteActions':          'QUICK',
+  'bot.meetingPrep':          'QUICK',
+  'bot.workHistory':          'QUICK',
   'bot.followUp':             'QUICK',
   'market.entityExtract':     'QUICK',
 };

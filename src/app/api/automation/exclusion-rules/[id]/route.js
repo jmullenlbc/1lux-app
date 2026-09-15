@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth, isAnyAdmin } from '@/lib/auth';
+import { requireAuth, actsAsAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { invalidateMassEmailThreshold } from '@/lib/email/settings';
 
@@ -36,7 +36,7 @@ export async function DELETE(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
-  if (!isAnyAdmin(user.role)) {
+  if (!actsAsAdmin(user)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

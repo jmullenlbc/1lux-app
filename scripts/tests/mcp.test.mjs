@@ -571,28 +571,14 @@ test('a malformed where is the CALLER\'s error (4xx), not ours (500)', async () 
 // ── Audit ────────────────────────────────────────────────────────────────────
 
 test('every call is audited, refusals included', async () => {
-  // audit.js imports '@/lib/db', and the `@` alias is a bundler feature that
-  // plain `node --test` cannot resolve — so the JSONL sink is read directly.
-  // If the file is absent the Prisma sink is active and this assertion does not
-  // apply; it skips rather than failing on a configuration it cannot see.
-  const AUDIT_FILE = 'C:/ilc-studios-live/.mcp-audit/mcp-queries.jsonl';
-  const { readFile } = await import('node:fs/promises');
-  const readTail = async (limit = 50) => {
-    try {
-      const raw = await readFile(AUDIT_FILE, 'utf8');
-      return raw.split('\n').filter(Boolean).slice(-limit)
-        .map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
-    } catch { return null; }
-  };
-
-  if ((await readTail()) === null) return;   // Prisma sink active
+  if ((await auditTail()) === null) return;   // no audit log this test can read
 
   const marker = `ZZ-audit-${Date.now()}`;
   await mcp({ tool: 'query_records', params: { model: 'Project', where: { name: marker } } }, ilc.cookie);
   await mcp({ tool: 'query_records',
               params: { model: 'ChangeOrderLineItem', where: { originalDN: { gt: 1 } } } }, viewer.cookie);
 
-  const tail = await readTail(50);
+  const tail = await auditTail(50);
   assert.ok(tail.some(e => JSON.stringify(e).includes(marker)), 'a successful query was not audited');
   assert.ok(tail.some(e => e.status === 'rejected'), 'a refusal was not audited — refusals are the interesting ones');
 });
@@ -613,13 +599,24 @@ test('every call is audited, refusals included', async () => {
 
 const AUDIT_PATH = new URL('../../.mcp-audit/mcp-queries.jsonl', import.meta.url);
 
+// Read the log from wherever src/lib/mcp/audit.js writes it: the McpQueryLog
+// table once that table exists (migration 0081), the .mcp-audit/ file before
+// then. Until 2026-09-14 this read only the file — and once 0081 reached the
+// local database the file stopped growing, so these tests read a stale copy.
+// Oldest first, like the file.
 async function auditTail(limit = 80) {
+  if (typeof prisma.mcpQueryLog?.findMany === 'function') {
+    try {
+      const rows = await prisma.mcpQueryLog.findMany({ orderBy: { at: 'desc' }, take: limit });
+      return rows.reverse();
+    } catch { /* the table isn't in this database yet — use the file */ }
+  }
   const { readFile } = await import('node:fs/promises');
   try {
     const raw = await readFile(AUDIT_PATH, 'utf8');
     return raw.split('\n').filter(Boolean).slice(-limit)
       .map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
-  } catch { return null; }   // null = Prisma sink active, not "no audit"
+  } catch { return null; }   // null = no log this test can read, not "no audit"
 }
 
 test('SHIP CRITERION: no ilc_only field on any registered object is named to a client', async () => {

@@ -23,14 +23,32 @@ function walk(dir, out = []) {
   return out;
 }
 
-test('exactly the seven departments Mike listed, in his order', () => {
+// Seven until 2026-09-14, when Project management folded into Construction
+// (Mike: "Project management and construction are the same department").
+test('exactly six departments, in Mike\'s order — Project management is now Construction', () => {
   assert.deepEqual(DEPARTMENTS.map(d => d.label), [
-    'Sales + marketing', 'Operations', 'Pre-construction', 'Construction',
-    'Project management', 'Design', 'Finance',
+    'Sales + marketing', 'Operations', 'Pre-construction', 'Construction', 'Design', 'Finance',
   ]);
   assert.equal(SALES_MARKETING, 'SALES_MARKETING');
-  assert.equal(DEPARTMENT_LABEL.PROJECT_MANAGEMENT, 'Project management');
-  assert.equal(new Set(DEPARTMENT_KEYS).size, 7);
+  assert.equal(DEPARTMENT_LABEL.CONSTRUCTION, 'Construction');
+  assert.equal(DEPARTMENT_LABEL.PROJECT_MANAGEMENT, undefined);
+  assert.equal(new Set(DEPARTMENT_KEYS).size, 6);
+  // A leftover Project management row is ignored, never shown.
+  assert.deepEqual(
+    departmentKeys({ departments: [{ department: 'PROJECT_MANAGEMENT' }, { department: 'CONSTRUCTION' }] }),
+    ['CONSTRUCTION'],
+  );
+  assert.ok(!/PROJECT_MANAGEMENT/.test(read('src/app/(app)/admin/AdminClient.jsx')));
+});
+
+test('migration 0085 moves Project management into Construction and deletes nothing', () => {
+  const sql = read('prisma/migrations/0085_merge_project_management_into_construction/migration.sql')
+    .replace(/--.*$/gm, '');
+  assert.match(sql, /UPDATE "UserDepartment"\s+SET "department" = 'CONSTRUCTION'/);
+  assert.match(sql, /WHERE "department" = 'PROJECT_MANAGEMENT'/);
+  // Someone already in both would break the one-row-per-person-per-department rule.
+  assert.match(sql, /NOT EXISTS/);
+  assert.doesNotMatch(sql, /\b(DELETE|DROP|TRUNCATE|ALTER)\b/i);
 });
 
 test('cleanDepartments keeps known keys once, in the standard order', () => {
@@ -74,7 +92,9 @@ test('nothing in src still reads the retired division / deptRoles fields', () =>
 });
 
 test('the Sales gates use the Sales + marketing department', () => {
-  assert.match(read('src/lib/auth.js'), /hasDepartment\(dbUser, SALES_MARKETING\)/);
+  // Departments now ride on every signed-in user, read live from the account
+  // (privileges step 1, 2026-09-14), so the gate no longer does its own lookup.
+  assert.match(read('src/lib/auth.js'), /hasDepartment\(user, SALES_MARKETING\)/);
   assert.match(read('src/app/api/intake/submit/route.js'), /inDepartment\(SALES_MARKETING\)/);
   for (const f of ['src/components/crm/PipelineSidePanel.jsx', 'src/components/ProjectDashboard.jsx']) {
     assert.match(read(f), /\/api\/users\?department=SALES_MARKETING/, f);

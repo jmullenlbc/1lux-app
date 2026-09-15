@@ -20,16 +20,18 @@ export async function POST(req, { params }) {
   const pdfUrl   = `${process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL}/api/projects/${params.id}/ship-schedule/pdf`;
   const location = [project?.city, project?.state].filter(Boolean).join(', ');
 
+  // This used to call sendNotification() with the wrong arguments, so no email
+  // ever went out.
   try {
-    const { sendNotification } = await import('@/lib/notify');
+    const { sendEmail, escapeHtml } = await import('@/lib/notify');
     const recipients = to.split(',').map(e => e.trim()).filter(Boolean);
     for (const recipient of recipients) {
-      await sendNotification({
+      await sendEmail({
         to:      recipient,
         subject: `Ship Schedule — ${project?.name || 'Project'}`,
         html: `
-          <p>Please find the ship schedule for <strong>${project?.name || 'the project'}${location ? ` (${location})` : ''}</strong>.</p>
-          ${message ? `<p><em>${message}</em></p>` : ''}
+          <p>Please find the ship schedule for <strong>${escapeHtml(project?.name || 'the project')}${location ? ` (${escapeHtml(location)})` : ''}</strong>.</p>
+          ${message ? `<p><em>${escapeHtml(message)}</em></p>` : ''}
           <p style="margin-top:16px">
             <a href="${pdfUrl}" style="background:#0f172a;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block;">
               View Ship Schedule PDF

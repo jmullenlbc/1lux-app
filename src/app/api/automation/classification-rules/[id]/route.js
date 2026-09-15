@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, actsAsAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { invalidateRulesCache } from '@/lib/bot/activityClassifier';
 
@@ -27,8 +27,7 @@ export async function PATCH(req, { params }) {
 export async function DELETE(req, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
-  const adminRoles = ['SUPER_ADMIN', 'ILC_ADMIN', 'COMPANY_ADMIN'];
-  if (!adminRoles.includes(user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!actsAsAdmin(user)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   await prisma.activityClassificationRule.delete({ where: { id: params.id } });
   invalidateRulesCache();
   return NextResponse.json({ ok: true });

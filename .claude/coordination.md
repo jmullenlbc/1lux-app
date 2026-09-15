@@ -2,7 +2,38 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-13 (latest) — Mike's Claude — ✅ **DEPLOYED d4cdeb0**: drive-lane lights by drive length + garages/carports on the public form (no migration)
+### 2026-09-14 (latest) — Mike's Claude — 🛠 LOCAL ONLY (not deployed): admin and user privileges, steps 1–3 — migrations 0084 + 0085
+- **Live account check:** `getSession()`/`requireAuth()` now load the user from the DB on every request (role, active, permissions, departments), so turning someone off or changing a role applies on the next click.
+- **One permissions table:** `src/lib/permissions.js`. `can(user, action)` for `editMasterPricing` (Pre-con), `editJobMoney` (Construction, Operations, Finance), `editProducts` (Pre-con, Design, Construction) and `manageUsers`. Admins always pass. **A USER in OPERATIONS = COMPANY_ADMIN** (`effectiveRole`/`actsAsAdmin`). CLIENT_VIEWER is always false. `requirePermission(req, action)` in auth.js returns the plain-English 403. **Use `actsAsAdmin(user)`, never `isAnyAdmin(user.role)`** — a test fails on any new `isAnyAdmin(` outside auth.js.
+- **0085:** PROJECT_MANAGEMENT rows are moved into CONSTRUCTION, labelled "Construction".
+- **Leak closed:** change-order GETs and `/api/products` returned DN/cost to CLIENT_VIEWER; they now 403.
+- **For Sean:** if you add a change-order, manufacturer, product or fixture-library write route, gate it with `requirePermission`. `privileges.test.mjs` scans those folders and will fail otherwise.
+- The 0080–0085 folders must be committed together with `schema.prisma`. 0083 is the on-hold work-history table: empty and additive. **Mike: 0083 rides along in the next deploy.**
+- **Mike: only ILC staff can be admins.** Company Admin is not a client-side role. All hand-typed `['SUPER_ADMIN','ILC_ADMIN','COMPANY_ADMIN'].includes(...)` lists replaced with `actsAsAdmin(user)`. A test now fails on any new one. Client components get `isAdmin` computed server-side (see `crm/notes/page.jsx`).
+- **Bug fixed:** `/api/admin/agent-runs` and its `[id]/verdict` called `isSuperAdmin(user)` with the object, which is always false. A test now fails if auth.js's role checks are handed a person.
+- **2026-09-15, security (still local):** `/api/share/fixture/[token]` returned every FixtureScheduleItem column (incl. `internalNotes`), and its PATCH wrote `{[field]: value}` to ANY item id, on any job. Now an allowlist (`src/lib/share/fixtureShare.js`) plus a row-must-be-on-this-link's-draft check; `shareLinks.test.mjs`. **For Sean:** any new public share route should return an allowlist, never a raw row. **This is live in prod until the next deploy.**
+- **Mike, 2026-09-15:** sales reps are editable by anyone on staff (not a locked area).
+
+### 2026-09-14 — Mike's Claude — 🛠 LOCAL ONLY (not deployed): interior/exterior stair dropdown, Meeting Prep budgets + jobs per person + work history — migration 0083
+- **Stairs without drawings:** Small/Long breezeway replaced by one Interior/Exterior dropdown; Exterior = average of the two breezeway rates, **$235/landing**.
+- **Meeting Prep sell figures allowed (Mike):** budget (latest priced Bid Matrix, else calculateBudget totalWithControls), contractValue, designContractValue. Still staff-only; CLIENT_VIEWER 403. `mentionsBuyPrice` drops any fact/point naming DN, dealer net, buy price, net cost, margin, rebates, spiffs. Budgets: `src/lib/meetingPrep/budgets.js`.
+- **New fact blocks:** "Work history" and "Jobs with them" (count, lead, board stages, budget total).
+- **Migration 0083 `ContactEmployment`** (additive): work history rows per contact. Staff paste a LinkedIn Experience section; Haiku (`bot.workHistory`, QUICK) extracts jobs. Never scraped. Archive-only, added to NEVER_DELETED. Route `/api/clients/[id]/contacts/[contactId]/work-history` (DELETE → 405). UI: `WorkHistoryPanel.jsx` on the People tab. **⏸ ON HOLD same day (Mike): no LinkedIn pasting — "a feature for later when we can connect to LinkedIn." Button hidden behind `WORK_HISTORY_READY = false`; table/route/panel stay dormant. Do not re-enable without a LinkedIn connection.**
+- The 0080–0083 folders must be committed together with `schema.prisma`.
+
+### 2026-09-14 — Mike's Claude — 🛠 LOCAL ONLY (not deployed): $200 stair landings, small/long breezeways, trenching per foot, MCP audit table, Meeting Prep — migrations 0080 + 0081 + 0082
+- **Stairs:** master rate $175 → **$200 a landing** (Mike: "We have seen a cost increase"). The flat 2.2× breezeway multiplier is gone. There are now two breezeway styles on the Corridors screens, "Breezeway style?":
+  - small (like Lowell + I76) ×1.125 = **$225**, the default;
+  - long (like Lone Tree Ranch) ×1.225 = **$245**.
+  - ⚠️ Old garden/stacked/gurban budgets drop from about $385 to about $197 a landing: a frozen $175 × the small multiplier.
+- **Migration 0080** moves the saved master sheet 175 → 200, but only while it still reads 175. Frozen project snapshots are not touched.
+- **Trenching:** $15/ft × 60 ft = $900 per wired pole (labor only, never in a total). Garage/carport boxes on the internal Project Data screen follow the public form's building-type rule.
+- **Meeting Prep (0082, four new tables):** a "Prep for this meeting" panel on each sales note (not on clients, per Mike). It gathers what the CRM holds on the note's companies, people and deals into numbered facts. Haiku (`bot.meetingPrep`, QUICK) then writes 3–5 talking points that each cite their facts. Dollar figures are stripped before anything is saved or sent to the model. CLIENT_VIEWER gets a 403. Code: `src/lib/meetingPrep/`, route `/api/crm/notes/[id]/meeting-prep`, test `meetingPrep.test.mjs` (in `verify.mjs`).
+- **Local DB trap:** `prisma db push` locally now wants to drop `ContactLegacy` (4 rows). I did not accept. Local tables go in by hand-written SQLite DDL + `prisma db execute`, then `prisma generate`.
+- Schema-guard: 0080/0081/0082 are additive; nothing dropped. The 0080–0082 folders must be committed together with `schema.prisma`.
+- **For Sean — action needed:** when this ships, please set **`MCP_API_TOKEN`** (a random value, **32+ characters**) in the Amplify console environment variables for main. Migration **0081** creates `McpQueryLog`. Until both are in place, `/api/mcp` answers 503 on purpose, because the read API does not run unlogged. That closes the request below.
+
+### 2026-09-13 — Mike's Claude — ✅ **DEPLOYED d4cdeb0**: drive-lane lights by drive length + garages/carports on the public form (no migration)
 - One area light per 81 ft of private drive (townhouse/single-family), new knob `exterior.surfaceParking.driveLaneFtPerLight`; drawing reader measures `driveLengthFtMeasured` off scaled site plans. Drawing-read townhome budgets now get the ½-per-home estimate instead of 0.
 - Public form: # Garages (single family, townhouses, stacked flats, garden) and # Carport bays (same + wrap); other types price neither. Townhomes with no drawings default to 1 garage/home, flagged.
 - Tests `driveLength` (15) + `garagesCarports` (10), both now in `verify.mjs`. Debug pass: `verify --full` 13/13 incl. build, `npm test` green (60/60, fuzz 0 failures, 12/12).

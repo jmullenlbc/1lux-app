@@ -89,7 +89,7 @@ export default function ChangeOrdersTab({ projectId }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'New Change Order' }),
       });
-      if (!res.ok) throw new Error('Failed to create');
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Failed to create');
       const co = await res.json();
       // Navigate to the detail page
       window.location.href = `/project/${projectId}/change-orders/${co.id}`;
@@ -102,7 +102,12 @@ export default function ChangeOrdersTab({ projectId }) {
   async function deleteCO(coId) {
     if (!confirm('Delete this change order? This cannot be undone.')) return;
     setDeleting(coId);
-    await fetch(`/api/projects/${projectId}/change-orders/${coId}`, { method: 'DELETE' });
+    const res = await fetch(`/api/projects/${projectId}/change-orders/${coId}`, { method: 'DELETE' });
+    if (!res.ok) {
+      alert((await res.json().catch(() => ({}))).error || 'Could not delete this change order.');
+      setDeleting(null);
+      return;
+    }
     setData(prev => ({
       ...prev,
       changeOrders: prev.changeOrders.filter(c => c.id !== coId),
@@ -126,12 +131,18 @@ export default function ChangeOrdersTab({ projectId }) {
     </div>
   );
 
-  const { changeOrders = [], balance = {} } = data || {};
+  const { changeOrders = [], balance = {}, canEdit = true } = data || {};
 
   return (
     <div>
       {/* Contract Balance Bar */}
       <ContractBalanceBar balance={balance} />
+
+      {!canEdit && (
+        <div className="mb-4 rounded-lg bg-slate-100 border border-slate-200 px-4 py-2.5 text-xs text-slate-600">
+          View only. Only Construction, Operations, Finance or an admin can create or change change orders.
+        </div>
+      )}
 
       {/* CO List Header */}
       <div className="flex items-center justify-between mb-4">
@@ -141,7 +152,7 @@ export default function ChangeOrdersTab({ projectId }) {
             <span className="ml-2 text-sm font-normal text-slate-400">{changeOrders.length} total</span>
           )}
         </h2>
-        <button
+        {canEdit && <button
           onClick={createCO}
           disabled={creating}
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 text-white text-sm font-semibold hover:bg-slate-700 transition-colors disabled:opacity-60"
@@ -157,7 +168,7 @@ export default function ChangeOrdersTab({ projectId }) {
             </svg>
           )}
           New CO
-        </button>
+        </button>}
       </div>
 
       {/* Empty state */}
@@ -172,9 +183,9 @@ export default function ChangeOrdersTab({ projectId }) {
             <p className="text-sm font-semibold text-slate-700">No change orders yet</p>
             <p className="text-xs text-slate-400 mt-1">Create your first CO to start tracking contract changes.</p>
           </div>
-          <button onClick={createCO} className="px-5 py-2 rounded-lg bg-slate-800 text-white text-sm font-semibold hover:bg-slate-700 transition-colors">
+          {canEdit && <button onClick={createCO} className="px-5 py-2 rounded-lg bg-slate-800 text-white text-sm font-semibold hover:bg-slate-700 transition-colors">
             + New Change Order
-          </button>
+          </button>}
         </div>
       )}
 
@@ -224,9 +235,9 @@ export default function ChangeOrdersTab({ projectId }) {
                       <div className="flex items-center gap-1 justify-end">
                         <Link href={`/project/${projectId}/change-orders/${co.id}`}
                           className="px-2.5 py-1 rounded text-xs font-medium border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
-                          {co.status === 'DRAFT' ? 'Edit' : 'View'}
+                          {co.status === 'DRAFT' && canEdit ? 'Edit' : 'View'}
                         </Link>
-                        {co.status === 'DRAFT' && (
+                        {co.status === 'DRAFT' && canEdit && (
                           <button
                             onClick={() => deleteCO(co.id)}
                             disabled={deleting === co.id}

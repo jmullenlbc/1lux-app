@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, actsAsAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { findStaleProjects, generateFollowUpDraft, hasDraftNote } from '@/lib/bot/followUpDrafter';
 import { modelFor } from '@/lib/aiModels';
@@ -16,7 +16,7 @@ export async function POST(req) {
   if (!isCron) {
     const { user, error } = await requireAuth();
     if (error) return error;
-    if (!['SUPER_ADMIN', 'ILC_ADMIN', 'COMPANY_ADMIN'].includes(user.role)) {
+    if (!actsAsAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
   }

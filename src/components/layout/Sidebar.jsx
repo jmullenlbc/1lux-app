@@ -2,6 +2,8 @@
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
+import { ROLE_LABEL, normalizeRole } from '@/lib/roles';
+import { actsAsAdmin, can } from '@/lib/permissions';
 
 // ── Alert Bell ────────────────────────────────────────────────────────────────
 
@@ -347,9 +349,10 @@ export default function Sidebar({ user }) {
   const [hovered,  setHovered]  = useState(false);
   const hoverTimer = useRef(null);
 
-  const isAdmin    = user?.role === 'ILC_ADMIN' || user?.role === 'ADMIN' ||
-                     user?.role === 'SUPER_ADMIN' || user?.role === 'COMPANY_ADMIN';
-  const isIlcAdmin = user?.role === 'ILC_ADMIN' || user?.role === 'SUPER_ADMIN';
+  // From the one permission table (src/lib/permissions.js). Operations counts
+  // as an admin. The Software section stays Super Admin only.
+  const isAdmin    = actsAsAdmin(user);
+  const isIlcAdmin = normalizeRole(user?.role) === 'SUPER_ADMIN';
 
   // Persist locked state
   useEffect(() => {
@@ -550,9 +553,9 @@ export default function Sidebar({ user }) {
         )}
 
         <SubNavItem href="/admin/profile"  icon={<IconUserCircle />} label="Profile"        expanded={expanded} active={startsWith('/admin/profile')} />
-        {isIlcAdmin && <SubNavItem href="/admin/pricing"  icon={<IconTag />}     label="Master Pricing"  expanded={expanded} active={startsWith('/admin/pricing')} />}
-        {isAdmin    && <SubNavItem href="/admin"           icon={<IconUsers />}   label="Users"           expanded={expanded} active={at('/admin')} />}
-        {isIlcAdmin && <SubNavItem href="/fixture-library" icon={<IconFixture />} label="Fixture Library" expanded={expanded} active={startsWith('/fixture-library')} />}
+        {can(user, 'editMasterPricing') && <SubNavItem href="/admin/pricing"  icon={<IconTag />}     label="Master Pricing"  expanded={expanded} active={startsWith('/admin/pricing')} />}
+        {isAdmin                        && <SubNavItem href="/admin"           icon={<IconUsers />}   label="Users"           expanded={expanded} active={at('/admin')} />}
+        {can(user, 'editProducts')      && <SubNavItem href="/fixture-library" icon={<IconFixture />} label="Fixture Library" expanded={expanded} active={startsWith('/fixture-library')} />}
         <SubNavItem href="#" icon={<IconBuilding />} label="Company" disabled expanded={expanded} />
       </nav>
 
@@ -568,7 +571,7 @@ export default function Sidebar({ user }) {
                 {user?.name || user?.email}
               </div>
               <div className="text-[10px] leading-tight capitalize" style={{ color: '#4a6fa5' }}>
-                {({ SUPER_ADMIN: 'Super Admin', ILC_ADMIN: 'Super Admin', COMPANY_ADMIN: 'Company Admin', ADMIN: 'Company Admin', USER: 'User', CLIENT_VIEWER: 'Client Viewer' })[user?.role] || user?.role}
+                {ROLE_LABEL[user?.role] || user?.role}
               </div>
             </div>
           </div>

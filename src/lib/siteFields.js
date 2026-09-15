@@ -256,7 +256,7 @@ export const SITE_FIELD_DEFS = [
     label: '# Egress Stairwell Landings',
     unit:  'count',
     read: (v) => {
-      // The Project Data field holds LANDINGS ($175 each), not shafts. Mike's
+      // The Project Data field holds LANDINGS ($200 each), not shafts. Mike's
       // ladder (2026-09-05): drawings (stories × stairs, stated or counted)
       // → building-code estimate → the human types it. The shared estimator
       // adds the 10% contingency; the note shows every step so the reviewer

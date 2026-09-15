@@ -36,7 +36,17 @@ import {
 
 // ── Email stub ────────────────────────────────────────────────────────────────
 
-async function sendEmail({ to, subject, html }) {
+// For text a person typed that goes into an email body.
+export function escapeHtml(text) {
+  return String(text ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// One email to one person, already written. Exported for the screens that send
+// a document by hand (change order, ship schedule) — they used to call
+// sendNotification() with an email in the wrong shape, so nothing went out.
+export async function sendEmail({ to, subject, html }) {
   if (process.env.NOTIFY_DRY_RUN !== 'false') {
     console.log(`[NOTIFY DRY RUN] to=${to} subject="${subject}"`);
     return;

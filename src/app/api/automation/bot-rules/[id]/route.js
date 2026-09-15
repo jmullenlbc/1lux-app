@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, actsAsAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 export async function PATCH(req, { params }) {
@@ -37,8 +37,7 @@ export async function DELETE(req, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
-  const adminRoles = ['SUPER_ADMIN', 'ILC_ADMIN', 'COMPANY_ADMIN'];
-  if (!adminRoles.includes(user.role)) {
+  if (!actsAsAdmin(user)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

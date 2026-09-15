@@ -95,7 +95,7 @@ export function computeIntakeEstimate({ answers, drawings, pricing = null }) {
     garageSf:            num(q.garageSf),
     bohSf:               num(q.bohSf),
     // The engine field is named numEgressStairwells but HOLDS LANDINGS — the
-    // internal wizard labels it "Stairwell Landings" and prices $175 per
+    // internal wizard labels it "Stairwell Landings" and prices $200 per
     // landing. The takeoff's stairLandings row (stairs × (2×stories−1)) is
     // the matching figure; the raw shaft count would underprice 5-9×.
     numEgressStairwells: num(q.stairLandings),

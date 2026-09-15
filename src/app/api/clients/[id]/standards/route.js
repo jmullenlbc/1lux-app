@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { CASCADE_MAP } from '@/lib/standards-questions';
 
@@ -7,13 +7,11 @@ import { CASCADE_MAP } from '@/lib/standards-questions';
 // Returns ALL ClientStandardsAnswer rows for this client (all projectTypes + regions).
 // The client resolves the effective answer via resolveAnswer().
 export async function GET(req, { params }) {
-  const { user, error } = await requireAuth(request);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
-
-  const perms = (() => { try { return JSON.parse(user.permissions || '{}'); } catch { return {}; } })();
-  const isAdmin = user.role === 'ILC_ADMIN' || user.role === 'SUPER_ADMIN';
-  const canView = isAdmin || perms.clientStandards === true;
-  if (!canView) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  // Client standards are open to everyone on staff (Mike, 2026-09-14);
+  // contractors (Client Viewers) never see them.
+  if (!canSeeAllData(user)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const answers = await prisma.clientStandardsAnswer.findMany({
     where:   { clientId: params.id },
@@ -30,13 +28,9 @@ export async function GET(req, { params }) {
 // Cascade: if question_key is a CASCADE_MAP source, auto-creates answers for targets
 // that don't yet have ANY answer for the same (projectType, region).
 export async function POST(req, { params }) {
-  const { user, error } = await requireAuth(request);
+  const { user, error } = await requireAuth(req);
   if (error) return error;
-
-  const perms = (() => { try { return JSON.parse(user.permissions || '{}'); } catch { return {}; } })();
-  const isAdmin = user.role === 'ILC_ADMIN' || user.role === 'SUPER_ADMIN';
-  const canEdit = isAdmin || perms.clientStandards === true;
-  if (!canEdit) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!canSeeAllData(user)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await req.json();
   const {

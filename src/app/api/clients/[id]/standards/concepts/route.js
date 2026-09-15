@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
-import { requireAuth, getSession } from '@/lib/auth';
+import { getSession, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { putQcObject, getQcObjectUrl } from '@/lib/qcStorage';
 
 export const dynamic = 'force-dynamic';
 
-function perms(s) { try { return JSON.parse(s.permissions || '{}'); } catch { return {}; } }
-function isAdmin(s) { return s.role === 'ILC_ADMIN' || s.role === 'SUPER_ADMIN'; }
+// Client standards are open to everyone on staff (Mike, 2026-09-14); contractors
+// (Client Viewers) never see them. This used to let only Super Admins and people
+// whose permissions said `clients: true` in — a value the Users screen never saves.
+const staff = s => canSeeAllData(s);
 const EXT = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/webp': 'webp' };
 
 async function withUrl(concept) {
@@ -17,8 +19,7 @@ async function withUrl(concept) {
 export async function GET(req, { params }) {
   const s = await getSession();
   if (!s) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const p = perms(s);
-  if (!(isAdmin(s) || p.clients === true || p.clients === 'read')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!staff(s)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const sp = new URL(req.url).searchParams;
   const where = { clientId: params.id };
@@ -33,7 +34,7 @@ export async function GET(req, { params }) {
 export async function POST(req, { params }) {
   const s = await getSession();
   if (!s) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (!(isAdmin(s) || perms(s).clients === true)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!staff(s)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const b = await req.json();
   let answer = null;
@@ -62,7 +63,7 @@ export async function POST(req, { params }) {
 export async function PATCH(req, { params }) {
   const s = await getSession();
   if (!s) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (!(isAdmin(s) || perms(s).clients === true)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!staff(s)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const b = await req.json();
   if (!b.conceptId) return NextResponse.json({ error: 'conceptId required' }, { status: 400 });
@@ -90,7 +91,7 @@ export async function PATCH(req, { params }) {
 export async function DELETE(req, { params }) {
   const s = await getSession();
   if (!s) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (!(isAdmin(s) || perms(s).clients === true)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!staff(s)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const conceptId = new URL(req.url).searchParams.get('conceptId');
   if (!conceptId) return NextResponse.json({ error: 'conceptId required' }, { status: 400 });
   const existing = await prisma.standardsAnswerConcept.findUnique({ where: { id: conceptId } });

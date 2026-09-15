@@ -46,7 +46,7 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
         { label: 'Corridor disks',     value: sections?.corridors?.disks?.product      || 0 },
         { label: 'Unit entry sconces', value: sections?.corridors?.sconces?.product    || 0 },
         { label: sections?.corridors?.stairwells?.breezeway
-                   ? `Breezeway stairs (${sections.corridors.stairwells.breezeway.landings} landings — corridor + stair in one)`
+                   ? `Breezeway stairs (${sections.corridors.stairwells.breezeway.landings} landings — ${sections.corridors.stairwells.breezeway.style === 'long' ? 'long' : 'small'} breezeway)`
                    : 'Stairwell fixtures',
           value: sections?.corridors?.stairwells?.product || 0 },
         { label: 'Accent downlights',  value: sections?.corridors?.accents?.product    || 0 },

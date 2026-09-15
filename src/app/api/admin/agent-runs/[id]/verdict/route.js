@@ -27,7 +27,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
-  if (!isSuperAdmin(user)) {
+  if (!isSuperAdmin(user.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

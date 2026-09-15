@@ -1,6 +1,6 @@
 /**
  * Stair landings — the one count the budget needs that drawings almost never
- * print. The engine prices $175 per LANDING (Project Data's
+ * print. The engine prices $200 per LANDING (Project Data's
  * `numEgressStairwells` field holds landings, not shafts), so every path that
  * fills that field — the public intake takeoff, the internal site-plan read,
  * and a human typing it — has to agree on the arithmetic. This is where it
@@ -94,11 +94,62 @@ export function isBreezewayType(buildingTypeKey) {
 }
 
 /**
- * What breezeway stairs cost to light. Mike 2026-09-12: "Maybe move to 2.2x
- * ... in the breezeway situation it's a corridor and stairwell in one. Yes
- * stacked flats should count too." So each landing on a garden / stacked-flat
- * / gurban walk-up prices at the stairwell rate × the breezeway multiplier
- * (2.2 × $175 = $385), both on the master pricing sheet.
+ * What kind of stairs the building has — asked on the Corridors screen as one
+ * dropdown (Mike 2026-09-14: "ask corridors + stairwells or breezeways
+ * (Interior or Exterior) as a single select dropdown"). Unanswered, it follows
+ * the building type: garden / stacked flats / gurban are breezeways.
+ */
+export const STAIR_TYPES = Object.freeze({
+  interior:  { label: 'Interior corridors + stairwells' },
+  breezeway: { label: 'Exterior breezeways' },
+});
+
+/** 'interior' | 'breezeway' — an explicit answer wins, else the building type. */
+export function stairTypeFor(answer, buildingTypeKey) {
+  if (answer === 'interior' || answer === 'breezeway') return answer;
+  return isBreezewayType(buildingTypeKey) ? 'breezeway' : 'interior';
+}
+
+/**
+ * Breezeway styles, Mike 2026-09-14. Small vs long can only be told apart on
+ * the drawings ("No one will know what that means"), so it is asked only when
+ * the project has drawings. Unanswered = 'average': halfway between the two
+ * multipliers (1.175 × $200 = $235).
+ */
+export const BREEZEWAY_STYLES = Object.freeze({
+  average: { key: null, label: 'Breezeway (average)', like: null,
+    fixtures: 'priced halfway between a small and a long breezeway until the drawings show which' },
+  small: { key: 'breezewaySmallMultiplier', label: 'Small breezeway', like: 'Lowell + I76',
+    fixtures: 'an EM disk at the ground floor, a wall pack up each flight, a 7" disk + frogeye at the landings' },
+  long:  { key: 'breezewayLongMultiplier',  label: 'Long breezeway',  like: 'Lone Tree Ranch',
+    fixtures: 'wall packs over long stairs and 4 disks along the open corridor above, 2 with EM batteries' },
+});
+
+/** 'small' or 'long' when someone picked it off the drawings; anything else is 'average'. */
+export function breezewayStyle(v) {
+  return v === 'small' || v === 'long' ? v : 'average';
+}
+
+/** The multiplier for a style off the live sheet (static defaults as the floor). */
+export function breezewayMultiplier(style, pricing = null) {
+  const pick = k => {
+    const v = pricing?.corridors?.[k];
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 && v !== null && v !== '' ? n : PRICING.corridors[k];
+  };
+  const s = breezewayStyle(style);
+  if (s !== 'average') return pick(BREEZEWAY_STYLES[s].key);
+  return Math.round(((pick('breezewaySmallMultiplier') + pick('breezewayLongMultiplier')) / 2) * 10000) / 10000;
+}
+
+/**
+ * What breezeway stairs cost to light. Each landing on a garden / stacked-flat
+ * / gurban walk-up prices at the stairwell rate × the breezeway style's
+ * multiplier, both on the master pricing sheet. Mike 2026-09-14: small
+ * breezeways (like Lowell + I76) run "a 10-15% increase", long ones (like Lone
+ * Tree Ranch) "a 20-25% increase" — 1.125 × $200 = $225, 1.225 × $200 = $245.
+ * Without drawings nobody can tell which, so it prices the average, 1.175 =
+ * $235. (This replaced the flat 2.2× of 2026-09-12.)
  *
  * Landings stay the number the budget stores (2N−1 per stair, contingency
  * included). The stair count (landings ÷ (2N−1), never below one) is only for
@@ -108,14 +159,18 @@ export function isBreezewayType(buildingTypeKey) {
  *   landings        — the stored landing count (Project Data numEgressStairwells)
  *   stories         — levels each stair serves; falls back to the type default
  *   buildingTypeKey — engine building type
+ *   stairType       — 'interior' | 'breezeway' | unset (corridors.stairType);
+ *                     an answer beats the building type, unset follows it
+ *   style           — 'small' | 'long' | anything else = average
+ *                     (corridors.breezewayStyle, asked only with drawings)
  * @param {object|null} pricing  loadPricing() output, or null for static defaults
- * @returns {null|{ stairs, stories, storiesDefaulted, landings, perLanding,
- *   multiplier, ratePerLanding, product, how }}
- *   null for non-breezeway types or when there are no landings to price.
+ * @returns {null|{ stairs, stories, storiesDefaulted, landings, style,
+ *   perLanding, multiplier, ratePerLanding, product, how }}
+ *   null for interior stairs or when there are no landings to price.
  */
 export function breezewayStairPackage(input, pricing = null) {
   const typeKey = typeof input?.buildingTypeKey === 'string' ? input.buildingTypeKey : null;
-  if (!isBreezewayType(typeKey)) return null;
+  if (stairTypeFor(input?.stairType, typeKey) !== 'breezeway') return null;
   const landings = pos(input?.landings);
   if (!landings) return null;
 
@@ -124,7 +179,8 @@ export function breezewayStairPackage(input, pricing = null) {
     return Number.isFinite(n) && n >= 0 && v !== null && v !== '' ? n : fallback;
   };
   const perLanding = num(pricing?.corridors?.stairwellPerLanding?.product, PRICING.corridors.stairwellPerLanding.product);
-  const multiplier = num(pricing?.corridors?.breezewayLandingMultiplier, PRICING.corridors.breezewayLandingMultiplier);
+  const style = breezewayStyle(input?.style);
+  const multiplier = breezewayMultiplier(style, pricing);
   const ratePerLanding = Math.round(perLanding * multiplier * 100) / 100;
   const product = Math.round(landings * ratePerLanding * 100) / 100;
 
@@ -137,11 +193,13 @@ export function breezewayStairPackage(input, pricing = null) {
 
   const how =
     `${fmt(landings)} landings × $${fmt(perLanding)} × ${multiplier} = $${fmt(ratePerLanding)} a landing ` +
-    '— an open breezeway is the corridor and the stairwell in one, so each landing carries both. ' +
+    `— ${BREEZEWAY_STYLES[style].label.toLowerCase()}` +
+    (BREEZEWAY_STYLES[style].like ? ` (like ${BREEZEWAY_STYLES[style].like})` : '') + ': ' +
+    `${BREEZEWAY_STYLES[style].fixtures}. ` +
     `About ${fmt(stairs)} stair${stairs === 1 ? '' : 's'} of ${stories} levels` +
     (storiesDefaulted ? ` (no story count on file — ${stories} levels assumed for a ${typeKey} walk-up)` : '') + '.';
 
-  return { stairs, stories, storiesDefaulted, landings, perLanding, multiplier, ratePerLanding, product, how };
+  return { stairs, stories, storiesDefaulted, landings, style, perLanding, multiplier, ratePerLanding, product, how };
 }
 
 /** Building types whose stairs are PRIVATE, inside each unit — no shared
@@ -196,7 +254,7 @@ export function estimateStairLandings(input, pricing = null) {
     buildings = Math.max(1, Math.round(pos(input?.buildings) ?? 1));
     if (privateStairs) {
       // Townhouse / single-family stairs live inside each unit — nothing
-      // shared, nothing to light at $175 a landing.
+      // shared, nothing to light at $200 a landing.
       perBuilding = 0;
     } else if (stories <= 1) {
       // A single-story building has no interior exit stair to light.

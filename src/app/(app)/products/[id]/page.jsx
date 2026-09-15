@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, can } from '@/lib/auth';
 import { redirect, notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import ProductDetailClient from './ProductDetailClient';
@@ -26,6 +26,7 @@ export default async function ProductDetailPage({ params }) {
   }
   if (!product) notFound();
 
-  const isAdmin = user.role === 'ILC_ADMIN' || user.role === 'SUPER_ADMIN';
+  // Pre-construction, Design, Construction and admins (src/lib/permissions.js).
+  const isAdmin = can(user, 'editProducts');
   return <ProductDetailClient product={product} manufacturers={manufacturers} isAdmin={isAdmin} />;
 }

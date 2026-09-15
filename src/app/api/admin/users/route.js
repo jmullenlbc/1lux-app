@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
-import { requireAdmin, isSuperAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
+import { ROLE_KEYS, isValidRole, canAssignRole } from '@/lib/roles';
+import { effectiveRole } from '@/lib/permissions';
 import { DEPARTMENT_KEYS, DEPARTMENTS_SELECT, cleanDepartments, departmentKeys } from '@/lib/departments';
-
-const ALLOWED_ROLES = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'USER', 'CLIENT_VIEWER'];
 
 export async function GET(request) {
   const { user, error } = await requireAdmin(request);
@@ -55,12 +55,13 @@ export async function POST(request) {
   if (!deptKeys) {
     return NextResponse.json({ error: `departments must be a list. Use any of: ${DEPARTMENT_KEYS.join(', ')}` }, { status: 400 });
   }
-  if (!ALLOWED_ROLES.includes(role)) {
-    return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
+  if (!isValidRole(role)) {
+    return NextResponse.json({ error: `Unknown role. Use one of: ${ROLE_KEYS.join(', ')}` }, { status: 400 });
   }
-  // Only SUPER_ADMIN can create SUPER_ADMIN or COMPANY_ADMIN accounts
-  if ((role === 'SUPER_ADMIN' || role === 'COMPANY_ADMIN') && !isSuperAdmin(actor.role)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  // A Company Admin can make someone an admin (Mike, 2026-09-14); only a Super
+  // Admin can make a Super Admin. Operations acts as a Company Admin.
+  if (!canAssignRole(effectiveRole(actor), role)) {
+    return NextResponse.json({ error: 'Only a Super Admin can make someone a Super Admin' }, { status: 403 });
   }
 
   const existing = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });

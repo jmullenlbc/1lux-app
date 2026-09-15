@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import ConfirmArchiveModal from '@/components/salesAutomation/ConfirmArchiveModal';
+import MeetingPrep from './MeetingPrep';
 
 // ── Contact tag chip + inline link picker ────────────────────────────────────
 function ContactChip({ name, linked, onClick }) {
@@ -513,7 +514,7 @@ function AddLinkDropdown({ placeholder, items, onAdd, onClose }) {
 // ── NoteDetail ────────────────────────────────────────────────────────────────
 
 function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }) {
-  const isAdmin = ['SUPER_ADMIN', 'ILC_ADMIN', 'COMPANY_ADMIN', 'ADMIN'].includes(currentUser?.role);
+  const isAdmin = currentUser?.isAdmin === true;
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [archiving,   setArchiving]   = useState(false);
 
@@ -868,6 +869,9 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
           />
         </div>
 
+        {/* Meeting Prep — facts on file + cited talking points (internal only) */}
+        {note.noteType !== 'PROJECT_MEETING' && <MeetingPrep noteId={note.id} />}
+
         {/* AI-extracted action items */}
         <NoteActions noteId={note.id} noteBody={form.noteBody} published={note.isPublished} />
 
@@ -1030,7 +1034,7 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
 // ── NotesClient (main) ────────────────────────────────────────────────────────
 
 export default function NotesClient({ initialNotes, clients, projects, currentUser }) {
-  const isAdmin = ['SUPER_ADMIN', 'ILC_ADMIN', 'COMPANY_ADMIN', 'ADMIN'].includes(currentUser?.role);
+  const isAdmin = currentUser?.isAdmin === true;
   const [notes,        setNotes]        = useState(initialNotes);
   const [selected,     setSelected]     = useState(initialNotes[0]?.id || null);
   const [search,       setSearch]       = useState('');

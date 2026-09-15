@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requirePermission } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getProjectRates, calcCOTotal } from '@/lib/changeOrderRates';
 import { getAnthropicKey } from '@/lib/anthropicKey'; // unused but ensures env is loaded
@@ -16,7 +16,7 @@ const CO_INCLUDE = {
 // Body: { recipients: string (comma-sep), notes?: string }
 // Creates ChangeOrderSend record, sends email, transitions DRAFT → SENT
 export async function POST(req, { params }) {
-  const { user, error } = await requireAuth();
+  const { user, error } = await requirePermission(req, 'editJobMoney'); // Construction, Operations, Finance, admins
   if (error) return error;
 
   const co = await prisma.changeOrder.findUnique({
@@ -57,17 +57,18 @@ export async function POST(req, { params }) {
       : []),
   ]);
 
-  // Send email via notification system (best-effort, don't fail the request)
+  // Send the email (best-effort, don't fail the request). This used to call
+  // sendNotification() with the wrong arguments, so no email ever went out.
   try {
-    const { sendNotification } = await import('@/lib/notify');
+    const { sendEmail, escapeHtml } = await import('@/lib/notify');
     const recipientList = recipients.split(',').map(e => e.trim()).filter(Boolean);
     for (const to of recipientList) {
-      await sendNotification({
+      await sendEmail({
         to,
         subject: `Change Order ${co.coNumber}: ${co.title} — ${project?.name || ''}`,
         html: `
-          <p>Please find attached change order <strong>${co.coNumber}</strong>: ${co.title}</p>
-          ${notes ? `<p><em>${notes}</em></p>` : ''}
+          <p>Please find attached change order <strong>${escapeHtml(co.coNumber)}</strong>: ${escapeHtml(co.title)}</p>
+          ${notes ? `<p><em>${escapeHtml(notes)}</em></p>` : ''}
           <p><strong>Total: $${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></p>
           <p><a href="${pdfUrl}" style="background:#0f172a;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;">View Change Order PDF</a></p>
           <hr/>

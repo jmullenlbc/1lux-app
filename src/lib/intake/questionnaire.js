@@ -371,13 +371,9 @@ export const FIGURE_KEYS = [
 // Figures where a typed 0 is a real answer rather than a blank.
 const ZERO_OK_FIGURES = new Set(['figureSurfaceParking', 'figureGarages', 'figureCarports']);
 
-/**
- * Which building types get detached-garage and carport lights (Mike,
- * 2026-09-13: garages only on single-family, townhomes, garden walk-ups and
- * stacked flats; carports on the same plus wraps). Engine building-type keys.
- */
-export const GARAGE_TYPE_KEYS  = ['singleFamily', 'townHouses', 'stackedFlats', 'garden'];
-export const CARPORT_TYPE_KEYS = [...GARAGE_TYPE_KEYS, 'wrap'];
+// Which building types get detached-garage and carport lights — one shared
+// copy, also read by the internal Project Data screen and the budget engine.
+export { GARAGE_TYPE_KEYS, CARPORT_TYPE_KEYS } from '../coveredParkingTypes.js';
 
 /**
  * "No, I don't have drawings" — stored as its own answer row so a reviewer

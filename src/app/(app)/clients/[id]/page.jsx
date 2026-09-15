@@ -11,9 +11,11 @@ export default async function ClientDetailPage({ params }) {
   const session = await getSession();
   if (!session) redirect('/login');
 
-  const sessionPerms = (() => { try { return JSON.parse(session.permissions || '{}'); } catch { return {}; } })();
-  const canEditStandards = session.role === 'ILC_ADMIN' || session.role === 'SUPER_ADMIN' || sessionPerms.clientStandards === true;
-  const canEditPlaybook  = session.role === 'ILC_ADMIN' || session.role === 'SUPER_ADMIN' || sessionPerms.clients === true;
+  // Client standards and the playbook are open to everyone on staff (Mike,
+  // 2026-09-14). This used to read permissions off the login pass, which never
+  // carried them, so only Super Admins ever got the edit buttons.
+  const canEditStandards = canSeeAllData(session);
+  const canEditPlaybook  = canSeeAllData(session);
 
   const client = await prisma.client.findUnique({
     where: { id: params.id },

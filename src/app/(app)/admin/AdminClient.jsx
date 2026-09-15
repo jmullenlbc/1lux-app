@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Badge from '@/components/ui/Badge';
 import { DEPARTMENTS, DEPARTMENT_LABEL } from '@/lib/departments';
+import { canAssignRole, canManageAccount } from '@/lib/roles';
+import { effectiveRole } from '@/lib/permissions';
 
 // Tailwind needs the full class strings written out here to keep them.
 const DEPARTMENT_COLORS = {
@@ -11,8 +13,7 @@ const DEPARTMENT_COLORS = {
   OPERATIONS:         'bg-slate-100 text-slate-700 border-slate-300',
   PRECONSTRUCTION:    'bg-blue-50 text-blue-700 border-blue-300',
   CONSTRUCTION:       'bg-amber-50 text-amber-700 border-amber-300',
-  PROJECT_MANAGEMENT: 'bg-teal-50 text-teal-700 border-teal-300',
-  DESIGN:             'bg-violet-50 text-violet-700 border-violet-300',
+  DESIGN:            'bg-violet-50 text-violet-700 border-violet-300',
   FINANCE:            'bg-green-50 text-green-700 border-green-300',
 };
 
@@ -81,8 +82,9 @@ function CreateUserForm({ currentUserRole, onCreated }) {
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
 
-  const isSuperAdmin = currentUserRole === 'SUPER_ADMIN' || currentUserRole === 'ILC_ADMIN';
-  const availableRoles = isSuperAdmin ? ROLE_OPTIONS : ROLE_OPTIONS.filter(r => r.value === 'USER' || r.value === 'CLIENT_VIEWER');
+  // Same rule the server uses (src/lib/roles.js): a Company Admin can make
+  // someone an admin (Mike, 2026-09-14); only a Super Admin makes a Super Admin.
+  const availableRoles = ROLE_OPTIONS.filter(r => canAssignRole(currentUserRole, r.value));
 
   function set(k, v) { setForm(f => ({ ...f, [k]: v })); }
 
@@ -199,8 +201,9 @@ function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
   const [error,  setError]    = useState('');
   const [success, setSuccess] = useState('');
 
-  const isSuperAdmin = currentUserRole === 'SUPER_ADMIN' || currentUserRole === 'ILC_ADMIN';
-  const availableRoles = isSuperAdmin ? ROLE_OPTIONS : ROLE_OPTIONS.filter(r => r.value === 'USER' || r.value === 'CLIENT_VIEWER');
+  // Same rule the server uses (src/lib/roles.js): a Company Admin can make
+  // someone an admin (Mike, 2026-09-14); only a Super Admin makes a Super Admin.
+  const availableRoles = ROLE_OPTIONS.filter(r => canAssignRole(currentUserRole, r.value));
 
   function set(k, v) { setForm(f => ({ ...f, [k]: v })); }
 
@@ -371,15 +374,11 @@ function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
 
 // ── Main AdminClient ──────────────────────────────────────────────────────────
 
-const ADMIN_ROLES = new Set(['SUPER_ADMIN', 'ILC_ADMIN', 'COMPANY_ADMIN', 'ADMIN']);
-
+// Same rule the server uses: nobody but a Super Admin touches a Super Admin's
+// account. Operations acts as a Company Admin (src/lib/permissions.js).
 function canDeleteUser(actor, target) {
   if (target.id === actor.id) return false;
-  const actorIsSuper = actor.role === 'SUPER_ADMIN' || actor.role === 'ILC_ADMIN';
-  const actorIsCompanyAdmin = actor.role === 'COMPANY_ADMIN' || actor.role === 'ADMIN';
-  if (actorIsSuper) return true;
-  if (actorIsCompanyAdmin) return !ADMIN_ROLES.has(target.role);
-  return false;
+  return canManageAccount(effectiveRole(actor), target.role);
 }
 
 export default function AdminClient({ users: initialUsers, projects, currentUser }) {
@@ -609,7 +608,7 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
       {/* Create user tab */}
       {tab === 'create' && (
         <CreateUserForm
-          currentUserRole={currentUser.role}
+          currentUserRole={effectiveRole(currentUser)}
           onCreated={handleUserCreated}
         />
       )}
@@ -657,7 +656,7 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
       {editUser && (
         <EditUserModal
           user={editUser}
-          currentUserRole={currentUser.role}
+          currentUserRole={effectiveRole(currentUser)}
           onSaved={handleUserSaved}
           onClose={() => setEditUser(null)}
         />

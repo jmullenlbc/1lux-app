@@ -1,11 +1,8 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { putQcObject, getQcObjectUrl } from '@/lib/qcStorage';
 
 export const dynamic = 'force-dynamic';
-
-function perms(s) { try { return JSON.parse(s.permissions || '{}'); } catch { return {}; } }
-function isAdmin(s) { return s.role === 'ILC_ADMIN' || s.role === 'SUPER_ADMIN'; }
 const EXT = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif', 'image/avif': 'avif' };
 
 // Pull a <meta> content by property or name (either attribute order).
@@ -31,10 +28,13 @@ function blocked(host) {
 // POST { url } → { imageKey, imageUrl, title, description }
 // Fetches a product page, extracts the Open Graph image + title, and stores the
 // image durably (so pasting a link populates the thumbnail — no manual upload).
-export async function POST(request) {
-  const { user, error } = await requireAuth(request);
+// Used by the client-standards screens, so it's open to the same people: everyone
+// on staff. Until 2026-09-14 this crashed on every call — it was handed `request`
+// and then read `req`.
+export async function POST(req) {
+  const { user, error } = await requireAuth(req);
   if (error) return error;
-  if (!(isAdmin(user) || perms(user).clients === true)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!canSeeAllData(user)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { url } = await req.json().catch(() => ({}));
   let u;

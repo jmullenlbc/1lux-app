@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, actsAsAdmin } from '@/lib/auth';
 import { notifyUser } from '@/lib/alerts';
 import { planNoteReminder, MAX_LATE_DAYS } from '@/lib/noteReminders';
 
@@ -34,7 +34,7 @@ export async function GET(req) {
   if (!isCron) {
     const { user, error } = await requireAuth();
     if (error) return error;
-    if (!['SUPER_ADMIN', 'ILC_ADMIN', 'COMPANY_ADMIN'].includes(user.role)) {
+    if (!actsAsAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
   }

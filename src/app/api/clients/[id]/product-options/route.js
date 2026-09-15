@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
-import { requireAuth, getSession } from '@/lib/auth';
+import { getSession, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { putQcObject, getQcObjectUrl } from '@/lib/qcStorage';
 
 export const dynamic = 'force-dynamic';
 
-function perms(s) { try { return JSON.parse(s.permissions || '{}'); } catch { return {}; } }
-function isAdmin(s) { return s.role === 'ILC_ADMIN' || s.role === 'SUPER_ADMIN'; }
+// Client standards are open to everyone on staff (Mike, 2026-09-14); contractors
+// (Client Viewers) never see them. This used to let only Super Admins and people
+// whose permissions said `clients: true` in — a value the Users screen never saves.
+const staff = s => canSeeAllData(s);
 const EXT = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/webp': 'webp' };
 const FIELDS = ['category', 'name', 'productUrl', 'notes', 'priceEstimate', 'priceTarget', 'sortOrder'];
 
@@ -28,8 +30,7 @@ function pickFields(b) {
 export async function GET(req, { params }) {
   const s = await getSession();
   if (!s) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (!(isAdmin(s) || perms(s).clients === true || perms(s).clients === 'read' || perms(s).clientStandards === true))
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!staff(s)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const rows = await prisma.clientProductOption.findMany({
     where: { clientId: params.id }, orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }],
   });
@@ -40,7 +41,7 @@ export async function GET(req, { params }) {
 export async function POST(req, { params }) {
   const s = await getSession();
   if (!s) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (!(isAdmin(s) || perms(s).clients === true)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!staff(s)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const b = await req.json().catch(() => ({}));
   const row = await prisma.clientProductOption.create({ data: { clientId: params.id, ...pickFields(b) } });
   return NextResponse.json({ option: await withUrl(row) }, { status: 201 });
@@ -51,7 +52,7 @@ export async function POST(req, { params }) {
 export async function PATCH(req, { params }) {
   const s = await getSession();
   if (!s) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (!(isAdmin(s) || perms(s).clients === true)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!staff(s)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const b = await req.json().catch(() => ({}));
 
   // Bulk: rename an entire category.
@@ -83,7 +84,7 @@ export async function PATCH(req, { params }) {
 export async function DELETE(req, { params }) {
   const s = await getSession();
   if (!s) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (!(isAdmin(s) || perms(s).clients === true)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!staff(s)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const sp = new URL(req.url).searchParams;
 
   if (sp.has('category')) {

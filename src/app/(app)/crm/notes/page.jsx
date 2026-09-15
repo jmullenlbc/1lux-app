@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, actsAsAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { redirect } from 'next/navigation';
 import NotesClient from './NotesClient';
@@ -42,7 +42,7 @@ export default async function NotesPage() {
       initialNotes={notes}
       clients={clients}
       projects={projects}
-      currentUser={{ id: user.id, name: user.name, email: user.email, role: user.role }}
+      currentUser={{ id: user.id, name: user.name, email: user.email, role: user.role, isAdmin: actsAsAdmin(user) }}
     />
   );
 }
