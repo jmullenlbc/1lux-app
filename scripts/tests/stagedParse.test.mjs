@@ -12,7 +12,12 @@
 // fake fetch. The stages themselves are the route's business.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { runStagedParse, PARSE_STEPS, stage, STAGE_RETRY_WAITS_MS, HANGUP_RETRY_WAITS_MS, waitForVisible } from '../../src/lib/intake/stagedParse.js';
+import { runStagedParse, PARSE_STEPS, stage, STAGE_RETRY_WAITS_MS, HANGUP_RETRY_WAITS_MS, POLL_WAITS_MS, waitForVisible } from '../../src/lib/intake/stagedParse.js';
+
+// Real polls wait 5s/3s/4s; tests only care about the COUNT, not the pacing.
+POLL_WAITS_MS.matrix = 1;
+POLL_WAITS_MS.pick = 1;
+POLL_WAITS_MS.site = 1;
 
 /**
  * Stand in for the network.
@@ -167,6 +172,29 @@ test('the parked scan is swept even when a stage fails', async () => {
   await assert.rejects(() => runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'set.pdf' }));
   f.restore();
   assert.ok(f.calls.includes('done'), 'a failed read must not leave its working files behind');
+});
+
+// ── Retry must not re-upload ─────────────────────────────────────────────────
+// The file card keeps the upload key so Retry re-asks the READ without
+// re-sending the file. That only works if the cleanup after a FAILED read
+// leaves the file in place — it did not (Lone Tree GEN, 25.7 MB, re-uploaded
+// three times, 2026-09-16), so the failed path now says so to the server.
+
+test('a failed read tells the cleanup to keep the upload for Retry', async () => {
+  const f = fakeFetch({ ...CLEAN, matrix: { __status: 502, message: 'Could not read this file.' } });
+  await assert.rejects(() => runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'set.pdf' }));
+  f.restore();
+  const done = f.sent.find(b => b.stage === 'done');
+  assert.ok(done, 'the cleanup still runs');
+  assert.equal(done.keepUpload, true, 'the upload must survive a failed read, or Retry re-uploads');
+});
+
+test('a finished read lets the cleanup delete the upload', async () => {
+  const f = fakeFetch(CLEAN);
+  await runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'set.pdf' });
+  f.restore();
+  const done = f.sent.find(b => b.stage === 'done');
+  assert.equal(done.keepUpload, undefined, 'nothing to retry: the file must not be left behind');
 });
 
 test('a server that declines to stage says so, rather than failing', async () => {
@@ -440,6 +468,28 @@ test('the drawings are read one sheet at a time, and the last answer is the merg
   assert.strictEqual(out.siteData.units, 250);
 });
 
+test('a site sheet still being read is waited for, and a poll is not a sheet', async () => {
+  // The server marks each sheet in flight and answers `waiting: true` while
+  // a run on another Lambda is still reading it (its first response was hung
+  // up on). The client must poll, not count the poll as a sheet, and hand on
+  // the final merged answer.
+  let n = 0;
+  const f = fakeFetch({
+    ...PLOTTED,
+    site: () => {
+      n += 1;
+      if (n <= 3) return { more: true, waiting: true, sheetsDone: 0, sheets: 2 };
+      if (n === 4) return { more: true, sheetsDone: 1, sheets: 2 };
+      return { siteData: { units: 250, buildings: 12 } };
+    },
+  });
+  const out = await runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'set.pdf' });
+  f.restore();
+
+  assert.strictEqual(f.calls.filter(c => c === 'site').length, 5, 'three polls, one sheet done, one final');
+  assert.strictEqual(out.siteData.units, 250);
+});
+
 test('a server that keeps asking for another drawing is cut off', async () => {
   const f = fakeFetch({ ...PLOTTED, site: () => ({ more: true }) });
   const out = await runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'set.pdf' });
@@ -572,6 +622,29 @@ test('the sheet pick arrives as its own round, and the loop just keeps asking', 
     'one finishing slice, then the pick round');
   assert.deepStrictEqual(out.sheetsRead, [4, 7]);
   assert.equal(out.totalPages, 294);
+});
+
+test('a sheet pick still running is waited for, not started a second time', async () => {
+  // A hung-up pick response used to mean the retry ran the pick AGAIN on a
+  // second Lambda. The server now answers `waiting: true` while its marker is
+  // fresh; the client polls (each poll is not a slice) and carries on with the
+  // finished pick when it lands.
+  let n = 0;
+  const f = fakeFetch({
+    ...CLEAN,
+    scan: () => {
+      n += 1;
+      if (n === 1) return { staging: true, more: true, scanKey: 'k', totalPages: 294, pagesRead: 294, picking: true };
+      if (n <= 3) return { staging: true, more: true, waiting: true, picking: true, scanKey: 'k', totalPages: 294, pagesRead: 294 };
+      return { staging: true, scanKey: 'k', totalPages: 294, sheetsRead: [4, 7], hasText: true, needsRender: true };
+    },
+  });
+  const out = await runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'set.pdf' });
+  f.restore();
+
+  assert.strictEqual(f.calls.filter(c => c === 'scan').length, 4,
+    'one finishing slice, two polls, then the finished pick');
+  assert.deepStrictEqual(out.sheetsRead, [4, 7]);
 });
 
 // ── The parallel scan: four streams instead of one polite one ───────────────

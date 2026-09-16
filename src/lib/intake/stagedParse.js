@@ -62,8 +62,21 @@ const MAX_RENDER_PASSES = 20;
  * an honest "could not finish" long before this runs out, so hitting the cap
  * means a server that keeps saying "one more", same as the other stops.
  */
-const MATRIX_POLL_WAIT_MS = 5_000;
 const MAX_MATRIX_POLLS = 110;
+
+/**
+ * The polling waits, in one place so tests can shorten them.
+ *
+ * `pick` and `site` joined `matrix` on 2026-09-16: the sheet pick and each
+ * site-plan sheet are model calls the front door can hang up on too, and the
+ * server now marks them in flight and answers `waiting: true` instead of
+ * running the same call a second time. A poll is sub-second and costs no
+ * model time, so the loops that used to count every answer as a slice or a
+ * sheet count these separately, against their own runaway stops.
+ */
+export const POLL_WAITS_MS = { matrix: 5_000, pick: 3_000, site: 4_000 };
+const MAX_PICK_POLLS = 100;
+const MAX_SITE_POLLS = 75;
 
 /** The runaway stop on the front-sheet loop; the server looks at very few. */
 const MAX_INDEX_LOOKS = 8;
@@ -304,15 +317,27 @@ export async function runStagedParse({ s3Key, file, fileName, onStep = () => {},
   // 60 MB architectural set took longer than the front door allows, and the
   // whole read died on its first step. So the scan is allowed to come back and
   // say "still reading" -- each slice is short, and together they finish.
-  for (let slice = 0; scan.staging && scan.more; slice++) {
-    if (slice >= MAX_SCAN_SLICES) {
-      const err = new Error(
-        'This set is taking longer to read than we can hold a line open for. '
-        + "Send it to precon@ilcstudios.com and we'll take it from there. (R4)");
-      err.shown = true;
-      throw err;
-    }
+  const tooLong = () => {
+    const err = new Error(
+      'This set is taking longer to read than we can hold a line open for. '
+      + "Send it to precon@ilcstudios.com and we'll take it from there. (R4)");
+    err.shown = true;
+    return err;
+  };
+  let slices = 0;
+  let pickPolls = 0;
+  while (scan.staging && scan.more) {
     onStep('scan', 'active', { totalPages: scan.totalPages, pagesRead: scan.pagesRead });
+    // "Still picking": the sheet pick is running on a server that has not
+    // answered yet (its first response was hung up on). Wait and ask again —
+    // a poll is not a slice, and must not eat the slice budget.
+    if (scan.waiting) {
+      if (pickPolls++ >= MAX_PICK_POLLS) throw tooLong();
+      await new Promise(res => setTimeout(res, POLL_WAITS_MS.pick));
+      scan = await stage({ stage: 'scan', scanKey: scan.scanKey }, signal);
+      continue;
+    }
+    if (slices++ >= MAX_SCAN_SLICES) throw tooLong();
     // A big set's first slice comes back with the rest of the pages offered as
     // parallel ranges. Fan out — four streams reading at once instead of one
     // stream reading politely — then merge, and carry on with the merged
@@ -331,6 +356,7 @@ export async function runStagedParse({ s3Key, file, fileName, onStep = () => {},
   onStep('scan', 'done', { totalPages: scan.totalPages, sheetsRead: scan.sheetsRead });
 
   const { scanKey } = scan;
+  let finished = false;
   try {
     let keptSheets = null;
     let sheetsRead = scan.sheetsRead;
@@ -350,7 +376,7 @@ export async function runStagedParse({ s3Key, file, fileName, onStep = () => {},
       // "Still reading": the server kicked the model call off and is letting
       // it finish behind the front door. Poll until the parked answer appears.
       for (let i = 0; m?.more && i < MAX_MATRIX_POLLS; i++) {
-        await new Promise(res => setTimeout(res, MATRIX_POLL_WAIT_MS));
+        await new Promise(res => setTimeout(res, POLL_WAITS_MS.matrix));
         m = await stage({ stage: 'matrix', scanKey }, signal);
       }
       return m;
@@ -432,7 +458,16 @@ export async function runStagedParse({ s3Key, file, fileName, onStep = () => {},
         // One drawing per request, same reason as the index close-ups: both
         // sheets in one call measured 29.4s against a ~30s front door.
         let read = await stage({ stage: 'site', scanKey }, signal);
-        for (let i = 0; read?.more && i < MAX_SITE_SHEET_READS; i++) {
+        for (let sheets = 0, polls = 0; read?.more && sheets < MAX_SITE_SHEET_READS; ) {
+          if (read.waiting) {
+            // The sheet is still being read on a server whose first answer
+            // was hung up on. Wait for it rather than asking for it twice.
+            if (polls++ >= MAX_SITE_POLLS) break;
+            await new Promise(res => setTimeout(res, POLL_WAITS_MS.site));
+          } else {
+            sheets += 1;
+            polls = 0;
+          }
           read = await stage({ stage: 'site', scanKey }, signal);
         }
         siteData = read.siteData;
@@ -459,7 +494,7 @@ export async function runStagedParse({ s3Key, file, fileName, onStep = () => {},
 
     // Combined by the SAME function the single-request route uses, so the two
     // paths cannot disagree about which read won.
-    return combineIntakeResult({
+    const out = combineIntakeResult({
       fileName,
       totalPages: scan.totalPages,
       sheetsRead,
@@ -469,10 +504,19 @@ export async function runStagedParse({ s3Key, file, fileName, onStep = () => {},
       matrix: m.matrix,
       siteData,
     });
+    finished = true;
+    return out;
   } finally {
     // Best effort, and deliberately not awaited into the result: the visitor
     // has his numbers, and a stray parked scan is swept by the storage
     // lifecycle rule anyway.
-    stage({ stage: 'done', scanKey }).catch(() => {});
+    //
+    // A read that FAILED keeps its uploaded file: the file card holds on to
+    // the upload key so Retry re-asks the read without re-sending the file,
+    // and that only works if the file is still there. (Until 2026-09-16 it
+    // never was — this same cleanup deleted it, and every Retry silently
+    // re-uploaded.) The visitor leaving is not a failure to retry.
+    const keepUpload = !finished && !signal?.aborted;
+    stage({ stage: 'done', scanKey, ...(keepUpload ? { keepUpload: true } : {}) }).catch(() => {});
   }
 }

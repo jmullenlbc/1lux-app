@@ -51,7 +51,14 @@ function fmtBytes(n) {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function fmt(n) { return n == null ? '—' : Number(n).toLocaleString(); }
+// A disagreement's value can be a number OR words (a building type, the
+// "7 types / 168 units" summary) — pushing words through Number() printed
+// "NaN vs NaN" on Lone Tree v2.
+function fmt(n) {
+  if (n == null || n === '') return '—';
+  const v = typeof n === 'number' ? n : (typeof n === 'string' && n.trim() !== '' && Number.isFinite(Number(n)) ? Number(n) : null);
+  return v == null ? String(n) : v.toLocaleString();
+}
 
 let uid = 0;
 
@@ -274,9 +281,11 @@ export default function DrawingDropzone({ onResults, restored = null }) {
       // phone cut the line, not the network, and "try again" alone would just
       // send him around the same loop.
       //
-      // Either way the uploaded file is still parked, so keep its key on the
-      // item: Retry then re-asks the READ without re-sending a third of a
-      // gigabyte over a job-site connection.
+      // Either way the uploaded file is still parked — the read's cleanup
+      // keeps it when the read failed (it did not, before 2026-09-16, which is
+      // why every Retry re-uploaded) — so keep its key on the item: Retry then
+      // re-asks the READ without re-sending a third of a gigabyte over a
+      // job-site connection.
       patch = { status: 'error', s3Key: sent?.key ?? null, error: err?.shown
         ? err.message
         : slept

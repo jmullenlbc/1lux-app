@@ -214,6 +214,35 @@ const shardStateKeyFor = (scanKey, i) =>
 const matrixStateKeyFor = (scanKey) =>
   scanKey.replace(/\.json\.gz$/i, 'matrix.json.gz');
 
+/**
+ * In-flight markers for the two other model calls that can outlive the front
+ * door: the sheet pick (one model call, ~16 s on a laptop, longer on a slow
+ * afternoon) and each site-plan sheet (20-24 s measured on Lone Tree GEN).
+ *
+ * Neither had a marker before 2026-09-16. When the front door hung up on one
+ * of them the browser re-asked a few seconds later — and the server, seeing
+ * no sign that the first call was still running, ran the SAME call again on a
+ * second Lambda. Two model calls racing on one object, and the retry just as
+ * likely to be hung up on as the original: that was the Lone Tree GEN set
+ * failing three times before going through. Same shape as the matrix: mark
+ * before the call, answer "still working" while the marker is fresh, park the
+ * answer BEFORE responding so a hung-up response is not a lost one.
+ *
+ * Only the MARKER lives at these keys. The answers themselves go into the main
+ * state as before — nothing else writes the main state while these run.
+ */
+const pickStateKeyFor = (scanKey) =>
+  scanKey.replace(/\.json\.gz$/i, 'pick.json.gz');
+const siteStateKeyFor = (scanKey) =>
+  scanKey.replace(/\.json\.gz$/i, 'site.json.gz');
+
+/** How long a sheet pick / one site sheet may be presumed still running. */
+const PICK_INFLIGHT_MS = 90_000;
+const SITE_INFLIGHT_MS = 90_000;
+/** Re-kicks before giving up on that piece (front sheet / skip the sheet). */
+const PICK_MAX_KICKS = 3;
+const SITE_MAX_KICKS = 3;
+
 // Closing a ranged document is best-effort, never load-bearing. pdfjs's
 // destroy() waits for in-flight work, and a page read that was raced out by
 // the slice budget can leave a range fetch stuck underneath it — awaiting
@@ -256,6 +285,7 @@ export async function POST(request) {
   let shard = null;        // which parallel scan stream this request drives
   let shardRange = null;   // that stream's page range, echoed from our own offer
   let mergeShards = false; // fold every stream's pages back into the main state
+  let keepUpload = false;  // `done` after a FAILED read: leave the file for Retry
 
   const contentType = request.headers.get('content-type') || '';
   if (contentType.includes('application/json')) {
@@ -272,6 +302,7 @@ export async function POST(request) {
     shard   = Number.isInteger(body?.shard) ? body.shard : null;
     shardRange  = body?.from != null || body?.to != null ? { from: body?.from, to: body?.to } : null;
     mergeShards = body?.mergeShards === true;
+    keepUpload  = body?.keepUpload === true;
   } else {
     let file;
     try {
@@ -346,7 +377,11 @@ export async function POST(request) {
     // the pick used to ride on the FINAL reading slice, and on a big set that
     // stack-up (open + read + model call + park) is what breached the front
     // door's ~30 seconds.
-    if (parked.state.pickPending) {
+    //
+    // `pickDone` is the pick's parked answer (kept in the main state). A retry
+    // that lands after the pick finished — the front door hung up on the
+    // response, not the work — is served from it without opening the file.
+    if (parked.state.pickPending || parked.state.pickDone) {
       try {
         return await stageScanPick(scanKey, parked.state);
       } catch (e) {
@@ -392,7 +427,7 @@ export async function POST(request) {
       if (stage === 'render') return await stageRender(scanKey, parked.state);
       if (stage === 'matrix') return await stageMatrix(scanKey, parked.state);
       if (stage === 'site')   return await stageSite(scanKey, parked.state);
-      return await stageDone(scanKey, parked.state);
+      return await stageDone(scanKey, parked.state, { keepUpload });
     } catch (e) {
       return unexpected(e, parked.state?.fileName || 'upload');
     }
@@ -929,38 +964,75 @@ async function mergeScanShards(scanKey, state) {
  * know or care that the pick moved.
  */
 async function stageScanPick(scanKey, state) {
+  // Already picked: a retry whose original response the front door dropped.
+  if (state.pickDone) return NextResponse.json(pickResponse(scanKey, state));
+
+  // Is a pick still running on another Lambda? Then this request must not
+  // start a second one — it says "still working" and the browser polls.
+  const pickKey = pickStateKeyFor(scanKey);
+  const marker = await getScanAttempt(pickKey);
+  const inFlight = marker?.stage === 'pick' && Number.isFinite(marker.startedAt);
+  if (inFlight && Date.now() - marker.startedAt < PICK_INFLIGHT_MS) {
+    return NextResponse.json({
+      stage: 'scan', staging: true, more: true, waiting: true, picking: true, scanKey,
+      fileName: state.fileName, totalPages: state.totalPages ?? null,
+      pagesRead: (state.pages ?? []).length,
+    });
+  }
+  if (marker) {
+    // A run finished (or died) since this request read the state. If it
+    // finished, its answer is in the main state — re-read rather than re-pick.
+    const fresh = await getScanState(scanKey, { quiet: true });
+    if (fresh.ok && fresh.state.pickDone) return NextResponse.json(pickResponse(scanKey, fresh.state));
+  }
+  const kicks = (inFlight ? marker.kicks : 0) ?? 0;
+
   const client = anthropicClient();
   if (!client) return unavailable();
 
   const pageScan = state.pages ?? [];
-  const sheets = pageScan.length
-    ? await pickKeySheets(buildSheetIndex(pageScan), client('intake.sheetPick'))
-    : null;
+  let sheets = null;
+  // Past the kick limit the pick is presumed unable to finish here; the front
+  // sheet fallback below is the same answer an empty pick gives.
+  if (pageScan.length && kicks < PICK_MAX_KICKS) {
+    await putScanAttempt(pickKey, { stage: 'pick', startedAt: Date.now(), kicks: kicks + 1 });
+    sheets = await pickKeySheets(buildSheetIndex(pageScan), client('intake.sheetPick'));
+  }
   const picks = sheets ? pagesToRender(sheets.picks, { max: 4 }) : [];
   const sheetsRead = picks.length ? picks : null;
   // Same fallback as the finished-reading branch of stageScan: a PDF with
   // nothing picked still opens its front sheet.
   const chosenPages = picks.length || state.ext !== 'pdf' ? picks : [1];
 
-  const key = await putScanStateAt(scanKey, {
-    ...state,
-    pickPending: false,
-    chosenPages,
-    sheetsRead,
-  });
+  // Park BEFORE answering, marker downgraded second — same order as the
+  // matrix, so a poll that sees the downgrade always finds the answer parked.
+  const next = { ...state, pickPending: false, pickDone: true, chosenPages, sheetsRead };
+  const key = await putScanStateAt(scanKey, next);
   if (!key) {
     console.error('intake/parse: could not park sheet pick for', state.fileName);
     return NextResponse.json({ stage: 'scan', staging: false, fileName: state.fileName });
   }
+  await putScanAttempt(pickKey, { stage: 'parked' });
 
-  return NextResponse.json({
+  return NextResponse.json(pickResponse(scanKey, next));
+}
+
+/**
+ * The finished-pick response, built from the parked state alone so a retry can
+ * serve it without repeating the model call. Exactly the shape the finishing
+ * scan slice used to send, so the browser's loop does not know or care that
+ * the pick moved.
+ */
+function pickResponse(scanKey, state) {
+  const chosenPages = state.chosenPages ?? [];
+  return {
     stage:      'scan',
     staging:    true,
     scanKey,
     fileName:   state.fileName,
     totalPages: state.totalPages ?? null,
-    sheetsRead,
-    pagesRead:  pageScan.length,
+    sheetsRead: state.sheetsRead ?? null,
+    pagesRead:  (state.pages ?? []).length,
     readBraked: state.braked === true,
     isSet:      true,
     hasText:    state.hasText === true,
@@ -968,7 +1040,7 @@ async function stageScanPick(scanKey, state) {
     // The pick is only ever deferred when the text layer answered, and the
     // picture-read of the index exists for sets where it did not.
     needsIndex: false,
-  });
+  };
 }
 
 /**
@@ -1710,14 +1782,45 @@ async function stageSite(scanKey, state) {
     return bad('no_pages', 'We could not open the sheets from this file. Please try uploading it again.', 502);
   }
 
-  const done = state.siteRead?.done ?? 0;
-  const image = images[done];
-  if (!image) return bad('no_pages', 'We could not open the sheets from this file. Please try uploading it again.', 502);
+  let done = state.siteRead?.done ?? 0;
+  const finish = (merged, vision) => {
+    if (!merged) return bad(vision?.code ?? 'extraction_failed', vision?.message ?? 'Could not read the drawing.', 502);
+    return NextResponse.json({ stage: 'site', siteData: validateSiteData(merged) });
+  };
 
-  // Recorded at the injection point rather than inside extractSiteData: the
-  // helper is handed a client precisely so it does not have to know where the
-  // call came from, and the task name is a property of the caller.
-  const vision = await extractSiteData([image], client('intake.siteVision'));
+  // Is THIS sheet still being read on another Lambda? One sheet measured 20-24
+  // seconds on the Lone Tree GEN set — close enough to the front door that a
+  // hung-up response used to mean the same sheet read twice, racing itself.
+  const siteKey = siteStateKeyFor(scanKey);
+  const marker = await getScanAttempt(siteKey);
+  const inFlight = marker?.stage === 'site' && Number.isFinite(marker.startedAt);
+  if (inFlight && marker.sheet === done && Date.now() - marker.startedAt < SITE_INFLIGHT_MS) {
+    return NextResponse.json({ stage: 'site', more: true, waiting: true, sheetsDone: done, sheets: images.length });
+  }
+  if (marker) {
+    // A sheet finished (or its runner died) since this request read the
+    // state. Its merge, if it parked one, is in the main state — re-read it.
+    const fresh = await getScanState(scanKey, { quiet: true });
+    if (fresh.ok) { state = fresh.state; done = state.siteRead?.done ?? 0; }
+  }
+  // Every sheet is already merged: a retry whose final response was dropped.
+  if (done >= images.length) return finish(state.siteRead?.data ?? null, null);
+
+  const image = images[done];
+  const kicks = (inFlight && marker.sheet === done ? marker.kicks : 0) ?? 0;
+
+  // A sheet that could not finish inside the runner's lifetime three times is
+  // skipped, not retried forever: one unreadable sheet is not a failed read.
+  let vision = { ok: false };
+  if (kicks < SITE_MAX_KICKS) {
+    await putScanAttempt(siteKey, { stage: 'site', startedAt: Date.now(), sheet: done, kicks: kicks + 1 });
+    // Recorded at the injection point rather than inside extractSiteData: the
+    // helper is handed a client precisely so it does not have to know where the
+    // call came from, and the task name is a property of the caller.
+    vision = await extractSiteData([image], client('intake.siteVision'));
+  } else {
+    console.warn('intake/parse: site sheet', image.page, 'of', state.fileName, 'skipped after', kicks, 'kicks');
+  }
 
   // One unreadable sheet is not a failed read -- the others may hold everything
   // we came for. It only fails if NO sheet gave us anything.
@@ -1725,19 +1828,30 @@ async function stageSite(scanKey, state) {
     ? mergeSiteData(state.siteRead?.data ?? null, vision.data, image.page)
     : (state.siteRead?.data ?? null);
 
+  // Park BEFORE answering — every sheet, the last one included — so a response
+  // the front door drops is served from the park by the retry, never redone.
   const next = done + 1;
+  await putScanStateAt(scanKey, { ...state, siteRead: { done: next, data: merged } });
+  await putScanAttempt(siteKey, { stage: 'parked', sheet: done });
+
   if (next < images.length) {
-    await putScanStateAt(scanKey, { ...state, siteRead: { done: next, data: merged } });
     return NextResponse.json({ stage: 'site', more: true, sheetsDone: next, sheets: images.length });
   }
-
-  if (!merged) return bad(vision.code ?? 'extraction_failed', vision.message ?? 'Could not read the drawing.', 502);
-  return NextResponse.json({ stage: 'site', siteData: validateSiteData(merged) });
+  return finish(merged, vision);
 }
 
-/** Stage 5 — throw away everything the read was standing on. */
-async function stageDone(scanKey, state) {
-  if (state.s3Key) await deleteUploadedObject(state.s3Key);
+/**
+ * Stage 5 — throw away everything the read was standing on.
+ *
+ * `keepUpload` is sent by a read that FAILED. The browser keeps the upload key
+ * on the file card so Retry re-asks the read without re-sending the file —
+ * but until 2026-09-16 this stage deleted the upload regardless, so every
+ * Retry found nothing there and quietly re-uploaded (25.7 MB, three times, on
+ * the Lone Tree GEN set). Now a failed read leaves the file where it is; the
+ * storage lifecycle rule sweeps it if nobody ever retries.
+ */
+async function stageDone(scanKey, state, { keepUpload = false } = {}) {
+  if (state.s3Key && !keepUpload) await deleteUploadedObject(state.s3Key);
   // The PNGs were scaffolding for the vision read. The JPEGs are the reviewer's
   // copy and are deliberately left behind.
   for (const s of state.keptSheets ?? []) {
@@ -1750,6 +1864,8 @@ async function stageDone(scanKey, state) {
   for (let i = 0; i < SCAN_SHARDS; i++) await deleteScanState(shardStateKeyFor(scanKey, i));
   await deleteScanState(matrixStateKeyFor(scanKey));
   await deleteScanAttempt(matrixStateKeyFor(scanKey));
+  await deleteScanAttempt(pickStateKeyFor(scanKey));
+  await deleteScanAttempt(siteStateKeyFor(scanKey));
   await deleteScanAttempt(scanKey);
   await deleteScanState(scanKey);
   return NextResponse.json({ stage: 'done', ok: true });

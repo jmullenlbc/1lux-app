@@ -26,6 +26,8 @@
  *    quantities — the common real case is the same matrix appearing on several
  *    sheets, and summing would silently double the unit count. Under-counting
  *    is visible to a reviewer; double-counting looks plausible and is not.
+ *    Since 2026-09-16 ONE file is the counted schedule and other files can
+ *    only agree or disagree with it — see scoreSchedule below.
  * 2. Project totals take the first non-null value, in upload order, and every
  *    disagreement is recorded in `conflicts` so a human can settle it.
  * 3. Site-plan reads (`kind: 'site_data'` proposals from the vision path) merge
@@ -104,6 +106,63 @@ function isDifferentType(existing, row, fileName) {
   return false;
 }
 
+/**
+ * Which file's unit schedule is COUNTED.
+ *
+ * Lone Tree Ranch Test v2, live, 2026-09-16 (Mike's screenshot): the GEN sheet
+ * set carried the real unit matrix — seven types, 168 units, and the drawing's
+ * own printed total of 168. The ARCH set has no matrix at all; the model
+ * ESTIMATED its rows from a typical floor times three levels times four
+ * buildings, at 0.4 confidence, and spelled the codes a little differently
+ * ("Unit 2-1 - Type A" against GEN's "Unit 2-1 Type A") with unit areas a foot
+ * or two off (1,219 against 1,218). Keyed on code, four of its six rows matched
+ * nothing and were ADDED, so the project came back with 188 units, 535
+ * bedrooms and a units-SF total larger than the building. Every number after
+ * that was wrong, and the only visible symptom was a small "drawings say 168".
+ *
+ * So the merge no longer unions unit rows across files on the strength of a
+ * code mismatch. One file is the schedule:
+ *
+ *   1. a file whose rows add up to its own printed total is complete — the
+ *      drawing itself says so — and beats any file that is not;
+ *   2. otherwise the most confident read, then the one with the most units.
+ *
+ * When that file prints a total, or when any other file shares a unit code
+ * with it (so they are describing the same schedule), the other files can
+ * only DISAGREE: a same-code row with a different quantity is recorded as a
+ * conflict, and the rows they carry that the schedule does not are listed as
+ * one summary disagreement and set aside in `uncountedUnitTypes`, never added.
+ * Only when files share no codes and none states a total — two buildings'
+ * matrices in two files — are they still unioned, as before.
+ *
+ * The 2026-09-15 rule that rows from ONE file sharing a code are all kept
+ * (`isDifferentType`) is untouched: it is about one matrix, not two files.
+ */
+function scoreSchedule(fileName, proposal) {
+  const rows = (proposal?.unitTypes ?? []).filter(r => r && typeof r === 'object');
+  if (!rows.length) return null;
+  const sum = rows.reduce((a, r) => a + (num(r.qty) ?? 0), 0);
+  const stated = num(proposal.projectTotals?.statedTotalUnits);
+  const codes = new Set(rows.map(r => txt(r.code)).filter(Boolean));
+  return {
+    fileName, rows, sum, stated, codes,
+    complete: stated != null && stated > 0 && sum === stated,
+    conf: Number(proposal.overallConfidence ?? 0) || 0,
+  };
+}
+
+function pickSchedule(scored) {
+  // Stable sort: ties keep upload order, so the first-dropped file wins them.
+  return [...scored].sort((a, b) =>
+    (Number(b.complete) - Number(a.complete)) || (b.conf - a.conf) || (b.sum - a.sum))[0];
+}
+
+/** One line a reviewer can read, for the summary disagreement. */
+function describeRows(rows) {
+  const units = rows.reduce((a, r) => a + (num(r.qty) ?? 0), 0);
+  return `${rows.length} type${rows.length === 1 ? '' : 's'} / ${units} unit${units === 1 ? '' : 's'}`;
+}
+
 export function mergeProposals(results) {
   const byCode = new Map();
   // Keys are listed rather than copied so a new field in the extraction schema
@@ -124,6 +183,109 @@ export function mergeProposals(results) {
   const keptSheets = [];
   let confSum = 0, confCount = 0;
 
+  // ── Unit rows: one file is the schedule (see scoreSchedule) ──────────────
+  const scored = results
+    .map(({ fileName, proposal }) => scoreSchedule(fileName, proposal))
+    .filter(Boolean);
+  const schedule = scored.length ? pickSchedule(scored) : null;
+  const others = scored.filter(s => s !== schedule);
+  const anchored = !!schedule && (
+    schedule.stated != null
+    || others.some(o => [...o.codes].some(c => schedule.codes.has(c)))
+  );
+  const uncounted = [];
+
+  /** Today's within-a-file merge (rule 1 + isDifferentType); also the union path. */
+  function addRow(row, fileName) {
+    // A row with no type code used to be dropped outright, which silently
+    // deleted its units from the project (Mike, 2026-09-15: the unit count
+    // came back far under on Lone Tree Ranch Test v1). A blank code is a
+    // LABELLING failure, not a reason to discard the quantity — quantities.js
+    // counts a row by its qty and never looks at its code.
+    //
+    // It still cannot de-duplicate itself the way a real code does, and rule 1
+    // above exists because the same matrix printed on several sheets must not
+    // be counted twice. So an unnamed row is keyed by its CONTENT instead.
+    // Both failure modes stay closed: nothing is deleted, nothing is doubled.
+    const code = String(row.code ?? '').trim();
+    let key = code
+      ? code.toLowerCase()
+      : blankKey(row);
+    let existing = byCode.get(key);
+    // A different type wearing the same code (see isDifferentType) gets its
+    // own bucket, keyed by code PLUS content, so it survives instead of being
+    // "reconciled" out of existence. The same content-keyed bucket then
+    // dedupes it correctly if a second file prints the same row again.
+    if (existing && code && isDifferentType(existing, row, fileName)) {
+      key = `${key}|${blankKey(row)}`;
+      existing = byCode.get(key);
+    }
+    if (!existing) {
+      byCode.set(key, { ...row, _sources: [fileName] });
+      return;
+    }
+    existing._sources.push(fileName);
+    if (Number(row.qty) !== Number(existing.qty)) {
+      conflicts.push({
+        field: `unit type ${row.code} qty`,
+        values: [
+          { value: existing.qty, file: existing._sources[0] },
+          { value: row.qty, file: fileName },
+        ],
+      });
+    }
+    // Higher-confidence row wins; never sum.
+    if ((row.confidence ?? 0) > (existing.confidence ?? 0)) {
+      byCode.set(key, { ...row, _sources: existing._sources });
+    }
+  }
+
+  /**
+   * A row from a file that is NOT the schedule, when the schedule is settled:
+   * it can confirm a row, dispute a row's quantity, or be set aside. It never
+   * adds units and never replaces the schedule's own figure.
+   */
+  function checkRow(row, fileName, extras) {
+    const code = txt(row.code);
+    const buckets = code
+      ? [...byCode.entries()].filter(([k]) => k === code || k.startsWith(`${code}|`)).map(([, v]) => v)
+      : [];
+    if (!buckets.length) { extras.push(row); return; }
+    const same = buckets.find(b => num(b.qty) === num(row.qty));
+    if (same) { same._sources.push(fileName); return; }
+    const first = buckets[0];
+    first._sources.push(fileName);
+    conflicts.push({
+      field: `unit type ${row.code} qty`,
+      values: [
+        { value: first.qty, file: first._sources[0] },
+        { value: row.qty, file: fileName },
+      ],
+    });
+  }
+
+  if (schedule) {
+    for (const row of schedule.rows) addRow(row, schedule.fileName);
+    for (const o of others) {
+      if (!anchored) { for (const row of o.rows) addRow(row, o.fileName); continue; }
+      const extras = [];
+      const before = conflicts.length;
+      for (const row of o.rows) checkRow(row, o.fileName, extras);
+      if (extras.length) {
+        // Ahead of this file's row-by-row disagreements: the dropzone shows
+        // only the first few, and the summary is the one worth seeing.
+        conflicts.splice(before, 0, {
+          field: 'unit types',
+          values: [
+            { value: `${describeRows(schedule.rows)} (counted)`, file: schedule.fileName },
+            { value: `${describeRows(extras)} not in ${schedule.fileName} (not counted)`, file: o.fileName },
+          ],
+        });
+        for (const row of extras) uncounted.push({ ...row, file: o.fileName });
+      }
+    }
+  }
+
   for (const { fileName, proposal } of results) {
     if (!proposal) continue;
     sources.push(fileName);
@@ -132,58 +294,17 @@ export function mergeProposals(results) {
       if (sheet?.key) keptSheets.push({ ...sheet, file: fileName });
     }
 
-    for (const row of proposal.unitTypes ?? []) {
-      if (!row || typeof row !== 'object') continue;
-      // A row with no type code used to be dropped outright, which silently
-      // deleted its units from the project (Mike, 2026-09-15: the unit count
-      // came back far under on Lone Tree Ranch Test v1). A blank code is a
-      // LABELLING failure, not a reason to discard the quantity — quantities.js
-      // counts a row by its qty and never looks at its code.
-      //
-      // It still cannot de-duplicate itself the way a real code does, and rule 1
-      // above exists because the same matrix printed on several sheets must not
-      // be counted twice. So an unnamed row is keyed by its CONTENT instead.
-      // Both failure modes stay closed: nothing is deleted, nothing is doubled.
-      const code = String(row.code ?? '').trim();
-      let key = code
-        ? code.toLowerCase()
-        : blankKey(row);
-      let existing = byCode.get(key);
-      // A different type wearing the same code (see isDifferentType) gets its
-      // own bucket, keyed by code PLUS content, so it survives instead of being
-      // "reconciled" out of existence. The same content-keyed bucket then
-      // dedupes it correctly if a second file prints the same row again.
-      if (existing && code && isDifferentType(existing, row, fileName)) {
-        key = `${key}|${blankKey(row)}`;
-        existing = byCode.get(key);
-      }
-      if (!existing) {
-        byCode.set(key, { ...row, _sources: [fileName] });
-        continue;
-      }
-      existing._sources.push(fileName);
-      if (Number(row.qty) !== Number(existing.qty)) {
-        conflicts.push({
-          field: `unit type ${row.code} qty`,
-          values: [
-            { value: existing.qty, file: existing._sources[0] },
-            { value: row.qty, file: fileName },
-          ],
-        });
-      }
-      // Higher-confidence row wins; never sum.
-      if ((row.confidence ?? 0) > (existing.confidence ?? 0)) {
-        byCode.set(key, { ...row, _sources: existing._sources });
-      }
-    }
-
     for (const field of Object.keys(totals)) {
       if (field === 'grossInteriorSf') continue;   // handled as a bundle below
       const val = proposal.projectTotals?.[field];
       if (val == null) continue;
       if (totals[field] == null) {
         totals[field] = val;
-      } else if (totals[field] !== val) {
+      } else if (Number.isFinite(num(totals[field])) && Number.isFinite(num(val)) && num(totals[field]) !== num(val)) {
+        // Only two NUMBERS can disagree. `buildingType` here is the model's
+        // free-text description of the code data ("Occupancy R-2, Type VA…"),
+        // which two files never word the same way; comparing those produced
+        // a "buildingType: NaN vs NaN" disagreement on Lone Tree v2.
         conflicts.push({ field, values: [{ value: totals[field] }, { value: val, file: fileName }] });
       }
     }
@@ -258,6 +379,13 @@ export function mergeProposals(results) {
 
   return {
     unitTypes: [...byCode.values()].map(({ _sources, ...r }) => ({ ...r, sources: _sources })),
+    // Rows another file carried that the counted schedule does not (see
+    // scoreSchedule). Kept so a reviewer can see them; never priced.
+    uncountedUnitTypes: uncounted,
+    // Which file the unit count came from, and why.
+    unitSchedule: schedule
+      ? { file: schedule.fileName, units: schedule.sum, stated: schedule.stated, complete: schedule.complete, anchored }
+      : null,
     projectTotals: totals,
     siteData,
     conflicts,

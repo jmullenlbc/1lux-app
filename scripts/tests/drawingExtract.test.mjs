@@ -44,13 +44,95 @@ const p = (unitTypes, totals = {}, conf = 0.9) => ({
   overallConfidence: conf,
 });
 
-test('merging distinct unit types unions them', () => {
+test('two files with unrelated codes and no printed total are unioned (two buildings, two matrices)', () => {
   const m = mergeProposals([
     { fileName: 'a.pdf', proposal: p([{ code: 'A1', qty: 10, confidence: 0.9 }]) },
     { fileName: 'b.pdf', proposal: p([{ code: 'B1', qty: 5, confidence: 0.9 }]) },
   ]);
   assert.equal(m.unitTypes.length, 2);
   assert.equal(m.unitTypes.reduce((s, r) => s + r.qty, 0), 15);
+  assert.equal(m.unitSchedule.anchored, false);
+  assert.equal(m.conflicts.length, 0);
+});
+
+// Lone Tree Ranch Test v2, live, 2026-09-16 (Mike's screenshot: "# Units 188,
+// drawings say 168"). GEN carries the real matrix and its printed total; ARCH
+// has no matrix, so the model estimated rows at 0.4 confidence with codes
+// spelled slightly differently and areas a foot or two off. Keyed on code the
+// ARCH rows were ADDED: 188 units, 535 bedrooms, 38 baths from rows that only
+// the estimate carried, units SF larger than the building, BOH $0.
+const LONE_TREE_GEN = p([
+  { code: 'Unit 2-1',        label: '2 Bedroom',        qty: 53, unitSf: 1013, bedrooms: 2, bathrooms: null, balconies: null, confidence: 1 },
+  { code: 'Unit 2-1 Type A', label: '2 Bedroom Type A', qty: 3,  unitSf: 1013, bedrooms: 2, bathrooms: null, balconies: null, confidence: 1 },
+  { code: 'Unit 3-1',        label: '3 Bedroom',        qty: 32, unitSf: 1218, bedrooms: 3, bathrooms: null, balconies: null, confidence: 1 },
+  { code: 'Unit 3-2',        label: '3 Bedroom',        qty: 51, unitSf: 1241, bedrooms: 3, bathrooms: null, balconies: null, confidence: 1 },
+  { code: 'Unit 3-2 Type A', label: '3 Bedroom Type A', qty: 5,  unitSf: 1241, bedrooms: 3, bathrooms: null, balconies: null, confidence: 1 },
+  { code: 'Unit 4-1',        label: '4 Bedroom',        qty: 23, unitSf: 1386, bedrooms: 4, bathrooms: null, balconies: null, confidence: 1 },
+  { code: 'Unit 4-1 Type A', label: '4 Bedroom Type A', qty: 1,  unitSf: 1386, bedrooms: 4, bathrooms: null, balconies: null, confidence: 1 },
+], { statedTotalUnits: 168, buildingType: 'Occupancy R-2 (Clubhouse A-3/B), Construction Type VA, 3 stories, NFPA 13R' }, 1);
+const LONE_TREE_ARCH = p([
+  { code: 'Unit 2-1',          label: '2 Bedroom',                      qty: 44, unitSf: null, bedrooms: 2, bathrooms: null, balconies: null, confidence: 0.3 },
+  { code: 'Unit 2-1 - Type A', label: '2 Bedroom - Type A (accessible)', qty: 4,  unitSf: null, bedrooms: 2, bathrooms: null, balconies: null, confidence: 0.3 },
+  { code: 'Unit 3-1',          label: '3 Bedroom (UNIT 3-1 - OPT1)',     qty: 24, unitSf: 1219, bedrooms: 3, bathrooms: 2, balconies: 1, confidence: 0.4 },
+  { code: 'Unit 3-2',          label: '3 Bedroom (UNIT 3-2 - OPT1)',     qty: 48, unitSf: 1240, bedrooms: 3, bathrooms: 2, balconies: 1, confidence: 0.4 },
+  { code: 'Unit 4-1',          label: '4 Bedroom (UNIT 4-1 - OPT2)',     qty: 20, unitSf: 1388, bedrooms: 4, bathrooms: 2, balconies: 1, confidence: 0.4 },
+  { code: 'Unit 4-1 - Type A', label: '4 Bedroom - Type A (accessible)', qty: 4,  unitSf: 1388, bedrooms: 4, bathrooms: 2, balconies: 1, confidence: 0.3 },
+], { statedTotalUnits: null, buildingType: 'GROUP R-2; TYPE VA; NFPA 13R' }, 0.4);
+
+test('LONE TREE v2: the file whose rows add up to its printed total is the schedule; other files only disagree', () => {
+  for (const order of [[LONE_TREE_GEN, LONE_TREE_ARCH], [LONE_TREE_ARCH, LONE_TREE_GEN]]) {
+    const m = mergeProposals([
+      { fileName: order[0] === LONE_TREE_GEN ? 'gen.pdf' : 'arch.pdf', proposal: order[0] },
+      { fileName: order[1] === LONE_TREE_GEN ? 'gen.pdf' : 'arch.pdf', proposal: order[1] },
+    ]);
+    assert.equal(m.unitTypes.length, 7, 'seven GEN types, nothing added from ARCH');
+    assert.equal(m.unitTypes.reduce((s, r) => s + Number(r.qty), 0), 168, 'must NOT be 188');
+    assert.equal(m.unitTypes.reduce((s, r) => s + Number(r.qty) * Number(r.bedrooms), 0), 472);
+    assert.ok(m.unitTypes.every(r => r.bathrooms == null && r.balconies == null),
+      'ARCH-only bathroom and balcony columns never leak into the counted rows');
+    assert.deepEqual(m.unitSchedule, { file: 'gen.pdf', units: 168, stated: 168, complete: true, anchored: true });
+    assert.equal(m.uncountedUnitTypes.length, 2, 'the two differently spelled Type A rows are set aside');
+    assert.ok(m.uncountedUnitTypes.every(r => r.file === 'arch.pdf'));
+    // One summary disagreement, listed FIRST, then the per-row ones.
+    assert.equal(m.conflicts[0].field, 'unit types');
+    assert.match(m.conflicts[0].values[0].value, /7 types \/ 168 units/);
+    assert.match(m.conflicts[0].values[1].value, /2 types \/ 8 units/);
+    assert.equal(m.conflicts.filter(c => c.field === 'unit type Unit 2-1 qty').length, 1);
+    assert.equal(m.conflicts.filter(c => c.field === 'buildingType').length, 0,
+      'free-text building type is never a disagreement (was "NaN vs NaN")');
+    assert.equal(m.projectTotals.statedTotalUnits, 168);
+  }
+});
+
+test('the counted schedule keeps its own quantity even when the other file is more confident row-by-row', () => {
+  const m = mergeProposals([
+    { fileName: 'set.pdf',  proposal: p([{ code: 'A1', qty: 10, confidence: 0.5 }, { code: 'A2', qty: 20, confidence: 0.5 }], { statedTotalUnits: 30 }, 0.5) },
+    { fileName: 'est.pdf',  proposal: p([{ code: 'A1', qty: 14, confidence: 0.99 }], {}, 0.6) },
+  ]);
+  assert.equal(m.unitSchedule.file, 'set.pdf', 'rows add up to the printed total, so it is complete');
+  assert.equal(m.unitTypes.find(r => r.code === 'A1').qty, 10);
+  assert.equal(m.conflicts.length, 1);
+  assert.equal(m.conflicts[0].field, 'unit type A1 qty');
+});
+
+test('a file that prints a total never gains units from a file with unrelated codes', () => {
+  const m = mergeProposals([
+    { fileName: 'gen.pdf',  proposal: p([{ code: 'Unit 2-1', qty: 53 }, { code: 'Unit 3-1', qty: 47 }], { statedTotalUnits: 100 }, 1) },
+    { fileName: 'arch.pdf', proposal: p([{ code: '2BR', qty: 53 }, { code: '3BR', qty: 47 }], {}, 0.4) },
+  ]);
+  assert.equal(m.unitTypes.reduce((s, r) => s + Number(r.qty), 0), 100, 'must NOT be 200');
+  assert.equal(m.uncountedUnitTypes.length, 2);
+  assert.equal(m.conflicts.length, 1);
+  assert.equal(m.conflicts[0].field, 'unit types');
+});
+
+test('free-text project totals never produce a disagreement', () => {
+  const m = mergeProposals([
+    { fileName: 'a.pdf', proposal: p([], { buildingType: 'Occupancy R-2, Type VA' }) },
+    { fileName: 'b.pdf', proposal: p([], { buildingType: 'GROUP R-2; TYPE VA' }) },
+  ]);
+  assert.equal(m.projectTotals.buildingType, 'Occupancy R-2, Type VA', 'first non-null still wins');
+  assert.equal(m.conflicts.length, 0);
 });
 
 test('a printed back-of-house SF survives the merge (Mike 2026-09-16)', () => {
@@ -136,13 +218,22 @@ test('LONE TREE: the same bedroom-coded matrix in a second file is still counted
   assert.equal(m.conflicts.length, 0);
 });
 
-test('same code across files with different SF is two types, not a disagreement', () => {
+// REVERSED 2026-09-16. This used to assert that the same code with a different
+// SF in a SECOND FILE was a second type (two rows, no disagreement). Lone Tree
+// v2 showed what that really is in practice: the same type read a foot or two
+// differently ("Unit 3-1" 1,218 SF in GEN, 1,219 SF in ARCH), and treating it
+// as a new type is exactly how 20 units became 188. Across files the second
+// row is now a disagreement about ONE type. Within one file the 2026-09-15
+// rule still applies (see the LONE TREE test above).
+test('same code across files with different SF is one type with a disagreement, not two types', () => {
   const m = mergeProposals([
     { fileName: 'a.pdf', proposal: p([{ code: 'B2', qty: 20, unitSf: 900,  confidence: 0.9 }]) },
     { fileName: 'b.pdf', proposal: p([{ code: 'B2', qty: 8,  unitSf: 1150, confidence: 0.9 }]) },
   ]);
-  assert.equal(m.unitTypes.length, 2);
-  assert.equal(m.conflicts.length, 0);
+  assert.equal(m.unitTypes.length, 1);
+  assert.equal(m.unitTypes[0].qty, 20, 'ties go to the first-dropped file');
+  assert.equal(m.conflicts.length, 1);
+  assert.equal(m.conflicts[0].field, 'unit type B2 qty');
 });
 
 test('same code across files, same SF, different qty is STILL a real disagreement', () => {
