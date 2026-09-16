@@ -11,6 +11,7 @@
  */
 
 import { calculateBudget, formatCurrency } from '../src/lib/calculations.js';
+import { PRICING } from '../src/lib/pricing.js';
 
 // ───────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -318,11 +319,17 @@ for (const bt of buildingTypes) {
   console.log(`  ${bt.padEnd(14)} | $${ctrl}   | ${ctrlT}   | ${tot}  | ${pu}`);
 }
 
-// Verify singleFamily and townHouses produce $0 controls (rate is 0)
+// singleFamily and townHouses carry a $0/SF controls rate on the building, but
+// their CLUBHOUSE is priced at PRICING.controls.clubhousePerSf ($5/SF, Mike
+// 2026-09-15). The baseline has 5,000 SF of interior amenity → $25,000; with
+// no amenity SF the controls line is $0.
 const sf = calculateBudget({ ...baselinePD, buildingTypeKey: 'singleFamily' }, {});
 const th = calculateBudget({ ...baselinePD, buildingTypeKey: 'townHouses'   }, {});
-assert(sf.controls === 0, 'singleFamily produces $0 controls (rate is 0)');
-assert(th.controls === 0, 'townHouses produces $0 controls (rate is 0)');
+const clubhouseControls = baselinePD.interiorAmenitySf * PRICING.controls.clubhousePerSf;
+assert(sf.controls === clubhouseControls, `singleFamily controls = clubhouse SF × $${PRICING.controls.clubhousePerSf}/SF (${$(clubhouseControls)})`);
+assert(th.controls === clubhouseControls, `townHouses controls = clubhouse SF × $${PRICING.controls.clubhousePerSf}/SF (${$(clubhouseControls)})`);
+const thNoClub = calculateBudget({ ...baselinePD, buildingTypeKey: 'townHouses', interiorAmenitySf: 0 }, {});
+assert(thNoClub.controls === 0, 'townHouses with no clubhouse SF produces $0 controls');
 
 // Verify the controls cap at very large grossSf. TWO ceilings apply and the
 // LOWER one wins: the building type's own cap, and the sheet-wide "never over

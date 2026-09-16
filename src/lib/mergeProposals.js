@@ -72,13 +72,45 @@ function blankKey(row) {
        + `:${part(row.bathrooms)}:${part(row.balconies)}:${String(row.label ?? '').trim().toLowerCase()}`;
 }
 
+const num = v => (v === null || v === undefined || v === '' ? null : Number(v));
+const txt = v => String(v ?? '').trim().toLowerCase();
+
+/**
+ * Same code, but is it really the same unit type?
+ *
+ * The model chooses the code, and on Lone Tree Ranch Test v1 (2026-09-15, live)
+ * it wrote the BEDROOM COUNT as the code — "2BR", "3BR", "3BR", "3BR", "4BR" —
+ * for seven rows the drawings name "Unit 2-1", "Unit 2-1 Type A", "Unit 3-1",
+ * "Unit 3-2", ... Keyed on code alone, rule 1 (never sum the same matrix twice)
+ * folded them into three rows and threw away 60 units, then reported the four
+ * missing rows as "disagreements between files" that never happened.
+ *
+ * Rule 1 is about the SAME row printed on several sheets. A second row with the
+ * same code is a different type, not a repeat, when the quantity differs AND:
+ *   - it came from the same file (one matrix never lists one type twice with
+ *     two quantities), or
+ *   - its unit SF, bedroom count or label differs where both are stated.
+ * Same quantity means it is the same row seen again, which rule 1 handles.
+ * Different quantity across files with nothing else to tell them apart is the
+ * genuine disagreement the conflicts list exists for.
+ */
+function isDifferentType(existing, row, fileName) {
+  if (num(row.qty) === num(existing.qty)) return false;
+  if (existing._sources.includes(fileName)) return true;
+  const a = existing, b = row;
+  if (num(a.unitSf) != null && num(b.unitSf) != null && num(a.unitSf) !== num(b.unitSf)) return true;
+  if (num(a.bedrooms) != null && num(b.bedrooms) != null && num(a.bedrooms) !== num(b.bedrooms)) return true;
+  if (txt(a.label) && txt(b.label) && txt(a.label) !== txt(b.label)) return true;
+  return false;
+}
+
 export function mergeProposals(results) {
   const byCode = new Map();
   // Keys are listed rather than copied so a new field in the extraction schema
   // is a deliberate decision here too. `statedTotalUnits` is what the auto-check
   // reconciles row quantities against — dropping it silently would turn that
   // check into a permanent SKIP without anything appearing to break.
-  const totals = { grossInteriorSf: null, garageSf: null, corridorSf: null, statedTotalUnits: null, buildingType: null };
+  const totals = { grossInteriorSf: null, garageSf: null, corridorSf: null, bohSf: null, statedTotalUnits: null, buildingType: null };
   let siteData = null;
   // The gross-SF verdict travels as a BUNDLE, not as independent fields — see
   // GROSS_SF_META below.
@@ -113,10 +145,18 @@ export function mergeProposals(results) {
       // be counted twice. So an unnamed row is keyed by its CONTENT instead.
       // Both failure modes stay closed: nothing is deleted, nothing is doubled.
       const code = String(row.code ?? '').trim();
-      const key = code
+      let key = code
         ? code.toLowerCase()
         : blankKey(row);
-      const existing = byCode.get(key);
+      let existing = byCode.get(key);
+      // A different type wearing the same code (see isDifferentType) gets its
+      // own bucket, keyed by code PLUS content, so it survives instead of being
+      // "reconciled" out of existence. The same content-keyed bucket then
+      // dedupes it correctly if a second file prints the same row again.
+      if (existing && code && isDifferentType(existing, row, fileName)) {
+        key = `${key}|${blankKey(row)}`;
+        existing = byCode.get(key);
+      }
       if (!existing) {
         byCode.set(key, { ...row, _sources: [fileName] });
         continue;

@@ -86,7 +86,16 @@ async function parseInOneRequest(item, sent) {
   }
 }
 
-export default function DrawingDropzone({ onResults }) {
+/**
+ * @param {Function} onResults  called with the merged proposal (or null) every
+ *                              time the set of read files changes
+ * @param {?Object}  restored   a merged proposal saved in the browser last
+ *                              time (IntakeClient's draft). The files behind
+ *                              it are gone — only their READ survived — so it
+ *                              is shown as one "read earlier" entry and kept
+ *                              in the count when more files are dropped.
+ */
+export default function DrawingDropzone({ onResults, restored = null }) {
   // Ring the server's doorbell the moment the page opens. A server nobody has
   // used for a while takes about fifteen seconds to wake, the front door hangs
   // up at thirty, and both together mean the FIRST visitor's upload dies while
@@ -105,14 +114,45 @@ export default function DrawingDropzone({ onResults }) {
   const [notice, setNotice] = useState(null);   // "we left some files out"
   const inputRef = useRef(null);
 
+  // The read restored from a saved draft (see `restored`). Taken on the first
+  // non-null value only: it is a one-time hand-off, not a live mirror, so a
+  // later publish() from here never feeds back in as "another earlier read".
+  const [earlier, setEarlier] = useState(null);
+  // Mirrored in a ref because parseOne is memoised on onResults alone and its
+  // publish() would otherwise see the `earlier` of the render it was made in
+  // — null — and drop the kept read the moment a new file finished.
+  const earlierRef = useRef(null);
+  useEffect(() => {
+    if (restored && typeof restored === 'object' && !earlierRef.current) {
+      earlierRef.current = restored;
+      setEarlier(restored);
+    }
+  }, [restored]);
+
   const parsing = items.some(i => i.status === 'parsing' || i.status === 'uploading' || i.status === 'queued');
   const done    = items.filter(i => i.status === 'done');
 
-  const merged = done.length ? mergeProposals(done.map(i => ({ fileName: i.name, proposal: i.proposal }))) : null;
+  // One combined proposal from the files read now plus the read kept from
+  // last time. Alone, the earlier read passes through untouched (re-merging
+  // a merge would re-derive verdicts it already settled); with new files it
+  // joins the merge as one more source, so nothing read last time is lost.
+  const EARLIER_NAME = 'Read earlier';
+  function combine(list, kept) {
+    const ok = list.filter(i => i.status === 'done').map(i => ({ fileName: i.name, proposal: i.proposal }));
+    if (!ok.length) return kept ?? null;
+    if (kept) ok.unshift({ fileName: EARLIER_NAME, proposal: kept });
+    return mergeProposals(ok);
+  }
+  const merged = combine(items, earlier);
 
   function publish(next) {
-    const ok = next.filter(i => i.status === 'done');
-    onResults?.(ok.length ? mergeProposals(ok.map(i => ({ fileName: i.name, proposal: i.proposal }))) : null);
+    onResults?.(combine(next, earlierRef.current));
+  }
+
+  function removeEarlier() {
+    earlierRef.current = null;
+    setEarlier(null);
+    publish(items);
   }
 
   const parseOne = useCallback(async (item) => {
@@ -340,6 +380,31 @@ export default function DrawingDropzone({ onResults }) {
         </p>
       )}
 
+      {/* The read kept from last time — the files themselves were never
+          stored, so there is nothing to re-open, only what we found. */}
+      {earlier && (
+        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+          <div className="flex items-center gap-3">
+            <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border shrink-0 ${STATUS.done.cls}`}>
+              Read earlier
+            </span>
+            <span className="text-sm font-mono text-slate-700 truncate flex-1" title={(earlier.sources ?? []).join(', ')}>
+              {(earlier.sources ?? []).length ? (earlier.sources ?? []).join(', ') : 'Your drawings'}
+            </span>
+            <button
+              onClick={removeEarlier}
+              className="text-slate-300 hover:text-red-400 text-lg leading-none shrink-0"
+              aria-label="Remove the drawings read earlier"
+            >
+              &times;
+            </button>
+          </div>
+          <p className="text-xs text-slate-500 mt-1.5 pl-1">
+            Kept from your last visit — still counted below. Drop more files to add to it, or remove it to start the drawings over.
+          </p>
+        </div>
+      )}
+
       {/* Per-file status */}
       {items.length > 0 && (
         <ul className="space-y-2">
@@ -413,7 +478,14 @@ export default function DrawingDropzone({ onResults }) {
                     {item.proposal.sheetsRead?.length
                       ? <>Read {item.proposal.sheetsRead.length === 1 ? 'page' : 'pages'}{' '}
                           {item.proposal.sheetsRead.join(', ')} of {fmt(item.proposal.totalPages)}</>
-                      : <>Searched {fmt(item.proposal.totalPages)} pages</>}
+                      : item.proposal.readBraked
+                        ? <>Searched {fmt(item.proposal.pagesRead ?? 0)} of {fmt(item.proposal.totalPages)} pages</>
+                        : <>Searched {fmt(item.proposal.totalPages)} pages</>}
+                    {/* The memory brake stopped the text read early: say so, or a
+                        set read one page deep looks the same as one read in full. */}
+                    {item.proposal.readBraked && (
+                      <span className="text-amber-600"> · too large to hold open in full — a smaller PDF of just the site plan, area summary and unit matrix sheets reads best</span>
+                    )}
                   </p>
                 )}
                 {item.status === 'error' && (

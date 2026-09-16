@@ -33,6 +33,7 @@ export const ERROR_NUMBERS = {
   missing_parts: 'S17',       // multipart stitch: some pieces never arrived
   no_parts: 'S18',            // multipart stitch: no pieces arrived at all
   ai_unavailable: 'S19',      // AI account failure (message carries V3 instead)
+  too_big_to_read: 'S20',     // memory brake stopped the text read before the set could be judged
 };
 
 /** True when the message already ends in a code like "(V3)" or "(V1-400)". */

@@ -108,6 +108,7 @@ model User {
   reviewedSubmissions    ConceptualSubmission[] @relation("SubmissionReviewer")
   accessEvents           UserAccessEvent[]      @relation("UserAccessEventSubject")
   accessChangesMade      UserAccessEvent[]      @relation("UserAccessEventActor")
+  archivedDrafts         ConceptualDraft[]      @relation("DraftArchiver")
 }
 
 model UserAlert {
@@ -2821,6 +2822,10 @@ model ConceptualSubmission {
   suggestedMatchReason  String?   // plain English: "same name, same city"
   suggestionDismissedAt DateTime?
   suggestedProject      Project?  @relation("SubmissionSuggestedMatch", fields: [suggestedProjectId], references: [id], onDelete: SetNull)
+
+  // The unfinished draft this request grew out of, when the visitor saved one
+  // along the way (migration 0087).
+  draft ConceptualDraft?
 }
 
 // One row per questionnaire answer on a public conceptual-budget submission.
@@ -2839,6 +2844,72 @@ model ConceptualSubmissionAnswer {
 
   @@index([submissionId])
   @@index([questionKey])
+}
+
+// An unfinished public conceptual budget (Mike, 2026-09-15: "People need to be
+// able to fill out a budget and come back to it somehow" / "Yes we should see
+// it abandoned"). Migration 0087.
+//
+// The wizard saves a copy here once the visitor's name, email and project name
+// check out, and keeps updating the same row as they go. Inputs only — never a
+// price, never the pricing model. Staff see these on the intake queue as leads
+// ("still working" / "abandoned"); submitting links the row to the real
+// submission. Archive-only: "Put away" stamps archivedAt, nothing is deleted.
+//
+// The visitor's resume link carries a random token; only its SHA-256 lives
+// here, so a copy of the database cannot be turned into working links. The link
+// itself is built but stays hidden until Microsoft email is hooked up.
+model ConceptualDraft {
+  id             String    @id @default(cuid())
+  tokenHash      String    @unique
+  firstName      String
+  lastName       String
+  email          String
+  emailDomain    String?
+  company        String?
+  projectName    String
+  city           String?
+  state          String?
+  zip            String?
+  haveDrawings   String?   // yes | no
+  stepId         String?   // wizard step the visitor last had open
+  completedSteps String    @default("") // comma-separated step ids
+  hasClubhouse   String?
+  buildingType   String?   // engine key from the takeoff at save time
+  unitCount      Int?
+  grossSf        Int?
+  drawingsJson   String?   // merged drawing read (inputs only), capped — same exception rawPayload makes
+  saveCount      Int       @default(1)
+  lastSavedAt    DateTime  @default(now())
+  linkEmailedAt  DateTime?
+  submissionId   String?   @unique
+  archivedAt     DateTime?
+  archivedById   String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  submission ConceptualSubmission? @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+  archivedBy User?                 @relation("DraftArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
+  fields     ConceptualDraftField[]
+
+  @@index([lastSavedAt])
+  @@index([email])
+}
+
+// One row per typed figure, questionnaire answer or hand correction on an
+// unfinished budget — rows, not a JSON blob, so staff and bots can ask
+// "everyone who got as far as choosing ceiling fans".
+model ConceptualDraftField {
+  id      String @id @default(cuid())
+  draftId String
+  kind    String // answer | figure | correction
+  key     String
+  value   String
+
+  draft ConceptualDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  @@unique([draftId, kind, key])
+  @@index([kind, key])
 }
 
 // Governed AI Layer, Slice 4b — one row per reviewable AI run: what the model

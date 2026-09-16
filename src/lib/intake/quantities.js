@@ -610,8 +610,25 @@ export function computeQuantities(drawings, answers, pricing = null) {
   const unitsSfFinal = unitsSfRow?.value ?? null;
   const unitsSfWhole = unitsSfFinal != null
     && (unitsSfRow.corrected === true || (!!unitSf && !unitSf.partial));
-  const bohTyped = statedAnswer(ans.figureBohSf);
-  if (bohTyped != null) {
+  const bohTyped  = statedAnswer(ans.figureBohSf);
+  // Mike 2026-09-16: "Keep the 5% cap but the system should always take what
+  // the drawings say, not add to it to hit the cap. It's only if the drawings
+  // say something above the cap or there is no info at all." So a printed BOH
+  // figure is used as printed; the cap only trims a printed figure that is
+  // above it, and the remainder arithmetic below runs only when nothing was
+  // printed. The remainder path never rounds UP to the cap either.
+  const bohStated = stated(totals?.bohSf);
+  if (bohStated != null) {
+    const bohCap = grossSf != null ? Math.round(grossSf * bohMaxPct) : null;
+    const capped = bohCap != null && bohStated > bohCap;
+    add('bohSf', 'Back of House SF', 'sf', capped ? bohCap : Math.round(bohStated), 'drawing',
+      capped
+        ? `The drawings state ${fmt(Math.round(bohStated))} SF of back of house, capped at ${Math.round(bohMaxPct * 100)}% of gross (${fmt(bohCap)} SF).`
+        : 'Stated on the drawings (mechanical, storage, trash, bike rooms).',
+      capped
+        ? `The drawings state ${fmt(Math.round(bohStated))} SF of back of house, which is above the ${Math.round(bohMaxPct * 100)}%-of-gross BOH cap — check whether that figure includes corridors or amenity.`
+        : null);
+  } else if (bohTyped != null) {
     add('bohSf', 'Back of House SF', 'sf', bohTyped, 'questionnaire', 'Entered on the questionnaire.');
   } else if (grossSf != null && unitsSfWhole) {
     const itemized = unitsSfFinal + (corridorSf ?? 0) + (interiorAmenitySf ?? 0);

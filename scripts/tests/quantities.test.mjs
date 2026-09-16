@@ -156,6 +156,36 @@ test('BOH is the remainder of the stated gross, capped at 5% of gross (Mike 2026
   assert.match(q.bohSf.flag, /exceeded the 5%-of-gross BOH cap/);
 });
 
+test('a BOH figure printed on the drawings is used as printed, never topped up to the cap (Mike 2026-09-16)', () => {
+  const d = cleanDrawings();
+  d.projectTotals.bohSf = 9000;   // cap would be 13,000; the remainder would be 63,000
+  const q = byKey(computeQuantities(d, {}));
+  assert.equal(q.bohSf.value, 9000);
+  assert.equal(q.bohSf.source, 'drawing');
+  assert.match(q.bohSf.how, /Stated on the drawings/);
+  assert.equal(q.bohSf.flag, null);
+});
+
+test('a printed BOH figure above the 5% cap is trimmed to the cap and flagged', () => {
+  const d = cleanDrawings();
+  d.projectTotals.bohSf = 20000;  // 7.7% of 260,000
+  const q = byKey(computeQuantities(d, {}));
+  assert.equal(q.bohSf.value, 13000);
+  assert.equal(q.bohSf.source, 'drawing');
+  assert.match(q.bohSf.how, /20,000 SF .* capped at 5%/);
+  assert.match(q.bohSf.flag, /above the 5%-of-gross BOH cap/);
+});
+
+test('a printed BOH figure beats a typed one; a typed one beats the remainder', () => {
+  const d = cleanDrawings();
+  d.projectTotals.bohSf = 9000;
+  assert.equal(byKey(computeQuantities(d, { figureBohSf: '11000' })).bohSf.value, 9000);
+  d.projectTotals.bohSf = null;
+  const typed = byKey(computeQuantities(d, { figureBohSf: '11000' })).bohSf;
+  assert.equal(typed.value, 11000);
+  assert.equal(typed.source, 'questionnaire');
+});
+
 test('a BOH remainder under the 5% cap passes through untouched', () => {
   const d = cleanDrawings();
   d.projectTotals.grossInteriorSf = 205000; // remainder 205,000 − 197,000 = 8,000 < 10,250 cap

@@ -40,6 +40,78 @@ import { cn } from '@/lib/utils';
 
 const CONFIRM_NOTE = 'We will confirm all numbers are correct and send you a budget within 48hrs.';
 
+// ── Saved in this browser ────────────────────────────────────────────────────
+// Mike, 2026-09-15: "People need to be able to fill out a budget and come back
+// to it somehow … Browser save now." There is no login on this page, so the
+// draft lives in the visitor's own browser (localStorage) and nowhere else:
+// close the tab, come back next week on the same device, pick up where you
+// left off. It is the visitor's INPUTS only — what they typed, what they
+// answered, what we read off their drawings — never the estimate and never a
+// price. Nothing here reaches a server, and nothing here expires.
+//
+// A resume LINK that works across devices needs a server-side copy and an
+// email to send it in. Both are built: once the contact details pass About
+// You, the same inputs are also saved to /api/intake/draft (a ConceptualDraft
+// row, inputs only, never a price) so ILC staff can see unfinished budgets as
+// leads, and ?resume=<token> reopens one on any device. The two buttons that
+// hand the link to the visitor stay hidden behind this flag until Microsoft
+// email is hooked up (Mike, 2026-09-15: "The link we should build but can't
+// show until we hook up Microsoft email to it").
+const RESUME_LINK_ENABLED = false;
+const DRAFT_KEY = 'ilc.conceptualBudget.draft.v1';
+const SERVER_SAVE_DELAY_MS = 3000;
+
+/** The token from a ?resume= link, taken off the address bar so it is not
+ *  left in the history or shared by accident when the page is copied. */
+function takeResumeToken() {
+  try {
+    const url = new URL(window.location.href);
+    const token = url.searchParams.get('resume');
+    if (!token) return null;
+    url.searchParams.delete('resume');
+    window.history.replaceState(null, '', url.pathname + (url.search || '') + url.hash);
+    return /^[A-Za-z0-9_-]{20,64}$/.test(token) ? token : null;
+  } catch { return null; }
+}
+
+/** Read the saved draft, or null. Every storage access can throw (private
+ *  windows, blocked site data, a full quota), so all of them are wrapped. */
+function readDraft() {
+  try {
+    const raw = window.localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    return d && typeof d === 'object' && d.v === 1 ? d : null;
+  } catch { return null; }
+}
+function writeDraft(draft) {
+  try { window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); return true; }
+  catch { return false; }
+}
+function clearDraft() {
+  try { window.localStorage.removeItem(DRAFT_KEY); } catch { /* nothing to clear */ }
+}
+/** A draft worth offering back: something typed, or drawings already read.
+ *  A page opened and closed without a keystroke leaves nothing to resume. */
+function draftHasWork(d) {
+  if (!d) return false;
+  const typed = ['firstName', 'lastName', 'email', 'project'].some(k => String(d[k] ?? '').trim());
+  return typed || Boolean(d.haveDrawings) || Boolean(d.drawings);
+}
+/** Copy only the keys the live state already has, and only string values, so
+ *  a stale or hand-edited draft can never add fields the wizard doesn't know. */
+function pickStrings(src, into) {
+  const out = { ...into };
+  if (!src || typeof src !== 'object') return out;
+  for (const k of Object.keys(into)) if (typeof src[k] === 'string') out[k] = src[k];
+  return out;
+}
+function fmtSavedAt(iso) {
+  try {
+    return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  } catch { return ''; }
+}
+
 /**
  * The step list, mirroring the internal wizard's area order
  * (units → corridors → amenities → exterior → emergency → controls).
@@ -364,6 +436,61 @@ export default function IntakeClient() {
   const [pdfError, setPdfError] = useState(null);
   const mainRef = useRef(null);
 
+  // ── Saved in this browser (see DRAFT_KEY) ─────────────────────────────────
+  // `savedDraft` is the draft found on load, waiting for a Continue / Start
+  // fresh decision. Autosave holds off until that decision (`draftDecided`),
+  // or the first keystroke on a fresh form would overwrite the saved one
+  // before the visitor had a chance to take it back.
+  const [savedDraft, setSavedDraft] = useState(null);
+  const [draftDecided, setDraftDecided] = useState(false);
+  const [savedAt, setSavedAt] = useState(null);
+  // The drawings read that came back from the draft, handed to the dropzone
+  // once so it can list the files and keep counting them if more are added.
+  const [restoredDrawings, setRestoredDrawings] = useState(null);
+  // ── Saved on the server (see RESUME_LINK_ENABLED) ─────────────────────────
+  // The resume token for this visitor's server-side copy, if one exists. Kept
+  // in a ref as well so the save effect can read the latest value without
+  // re-running every time it changes.
+  const [draftToken, setDraftToken] = useState(null);
+  const draftTokenRef = useRef(null);
+  draftTokenRef.current = draftToken;
+  const savingRef = useRef(false); // a save is in flight
+  const dirtyRef  = useRef(false); // something changed while it was
+  const [linkCopied,  setLinkCopied]  = useState(false);
+  const [linkEmailed, setLinkEmailed] = useState(null); // null | 'sent' | 'failed'
+
+  // The resume token is taken off the address bar exactly once. React's dev
+  // Strict Mode runs the mount effect twice; a second look at the URL would
+  // find nothing and drop the link on the floor.
+  const resumeTokenRef = useRef(undefined);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fromLocal = () => {
+      const d = readDraft();
+      if (draftHasWork(d)) setSavedDraft(d);
+      else setDraftDecided(true);
+    };
+    // A ?resume= link beats the browser copy: it was asked for on purpose.
+    if (resumeTokenRef.current === undefined) resumeTokenRef.current = takeResumeToken();
+    const token = resumeTokenRef.current;
+    if (!token) { fromLocal(); return; }
+    (async () => {
+      try {
+        const res = await fetch(`/api/intake/draft?token=${encodeURIComponent(token)}`);
+        if (!res.ok) throw new Error('gone');
+        const body = await res.json();
+        if (cancelled) return;
+        if (draftHasWork(body?.draft)) {
+          setSavedDraft({ ...body.draft, serverToken: token, fromLink: true });
+          return;
+        }
+      } catch { /* fall through to the browser copy */ }
+      if (!cancelled) fromLocal();
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   const stepIndex = STEPS.findIndex(s => s.id === stepId);
   const step      = STEPS[stepIndex];
 
@@ -575,6 +702,155 @@ export default function IntakeClient() {
     if (prev) goTo(prev.id);
   }
 
+  // ── Continue / Start fresh ────────────────────────────────────────────────
+  function restoreDraft() {
+    const d = savedDraft;
+    if (!d) return;
+    const str = v => (typeof v === 'string' ? v : '');
+    setFirstName(str(d.firstName));
+    setLastName(str(d.lastName));
+    setEmail(str(d.email));
+    setCompany(str(d.company));
+    setProject(str(d.project));
+    setProjCity(str(d.projCity));
+    setProjState(str(d.projState));
+    setProjZip(str(d.projZip));
+    // They had already been through these boxes; show any error right away
+    // rather than waiting for a blur that may never come.
+    setTouchedEmail(Boolean(str(d.email)));
+    setTouchedZip(Boolean(str(d.projZip)));
+    if (d.haveDrawings === 'yes' || d.haveDrawings === 'no') setHaveDrawings(d.haveDrawings);
+    if (d.drawings && typeof d.drawings === 'object') {
+      setDrawings(d.drawings);
+      setRestoredDrawings(d.drawings);
+    }
+    setFigures(f => pickStrings(d.figures, f));
+    setAnswers(a => pickStrings(d.answers, a));
+    setCorrections(d.corrections && typeof d.corrections === 'object'
+      ? Object.fromEntries(Object.entries(d.corrections).filter(([, v]) => typeof v === 'string'))
+      : {});
+    setHasClubhouse(str(d.hasClubhouse));
+    setCompletedSteps(Array.isArray(d.completedSteps)
+      ? d.completedSteps.filter(id => STEPS.some(s => s.id === id))
+      : []);
+    setSavedAt(typeof d.savedAt === 'string' ? d.savedAt : null);
+    setDraftToken(typeof d.serverToken === 'string' ? d.serverToken : null);
+    setSavedDraft(null);
+    setDraftDecided(true);
+    // Back to the page they were on — unless the contact details in the draft
+    // would not pass About You today, in which case that page comes first,
+    // the same gate a fresh visitor meets.
+    const ready = str(d.firstName).trim() && str(d.lastName).trim() && str(d.project).trim()
+      && classifyIntakeEmail(str(d.email))?.ok
+      && checkLocation({ city: str(d.projCity), state: str(d.projState), zip: str(d.projZip) }).ok;
+    const target = ready && STEPS.some(s => s.id === d.stepId) ? d.stepId : 'about';
+    goTo(target);
+  }
+
+  function discardDraft() {
+    clearDraft();
+    setDraftToken(null);
+    setSavedDraft(null);
+    setDraftDecided(true);
+  }
+
+  // A draft opened from a resume link needs no Continue / Start fresh question —
+  // following the link was the answer.
+  useEffect(() => {
+    if (savedDraft?.fromLink) restoreDraft();
+  }, [savedDraft]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Autosave ──────────────────────────────────────────────────────────────
+  // Half a second after the last change, once there is something to keep.
+  // Inputs only: never the estimate, never a price, never after Send.
+  useEffect(() => {
+    if (!draftDecided || submitted) return;
+    const hasWork = [firstName, lastName, email, project].some(v => v.trim()) || haveDrawings || drawings;
+    if (!hasWork) return;
+    const t = setTimeout(() => {
+      const when = new Date().toISOString();
+      const ok = writeDraft({
+        v: 1, savedAt: when, stepId, completedSteps,
+        firstName, lastName, email, company, project, projCity, projState, projZip,
+        haveDrawings, drawings, figures, corrections, answers, hasClubhouse,
+        serverToken: draftTokenRef.current,
+      });
+      if (ok) setSavedAt(when);
+    }, 500);
+    return () => clearTimeout(t);
+  }, [draftDecided, submitted, stepId, completedSteps, firstName, lastName, email, company, project,
+      projCity, projState, projZip, haveDrawings, drawings, figures, corrections, answers, hasClubhouse,
+      draftToken]); // a freshly minted token must reach the browser copy too
+
+  // ── Server copy ───────────────────────────────────────────────────────────
+  // Three seconds after the last change, and only once the contact details
+  // pass About You (a name, a work email, a project, a location) — before that
+  // there is nobody to tie the row to. Same inputs as the browser copy, never
+  // a price. The first save mints the resume token; later saves update the
+  // same row. Overlapping saves are serialised so a slow first save cannot
+  // create two rows for one visitor.
+  useEffect(() => {
+    if (!draftDecided || submitted || !contactReady) return;
+    const t = setTimeout(() => {
+      const draft = {
+        firstName, lastName, email, company, project, projCity, projState, projZip,
+        haveDrawings, stepId, completedSteps, hasClubhouse, figures, corrections, answers,
+        drawings: manual ? null : drawings,
+      };
+      const run = async () => {
+        if (savingRef.current) { dirtyRef.current = true; return; }
+        savingRef.current = true;
+        try {
+          const res = await fetch('/api/intake/draft', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: draftTokenRef.current, draft }),
+          });
+          if (res.status === 404 || res.status === 410) {
+            // Submitted, put away, or unknown: forget it and start a new row next time.
+            setDraftToken(null);
+          } else if (res.ok) {
+            const body = await res.json().catch(() => ({}));
+            if (typeof body.token === 'string' && body.token !== draftTokenRef.current) setDraftToken(body.token);
+          }
+        } catch { /* offline or blocked — the browser copy still has it */ }
+        finally {
+          savingRef.current = false;
+          if (dirtyRef.current) { dirtyRef.current = false; run(); }
+        }
+      };
+      run();
+    }, SERVER_SAVE_DELAY_MS);
+    return () => clearTimeout(t);
+  }, [draftDecided, submitted, contactReady, stepId, completedSteps, firstName, lastName, email, company, project,
+      projCity, projState, projZip, haveDrawings, manual, drawings, figures, corrections, answers, hasClubhouse]);
+
+  const resumeLink = draftToken && typeof window !== 'undefined'
+    ? `${window.location.origin}/conceptual_budget?resume=${draftToken}`
+    : null;
+
+  async function copyResumeLink() {
+    if (!resumeLink) return;
+    try {
+      await navigator.clipboard.writeText(resumeLink);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2500);
+    } catch { window.prompt('Copy this link:', resumeLink); }
+  }
+
+  async function emailResumeLink() {
+    if (!draftTokenRef.current) return;
+    setLinkEmailed(null);
+    try {
+      const res = await fetch('/api/intake/draft/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: draftTokenRef.current }),
+      });
+      setLinkEmailed(res.ok ? 'sent' : 'failed');
+    } catch { setLinkEmailed('failed'); }
+  }
+
   async function handleSubmit() {
     if (!contactReady || submitting) return;
     setSubmitting(true);
@@ -593,6 +869,9 @@ export default function IntakeClient() {
           zip:          projZip,
           drawingsData: manual ? null : (drawings || null),
           answers: mergedAnswers,
+          // Ties the server-side draft to this submission so it leaves the
+          // staff "unfinished budgets" list.
+          draftToken: draftTokenRef.current,
         }),
       });
       if (!res.ok) {
@@ -600,6 +879,12 @@ export default function IntakeClient() {
         throw new Error(body.error || 'Submission failed');
       }
       setSubmitted(true);
+      // Sent, so there is nothing left to come back to. Cleared AFTER the
+      // submitted flag flips, and the autosave stops on that flag, so the
+      // last debounced write cannot land behind the clear.
+      clearDraft();
+      setSavedAt(null);
+      setDraftToken(null);
     } catch (err) {
       setSubmitError(err.message);
     } finally {
@@ -766,6 +1051,13 @@ export default function IntakeClient() {
               <div className="mb-6">
                 <div className="flex items-center gap-2 text-xs text-slate-400 mb-2">
                   <span>Step {stepIndex + 1} of {STEPS.length}</span>
+                  {/* So a visitor knows closing the tab is safe. Browser-only:
+                      the words say so, or they'd expect it on their phone too. */}
+                  {savedAt && (
+                    <span className="ml-auto text-[11px] text-slate-400" title="Saved in this browser only — come back on this device to continue.">
+                      Saved in this browser · {fmtSavedAt(savedAt)}
+                    </span>
+                  )}
                   <div className="flex-1 max-w-32 bg-slate-100 rounded-full h-1">
                     <div
                       className="bg-amber-500 h-1 rounded-full transition-all"
@@ -794,6 +1086,38 @@ export default function IntakeClient() {
                 {/* ── About you ── */}
                 {stepId === 'about' && (
                   <section className="bg-white rounded-2xl border border-slate-200 p-6">
+                    {/* A draft from last time, found in this browser. Offered
+                        once, up front; nothing is saved until they choose. */}
+                    {savedDraft && (
+                      <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-4" role="region" aria-label="Saved budget found">
+                        <p className="text-sm font-semibold text-slate-900">Pick up where you left off?</p>
+                        <p className="text-xs text-slate-600 mt-1">
+                          We kept {String(savedDraft.project ?? '').trim()
+                            ? <>your budget for <span className="font-semibold">{String(savedDraft.project).trim()}</span></>
+                            : 'your unfinished budget'}
+                          {' '}in this browser
+                          {typeof savedDraft.savedAt === 'string' && fmtSavedAt(savedDraft.savedAt)
+                            ? <> — last saved {fmtSavedAt(savedDraft.savedAt)}</>
+                            : null}.
+                          {savedDraft.drawings
+                            ? ' Your drawings were already read, so you won’t need to upload them again.'
+                            : ''}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-3 mt-3">
+                          <button type="button" onClick={restoreDraft} className={navBtn(true)}>
+                            Continue where I left off
+                          </button>
+                          <button
+                            type="button"
+                            onClick={discardDraft}
+                            className="px-5 py-2.5 rounded-lg font-semibold text-sm border border-slate-300 text-slate-700 hover:bg-white transition-colors"
+                          >
+                            Start fresh
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     {/* How this works — what the tool is, what you'll need,
                         how long, and what happens after. Kept light. */}
                     <div className="mb-6 max-w-xl">
@@ -955,7 +1279,7 @@ export default function IntakeClient() {
                       unit counts. We read it automatically so you don&apos;t have to type it in.
                     </p>
 
-                    <DrawingDropzone onResults={setDrawings} />
+                    <DrawingDropzone onResults={setDrawings} restored={restoredDrawings} />
 
                     {/* Building summary — everything the takeoff pulled from the
                         drawings, shown right where they were uploaded. Values +
@@ -1287,16 +1611,43 @@ export default function IntakeClient() {
                           >
                             {pdfBusy ? 'Preparing…' : 'Download PDF'}
                           </button>
-                          <button
-                            type="button"
-                            disabled
-                            aria-disabled="true"
-                            className="px-5 py-2.5 rounded-lg font-semibold text-sm border border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed"
-                          >
-                            Email this budget
-                          </button>
+                          {RESUME_LINK_ENABLED && resumeLink ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={copyResumeLink}
+                                className="px-5 py-2.5 rounded-lg font-semibold text-sm border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors"
+                              >
+                                {linkCopied ? 'Link copied' : 'Copy my resume link'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={emailResumeLink}
+                                className="px-5 py-2.5 rounded-lg font-semibold text-sm border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors"
+                              >
+                                Email me the link
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled
+                              aria-disabled="true"
+                              className="px-5 py-2.5 rounded-lg font-semibold text-sm border border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed"
+                            >
+                              Email this budget
+                            </button>
+                          )}
                         </div>
-                        <p className="text-xs text-slate-400 mt-2">Coming soon — email isn&apos;t connected yet.</p>
+                        {RESUME_LINK_ENABLED && resumeLink ? (
+                          <p className="text-xs text-slate-400 mt-2">
+                            {linkEmailed === 'sent' && `Sent to ${email}. `}
+                            {linkEmailed === 'failed' && 'We could not send the email just now — copy the link instead. '}
+                            The link opens this budget on any device. Anyone with it can see what you entered, so keep it to yourself.
+                          </p>
+                        ) : (
+                          <p className="text-xs text-slate-400 mt-2">Coming soon — email isn&apos;t connected yet.</p>
+                        )}
                         {pdfError && <p className="text-xs text-red-600 mt-2" role="alert">{pdfError}</p>}
                       </div>
                     )}

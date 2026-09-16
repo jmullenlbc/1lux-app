@@ -580,7 +580,16 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // 2026-09-04 the sheet-wide cap silently REPLACED the type cap whenever it was
   // present, so a garden project could be charged up to $180K of controls.
   const controlsCap  = Math.min(n(ctrlRate.cap, Infinity), n(PRICING.controls.cap, Infinity));
-  let controlsProduct = Math.min(grossSf * ctrlRate.perSf, controlsCap);
+  // Town houses and single family carry a $0/SF controls rate: the homes have
+  // no common-area controls. Their CLUBHOUSE does (Mike 2026-09-15: "$5/SF,
+  // editable in master pricing"), so when such a type has clubhouse / interior
+  // amenity SF, controls are priced on that SF alone at the clubhouse rate.
+  // Same caps, same override, same energy-credit adder as every other type.
+  const clubhousePerSf   = n(PRICING.controls.clubhousePerSf);
+  const controlsBasis    = (n(ctrlRate.perSf) === 0 && intAmenitySf > 0 && clubhousePerSf > 0) ? 'clubhouse' : 'gross';
+  const controlsBasisSf  = controlsBasis === 'clubhouse' ? intAmenitySf : grossSf;
+  const controlsRateUsed = controlsBasis === 'clubhouse' ? clubhousePerSf : n(ctrlRate.perSf);
+  let controlsProduct = Math.min(controlsBasisSf * controlsRateUsed, controlsCap);
 
   // Manual override — an explicit override replaces the formula result.
   const controlsOverrideVal = n(controls.controlsOverride);
@@ -856,6 +865,13 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     energyCreditControls,
     subtotalLightingOnly,
     controls:               controlsProduct,
+    // What the controls line was priced on: 'gross' (building type $/SF ×
+    // gross SF) or 'clubhouse' (clubhouse $/SF × interior amenity SF, the
+    // town-house / single-family rule). The screens read these instead of
+    // re-deriving the rule.
+    controlsBasis,
+    controlsBasisSf,
+    controlsRateUsed,
     controlsSubtotal,
     controlsFreight,
     controlsWarehousing,

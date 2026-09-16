@@ -5,7 +5,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fileExt, pickModel, mergeProposals, extractPdfPages, attachAreaBasis, IMAGE_EXTS, ACCEPTED_EXTS } from '../../src/lib/drawingExtract.js';
+import { fileExt, pickModel, mergeProposals, extractPdfPages, extractDrawingText, attachAreaBasis, IMAGE_EXTS, ACCEPTED_EXTS } from '../../src/lib/drawingExtract.js';
 import { modelFor } from '../../src/lib/aiModels.js';
 
 test('fileExt is case-insensitive and handles dotted names', () => {
@@ -53,6 +53,16 @@ test('merging distinct unit types unions them', () => {
   assert.equal(m.unitTypes.reduce((s, r) => s + r.qty, 0), 15);
 });
 
+test('a printed back-of-house SF survives the merge (Mike 2026-09-16)', () => {
+  const m = mergeProposals([
+    { fileName: 'a.pdf', proposal: p([{ code: 'A1', qty: 10, confidence: 0.9 }], { bohSf: 1438 }) },
+    { fileName: 'b.pdf', proposal: p([{ code: 'B1', qty: 5, confidence: 0.9 }]) },
+  ]);
+  assert.equal(m.projectTotals.bohSf, 1438);
+  const none = mergeProposals([{ fileName: 'a.pdf', proposal: p([{ code: 'A1', qty: 10, confidence: 0.9 }]) }]);
+  assert.equal(none.projectTotals.bohSf, null);
+});
+
 test('THE IMPORTANT ONE: a repeated matrix does not double-count units', () => {
   // Same sheet appearing in two uploads is the common real case. Summing would
   // silently report 20 units where there are 10.
@@ -89,6 +99,60 @@ test('unit codes match case-insensitively', () => {
     { fileName: 'b.pdf', proposal: p([{ code: 'A1', qty: 10, confidence: 0.9 }]) },
   ]);
   assert.equal(m.unitTypes.length, 1, 'a1 and A1 are the same type');
+});
+
+// Lone Tree Ranch Test v1, live, 2026-09-15 (Mike's screenshots): the model
+// wrote the bedroom count as the code for all seven rows, the merge keyed on
+// code folded them into three, 60 units vanished and the app reported four
+// "disagreements between files" from a single file.
+test('LONE TREE: rows from ONE file that share a code but differ are all kept', () => {
+  const m = mergeProposals([
+    { fileName: 'gen.pdf', proposal: p([
+      { code: '2BR', label: '2BR',                    qty: 53, unitSf: 1004, bedrooms: 2, confidence: 1 },
+      { code: '2BR', label: '2BR (Type A accessible)', qty: 3,  unitSf: 1004, bedrooms: 2, confidence: 1 },
+      { code: '3BR', label: '3BR',                    qty: 32, unitSf: 1120, bedrooms: 3, confidence: 1 },
+      { code: '3BR', label: '3BR',                    qty: 51, unitSf: 1263, bedrooms: 3, confidence: 1 },
+      { code: '3BR', label: '3BR (Type A accessible)', qty: 5,  unitSf: 1263, bedrooms: 3, confidence: 1 },
+      { code: '4BR', label: '4BR',                    qty: 23, unitSf: 1440, bedrooms: 4, confidence: 1 },
+      { code: '4BR', label: '4BR (Type A accessible)', qty: 1,  unitSf: 1440, bedrooms: 4, confidence: 1 },
+    ]) },
+  ]);
+  assert.equal(m.unitTypes.length, 7, 'seven types in, seven types out');
+  assert.equal(m.unitTypes.reduce((s, r) => s + Number(r.qty), 0), 168, 'all 168 units kept');
+  assert.equal(m.conflicts.length, 0, 'one file cannot disagree with itself');
+});
+
+test('LONE TREE: the same bedroom-coded matrix in a second file is still counted once', () => {
+  const rows = [
+    { code: '3BR', label: '3BR', qty: 32, unitSf: 1120, bedrooms: 3, confidence: 1 },
+    { code: '3BR', label: '3BR', qty: 51, unitSf: 1263, bedrooms: 3, confidence: 1 },
+  ];
+  const m = mergeProposals([
+    { fileName: 'gen.pdf',  proposal: p(rows) },
+    { fileName: 'arch.pdf', proposal: p(rows.map(r => ({ ...r, confidence: 0.9 }))) },
+  ]);
+  assert.equal(m.unitTypes.length, 2, 'two types, each seen twice');
+  assert.equal(m.unitTypes.reduce((s, r) => s + Number(r.qty), 0), 83, 'never summed');
+  assert.equal(m.conflicts.length, 0);
+});
+
+test('same code across files with different SF is two types, not a disagreement', () => {
+  const m = mergeProposals([
+    { fileName: 'a.pdf', proposal: p([{ code: 'B2', qty: 20, unitSf: 900,  confidence: 0.9 }]) },
+    { fileName: 'b.pdf', proposal: p([{ code: 'B2', qty: 8,  unitSf: 1150, confidence: 0.9 }]) },
+  ]);
+  assert.equal(m.unitTypes.length, 2);
+  assert.equal(m.conflicts.length, 0);
+});
+
+test('same code across files, same SF, different qty is STILL a real disagreement', () => {
+  const m = mergeProposals([
+    { fileName: 'a.pdf', proposal: p([{ code: 'B2', qty: 20, unitSf: 900, confidence: 0.5 }]) },
+    { fileName: 'b.pdf', proposal: p([{ code: 'B2', qty: 22, unitSf: 900, confidence: 0.9 }]) },
+  ]);
+  assert.equal(m.unitTypes.length, 1);
+  assert.equal(m.unitTypes[0].qty, 22, 'higher confidence wins');
+  assert.equal(m.conflicts.length, 1);
 });
 
 // REVERSED 2026-09-15. This used to assert that a blank-code row was DROPPED
@@ -463,7 +527,59 @@ test('a read stopped by the memory brake is finished, not paused', async () => {
   const r = await extractPdfPages(fakeDoc(50), { shouldStop: () => true });
   assert.equal(r.braked, true);
   assert.equal(r.nextPage, null, 'a braked read must not ask to be resumed');
-  assert.equal(r.pages.length, 0, 'an over-ceiling read must not read one more page');
+  // REVERSED 2026-09-15 (Lone Tree ARCH, 85 MB): the brake is latched and
+  // measures the whole process, so it is routinely already on the moment a big
+  // set is opened. Zero pages read then got judged "no text layer". The
+  // mandatory first page is read regardless; the brake takes hold after it.
+  assert.equal(r.pages.length, 1, 'the mandatory first page is still read');
+  assert.equal(r.pages[0].page, 1);
+});
+
+test('a brake that is already on when the set is opened still stops after one page', async () => {
+  let asked = 0;
+  const r = await extractPdfPages(fakeDoc(50), { shouldStop: () => { asked++; return true; } });
+  assert.equal(r.pages.length, 1);
+  assert.equal(r.braked, true);
+  assert.equal(r.nextPage, null);
+  assert.equal(asked, 1, 'the brake is consulted once, before page 2, and honoured');
+});
+
+test('a brake that comes on mid-read keeps every page banked before it', async () => {
+  let calls = 0;
+  const r = await extractPdfPages(fakeDoc(50), { shouldStop: () => ++calls > 3 });
+  assert.deepEqual(r.pages.map(p => p.page), [1, 2, 3, 4]);
+  assert.equal(r.braked, true);
+  assert.equal(r.nextPage, null);
+});
+
+test('a braked read that found no text is reported as too big, not as a blank scan', async () => {
+  // One page of a 33-sheet set, no text on it, brake on: we do not know the
+  // set has no text layer — we know we could not hold it open. The message
+  // says which, and the route still sends it on to the vision read.
+  const blankDoc = { ...fakeDoc(33), async getPage() { return { getTextContent: async () => ({ items: [] }), cleanup() {} }; } };
+  const r = await extractDrawingText(blankDoc, 'ARCH.pdf', { shouldStop: () => true });
+  assert.equal(r.ok, false);
+  assert.equal(r.code, 'too_big_to_read');
+  assert.match(r.message, /1 of 33 pages/);
+  assert.equal(r.scan.braked, true);
+  assert.equal(r.scan.scannedPages, 1);
+});
+
+test('a blank set read in FULL is still a blank scan (no_text_layer)', async () => {
+  const blankDoc = { ...fakeDoc(3), async getPage() { return { getTextContent: async () => ({ items: [] }), cleanup() {} }; } };
+  const r = await extractDrawingText(blankDoc, 'scan.pdf', {});
+  assert.equal(r.ok, false);
+  assert.equal(r.code, 'no_text_layer');
+});
+
+test('a braked read that DID find text comes back ok, with the brake flagged on the scan', async () => {
+  // fakeDoc's "page N" is under the 30-character floor; give page 1 real words.
+  const wordyDoc = { ...fakeDoc(40), async getPage(n) { return { getTextContent: async () => ({ items: [{ str: `SITE PLAN SHEET ${n} — TOTAL UNITS 168, GROSS AREA 226,396 SF` }] }), cleanup() {} }; } };
+  const r = await extractDrawingText(wordyDoc, 'set.pdf', { shouldStop: () => true });
+  assert.equal(r.ok, true);
+  assert.equal(r.scan.braked, true);
+  assert.equal(r.scan.scannedPages, 1);
+  assert.equal(r.scan.totalPages, 40);
 });
 
 test('finishing the set reports nothing left to read', async () => {

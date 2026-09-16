@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { computeReviewFlags } from '@/lib/intake/reviewFlags';
 import { computeQuantities } from '@/lib/intake/quantities';
 import { INTAKE_QUESTIONS } from '@/lib/intake/questionnaire';
+import { draftStage, reachedLabel } from '@/lib/intake/drafts';
 
 const STATUS_CONFIG = {
   PENDING: { color: 'bg-amber-100 text-amber-700 border border-amber-200', label: 'Pending' },
@@ -16,6 +17,125 @@ const STATUS_CONFIG = {
 function fmtDate(d) {
   if (!d) return '';
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+function fmtDateTime(d) {
+  if (!d) return '';
+  return new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+/**
+ * Budgets started on the public page and never sent (migration 0087). Each
+ * one is a lead: a name, a work email and a project, saved the moment the
+ * About You page was passed. "Still working" for the first day, "Abandoned"
+ * after that (Mike, 2026-09-15: "Yes we should see it abandoned"). Put away
+ * archives the row — nothing is deleted.
+ */
+function UnfinishedBudgets({ drafts, onArchived }) {
+  const [busyId, setBusyId] = useState(null);
+  const [error, setError] = useState(null);
+
+  async function putAway(id) {
+    setBusyId(id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/intake/drafts/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archived: true }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Could not put that away');
+      }
+      onArchived(id);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-lg border border-slate-200 overflow-hidden mt-6">
+      <div className="px-4 py-3 border-b border-slate-200 flex items-baseline justify-between gap-3">
+        <h2 className="font-bold text-slate-900">Unfinished budgets ({drafts.length})</h2>
+        <p className="text-xs text-slate-500">
+          Started on the public budget page and not sent yet. Each is a lead worth a call.
+        </p>
+      </div>
+      {error && <p className="px-4 py-2 text-xs text-red-600" role="alert">{error}</p>}
+      {drafts.length === 0 ? (
+        <p className="px-4 py-6 text-sm text-slate-500">
+          Nobody has a budget half-finished right now. When a visitor gets past the first page and stops, they show up here.
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+              <tr>
+                <th className="px-4 py-2">Last saved</th>
+                <th className="px-4 py-2">Name</th>
+                <th className="px-4 py-2">Project</th>
+                <th className="px-4 py-2">Reached</th>
+                <th className="px-4 py-2 text-right">Units / Gross SF</th>
+                <th className="px-4 py-2">Status</th>
+                <th className="px-4 py-2"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {drafts.map(d => {
+                const stage = draftStage(d.lastSavedAt);
+                const where = [d.city, d.state].filter(Boolean).join(', ');
+                return (
+                  <tr key={d.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
+                      {fmtDateTime(d.lastSavedAt)}
+                      {d.saveCount > 1 && <span className="block text-[10px] text-slate-400">{d.saveCount} saves</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="font-medium text-slate-900">{d.firstName} {d.lastName}</span>
+                      <a href={`mailto:${d.email}`} className="block text-xs text-blue-600 hover:underline">{d.email}</a>
+                      {d.company && <span className="block text-xs text-slate-500">{d.company}</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-slate-900">{d.projectName}</span>
+                      <span className="block text-xs text-slate-500">
+                        {[where, d.buildingType].filter(Boolean).join(' · ') || '—'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">{reachedLabel(d)}</td>
+                    <td className="px-4 py-3 text-right text-slate-600 whitespace-nowrap">
+                      {d.unitCount ? d.unitCount.toLocaleString() : '—'} / {d.grossSf ? d.grossSf.toLocaleString() : '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                        stage === 'working'
+                          ? 'bg-amber-100 text-amber-700 border border-amber-200'
+                          : 'bg-slate-100 text-slate-600 border border-slate-200'
+                      }`}>
+                        {stage === 'working' ? 'Still working' : 'Abandoned'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        type="button"
+                        onClick={() => putAway(d.id)}
+                        disabled={busyId === d.id}
+                        className="text-xs font-semibold text-slate-500 hover:text-slate-800 disabled:opacity-50"
+                        title="Move this off the list. Nothing is deleted."
+                      >
+                        {busyId === d.id ? 'Putting away…' : 'Put away'}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
 }
 
 /**
@@ -462,9 +582,10 @@ function JobLinkPanel({ submission, projects, onUpdated }) {
   );
 }
 
-export default function IntakeClient({ submissions: initialSubmissions, clients, projects, currentUser, canInvite = false, initialSelectedId = null }) {
+export default function IntakeClient({ submissions: initialSubmissions, drafts = [], clients, projects, currentUser, canInvite = false, initialSelectedId = null }) {
   const router = useRouter();
   const [submissions, setSubmissions] = useState(initialSubmissions);
+  const [draftList, setDraftList] = useState(drafts);
   const [selectedId, setSelectedId] = useState(initialSelectedId);
   const selected = submissions.find(s => s.id === selectedId);
   const [status, setStatus] = useState(selected?.status || 'PENDING');
@@ -655,6 +776,11 @@ export default function IntakeClient({ submissions: initialSubmissions, clients,
                 </tbody>
               </table>
             </div>
+
+            <UnfinishedBudgets
+              drafts={draftList}
+              onArchived={id => setDraftList(list => list.filter(d => d.id !== id))}
+            />
           </div>
 
           {/* Detail Panel */}

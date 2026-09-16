@@ -45,6 +45,8 @@ export const NEVER_DELETED = [
   'bugReport', 'contactEmployment',
   // Access history (0086): who changed whose role, turned them off, and so on.
   'userAccessEvent',
+  // Unfinished public budgets (0087): staff "Put away" stamps archivedAt.
+  'conceptualDraft', 'conceptualDraftField',
 ];
 
 export class DeleteRefusedError extends Error {

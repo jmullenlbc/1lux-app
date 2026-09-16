@@ -159,6 +159,7 @@ const PRICING_FIELDS = [
   { group: 'Controls — Building Type Rates', key: 'controls.rates.podium.perSf',       label: 'Podium (3–8 Lvl)',        unit: '$/SF' },
   { group: 'Controls — Building Type Rates', key: 'controls.rates.midRise.perSf',      label: 'Mid Rise (9–12 Lvl)',     unit: '$/SF' },
   { group: 'Controls — Building Type Rates', key: 'controls.rates.highRise.perSf',     label: 'High Rise (12+ Lvl)',     unit: '$/SF' },
+  { group: 'Controls — Building Type Rates', key: 'controls.clubhousePerSf',           label: 'Clubhouse Only (Town Houses / Single Family)', desc: 'When the building type\'s rate above is $0, controls are priced on the clubhouse / interior amenity SF alone at this rate. No clubhouse = $0 controls.', unit: '$/SF' },
   { group: 'Controls — Building Type Rates', key: 'controls.cap',                      label: 'Controls Cap (max $)',    desc: 'Controls never exceed this, regardless of SF', unit: '$' },
   { group: 'Controls — Building Type Rates', key: 'controls.energyCreditAdderPct',     label: 'Energy Credit Adder',     desc: '% added to lighting + controls subtotals (0.03 = 3%)', unit: 'decimal' },
 

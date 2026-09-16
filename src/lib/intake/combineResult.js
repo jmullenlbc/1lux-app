@@ -82,8 +82,11 @@ export function needsSiteRead({ hasText, matrix } = {}) { // eslint-disable-line
  * @param {?object} a.siteData     the vision read's data, if it ran
  * @returns {object} the proposal
  */
-export function combineIntakeResult({ fileName, totalPages = null, sheetsRead = null, keptSheets = null, matrix = null, siteData = null }) {
-  const common = { fileName, sheetsRead, keptSheets, totalPages };
+export function combineIntakeResult({ fileName, totalPages = null, sheetsRead = null, pagesRead = null, readBraked = false, keptSheets = null, matrix = null, siteData = null }) {
+  // `pagesRead` / `readBraked`: how far the text read got and whether the
+  // memory brake stopped it. Shown next to the sheet list so a set that was
+  // only partly held open is never presented as fully searched.
+  const common = { fileName, sheetsRead, keptSheets, totalPages, pagesRead, readBraked: readBraked === true };
 
   // Vision wins only when the text read has nothing to offer AND vision found
   // a real number. Checked in this order because a matrix with rows is the

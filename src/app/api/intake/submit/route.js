@@ -9,6 +9,7 @@ import { checkLocation } from '@/lib/usStates';
 import { findLikelyProject } from '@/lib/intake/duplicateMatch';
 import { notifyUsers } from '@/lib/alerts';
 import { inDepartment, SALES_MARKETING } from '@/lib/departments';
+import { hashToken } from '@/lib/intake/draftTokens';
 
 export const dynamic = 'force-dynamic';
 
@@ -114,6 +115,21 @@ export async function POST(req) {
       answers: answerRows.length ? { create: answerRows } : undefined,
     },
   });
+
+  // The unfinished draft this grew out of (migration 0087) is now finished:
+  // link it so it drops off the staff "unfinished budgets" list and the two
+  // rows stay tied together. Never fatal — the submission is already saved.
+  try {
+    const tokenHash = hashToken(body.draftToken);
+    if (tokenHash) {
+      await prisma.conceptualDraft.updateMany({
+        where: { tokenHash, submissionId: null },
+        data: { submissionId: submission.id },
+      });
+    }
+  } catch (e) {
+    console.error('intake/submit draft link failed (non-fatal):', e);
+  }
 
   // Notify the precon inbox. A failed email must never fail the submission —
   // the row is already saved and the review queue is the source of truth.

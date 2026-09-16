@@ -48,7 +48,7 @@ test('every server code used by the intake pipeline has a number', () => {
     'unreadable', 'no_text_layer', 'parse_failed', 'extraction_failed',
     'bad_output', 'no_pages', 'bad_key', 'scan_expired', 'not_found',
     'unavailable', 'rate_limited', 'presign_failed', 'missing_parts',
-    'no_parts', 'ai_unavailable',
+    'no_parts', 'ai_unavailable', 'too_big_to_read',
   ]) {
     assert.ok(ERROR_NUMBERS[code], `no number mapped for code "${code}"`);
   }

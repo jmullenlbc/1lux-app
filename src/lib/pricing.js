@@ -478,6 +478,12 @@ export const PRICING = {
     },
     energyCreditAdderPct: 0.03, // 3% added to BOTH the lighting and controls subtotals when pursuing an energy credit (own line item)
     cap: 180000, // controls never exceed $180K regardless of SF (per sheet: over ~300K SF, reduce)
+    // Clubhouse-only controls for the types whose $/SF rate above is $0
+    // (town houses, single family). Mike 2026-09-15: "Charge $5/SF and make
+    // that editable in master pricing. We will adjust later." Applied to the
+    // clubhouse / interior-amenity SF only, never to the homes; a community
+    // with no clubhouse still gets $0 controls.
+    clubhousePerSf: 5.00,
   },
 
   // ─── FREIGHT & WAREHOUSING ────────────────────────────────────────────────

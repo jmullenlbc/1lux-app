@@ -35,7 +35,16 @@ export default function ControlsSection({ responses, projectData, budget, pricin
   const controlsCap   = Number.isFinite(lowerCap) ? lowerCap : 180000;
   const selectedRate  = { ...baseRate, cap: controlsCap };
 
-  const baseEst           = Math.min(grossSf * (selectedRate.perSf ?? 0), selectedRate.cap ?? 175000);
+  // Town houses / single family (a $0/SF type rate) price controls on the
+  // clubhouse SF alone, at the master sheet's clubhouse rate. Mirrors the
+  // engine's controlsBasis rule.
+  const clubhouseSf     = projectData?.interiorAmenitySf || 0;
+  const clubhousePerSf  = P.controls?.clubhousePerSf ?? 0;
+  const clubhouseBasis  = (selectedRate.perSf ?? 0) === 0 && clubhouseSf > 0 && clubhousePerSf > 0;
+  const basisSf         = clubhouseBasis ? clubhouseSf : grossSf;
+  const rateUsed        = clubhouseBasis ? clubhousePerSf : (selectedRate.perSf ?? 0);
+
+  const baseEst           = Math.min(basisSf * rateUsed, selectedRate.cap ?? 175000);
   // Preview the two energy-credit adder line items. The live budget's lighting
   // subtotal already contains the lighting-side adder when the credit is on —
   // back it out so the preview doesn't compound.
@@ -44,7 +53,7 @@ export default function ControlsSection({ responses, projectData, budget, pricin
   const lightingAdder     = lightingSubtotal * ecPct;
   const controlsAdder     = baseEst * ecPct;
   const creditEst         = baseEst + controlsAdder;
-  const isCapped          = grossSf * selectedRate.perSf >= selectedRate.cap;
+  const isCapped          = basisSf * rateUsed >= selectedRate.cap;
 
   const overrideVal = parseFloat(answers.controlsOverride);
   const hasOverride = overrideVal > 0;
@@ -89,9 +98,11 @@ export default function ControlsSection({ responses, projectData, budget, pricin
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center mb-3">
           {[
             { label: 'Building Type',  value: buildingTypeLabel(buildingType) },
-            { label: 'Rate',           value: (selectedRate?.perSf ?? 0) > 0 ? `$${selectedRate.perSf.toFixed(2)}/Gross Bldg SF` : 'N/A' },
+            { label: 'Rate',           value: clubhouseBasis ? `$${clubhousePerSf.toFixed(2)}/Clubhouse SF`
+                                              : (selectedRate?.perSf ?? 0) > 0 ? `$${selectedRate.perSf.toFixed(2)}/Gross Bldg SF`
+                                              : clubhouseSf > 0 ? 'N/A' : 'N/A (no clubhouse)' },
             { label: 'Cap',            value: selectedRate.cap > 0 ? formatCurrency(selectedRate.cap) : 'None' },
-            { label: 'Gross Bldg SF',  value: grossSf ? grossSf.toLocaleString() : '—' },
+            { label: clubhouseBasis ? 'Clubhouse SF' : 'Gross Bldg SF',  value: basisSf ? basisSf.toLocaleString() : '—' },
           ].map(item => (
             <div key={item.label} className="bg-white rounded-lg border border-slate-100 p-3">
               <div className="text-sm font-bold text-slate-900 leading-snug">{item.value}</div>
@@ -99,7 +110,7 @@ export default function ControlsSection({ responses, projectData, budget, pricin
             </div>
           ))}
         </div>
-        {grossSf > 0 && baseEst > 0 && (
+        {basisSf > 0 && baseEst > 0 && (
           <div className="text-xs text-slate-600 font-medium">
             {hasOverride
               ? <span className="text-amber-700">Formula result: {formatCurrency(baseEst)}{isCapped && ` (capped)`} — <strong>overridden below</strong></span>

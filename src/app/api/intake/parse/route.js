@@ -539,8 +539,11 @@ async function readAndPick({ source, name, ext, opened, client, slice = null }) 
 
   // Images and unsupported types are user-fixable, not server errors. A missing
   // text layer is NOT one of those — it is the scanned-set case, which vision
-  // handles, so it travels on rather than ending here.
-  if (!extracted.ok && !(extracted.code === 'no_text_layer' && ext === 'pdf')) {
+  // handles, so it travels on rather than ending here. So does a set the
+  // memory brake stopped before it could be judged (too_big_to_read): the
+  // vision read of page 1 is still worth having.
+  const onToVision = ext === 'pdf' && (extracted.code === 'no_text_layer' || extracted.code === 'too_big_to_read');
+  if (!extracted.ok && !onToVision) {
     return { error: bad(extracted.code, extracted.message, 422) };
   }
 
@@ -700,6 +703,7 @@ async function stageScan({ source, opened, name, ext, s3Key, buffer, state = nul
       pages:       picked.extracted.pages ?? null,
       hasText:     picked.extracted.ok === true,
       totalPages:  picked.extracted.scan?.totalPages ?? null,
+      braked:      picked.extracted.scan?.braked === true || state?.braked === true,
       nextPage:    null,
       pickPending: true,
       chosenPages: null,
@@ -770,6 +774,11 @@ async function stageScan({ source, opened, name, ext, s3Key, buffer, state = nul
     fileName:   name,
     totalPages: picked.extracted.scan?.totalPages ?? null,
     sheetsRead: picked.sheetsRead,
+    // How much of the set the text read actually covered, and whether the
+    // memory brake cut it short — so the visitor is told "read 1 of 33 pages"
+    // rather than believing the whole set was searched.
+    pagesRead:  picked.extracted.scan?.scannedPages ?? null,
+    readBraked: picked.extracted.scan?.braked === true || state?.braked === true,
     isSet:      picked.isSet,
     hasText:    picked.extracted.ok === true,
     // Only a PDF with sheets to draw needs the render stage; a spreadsheet
@@ -884,12 +893,14 @@ async function runScanShard(scanKey, state, shardIndex, range) {
  */
 async function mergeScanShards(scanKey, state) {
   const byPage = new Map();
+  let braked = false;
   for (const p of state.pages ?? []) byPage.set(p.page, p);
   for (let i = 0; i < SCAN_SHARDS; i++) {
     const shardKey = shardStateKeyFor(scanKey, i);
     // `quiet`: a stream that never started (fan-out interrupted) has no object.
     const parked = await getScanState(shardKey, { quiet: true });
     if (parked.ok) {
+      if (parked.state.braked) braked = true;
       for (const p of parked.state.pages ?? []) {
         if (!byPage.has(p.page)) byPage.set(p.page, p);
       }
@@ -897,7 +908,9 @@ async function mergeScanShards(scanKey, state) {
     await deleteScanState(shardKey);
   }
   const pages = [...byPage.values()].sort((a, b) => a.page - b.page);
-  const nextState = { ...state, pages, nextPage: (state.totalPages ?? MAX_PDF_PAGES) + 1 };
+  // A stream the memory brake stopped leaves a hole in the set; remember that
+  // so the finished read says "N of M pages" instead of posing as complete.
+  const nextState = { ...state, pages, braked: braked || state.braked === true, nextPage: (state.totalPages ?? MAX_PDF_PAGES) + 1 };
   const key = await putScanStateAt(scanKey, nextState);
   if (!key) {
     return { error: bad('parse_failed', 'Something went wrong reading this file on our side. Please try again in a minute.', 502) };
@@ -947,6 +960,8 @@ async function stageScanPick(scanKey, state) {
     fileName:   state.fileName,
     totalPages: state.totalPages ?? null,
     sheetsRead,
+    pagesRead:  pageScan.length,
+    readBraked: state.braked === true,
     isSet:      true,
     hasText:    state.hasText === true,
     needsRender: state.ext === 'pdf' && chosenPages.length > 0,
@@ -1825,6 +1840,8 @@ async function runWhole({ source, opened, name, ext }) {
     fileName:   name,
     totalPages: picked.extracted.scan?.totalPages ?? null,
     sheetsRead: picked.sheetsRead,
+    pagesRead:  picked.extracted.scan?.scannedPages ?? null,
+    readBraked: picked.extracted.scan?.braked === true,
     keptSheets: keptSheets?.map(({ page, key, bytes }) => ({ page, key, bytes })) ?? null,
     matrix,
     siteData,

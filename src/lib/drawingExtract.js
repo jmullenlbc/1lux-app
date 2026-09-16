@@ -232,10 +232,15 @@ export async function extractPdfPages(source, opts = {}) {
       // fast connection can drag a 400 MB set into memory well inside the time
       // budget, which is the exact failure this whole path exists to prevent.
       //
-      // No first-page exemption here, unlike the time check above: a read that
-      // is ALREADY out of room must not read one more page to prove it. It
-      // still cannot spin, because a braked read is finished, not paused.
-      if (shouldStop?.()) { stoppedEarly = true; braked = true; break; }
+      // The mandatory first page is exempt here too (2026-09-15). The brake is
+      // latched and measures the WHOLE process, so on a busy Lambda it is often
+      // already on the moment a big set has been opened — before a single page
+      // has been looked at. Lone Tree Ranch's 85 MB architectural set came back
+      // "no readable text layer" that way: zero pages read, then judged blank.
+      // One bounded page is the floor that lets the caller tell "too big to
+      // hold open" apart from "a scan with no text", and the read still cannot
+      // spin, because a braked read is finished, not paused (nextPage = null).
+      if (i > fromPage && shouldStop?.()) { stoppedEarly = true; braked = true; break; }
 
       // Bounded, because a page read can hang rather than fail. When pages are
       // fetched by byte range, pdfjs asks storage for bytes and then waits for
@@ -339,7 +344,7 @@ export async function extractPdfText(buffer, maxPages = MAX_PDF_PAGES) {
  * @returns { ok: true, text } | { ok: false, code, message }
  *
  * Codes are stable and safe to show a public user:
- *   unsupported_type | image_not_supported | no_text_layer
+ *   unsupported_type | image_not_supported | no_text_layer | too_big_to_read
  */
 export async function extractDrawingText(buffer, fileName, opts = {}) {
   const ext = fileExt(fileName);
@@ -380,6 +385,17 @@ export async function extractDrawingText(buffer, fileName, opts = {}) {
 
     const text = pages.map(p => p.text).join('\n').trim();
     if (!text || text.trim().length < 30) {
+      // Cut short by the memory brake with most of the set unread: we do not
+      // KNOW it has no text layer — we know we could not hold it open. Say
+      // that, with the page count, instead of blaming the drawing. The caller
+      // still sends it on to the vision read, exactly like no_text_layer.
+      const total = scan.totalPages ?? 0;
+      if (scan.braked && pages.length < total) {
+        return {
+          ok: false, code: 'too_big_to_read', scan,
+          message: `This drawing set is too large for our reader to hold open — only ${pages.length} of ${total} pages could be read, and no text was found on ${pages.length === 1 ? 'it' : 'them'}. A smaller PDF with just the site plan, area summary and unit matrix sheets reads best.`,
+        };
+      }
       // Overwhelmingly this means a scanned/plotted drawing with no text layer —
       // very common for site plans. Say so plainly rather than "parse failed".
       //
@@ -416,7 +432,7 @@ Return ONLY valid JSON matching this exact schema — no markdown, no explanatio
 {
   "unitTypes": [
     {
-      "code": "string (e.g. 2BR-K)",
+      "code": "string — the row's own designation exactly as printed (e.g. A1, Unit 2-1 Type A, 2BR-K); unique per row",
       "label": "string or null",
       "qty": number,
       "unitSf": number or null,
@@ -433,6 +449,7 @@ Return ONLY valid JSON matching this exact schema — no markdown, no explanatio
     "perBuildingGross": [ { "name": "string", "grossSf": number } ] or null,
     "garageSf": number or null,
     "corridorSf": number or null,
+    "bohSf": number or null,
     "statedTotalUnits": number or null,
     "buildingType": "string or null"
   },
@@ -444,6 +461,11 @@ Return ONLY valid JSON matching this exact schema — no markdown, no explanatio
 Rules:
 - Per-type matrices: each row is a unit type with a quantity. Roll up in your head to verify totals.
 - Per-unit matrices: each row is one unit; group them by type code.
+- code: copy the row's own name or designation exactly as printed ("Unit 3-1", "Unit 3-2 Type A", "A1",
+  "KING"). NEVER reduce it to a bedroom count — "Unit 3-1" and "Unit 3-2" are two different types and
+  must keep two different codes; a "Type A" (accessible) variant is its own type too. Every row in
+  unitTypes must have a code different from every other row. If a matrix truly names its rows by
+  bedroom count alone, make each code unique by appending the unit SF (e.g. "3BR 1,120 SF").
 - Bedrooms: use the bedroom column if present; otherwise infer from the type code (e.g. "2BR" → 2, "1BR" → 1, "STUDIO" → 0).
 - confidence per row: how confident you are in this row's data. 1.0 = exact numbers clearly stated; 0.5 = inferred/ambiguous.
 - If a column is missing entirely, set that field to null for all rows — do not guess.
@@ -467,6 +489,11 @@ Rules:
   they differ by 5–8%. Downstream code decides which one this is FROM THIS LABEL, so a paraphrased
   label is worse than no label. If nothing is printed near the number, return null — never invent one.
 - grossSfSheet: the sheet number that figure came from (e.g. "G0.02", "A-811", "LS0.01"), or null.
+- bohSf: BACK OF HOUSE square footage as PRINTED in an area table or program breakdown — a line labelled
+  "BOH", "BACK OF HOUSE", "SUPPORT", "SERVICE", or the sum of itemized support rooms printed there
+  (mechanical, electrical, trash, storage, maintenance, bike, janitor, riser, elevator machine, IT/telecom).
+  Only rooms with a printed area count; never estimate one, never take a percentage of gross, and never
+  include corridors, stairs, amenity, leasing, garage or unit areas. null when no such areas are printed.
 - statedTotalUnits: the total unit count as PRINTED on the document ("TOTAL UNITS: 364", a matrix total row,
   a cover-sheet project summary). Do NOT add up the rows yourself to fill this in — null is the correct answer
   when the document does not state a total. This field exists so the row quantities can be checked against
@@ -481,7 +508,7 @@ Rules:
  * to break that, which is why the constant lives here, next to the prompt,
  * rather than at the call sites.
  */
-export const EXTRACT_PROMPT_VERSION = 'unitMatrix-2026-09-04';
+export const EXTRACT_PROMPT_VERSION = 'unitMatrix-2026-09-16';
 
 /**
  * Which JOB this drawing is, in src/lib/aiModels.js terms.

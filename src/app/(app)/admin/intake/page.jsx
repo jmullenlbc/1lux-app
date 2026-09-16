@@ -39,11 +39,26 @@ export default async function IntakePage({ searchParams }) {
     orderBy: { name: 'asc' },
   });
 
+  // Budgets started on the public page but never sent (migration 0087) — leads.
+  // Finished ones carry a submissionId and put-away ones an archivedAt; this
+  // model is not on the automatic archive filter, so both are excluded by hand.
+  const drafts = await prisma.conceptualDraft.findMany({
+    where: { submissionId: null, archivedAt: null },
+    orderBy: { lastSavedAt: 'desc' },
+    take: 200,
+    select: {
+      id: true, firstName: true, lastName: true, email: true, company: true, projectName: true,
+      city: true, state: true, stepId: true, completedSteps: true, buildingType: true,
+      unitCount: true, grossSf: true, haveDrawings: true, saveCount: true, lastSavedAt: true, createdAt: true,
+    },
+  });
+
   const openId = typeof searchParams?.id === 'string' ? searchParams.id : null;
 
   return (
     <IntakeClient
       submissions={submissions}
+      drafts={drafts}
       clients={clients}
       projects={projects}
       currentUser={user}

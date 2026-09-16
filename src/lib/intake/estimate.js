@@ -89,6 +89,13 @@ export function computeIntakeEstimate({ answers, drawings, pricing = null }) {
     numBalconies:        num(q.balconies),
     numVanities:         num(q.vanities),
     numBathrooms:        num(q.bathrooms),
+    // Ceiling fans are counted PER BEDROOM by the takeoff (Mike 2026-09-16:
+    // "a 3 bedroom unit with master bedroom and living room chosen should be
+    // 2 fans; a studio with that same option should only be 1 fan"). Without
+    // this seam the engine fell back to units × a room multiplier, which gives
+    // every studio a master-bedroom fan. null (mix not found) keeps the
+    // engine's multiplier as the last resort.
+    numFans:             num(q.ceilingFans),
     corridorSf:          num(q.corridorSf),
     interiorAmenitySf:   num(q.interiorAmenitySf),
     exteriorAmenitySf:   num(q.exteriorAmenitySf),

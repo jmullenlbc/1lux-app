@@ -235,7 +235,13 @@ test('a read that crosses the ceiling stops, even though it has fetched almost n
     assert.equal(opened.overBudget(), true, 'over the memory ceiling must read as over budget');
 
     const scan = await extractPdfPages(opened.doc, { shouldStop: opened.overBudget });
-    assert.equal(scan.scannedPages, 0, 'a read already over the ceiling must not start');
+    // 2026-09-15: one bounded page is the floor, not zero. The ceiling counts
+    // baseline process memory, so a big set can be "over" the moment it is
+    // opened — and a read of zero pages was being judged "no text layer"
+    // (Lone Tree ARCH). The brake takes hold right after page 1.
+    assert.equal(scan.scannedPages, 1, 'a read already over the ceiling reads exactly the first page');
+    assert.equal(scan.braked, true, 'and is finished, not paused');
+    assert.equal(scan.nextPage, null);
     assert.equal(scan.stoppedEarly, true, 'a short read must announce itself, not pass as complete');
     await opened.destroy();
   } finally {
