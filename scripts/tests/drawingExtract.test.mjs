@@ -91,11 +91,37 @@ test('unit codes match case-insensitively', () => {
   assert.equal(m.unitTypes.length, 1, 'a1 and A1 are the same type');
 });
 
-test('rows with a blank code are skipped rather than merged into one bucket', () => {
+// REVERSED 2026-09-15. This used to assert that a blank-code row was DROPPED
+// (`length, 0`). It was written to stop blank rows landing in one bucket and
+// overwriting each other — a real hazard — but dropping them solved it by
+// deleting the units, which is how Lone Tree Ranch Test v1 came back with 294
+// bedrooms against a hand count of 472 (Mike, 2026-09-15: "It read units wrong
+// on a project I just tested ... Way off there").
+//
+// A blank code is a LABELLING failure: quantities.js counts a row by its qty
+// and never reads its code, so the units are perfectly good. Unnamed rows are
+// now keyed by their CONTENT, which closes the original bucket hazard and the
+// double-count hazard in the test below without throwing any units away.
+test('rows with a blank code keep their units instead of being dropped', () => {
   const m = mergeProposals([
-    { fileName: 'a.pdf', proposal: p([{ code: '', qty: 10, confidence: 0.9 }, { code: null, qty: 5, confidence: 0.9 }]) },
+    { fileName: 'a.pdf', proposal: p([
+      { code: '',   qty: 10, unitSf: 700, confidence: 0.9 },
+      { code: null, qty: 5,  unitSf: 950, confidence: 0.9 },
+    ]) },
   ]);
-  assert.equal(m.unitTypes.length, 0);
+  assert.equal(m.unitTypes.length, 2, 'two different unnamed types, both kept');
+  assert.equal(m.unitTypes.reduce((s, r) => s + Number(r.qty), 0), 15);
+});
+
+test('the same unnamed row printed in two files is counted once, not twice', () => {
+  // This is why unnamed rows are keyed by content rather than by file. Rule 1
+  // of mergeProposals: the same matrix on several sheets must never be summed.
+  const m = mergeProposals([
+    { fileName: 'a.pdf', proposal: p([{ code: '', qty: 10, unitSf: 700, confidence: 0.9 }]) },
+    { fileName: 'b.pdf', proposal: p([{ code: '', qty: 10, unitSf: 700, confidence: 0.95 }]) },
+  ]);
+  assert.equal(m.unitTypes.length, 1, 'one row, seen twice');
+  assert.equal(Number(m.unitTypes[0].qty), 10, 'counted once, never summed');
 });
 
 test('project totals take the first non-null and flag disagreement', () => {

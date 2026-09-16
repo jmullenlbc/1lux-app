@@ -6,6 +6,7 @@ import Badge from '@/components/ui/Badge';
 import { DEPARTMENTS, DEPARTMENT_LABEL } from '@/lib/departments';
 import { canAssignRole, canManageAccount } from '@/lib/roles';
 import { effectiveRole } from '@/lib/permissions';
+import { describeAccessEvent } from '@/lib/accessEvents';
 
 // Tailwind needs the full class strings written out here to keep them.
 const DEPARTMENT_COLORS = {
@@ -52,7 +53,7 @@ const ROLE_OPTIONS = [
   { value: 'SUPER_ADMIN',   label: 'Super Admin',   desc: 'Full access — ILC Studios team only'        },
   { value: 'COMPANY_ADMIN', label: 'Company Admin',  desc: 'Can manage users and see all projects'      },
   { value: 'USER',          label: 'User',           desc: 'Standard access — create and edit projects' },
-  { value: 'CLIENT_VIEWER', label: 'Client Viewer',  desc: 'Read-only view of assigned projects only'   },
+  { value: 'CLIENT_VIEWER', label: 'Client Viewer',  desc: 'Outside contractor — sees only their own jobs, never buy price' },
 ];
 
 const ROLE_BADGE = {
@@ -180,6 +181,51 @@ function CreateUserForm({ currentUserRole, onCreated }) {
   );
 }
 
+// ── Access History ────────────────────────────────────────────────────────────
+
+// Every change to this person's access, newest first (migration 0086). Reloads
+// after each save so the change just made shows up.
+function AccessHistory({ userId, refreshKey }) {
+  const [events, setEvents] = useState(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    setFailed(false);
+    fetch(`/api/admin/users/${userId}/history`)
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then(rows => { if (live) setEvents(rows); })
+      .catch(() => { if (live) setFailed(true); });
+    return () => { live = false; };
+  }, [userId, refreshKey]);
+
+  return (
+    <div className="mt-6 border-t border-slate-100 pt-4">
+      <h4 className="text-xs font-semibold text-slate-600 mb-2">Access history</h4>
+      {failed ? (
+        <p className="text-xs text-red-500">Couldn&apos;t load the history.</p>
+      ) : events === null ? (
+        <p className="text-xs text-slate-400">Loading…</p>
+      ) : events.length === 0 ? (
+        <p className="text-xs text-slate-400">No changes recorded yet. The history started on September 15, 2026.</p>
+      ) : (
+        <ul className="space-y-1.5 max-h-48 overflow-y-auto">
+          {events.map(ev => (
+            <li key={ev.id} className="flex items-baseline justify-between gap-3 text-xs">
+              <span className="text-slate-700">{describeAccessEvent(ev)}</span>
+              <span className="text-slate-400 shrink-0">
+                {ev.changedBy?.name || ev.changedBy?.email || 'Unknown'}
+                {' · '}
+                {new Date(ev.changedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 // ── Edit User Modal ───────────────────────────────────────────────────────────
 
 function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
@@ -200,6 +246,7 @@ function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
   const [saving, setSaving]   = useState(false);
   const [error,  setError]    = useState('');
   const [success, setSuccess] = useState('');
+  const [historyKey, setHistoryKey] = useState(0);
 
   // Same rule the server uses (src/lib/roles.js): a Company Admin can make
   // someone an admin (Mike, 2026-09-14); only a Super Admin makes a Super Admin.
@@ -229,6 +276,7 @@ function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Failed to update user'); return; }
       setSuccess('Saved.');
+      setHistoryKey(k => k + 1);
       onSaved(data);
     } catch {
       setError('Network error');
@@ -350,7 +398,9 @@ function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
               </div>{/* end right column */}
             </div>{/* end grid */}
 
-            {error   && <div className="mt-4 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 text-sm text-red-600">{error}</div>}
+            <AccessHistory userId={user.id} refreshKey={historyKey} />
+
+            {error   &&<div className="mt-4 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 text-sm text-red-600">{error}</div>}
             {success && <div className="mt-4 bg-green-50 border border-green-200 rounded-lg px-4 py-2.5 text-sm text-green-700">{success}</div>}
           </div>
 
@@ -376,7 +426,7 @@ function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
 
 // Same rule the server uses: nobody but a Super Admin touches a Super Admin's
 // account. Operations acts as a Company Admin (src/lib/permissions.js).
-function canDeleteUser(actor, target) {
+function canManageUser(actor, target) {
   if (target.id === actor.id) return false;
   return canManageAccount(effectiveRole(actor), target.role);
 }
@@ -389,9 +439,9 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
   const [userSearch,    setUserSearch]   = useState('');
   const [editUser,      setEditUser]     = useState(null);
   const [created,       setCreated]      = useState(null);
-  const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [deleting,      setDeleting]     = useState(null);
-  const [deleteError,   setDeleteError]  = useState('');
+  const [offConfirm,    setOffConfirm]   = useState(null);
+  const [toggling,      setToggling]     = useState(null);
+  const [toggleError,   setToggleError]  = useState('');
 
   useEffect(() => {
     const tabParam = params.get('tab') || 'users';
@@ -415,22 +465,24 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
     setUsers(prev => prev.map(u => u.id === updated.id ? { ...u, ...updated } : u));
   }
 
-  async function handleDeleteUser(userId) {
-    setDeleting(userId);
-    setDeleteConfirm(null);
-    setDeleteError('');
+  // People are turned off, never deleted (archive-only). Turning someone off
+  // signs them out at once; everything they made stays.
+  async function handleToggleActive(u) {
+    setToggling(u.id);
+    setOffConfirm(null);
+    setToggleError('');
     try {
-      const res = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
-      if (!res.ok) {
-        const data = await res.json();
-        setDeleteError(data.error || 'Failed to delete user');
-        return;
-      }
-      setUsers(prev => prev.filter(u => u.id !== userId));
+      const res = await fetch(`/api/admin/users/${u.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: u.isActive === false }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setToggleError(data.error || 'Could not change this account'); return; }
+      handleUserSaved(data);
     } catch {
-      setDeleteError('Network error');
+      setToggleError('Network error');
     } finally {
-      setDeleting(null);
+      setToggling(null);
     }
   }
 
@@ -476,10 +528,10 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
             </div>
           )}
 
-          {deleteError && (
+          {toggleError && (
             <div className="mb-4 bg-red-50 border border-red-200 rounded-xl px-5 py-3 flex items-center justify-between gap-3">
-              <p className="text-sm text-red-700">{deleteError}</p>
-              <button onClick={() => setDeleteError('')} className="text-red-400 hover:text-red-600 text-lg leading-none">&times;</button>
+              <p className="text-sm text-red-700">{toggleError}</p>
+              <button onClick={() => setToggleError('')} className="text-red-400 hover:text-red-600 text-lg leading-none">&times;</button>
             </div>
           )}
 
@@ -572,25 +624,30 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
                               Edit
                             </button>
                           )}
-                          {canDeleteUser(currentUser, u) && (
-                            deleteConfirm === u.id ? (
+                          {canManageUser(currentUser, u) && (
+                            offConfirm === u.id ? (
                               <span className="flex items-center gap-1.5">
-                                <span className="text-xs text-red-500">Sure?</span>
-                                <button onClick={() => handleDeleteUser(u.id)}
+                                <span className="text-xs text-red-500">Sign them out?</span>
+                                <button onClick={() => handleToggleActive(u)}
                                   className="text-xs text-red-600 font-semibold hover:text-red-700 transition-colors">
                                   Yes
                                 </button>
-                                <button onClick={() => setDeleteConfirm(null)}
+                                <button onClick={() => setOffConfirm(null)}
                                   className="text-xs text-slate-400 hover:text-slate-600 transition-colors">
                                   No
                                 </button>
                               </span>
+                            ) : u.isActive === false ? (
+                              <button onClick={() => handleToggleActive(u)} disabled={toggling === u.id}
+                                className="text-xs text-slate-400 hover:text-green-600 font-medium transition-colors disabled:opacity-40">
+                                {toggling === u.id ? '…' : 'Turn on'}
+                              </button>
                             ) : (
                               <button
-                                onClick={() => { setDeleteConfirm(u.id); setDeleteError(''); }}
-                                disabled={deleting === u.id}
+                                onClick={() => { setOffConfirm(u.id); setToggleError(''); }}
+                                disabled={toggling === u.id}
                                 className="text-xs text-slate-300 hover:text-red-500 font-medium transition-colors disabled:opacity-40">
-                                {deleting === u.id ? '…' : 'Delete'}
+                                {toggling === u.id ? '…' : 'Turn off'}
                               </button>
                             )
                           )}

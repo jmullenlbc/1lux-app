@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { responsesToSections } from '@/lib/utils';
 import { calculateBudget, formatCurrency } from '@/lib/calculations';
 import { OPTION_LABELS } from '@/lib/pricing';
+import { normalizeAmenityLevel } from '@/lib/amenityLevel';
 import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
 import ShareViewTracker from './ShareViewTracker';
 import SummaryBudgetBreakdown from '@/app/(app)/project/[id]/summary/SummaryBudgetBreakdown';
@@ -58,7 +59,7 @@ export default async function SharePage({ params }) {
     ]},
     { section: 'Amenities', rows: [
       { q: 'Interior Level',    a: getLabel('interiorAmenities', sections.amenities?.interiorLevel || 'medium') },
-      { q: 'Exterior Level',    a: getLabel('exteriorAmenities', sections.exterior?.amenityLevel   || 'medium') },
+      { q: 'Exterior Level',    a: getLabel('exteriorAmenities', normalizeAmenityLevel(sections.exterior?.amenityLevel)) },
       { q: 'Amenity Hours',     a: getLabel('amenityHours',      sections.exterior?.amenityHours   || 'beforeDusk') },
     ]},
     { section: 'Emergency & Controls', rows: [

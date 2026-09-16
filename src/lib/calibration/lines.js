@@ -14,6 +14,8 @@
  * type) and has to be tuned by hand.
  */
 
+import { normalizeAmenityLevel } from '../amenityLevel.js';
+
 const n = (v, d = 0) => { const x = Number(v); return Number.isFinite(x) ? x : d; };
 
 export const LINE_LABELS = {
@@ -140,7 +142,9 @@ export function buildSamples({ projectData = {}, sections = {}, budget, pricing 
     rateUsed: n(pricing.garage?.perSf), pricingKey: 'garage.perSf' });
 
   // ── Exterior ─────────────────────────────────────────────────────────────
-  const extLevel = levelRate(pricing.exteriorAmenities, ext.amenityLevel || 'medium', 'medium');
+  // '1'…'5' from a public submission normalizes to a word key, so the sample
+  // names a real pricing key instead of drifting to medium.
+  const extLevel = levelRate(pricing.exteriorAmenities, normalizeAmenityLevel(ext.amenityLevel), 'medium');
   const night    = ext.amenityHours === 'afterSunset' ? n(pricing.exteriorAmenities?.nighttimeMultiplier, 2) : 1;
   push({ lineKey: 'exterior.amenities', quantity: extSf, quantityUnit: 'sf', modelAmount: s.exterior?.amenities?.product,
     rateUsed: extLevel.rate * night, pricingKey: extLevel.key ? `exteriorAmenities.${extLevel.key}` : null,

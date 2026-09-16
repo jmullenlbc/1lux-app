@@ -141,10 +141,12 @@ test('an archived company keeps its Project Team seat', () => {
   assert.match(src, /id: \{ in: teamIds \}, \.\.\.INCLUDE_ARCHIVED/);
 });
 
-test('deleting a user still counts their archived projects and companies', () => {
+// 2026-09-15: people are turned off, never deleted, so the old "count their
+// archived jobs before deleting" check went with the delete itself.
+test('a user can never be deleted, only turned off', () => {
   const src = read('src/app/api/admin/users/[id]/route.js');
-  assert.match(src, /project\.count\(\{ where: \{ createdById: params\.id, \.\.\.INCLUDE_ARCHIVED/);
-  assert.match(src, /client\.count\(\{ where: \{ createdById: params\.id, \.\.\.INCLUDE_ARCHIVED/);
+  assert.match(src, /status: 405/);
+  assert.doesNotMatch(src.replace(/\/\/.*$/gm, ''), /user\.delete\(/);
 });
 
 // ─── migration ──────────────────────────────────────────────────────────────

@@ -43,6 +43,8 @@ export const NEVER_DELETED = [
   ...ARCHIVABLE_DOCUMENTS,
   'drawingFile', 'conceptualSubmission', 'conceptualSubmissionAnswer', 'questionnaireResponse',
   'bugReport', 'contactEmployment',
+  // Access history (0086): who changed whose role, turned them off, and so on.
+  'userAccessEvent',
 ];
 
 export class DeleteRefusedError extends Error {

@@ -6,6 +6,7 @@ import QuestionCard, { CostImpact } from './QuestionCard';
 import { formatCurrency, priceOverride, calculateBudget } from '@/lib/calculations';
 import { PRICING } from '@/lib/pricing';
 import StandardsHint from '@/components/wizard/StandardsHint';
+import { amenityRate } from '@/lib/amenityLevel';
 
 // Manual adder line items — the things the formula does NOT compute. These ADD
 // on top of the frozen formula breakdown.
@@ -93,8 +94,11 @@ export default function ExteriorSection({ responses, projectData, allSections, p
     : `${lotSf.toLocaleString()} SF lot (no footprint on file)`;
 
   const EA       = P.exteriorAmenities || {};
-  const rateMap  = { low: EA.low ?? 1, lowMedium: EA.lowMedium ?? 2, medium: EA.medium ?? 3, high: EA.high ?? 5 };
-  const baseRate = rateMap[answers.amenityLevel] ?? (rateMap.medium);
+  // A budget created from a public submission stores this as '1'…'5' rather
+  // than low…high. The old lookup missed on those and silently fell back to
+  // medium — so a job the client priced at $1/SF re-priced at $3/SF the moment
+  // it was opened internally. amenityRate reads both spellings.
+  const baseRate = amenityRate(EA, answers.amenityLevel);
   // Only '24hrs or after dark' doubles the line (Mike, 2026-09-01: Dusk to
   // Dawn is as-is cost).
   const nightMult = answers.amenityHours === 'afterSunset' ? (EA.nighttimeMultiplier ?? 2) : 1;

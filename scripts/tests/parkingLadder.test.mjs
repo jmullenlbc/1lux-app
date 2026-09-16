@@ -114,3 +114,46 @@ test('the new fields survive a multi-sheet merge and count as a real read', () =
   assert.ok(SITE_NUMBER_KEYS.includes('parkingRatioRequired'));
   assert.ok(SITE_NUMBER_KEYS.includes('surfaceParkingCounted'));
 });
+
+/**
+ * Mike, 2026-09-15: "It is not grabbing the number of parking stalls even if
+ * it reads that in the drawings it seems."
+ *
+ * Structured-parking types (wrap / podium / mid-rise / high-rise) skipped BOTH
+ * total-based rungs outright, so a set that plainly stated its stall count
+ * produced no surface figure at all and the site-lighting line came in at
+ * zero. A stated total IS usable on those buildings — but only once the
+ * covered stalls are known, since that is the only way to tell how many of
+ * them are out in the open.
+ */
+test('a structured-parking job uses its stated total once the covered stalls are known', () => {
+  const r = parking({ totalUnits: 300, parkingProvided: 420, garages: 260, carports: 20, buildingType: 'podium' });
+  assert.equal(r.value, 140, '420 provided, less the 280 in the garage and carports');
+  assert.equal(r.source, 'derived');
+  assert.match(r.flag, /parks mostly in a garage/, 'says out loud what it assumed');
+  assert.match(r.flag, /confirm the split/);
+});
+
+test('a structured-parking job with no covered count still refuses to guess', () => {
+  // Nothing is known about the garage, so the total says nothing about how
+  // many stalls are open-air. Asking beats inventing a number.
+  const r = parking({ totalUnits: 300, parkingProvided: 420, buildingType: 'podium' });
+  assert.equal(r.value, null);
+  assert.match(r.how, /how many are surface stalls\?/);
+});
+
+test('a written surface number still beats the new rung', () => {
+  const r = parking({ totalUnits: 300, parkingProvided: 420, surfaceParking: 95, garages: 260, buildingType: 'podium' });
+  assert.equal(r.value, 95);
+  assert.equal(r.source, 'drawing');
+});
+
+test('a typed correction overrules a stall count written on the site plan', () => {
+  // The last rung of all: the drawings said 250 in writing and a person who
+  // looked at the plans says otherwise.
+  const r = parking({ totalUnits: 200, surfaceParking: 250, buildingType: 'garden' }, { correctSurfaceParking: '188' });
+  assert.equal(r.value, 188);
+  assert.equal(r.source, 'questionnaire');
+  assert.equal(r.corrected, true);
+  assert.equal(r.wasValue, 250);
+});

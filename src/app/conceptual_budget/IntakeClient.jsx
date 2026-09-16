@@ -121,6 +121,13 @@ const FIGURE_FIELDS = [
   // Without a balcony count the balcony-lighting answer prices to $0 whatever
   // the visitor picks — ask for it whenever the unit matrix didn't list one.
   { key: 'figureBalconies',      qKey: 'balconies',        label: '# Balconies',              placeholder: 'e.g. 150' },
+  // Same trap, same fix (Mike, 2026-09-15: "Exterior amenity math ... isn't
+  // working. I click a different $/sf and nothing changes"). The exterior
+  // amenity $/SF question multiplies this figure, so with no square footage
+  // the whole line prices at $0 at every rate and the control looks broken.
+  // Site plans very often don't state an amenity area, so ask for it.
+  { key: 'figureExteriorAmenitySf', qKey: 'exteriorAmenitySf', label: 'Exterior amenity SF', placeholder: 'e.g. 12,000',
+    hint: 'Pool deck, courtyards, plazas — the outdoor areas that get lit. Enter 0 if none.' },
 ];
 
 /**
@@ -333,6 +340,13 @@ export default function IntakeClient() {
     for (const f of [...FIGURE_FIELDS, ...MANUAL_FIELDS]) init[f.key] = '';
     return init;
   });
+  // Figures typed to OVERRULE what we read off the drawings, keyed by takeoff
+  // row key (Mike, 2026-09-15: "We need to be able to manually update any
+  // field about the project we see off. None of that can be updated now.").
+  // Kept apart from `figures`, which answer "the drawings didn't say" and stay
+  // below a drawing; these say "the drawings were read wrong" and outrank one.
+  // Sent as correct<RowKey> — see correctionKeyFor() in quantities.js.
+  const [corrections, setCorrections] = useState({});
   const [answers, setAnswers] = useState(() => {
     const init = {};
     for (const q of INTAKE_QUESTIONS) init[q.key] = q.default ?? '';
@@ -375,10 +389,14 @@ export default function IntakeClient() {
       const s = String(v ?? '').trim();
       if (s) out[k] = s;
     }
+    for (const [key, v] of Object.entries(corrections)) {
+      const s = String(v ?? '').trim();
+      if (s) out[`correct${key.charAt(0).toUpperCase()}${key.slice(1)}`] = s;
+    }
     if (manual) out.noDrawings = 'yes';
     if (manual && hasClubhouse) out.hasClubhouse = hasClubhouse;
     return out;
-  }, [answers, figures, manual, hasClubhouse]);
+  }, [answers, figures, corrections, manual, hasClubhouse]);
 
   // The no-drawings minimum (project type, units, and a size) — the same
   // check the estimate route enforces before it will price anything.
@@ -644,27 +662,28 @@ export default function IntakeClient() {
   // cut the top of that summary page off."): navy hero, Project Data grid,
   // full Budget Breakdown. Same rows and markup as
   // src/app/(app)/project/[id]/summary/page.jsx.
-  const pdRows = useMemo(() => {
-    const pd = estimatePd || {};
-    return [
-      { label: 'Total Gross SF',         value: pd.grossSf             ? pd.grossSf.toLocaleString()           : null },
-      { label: 'Units Gross SF',         value: pd.unitsSf             ? pd.unitsSf.toLocaleString()           : null },
-      { label: '# of Units',             value: pd.numUnits            ? pd.numUnits.toLocaleString()          : null },
-      { label: '# of Bedrooms',          value: pd.numBedrooms         ? pd.numBedrooms.toLocaleString()       : null },
-      { label: '# of Bathrooms',         value: pd.numBathrooms        ? pd.numBathrooms.toLocaleString()      : null },
-      { label: '# of Vanities',          value: pd.numVanities         ? pd.numVanities.toLocaleString()       : null },
-      { label: '# of Balconies',         value: pd.numBalconies        ? pd.numBalconies.toLocaleString()      : null },
-      { label: 'Stairwell Landings',     value: pd.numEgressStairwells ? pd.numEgressStairwells.toString()     : null },
-      { label: 'Corridor SF',            value: pd.corridorSf          ? pd.corridorSf.toLocaleString()        : null },
-      { label: 'Interior Amenity SF',    value: pd.interiorAmenitySf   ? pd.interiorAmenitySf.toLocaleString() : null },
-      { label: 'Exterior Amenity SF',    value: pd.exteriorAmenitySf   ? pd.exteriorAmenitySf.toLocaleString() : null },
-      { label: 'Garage SF',              value: pd.garageSf            ? pd.garageSf.toLocaleString()          : null },
-      { label: 'BOH SF',                 value: pd.bohSf               ? pd.bohSf.toLocaleString()             : null },
-      { label: 'Surface Parking Stalls', value: pd.numSurfaceParking   ? pd.numSurfaceParking.toString()       : null },
-      { label: '# of Carports',          value: pd.numCarports         ? pd.numCarports.toString()             : null },
-      { label: '# of Exterior Doors',    value: pd.numExteriorDoors    ? pd.numExteriorDoors.toString()        : null },
-    ].filter(r => r.value);
-  }, [estimatePd]);
+  //
+  // Every figure here is TYPE-OVER-ABLE (Mike, 2026-09-15: "We need to be able
+  // to manually update any field about the project we see off. None of that
+  // can be updated now."). The rows come from estimate.quantities rather than
+  // from projectData, because a quantity row carries the things a person needs
+  // in order to judge it — its key, what we read, where we read it and any
+  // flag — while projectData is only the bare numbers after the fact.
+  //
+  // A row we found NOTHING for is still listed, with an empty box. Those are
+  // the ones most worth typing into, and the old grid hid every one of them.
+  const correctableRows = useMemo(() => {
+    const rows = estimate?.quantities || [];
+    return rows
+      .filter(r => r && r.key && r.label && r.unit !== 'text')
+      .map(r => ({
+        key: r.key,
+        label: r.label,
+        how: r.flag ? `${r.how} — ${r.flag}` : r.how,
+        display: r.value == null ? '' : Number(r.value).toLocaleString('en-US'),
+        was: r.wasValue == null ? '' : Number(r.wasValue).toLocaleString('en-US'),
+      }));
+  }, [estimate]);
   const freightPct     = Math.round((budget?.freightRate     ?? 0.06) * 100);
   const warehousingPct = Math.round((budget?.warehousingRate ?? 0.03) * 100);
   const todayLabel = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -1195,16 +1214,45 @@ export default function IntakeClient() {
                     )}
 
                     {/* Project Data — horizontal grid, identical to the internal summary */}
-                    {hasEstimate && pdRows.length > 0 && (
+                    {hasEstimate && correctableRows.length > 0 && (
                       <div className="bg-white rounded-xl border border-slate-200 p-5">
-                        <h3 className="font-bold text-slate-900 mb-3">Project Data</h3>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-2">
-                          {pdRows.map(row => (
-                            <div key={row.label}>
-                              <div className="text-xs text-slate-400">{row.label}</div>
-                              <div className="text-sm font-semibold text-slate-900 tabular-nums">{row.value}</div>
-                            </div>
-                          ))}
+                        <h3 className="font-bold text-slate-900 mb-1">Project Data</h3>
+                        <p className="text-xs text-slate-500 mb-4">
+                          These came off your drawings. If one looks wrong, type the right number over it —
+                          the budget updates straight away and we keep what we read on file.
+                        </p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-3">
+                          {correctableRows.map(row => {
+                            const typed = String(corrections[row.key] ?? '');
+                            const edited = typed.trim() !== '';
+                            return (
+                              <div key={row.key}>
+                                <div className="text-xs text-slate-400">{row.label}</div>
+                                <input
+                                  className={cn(
+                                    'w-full bg-transparent px-0 py-0.5 text-sm font-semibold tabular-nums border-0 border-b border-dashed focus:outline-none focus:ring-0 focus:border-solid focus:border-amber-400',
+                                    edited ? 'text-amber-700 border-amber-300 border-solid' : 'text-slate-900 border-slate-200',
+                                  )}
+                                  inputMode="numeric"
+                                  aria-label={`${row.label} — type over it to correct it`}
+                                  value={edited ? typed : row.display}
+                                  onFocus={e => { const el = e.target; requestAnimationFrame(() => el.select()); }}
+                                  onChange={e => setCorrections(x => ({ ...x, [row.key]: e.target.value }))}
+                                  placeholder={row.display ? undefined : 'not found'}
+                                  title={row.how || undefined}
+                                />
+                                {edited && (
+                                  <button
+                                    type="button"
+                                    className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-600 hover:text-amber-700"
+                                    onClick={() => setCorrections(x => { const next = { ...x }; delete next[row.key]; return next; })}
+                                  >
+                                    Corrected{row.was ? ` — was ${row.was}` : ''} · undo
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     )}

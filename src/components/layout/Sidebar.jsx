@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { ROLE_LABEL, normalizeRole } from '@/lib/roles';
 import { actsAsAdmin, can } from '@/lib/permissions';
+import { useDraftReminder } from './useDraftReminder';
 
 // ── Alert Bell ────────────────────────────────────────────────────────────────
 
@@ -286,7 +287,7 @@ function NavItem({ href, icon, label, active, disabled, badge, expanded }) {
   );
 }
 
-function SubNavItem({ href, icon, label, active, disabled, expanded }) {
+function SubNavItem({ href, icon, label, active, disabled, badge, expanded }) {
   const base = `flex items-center gap-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors select-none ${expanded ? 'pl-8 pr-3' : 'px-3 justify-center'}`;
   const activeClass   = 'text-white bg-navy-800';
   const normalClass   = 'text-navy-400 hover:text-white hover:bg-navy-800/60';
@@ -296,6 +297,11 @@ function SubNavItem({ href, icon, label, active, disabled, expanded }) {
     <>
       <span className="shrink-0 opacity-75">{icon}</span>
       {expanded && <span className="whitespace-nowrap">{label}</span>}
+      {badge > 0 && expanded && (
+        <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500 text-white leading-none min-w-[18px] text-center">
+          {badge > 9 ? '9+' : badge}
+        </span>
+      )}
       {disabled && expanded && <span className="text-[9px] font-medium px-1 py-0.5 rounded bg-navy-800 text-navy-500 leading-none ml-auto">soon</span>}
     </>
   );
@@ -353,6 +359,9 @@ export default function Sidebar({ user }) {
   // as an admin. The Software section stays Super Admin only.
   const isAdmin    = actsAsAdmin(user);
   const isIlcAdmin = normalizeRole(user?.role) === 'SUPER_ADMIN';
+  // My calendar meetings still waiting for a published note — shown on Sales
+  // Notes until the count is zero (the banner says the same thing on every page).
+  const waitingDrafts = useDraftReminder()?.count || 0;
 
   // Persist locked state
   useEffect(() => {
@@ -484,7 +493,7 @@ export default function Sidebar({ user }) {
               <SubNavItem href="/crm"            icon={<IconPipeline />}        label="Pipeline"    expanded={expanded} active={at('/crm') || (crmRelated && !startsWith('/crm/dashboards') && !startsWith('/crm/notes') && !startsWith('/crm/intel') && !startsWith('/clients'))} />
               <SubNavItem href="/dashboards/sales" icon={<IconBarChart />}      label="Dashboard"   expanded={expanded} active={startsWith('/dashboards/sales')} />
               <SubNavItem href="/dashboards/meeting" icon={<IconHandshake />}   label="Weekly Meeting" expanded={expanded} active={startsWith('/dashboards/meeting')} />
-              <SubNavItem href="/crm/notes"      icon={<IconNotes />}           label="Sales Notes" expanded={expanded} active={startsWith('/crm/notes')} />
+              <SubNavItem href="/crm/notes"      icon={<IconNotes />}           label="Sales Notes" expanded={expanded} badge={waitingDrafts} active={startsWith('/crm/notes')} />
               <SubNavItem href="/crm/intel"      icon={<IconNews />}            label="Intel"       expanded={expanded} active={startsWith('/crm/intel')} />
               <SubNavItem href="/sales/proposals"  icon={<IconDoc />}      label="Proposals"           expanded={expanded} active={startsWith('/sales/proposals')} />
               <SubNavItem href="/market-intel"      icon={<IconNews />}      label="Market Intelligence" expanded={expanded} active={startsWith('/market-intel')} />

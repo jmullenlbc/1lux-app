@@ -5,6 +5,7 @@ import { requireAdmin } from '@/lib/auth';
 import { ROLE_KEYS, isValidRole, canAssignRole } from '@/lib/roles';
 import { effectiveRole } from '@/lib/permissions';
 import { DEPARTMENT_KEYS, DEPARTMENTS_SELECT, cleanDepartments, departmentKeys } from '@/lib/departments';
+import { creationEvents } from '@/lib/accessEvents';
 
 export async function GET(request) {
   const { user, error } = await requireAdmin(request);
@@ -86,6 +87,8 @@ export async function POST(request) {
       permissions:       permissions ? JSON.stringify(permissions) : JSON.stringify(defaultPermissions),
       mustChangePassword: mustChangePassword ?? true,
       departments:       deptKeys.length ? { create: deptKeys.map(department => ({ department })) } : undefined,
+      // Access history (0086): created as this role, in these departments.
+      accessEvents:      { create: creationEvents({ role, departments: deptKeys }).map(e => ({ ...e, changedById: actor.id })) },
     },
   });
 

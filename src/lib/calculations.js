@@ -5,6 +5,7 @@ import { PRICING as STATIC_PRICING } from './pricing.js';
 import { breezewayStairPackage } from './stairLandings.js';
 import { emergencyStrategyCost } from './emergencyCost.js';
 import { allowsGarages, allowsCarports } from './coveredParkingTypes.js';
+import { amenityRate } from './amenityLevel.js';
 
 // Safely convert any value to a finite number
 function n(val, fallback = 0) {
@@ -275,16 +276,14 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const garageProduct = garageBaseProduct + garageManualAdder;
 
   // ─── EXTERIOR ─────────────────────────────────────────────────────────────
+  // The public questionnaire stores this answer as a bare dollar figure
+  // ('1'…'5'), the internal wizard as a word key (low…high). amenityRate reads
+  // either and always prices off the live master sheet, so the two front doors
+  // can no longer disagree about what "$1/SF" costs. The old branch here took
+  // a numeric answer at face value and used it AS the rate, which quietly
+  // ignored an edited master sheet.
   const extLevelRaw = exterior.amenityLevel || 'medium';
-  let extAmenityRate;
-  if      (extLevelRaw === 'low')       extAmenityRate = PRICING.exteriorAmenities.low;
-  else if (extLevelRaw === 'lowMedium') extAmenityRate = PRICING.exteriorAmenities.lowMedium ?? 2;
-  else if (extLevelRaw === 'medium')    extAmenityRate = PRICING.exteriorAmenities.medium;
-  else if (extLevelRaw === 'high')      extAmenityRate = PRICING.exteriorAmenities.high;
-  else {
-    const parsed = parseFloat(extLevelRaw);
-    extAmenityRate = (isFinite(parsed) && parsed > 0) ? parsed : PRICING.exteriorAmenities.medium;
-  }
+  const extAmenityRate = amenityRate(PRICING.exteriorAmenities, extLevelRaw);
 
   const amenityHours    = exterior.amenityHours || 'beforeDusk';
   // Only '24hrs or after dark' doubles the exterior amenity line (Mike,

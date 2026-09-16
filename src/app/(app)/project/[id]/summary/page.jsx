@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db';
 import { responsesToSections } from '@/lib/utils';
 import { calculateBudget, formatCurrency } from '@/lib/calculations';
 import { OPTION_LABELS } from '@/lib/pricing';
+import { normalizeAmenityLevel } from '@/lib/amenityLevel';
 import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
 import Link from 'next/link';
 import SummaryPrintButton from './SummaryPrintButton';
@@ -150,7 +151,9 @@ export default async function SummaryPage({ params }) {
     ]},
 
     { section: 'Exterior & Site', rows: [
-      { q: 'Exterior Amenity Level', a: getLabel('exteriorAmenities', r.exterior?.amenityLevel  || 'medium') },
+      // Public submissions store '1'…'5'; without normalizing, getLabel found
+      // no label and printed the bare number.
+      { q: 'Exterior Amenity Level', a: getLabel('exteriorAmenities', normalizeAmenityLevel(r.exterior?.amenityLevel)) },
       { q: 'Amenity Hours',          a: getLabel('amenityHours',      r.exterior?.amenityHours  || 'beforeDusk') },
       { q: 'Site Type',              a: ll('siteType',                r.exterior?.siteType      || '') },
       { q: 'Roadway Lighting',       a: ll('roadwayLighting',         r.exterior?.roadwayLighting || 'no') },

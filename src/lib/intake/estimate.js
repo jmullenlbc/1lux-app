@@ -114,9 +114,16 @@ export function computeIntakeEstimate({ answers, drawings, pricing = null }) {
   // came from: null = ask for it, 'derived' = show our estimate and offer an
   // override, 'drawing'/'questionnaire' = settled. Values + provenance only —
   // no pricing.
+  // `corrected`/`wasValue` ride along so the grid can show "you changed this,
+  // we had read 200" next to the figure. They are display provenance, not
+  // pricing: the money already moved, because `q` above is built from these
+  // same rows. Listed explicitly like every other field — this projection is
+  // what keeps the pricing model from leaking into a public browser, so it
+  // stays a named list rather than a spread.
   const quantities = rows.map(r => ({
     key: r.key, label: r.label, unit: r.unit,
     value: r.value, source: r.source, how: r.how, flag: r.flag,
+    corrected: r.corrected ?? false, wasValue: r.wasValue ?? null,
   }));
 
   return { budget, projectData, quantities, range: typedInRange(budget, gate.hasDrawings) };

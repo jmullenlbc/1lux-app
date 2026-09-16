@@ -2,6 +2,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import ConfirmArchiveModal from '@/components/salesAutomation/ConfirmArchiveModal';
 import MeetingPrep from './MeetingPrep';
+import { draftsChanged } from '@/components/layout/useDraftReminder';
+import { isReminderDraft } from '@/lib/calendar/draftReminder';
 
 // ── Contact tag chip + inline link picker ────────────────────────────────────
 function ContactChip({ name, linked, onClick }) {
@@ -531,6 +533,7 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
       if (res.ok) {
         const updated = await res.json();
         onUpdate(updated);
+        draftsChanged();
       }
     } catch {}
     setPublishing(false);
@@ -733,6 +736,7 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
       }
       setArchiveOpen(false);
       onDelete(note.id);
+      draftsChanged();
     } finally {
       setArchiving(false);
     }
@@ -1033,19 +1037,31 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
 
 // ── NotesClient (main) ────────────────────────────────────────────────────────
 
-export default function NotesClient({ initialNotes, clients, projects, currentUser }) {
+export default function NotesClient({ initialNotes, clients, projects, currentUser, initialStatus = 'all' }) {
   const isAdmin = currentUser?.isAdmin === true;
+  const firstMine = initialStatus === 'mine' ? initialNotes.find(n => isReminderDraft(n, currentUser?.id)) : null;
   const [notes,        setNotes]        = useState(initialNotes);
-  const [selected,     setSelected]     = useState(initialNotes[0]?.id || null);
+  const [selected,     setSelected]     = useState(firstMine?.id || initialNotes[0]?.id || null);
   const [search,       setSearch]       = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState(initialStatus);
   const [creating,     setCreating]     = useState(false);
+
+  // The reminder's "Open them" link can be clicked while already on this screen.
+  useEffect(() => {
+    setStatusFilter(initialStatus);
+    if (initialStatus === 'mine') {
+      const first = notes.find(n => isReminderDraft(n, currentUser?.id));
+      if (first) setSelected(first.id);
+    }
+  }, [initialStatus]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const activeNote = notes.find(n => n.id === selected) || null;
 
   const filtered = notes.filter(n => {
     if (statusFilter === 'draft'     &&  n.isPublished) return false;
     if (statusFilter === 'published' && !n.isPublished) return false;
+    // Same rule as the reminder banner: my calendar meetings, already happened, not published.
+    if (statusFilter === 'mine'      && !isReminderDraft(n, currentUser?.id)) return false;
     if (!search) return true;
     const q = search.toLowerCase();
     return (
@@ -1117,8 +1133,8 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
             />
           </div>
           {/* Status filter pills */}
-          <div className="flex gap-1.5">
-            {[['all', 'All'], ['draft', 'Drafts'], ['published', 'Published']].map(([val, label]) => (
+          <div className="flex flex-wrap gap-1.5">
+            {[['all', 'All'], ['draft', 'Drafts'], ['published', 'Published'], ['mine', 'Mine to publish']].map(([val, label]) => (
               <button
                 key={val}
                 onClick={() => setStatusFilter(val)}

@@ -7,7 +7,11 @@ import NotesClient from './NotesClient';
 
 export const metadata = { title: 'Sales Notes — ILC Studios' };
 
-export default async function NotesPage() {
+const STATUSES = ['all', 'draft', 'published', 'mine'];
+
+export default async function NotesPage({ searchParams }) {
+  // ?status=mine comes from the "Open them" link on the waiting-drafts reminder.
+  const initialStatus = STATUSES.includes(searchParams?.status) ? searchParams.status : 'all';
   const { user, error } = await requireAuth();
   if (error) redirect('/login');
 
@@ -42,6 +46,7 @@ export default async function NotesPage() {
       initialNotes={notes}
       clients={clients}
       projects={projects}
+      initialStatus={initialStatus}
       currentUser={{ id: user.id, name: user.name, email: user.email, role: user.role, isAdmin: actsAsAdmin(user) }}
     />
   );

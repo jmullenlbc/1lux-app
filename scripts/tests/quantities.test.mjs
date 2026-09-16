@@ -196,12 +196,51 @@ test('"No balconies" with no matrix column settles balconies at zero', () => {
   assert.equal(q.balconies.source, 'questionnaire');
 });
 
-test('stated-total-vs-row-sum disagreement is flagged on the unit count', () => {
+// A matrix can never legitimately cover FEWER units than the document says the
+// project has — rows were missed. Mike, 2026-09-15, on Lone Tree Ranch Test v1:
+// "It read units wrong ... It found 168 balconies but 108 units. Way off there
+// ... Bedrooms say 294, but we counted 472." Every per-unit column was short by
+// the same fraction as the unit count, so the printed total has to win AND the
+// columns have to follow it up.
+test('a printed total ABOVE the matrix sum wins, and scales the per-unit columns', () => {
   const d = cleanDrawings();
-  d.projectTotals.statedTotalUnits = 264;
+  d.projectTotals.statedTotalUnits = 264;      // rows sum to 200
+  const q = byKey(computeQuantities(d, {}));
+
+  assert.equal(q.totalUnits.value, 264);
+  assert.equal(q.totalUnits.source, 'drawing');
+  assert.match(q.totalUnits.flag, /200/);      // says what the rows summed to
+  assert.match(q.totalUnits.flag, /264/);      // …and what the document states
+
+  // 260 bedrooms across the 200 units the matrix covered → 264 units.
+  assert.equal(q.bedrooms.value, Math.round(260 * (264 / 200)));
+  assert.equal(q.bathrooms.value, Math.round(280 * (264 / 200)));
+  assert.equal(q.vanities.value, q.bathrooms.value);
+  assert.equal(q.balconies.value, Math.round(180 * (264 / 200)));
+  assert.equal(q.unitsSf.value, Math.round(174000 * (264 / 200)));
+  // The scale-up is never silent.
+  assert.match(q.bedrooms.flag, /scaled up/);
+});
+
+// The reverse is legitimate: on a multi-building set the printed total is often
+// one building's. The matrix keeps its win there — but still says so.
+test('a printed total BELOW the matrix sum keeps the matrix, flagged', () => {
+  const d = cleanDrawings();
+  d.projectTotals.statedTotalUnits = 150;      // rows sum to 200
   const q = byKey(computeQuantities(d, {}));
   assert.equal(q.totalUnits.value, 200);
-  assert.match(q.totalUnits.flag, /264/);
+  assert.match(q.totalUnits.flag, /150/);
+  assert.equal(q.bedrooms.value, 260);         // not scaled
+});
+
+// A row whose quantity did not come through is dropped from every total — that
+// used to happen in total silence, which is how an undercount survives review.
+test('unit-type rows with no quantity are called out on the unit count', () => {
+  const d = cleanDrawings();
+  d.unitTypes.push({ code: 'C1', qty: null, unitSf: 1300, bedrooms: 3, bathrooms: 2, confidence: 0.9 });
+  const q = byKey(computeQuantities(d, {}));
+  assert.equal(q.totalUnits.value, 200);       // the blank row adds nothing…
+  assert.match(q.totalUnits.flag, /no quantity/); // …but it is no longer silent
 });
 
 test('site-only path: units and bedrooms come from the site plan bed mix', () => {

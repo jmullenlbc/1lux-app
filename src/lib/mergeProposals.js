@@ -58,6 +58,20 @@ const GROSS_SF_META = [
   'perBuildingGross', 'grossSfSummed',
 ];
 
+/**
+ * A stand-in key for a unit row whose type code did not come through.
+ *
+ * Built from the numbers that make the row what it is, so the same unnamed row
+ * printed on two sheets collapses to one (rule 1: never sum the same matrix
+ * twice) while two genuinely different unnamed types both survive. A real unit
+ * code cannot contain '#', so this can never collide with code.toLowerCase().
+ */
+function blankKey(row) {
+  const part = v => (v === null || v === undefined || v === '' ? '' : String(Number(v)));
+  return `#unnamed#${part(row.qty ?? row.count)}:${part(row.unitSf)}:${part(row.bedrooms)}`
+       + `:${part(row.bathrooms)}:${part(row.balconies)}:${String(row.label ?? '').trim().toLowerCase()}`;
+}
+
 export function mergeProposals(results) {
   const byCode = new Map();
   // Keys are listed rather than copied so a new field in the extraction schema
@@ -87,8 +101,21 @@ export function mergeProposals(results) {
     }
 
     for (const row of proposal.unitTypes ?? []) {
-      const key = String(row.code ?? '').trim().toLowerCase();
-      if (!key) continue;
+      if (!row || typeof row !== 'object') continue;
+      // A row with no type code used to be dropped outright, which silently
+      // deleted its units from the project (Mike, 2026-09-15: the unit count
+      // came back far under on Lone Tree Ranch Test v1). A blank code is a
+      // LABELLING failure, not a reason to discard the quantity — quantities.js
+      // counts a row by its qty and never looks at its code.
+      //
+      // It still cannot de-duplicate itself the way a real code does, and rule 1
+      // above exists because the same matrix printed on several sheets must not
+      // be counted twice. So an unnamed row is keyed by its CONTENT instead.
+      // Both failure modes stay closed: nothing is deleted, nothing is doubled.
+      const code = String(row.code ?? '').trim();
+      const key = code
+        ? code.toLowerCase()
+        : blankKey(row);
       const existing = byCode.get(key);
       if (!existing) {
         byCode.set(key, { ...row, _sources: [fileName] });

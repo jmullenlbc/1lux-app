@@ -75,6 +75,29 @@ function statedCount(v) {
 }
 
 /**
+ * A figure a human typed to OVERRULE what the drawings were read as saying:
+ * `correctTotalUnits`, `correctBedrooms`, `correctBohSf` — one per row key.
+ *
+ * Deliberately a separate namespace from the figure* answers above, because
+ * the two mean different things. A figure* answer means "the drawings didn't
+ * say, here is the number", and stays BELOW a drawing. A correct* answer means
+ * "the drawings were read wrong", and is the only thing that outranks one — a
+ * person looking at the plans beats a machine that read them. Keeping them
+ * apart means the existing ladders keep their rule that a written number beats
+ * a typed one (pinned by parkingLadder.test.mjs).
+ *
+ * 0 is a real correction ("there is no exterior amenity area"), so this reads
+ * through statedCount; a negative figure is nonsense and is ignored.
+ */
+export function correctionKeyFor(key) {
+  return `correct${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+}
+function correctionFor(ans, key) {
+  const n = statedCount(ans[correctionKeyFor(key)]);
+  return n != null && n >= 0 ? n : null;
+}
+
+/**
  * Units-sum → building-gross blow-up, the LAST-RESORT gross estimate.
  * The number lives in the master pricing sheet (PRICING.estimation), not
  * here — Mike set it to 1.25 (2026-09-04). Only used when no total is
@@ -146,6 +169,49 @@ function partialFlag(r, what) {
     : null;
 }
 
+/**
+ * Lift a per-unit column onto the project's REAL unit count.
+ *
+ * Mike, 2026-09-15: "# of units cant be off. it affects so much and also
+ * affected the # of corridor unit entry socnces." On Lone Tree Ranch Test v1
+ * the matrix that was read covered only part of the project, and every figure
+ * hanging off it came back short by the same fraction — bedrooms, balconies,
+ * unit SF, and (through the gross-minus-itemized remainder) back of house.
+ *
+ * When the unit count is settled at a HIGHER number than the matrix rows sum
+ * to, those rows describe a sample, not the whole project. Pro-rating the
+ * sample to the full count is an assumption — that the units nobody read
+ * resemble the ones somebody did — so it is always flagged and always shows
+ * its arithmetic. The alternative is the thing that actually went wrong: a
+ * silent undercount that prices the job low and looks perfectly plausible.
+ */
+function scaledToUnits(col, unitCount) {
+  if (!col) return null;
+  const covers = col.total;
+  if (!(unitCount > 0) || !(covers > 0) || unitCount <= covers) {
+    return { ...col, value: col.sum, scaled: false };
+  }
+  return {
+    ...col,
+    value: Math.round(col.sum * (unitCount / covers)),
+    scaled: true,
+    factor: unitCount / covers,
+    matrixUnits: covers,
+    unitCount,
+  };
+}
+
+/** The verify-this sentence for a column that was pro-rated, partial, or both. */
+function columnFlag(col, what) {
+  const parts = [];
+  if (col?.scaled) {
+    parts.push(`The unit matrix covers only ${fmt(col.matrixUnits)} of the project's ${fmt(col.unitCount)} units, so this was scaled up from ${fmt(col.sum)} at the same rate per unit. Confirm it against the drawings.`);
+  }
+  const p = partialFlag(col, what);
+  if (p) parts.push(p);
+  return parts.length ? parts.join(' ') : null;
+}
+
 /** Bedrooms implied by a site plan's D.U. mix, when there is no matrix. */
 function bedroomsFromMix(mix) {
   if (!mix || typeof mix !== 'object') return null;
@@ -185,23 +251,105 @@ export function computeQuantities(drawings, answers, pricing = null) {
     ? NO_DRAWING_GUESSES[table][typeKey] : null);
   const GUESS_FLAG = 'ESTIMATED — no drawings were uploaded and this was left blank. Enter the real figure if you have it.';
   const out = [];
-  const add = (key, label, unit, value, source, how, flag = null) =>
+  // ── MANUAL CORRECTIONS ─────────────────────────────────────────────────────
+  // Mike, 2026-09-15: "We need to be able to manually update any field about
+  // the project we see off. None of that can be updated now."
+  //
+  // Every ladder in this file reads `stated ?? counted ?? typed`, so a typed
+  // figure was only ever consulted when the drawings said NOTHING. That made a
+  // misread number uncorrectable: you could see the takeoff claim 108 units
+  // against a project with 173 and have no way to say so.
+  //
+  // The correction lands inside add() so it covers EVERY row without twenty
+  // separate patches — and because the priced projectData is built from these
+  // same rows (estimate.js), correcting a figure moves the BUDGET rather than
+  // just repainting the screen. A corrected row drops its flag (the human has
+  // already answered the question the flag was asking) but keeps what we read
+  // in `wasValue`, so a reviewer can always see what was overruled.
+  // RETURNS the figure that was actually settled on — the correction when there
+  // is one, otherwise what we read. Callers that feed a later calculation must
+  // use this return value rather than the local they passed in: a correction
+  // lands on the ROW, so a local captured beforehand still holds the misread
+  // number. That is how a corrected gross SF could sit on screen while back of
+  // house was still being taken off the old total.
+  const add = (key, label, unit, value, source, how, flag = null) => {
+    const fixed = correctionFor(ans, key);
+    if (fixed != null) {
+      out.push({
+        key, label, unit, value: fixed, source: 'questionnaire', corrected: true,
+        wasValue: value == null ? null : value,
+        how: value == null || value === fixed
+          ? 'Entered by you.'
+          : `Corrected by you to ${fmt(fixed)}. We read ${fmt(value)} — ${how}`,
+        flag: null,
+      });
+      return fixed;
+    }
     out.push({ key, label, unit, value, source: value == null ? null : source, how, flag });
+    return value;
+  };
 
   // ── UNITS ──────────────────────────────────────────────────────────────────
+  //
+  // The unit count is the most load-bearing figure in the whole takeoff — it
+  // drives corridor unit-entry sconces, kitchen pendants, ceiling fans, living
+  // room and entry disks, and pathway lighting (Mike, 2026-09-15: "# of units
+  // cant be off. it affects so much and also affected the # of corridor unit
+  // entry socnces"). So the rule is: the HIGHEST credible whole-project total
+  // wins, and any disagreement is always shown.
+  //
+  // Why "highest" rather than "the matrix": a matrix that sums BELOW a total
+  // printed on the document means rows were missed — sheets that didn't get
+  // read, a second building's matrix, rows the merge collapsed. A matrix can
+  // never legitimately cover fewer units than the project has. The reverse
+  // (matrix above the printed total) is legitimate — a per-building total on a
+  // multi-building set — so the matrix keeps its win there, flagged.
+  //
+  // This is only safe because of the extraction contract: statedTotalUnits is
+  // defined as the total AS PRINTED, never one the reader added up itself
+  // (see EXTRACT_SYSTEM in drawingExtract.js). A computed total could not
+  // check anything; a printed one can.
   const matrixUnits = rows.reduce((s, r) => s + qtyOf(r), 0);
+  const noQtyRows   = rows.filter(r => !qtyOf(r)).length;
   const statedUnits = stated(totals?.statedTotalUnits);
   const siteUnits   = stated(site?.totalUnits);
   const mix         = bedroomsFromMix(site?.bedMix);
 
+  // The best whole-project total stated anywhere, and what to call it.
+  let projectTotal = null, projectTotalWhere = null;
+  if (statedUnits != null && (siteUnits == null || statedUnits >= siteUnits)) {
+    projectTotal = statedUnits; projectTotalWhere = "the document's own stated total";
+  } else if (siteUnits != null) {
+    projectTotal = siteUnits; projectTotalWhere = 'the site plan data block';
+  }
+
   let unitCount = null, unitHow = 'Not found on any drawing.', unitSource = null, unitFlag = null;
   if (matrixUnits > 0) {
-    unitCount = matrixUnits; unitSource = 'drawing';
-    unitHow = `Sum of the unit matrix rows (${rows.filter(qtyOf).length} unit types).`;
-    if (statedUnits != null && statedUnits !== matrixUnits) {
-      unitFlag = `The document's own stated total is ${fmt(statedUnits)} but its rows sum to ${fmt(matrixUnits)} — one of them was misread.`;
-    } else if (siteUnits != null && siteUnits > 0 && Math.abs(siteUnits - matrixUnits) / Math.max(siteUnits, matrixUnits) > 0.1) {
-      unitFlag = `The site plan says ${fmt(siteUnits)} units — more than 10% off the matrix. Check which is right.`;
+    unitSource = 'drawing';
+    if (projectTotal != null && projectTotal > matrixUnits) {
+      // Rows were missed. Trust the printed project total.
+      unitCount = projectTotal;
+      unitHow = `${fmt(projectTotal)} units stated on the drawings (${projectTotalWhere}). The unit matrix that was read only sums to ${fmt(matrixUnits)}, so it does not cover the whole project.`;
+      unitFlag = `The unit matrix rows sum to ${fmt(matrixUnits)} but the drawings state ${fmt(projectTotal)} units — ${fmt(projectTotal - matrixUnits)} units are missing from the matrix that was read. The stated total is being used. Everything counted per unit (bedrooms, bathrooms, balconies, unit SF) was scaled up to match, so confirm those against the drawings.`;
+    } else {
+      unitCount = matrixUnits;
+      unitHow = `Sum of the unit matrix rows (${rows.filter(qtyOf).length} unit types).`;
+      // EVERY whole-project total that disagrees gets named, not just the one
+      // the ladder happened to pick. The drawings can state two (the document's
+      // own total and the site plan data block); comparing only the higher of
+      // them meant a printed total below the matrix went unmentioned whenever
+      // the site plan agreed with the matrix — the disagreement was real and
+      // the reviewer never heard about it.
+      const disagrees = [];
+      if (statedUnits != null && statedUnits !== matrixUnits) disagrees.push(`${fmt(statedUnits)} on the document`);
+      if (siteUnits   != null && siteUnits   !== matrixUnits) disagrees.push(`${fmt(siteUnits)} on the site plan data block`);
+      if (disagrees.length > 0) {
+        unitFlag = `The rows sum to ${fmt(matrixUnits)} but the drawings also state ${disagrees.join(' and ')}. The higher figure is being used — on a multi-building set a stated total is often for one building only, but confirm it.`;
+      }
+    }
+    if (noQtyRows > 0) {
+      const note = `${fmt(noQtyRows)} unit-type row${noQtyRows > 1 ? 's were' : ' was'} read with no quantity, so ${noQtyRows > 1 ? 'they are' : 'it is'} not counted anywhere above. Check the matrix for rows whose quantity did not come through.`;
+      unitFlag = unitFlag ? `${unitFlag} ${note}` : note;
     }
   } else if (statedUnits != null) {
     unitCount = statedUnits; unitSource = 'drawing';
@@ -213,14 +361,31 @@ export function computeQuantities(drawings, answers, pricing = null) {
     unitCount = statedAnswer(ans.figureTotalUnits); unitSource = 'questionnaire';
     unitHow = 'Entered on the questionnaire — no unit count was found on the drawings.';
   }
-  add('totalUnits', '# Units', 'count', unitCount, unitSource, unitHow, unitFlag);
+  // A corrected unit count has to be settled HERE, before the per-unit columns
+  // below are scaled onto it. Left to add() alone, bedrooms, bathrooms,
+  // balconies and unit SF would go on being spread across the count we read
+  // while the corridor sconces priced off the corrected one — the two halves
+  // of the takeoff would quietly disagree, which is the exact failure Mike
+  // reported ("# of units cant be off. it affects so much").
+  const unitRead = unitCount;
+  const unitFix  = correctionFor(ans, 'totalUnits');
+  if (unitFix != null && unitFix > 0) unitCount = unitFix;
+  // add() is handed what we READ, not the correction, so the row it emits can
+  // show both ("Corrected by you to 472. We read 294 — …"). `unitCount` stays
+  // corrected for the per-unit columns below.
+  add('totalUnits', '# Units', 'count', unitRead, unitSource, unitHow, unitFlag);
 
   // ── BEDROOMS / BATHROOMS / VANITIES ────────────────────────────────────────
-  const beds = sumPerUnit(rows, 'bedrooms');
+  // Every column below is scaled onto the settled unit count above, so a
+  // matrix that covered only part of the project doesn't drag all of these
+  // down with it. See scaledToUnits().
+  const beds = scaledToUnits(sumPerUnit(rows, 'bedrooms'), unitCount);
   if (beds) {
-    add('bedrooms', '# Bedrooms', 'count', beds.sum, 'drawing',
-      'Bedrooms per unit type × unit quantities, from the unit matrix.',
-      partialFlag(beds, 'a bedroom count'));
+    add('bedrooms', '# Bedrooms', 'count', beds.value, 'drawing',
+      beds.scaled
+        ? `Bedrooms per unit type × unit quantities from the unit matrix (${fmt(beds.sum)} across ${fmt(beds.matrixUnits)} units), scaled to all ${fmt(beds.unitCount)} units.`
+        : 'Bedrooms per unit type × unit quantities, from the unit matrix.',
+      columnFlag(beds, 'a bedroom count'));
   } else if (mix) {
     add('bedrooms', '# Bedrooms', 'count', mix.bedrooms, 'drawing',
       'From the site plan bed mix (1× one-beds + 2× two-beds + 3× three-beds).',
@@ -229,30 +394,35 @@ export function computeQuantities(drawings, answers, pricing = null) {
     add('bedrooms', '# Bedrooms', 'count', null, null, 'No bedroom counts found in any drawing.');
   }
 
-  const baths = sumPerUnit(rows, 'bathrooms');
-  add('bathrooms', '# Bathrooms', 'count', baths ? baths.sum : null,
+  const baths = scaledToUnits(sumPerUnit(rows, 'bathrooms'), unitCount);
+  add('bathrooms', '# Bathrooms', 'count', baths ? baths.value : null,
     'drawing',
-    baths ? 'Bathrooms per unit type × unit quantities, from the unit matrix.' : 'No bathroom counts found — unit matrices often omit them.',
-    partialFlag(baths, 'a bathroom count'));
+    baths
+      ? (baths.scaled
+          ? `Bathrooms per unit type × unit quantities from the unit matrix (${fmt(baths.sum)} across ${fmt(baths.matrixUnits)} units), scaled to all ${fmt(baths.unitCount)} units.`
+          : 'Bathrooms per unit type × unit quantities, from the unit matrix.')
+      : 'No bathroom counts found — unit matrices often omit them.',
+    columnFlag(baths, 'a bathroom count'));
 
-  add('vanities', '# Vanities', 'count', baths ? baths.sum : null,
+  add('vanities', '# Vanities', 'count', baths ? baths.value : null,
     'derived',
     baths ? 'One vanity per bathroom.' : 'Follows the bathroom count, which was not found.',
-    partialFlag(baths, 'a bathroom count'));
+    columnFlag(baths, 'a bathroom count'));
 
   // ── BALCONIES ──────────────────────────────────────────────────────────────
-  const balc = sumPerUnit(rows, 'balconies');
+  const balc = scaledToUnits(sumPerUnit(rows, 'balconies'), unitCount);
+  const balcHow = balc && balc.scaled
+    ? `Balconies per unit type × unit quantities from the unit matrix (${fmt(balc.sum)} across ${fmt(balc.matrixUnits)} units), scaled to all ${fmt(balc.unitCount)} units.`
+    : 'Balconies per unit type × unit quantities, from the unit matrix.';
   const noBalconies = ans.balconyLighting === 'No balconies';
-  if (balc && balc.sum > 0 && noBalconies) {
-    add('balconies', '# Balconies', 'count', balc.sum, 'drawing',
-      'Balconies per unit type × unit quantities, from the unit matrix.',
-      `The questionnaire says there are no balconies, but the unit matrix lists ${fmt(balc.sum)}. Check which is right.`);
+  if (balc && balc.value > 0 && noBalconies) {
+    add('balconies', '# Balconies', 'count', balc.value, 'drawing', balcHow,
+      `The questionnaire says there are no balconies, but the unit matrix lists ${fmt(balc.value)}. Check which is right.`);
   } else if (noBalconies) {
     add('balconies', '# Balconies', 'count', 0, 'questionnaire', 'The questionnaire says the project has no balconies.');
   } else if (balc) {
-    add('balconies', '# Balconies', 'count', balc.sum, 'drawing',
-      'Balconies per unit type × unit quantities, from the unit matrix.',
-      partialFlag(balc, 'a balcony count'));
+    add('balconies', '# Balconies', 'count', balc.value, 'drawing', balcHow,
+      columnFlag(balc, 'a balcony count'));
   } else if (statedAnswer(ans.figureBalconies) != null) {
     // Without a count, the balcony-lighting answer prices to $0 no matter what
     // the visitor picks (Mike, 2026-09-04: "Why does none ... not change the
@@ -269,11 +439,14 @@ export function computeQuantities(drawings, answers, pricing = null) {
 
   // ── CEILING FANS ───────────────────────────────────────────────────────────
   const fansAnswer = ans.ceilingFans || 'None';
-  const bedroomTotal = beds ? beds.sum : (mix ? mix.bedrooms : null);
+  const bedroomTotal = beds ? beds.value : (mix ? mix.bedrooms : null);
   // Units with at least N bedrooms — "Master + Secondary" means one fan in
   // every unit with a bedroom plus a second in every unit with two or more.
+  // Scaled by the same factor as the bedroom column, so fan counts track the
+  // real unit count rather than the slice of it the matrix happened to cover.
   const unitsWithBedAtLeast = (min) => beds
-    ? rows.reduce((s, r) => s + (Number(r.bedrooms) >= min ? qtyOf(r) : 0), 0)
+    ? Math.round(rows.reduce((s, r) => s + (Number(r.bedrooms) >= min ? qtyOf(r) : 0), 0)
+        * (beds.scaled ? beds.factor : 1))
     : (mix ? [null,
         mix.unitsWithBedroom,
         (stated(site?.bedMix?.twoBed) ?? 0) + (stated(site?.bedMix?.threeBed) ?? 0),
@@ -337,13 +510,15 @@ export function computeQuantities(drawings, answers, pricing = null) {
   add('ceilingFans', '# Ceiling Fans', 'count', fans, fansAnswer === 'None' ? 'questionnaire' : 'derived', fansHow, fansFlag);
 
   // ── SQUARE FOOTAGE BY CATEGORY ─────────────────────────────────────────────
-  const unitSf = sumPerUnit(rows, 'unitSf');
+  const unitSf = scaledToUnits(sumPerUnit(rows, 'unitSf'), unitCount);
   const avgUnitTyped = statedAnswer(ans.figureAvgUnitSf);
   const grossTypedEarly = statedAnswer(ans.figureGrossSf);
   if (unitSf) {
-    add('unitsSf', 'Residential Units SF', 'sf', unitSf.sum, 'derived',
-      'Unit SF per type × unit quantities, from the unit matrix.',
-      partialFlag(unitSf, 'a unit SF'));
+    add('unitsSf', 'Residential Units SF', 'sf', unitSf.value, 'derived',
+      unitSf.scaled
+        ? `Unit SF per type × unit quantities from the unit matrix (${fmt(unitSf.sum)} SF across ${fmt(unitSf.matrixUnits)} units), scaled to all ${fmt(unitSf.unitCount)} units.`
+        : 'Unit SF per type × unit quantities, from the unit matrix.',
+      columnFlag(unitSf, 'a unit SF'));
   } else if (avgUnitTyped != null && unitCount > 0) {
     add('unitsSf', 'Residential Units SF', 'sf', Math.round(unitCount * avgUnitTyped), 'questionnaire',
       `${fmt(unitCount)} units × ${fmt(avgUnitTyped)} SF average unit size (entered on the questionnaire).`);
@@ -361,20 +536,34 @@ export function computeQuantities(drawings, answers, pricing = null) {
   // no-drawings form) is next; otherwise not found.
   const areaRow = (key, label, statedVal, statedHow, figureKey) => {
     const typed = statedVal == null ? statedAnswer(ans[figureKey]) : null;
-    add(key, label, 'sf', statedVal ?? typed, statedVal != null ? 'drawing' : 'questionnaire',
+    // add()'s return, not `statedVal ?? typed` — so a corrected area is the one
+    // the remainder below is taken off, and so a corrected exterior amenity SF
+    // clears the "this $/SF cannot move the budget" flag instead of keeping it.
+    return add(key, label, 'sf', statedVal ?? typed, statedVal != null ? 'drawing' : 'questionnaire',
       statedVal != null ? statedHow
         : typed != null ? 'Entered on the questionnaire — not found on the drawings.'
         : 'Not stated on any drawing.');
-    return statedVal ?? typed;
   };
   areaRow('garageSf', 'Garage SF', stated(totals?.garageSf), 'Stated on the drawings.', 'figureGarageSf');
   const corridorSf = areaRow('corridorSf', 'Corridors & Stairwells SF', stated(totals?.corridorSf),
     'Stated on the drawings.', 'figureCorridorSf');
   const interiorAmenitySf = areaRow('interiorAmenitySf', 'Interior Amenity SF', stated(site?.clubhouseSf),
     'From the clubhouse figure on the site plan.', 'figureInteriorAmenitySf');
-  areaRow('exteriorAmenitySf', 'Exterior Amenity SF', stated(site?.amenitySf),
+  // Exterior amenity SF is the multiplicand for the exterior amenity $/SF
+  // question. Mike, 2026-09-15: "Exterior amenity math in the conceptual
+  // budgeting tool isn't working. I click a different $/sf and nothing
+  // changes." The rate was never the problem — SF × rate is zero at every
+  // rate when the SF is zero, so the control looked dead. Nothing here
+  // invents an amenity area (there is no honest way to guess one); instead
+  // the row says plainly that the $/SF choice cannot move the budget until
+  // the figure is filled in, and the wizard now asks for it.
+  const extAmenitySf = areaRow('exteriorAmenitySf', 'Exterior Amenity SF', stated(site?.amenitySf),
     'From the amenity-area figure on the site plan — usually the outdoor programme (pool deck, courtyards).',
     'figureExteriorAmenitySf');
+  if (!(extAmenitySf > 0)) {
+    const extRow = out[out.length - 1];
+    extRow.flag = 'No exterior amenity area was found, so the exterior amenity $/SF you pick cannot change the budget — this line prices at $0 until a square footage is entered. Enter the outdoor amenity area (pool deck, courtyards, plazas) if the project has one.';
+  }
 
   // Gross SF ladder: a drawing-stated (or per-building-summed) total wins,
   // then a figure the visitor typed. Two derived estimates (footprint ×
@@ -382,8 +571,11 @@ export function computeQuantities(drawings, answers, pricing = null) {
   // because their ingredients are computed below this section.
   const grossStated = stated(totals?.grossInteriorSf) ?? stated(site?.grossSf);
   const grossFigure = grossStated == null ? statedAnswer(ans.figureGrossSf) : null;
-  const grossSf = grossStated ?? grossFigure;
-  add('grossSf', 'Total Building Gross SF', 'sf', grossSf,
+  // `grossSf` is what add() SETTLED on, so every later use of it — back of
+  // house below, the footprint checks further down — prices off a corrected
+  // building total rather than the one we misread.
+  const grossRead = grossStated ?? grossFigure;
+  const grossSf = add('grossSf', 'Total Building Gross SF', 'sf', grossRead,
     grossStated != null ? 'drawing' : 'questionnaire',
     grossStated == null
       ? (grossFigure != null
@@ -409,18 +601,27 @@ export function computeQuantities(drawings, answers, pricing = null) {
   const bohMaxPct = Number(pricing?.boh?.maxPctOfGross) > 0
     ? Number(pricing.boh.maxPctOfGross)
     : (PRICING.boh.maxPctOfGross ?? 0.05);
+  // Unit SF is read back off its ROW for the same reason as gross above: a
+  // hand-corrected figure has to be the one the remainder is taken off.
+  // `partial` records how much of the unit matrix we managed to read, and a
+  // person who has typed the real number has already overruled that doubt —
+  // so a corrected figure counts as complete coverage.
+  const unitsSfRow   = out.find(r => r.key === 'unitsSf');
+  const unitsSfFinal = unitsSfRow?.value ?? null;
+  const unitsSfWhole = unitsSfFinal != null
+    && (unitsSfRow.corrected === true || (!!unitSf && !unitSf.partial));
   const bohTyped = statedAnswer(ans.figureBohSf);
   if (bohTyped != null) {
     add('bohSf', 'Back of House SF', 'sf', bohTyped, 'questionnaire', 'Entered on the questionnaire.');
-  } else if (grossSf != null && unitSf && !unitSf.partial) {
-    const itemized = unitSf.sum + (corridorSf ?? 0) + (interiorAmenitySf ?? 0);
+  } else if (grossSf != null && unitsSfWhole) {
+    const itemized = unitsSfFinal + (corridorSf ?? 0) + (interiorAmenitySf ?? 0);
     const remainder = grossSf - itemized;
     const skipped = [corridorSf == null && 'corridors', interiorAmenitySf == null && 'interior amenity'].filter(Boolean);
     if (remainder >= 0) {
       const bohCap = Math.round(grossSf * bohMaxPct);
       const capped = remainder > bohCap;
       add('bohSf', 'Back of House SF (remainder)', 'sf', capped ? bohCap : Math.round(remainder), 'derived',
-        `Gross ${fmt(grossSf)} minus units ${fmt(unitSf.sum)}${corridorSf != null ? `, corridors ${fmt(corridorSf)}` : ''}${interiorAmenitySf != null ? `, interior amenity ${fmt(interiorAmenitySf)}` : ''}${capped ? ` = ${fmt(Math.round(remainder))}, capped at ${Math.round(bohMaxPct * 100)}% of gross` : ''}.`,
+        `Gross ${fmt(grossSf)} minus units ${fmt(unitsSfFinal)}${corridorSf != null ? `, corridors ${fmt(corridorSf)}` : ''}${interiorAmenitySf != null ? `, interior amenity ${fmt(interiorAmenitySf)}` : ''}${capped ? ` = ${fmt(Math.round(remainder))}, capped at ${Math.round(bohMaxPct * 100)}% of gross` : ''}.`,
         capped
           ? `The raw remainder (${fmt(Math.round(remainder))} SF) exceeded the ${Math.round(bohMaxPct * 100)}%-of-gross BOH cap${skipped.length ? ` — it likely still contains ${skipped.join(' and ')}` : ''}.`
           : (skipped.length ? `No ${skipped.join(' or ')} SF was stated, so this remainder still contains ${skipped.join(' and ')}.` : null));
@@ -545,10 +746,22 @@ export function computeQuantities(drawings, answers, pricing = null) {
   } else if (surfaceTyped != null) {
     surface = surfaceTyped; surfaceSource = 'questionnaire';
     surfaceHow = 'Entered on the questionnaire — not found on the site plan.';
-  } else if (!structuredParking && provided != null && openAir(provided) != null) {
+  } else if (provided != null && openAir(provided) != null && (!structuredParking || covered > 0)) {
+    // A stated provided-stall total, less the stalls lit by the garage and
+    // carport lines. On a structured-parking building this subtraction is only
+    // meaningful when the covered count is actually known — otherwise the
+    // total says nothing about how many stalls are out in the open, and the
+    // ask-the-visitor branch further down handles it.
+    //
+    // Mike, 2026-09-15: "It is not grabbing the number of parking stalls even
+    // if it reads that in the drawings it seems." Before this, a wrap/podium/
+    // mid-rise/high-rise job threw away a stated total outright and produced
+    // no stall figure at all, so the site-lighting line came in at zero.
     surface = openAir(provided); surfaceSource = 'derived';
     surfaceHow = `The site plan states ${fmt(provided)} stalls provided${lessCovered}.`;
-    surfaceFlag = 'Only a total was stated, with no surface / garage split — confirm how many stalls are open-air.';
+    surfaceFlag = structuredParking
+      ? `This building parks mostly in a garage, so this is the ${fmt(provided)} stated stalls less the ${fmt(covered)} garage and carport stalls on file. If the garage holds more than that, this overcounts the open-air stalls — confirm the split.`
+      : 'Only a total was stated, with no surface / garage split — confirm how many stalls are open-air.';
   } else if (!structuredParking && (requiredTotal != null || (ratio != null && unitCount > 0))
              && openAir(requiredTotal ?? Math.ceil(unitCount * ratio)) != null) {
     const total = requiredTotal ?? Math.ceil(unitCount * ratio);
