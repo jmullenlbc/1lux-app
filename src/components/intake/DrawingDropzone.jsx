@@ -1,8 +1,6 @@
 'use client';
 import { useState, useRef, useCallback, useEffect } from 'react';
-// From the standalone module, not '@/lib/drawingExtract' — that one reaches the
-// model and would pull server-only code (node:crypto) into the browser bundle.
-import { mergeProposals } from '@/lib/mergeProposals';
+import { combineReads, EARLIER_NAME } from '@/lib/intake/combineReads';
 import { uploadDirect, holdScreenAwake } from '@/lib/uploadClient';
 import { READING_TIME_HINT } from '@/components/ReadingWait';
 import { runStagedParse, STEP_WORDS } from '@/lib/intake/stagedParse';
@@ -95,7 +93,12 @@ async function parseInOneRequest(item, sent) {
 
 /**
  * @param {Function} onResults  called with the merged proposal (or null) every
- *                              time the set of read files changes
+ *                              time the set of read files changes, plus a
+ *                              second argument `{ reading, done, failed, total }`.
+ *                              While `reading > 0` the first argument is
+ *                              always null: nothing is shown or priced until
+ *                              every dropped file has been read (Mike
+ *                              2026-09-16). See src/lib/intake/combineReads.js.
  * @param {?Object}  restored   a merged proposal saved in the browser last
  *                              time (IntakeClient's draft). The files behind
  *                              it are gone — only their READ survived — so it
@@ -136,24 +139,17 @@ export default function DrawingDropzone({ onResults, restored = null }) {
     }
   }, [restored]);
 
-  const parsing = items.some(i => i.status === 'parsing' || i.status === 'uploading' || i.status === 'queued');
-  const done    = items.filter(i => i.status === 'done');
-
   // One combined proposal from the files read now plus the read kept from
-  // last time. Alone, the earlier read passes through untouched (re-merging
-  // a merge would re-derive verdicts it already settled); with new files it
-  // joins the merge as one more source, so nothing read last time is lost.
-  const EARLIER_NAME = 'Read earlier';
-  function combine(list, kept) {
-    const ok = list.filter(i => i.status === 'done').map(i => ({ fileName: i.name, proposal: i.proposal }));
-    if (!ok.length) return kept ?? null;
-    if (kept) ok.unshift({ fileName: EARLIER_NAME, proposal: kept });
-    return mergeProposals(ok);
-  }
-  const merged = combine(items, earlier);
+  // last time — or null while ANY file is still being read. The hold and the
+  // merge live in src/lib/intake/combineReads.js so they can be tested
+  // without a browser.
+  const combined = combineReads(items, earlier);
+  const merged = combined.merged;
+  const parsing = combined.reading > 0;
 
   function publish(next) {
-    onResults?.(combine(next, earlierRef.current));
+    const { merged: out, ...status } = combineReads(next, earlierRef.current);
+    onResults?.(out, status);
   }
 
   function removeEarlier() {
@@ -208,7 +204,14 @@ export default function DrawingDropzone({ onResults, restored = null }) {
       sent = { key: item.s3Key };
       reusedKey = true;
     } else {
-      setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'uploading', progress: 0 } : i));
+      // Published, not just set: a Retry of a failed upload puts this file
+      // back in flight, and the figures the other files showed must go back
+      // on hold until it lands (a fresh drop was already held by addFiles).
+      setItems(prev => {
+        const next = prev.map(i => i.id === item.id ? { ...i, status: 'uploading', progress: 0 } : i);
+        publish(next);
+        return next;
+      });
       try {
         sent = await uploadDirect(item.file, {
           onProgress: pct => setItems(prev => prev.map(i => i.id === item.id ? { ...i, progress: pct } : i)),
@@ -238,9 +241,15 @@ export default function DrawingDropzone({ onResults, restored = null }) {
     // could not finish on the live site at all -- Amplify hangs up at ~30
     // seconds and a set takes about a minute -- and short requests are also
     // the only way to tell the visitor what is happening while he waits.
-    setItems(prev => prev.map(i => i.id === item.id
-      ? { ...i, status: 'parsing', progress: null, steps: {}, startedAt: Date.now() }
-      : i));
+    // Published for the same reason as the 'uploading' step above: a Retry
+    // that kept its upload key starts here, and must pull the figures back.
+    setItems(prev => {
+      const next = prev.map(i => i.id === item.id
+        ? { ...i, status: 'parsing', progress: null, steps: {}, startedAt: Date.now() }
+        : i);
+      publish(next);
+      return next;
+    });
 
     // Tracked outside React state as well, because if this throws we need to
     // name the step that was running and setItems has not necessarily flushed.
@@ -321,7 +330,14 @@ export default function DrawingDropzone({ onResults, restored = null }) {
       status: 'queued', proposal: null, error: null,
     }));
 
-    setItems(prev => [...prev, ...fresh]);
+    // Published the moment they are queued: from here until the last one is
+    // read, the building summary and the live price are held back, so the
+    // first file to finish never sets the figures on its own.
+    setItems(prev => {
+      const next = [...prev, ...fresh];
+      publish(next);
+      return next;
+    });
     // Sequential rather than parallel: each parse is a paid model call, and the
     // public route is rate-limited per IP. Firing ten at once would trip it.
     (async () => { for (const item of fresh) await parseOne(item); })();
@@ -512,6 +528,20 @@ export default function DrawingDropzone({ onResults, restored = null }) {
           <div className="text-[10px] font-bold text-amber-700 uppercase tracking-wider mb-2">
             Combined from {merged.sources.length} file{merged.sources.length !== 1 ? 's' : ''}
           </div>
+          {/* Which file the unit count came from, and why — the decision the
+              merge made once every file was in, said out loud. Only worth a
+              line when there was a choice to make. */}
+          {merged.unitSchedule && merged.sources.length > 1 && (
+            <p className="mb-2 text-xs text-slate-600 leading-snug">
+              Unit count taken from <span className="font-medium text-slate-800">{merged.unitSchedule.file}</span>
+              {merged.unitSchedule.complete
+                ? ` — its rows add up to the ${fmt(merged.unitSchedule.stated)} units it prints.`
+                : ' — the most confident read.'}
+              {merged.uncountedUnitTypes?.length > 0 && (
+                ` ${merged.uncountedUnitTypes.length} unit row${merged.uncountedUnitTypes.length !== 1 ? 's' : ''} from other files ${merged.uncountedUnitTypes.length !== 1 ? 'were' : 'was'} set aside, not added.`
+              )}
+            </p>
+          )}
           <div className="flex items-center gap-4 flex-wrap text-sm text-slate-700">
             {merged.unitTypes.length > 0 && (
               <>
@@ -638,6 +668,12 @@ export default function DrawingDropzone({ onResults, restored = null }) {
           {items.some(i => i.status === 'uploading')
             ? 'Sending your drawings… you can leave this page open, a full set takes a few minutes.'
             : 'Reading your drawings…'}
+          {(combined.total > 1 || earlier) && (
+            <span className="text-slate-400">
+              {' '}Holding the figures until every file is read
+              ({combined.done + (earlier ? 1 : 0)} of {combined.total + (earlier ? 1 : 0)} done).
+            </span>
+          )}
         </p>
       )}
     </div>

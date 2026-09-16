@@ -286,27 +286,78 @@ export function mergeProposals(results) {
     }
   }
 
-  for (const { fileName, proposal } of results) {
+  /**
+   * Which file speaks first for a single figure (a total, a site number).
+   *
+   * Mike 2026-09-16: "just because it read one first doesn't mean it should
+   * use that data." Upload order — and, worse, the order the reads happened
+   * to finish in — used to decide every first-non-null figure. Now the order
+   * is: the file the unit count came from (it is the real set), then the
+   * more confident read, then upload order as the final tie-break. The
+   * dropzone only calls this once every file is read, so "first" is a
+   * decision, not a race.
+   */
+  function byPriority(confOf) {
+    return results
+      .map((r, i) => ({
+        r, i,
+        sched: schedule && r.fileName === schedule.fileName ? 1 : 0,
+        conf: Number.isFinite(confOf(r.proposal)) ? confOf(r.proposal) : 0,
+      }))
+      .sort((a, b) => (b.sched - a.sched) || (b.conf - a.conf) || (a.i - b.i))
+      .map(x => x.r);
+  }
+  const totalsFrom = {};
+  const siteFrom = {};
+
+  for (const { fileName, proposal } of byPriority(p => p?.overallConfidence)) {
     if (!proposal) continue;
-    sources.push(fileName);
-
-    for (const sheet of proposal.keptSheets ?? []) {
-      if (sheet?.key) keptSheets.push({ ...sheet, file: fileName });
-    }
-
     for (const field of Object.keys(totals)) {
       if (field === 'grossInteriorSf') continue;   // handled as a bundle below
       const val = proposal.projectTotals?.[field];
       if (val == null) continue;
       if (totals[field] == null) {
         totals[field] = val;
+        totalsFrom[field] = fileName;
       } else if (Number.isFinite(num(totals[field])) && Number.isFinite(num(val)) && num(totals[field]) !== num(val)) {
         // Only two NUMBERS can disagree. `buildingType` here is the model's
         // free-text description of the code data ("Occupancy R-2, Type VA…"),
         // which two files never word the same way; comparing those produced
         // a "buildingType: NaN vs NaN" disagreement on Lone Tree v2.
-        conflicts.push({ field, values: [{ value: totals[field] }, { value: val, file: fileName }] });
+        conflicts.push({ field, values: [{ value: totals[field], file: totalsFrom[field] }, { value: val, file: fileName }] });
       }
+    }
+  }
+
+  for (const { fileName, proposal } of byPriority(p => p?.siteData?.confidence ?? p?.overallConfidence)) {
+    if (!proposal?.siteData) continue;
+    if (!siteData) siteData = { _sources: [] };
+    // bedMix is an object, so the scalar loop below can't referee it — the
+    // highest-priority drawing that states a mix wins, whole. Splicing studio
+    // counts from one file with 2BR counts from another would build a mix no
+    // drawing actually says.
+    if (siteData.bedMix == null && proposal.siteData.bedMix && typeof proposal.siteData.bedMix === 'object') {
+      const mix = proposal.siteData.bedMix;
+      if (Object.values(mix).some(v => v != null)) siteData.bedMix = mix;
+    }
+    for (const field of SITE_DATA_KEYS) {
+      const val = proposal.siteData[field];
+      if (val == null) continue;
+      if (siteData[field] == null) {
+        siteData[field] = val;
+        siteFrom[field] = fileName;
+      } else if (siteData[field] !== val) {
+        conflicts.push({ field: `site ${field}`, values: [{ value: siteData[field], file: siteFrom[field] }, { value: val, file: fileName }] });
+      }
+    }
+  }
+
+  for (const { fileName, proposal } of results) {
+    if (!proposal) continue;
+    sources.push(fileName);
+
+    for (const sheet of proposal.keptSheets ?? []) {
+      if (sheet?.key) keptSheets.push({ ...sheet, file: fileName });
     }
 
     // Gross SF: best-confidence wins, not first-non-null.
@@ -340,27 +391,9 @@ export function mergeProposals(results) {
       }
     }
 
-    if (proposal.siteData) {
-      if (!siteData) siteData = { _sources: [] };
-      siteData._sources.push(fileName);
-      // bedMix is an object, so the scalar loop below can't referee it — the
-      // first drawing that states a mix wins, whole. Splicing studio counts
-      // from one file with 2BR counts from another would build a mix no
-      // drawing actually says.
-      if (siteData.bedMix == null && proposal.siteData.bedMix && typeof proposal.siteData.bedMix === 'object') {
-        const mix = proposal.siteData.bedMix;
-        if (Object.values(mix).some(v => v != null)) siteData.bedMix = mix;
-      }
-      for (const field of SITE_DATA_KEYS) {
-        const val = proposal.siteData[field];
-        if (val == null) continue;
-        if (siteData[field] == null) {
-          siteData[field] = val;
-        } else if (siteData[field] !== val) {
-          conflicts.push({ field: `site ${field}`, values: [{ value: siteData[field] }, { value: val, file: fileName }] });
-        }
-      }
-    }
+    // Site figures were settled above in priority order; the source list
+    // stays in upload order so it reads like the file list on screen.
+    if (proposal.siteData) siteData._sources.push(fileName);
 
     if (proposal.overallConfidence != null) { confSum += proposal.overallConfidence; confCount++; }
     else if (proposal.siteData?.confidence != null) { confSum += proposal.siteData.confidence; confCount++; }

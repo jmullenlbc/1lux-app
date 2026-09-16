@@ -289,6 +289,61 @@ test('project totals take the first non-null and flag disagreement', () => {
   assert.equal(m.conflicts.filter(c => c.field === 'grossInteriorSf').length, 1);
 });
 
+// ─── PRIORITY ORDER, NOT UPLOAD ORDER (Mike 2026-09-16) ─────────────────────
+// "Just because it read one first doesn't mean it should use that data."
+// For a single figure the counted schedule's file speaks first, then the more
+// confident read, then upload order. Both kept values name their file.
+
+test('a total from the counted-schedule file beats an earlier, more confident file', () => {
+  const m = mergeProposals([
+    { fileName: 'arch.pdf', proposal: p([{ code: 'A1', qty: 60, confidence: 0.5 }], { garageSf: 40000 }, 0.95) },
+    { fileName: 'gen.pdf',  proposal: p([
+      { code: 'A1', qty: 100, confidence: 0.9 }, { code: 'B1', qty: 68, confidence: 0.9 },
+    ], { statedTotalUnits: 168, garageSf: 52000 }, 0.7) },
+  ]);
+  assert.equal(m.unitSchedule.file, 'gen.pdf', 'gen prints a total its rows add up to');
+  assert.equal(m.projectTotals.garageSf, 52000, 'the schedule file speaks first for totals');
+  const c = m.conflicts.find(x => x.field === 'garageSf');
+  assert.ok(c, 'the disagreement is still recorded');
+  assert.deepEqual(c.values.map(v => v.file), ['gen.pdf', 'arch.pdf']);
+});
+
+test('with no schedule, the more confident total wins regardless of upload order', () => {
+  const m = mergeProposals([
+    { fileName: 'first.pdf',  proposal: p([], { corridorSf: 9000 }, 0.6) },
+    { fileName: 'second.pdf', proposal: p([], { corridorSf: 12000 }, 0.9) },
+  ]);
+  assert.equal(m.projectTotals.corridorSf, 12000);
+  assert.equal(m.conflicts.find(x => x.field === 'corridorSf').values[0].file, 'second.pdf');
+});
+
+test('a site figure from the counted-schedule file beats a more confident site read from another file', () => {
+  // Lone Tree v2: GEN (the set with the matrix and the site plan) prints 286
+  // stalls; the E002 electrical site read said 438 with higher confidence.
+  const m = mergeProposals([
+    { fileName: 'e002.pdf', proposal: site({ parkingProvided: 438 }, 0.95) },
+    { fileName: 'gen.pdf',  proposal: {
+      ...p([{ code: 'A1', qty: 168, confidence: 0.9 }], { statedTotalUnits: 168 }, 0.8),
+      siteData: { confidence: 0.7, notes: '', parkingProvided: 286 },
+    } },
+  ]);
+  assert.equal(m.unitSchedule.file, 'gen.pdf');
+  assert.equal(m.siteData.parkingProvided, 286);
+  const c = m.conflicts.find(x => x.field === 'site parkingProvided');
+  assert.deepEqual(c.values.map(v => v.value), [286, 438]);
+  assert.deepEqual(c.values.map(v => v.file), ['gen.pdf', 'e002.pdf']);
+  assert.deepEqual(m.siteData.sources, ['e002.pdf', 'gen.pdf'], 'sources stay in upload order');
+});
+
+test('with no schedule, the more confident site read wins and bedMix comes whole from it', () => {
+  const m = mergeProposals([
+    { fileName: 'a.pdf', proposal: site({ surfaceParking: 96, bedMix: { studio: 10, oneBed: 50 } }, 0.6) },
+    { fileName: 'b.pdf', proposal: site({ surfaceParking: 102, bedMix: { studio: 12, oneBed: 40, twoBed: 30 } }, 0.9) },
+  ]);
+  assert.equal(m.siteData.surfaceParking, 102);
+  assert.deepEqual(m.siteData.bedMix, { studio: 12, oneBed: 40, twoBed: 30 });
+});
+
 test('agreeing totals produce no conflict', () => {
   const m = mergeProposals([
     { fileName: 'a.pdf', proposal: p([], { grossInteriorSf: 164000 }) },

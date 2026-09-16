@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { US_STATES, checkLocation } from '@/lib/usStates';
 import DrawingDropzone from '@/components/intake/DrawingDropzone';
 import BudgetSidebar from '@/components/wizard/BudgetSidebar';
@@ -400,6 +400,16 @@ export default function IntakeClient() {
   const [touchedZip, setTouchedZip] = useState(false);
   const [touchedEmail, setTouchedEmail] = useState(false);
   const [drawings, setDrawings] = useState(null);
+  // How many dropped files are still being read. While it is above zero the
+  // dropzone hands us null for `drawings` — nothing is shown or priced until
+  // every file is in and one merge has decided what is real (Mike 2026-09-16)
+  // — and the two autosaves below stand still, so that mid-read null never
+  // overwrites a read that was saved earlier.
+  const [drawingsReading, setDrawingsReading] = useState(0);
+  const onDrawingsRead = useCallback((merged, status) => {
+    setDrawings(merged);
+    setDrawingsReading(status?.reading ?? 0);
+  }, []);
   // "Do you have drawings?" — null until answered, then 'yes' (the dropzone)
   // or 'no' (the typed-in figures form).
   const [haveDrawings, setHaveDrawings] = useState(null);
@@ -764,7 +774,7 @@ export default function IntakeClient() {
   // Half a second after the last change, once there is something to keep.
   // Inputs only: never the estimate, never a price, never after Send.
   useEffect(() => {
-    if (!draftDecided || submitted) return;
+    if (!draftDecided || submitted || drawingsReading > 0) return;
     const hasWork = [firstName, lastName, email, project].some(v => v.trim()) || haveDrawings || drawings;
     if (!hasWork) return;
     const t = setTimeout(() => {
@@ -778,7 +788,7 @@ export default function IntakeClient() {
       if (ok) setSavedAt(when);
     }, 500);
     return () => clearTimeout(t);
-  }, [draftDecided, submitted, stepId, completedSteps, firstName, lastName, email, company, project,
+  }, [draftDecided, submitted, drawingsReading, stepId, completedSteps, firstName, lastName, email, company, project,
       projCity, projState, projZip, haveDrawings, drawings, figures, corrections, answers, hasClubhouse,
       draftToken]); // a freshly minted token must reach the browser copy too
 
@@ -790,7 +800,7 @@ export default function IntakeClient() {
   // same row. Overlapping saves are serialised so a slow first save cannot
   // create two rows for one visitor.
   useEffect(() => {
-    if (!draftDecided || submitted || !contactReady) return;
+    if (!draftDecided || submitted || !contactReady || drawingsReading > 0) return;
     const t = setTimeout(() => {
       const draft = {
         firstName, lastName, email, company, project, projCity, projState, projZip,
@@ -822,7 +832,7 @@ export default function IntakeClient() {
       run();
     }, SERVER_SAVE_DELAY_MS);
     return () => clearTimeout(t);
-  }, [draftDecided, submitted, contactReady, stepId, completedSteps, firstName, lastName, email, company, project,
+  }, [draftDecided, submitted, contactReady, drawingsReading, stepId, completedSteps, firstName, lastName, email, company, project,
       projCity, projState, projZip, haveDrawings, manual, drawings, figures, corrections, answers, hasClubhouse]);
 
   const resumeLink = draftToken && typeof window !== 'undefined'
@@ -1279,7 +1289,7 @@ export default function IntakeClient() {
                       unit counts. We read it automatically so you don&apos;t have to type it in.
                     </p>
 
-                    <DrawingDropzone onResults={setDrawings} restored={restoredDrawings} />
+                    <DrawingDropzone onResults={onDrawingsRead} restored={restoredDrawings} />
 
                     {/* Building summary — everything the takeoff pulled from the
                         drawings, shown right where they were uploaded. Values +
@@ -1404,6 +1414,8 @@ export default function IntakeClient() {
                               ? (manualCheck.ready
                                   ? 'Your live budget is ready'
                                   : `Still needed: ${manualCheck.missing.join(', ')}`)
+                              : drawingsReading > 0
+                                ? `Reading ${drawingsReading} drawing${drawingsReading !== 1 ? 's' : ''} — your figures appear once every file is read`
                               : drawings
                                 ? `${drawings.sources.length} drawing${drawings.sources.length !== 1 ? 's' : ''} read`
                                 : 'Upload drawings to see live pricing — you can still submit without them'}
