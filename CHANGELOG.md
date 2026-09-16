@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Conceptual budget: fans per bedroom, back of house read off the drawings, come back to an unfinished budget, unfinished budgets as leads, the 108-vs-168 unit read, clubhouse controls, the memory brake] - September 16, 2026 (DEPLOYED September 16, 2026)
+## [Conceptual budget: fans per bedroom, back of house read off the drawings, come back to an unfinished budget, unfinished budgets as leads, the 108-vs-168 unit read, clubhouse controls, the memory brake] - September 16, 2026 (DEPLOYED September 16, 2026, commit c3123dc)
 
 Mike, on the live Lone Tree Ranch Test v1 result: *"Was it struggling with having multiple PDFs impossible contradictory information and what to do with that?"* and *"1. Browser save now. The link we should build but can't show until we hook up Microsoft email to it. 2. Yes we should see it abandoned … 5. Build all of it in the order you said."* Then: *"1. Fans should always be counted per bedroom and if living room is chosen in the options too then that can be per unit … A 3 bedroom unit with master bedroom and living room chose for fan locations should be 2 fans. A studio with that same option chosen should only be 1 fan. 2. Keep the 5% cap but the system should always take what the drawings say not add to it to hit the cap. 3. Yes deploy."*
 
