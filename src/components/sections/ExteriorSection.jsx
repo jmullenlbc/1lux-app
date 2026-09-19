@@ -7,6 +7,7 @@ import { formatCurrency, priceOverride, calculateBudget } from '@/lib/calculatio
 import { PRICING } from '@/lib/pricing';
 import StandardsHint from '@/components/wizard/StandardsHint';
 import { amenityRate } from '@/lib/amenityLevel';
+import { priceSiteFeatures, siteFeatureCostLine, siteFeatureLineLabel } from '@/lib/siteFeatures';
 
 // Manual adder line items — the things the formula does NOT compute. These ADD
 // on top of the frozen formula breakdown.
@@ -195,7 +196,12 @@ export default function ExteriorSection({ responses, projectData, allSections, p
         ? `${numUnitsPD.toLocaleString()} units × $${pathwayRate}/unit = $${Math.round(numUnitsPD * pathwayRate).toLocaleString()}, floored at $${pathwayFloor.toLocaleString()}${pathwaySolarSuffix}`
         : `${numUnitsPD.toLocaleString()} units × $${pathwayRate}/unit${pathwaySolarSuffix}`;
 
-  const subBeforeMisc   = amenityProduct + parkingProduct + carportProduct + garageProduct + wallpackProduct + autoLandscape + pathwayProduct;
+  // Sporadic site features (dog park, courts, playground, courtyard, turf play)
+  // — Mike 2026-09-16. Each is its own fixture package on the master sheet;
+  // never folded into amenity SF, area lighting or carports. $0 when none.
+  const siteFeat = priceSiteFeatures(projectData?.siteFeatures, P.exterior?.siteFeatures);
+
+  const subBeforeMisc   = amenityProduct + parkingProduct + carportProduct + garageProduct + wallpackProduct + autoLandscape + pathwayProduct + siteFeat.product;
   // The buffer base includes the manual adder — matches the engine
   // (extBufferBase = extSubBeforeMisc + exteriorManualTotal). This preview
   // previously left the manual adder out of the buffer and understated it.
@@ -219,7 +225,17 @@ export default function ExteriorSection({ responses, projectData, allSections, p
     { label: 'Landscape',             math: landscapeCapped
         ? `${netLotMath} × $${landscapePct.toFixed(2)}/SF = $${Math.round(landscapeRaw).toLocaleString()}, capped at $${landscapeCap.toLocaleString()}`
         : `${netLotMath} × $${landscapePct.toFixed(2)}/SF`, value: autoLandscape },
-    { label: 'Miscellaneous',         math: `${((P.exterior?.miscBufferPct ?? 0.05) * 100).toFixed(0)}% buffer of full exterior (incl. amenities + manual adder)`, value: miscBuffer },
+    // One line per site feature, each with its own count, rule and dollars —
+    // Mike 2026-09-16: "a breakdown of these added costs too so it's
+    // transparent." The lines still add up to siteFeat.product.
+    ...(siteFeat.items.length
+      ? siteFeat.items.map(i => ({
+          label: `Site feature — ${siteFeatureLineLabel(i)}`,
+          math:  `${i.how} ${siteFeatureCostLine(i)}`,
+          value: i.product,
+        }))
+      : [{ label: 'Site features', math: 'none found on the site plan or typed in Project Data — $0', value: 0 }]),
+    { label: 'Miscellaneous',        math: `${((P.exterior?.miscBufferPct ?? 0.05) * 100).toFixed(0)}% buffer of full exterior (incl. amenities + manual adder)`, value: miscBuffer },
   ];
   // Subtotal of the breakdown box = everything in the formula EXCEPT amenities
   // (amenities are shown separately above). Lines above sum to this.
@@ -296,6 +312,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
           <div>• Building wallpacks: per-building rate by building type × ${WPC.perFixture ?? 350} each — covers exterior doors too</div>
           <div>• Pathway lighting: $/unit by building type (${pathwayRate || 0}/unit here), floored at ${pathwayFloor.toLocaleString()}; solar sites × {PW.solarMultiplier ?? 1.6} — a manual pathway entry replaces the model line</div>
           <div>• Landscape: ${landscapePct.toFixed(2)} per SF of the net lot (lot − building footprint), capped at ${landscapeCap.toLocaleString()}</div>
+          <div>• Site features: dog park 1 area light at the entrance; tennis / pickleball 4 area lights per court; playground 2 pedestrian poles; courtyard 1 pole per 30 ft; turf play 1 pole per 50 ft — counted off the site plan or typed in Project Data</div>
         </div>
       </div>
 

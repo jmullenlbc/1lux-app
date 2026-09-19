@@ -36,11 +36,16 @@ export const SITE_NUMBER_KEYS = [
   'surfaceParking', 'surfaceParkingCounted', 'garages', 'carports', 'buildingCount', 'clubhouseSf', 'amenitySf',
   'grossSf', 'stories', 'storiesCounted', 'egressStairwells', 'egressStairwellsCounted',
   'exitDoors', 'exitDoorsCounted', 'buildingFootprintSf', 'lotCoveragePct', 'driveLengthFtMeasured',
+  'exteriorAmenitySfMeasured',
 ];
 
 /** True when a vision read actually found a site number worth keeping. */
 export function siteHasNumbers(siteData) {
-  return !!siteData && SITE_NUMBER_KEYS.some(k => siteData[k] != null);
+  if (!siteData) return false;
+  if (SITE_NUMBER_KEYS.some(k => siteData[k] != null)) return true;
+  // A landscape sheet that named a dog park or a courtyard found something,
+  // even when every number on it was null.
+  return Array.isArray(siteData.siteFeatures) && siteData.siteFeatures.length > 0;
 }
 
 /** True when the text read found a real unit matrix. */

@@ -38,7 +38,7 @@ import { sheetNumberOf } from './areaSheet.js';
  */
 export const SET_PAGE_THRESHOLD = 4;
 
-export const SHEET_ROLES = ['unitMatrix', 'sitePlan', 'areaSummary', 'floorPlan', 'elevations', 'cover'];
+export const SHEET_ROLES = ['unitMatrix', 'sitePlan', 'landscapePlan', 'areaSummary', 'floorPlan', 'elevations', 'cover'];
 
 /**
  * How many sheets of each role we are willing to carry forward.
@@ -66,6 +66,16 @@ const ROLE_SIGNALS = {
     // Landscape and hardscape plans carry the same site-data block often enough
     // to be worth a look, but never at the expense of the real site plan.
     [/\b(landscape|hardscape)\s+plan\b/i, 10],
+  ],
+  // The outdoor amenity read (2026-09-16): a landscape / hardscape plan labels
+  // the pool enclosure, courtyards, dog park and play areas and often prints
+  // their square footage, which the architectural site plan never does. An
+  // enlarged amenity or pool plan is the next best thing.
+  landscapePlan: [
+    [/\b(overall|composite)\s+(landscape|hardscape)\s+plan\b/i, 40],
+    [/\b(landscape|hardscape|planting|site\s+furnish\w*|site\s+amenit\w*)\s+plan\b/i, 34],
+    [/\b(amenity|pool)\s+(area|deck|court|enlargement)\b/i, 24],
+    [/\b(landscape|hardscape)\b/i, 14],
   ],
   unitMatrix: [
     [/\bunit\s+(matrix|mix)\b/i, 40],
@@ -119,6 +129,7 @@ const PREFIX_HINT = [
   [/^A[S-]?0*1?\./i, 'sitePlan'],
   [/^(C|CS|CV)/i,    'sitePlan'],
   [/^(L|LS|LP)/i,    'sitePlan'],
+  [/^(L|LS|LP|LA|LH)/i, 'landscapePlan'],
   [/^(G|T|GI)/i,     'cover'],
 ];
 
@@ -211,6 +222,7 @@ You are given one row per page: the page number, the sheet number from its title
 Identify the pages for each of these roles:
   "unitMatrix"  — the unit matrix / unit mix / room or key schedule: the table of unit types and quantities.
   "sitePlan"    — the overall site plan: the sheet showing the whole site, buildings, and parking. Prefer the architectural or overall site plan over enlarged, phased, or utility-only site sheets.
+  "landscapePlan" — the overall landscape, hardscape or site-furnishings plan: the sheet that labels the pool, courtyards, dog park, playground, sport courts and lawns, often with their areas. Prefer an overall landscape/hardscape plan; an enlarged amenity or pool-area plan is next best; planting, irrigation and detail sheets are last.
   "areaSummary" — the building area / gross area / program summary, sometimes called building statistics or a code summary. A combined "project information / code analysis" sheet with a BUILDING DATA or PROPOSED TOTAL AREA block counts — on many sets it is the only sheet stating square footage.
   "floorPlan"   — ONE plan view for counting egress stairwells and exit doors. Best: a life-safety / egress / code plan. Next best: the ground or first floor plan. Last resort: a typical floor plan. Prefer an overall plan over an enlarged partial one.
   "elevations"  — the exterior / building elevations sheet, for counting stories. Prefer overall exterior elevations over enlarged, partial, or interior elevations.
@@ -226,6 +238,7 @@ Return ONLY valid JSON — no markdown, no commentary:
 {
   "unitMatrix": [number],
   "sitePlan": [number],
+  "landscapePlan": [number],
   "areaSummary": [number],
   "floorPlan": [number],
   "elevations": [number],
@@ -267,7 +280,7 @@ export async function pickKeySheets(index, anthropic, { job = 'drawing.sheetPick
   try {
     const prompt = buildUntrustedPrompt({
       system: SHEET_PICK_SYSTEM,
-      instructions: 'Identify the unit matrix, site plan, area summary, and cover sheets in the drawing index below, and return the JSON described above.',
+      instructions: 'Identify the unit matrix, site plan, landscape plan, area summary, floor plan, elevations and cover sheets in the drawing index below, and return the JSON described above.',
       documents: [{ text: indexToText(index), descriptor: 'drawing sheet index', maxChars: 120000 }],
     });
     warnOnInjection(prompt.injection, job);
@@ -317,8 +330,17 @@ export async function pickKeySheets(index, anthropic, { job = 'drawing.sheetPick
  * of two, a set that offered two site-plan candidates would render both and
  * never open the area summary, so the read would come back missing the square
  * footage entirely.
+ *
+ * The landscape plan sits second because it is read by the same site-vision
+ * prompt as the site plan and the two are merged first-sheet-wins: the site
+ * plan's numbers lead, the landscape plan fills the outdoor amenity area and
+ * the sporadic site features the site plan does not label. Mike, 2026-09-16:
+ * "Yes always read the landscape sheet" — so the internal site read now takes
+ * three sheets (site plan, landscape plan, area summary), not two.
  */
-export function pagesToRender(picks, { order = ['sitePlan', 'areaSummary', 'floorPlan', 'elevations', 'unitMatrix', 'cover'], max = 3 } = {}) {
+export const RENDER_ORDER = ['sitePlan', 'landscapePlan', 'areaSummary', 'floorPlan', 'elevations', 'unitMatrix', 'cover'];
+
+export function pagesToRender(picks, { order = RENDER_ORDER, max = 3 } = {}) {
   const seen = new Set();
   const out = [];
   const depth = Math.max(0, ...order.map(r => (picks?.[r] ?? []).length));

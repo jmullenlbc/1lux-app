@@ -17,11 +17,12 @@
 import { answersToEngine, NO_DRAWINGS_KEY, noDrawingsReady } from './questionnaire.js';
 import { computeQuantities, answersToMap } from './quantities.js';
 import { calculateBudget } from '../calculations.js';
+import { siteFeaturesFromRows } from '../siteFeatures.js';
+import { parseLooseNumber } from '../numberInput.js';
 
 /** A stated, usable number — or null (Number(null) is 0, hence the dance). */
 function num(v) {
-  if (v === null || v === undefined || v === '') return null;
-  const n = Number(v);
+  const n = parseLooseNumber(v);            // "226,000" typed on the public page
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
@@ -106,12 +107,20 @@ export function computeIntakeEstimate({ answers, drawings, pricing = null }) {
     // landing. The takeoff's stairLandings row (stairs × (2×stories−1)) is
     // the matching figure; the raw shaft count would underprice 5-9×.
     numEgressStairwells: num(q.stairLandings),
+    // Residential building count (stated → counted off the site plan →
+    // typed). The engine's wallpack model scales on it; the takeoff already
+    // multiplied the per-building stair count by it.
+    numBuildings:        num(q.buildings),
     numSurfaceParking:   num(q.surfaceParking),
     numCarports:         num(q.carports),
     numGarages:          num(q.garages),
     lotSf:               num(q.lotSf),
     buildingFootprintSf: num(q.buildingFootprintSf),
     buildingTypeKey:     buildingTypeKey || undefined,
+    // Sporadic site features (Mike 2026-09-16) — the same seam the internal
+    // wizard feeds from the project's SiteFeature rows. Built from the
+    // takeoff rows (drawing-read or typed); empty when none were found.
+    siteFeatures:        siteFeaturesFromRows(q),
     // Sales tax is unknown at intake; the reviewed budget adds it later.
   };
 
@@ -133,7 +142,157 @@ export function computeIntakeEstimate({ answers, drawings, pricing = null }) {
     corrected: r.corrected ?? false, wasValue: r.wasValue ?? null,
   }));
 
-  return { budget, projectData, quantities, range: typedInRange(budget, gate.hasDrawings) };
+  // `sections` is for the staff hand-off (src/lib/intake/handoff.js) only — the
+  // public projection below names its fields and never passes it on.
+  return { budget, projectData, sections, quantities, range: typedInRange(budget, gate.hasDrawings) };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The PUBLIC projection — dollars and the visitor's own quantities, no formulas
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Mike, 2026-09-16: "We don't want to give away to the world all the math we
+// are doing… Someone could steal all the math." The engine's budget object is
+// generous on purpose — every line carries its count, its per-fixture price,
+// its multiplier, and every site feature says "1 pole per 30 ft". That is what
+// the INTERNAL screens are for. The public page gets what a visitor needs to
+// read their own budget: a label, their own count or length, and the dollars.
+//
+// Everything below is an ALLOW list. A new field on the engine's return does
+// not reach a public browser until somebody names it here, and
+// scripts/tests/intakePublicMath.test.mjs fails the build if a rate-shaped key
+// ever shows up anyway.
+
+/** Top-level budget figures the public sidebar, review step and PDF print. */
+const PUBLIC_BUDGET_KEYS = [
+  'freight', 'warehousing', // dollars only — the rates behind them stay internal (Mike 9-17)
+  'lightingProductSubtotal', 'subtotalLightingOnly',
+  'controls', 'controlsFreight', 'controlsWarehousing', 'controlsTotal',
+  'totalWithControls', 'perSf', 'perUnit',
+  'energyCreditPct', 'energyCreditLighting', 'energyCreditControls',
+  'contingencyRate', 'contingencyAmount', 'totalWithContingency',
+  'salesTaxPct', 'lightingTaxAmount', 'controlsTaxAmount',
+];
+
+/** Inside `sections`, these leaves survive; every object is walked for them. */
+const PUBLIC_LINE_KEYS = new Set(['product', 'manualAdder', 'suppressedByManual']);
+
+function publicLines(node) {
+  if (!node || typeof node !== 'object' || Array.isArray(node)) return undefined;
+  const out = {};
+  for (const [k, v] of Object.entries(node)) {
+    if (PUBLIC_LINE_KEYS.has(k)) {
+      if (typeof v === 'number' || typeof v === 'boolean') out[k] = v;
+    } else if (k === 'siteFeatures') {
+      // The visitor's own finding (2 courts, a 90 ft courtyard) and its dollars.
+      // Not the fixture count, the fixture kind, the price each or the rule.
+      out.siteFeatures = {
+        product: Number(v?.product) || 0,
+        items: (Array.isArray(v?.items) ? v.items : []).map(i => ({
+          type: i.type, label: i.label,
+          count: i.count ?? null, lengthFt: i.lengthFt ?? null,
+          product: Number(i.product) || 0,
+          approx: approxWords(i.fixtures, i.fixtureKind === 'areaLight' ? 'area lights' : 'poles'),
+        })),
+      };
+    } else if (k === 'parking' && v && typeof v === 'object') {
+      // The dollars plus "approx. 47 area lights" — not how the 47 was reached.
+      out.parking = { product: Number(v.product) || 0, approx: approxWords(v.fixtures, 'area lights') };
+    } else if (k === 'wallpacks' && v && typeof v === 'object') {
+      out.wallpacks = { product: Number(v.product) || 0, approx: approxWords(v.qty, 'wallpacks') };
+    } else if (k === 'breezeway' && v && typeof v === 'object') {
+      // A quantity and a description of the building, both the visitor's own.
+      out.breezeway = { landings: v.landings ?? null, style: v.style ?? null };
+    } else if (v && typeof v === 'object' && !Array.isArray(v)) {
+      const child = publicLines(v);
+      if (child && Object.keys(child).length) out[k] = child;
+    }
+  }
+  return out;
+}
+
+/**
+ * "Approx. 47 area lights" — a rounded count in plain words, never the price
+ * each and never the rule that produced it (Mike 2026-09-18: "Counts and
+ * dollars makes it real and doesn't tell people our backend secret logic").
+ * Anything under ten is printed as-is; larger counts round to the nearest 5.
+ */
+export function approxWords(count, noun) {
+  const n = Number(count);
+  if (!Number.isFinite(n) || n <= 0 || !noun) return null;
+  const rounded = n < 10 ? Math.round(n) : Math.round(n / 5) * 5;
+  return `approx. ${rounded.toLocaleString()} ${noun}`;
+}
+
+/** "What this answer costs" — the dollars and a rounded count, never count × price-each. */
+function publicQuestionCosts(costs) {
+  const out = {};
+  for (const [key, c] of Object.entries(costs || {})) {
+    out[key] = {
+      product: Number(c?.product) || 0,
+      labor:   Number(c?.labor) || 0,
+      lines: (c?.lines || []).map(l => ({
+        label: l.label, product: Number(l.product) || 0, labor: Number(l.labor) || 0,
+        approx: approxWords(l.count, l.countLabel),
+      })),
+    };
+  }
+  return out;
+}
+
+export function publicBudget(budget) {
+  if (!budget) return null;
+  const out = { sections: publicLines(budget.sections) || {} };
+  for (const k of PUBLIC_BUDGET_KEYS) if (budget[k] !== undefined) out[k] = budget[k];
+  out.questionCosts = publicQuestionCosts(budget.questionCosts);
+  return out;
+}
+
+/**
+ * Does this sentence explain HOW a number was worked out? Deliberately broad:
+ * a false hit costs the visitor one plain sentence; a miss publishes a rule.
+ */
+export const MATH_RE = /[×÷=$]|\d\s*%|\bper\b|\bratio\b|\bfactor\b|\bmultipl|\bshare\b|\bcapp?ed\b|\bcap\b|\bremainder\b|\bscaled\b|\btypical\b|\baverage\b/i;
+
+const HOW_DERIVED  = 'Our estimate, worked out from the other figures on this project. Type over it if you know the real number.';
+const HOW_DRAWINGS = 'Worked out from figures printed on the drawings.';
+const FLAG_DERIVED = 'Please confirm this figure — it was estimated rather than read off a sheet.';
+const FLAG_OTHER   = 'Please confirm this figure.';
+
+/** One takeoff row with the working-out taken off it. Value and source stay. */
+export function publicQuantity(r) {
+  let how = r.how ?? null;
+  let flag = r.flag ?? null;
+  if (r.corrected) {
+    // "Corrected by you to 210. We read 200 — 1.4 balconies per unit…": the
+    // tail is the old working-out. `wasValue` already carries the 200.
+    how = r.wasValue != null ? 'Corrected by you.' : 'Entered by you.';
+  } else if (r.source === 'derived') {
+    how = HOW_DERIVED;
+  } else if (how && MATH_RE.test(how)) {
+    how = HOW_DRAWINGS;
+  }
+  if (flag && MATH_RE.test(flag)) flag = r.source === 'derived' ? FLAG_DERIVED : FLAG_OTHER;
+  return {
+    key: r.key, label: r.label, unit: r.unit,
+    value: r.value, source: r.source, how, flag,
+    corrected: r.corrected ?? false, wasValue: r.wasValue ?? null,
+  };
+}
+
+/**
+ * What /api/intake/estimate sends to a public browser. Same math, same totals
+ * as computeIntakeEstimate — staff, the PDF and the hand-off keep using that
+ * one — with the formulas taken out.
+ */
+export function publicIntakeEstimate(args) {
+  const full = computeIntakeEstimate(args);
+  return {
+    budget: publicBudget(full.budget),
+    projectData: full.projectData,
+    quantities: (full.quantities || []).map(publicQuantity),
+    ...(full.range !== undefined ? { range: full.range } : {}),
+  };
 }
 
 /**

@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { oversizeMessage, uploadErrorMessage, uploadThrowMessage } from '@/lib/uploadErrorMessage';
 import { appendUpload } from '@/lib/uploadClient';
+import { postParked } from '@/lib/parkedFetch';
 import ReadingWait, { READING_TIME_HINT } from '@/components/ReadingWait';
 
 // ── confidence → display tier ────────────────────────────────────────────────
@@ -631,11 +632,9 @@ export default function UnitMatrixUpload({ projectId, onCommitted }) {
 
     // Parse
     try {
-      const r = await fetch(`/api/projects/${projectId}/unit-matrix/parse`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileId }),
-      });
+      // Park-and-poll: the read runs in steps behind the front door and the
+      // answer arrives with the same body and status it always had.
+      const r = await postParked(`/api/projects/${projectId}/unit-matrix/parse`, { fileId });
       const d = await r.json();
 
       if (!r.ok) {

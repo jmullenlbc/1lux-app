@@ -21,7 +21,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PrismaClient } from '@prisma/client';
-import { BASE, login, get, post, serverUp } from './_auth.mjs';
+import { BASE, login, get, post, serverUp, postParked } from './_auth.mjs';
 
 // ─── in-memory fixtures ─────────────────────────────────────────────────────
 
@@ -130,7 +130,7 @@ test('questionnaire drawing-upload flow, end to end', { timeout: 300_000 }, asyn
       assert.equal(up.status, 201, `upload failed: ${JSON.stringify(up.json)}`);
       const fileId = up.json.file.id;
 
-      const parsed = await post(`/api/projects/${projectId}/unit-matrix/parse`, { fileId }, cookie);
+      const parsed = await postParked(`/api/projects/${projectId}/unit-matrix/parse`, { fileId }, cookie);
       assert.equal(parsed.status, 200, `parse failed: ${parsed.text}`);
       const types = parsed.json.unitTypes;
       assert.ok(Array.isArray(types) && types.length >= 3, `expected ≥3 unit types, got ${types?.length}`);
@@ -163,7 +163,7 @@ test('questionnaire drawing-upload flow, end to end', { timeout: 300_000 }, asyn
       assert.equal(up.status, 201, `upload failed: ${JSON.stringify(up.json)}`);
       const fileId = up.json.file.id;
 
-      const parsed = await post(`/api/projects/${projectId}/site/parse`, { fileId }, cookie);
+      const parsed = await postParked(`/api/projects/${projectId}/site/parse`, { fileId }, cookie);
       assert.equal(parsed.status, 200, `site parse failed: ${parsed.text}`);
       const rows = parsed.json.proposal;
       assert.ok(Array.isArray(rows) && rows.length > 0, 'site parse proposed no fields');

@@ -5,6 +5,7 @@ import DisabledSection from '@/components/salesAutomation/DisabledSection';
 import ConfirmArchiveModal from '@/components/salesAutomation/ConfirmArchiveModal';
 import { ACCEPT_ATTRIBUTE, fileTypeLabel, detectFileType } from '@/lib/botKnowledge/text';
 import { appendUploads } from '@/lib/uploadClient';
+import { postParked } from '@/lib/parkedFetch';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -616,8 +617,10 @@ function DocumentsPanel({ category, onChanged }) {
 
         setProgress(p => (p ? { ...p, pct: 100 } : p));
 
-        const res  = await fetch('/api/automation/knowledge/docs', { method: 'POST', body: fd });
-        const data = await res.json().catch(() => ({}));
+        // Park-and-poll: the read runs in steps behind the front door and the
+        // answer arrives with the same body and status it always had.
+        const res  = await postParked('/api/automation/knowledge/docs', fd);
+        const data = res.data || {};
 
         if (data.created?.length) addedAny = true;
         if (data.failed?.length)  trouble.push(...data.failed);

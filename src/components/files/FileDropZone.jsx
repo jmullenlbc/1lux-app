@@ -3,6 +3,7 @@ import { useState, useRef, useCallback, useMemo } from 'react';
 import PdfViewerModal from '@/components/ui/PdfViewerModal';
 import { oversizeMessage, uploadErrorMessage, uploadThrowMessage } from '@/lib/uploadErrorMessage';
 import { appendUpload } from '@/lib/uploadClient';
+import { afterUploadReads } from '@/lib/scheduleReadClient';
 import ConfirmArchiveModal, { setArchived, ArchiveBoxIcon, KEPT_ON_ARCHIVE_PAGE } from '@/components/salesAutomation/ConfirmArchiveModal';
 
 // Flat tag list used for filter chips and ordering
@@ -230,7 +231,9 @@ export default function FileDropZone({ projectId, tab, initialFiles = [], onFile
       setUploading(prev => prev.map(u => u.id === uid ? { ...u, pct: null } : u));
       const res = await fetch(`/api/projects/${projectId}/files`, { method: 'POST', body: form });
       if (res.ok) {
-        const data = await res.json();
+        // A schedule's milestones are read in steps AFTER the row is saved
+        // (park-and-poll); the card stays in "uploading" until they are back.
+        const data = await afterUploadReads(projectId, await res.json());
         setFiles(prev => [data.file, ...prev]);
         onFileAdded?.(data.file, data.contractUpdate ?? null, data.scheduleUpdate ?? null, data.designScheduleUpdate ?? null);
       } else {

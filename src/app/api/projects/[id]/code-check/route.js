@@ -8,6 +8,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
 import { modelParams, textFrom, answerBudget } from '@/lib/aiModels';
+import { runParkedJob, readJobRequest, jobError } from '@/lib/parkedJob';
 
 // ── Load code corpus (reuse same pattern as code-search route) ────────────────
 function parseFrontmatter(content) {
@@ -95,6 +96,14 @@ export async function GET(request, { params }) {
 }
 
 // ── POST — AI-powered deep review ────────────────────────────────────────────
+//
+// Park-and-poll (src/lib/parkedJob.js). One model call over the schedule plus
+// the code corpus runs past Amplify's ~30-second front door. This route used
+// to hand the browser a fake stream to keep the socket open, which the front
+// door does not honour; now the first request only writes the job down and
+// the polls run it and collect it. The answer is the same JSON object.
+export const maxDuration = 300;
+
 export async function POST(request, { params }) {
   // `user` is destructured only so the ledger entry can name who ran the check.
   const { user, error } = await requireAuth();
@@ -103,7 +112,20 @@ export async function POST(request, { params }) {
   const apiKey = getAnthropicKey()?.trim();
   if (!apiKey) return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 503 });
 
-  const projectId = params.id;
+  const { body } = await readJobRequest(request);
+  return runParkedJob({
+    body, kind: 'codeCheck.review', scope: params.id, args: body.jobKey ? null : {},
+    run: () => reviewSchedule({ projectId: params.id, user }),
+  });
+}
+
+/**
+ * The review itself. Returns the parsed JSON object the panel renders, or a
+ * body with an `error` string — the same two shapes the stream used to carry.
+ */
+async function reviewSchedule({ projectId, user }) {
+  const apiKey = getAnthropicKey()?.trim();
+  if (!apiKey) throw jobError(503, { error: 'ANTHROPIC_API_KEY not configured' });
 
   const [scheduleData, takeoffFile, projectData, project] = await Promise.all([
     prisma.fixtureSchedule.findFirst({
@@ -121,7 +143,7 @@ export async function POST(request, { params }) {
 
   const items = scheduleData?.items ?? [];
   if (items.length === 0) {
-    return NextResponse.json({ error: 'No fixture schedule to review' }, { status: 400 });
+    throw jobError(400, { error: 'No fixture schedule to review' });
   }
 
   const takeoffRaw = takeoffFile?.takeoffData ? JSON.parse(takeoffFile.takeoffData) : null;
@@ -212,36 +234,27 @@ Return only the JSON object, no markdown, no explanation outside the JSON.`;
   const client = wrapClient(
     new Anthropic({ apiKey }),
     'codeCheck.review',
-    { projectId: params.id, userId: user?.id || null },
+    { projectId, userId: user?.id || null },
   );
 
-  const stream = new ReadableStream({
-    async start(controller) {
-      const enc = new TextEncoder();
-      try {
-        const response = await client.messages.create({
-          ...modelParams('code.check'),
-          max_tokens: answerBudget('code.check', 2000),
-          system:     systemPrompt,
-          messages:   [{ role: 'user', content: userMessage }],
-        });
+  let response;
+  try {
+    response = await client.messages.create({
+      ...modelParams('code.check'),
+      max_tokens: answerBudget('code.check', 2000),
+      system:     systemPrompt,
+      messages:   [{ role: 'user', content: userMessage }],
+    });
+  } catch (e) {
+    return { error: e?.message ?? 'AI review failed' };
+  }
 
-        const text = textFrom(response) ?? '';
-        // Extract JSON from response
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          controller.enqueue(enc.encode(jsonMatch[0]));
-        } else {
-          controller.enqueue(enc.encode(JSON.stringify({ error: 'No structured response from AI' })));
-        }
-      } catch (e) {
-        controller.enqueue(enc.encode(JSON.stringify({ error: e?.message ?? 'AI review failed' })));
-      }
-      controller.close();
-    },
-  });
-
-  return new Response(stream, {
-    headers: { 'Content-Type': 'application/json; charset=utf-8' },
-  });
+  const text = textFrom(response) ?? '';
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) return { error: 'No structured response from AI' };
+  try {
+    return JSON.parse(jsonMatch[0]);
+  } catch {
+    return { error: 'The AI answer could not be read as JSON' };
+  }
 }

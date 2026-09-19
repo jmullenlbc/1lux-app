@@ -8,6 +8,7 @@ import { sendNotification } from '@/lib/notify';
 import { NEXT_ACTION_KEYS, STAGE_KEYS, STAGE_LABEL, PIPELINE_LABEL } from '@/lib/pipeline';
 import { recordStatusChanges, describeStatusChange } from '@/lib/statusEvents';
 import { PROJECT_TEAM_ROLES, pickTeamUpdate } from '@/lib/projectTeam';
+import { parseLooseNumber, isUnreadableNumber, NUMBER_HELP } from '@/lib/numberInput';
 
 // The six companies on a project's team, loaded by name so a screen can show
 // "Architect: Studio Nine" without a second round trip. Built from the shared
@@ -65,14 +66,32 @@ export async function PATCH(request, { params }) {
   // Contract dollars: Construction, Operations, Finance and admins only (Mike,
   // 2026-09-14). A screen may send the whole record back, so only a real change
   // counts — resending the number already on file is not an edit.
+  // Money and percents arrive as whatever was typed: "1,200,000", "$41,200",
+  // "12%". Number("1,200,000") is NaN, which blanked the field (Maram, 9-18);
+  // the shared loose reader (src/lib/numberInput.js) handles the dressing.
+  // Typed nonsense ("abc") is refused with a message, never saved as zero.
+  const toMoney = (v) => {
+    const n = parseLooseNumber(v);
+    return Number.isNaN(n) ? null : n;
+  };
+  const unreadable = [contractValue, designContractValue, pipelineProbability, probabilityToWin, probabilityToMoveForward]
+    .some(isUnreadableNumber);
+  if (unreadable) {
+    return NextResponse.json({ error: NUMBER_HELP }, { status: 400 });
+  }
+  const moneyIn       = toMoney(contractValue);
+  const designMoneyIn = toMoney(designContractValue);
   const sameMoney = (next, stored) =>
-    next === undefined || (next === null ? stored == null : Number(next) === stored);
-  if (!(sameMoney(contractValue, project.contractValue) && sameMoney(designContractValue, project.designContractValue))
+    next === undefined || (next === null ? stored == null : next === stored);
+  if (!(sameMoney(moneyIn, project.contractValue) && sameMoney(designMoneyIn, project.designContractValue))
       && !can(user, 'editJobMoney')) {
     return NextResponse.json({ error: deniedMessage('editJobMoney') }, { status: 403 });
   }
 
-  const clampPct = v => v === null || v === '' ? null : Math.max(0, Math.min(100, Number(v)));
+  const clampPct = v => {
+    const n = parseLooseNumber(v);
+    return n === null || n === undefined || Number.isNaN(n) ? null : Math.max(0, Math.min(100, n));
+  };
 
   const validPhases      = ['sd', 'dd', 'cd', 'ifc', 'construction', 'closeout'];
   const validBudgetTypes = ['conceptual', 'design', 'peer_review'];
@@ -140,9 +159,9 @@ export async function PATCH(request, { params }) {
       ...(serviceType    !== undefined && (validServiceTypes.includes(serviceType) || serviceType === null) && { serviceType: serviceType || null }),
       ...(flagged        !== undefined && { flagged: Boolean(flagged) }),
       ...(flagNote       !== undefined && { flagNote: flagNote || null }),
-      ...(contractValue  !== undefined && { contractValue: contractValue === null ? null : Number(contractValue) }),
+      ...(moneyIn        !== undefined && { contractValue: moneyIn }),
       ...(contractSignedDate       !== undefined && { contractSignedDate:       contractSignedDate       || null }),
-      ...(designContractValue      !== undefined && { designContractValue:      designContractValue === null ? null : Number(designContractValue) }),
+      ...(designMoneyIn            !== undefined && { designContractValue:      designMoneyIn }),
       ...(designContractSignedDate !== undefined && { designContractSignedDate: designContractSignedDate || null }),
       ...(constructionStartDate !== undefined && { constructionStartDate: constructionStartDate || null }),
       ...(mepRoughInDate        !== undefined && { mepRoughInDate:        mepRoughInDate        || null }),
@@ -154,7 +173,7 @@ export async function PATCH(request, { params }) {
       ...(projectType         !== undefined && { projectType: projectType || null }),
       ...(procurementStage    !== undefined && validProcurementStages.includes(procurementStage) && { procurementStage }),
       ...(designStage         !== undefined && validDesignStages.includes(designStage) && { designStage }),
-      ...(pipelineProbability !== undefined && { pipelineProbability: pipelineProbability === null ? 50 : Math.max(0, Math.min(100, Number(pipelineProbability))) }),
+      ...(pipelineProbability !== undefined && { pipelineProbability: clampPct(pipelineProbability) ?? 50 }),
       ...(probabilityToWin         !== undefined && { probabilityToWin:         clampPct(probabilityToWin) }),
       ...(probabilityToMoveForward !== undefined && { probabilityToMoveForward: clampPct(probabilityToMoveForward) }),
       ...(procurementStatus   !== undefined && validPipelineStatus.includes(procurementStatus) && { procurementStatus }),

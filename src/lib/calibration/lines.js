@@ -30,6 +30,7 @@ export const LINE_LABELS = {
   'exterior.wallpacks':       'Wallpacks',
   'exterior.pathway':         'Pathway lighting',
   'exterior.landscape':       'Landscape',
+  'exterior.siteFeatures':    'Site features',
   'exterior.parkingEntrances':'Parking entrances (manual)',
   'emergency':                'Emergency lighting',
   'exitSigns':                'Exit signs',
@@ -184,6 +185,15 @@ export function buildSamples({ projectData = {}, sections = {}, budget, pricing 
     rateUsed: n(ls.pct, n(pricing.exterior?.landscape?.pctOfNetLotSf, 0.02)), pricingKey: 'exterior.landscape.pctOfNetLotSf',
     note: ls.capped ? `capped at $${n(pricing.exterior?.landscape?.maxTotal, 3000).toLocaleString()}` : null });
 
+  // Sporadic site features (dog park, courts, …): a fixture package per kind,
+  // so the line's quantity is the fixture count across every kind. No single
+  // rate to suggest — each kind has its own price on the master sheet.
+  const sf = s.exterior?.siteFeatures || {};
+  const sfFixtures = n(sf.areaLights) + n(sf.pedestrianPoles);
+  push({ lineKey: 'exterior.siteFeatures', quantity: sfFixtures, quantityUnit: 'fixtures', modelAmount: sf.product,
+    rateUsed: sfFixtures > 0 ? n(sf.product) / sfFixtures : null, pricingKey: null,
+    note: Array.isArray(sf.items) && sf.items.length ? sf.items.map(i => `${i.label}: ${i.how}`).join('; ') : 'none on this job' });
+
   // Manual-only line: the model has no formula for it yet. Recording the
   // actual is how a formula eventually gets written.
   const entrances = n(manual.parkingEntrances);
@@ -237,6 +247,7 @@ export const APPLIABLE_PRICING_KEY_PREFIXES = [
   'interiorAmenities.', 'exteriorAmenities.', 'garage.perSf',
   'exterior.surfaceParking.perFixture', 'exterior.wallpacks.perFixture',
   'exterior.pathway.dollarsPerUnit.', 'exterior.landscape.pctOfNetLotSf', 'exitSigns.perSf',
+  'exterior.siteFeatures.',
 ];
 
 export function isAppliablePricingKey(key) {

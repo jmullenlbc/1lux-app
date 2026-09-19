@@ -10,6 +10,7 @@ import { findLikelyProject } from '@/lib/intake/duplicateMatch';
 import { notifyUsers } from '@/lib/alerts';
 import { inDepartment, SALES_MARKETING } from '@/lib/departments';
 import { hashToken } from '@/lib/intake/draftTokens';
+import { looseNumberOrNull } from '@/lib/numberInput';
 
 export const dynamic = 'force-dynamic';
 
@@ -74,7 +75,7 @@ export async function POST(req) {
   const rawPayload = JSON.stringify({
     projectName,
     companyName: companyName || null,
-    grossSf: grossSf ? Number(grossSf) : null,
+    grossSf: looseNumberOrNull(grossSf),
     drawings: drawingsData || null,
     submittedAt: new Date().toISOString(),
   });

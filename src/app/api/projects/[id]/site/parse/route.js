@@ -7,10 +7,12 @@ import { getAnthropicKey } from '@/lib/anthropicKey';
 import { renderPdfPages, extractSiteData, SITE_VISION_PROMPT_VERSION } from '@/lib/siteVision';
 import { extractPdfPages } from '@/lib/drawingExtract';
 import { buildSheetIndex, pickKeySheets, pagesToRender, SET_PAGE_THRESHOLD } from '@/lib/sheetIndex';
-import { proposeSiteFields } from '@/lib/siteFields';
+import { proposeSiteFields, proposeSiteFeatures } from '@/lib/siteFields';
+import { loadSiteFeatures } from '@/lib/siteFeatureRows';
 import { wrapClient } from '@/lib/agent/client';
 import { submitAgentOutput } from '@/lib/agent/review';
 import { summariseInput } from '@/lib/agent/untrusted';
+import { runParkedJob, readJobRequest, jobError } from '@/lib/parkedJob';
 
 /**
  * Fallback only, for a PDF with no readable text layer to index.
@@ -21,11 +23,21 @@ const DEFAULT_PAGES = 1;
 const MAX_PAGES = 3;
 
 /**
- * Two sheets, not three. The site plan and the area summary are where the
- * written site data lives, and every page kept is a page rendered and paid for
- * by the pixel. Same cap the public intake route uses.
+ * Three sheets. The site plan and the area summary are where the written site
+ * data lives; the landscape / hardscape plan is where the outdoor amenity area
+ * and the sporadic site features (dog park, courtyard, courts, turf) are
+ * drawn, and Mike's rule (2026-09-16) is "always read the landscape sheet" —
+ * it used to be opened here only when the set had no area summary, which is
+ * exactly the set where the pool deck and the dog park went unread.
+ *
+ * Every page kept is a page rendered and paid for by the pixel, and this
+ * route reads them all in ONE vision call inside one request that has already
+ * measured close to the 30-second front door. Three is the ceiling; a fourth
+ * sheet goes in a second request, not here. The public intake reads one sheet
+ * per request and has always opened the landscape plan.
  */
-const SHEETS_TO_READ = 2;
+const SHEETS_TO_READ = 3;
+const SITE_READ_ORDER = ['sitePlan', 'areaSummary', 'landscapePlan', 'floorPlan', 'elevations', 'unitMatrix', 'cover'];
 
 async function canAccess(projectId, user) {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
@@ -33,30 +45,62 @@ async function canAccess(projectId, user) {
   return canSeeAllData(user) || project.createdById === user.id;
 }
 
+/**
+ * Park-and-poll (src/lib/parkedJob.js). The read chains a sheet pick, a
+ * three-page render and one vision call, and was measured at 41–70 seconds
+ * on a real set — past Amplify's ~30-second front door. The first request
+ * only writes the job down; the polls run it and collect it.
+ */
+export const maxDuration = 300;
+
 export async function POST(request, { params }) {
   const { user, error } = await requireAuth(request);
   if (error) return error;
   if (!await canAccess(params.id, user)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const { fileId, pages } = await request.json();
-  if (!fileId) return NextResponse.json({ error: 'fileId required' }, { status: 400 });
+  const { body } = await readJobRequest(request);
+  let args = null;
+  if (!body.jobKey) {
+    // The start request: the cheap checks that give a friendly 4xx run here,
+    // before anything is parked.
+    const { fileId, pages } = body;
+    if (!fileId) return NextResponse.json({ error: 'fileId required' }, { status: 400 });
+    const file = await prisma.projectFile.findFirst({ where: { id: fileId, projectId: params.id }, select: { originalName: true } });
+    if (!file) return NextResponse.json({ error: 'File not found' }, { status: 404 });
+    const ext = file.originalName.split('.').pop()?.toLowerCase();
+    if (ext !== 'pdf') {
+      return NextResponse.json({
+        error: 'unsupported_type',
+        message: 'Site data is read from a PDF site plan. Please upload the site or concept plan as a PDF.',
+      }, { status: 422 });
+    }
+    args = { fileId, pages: pages ?? null };
+  }
 
-  const file = await prisma.projectFile.findFirst({ where: { id: fileId, projectId: params.id } });
-  if (!file) return NextResponse.json({ error: 'File not found' }, { status: 404 });
+  return runParkedJob({
+    body, kind: 'site.parse', scope: params.id, args,
+    run: (a) => readSite(a, { projectId: params.id, user }),
+  });
+}
+
+/** The read itself. Returns the response body; throws jobError for the route's own failures. */
+async function readSite({ fileId, pages }, { projectId, user }) {
+  const file = await prisma.projectFile.findFirst({ where: { id: fileId, projectId } });
+  if (!file) throw jobError(404, { error: 'File not found' });
 
   const ext = file.originalName.split('.').pop()?.toLowerCase();
   if (ext !== 'pdf') {
-    return NextResponse.json({
+    throw jobError(422, {
       error: 'unsupported_type',
       message: 'Site data is read from a PDF site plan. Please upload the site or concept plan as a PDF.',
-    }, { status: 422 });
+    });
   }
 
   const apiKey = getAnthropicKey()?.trim();
-  if (!apiKey) return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 503 });
+  if (!apiKey) throw jobError(503, { error: 'ANTHROPIC_API_KEY not configured' });
 
   const client = (task) =>
-    wrapClient(new Anthropic({ apiKey }), task, { projectId: params.id, userId: user.id });
+    wrapClient(new Anthropic({ apiKey }), task, { projectId, userId: user.id });
 
   let images;
   let sheetsRead = null;
@@ -65,10 +109,10 @@ export async function POST(request, { params }) {
     // Reading the Lambda's own disk here found nothing once storage moved.
     const buffer = await getProjectFileBuffer(file.storedPath);
     if (!buffer) {
-      return NextResponse.json({
+      throw jobError(404, {
         error: 'render_failed',
         message: 'That file is no longer available. Re-upload the site plan and try again.',
-      }, { status: 404 });
+      });
     }
 
     // ── Which sheets are worth opening ──
@@ -93,7 +137,7 @@ export async function POST(request, { params }) {
           buildSheetIndex(pageScan),
           pageScan.length > SET_PAGE_THRESHOLD ? client('site.sheetPick') : null,
         );
-        chosenPages = pagesToRender(picked.picks, { max: SHEETS_TO_READ });
+        chosenPages = pagesToRender(picked.picks, { order: SITE_READ_ORDER, max: SHEETS_TO_READ });
       }
     }
 
@@ -105,15 +149,15 @@ export async function POST(request, { params }) {
     sheetsRead = chosenPages.length ? chosenPages : null;
   } catch (e) {
     console.error('[site/parse] could not render', file.originalName, e?.message || e);
-    return NextResponse.json({ error: 'render_failed', message: 'Could not open that PDF.' }, { status: 502 });
+    throw jobError(502, { error: 'render_failed', message: 'Could not open that PDF.' });
   }
   if (!images.length) {
-    return NextResponse.json({ error: 'render_failed', message: 'That PDF has no pages to read.' }, { status: 422 });
+    throw jobError(422, { error: 'render_failed', message: 'That PDF has no pages to read.' });
   }
 
   const vision = await extractSiteData(images, client('site.vision'));
   if (!vision.ok) {
-    return NextResponse.json({ error: vision.code, message: vision.message }, { status: 502 });
+    throw jobError(502, { error: vision.code, message: vision.message });
   }
 
   // ── The reconciliation that makes this extraction worth governing ───────────
@@ -125,9 +169,10 @@ export async function POST(request, { params }) {
   // goes into the DISPLAY: it lets the panel show what each proposal would
   // replace, so overwriting a number somebody typed is a visible decision
   // rather than a silent one.
-  const [currentData, currentProject] = await Promise.all([
-    prisma.projectData.findUnique({ where: { projectId: params.id } }),
-    prisma.project.findUnique({ where: { id: params.id }, select: { buildingType: true } }),
+  const [currentData, currentProject, currentFeatures] = await Promise.all([
+    prisma.projectData.findUnique({ where: { projectId } }),
+    prisma.project.findUnique({ where: { id: projectId }, select: { buildingType: true } }),
+    loadSiteFeatures(prisma, projectId),
   ]);
   // The building type lives on Project, not ProjectData; folded in so the panel
   // can say "Replaces Garden already on this project" like it does for numbers.
@@ -146,7 +191,7 @@ export async function POST(request, { params }) {
       // never stored on the run.
       inputSummary:  summariseInput(images[0].png, `${file.originalName} p${images[0].page ?? 1} @${images[0].width}x${images[0].height}`),
       context:       { projectUnits: current?.numUnits ?? null },
-      projectId:     params.id,
+      projectId:     projectId,
       userId:        user.id,
       sourceFileId:  fileId,
     });
@@ -166,7 +211,7 @@ export async function POST(request, { params }) {
     console.error('[site/parse] review submission failed:', e?.message || e);
   }
 
-  return NextResponse.json({
+  return {
     fileId,
     fileName: file.originalName,
     pagesRead: images.length,
@@ -177,7 +222,12 @@ export async function POST(request, { params }) {
     site: vision.data,
     // What the reader may write, already translated into Project Info's
     // vocabulary and paired with what it would replace.
-    proposal: proposeSiteFields(vision.data, current),
+    // Sporadic site features (dog park, courts, …) ride the same proposal list
+    // under `siteFeature.<type>` keys; the commit route turns them into rows.
+    proposal: [
+      ...proposeSiteFields(vision.data, current),
+      ...proposeSiteFeatures(vision.data, currentFeatures),
+    ],
     review,
-  });
+  };
 }

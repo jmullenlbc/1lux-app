@@ -9,6 +9,8 @@ import { buildingTypeLabel, phaseLabel, serviceTypeLabel, clientTypeLabel, locat
 import FileDropZone from '@/components/files/FileDropZone';
 import ConfirmArchiveModal, { setArchived, ArchiveBoxIcon, KEPT_ON_ARCHIVE_PAGE } from '@/components/salesAutomation/ConfirmArchiveModal';
 import { oversizeMessage, uploadErrorMessage, uploadThrowMessage } from '@/lib/uploadErrorMessage';
+import { postParked } from '@/lib/parkedFetch';
+import { afterUploadReads } from '@/lib/scheduleReadClient';
 import ProjectChat from '@/components/ProjectChat';
 import TakeoffDashboard from '@/components/TakeoffDashboard';
 import UnitMatrixUpload from '@/components/unitMatrix/UnitMatrixUpload';
@@ -250,8 +252,9 @@ function AutoTaggedFileTab({ title, subtitle, autoTag, files, projectId, tab, on
         form.append('tags', JSON.stringify([autoTag]));
         const res  = await fetch(`/api/projects/${projectId}/files`, { method: 'POST', body: form });
         if (res.ok) {
-          const data = await res.json();
-          // API returns { file, contractUpdate, scheduleUpdate, designScheduleUpdate }
+          // API returns { file, contractUpdate, scheduleUpdate, designScheduleUpdate }.
+          // A schedule's milestones are read in steps AFTER the row is saved.
+          const data = await afterUploadReads(projectId, await res.json());
           onFileAdded?.(data.file, data.contractUpdate ?? null, data.scheduleUpdate ?? null, data.designScheduleUpdate ?? null);
         } else {
           fail(await uploadErrorMessage(res, file));
@@ -277,7 +280,8 @@ function AutoTaggedFileTab({ title, subtitle, autoTag, files, projectId, tab, on
     setReparsing(prev => ({ ...prev, [fileId]: true }));
     setReparseMsg(prev => ({ ...prev, [fileId]: '' }));
     try {
-      const res  = await fetch(`/api/projects/${projectId}/files/${fileId}/reparse`, { method: 'POST' });
+      // Park-and-poll: the read runs in steps behind the front door.
+      const res  = await postParked(`/api/projects/${projectId}/files/${fileId}/reparse`, {});
       const data = await res.json();
       if (data.error) {
         setReparseMsg(prev => ({ ...prev, [fileId]: data.error }));

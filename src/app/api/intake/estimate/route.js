@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
-import { computeIntakeEstimate, intakeEstimateGate } from '@/lib/intake/estimate';
+import { publicIntakeEstimate, intakeEstimateGate } from '@/lib/intake/estimate';
 import { loadPricing } from '@/lib/pricingLoader';
 
 export const dynamic = 'force-dynamic';
@@ -61,7 +61,9 @@ export async function POST(req) {
 
   const pricing = await loadPricing();
 
-  // The budget object is derived output (the visitor's own numbers) — the
-  // pricing model itself never leaves the server.
-  return NextResponse.json(computeIntakeEstimate({ answers, drawings, pricing }));
+  // The pricing model never leaves the server — and neither do the formulas
+  // (Mike 2026-09-16: "someone could steal all the math"). The public
+  // projection keeps labels, the visitor's own quantities and the dollars;
+  // counts × price-each, multipliers and "1 pole per 30 ft" stay internal.
+  return NextResponse.json(publicIntakeEstimate({ answers, drawings, pricing }));
 }

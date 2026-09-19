@@ -41,15 +41,16 @@
  * @see src/lib/intake/reviewFlags.js   — drawing-level trust; this is field-level
  */
 import { lotSquareFeet, ACRE_SF } from '../siteFields.js';
+import { parseLooseNumber } from '../numberInput.js';
 import { PRICING } from '../pricing.js';
 import { estimateStairLandings } from '../stairLandings.js';
 import { answersToEngine, NO_DRAWINGS_KEY, CLUBHOUSE_KEY, GARAGE_TYPE_KEYS, CARPORT_TYPE_KEYS } from './questionnaire.js';
 import { NO_DRAWING_GUESSES } from './noDrawingGuesses.js';
+import { SITE_FEATURE_TYPES, SITE_FEATURE_LABELS, SITE_FEATURE_ROW_KEYS, LINEAR_SITE_FEATURES, normalizeSiteFeatures } from '../siteFeatures.js';
 
 /** A stated, usable number — or null. Number(null) is 0, hence the dance. */
 function stated(v) {
-  if (v === null || v === undefined || v === '') return null;
-  const n = Number(v);
+  const n = parseLooseNumber(v);            // "1,250" typed by a visitor
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
@@ -249,7 +250,17 @@ export function computeQuantities(drawings, answers, pricing = null) {
   const typeKey = answersToEngine(answers).buildingTypeKey ?? null;
   const guess = table => (manual && typeKey && NO_DRAWING_GUESSES[table][typeKey] != null
     ? NO_DRAWING_GUESSES[table][typeKey] : null);
+  // The building type's typical share of gross, with or without drawings.
+  // Unlike guess() this is not gated on the no-drawings form: corridors are
+  // estimated as a share of gross on a drawing-read job too when no corridor
+  // line was printed (Mike 2026-09-16).
+  const typeShare = table => (typeKey && NO_DRAWING_GUESSES[table]?.[typeKey] != null
+    ? NO_DRAWING_GUESSES[table][typeKey] : null);
   const GUESS_FLAG = 'ESTIMATED — no drawings were uploaded and this was left blank. Enter the real figure if you have it.';
+  // A blank row on the no-drawings form should not talk about sheets that
+  // were never uploaded (Mike 2026-09-16: blanks belong on the same grid,
+  // highlighted, with the reason).
+  const NOT_STATED = manual ? 'Not entered — type it in.' : 'Not stated on any sheet that was read.';
   const out = [];
   // ── MANUAL CORRECTIONS ─────────────────────────────────────────────────────
   // Mike, 2026-09-15: "We need to be able to manually update any field about
@@ -391,7 +402,8 @@ export function computeQuantities(drawings, answers, pricing = null) {
       'From the site plan bed mix (1× one-beds + 2× two-beds + 3× three-beds).',
       null);
   } else {
-    add('bedrooms', '# Bedrooms', 'count', null, null, 'No bedroom counts found in any drawing.');
+    add('bedrooms', '# Bedrooms', 'count', null, null,
+      manual ? 'Not entered — the bedroom mix sets the fan count.' : 'No bedroom counts found in any drawing.');
   }
 
   const baths = scaledToUnits(sumPerUnit(rows, 'bathrooms'), unitCount);
@@ -401,7 +413,7 @@ export function computeQuantities(drawings, answers, pricing = null) {
       ? (baths.scaled
           ? `Bathrooms per unit type × unit quantities from the unit matrix (${fmt(baths.sum)} across ${fmt(baths.matrixUnits)} units), scaled to all ${fmt(baths.unitCount)} units.`
           : 'Bathrooms per unit type × unit quantities, from the unit matrix.')
-      : 'No bathroom counts found — unit matrices often omit them.',
+      : manual ? 'Not entered — sets the vanity count.' : 'No bathroom counts found — unit matrices often omit them.',
     columnFlag(baths, 'a bathroom count'));
 
   add('vanities', '# Vanities', 'count', baths ? baths.value : null,
@@ -532,48 +544,16 @@ export function computeQuantities(drawings, answers, pricing = null) {
     add('unitsSf', 'Residential Units SF', 'sf', null, null, 'The unit matrix did not list square footage per type.');
   }
 
-  // Stated on the drawings wins; a figure typed on the questionnaire (the
-  // no-drawings form) is next; otherwise not found.
-  const areaRow = (key, label, statedVal, statedHow, figureKey) => {
-    const typed = statedVal == null ? statedAnswer(ans[figureKey]) : null;
-    // add()'s return, not `statedVal ?? typed` — so a corrected area is the one
-    // the remainder below is taken off, and so a corrected exterior amenity SF
-    // clears the "this $/SF cannot move the budget" flag instead of keeping it.
-    return add(key, label, 'sf', statedVal ?? typed, statedVal != null ? 'drawing' : 'questionnaire',
-      statedVal != null ? statedHow
-        : typed != null ? 'Entered on the questionnaire — not found on the drawings.'
-        : 'Not stated on any drawing.');
-  };
-  areaRow('garageSf', 'Garage SF', stated(totals?.garageSf), 'Stated on the drawings.', 'figureGarageSf');
-  const corridorSf = areaRow('corridorSf', 'Corridors & Stairwells SF', stated(totals?.corridorSf),
-    'Stated on the drawings.', 'figureCorridorSf');
-  const interiorAmenitySf = areaRow('interiorAmenitySf', 'Interior Amenity SF', stated(site?.clubhouseSf),
-    'From the clubhouse figure on the site plan.', 'figureInteriorAmenitySf');
-  // Exterior amenity SF is the multiplicand for the exterior amenity $/SF
-  // question. Mike, 2026-09-15: "Exterior amenity math in the conceptual
-  // budgeting tool isn't working. I click a different $/sf and nothing
-  // changes." The rate was never the problem — SF × rate is zero at every
-  // rate when the SF is zero, so the control looked dead. Nothing here
-  // invents an amenity area (there is no honest way to guess one); instead
-  // the row says plainly that the $/SF choice cannot move the budget until
-  // the figure is filled in, and the wizard now asks for it.
-  const extAmenitySf = areaRow('exteriorAmenitySf', 'Exterior Amenity SF', stated(site?.amenitySf),
-    'From the amenity-area figure on the site plan — usually the outdoor programme (pool deck, courtyards).',
-    'figureExteriorAmenitySf');
-  if (!(extAmenitySf > 0)) {
-    const extRow = out[out.length - 1];
-    extRow.flag = 'No exterior amenity area was found, so the exterior amenity $/SF you pick cannot change the budget — this line prices at $0 until a square footage is entered. Enter the outdoor amenity area (pool deck, courtyards, plazas) if the project has one.';
-  }
-
   // Gross SF ladder: a drawing-stated (or per-building-summed) total wins,
   // then a figure the visitor typed. Two derived estimates (footprint ×
   // stories, then unit-SF blow-up) are patched in at the END of this function
-  // because their ingredients are computed below this section.
+  // because their ingredients are computed below this section. It sits above
+  // the area rows because the corridor estimate below is a share of it.
   const grossStated = stated(totals?.grossInteriorSf) ?? stated(site?.grossSf);
   const grossFigure = grossStated == null ? statedAnswer(ans.figureGrossSf) : null;
-  // `grossSf` is what add() SETTLED on, so every later use of it — back of
-  // house below, the footprint checks further down — prices off a corrected
-  // building total rather than the one we misread.
+  // `grossSf` is what add() SETTLED on, so every later use of it — corridors
+  // and back of house below, the footprint checks further down — prices off
+  // a corrected building total rather than the one we misread.
   const grossRead = grossStated ?? grossFigure;
   const grossSf = add('grossSf', 'Total Building Gross SF', 'sf', grossRead,
     grossStated != null ? 'drawing' : 'questionnaire',
@@ -588,6 +568,97 @@ export function computeQuantities(drawings, answers, pricing = null) {
           : 'Stated total on the drawings.',
     grossStated != null && totals?.grossSfNeedsReview
       ? String(totals.grossSfNote || 'The gross-SF read needs review — confirm which total was read.') : null);
+
+  // Stated on the drawings wins; a figure typed on the questionnaire (the
+  // no-drawings form) is next; otherwise not found.
+  const areaRow = (key, label, statedVal, statedHow, figureKey) => {
+    const typed = statedVal == null ? statedAnswer(ans[figureKey]) : null;
+    // add()'s return, not `statedVal ?? typed` — so a corrected area is the one
+    // the remainder below is taken off, and so a corrected exterior amenity SF
+    // clears the "this $/SF cannot move the budget" flag instead of keeping it.
+    return add(key, label, 'sf', statedVal ?? typed, statedVal != null ? 'drawing' : 'questionnaire',
+      statedVal != null ? statedHow
+        : typed != null ? 'Entered on the questionnaire — not found on the drawings.'
+        : 'Not stated on any drawing.');
+  };
+  areaRow('garageSf', 'Garage SF', stated(totals?.garageSf), 'Stated on the drawings.', 'figureGarageSf');
+
+  // Corridors. Mike 2026-09-16: "We need to figure out some calculation off
+  // corridor SF with a cap like BOH because it's also a very typical % range
+  // of the overall gross SF … If it isn't stated somewhere in a breakdown/
+  // matrix and could be called circulation, corridors, hallways, etc."
+  // Ladder: a corridor / circulation line printed in an area table (taken as
+  // printed; the cap only trims a figure above it) → typed by the visitor →
+  // the building type's typical share of gross, flagged as an estimate →
+  // blank with an ask. Before this a drawing-read job never estimated
+  // corridors, and the back-of-house remainder quietly absorbed them.
+  const corridorMaxPct = Number(pricing?.corridors?.maxPctOfGross) > 0
+    ? Number(pricing.corridors.maxPctOfGross)
+    : (PRICING.corridors.maxPctOfGross ?? 0.15);
+  const corridorPctLabel = `${Math.round(corridorMaxPct * 100)}%`;
+  const corridorStated = stated(totals?.corridorSf);
+  const corridorTyped  = corridorStated == null ? statedAnswer(ans.figureCorridorSf) : null;
+  const corridorShare  = typeShare('corridorPctOfGross');
+  const corridorCap    = grossSf != null ? Math.round(grossSf * corridorMaxPct) : null;
+  let corridorSf;
+  if (corridorStated != null) {
+    const capped = corridorCap != null && corridorStated > corridorCap;
+    corridorSf = add('corridorSf', 'Corridors & Stairwells SF', 'sf', capped ? corridorCap : Math.round(corridorStated), 'drawing',
+      capped
+        ? `The drawings state ${fmt(Math.round(corridorStated))} SF of corridors, capped at ${corridorPctLabel} of gross (${fmt(corridorCap)} SF).`
+        : 'Stated on the drawings (a corridor / circulation line in an area table).',
+      capped
+        ? `The drawings state ${fmt(Math.round(corridorStated))} SF of corridors, which is above the ${corridorPctLabel}-of-gross corridor cap — check whether that line also includes lobbies, amenity or stairs.`
+        : null);
+  } else if (corridorTyped != null) {
+    corridorSf = add('corridorSf', 'Corridors & Stairwells SF', 'sf', corridorTyped, 'questionnaire',
+      'Entered on the questionnaire — not found on the drawings.');
+  } else if (corridorShare != null && grossSf != null) {
+    corridorSf = add('corridorSf', 'Corridors & Stairwells SF', 'sf', Math.round(grossSf * corridorShare), 'derived',
+      corridorShare > 0
+        ? `${Math.round(corridorShare * 100)}% of the ${fmt(grossSf)} SF building — a typical corridor share for this building type; no corridor / circulation line was printed on the drawings.`
+        : 'This building type has open breezeways or private entries, so no interior corridors are assumed.',
+      corridorShare > 0
+        ? (manual ? GUESS_FLAG
+            : 'ESTIMATED as a typical share of gross — no corridor / circulation area was printed on any drawing. Enter the corridor SF if you have it.')
+        : null);
+  } else {
+    corridorSf = add('corridorSf', 'Corridors & Stairwells SF', 'sf', null, null,
+      manual ? 'Not entered.' : 'No corridor / circulation line was found on any drawing — enter it.');
+  }
+  const interiorAmenitySf = areaRow('interiorAmenitySf', 'Interior Amenity SF', stated(site?.clubhouseSf),
+    'From the clubhouse figure on the site plan.', 'figureInteriorAmenitySf');
+  // Exterior amenity SF is the multiplicand for the exterior amenity $/SF
+  // question. Mike, 2026-09-15: "Exterior amenity math in the conceptual
+  // budgeting tool isn't working. I click a different $/sf and nothing
+  // changes." The rate was never the problem — SF × rate is zero at every
+  // rate when the SF is zero, so the control looked dead. Nothing here
+  // invents an amenity area (there is no honest way to guess one); instead
+  // the row says plainly that the $/SF choice cannot move the budget until
+  // the figure is filled in, and the wizard now asks for it.
+  //
+  // Ladder (Mike 2026-09-16): a figure PRINTED on a sheet → a figure the
+  // reader MEASURED off a scaled site or landscape plan (pool enclosure plus
+  // the hardscape touching the clubhouse) → typed → $0 with the flag above.
+  // A measurement is flagged with how the scale was found, so a reviewer can
+  // see it is arithmetic off a drawing rather than something the drawing said.
+  const printedExtSf  = stated(site?.amenitySf);
+  const measuredExtSf = printedExtSf == null ? stated(site?.exteriorAmenitySfMeasured) : null;
+  const extAmenitySf = areaRow('exteriorAmenitySf', 'Exterior Amenity SF',
+    printedExtSf ?? (measuredExtSf > 0 ? measuredExtSf : null),
+    printedExtSf != null
+      ? 'From the amenity-area figure on the site plan — usually the outdoor programme (pool deck, courtyards).'
+      : 'Measured off the scaled site / landscape plan — the pool enclosure plus the hardscape touching the clubhouse.',
+    'figureExteriorAmenitySf');
+  if (!(extAmenitySf > 0)) {
+    const extRow = out[out.length - 1];
+    extRow.flag = 'No exterior amenity area was found, so the exterior amenity $/SF you pick cannot change the budget — this line prices at $0 until a square footage is entered. Enter the outdoor amenity area (pool deck, courtyards, plazas) if the project has one.';
+  } else if (printedExtSf == null && measuredExtSf > 0) {
+    const extRow = out[out.length - 1];
+    if (!extRow.corrected) {
+      extRow.flag = `Measured off the drawing, not printed on it (scale from ${SCALE_BASIS_WORDS[site?.scaleBasis] || 'an unstated basis'}) — confirm.`;
+    }
+  }
 
   // Back of house is the remainder — what's left of the stated gross after
   // the categories the drawings itemized. Only computable when the two big
@@ -630,23 +701,33 @@ export function computeQuantities(drawings, answers, pricing = null) {
         : null);
   } else if (bohTyped != null) {
     add('bohSf', 'Back of House SF', 'sf', bohTyped, 'questionnaire', 'Entered on the questionnaire.');
-  } else if (grossSf != null && unitsSfWhole) {
-    const itemized = unitsSfFinal + (corridorSf ?? 0) + (interiorAmenitySf ?? 0);
+  } else if (grossSf != null && unitsSfWhole && corridorSf != null) {
+    // The remainder is only honest once the corridors are out of it. Mike
+    // 2026-09-16 asked why corridors were landing in BOH: before this the
+    // remainder ran with corridors "?? 0" and the whole corridor area got
+    // priced at the BOH rate. Now the corridor row above always settles first
+    // (printed → typed → typical share), and the remainder never runs without
+    // it. Interior amenity still defaults to 0 with a note — there is no
+    // typical share to estimate it from.
+    const itemized = unitsSfFinal + corridorSf + (interiorAmenitySf ?? 0);
     const remainder = grossSf - itemized;
-    const skipped = [corridorSf == null && 'corridors', interiorAmenitySf == null && 'interior amenity'].filter(Boolean);
+    const skipped = interiorAmenitySf == null ? 'interior amenity' : null;
     if (remainder >= 0) {
       const bohCap = Math.round(grossSf * bohMaxPct);
       const capped = remainder > bohCap;
       add('bohSf', 'Back of House SF (remainder)', 'sf', capped ? bohCap : Math.round(remainder), 'derived',
-        `Gross ${fmt(grossSf)} minus units ${fmt(unitsSfFinal)}${corridorSf != null ? `, corridors ${fmt(corridorSf)}` : ''}${interiorAmenitySf != null ? `, interior amenity ${fmt(interiorAmenitySf)}` : ''}${capped ? ` = ${fmt(Math.round(remainder))}, capped at ${Math.round(bohMaxPct * 100)}% of gross` : ''}.`,
+        `Gross ${fmt(grossSf)} minus units ${fmt(unitsSfFinal)}, corridors ${fmt(corridorSf)}${interiorAmenitySf != null ? `, interior amenity ${fmt(interiorAmenitySf)}` : ''}${capped ? ` = ${fmt(Math.round(remainder))}, capped at ${Math.round(bohMaxPct * 100)}% of gross` : ''}.`,
         capped
-          ? `The raw remainder (${fmt(Math.round(remainder))} SF) exceeded the ${Math.round(bohMaxPct * 100)}%-of-gross BOH cap${skipped.length ? ` — it likely still contains ${skipped.join(' and ')}` : ''}.`
-          : (skipped.length ? `No ${skipped.join(' or ')} SF was stated, so this remainder still contains ${skipped.join(' and ')}.` : null));
+          ? `The raw remainder (${fmt(Math.round(remainder))} SF) exceeded the ${Math.round(bohMaxPct * 100)}%-of-gross BOH cap${skipped ? ` — it likely still contains ${skipped}` : ' — walls and shafts make up the rest'}.`
+          : (skipped ? `No ${skipped} SF was stated, so this remainder still contains ${skipped}.` : null));
     } else {
       add('bohSf', 'Back of House SF (remainder)', 'sf', null, null,
         'Could not be computed.',
         `The itemized areas (${fmt(itemized)} SF) sum to MORE than the stated gross (${fmt(grossSf)} SF) — one of them was misread, or the gross figure is net.`);
     }
+  } else if (grossSf != null && unitsSfWhole) {
+    add('bohSf', 'Back of House SF (remainder)', 'sf', null, null,
+      'Needs the corridor SF first — without it the remainder of gross minus units would still contain the corridors.');
   } else {
     add('bohSf', 'Back of House SF (remainder)', 'sf', null, null,
       'Needs both a stated building gross SF and a complete per-unit SF column to compute.');
@@ -670,23 +751,55 @@ export function computeQuantities(drawings, answers, pricing = null) {
       : storiesCounted != null ? 'Counted off the building elevation (floor levels / window rows).'
       : storiesTyped != null ? 'Entered on the questionnaire — not found on the drawings.'
       : storiesGuess != null ? 'A typical story count for this building type.'
-      : 'Not stated on any sheet that was read.',
+      : NOT_STATED,
     storiesStated == null && storiesCounted != null
       ? 'Counted off the elevation, not stated in writing — confirm against the code summary.'
       : storiesGuess != null ? GUESS_FLAG : null);
 
-  const stairsStated = stated(site?.egressStairwells);
+  // Residential buildings: stated in a site data block → counted from the
+  // building labels on the site plan (flagged) → typed by the visitor. Drives
+  // the stair multiply just below and the engine's wallpack model.
+  const buildingsStated  = stated(site?.buildingCount);
+  const buildingsCounted = buildingsStated == null ? stated(site?.buildingsCounted) : null;
+  const buildingsTyped   = buildingsStated == null && buildingsCounted == null
+    ? statedAnswer(ans.figureBuildings) : null;
+  const buildings = add('buildings', '# Residential Buildings', 'count',
+    buildingsStated ?? buildingsCounted ?? buildingsTyped,
+    buildingsTyped != null ? 'questionnaire' : 'drawing',
+    buildingsStated != null ? 'Stated on the drawings (site data block or code summary).'
+      : buildingsCounted != null ? 'Counted from the building labels on the site plan ("BLDG 1", "BUILDING A" …) — clubhouse and garages excluded.'
+      : buildingsTyped != null ? 'Entered on the questionnaire — not found on the drawings.'
+      : NOT_STATED,
+    buildingsCounted != null
+      ? 'Counted off the site plan, not stated in writing — confirm the number of residential buildings.' : null);
+
+  // Egress stairs. What the drawings state or show is for ONE building — a
+  // code summary or a floor plan describes one building — so the project
+  // total is that figure × the building count. Mike 2026-09-16 on Lone Tree:
+  // "We were way off on egress stairwell landings. We counted 48, you
+  // counted 17." Four buildings × 3 stairs each = 12 stairs, not 3. A count
+  // typed by the visitor is taken as the whole-project total.
+  const stairsStated  = stated(site?.egressStairwells);
   const stairsCounted = stated(site?.egressStairwellsCounted);
-  const stairsTyped = stairsStated == null && stairsCounted == null ? statedAnswer(ans.figureStairwells) : null;
-  const stairs = stairsStated ?? stairsCounted ?? stairsTyped;
-  add('egressStairwells', '# Egress Stairwells', 'count', stairs,
+  const stairsPerBldg = stairsStated ?? stairsCounted;
+  const stairsTyped   = stairsPerBldg == null ? statedAnswer(ans.figureStairwells) : null;
+  const bldgMult      = Math.max(1, Math.round(buildings ?? 1));
+  const stairsMultiply = stairsPerBldg != null && bldgMult > 1
+    ? `: ${fmt(stairsPerBldg)} per building × ${fmt(bldgMult)} buildings = ${fmt(stairsPerBldg * bldgMult)}`
+    : '';
+  const stairs = add('egressStairwells', '# Egress Stairwells', 'count',
+    stairsPerBldg != null ? stairsPerBldg * bldgMult : stairsTyped,
     stairsTyped != null ? 'questionnaire' : 'drawing',
-    stairsStated != null ? 'Stated on the drawings (exit-stair line in a code summary).'
-      : stairsCounted != null ? 'Counted as stair shafts on the floor plan (a switchback pair is one stairwell).'
-      : stairsTyped != null ? 'Entered on the questionnaire — not found on the drawings.'
-      : 'Not stated on any sheet that was read.',
+    stairsStated != null ? `Stated on the drawings (exit-stair line in a code summary)${stairsMultiply}.`
+      : stairsCounted != null ? `Counted as stair shafts on one building's floor plan (a switchback pair is one stairwell)${stairsMultiply}.`
+      : stairsTyped != null ? 'Entered on the questionnaire — the total for the whole project.'
+      : NOT_STATED,
     stairsStated == null && stairsCounted != null
-      ? 'Counted off the floor plan, not stated in writing — confirm the shaft count.' : null);
+      ? 'Counted off the floor plan, not stated in writing — confirm the per-building shaft count and the building count.'
+      : stairsPerBldg != null && buildings == null && !manual
+      ? 'No building count was found, so this assumes ONE building — enter the number of buildings if there are more.'
+      : null);
+  const stairsRowRef = out[out.length - 1];
 
   // A visitor-typed landings count wins over the 2N−1 derivation — the wizard
   // asks for LANDINGS directly (Mike, 2026-09-04: '"# Egress stairwells"
@@ -702,9 +815,15 @@ export function computeQuantities(drawings, answers, pricing = null) {
     add('stairLandings', '# Stair Landings', 'count', landingsTyped, 'questionnaire',
       'Entered on the questionnaire — count every landing, including the half-landing between floors.');
   } else if (stories != null && stairs != null && stories >= 1) {
-    const est = estimateStairLandings({ stories, stairs }, pricing);
+    // The per-building form is handed over when the stair row is still the
+    // drawings' own figure, so the explanation shows the multiply ("4
+    // buildings × 3 exit stairs each = 12 stairs"); a hand-corrected total
+    // is passed as the total it is.
+    const est = stairsPerBldg != null && stairsRowRef?.corrected !== true
+      ? estimateStairLandings({ stories, stairsPerBuilding: stairsPerBldg, buildings: bldgMult }, pricing)
+      : estimateStairLandings({ stories, stairs }, pricing);
     const typed = storiesTyped != null || stairsTyped != null;
-    const counted = !typed && (storiesStated == null || stairsStated == null);
+    const counted = !typed && (storiesStated == null || stairsStated == null || buildingsCounted != null);
     add('stairLandings', '# Stair Landings', 'count', est.landings, 'derived', est.how,
       typed
         ? 'Built on a figure the visitor typed (see the story / stair rows). Assumes switchback stairs in enclosed shafts.'
@@ -725,7 +844,7 @@ export function computeQuantities(drawings, answers, pricing = null) {
     exitsStated != null ? 'Stated on the drawings (exits-provided line in a code summary).'
       : exitsCounted != null ? 'Counted as marked exits on the ground-floor / life-safety plan.'
       : exitsTyped != null ? 'Entered on the questionnaire — not found on the drawings.'
-      : 'Not stated on any sheet that was read.',
+      : NOT_STATED,
     exitsStated == null && exitsCounted != null
       ? 'Counted off the plan, not stated in writing — confirm against the code summary.' : null);
 
@@ -749,7 +868,7 @@ export function computeQuantities(drawings, answers, pricing = null) {
   const surfaceTyped   = surfaceStated == null ? statedCount(ans.figureSurfaceParking) : null;
   const parkingType    = answersToEngine(answers).buildingTypeKey ?? site?.buildingType ?? totals?.buildingType ?? null;
   const structuredParking = STRUCTURED_PARKING_TYPES.has(parkingType);
-  const covered   = (stated(site?.garages) ?? 0) + (stated(site?.carports) ?? 0);
+  const covered   = (stated(site?.garages) ?? 0) + (stated(site?.carports) ?? stated(site?.carportsCounted) ?? 0);
   const lessCovered = covered ? `, less ${fmt(covered)} garage and carport stalls` : '';
   const openAir   = total => (total - covered > 0 ? total - covered : null);
 
@@ -813,21 +932,30 @@ export function computeQuantities(drawings, answers, pricing = null) {
   // Garages and carports (Mike, 2026-09-13): garages only on single-family,
   // townhouse, stacked-flat and garden jobs; carports on those plus wraps. Any
   // other type prices neither, even when the site plan shows some. Ladder:
-  // written on the site plan → typed by the visitor → townhomes 1 garage per
+  // written on the site plan → counted off the site plan (carports only,
+  // flagged — Mike 2026-09-16: "If something says covered parking or carport
+  // it should pull that from a matrix. If not, can you not figure it out
+  // from a site drawing?") → typed by the visitor → townhomes 1 garage per
   // home (no-drawings only). A typed 0 is a real "none".
   const coverType = typeKey || site?.buildingType || null;
-  const coveredRow = (key, label, noun, allowed, siteVal, typedRaw, statedHow) => {
+  const coveredRow = (key, label, noun, allowed, siteVal, countedVal, typedRaw, statedHow) => {
     const fromSite = stated(siteVal);
+    const counted  = fromSite == null ? stated(countedVal) : null;
     if (coverType && !allowed.includes(coverType)) {
+      const shown = fromSite ?? counted;
       add(key, label, 'count', null, 'drawing',
         `This building type gets no ${noun} lights.`,
-        fromSite ? `The site plan shows ${fmt(fromSite)} ${noun} — not priced for this building type.` : null);
+        shown ? `The site plan shows ${fmt(shown)} ${noun} — not priced for this building type.` : null);
       return;
     }
-    const typed = fromSite == null ? statedCount(typedRaw) : null;
+    const typed = fromSite == null && counted == null ? statedCount(typedRaw) : null;
     const perUnit = key === 'garages' ? guess('garagesPerUnit') : null;
     if (fromSite != null) {
       add(key, label, 'count', fromSite, 'drawing', statedHow);
+    } else if (counted != null) {
+      add(key, label, 'count', counted, 'drawing',
+        `Counted off the site plan — ${noun} bays under the canopy symbols, or the printed canopy areas ÷ 189 SF a stall.`,
+        `Counted off the site plan, not stated in writing — confirm the ${noun} stall count.`);
     } else if (typed != null) {
       add(key, label, 'count', typed, 'questionnaire', 'Entered by the submitter — not found on the site plan.');
     } else if (perUnit > 0 && unitCount > 0) {
@@ -837,9 +965,9 @@ export function computeQuantities(drawings, answers, pricing = null) {
       add(key, label, 'count', null, 'drawing', 'Not stated on the site plan.');
     }
   };
-  coveredRow('carports', '# Carports', 'carport', CARPORT_TYPE_KEYS, site?.carports, ans.figureCarports,
-    'Stated on the site plan.');
-  coveredRow('garages', '# Garages', 'garage', GARAGE_TYPE_KEYS, site?.garages, ans.figureGarages,
+  coveredRow('carports', '# Carports', 'carport', CARPORT_TYPE_KEYS, site?.carports, site?.carportsCounted,
+    ans.figureCarports, 'Stated on the site plan (a carport / covered-parking line in the parking table).');
+  coveredRow('garages', '# Garages', 'garage', GARAGE_TYPE_KEYS, site?.garages, null, ans.figureGarages,
     'Stated on the site plan. Drawings rarely split attached from detached — confirm the mix.');
 
   // ── SITE ───────────────────────────────────────────────────────────────────
@@ -1000,7 +1128,7 @@ export function computeQuantities(drawings, answers, pricing = null) {
     const { buildingTypeKey } = answersToEngine(answers);
     const est = estimateStairLandings({
       stories, stairs,
-      buildings:   stated(site?.buildingCount) ?? statedAnswer(ans.figureBuildings),
+      buildings,
       footprintSf: fpRow?.value ?? null,
       grossSf:     grossRow?.value ?? null,
       units:       unitCount,
@@ -1081,8 +1209,54 @@ export function computeQuantities(drawings, answers, pricing = null) {
     }
   }
 
+  // ── SITE FEATURES (Mike 2026-09-16) ───────────────────────────────────────
+  // Dog parks, courtyards, playgrounds, tennis / pickleball courts, turf play
+  // areas — found by their printed words on the site or landscape plan, each
+  // priced as its own fixture package on its own budget line. One row per
+  // kind: a count for the per-feature kinds, feet (longest dimension) for the
+  // linear ones. Ladder: drawing → typed → absent. NOTHING is guessed; a kind
+  // the drawings don't name and nobody typed is simply not on the job.
+  const found = new Map(normalizeSiteFeatures(site?.siteFeatures).map(f => [f.type, f]));
+  for (const type of SITE_FEATURE_TYPES) {
+    const rowKey = SITE_FEATURE_ROW_KEYS[type];
+    const figureKey = `figure${rowKey[0].toUpperCase()}${rowKey.slice(1)}`;
+    const linear = LINEAR_SITE_FEATURES.has(type);
+    const name = SITE_FEATURE_LABELS[type];
+    const label = linear ? `${name} length` : `# ${name}s`;
+    const unit = linear ? 'ft' : 'count';
+    const f = found.get(type);
+    const typed = statedCount(ans[figureKey]);
+    const drawn = f ? (linear ? f.lengthFt : f.count) : null;
+    const where = f?.sheet ? ` (sheet ${f.sheet})` : '';
+    if (drawn != null && drawn > 0) {
+      add(rowKey, label, unit, drawn, 'drawing',
+        linear
+          ? `${f.count} ${name.toLowerCase()}${f.count === 1 ? '' : 's'} labelled on the drawing${where}; longest dimension measured off the sheet.`
+          : `Labelled on the drawing${where}${f.label ? ` as "${f.label}"` : ''}.`,
+        linear ? 'Length measured off the drawing, not printed on it — confirm.' : null);
+    } else if (f && linear) {
+      // Named but not measurable: the row exists so the grid asks for a length.
+      add(rowKey, label, unit, typed, typed != null ? 'questionnaire' : null,
+        typed != null ? 'Entered by the submitter.' : `A ${name.toLowerCase()} is labelled on the drawing${where} but no length could be measured.`,
+        typed != null ? null : `${name} found on the drawing but its length is unknown — enter the longest dimension in feet or it prices at $0.`);
+    } else if (typed != null) {
+      add(rowKey, label, unit, typed, 'questionnaire', 'Entered by the submitter.', null);
+    }
+    // Absent on the drawings and not typed: no row. Nothing is guessed, and a
+    // blank row here would read as "we could not find it" when the honest
+    // answer is "the project does not appear to have one".
+  }
+
   return out;
 }
+
+/** Plain words for the scale a measured figure was taken with. */
+const SCALE_BASIS_WORDS = {
+  scale:     'the printed scale',
+  dimension: 'a printed dimension',
+  stall:     'a standard 9 ft parking stall',
+  door:      'a 3 ft door — the weakest rung, check it',
+};
 
 /**
  * The takeoff's contribution to the verify-before-trusting list: one sentence

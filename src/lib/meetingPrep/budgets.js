@@ -13,6 +13,7 @@ import { prisma } from '@/lib/db';
 import { calculateBudget } from '@/lib/calculations';
 import { responsesToSections } from '@/lib/utils';
 import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
+import { SITE_FEATURE_SELECT, engineProjectData } from '@/lib/siteFeatureRows';
 
 const SOURCE = { design: 'Design Questionnaire', peer_review: 'Peer Review' };
 
@@ -23,7 +24,7 @@ export async function budgetTotals(projectIds) {
   const [projects, matrices, defaultPricing] = await Promise.all([
     prisma.project.findMany({
       where: { id: { in: ids } },
-      select: { id: true, budgetType: true, buildingType: true, pricingSnapshot: true, projectData: true, responses: true },
+      select: { id: true, budgetType: true, buildingType: true, pricingSnapshot: true, projectData: true, responses: true, ...SITE_FEATURE_SELECT },
     }),
     prisma.designBidMatrix.findMany({
       where: { projectId: { in: ids } },
@@ -47,7 +48,7 @@ export async function budgetTotals(projectIds) {
     let total = 0;
     try {
       const pricing = pricingForProject(p.pricingSnapshot, defaultPricing);
-      const projectData = { ...(p.projectData || {}), buildingTypeKey: p.buildingType };
+      const projectData = engineProjectData(p);
       total = calculateBudget(projectData, responsesToSections(p.responses), pricing)?.totalWithControls || 0;
     } catch { total = 0; }
     if (total > 0) out[p.id] = { total, source: SOURCE[p.budgetType] || 'Conceptual' };

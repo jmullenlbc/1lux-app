@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import SaveToKBButton from './SaveToKBButton';
+import { postParked } from '@/lib/parkedFetch';
 
 function buildCheckContent(check) {
   const parts = [];
@@ -182,10 +183,11 @@ export default function CodeCheckPanel({ projectId }) {
     setAiError(null);
     setAiReview(null);
     try {
-      const res = await fetch(`/api/projects/${projectId}/code-check`, { method: 'POST' });
-      const text = await res.text();
-      const parsed = JSON.parse(text);
-      if (parsed.error) throw new Error(parsed.error);
+      // Park-and-poll: the read runs in steps behind the front door and the
+      // answer arrives with the same body and status it always had.
+      const res = await postParked(`/api/projects/${projectId}/code-check`, {});
+      const parsed = res.data || {};
+      if (parsed.error) throw new Error(parsed.message || parsed.error);
       setAiReview(parsed);
     } catch (e) {
       setAiError(e.message || 'AI review failed');

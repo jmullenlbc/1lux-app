@@ -489,6 +489,12 @@ Rules:
   they differ by 5–8%. Downstream code decides which one this is FROM THIS LABEL, so a paraphrased
   label is worse than no label. If nothing is printed near the number, return null — never invent one.
 - grossSfSheet: the sheet number that figure came from (e.g. "G0.02", "A-811", "LS0.01"), or null.
+- corridorSf: CORRIDOR / CIRCULATION square footage as PRINTED in an area table, program breakdown or
+  code-area summary — a line labelled "CORRIDOR", "CORRIDORS", "CIRCULATION", "COMMON CIRCULATION",
+  "HALLWAY(S)", "CORRIDORS & STAIRS", "CORRIDOR/STAIR", "CIRCULATION & STAIRS" or "COMMON AREA – CIRCULATION".
+  If the table prints one such line per floor or per building with no total, add up ONLY those printed
+  lines and say so in notes. Never estimate it, never take a percentage of gross, and never fold in
+  amenity, leasing, BOH, garage or unit areas. null when no such line is printed.
 - bohSf: BACK OF HOUSE square footage as PRINTED in an area table or program breakdown — a line labelled
   "BOH", "BACK OF HOUSE", "SUPPORT", "SERVICE", or the sum of itemized support rooms printed there
   (mechanical, electrical, trash, storage, maintenance, bike, janitor, riser, elevator machine, IT/telecom).
@@ -508,7 +514,7 @@ Rules:
  * to break that, which is why the constant lives here, next to the prompt,
  * rather than at the call sites.
  */
-export const EXTRACT_PROMPT_VERSION = 'unitMatrix-2026-09-16';
+export const EXTRACT_PROMPT_VERSION = 'unitMatrix-2026-09-16b';
 
 /**
  * Which JOB this drawing is, in src/lib/aiModels.js terms.

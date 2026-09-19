@@ -7,6 +7,7 @@ import { prisma } from '@/lib/db';
 import { calculateBudget } from '@/lib/calculations';
 import { responsesToSections } from '@/lib/utils';
 import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
+import { SITE_FEATURE_SELECT, engineProjectData } from '@/lib/siteFeatureRows';
 
 export async function getSectionRows(section) {
   switch (section) {
@@ -66,7 +67,7 @@ async function getBudgetRows() {
         id: true, name: true, budgetType: true, serviceType: true, projectType: true,
         buildingType: true, pricingSnapshot: true, budgetSentDate: true, createdAt: true,
         client: { select: { name: true } },
-        projectData: true, responses: true,
+        projectData: true, responses: true, ...SITE_FEATURE_SELECT,
       },
     }),
     prisma.designBidMatrix.findMany({ select: { projectId: true, version: true, items: { select: { cnTotal: true } } } }),
@@ -87,7 +88,7 @@ async function getBudgetRows() {
     try {
       const pricing = pricingForProject(p.pricingSnapshot, defaultPricing);
       const sections = responsesToSections(p.responses);
-      const projectData = { ...(p.projectData || {}), buildingTypeKey: p.buildingType };
+      const projectData = engineProjectData(p);
       productBudgetTotal = calculateBudget(projectData, sections, pricing)?.totalWithControls || 0;
     } catch { productBudgetTotal = 0; }
 

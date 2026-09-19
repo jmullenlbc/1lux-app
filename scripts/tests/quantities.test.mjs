@@ -615,3 +615,177 @@ test('mergeProposals carries the counted fields and lot coverage through a merge
   assert.equal(merged.siteData.exitDoorsCounted, 6);
   assert.equal(merged.siteData.lotCoveragePct, 28);
 });
+
+// ── 2026-09-16: Lone Tree reconciliation rules ─────────────────────────────
+// Mike: "We were way off on egress stairwell landings. We counted 48, you
+// counted 17." A code summary describes ONE building; the project total is
+// that figure × the building count.
+
+test('stairs are per building: 3 per building × 4 buildings = 12, landings on all 12', () => {
+  const d = cleanDrawings();
+  d.siteData.buildingCount = 4;
+  d.siteData.egressStairwells = 3;
+  d.siteData.stories = 7;
+  const q = byKey(computeQuantities(d, {}));
+  assert.equal(q.buildings.value, 4);
+  assert.equal(q.buildings.source, 'drawing');
+  assert.equal(q.buildings.flag, null);
+  assert.equal(q.egressStairwells.value, 12);
+  assert.match(q.egressStairwells.how, /3 per building × 4 buildings = 12/);
+  // 12 stairs × (2 × 7 − 1) = 156 landings, + 10% = 172 (171.6 → 172)
+  assert.equal(q.stairLandings.value, 172);
+  assert.match(q.stairLandings.how, /4 buildings × 3 exit stairs each = 12 stairs/);
+  assert.match(q.stairLandings.flag, /Assumes switchback/);
+});
+
+test('buildings: counted off the site plan fills in when nothing is stated, and arrives flagged', () => {
+  const d = cleanDrawings();
+  d.siteData.buildingCount = null;
+  d.siteData.buildingsCounted = 4;
+  const q = byKey(computeQuantities(d, {}));
+  assert.equal(q.buildings.value, 4);
+  assert.match(q.buildings.how, /Counted from the building labels/);
+  assert.match(q.buildings.flag, /Counted off the site plan/);
+  assert.equal(q.egressStairwells.value, 2 * 4);
+  assert.match(q.stairLandings.flag, /COUNTED/, 'landings built on a counted building count say so');
+});
+
+test('buildings: a stated count beats a counted one; a typed count is the last rung', () => {
+  const d = cleanDrawings();
+  d.siteData.buildingCount = 3;
+  d.siteData.buildingsCounted = 9;
+  const q = byKey(computeQuantities(d, {}));
+  assert.equal(q.buildings.value, 3);
+  assert.equal(q.buildings.flag, null);
+
+  const t = cleanDrawings();
+  t.siteData.buildingCount = null;
+  const qt = byKey(computeQuantities(t, { figureBuildings: '5' }));
+  assert.equal(qt.buildings.value, 5);
+  assert.equal(qt.buildings.source, 'questionnaire');
+  assert.equal(qt.egressStairwells.value, 2 * 5);
+});
+
+test('stairs known but no building count: assumes ONE building and says so', () => {
+  const d = cleanDrawings();
+  d.siteData.buildingCount = null;
+  const q = byKey(computeQuantities(d, {}));
+  assert.equal(q.buildings.value, null);
+  assert.equal(q.egressStairwells.value, 2);
+  assert.match(q.egressStairwells.flag, /assumes ONE building/);
+});
+
+test('a hand-corrected stair total is taken as the total — not multiplied by the buildings again', () => {
+  const d = cleanDrawings();
+  d.siteData.buildingCount = 4;
+  const q = byKey(computeQuantities(d, { correctEgressStairwells: '10' }));
+  assert.equal(q.egressStairwells.value, 10);
+  assert.equal(q.egressStairwells.corrected, true);
+  assert.equal(q.stairLandings.value, Math.round(10 * (2 * 4 - 1) * 1.1));   // 77
+  assert.ok(!/buildings ×/.test(q.stairLandings.how), 'no per-building multiply in the story');
+});
+
+// Corridors. Mike 2026-09-16: "We need to figure out some calculation off
+// corridor SF with a cap like BOH because it's also a very typical % range of
+// the overall gross SF."
+
+test('a printed corridor figure under the 15% cap is used as printed', () => {
+  const q = byKey(computeQuantities(cleanDrawings(), {}));
+  assert.equal(q.corridorSf.value, 18000);                    // 6.9% of 260,000
+  assert.equal(q.corridorSf.source, 'drawing');
+  assert.equal(q.corridorSf.flag, null);
+});
+
+test('a printed corridor figure above 15% of gross is trimmed to the cap and flagged', () => {
+  const d = cleanDrawings();
+  d.projectTotals.corridorSf = 52000;                         // 20% of 260,000
+  const q = byKey(computeQuantities(d, {}));
+  assert.equal(q.corridorSf.value, 39000);                    // 15% cap
+  assert.match(q.corridorSf.how, /capped at 15% of gross \(39,000 SF\)/);
+  assert.match(q.corridorSf.flag, /above the 15%-of-gross corridor cap/);
+});
+
+test('the corridor cap comes from the pricing sheet passed in', () => {
+  const d = cleanDrawings();
+  d.projectTotals.corridorSf = 52000;
+  const q = byKey(computeQuantities(d, {}, { corridors: { maxPctOfGross: 0.25 } }));
+  assert.equal(q.corridorSf.value, 52000, '20% is under a 25% cap');
+  assert.equal(q.corridorSf.flag, null);
+});
+
+test("nothing printed: corridors are ESTIMATED as the building type's typical share of gross, and BOH is the remainder after them", () => {
+  const d = cleanDrawings();
+  d.projectTotals.corridorSf = null;
+  const q = byKey(computeQuantities(d, { projectType: 'Podium (3-8 Levels)' }));
+  assert.equal(q.corridorSf.value, Math.round(260000 * 0.12));  // 31,200
+  assert.equal(q.corridorSf.source, 'derived');
+  assert.match(q.corridorSf.how, /12% of the 260,000 SF building/);
+  assert.match(q.corridorSf.flag, /ESTIMATED as a typical share of gross/);
+  // BOH never absorbs the corridors: 260,000 − 174,000 − 31,200 − 5,000 = 49,800 → capped 13,000
+  assert.match(q.bohSf.how, /corridors 31,200/);
+  assert.equal(q.bohSf.value, 13000);
+});
+
+test('nothing printed and no building type: corridors stay blank with an ask, and BOH waits for them', () => {
+  const d = cleanDrawings();
+  d.projectTotals.corridorSf = null;
+  const q = byKey(computeQuantities(d, {}));
+  assert.equal(q.corridorSf.value, null);
+  assert.match(q.corridorSf.how, /enter it/);
+  assert.equal(q.bohSf.value, null);
+  assert.match(q.bohSf.how, /Needs the corridor SF first/);
+});
+
+test('a typed corridor SF fills the blank and unblocks the BOH remainder', () => {
+  const d = cleanDrawings();
+  d.projectTotals.corridorSf = null;
+  const q = byKey(computeQuantities(d, { figureCorridorSf: '20000' }));
+  assert.equal(q.corridorSf.value, 20000);
+  assert.equal(q.corridorSf.source, 'questionnaire');
+  assert.match(q.bohSf.how, /corridors 20,000/);
+});
+
+test('breezeway types assume no interior corridors — zero, not a guess flag', () => {
+  const d = cleanDrawings();
+  d.projectTotals.corridorSf = null;
+  const q = byKey(computeQuantities(d, { projectType: 'Garden (3 Levels)' }));
+  assert.equal(q.corridorSf.value, 0);
+  assert.match(q.corridorSf.how, /open breezeways/);
+  assert.equal(q.corridorSf.flag, null);
+});
+
+// Carports. Mike 2026-09-16: "If something says covered parking or carport it
+// should pull from a matrix. If not, can you not figure it out from a site
+// drawing?"
+
+test('carports: counted off the site plan fills in when no parking-table line states them, flagged', () => {
+  const d = cleanDrawings();
+  d.siteData.carports = null;
+  d.siteData.carportsCounted = 40;
+  const q = byKey(computeQuantities(d, {}));
+  assert.equal(q.carports.value, 40);
+  assert.match(q.carports.how, /Counted off the site plan/);
+  assert.match(q.carports.flag, /Counted off the site plan, not stated in writing/);
+});
+
+test('carports: a stated parking-table line beats the count, and a count beats a typed figure', () => {
+  const d = cleanDrawings();
+  d.siteData.carportsCounted = 99;
+  const q = byKey(computeQuantities(d, { figureCarports: '7' }));
+  assert.equal(q.carports.value, 24);
+  assert.equal(q.carports.flag, null);
+
+  const c = cleanDrawings();
+  c.siteData.carports = null;
+  c.siteData.carportsCounted = 40;
+  assert.equal(byKey(computeQuantities(c, { figureCarports: '7' })).carports.value, 40);
+});
+
+test('mergeProposals carries the counted carports and buildings through a merge', () => {
+  const merged = mergeProposals([
+    { fileName: 'site.pdf', proposal: { unitTypes: [], siteData: { carportsCounted: 40, buildingsCounted: 4, confidence: 0.85 } } },
+    { fileName: 'arch.pdf', proposal: { unitTypes: [], siteData: { stories: 4, confidence: 0.85 } } },
+  ]);
+  assert.equal(merged.siteData.carportsCounted, 40);
+  assert.equal(merged.siteData.buildingsCounted, 4);
+});

@@ -17,6 +17,10 @@ export async function GET(req, { params }) {
     ...(page      ? { page_number: parseInt(page, 10) } : {}),
   };
 
+  // The MarkupAnnotation table was never added to the schema, so this read
+  // threw a 500 on every project (seen 9-18). An empty list until it exists.
+  if (!prisma.markupAnnotation) return NextResponse.json([]);
+
   const annotations = await prisma.markupAnnotation.findMany({
     where,
     orderBy: { createdAt: 'asc' },

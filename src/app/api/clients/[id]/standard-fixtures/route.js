@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSession, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { putQcObject, getQcObjectUrl } from '@/lib/qcStorage';
+import { looseNumberOrNull, looseInteger } from '@/lib/numberInput';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,8 +24,8 @@ function pickFields(b) {
   const data = {};
   for (const f of FIELDS) {
     if (b[f] === undefined) continue;
-    if (f === 'priceTarget') data.priceTarget = b.priceTarget === '' || b.priceTarget == null ? null : Number(b.priceTarget);
-    else if (f === 'sortOrder') data.sortOrder = Number(b.sortOrder) || 0;
+    if (f === 'priceTarget') data.priceTarget = looseNumberOrNull(b.priceTarget);
+    else if (f === 'sortOrder') data.sortOrder = looseInteger(b.sortOrder) || 0;
     else data[f] = b[f] || null;
   }
   return data;

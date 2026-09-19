@@ -494,6 +494,34 @@ export async function putUploadedObjectDev(buffer, ext) {
   }
 }
 
+/**
+ * Keep bytes that arrived IN the request so a parked job can read them later.
+ *
+ * A small file still rides the form body (see appendUpload in uploadClient.js);
+ * the park-and-poll wrapper needs it to live somewhere a later request can
+ * reach, because the job's args must stay small and JSON. Same prefix and
+ * same one-day sweep as a direct upload, so nothing new to clean up.
+ *
+ * @returns {Promise<string|null>} an upload key, or null when there is no store
+ */
+export async function stashUploadedObject(buffer, ext, scope = 'project') {
+  if (!buffer?.length || (!presignAvailable() && !devStoreOn())) return null;
+  const safeScope = String(scope || 'project').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'project';
+  const safeExt   = String(ext || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
+  const key = `uploads/${safeScope}/${createId()}.${safeExt}`;
+  try {
+    if (!presignAvailable()) return await devPut(key, buffer);
+    await s3Client().send(new PutObjectCommand({
+      Bucket: process.env.S3_BUCKET, Key: key, Body: buffer,
+      ContentType: 'application/octet-stream',
+    }));
+    return key;
+  } catch (err) {
+    console.error('[uploadStorage] stashUploadedObject failed', err?.message ?? err);
+    return null;
+  }
+}
+
 /** True only for keys putScanState could have issued. */
 export function isScanKey(key) {
   return typeof key === 'string'

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { enrichLineItem, LINE_ITEM_INCLUDE } from '@/lib/shipScheduleHelpers';
+import { looseInteger } from '@/lib/numberInput';
 
 // POST /api/projects/[id]/shipments/line-items/[lineItemId]/deliveries
 // Log a delivery from manufacturer → ILC warehouse. ILC staff only.
@@ -28,7 +29,7 @@ export async function POST(req, { params }) {
       deliveryDate:   new Date(deliveryDate),
       carrier:        carrier || null,
       trackingNumber: trackingNumber || null,
-      qtyReceived:    parseInt(qtyReceived),
+      qtyReceived:    looseInteger(qtyReceived),
       notes:          notes || null,
       createdById:    user.id,
     },

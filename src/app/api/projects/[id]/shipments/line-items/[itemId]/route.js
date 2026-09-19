@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { looseInteger } from '@/lib/numberInput';
 
 async function getItem(itemId, projectId) {
   return prisma.shipmentLineItem.findFirst({
@@ -25,11 +26,11 @@ export async function PATCH(req, { params }) {
       fixtureType:      u('fixtureType'),
       description:      u('description'),
       catalogNo:        u('catalogNo',        v => v || null),
-      qty:              u('qty',              v => (v != null ? parseInt(v) : existing.qty)),
+      qty:              u('qty',              v => (v != null ? looseInteger(v) : existing.qty)),
       fixtureStatus:    u('fixtureStatus',    v => v || null),
       notes:            u('notes',            v => v || null),
       submittalItemId:  u('submittalItemId',  v => v || null),
-      sortOrder:        u('sortOrder',        v => v != null ? parseInt(v) : existing.sortOrder),
+      sortOrder:        u('sortOrder',        v => v != null ? looseInteger(v) : existing.sortOrder),
       propManufacturer: u('propManufacturer', v => v || null),
       propModel:        u('propModel',        v => v || null),
       sourceBatchLabel: u('sourceBatchLabel', v => v || null),

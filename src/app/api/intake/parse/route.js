@@ -243,6 +243,14 @@ const SITE_INFLIGHT_MS = 90_000;
 const PICK_MAX_KICKS = 3;
 const SITE_MAX_KICKS = 3;
 
+/**
+ * How many key sheets the public read opens: site plan, landscape plan, area
+ * summary, floor plan, elevation. The landscape plan (2026-09-16) is the one
+ * addition — one more render and one more short vision request on a set that
+ * has one, nothing on a set that does not.
+ */
+const INTAKE_SHEETS_TO_READ = 5;
+
 // Closing a ranged document is best-effort, never load-bearing. pdfjs's
 // destroy() waits for in-flight work, and a page read that was raced out by
 // the slice budget can leave a range fetch stuck underneath it — awaiting
@@ -596,12 +604,14 @@ async function readAndPick({ source, name, ext, opened, client, slice = null }) 
     ? await pickKeySheets(buildSheetIndex(pageScan), isSet ? client('intake.sheetPick') : null)
     : null;
 
-  // Four sheets: the site plan and area summary carry the written site data,
-  // and — since Mike's 2026-08-31 takeoff ask — a floor plan for counting
-  // egress stairwells and exit doors, and an elevation for counting stories.
-  // Each rendered page is paid for by the pixel, and the site stage reads one
-  // sheet per request, so four sheets is four short requests, not one long one.
-  const chosenPages = sheets ? pagesToRender(sheets.picks, { max: 4 }) : [];
+  // Five sheets: the site plan and area summary carry the written site data,
+  // the landscape plan (2026-09-16) the outdoor amenity area and the sporadic
+  // site features, and — since Mike's 2026-08-31 takeoff ask — a floor plan
+  // for counting egress stairwells and exit doors, and an elevation for
+  // counting stories. Each rendered page is paid for by the pixel, and the
+  // site stage reads one sheet per request, so five sheets is five short
+  // requests, not one long one. A set with no landscape plan still reads four.
+  const chosenPages = sheets ? pagesToRender(sheets.picks, { max: INTAKE_SHEETS_TO_READ }) : [];
 
   return { extracted, isSet, chosenPages, sheetsRead: chosenPages.length ? chosenPages : null };
 }
@@ -998,7 +1008,7 @@ async function stageScanPick(scanKey, state) {
     await putScanAttempt(pickKey, { stage: 'pick', startedAt: Date.now(), kicks: kicks + 1 });
     sheets = await pickKeySheets(buildSheetIndex(pageScan), client('intake.sheetPick'));
   }
-  const picks = sheets ? pagesToRender(sheets.picks, { max: 4 }) : [];
+  const picks = sheets ? pagesToRender(sheets.picks, { max: INTAKE_SHEETS_TO_READ }) : [];
   const sheetsRead = picks.length ? picks : null;
   // Same fallback as the finished-reading branch of stageScan: a PDF with
   // nothing picked still opens its front sheet.

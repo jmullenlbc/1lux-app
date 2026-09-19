@@ -5,6 +5,17 @@ import Input from '@/components/ui/Input';
 import Card, { CardHeader, CardBody } from '@/components/ui/Card';
 import QuestionCard from './QuestionCard';
 import { allowsGarages, allowsCarports } from '@/lib/coveredParkingTypes';
+import { siteFeaturesToRows, SITE_FEATURE_ROW_KEYS } from '@/lib/siteFeatures';
+
+const SITE_FEATURE_FORM_KEYS = new Set(Object.values(SITE_FEATURE_ROW_KEYS));
+
+// The six sporadic site features live as SiteFeature rows on the project, not
+// as Project Info columns; the form reads them off `projectData.siteFeatures`
+// and shows them as flat numbers like everything else.
+function formValue(projectData, key) {
+  if (SITE_FEATURE_FORM_KEYS.has(key)) return siteFeaturesToRows(projectData?.siteFeatures)[key];
+  return projectData?.[key];
+}
 
 // Boxes that only apply to some building types (Mike 2026-09-13) — the same
 // rule the public form and the budget engine use.
@@ -36,6 +47,15 @@ const FIELDS = [
       { key: 'numCarports',         label: '# of Carports',               type: 'number', placeholder: '0',   hint: 'Individual covered bays' },
       { key: 'numGarages',          label: '# of Attached/Detached Garages', type: 'number', placeholder: '0' },
       { key: 'numExteriorDoors',        label: '# of Exterior Doors',            type: 'number', placeholder: '20',  hint: 'Building entry/exit doors (not unit doors)' },
+      // Sporadic site features (Mike 2026-09-16). Each is priced as its own
+      // fixture package: area lights at the dog park entrance and around courts,
+      // 12 ft pedestrian poles on playgrounds and along courtyards / turf play.
+      { key: 'dogParks',         label: '# of Dog Parks',            type: 'number', placeholder: '0', hint: '1 area light at the entrance of each dog park. 0 = none.' },
+      { key: 'courtyardFt',      label: 'Courtyard Length (ft)',     type: 'number', placeholder: '0', hint: 'Longest dimension of the courtyard(s), in feet. 1 pedestrian pole per 30 ft. 0 = none.' },
+      { key: 'playgrounds',      label: '# of Playgrounds',          type: 'number', placeholder: '0', hint: '2 pedestrian poles per playground. 0 = none.' },
+      { key: 'tennisCourts',     label: '# of Tennis Courts',        type: 'number', placeholder: '0', hint: '4 area lights per court. 0 = none.' },
+      { key: 'pickleballCourts', label: '# of Pickleball Courts',    type: 'number', placeholder: '0', hint: '4 area lights per court. 0 = none.' },
+      { key: 'turfPlayFt',       label: 'Turf Play Area Length (ft)', type: 'number', placeholder: '0', hint: 'Longest dimension of the turf play area(s), in feet. 1 pedestrian pole per 50 ft. 0 = none.' },
     ],
   },
   { group: 'Area Breakdowns (SF)',
@@ -70,7 +90,7 @@ export default function ProjectDataSection({ projectId, projectData, responses =
   const [form, setForm] = useState(() => {
     const f = {};
     FIELDS.forEach(g => g.fields.forEach(field => {
-      const raw = projectData?.[field.key];
+      const raw = formValue(projectData, field.key);
       // Convert stored decimal (0.06) → display percentage (6) for pct fields
       if (PCT_FIELDS.has(field.key) && raw != null && raw !== '') {
         f[field.key] = (parseFloat(raw) * 100).toFixed(1).replace(/\.0$/, '');
@@ -94,7 +114,7 @@ export default function ProjectDataSection({ projectId, projectData, responses =
       const next = { ...f };
       FIELDS.forEach(g => g.fields.forEach(field => {
         if (dirtyRef.current.has(field.key)) return;
-        const raw = projectData?.[field.key];
+        const raw = formValue(projectData, field.key);
         next[field.key] = (PCT_FIELDS.has(field.key) && raw != null && raw !== '')
           ? (parseFloat(raw) * 100).toFixed(1).replace(/\.0$/, '')
           : raw ?? '';

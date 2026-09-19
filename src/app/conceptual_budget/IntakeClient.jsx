@@ -59,6 +59,9 @@ const CONFIRM_NOTE = 'We will confirm all numbers are correct and send you a bud
 // show until we hook up Microsoft email to it").
 const RESUME_LINK_ENABLED = false;
 const DRAFT_KEY = 'ilc.conceptualBudget.draft.v1';
+// This tab's visit id for the staff visitors page. sessionStorage, so a new
+// tab or a later day is a new visit; it holds an id and nothing else.
+const VISIT_KEY = 'ilc.conceptualBudget.visit.v1';
 const SERVER_SAVE_DELAY_MS = 3000;
 
 /** The token from a ?resume= link, taken off the address bar so it is not
@@ -177,6 +180,20 @@ const CARPORT_FIELD = {
 };
 const fieldsFor = (list, projectType) => list.filter(f => !f.types || f.types.includes(projectType));
 
+// Sporadic site features (Mike, 2026-09-16): dog parks, courtyards,
+// playgrounds, courts, turf play areas. Read off the site / landscape plan
+// when they are labelled there; otherwise typed here. Never estimated — a
+// blank is priced as none. Shared by the drawings grid and the no-drawings
+// form; the server does the fixture math.
+const SITE_FEATURE_FIELDS = [
+  { key: 'figureDogParks',         qKey: 'dogParks',         label: '# Dog parks',          placeholder: 'e.g. 1', hint: 'Enter 0 if none.' },
+  { key: 'figureCourtyardFt',      qKey: 'courtyardFt',      label: 'Courtyard length (ft)', placeholder: 'e.g. 120', hint: 'Longest dimension, all courtyards added up. 0 if none.' },
+  { key: 'figurePlaygrounds',      qKey: 'playgrounds',      label: '# Playgrounds',        placeholder: 'e.g. 1', hint: 'Tot lots and play areas. 0 if none.' },
+  { key: 'figureTennisCourts',     qKey: 'tennisCourts',     label: '# Tennis courts',      placeholder: 'e.g. 2', hint: 'Enter 0 if none.' },
+  { key: 'figurePickleballCourts', qKey: 'pickleballCourts', label: '# Pickleball courts',  placeholder: 'e.g. 2', hint: 'Sport / multi-use courts count here. 0 if none.' },
+  { key: 'figureTurfPlayFt',       qKey: 'turfPlayFt',       label: 'Turf play area length (ft)', placeholder: 'e.g. 200', hint: 'Longest dimension of the turf / event lawn. 0 if none.' },
+];
+
 const FIGURE_FIELDS = [
   { key: 'figureGrossSf',        qKey: 'grossSf',          label: 'Total building gross SF',  placeholder: 'e.g. 364,000' },
   { key: 'figureTotalUnits',     qKey: 'totalUnits',       label: 'Total units',              placeholder: 'e.g. 234' },
@@ -200,6 +217,7 @@ const FIGURE_FIELDS = [
   // Site plans very often don't state an amenity area, so ask for it.
   { key: 'figureExteriorAmenitySf', qKey: 'exteriorAmenitySf', label: 'Exterior amenity SF', placeholder: 'e.g. 12,000',
     hint: 'Pool deck, courtyards, plazas — the outdoor areas that get lit. Enter 0 if none.' },
+  ...SITE_FEATURE_FIELDS,
 ];
 
 /**
@@ -234,6 +252,7 @@ const MANUAL_FIELDS = [
   { key: 'figureExteriorAmenitySf', qKey: 'exteriorAmenitySf', label: 'Exterior amenity SF',       placeholder: 'e.g. 12,000',  hint: 'Pool deck, courtyards. Leave blank if none.' },
   // Townhomes / single-family only (`types`) — Mike 2026-09-13.
   DRIVE_LENGTH_FIELD,
+  ...SITE_FEATURE_FIELDS,
 ];
 
 /**
@@ -501,6 +520,45 @@ export default function IntakeClient() {
     return () => { cancelled = true; };
   }, []);
 
+  // ── Visit pings (staff "Budget page visitors" page) ───────────────────────
+  // Fire-and-forget: how far this visit got, and the draft / request it turned
+  // into. Nothing typed into the form is sent. The chain keeps pings in order
+  // so the first one (which opens the visit) always lands before the rest, and
+  // a failure here can never be seen or felt by the visitor.
+  const visitChain = useRef(Promise.resolve(null));
+  const pingVisit = useCallback((extra = {}) => {
+    const token = draftTokenRef.current; // read now — it is cleared right after a submit
+    visitChain.current = visitChain.current.then(async (known) => {
+      try {
+        let visitId = known;
+        if (!visitId) { try { visitId = sessionStorage.getItem(VISIT_KEY); } catch { /* private window */ } }
+        const q = new URLSearchParams(window.location.search);
+        const res = await fetch('/api/intake/visit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          keepalive: true,
+          body: JSON.stringify({
+            visitId: visitId || undefined,
+            referrer: visitId ? undefined : document.referrer,
+            utm: visitId ? undefined : { source: q.get('utm_source'), medium: q.get('utm_medium'), campaign: q.get('utm_campaign') },
+            draftToken: token || undefined,
+            ...extra,
+          }),
+        });
+        if (res.status !== 200) return visitId || null;
+        const body = await res.json();
+        if (typeof body?.visitId === 'string') {
+          try { sessionStorage.setItem(VISIT_KEY, body.visitId); } catch { /* private window */ }
+          return body.visitId;
+        }
+        return visitId || null;
+      } catch { return known; }
+    });
+  }, []);
+  useEffect(() => { pingVisit({ stepId }); }, [stepId, pingVisit]);
+  // The moment a server draft exists, the visit has a name behind it.
+  useEffect(() => { if (draftToken) pingVisit({ stepId }); }, [draftToken]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const stepIndex = STEPS.findIndex(s => s.id === stepId);
   const step      = STEPS[stepIndex];
 
@@ -568,21 +626,11 @@ export default function IntakeClient() {
     return () => clearTimeout(t);
   }, [mergedAnswers, figures, drawings, manual, manualCheck.ready]);
 
-  // ── "We couldn't find these" — the figures asked for on the Units page ────
-  // Driven by the estimate's provenance rows: a figure whose source is
-  // 'drawing' is settled and never asked. source null → plain ask; 'derived'
-  // → show our estimate with its arithmetic and offer the override. Only
-  // shown once drawings have been read — no drawings, no card, no number.
-  const figureAsks = useMemo(() => {
-    // A typed-in budget already asked for all of these on the Drawings step.
-    if (!estimate || manual) return [];
-    const rows = new Map((estimate?.quantities || []).map(r => [r.key, r]));
-    return fieldsFor(FIGURE_FIELDS, answers.projectType).map(f => {
-      const row = rows.get(f.qKey) || null;
-      if (row && row.source === 'drawing') return null;
-      return { ...f, row };
-    }).filter(Boolean);
-  }, [estimate, manual, answers.projectType]);
+  // The old "Figures we couldn't read from your drawings" card on the Units
+  // page is gone (Mike, 2026-09-16: "unread figures belong on the drawings
+  // page combined with the read ones — highlight the blanks"). Every takeoff
+  // row, read or blank, is now one grid on the Drawings page (projectDataGrid
+  // below), and a blank is typed straight into its own row as a correction.
 
   // Takeoff rows by key — the no-drawings form shows "we'll estimate N" under
   // any optional field left blank.
@@ -659,18 +707,6 @@ export default function IntakeClient() {
       </p>
     ) : null;
   };
-
-  // ── Building summary on the Drawings page (Mike, 2026-09-04: "add a
-  // building summary on the drawing page below of everything we pulled from
-  // the drawings") — the takeoff rows the estimate already returns, split
-  // into what was read and what will be asked for.
-  const pulledRows = useMemo(() => {
-    const rows = (estimate?.quantities || []).filter(r => r.label);
-    return {
-      found:   rows.filter(r => r.value != null),
-      missing: rows.filter(r => r.value == null),
-    };
-  }, [estimate]);
 
   const questionsBySection = useMemo(() => {
     const out = new Map();
@@ -888,6 +924,8 @@ export default function IntakeClient() {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || 'Submission failed');
       }
+      const sent = await res.json().catch(() => ({}));
+      pingVisit({ stepId: 'review', submissionId: sent?.id });
       setSubmitted(true);
       // Sent, so there is nothing left to come back to. Cleared AFTER the
       // submitted flag flips, and the autosave stops on that flag, so the
@@ -974,13 +1012,94 @@ export default function IntakeClient() {
       .map(r => ({
         key: r.key,
         label: r.label,
+        unit: r.unit,
         how: r.flag ? `${r.how} — ${r.flag}` : r.how,
+        // Plain words for a blank row — why nothing was found, so the visitor
+        // knows what to type. The flag text is the same idea for a read row.
+        why: r.how || '',
+        flag: r.flag || '',
+        estimated: r.source === 'derived',
         display: r.value == null ? '' : Number(r.value).toLocaleString('en-US'),
         was: r.wasValue == null ? '' : Number(r.wasValue).toLocaleString('en-US'),
       }));
   }, [estimate]);
-  const freightPct     = Math.round((budget?.freightRate     ?? 0.06) * 100);
-  const warehousingPct = Math.round((budget?.warehousingRate ?? 0.03) * 100);
+
+  // Rows still blank after the read AND not yet typed — the amber boxes, and
+  // the "N figures still needed" note under the drawings.
+  const neededRows = useMemo(
+    () => correctableRows.filter(r => r.display === '' && String(corrections[r.key] ?? '').trim() === ''),
+    [correctableRows, corrections]);
+
+  // ── The one Project Data grid ─────────────────────────────────────────────
+  // Shown on the Drawings page (right under the upload) and again on the
+  // Review page. Same rows, same boxes, same `corrections` state, so a number
+  // typed on either page is the number the budget runs on. Rendered by a plain
+  // function, not a component, so React never remounts the inputs mid-typing.
+  //
+  // Three looks per row:
+  //   read / estimated  — dashed underline, hover for where it came from,
+  //                       "(est.)" when it is our arithmetic, ⚠ when flagged;
+  //   blank             — amber box marked NEEDED with a one-line reason;
+  //   corrected         — amber text with "Corrected — was X · undo".
+  // Values + provenance only — nothing priced lives in a quantity row.
+  const projectDataGrid = ({ heading, intro }) => (
+    <div className="bg-white rounded-xl border border-slate-200 p-5">
+      <h3 className="font-bold text-slate-900 mb-1">{heading}</h3>
+      <p className="text-xs text-slate-500 mb-4">{intro}</p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-3">
+        {correctableRows.map(row => {
+          const typed  = String(corrections[row.key] ?? '');
+          const edited = typed.trim() !== '';
+          const needed = !edited && row.display === '';
+          return (
+            <div key={row.key} className={cn(needed && '-mx-2 rounded-lg bg-amber-50 px-2 py-1 ring-1 ring-amber-200')}>
+              <div className={cn('flex flex-wrap items-center gap-x-1.5 text-xs', needed ? 'text-amber-800' : 'text-slate-400')}>
+                <span>{row.label}</span>
+                {needed && (
+                  <span className="rounded bg-amber-200 px-1 py-px text-[10px] font-bold uppercase tracking-wide text-amber-900">
+                    Needed
+                  </span>
+                )}
+                {!needed && !edited && row.estimated && (
+                  <span className="text-slate-400" title={row.how || undefined}>(est.)</span>
+                )}
+                {!needed && !edited && row.flag && (
+                  <span className="text-amber-500" title={row.flag}>⚠</span>
+                )}
+              </div>
+              <input
+                className={cn(
+                  'w-full bg-transparent px-0 py-0.5 text-sm font-semibold tabular-nums border-0 border-b border-dashed focus:outline-none focus:ring-0 focus:border-solid focus:border-amber-400',
+                  edited ? 'text-amber-700 border-amber-300 border-solid'
+                    : needed ? 'text-amber-900 border-amber-400 placeholder:text-amber-500 placeholder:font-normal placeholder:italic'
+                    : 'text-slate-900 border-slate-200',
+                )}
+                inputMode="numeric"
+                aria-label={needed ? `${row.label} — not found on the drawings, please enter it` : `${row.label} — type over it to correct it`}
+                value={edited ? typed : row.display}
+                onFocus={e => { const el = e.target; requestAnimationFrame(() => el.select()); }}
+                onChange={e => setCorrections(x => ({ ...x, [row.key]: e.target.value }))}
+                placeholder={needed ? (row.unit === 'sf' ? 'enter SF' : 'enter a count') : undefined}
+                title={row.how || undefined}
+              />
+              {edited && (
+                <button
+                  type="button"
+                  className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-600 hover:text-amber-700"
+                  onClick={() => setCorrections(x => { const next = { ...x }; delete next[row.key]; return next; })}
+                >
+                  Corrected{row.was ? ` — was ${row.was}` : ''} · undo
+                </button>
+              )}
+              {needed && row.why && (
+                <p className="mt-0.5 text-[11px] leading-snug text-amber-700 line-clamp-2" title={row.why}>{row.why}</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
   const todayLabel = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
   const navBtn = (enabled) =>
@@ -1291,40 +1410,19 @@ export default function IntakeClient() {
 
                     <DrawingDropzone onResults={onDrawingsRead} restored={restoredDrawings} />
 
-                    {/* Building summary — everything the takeoff pulled from the
-                        drawings, shown right where they were uploaded. Values +
-                        provenance only; no pricing. */}
-                    {drawings && pulledRows.found.length > 0 && (
-                      <div className="mt-6 border border-slate-200 rounded-xl overflow-hidden">
-                        <div className="px-4 py-3 bg-slate-50 border-b border-slate-100">
-                          <h3 className="text-sm font-semibold text-slate-800">Building summary — what we pulled from your drawings</h3>
-                          <p className="text-xs text-slate-400 mt-0.5">
-                            Every figure below feeds your budget. Figures marked “est.” are our arithmetic, not read off a sheet — hover any number to see where it came from.
-                          </p>
-                        </div>
-                        <div className="p-4 grid sm:grid-cols-2 gap-x-8 gap-y-2.5">
-                          {pulledRows.found.map(r => (
-                            <div key={r.key} className="flex items-baseline justify-between gap-3">
-                              <span className="text-sm text-slate-600">{r.label}</span>
-                              <span
-                                className="text-sm font-semibold text-slate-900 text-right shrink-0"
-                                title={[r.how, r.flag].filter(Boolean).join(' ')}
-                              >
-                                {Number(r.value).toLocaleString('en-US')}{r.unit === 'sf' ? ' SF' : ''}
-                                {r.source === 'derived' && <span className="font-normal text-slate-400"> (est.)</span>}
-                                {r.flag && <span className="text-amber-500" title={r.flag}> ⚠</span>}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                        {pulledRows.missing.length > 0 && (
-                          <div className="px-4 pb-4">
-                            <p className="text-xs text-slate-400">
-                              Couldn’t read from the drawings (we’ll ask you on the next pages):{' '}
-                              {pulledRows.missing.map(r => r.label).join(' · ')}
-                            </p>
-                          </div>
-                        )}
+                    {/* Project Data — every takeoff row, read or blank, right
+                        under the upload (Mike, 2026-09-16: "why can't I edit
+                        numbers on the drawings page" / "unread figures belong
+                        on the drawings page combined with the read ones,
+                        highlight blanks"). Same grid as the Review page. */}
+                    {drawings && correctableRows.length > 0 && (
+                      <div className="mt-6">
+                        {projectDataGrid({
+                          heading: 'Project Data — what we read from your drawings, and what we still need',
+                          intro: neededRows.length > 0
+                            ? `Every figure here feeds your budget. The amber boxes are the ${neededRows.length} we could not find on any sheet — type them in if you know them, and type over any read figure that looks wrong. “(est.)” means our arithmetic, not a number off a sheet; hover any figure to see where it came from.`
+                            : 'Every figure here came off your drawings or our arithmetic and feeds your budget. Type over any that looks wrong — the budget updates straight away and we keep what we read on file. “(est.)” means our arithmetic; hover any figure to see where it came from.',
+                        })}
                       </div>
                     )}
                     </div>
@@ -1417,7 +1515,10 @@ export default function IntakeClient() {
                               : drawingsReading > 0
                                 ? `Reading ${drawingsReading} drawing${drawingsReading !== 1 ? 's' : ''} — your figures appear once every file is read`
                               : drawings
-                                ? `${drawings.sources.length} drawing${drawings.sources.length !== 1 ? 's' : ''} read`
+                                ? `${drawings.sources.length} drawing${drawings.sources.length !== 1 ? 's' : ''} read${
+                                    neededRows.length > 0
+                                      ? ` — ${neededRows.length} figure${neededRows.length !== 1 ? 's' : ''} still needed (amber boxes above; you can continue without them)`
+                                      : ''}`
                                 : 'Upload drawings to see live pricing — you can still submit without them'}
                         </span>
                         {(() => {
@@ -1435,39 +1536,9 @@ export default function IntakeClient() {
                 {/* ── Building-area pages ── */}
                 {step.sections && (
                   <>
-                    {/* Figures the drawings couldn't answer — asked once, on the
-                        Units page, where the numbers they drive live. */}
-                    {stepId === 'units' && figureAsks.length > 0 && (
-                      <section className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-4">
-                        <h3 className="text-sm font-semibold text-amber-900">
-                          Figures we couldn’t read from your drawings
-                        </h3>
-                        <p className="text-xs text-amber-700 mt-1">
-                          Everything else came straight off the drawings — these we need from you.
-                        </p>
-                        <div className="grid sm:grid-cols-2 gap-4 mt-4">
-                          {figureAsks.map(f => (
-                            <div key={f.key}>
-                              <Field label={f.label}>
-                                <input
-                                  className={cn(inputCls, figureBoxCls)}
-                                  inputMode="numeric"
-                                  value={figures[f.key]}
-                                  onChange={e => setFigures(x => ({ ...x, [f.key]: e.target.value }))}
-                                  placeholder={f.placeholder}
-                                />
-                              </Field>
-                              {f.row?.source === 'derived' && !String(figures[f.key] ?? '').trim() && (
-                                <p className="text-xs text-amber-600 mt-1.5">
-                                  Our estimate: <strong>{Number(f.row.value).toLocaleString('en-US')}</strong>
-                                  {f.row.how ? ` — ${f.row.how}` : ''}
-                                </p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </section>
-                    )}
+                    {/* The blanks the drawings could not answer are asked on
+                        the Drawings page itself now — amber boxes in the one
+                        Project Data grid — not here. */}
                     <div className="space-y-4">
                       {step.sections.flatMap(name => questionsBySection.get(name) || [])
                         // Walking-path bollards: townhomes and single-family only (Mike, 2026-09-12).
@@ -1549,49 +1620,15 @@ export default function IntakeClient() {
                       </div>
                     )}
 
-                    {/* Project Data — horizontal grid, identical to the internal summary */}
-                    {hasEstimate && correctableRows.length > 0 && (
-                      <div className="bg-white rounded-xl border border-slate-200 p-5">
-                        <h3 className="font-bold text-slate-900 mb-1">Project Data</h3>
-                        <p className="text-xs text-slate-500 mb-4">
-                          These came off your drawings. If one looks wrong, type the right number over it —
-                          the budget updates straight away and we keep what we read on file.
-                        </p>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-3">
-                          {correctableRows.map(row => {
-                            const typed = String(corrections[row.key] ?? '');
-                            const edited = typed.trim() !== '';
-                            return (
-                              <div key={row.key}>
-                                <div className="text-xs text-slate-400">{row.label}</div>
-                                <input
-                                  className={cn(
-                                    'w-full bg-transparent px-0 py-0.5 text-sm font-semibold tabular-nums border-0 border-b border-dashed focus:outline-none focus:ring-0 focus:border-solid focus:border-amber-400',
-                                    edited ? 'text-amber-700 border-amber-300 border-solid' : 'text-slate-900 border-slate-200',
-                                  )}
-                                  inputMode="numeric"
-                                  aria-label={`${row.label} — type over it to correct it`}
-                                  value={edited ? typed : row.display}
-                                  onFocus={e => { const el = e.target; requestAnimationFrame(() => el.select()); }}
-                                  onChange={e => setCorrections(x => ({ ...x, [row.key]: e.target.value }))}
-                                  placeholder={row.display ? undefined : 'not found'}
-                                  title={row.how || undefined}
-                                />
-                                {edited && (
-                                  <button
-                                    type="button"
-                                    className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-600 hover:text-amber-700"
-                                    onClick={() => setCorrections(x => { const next = { ...x }; delete next[row.key]; return next; })}
-                                  >
-                                    Corrected{row.was ? ` — was ${row.was}` : ''} · undo
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
+                    {/* Project Data — the same grid as the Drawings page, same boxes, same corrections */}
+                    {hasEstimate && correctableRows.length > 0 && projectDataGrid({
+                      heading: 'Project Data',
+                      intro: manual
+                        ? 'The figures your budget runs on. Type over any that looks wrong — the budget updates straight away.'
+                        : neededRows.length > 0
+                          ? `The figures your budget runs on. The amber boxes are the ${neededRows.length} we could not find on your drawings — type them in if you know them. Type over any read figure that looks wrong; we keep what we read on file.`
+                          : 'These came off your drawings. If one looks wrong, type the right number over it — the budget updates straight away and we keep what we read on file.',
+                    })}
 
                     {/* Budget Breakdown — the same component the internal summary renders */}
                     {hasEstimate && (
@@ -1600,7 +1637,7 @@ export default function IntakeClient() {
                           <h3 className="font-bold text-slate-900">Budget Breakdown</h3>
                           <span className="text-xs text-slate-400 italic">Hover a line for details</span>
                         </div>
-                        <SummaryBudgetBreakdown budget={budget} freightPct={freightPct} warehousingPct={warehousingPct} />
+                        <SummaryBudgetBreakdown budget={budget} />
                       </div>
                     )}
 

@@ -9,8 +9,12 @@ import { getAnthropicKey } from '@/lib/anthropicKey';
 import { recordRawCall } from '@/lib/agent/client';
 import { modelParams, answerBudget, textFrom, warnIfTruncated } from '@/lib/aiModels';
 import { readUploadedFile } from '@/lib/uploadIntake';
+import { runParkedJob, readJobRequest, jobError, uploadToJobArgs, loadJobUpload } from '@/lib/parkedJob';
 
-export const maxDuration = 120;
+// Park-and-poll (src/lib/parkedJob.js). A whole E-sheet of text through one
+// model call runs past Amplify's ~30-second front door on a busy schedule.
+// The first request only writes the job down; the polls run it and collect it.
+export const maxDuration = 300;
 
 const SYSTEM_PROMPT = `You are a lighting fixture schedule parser for an electrical engineering firm (ILC Studios). You will receive raw text extracted from a PDF electrical drawing sheet.
 
@@ -71,24 +75,40 @@ export async function POST(request, { params }) {
 
   const project = await prisma.project.findUnique({ where: { id: params.id } });
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  if (!canSeeAllData(user) && project.createdById !== user.id)
+  if (!canSeeAllData(user) && project.createdById !== user.id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
-  const formData = await request.formData();
-  // Bytes may have come through the form or straight to S3 — see uploadIntake.js.
-  const upload = await readUploadedFile(formData);
-  if (!upload.ok) return NextResponse.json({ error: upload.message }, { status: upload.status });
+  const { body, formData } = await readJobRequest(request);
+  let args = null;
+  if (!body.jobKey) {
+    if (!formData) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+    // Bytes may have come through the form or straight to S3 — see uploadIntake.js.
+    const upload = await readUploadedFile(formData);
+    if (!upload.ok) return NextResponse.json({ error: upload.message }, { status: upload.status });
+    // Not cleaned up here: the poll that runs the read needs the bytes.
+    args = await uploadToJobArgs(upload, { scope: 'project' });
+  }
+
+  return runParkedJob({
+    body, kind: 'peerReview.parsePdf', scope: params.id, args,
+    run: (a) => parseSheet(a, { projectId: params.id, user }),
+  });
+}
+
+/** The read itself. Returns the response body; throws jobError for the route's own failures. */
+async function parseSheet(args, { projectId, user }) {
+  const upload = await loadJobUpload(args);
   const buffer = upload.buffer;
-  // Keeps the rest of the route reading the same as before the direct-to-S3 split.
+  // Keeps the rest of the read reading the same as before the direct-to-S3 split.
   const file = { name: upload.name, type: upload.type };
-  await upload.cleanup();
-
+  try {
   // Extract text from PDF
   let extractedText = '';
   try {
     extractedText = await extractPdfText(buffer);
   } catch (e) {
-    return NextResponse.json({ error: 'Failed to read PDF: ' + e.message }, { status: 422 });
+    throw jobError(422, { error: 'Failed to read PDF: ' + e.message });
   }
 
   // Call Claude to parse. This site talks to the REST endpoint directly rather
@@ -106,7 +126,7 @@ export async function POST(request, { params }) {
 
   let aiData;
   try {
-    aiData = await recordRawCall('peerReview.parsePdf', payload, { projectId: params.id, userId: user.id }, async () => {
+    aiData = await recordRawCall('peerReview.parsePdf', payload, { projectId, userId: user.id }, async () => {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -127,7 +147,7 @@ export async function POST(request, { params }) {
     });
   } catch (e) {
     console.error('Claude API error:', e.message);
-    return NextResponse.json({ error: 'AI parsing failed' }, { status: 500 });
+    throw jobError(500, { error: 'AI parsing failed' });
   }
 
   warnIfTruncated(aiData, 'peerReview.parsePdf');
@@ -158,10 +178,14 @@ export async function POST(request, { params }) {
     };
   }
 
-  return NextResponse.json({
+  return {
     fixtures: parsed.fixtures || [],
     warning:  parsed.warning  || null,
     fileName: file.name,
     charCount: extractedText.length,
-  });
+  };
+  } finally {
+    // The stashed upload is only needed for this one read.
+    await upload.cleanup().catch(() => {});
+  }
 }

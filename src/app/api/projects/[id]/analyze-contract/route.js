@@ -10,9 +10,17 @@ import { modelParams, answerBudget } from '@/lib/aiModels';
 import { buildUntrustedPrompt, ATTACHED_DOCUMENT_RULE } from '@/lib/agent/untrusted';
 import { getProjectFileBuffer } from '@/lib/projectFileStorage';
 import { CONTRACT_SYSTEM_PROMPT } from '@/lib/contractSystemPrompt';
+import { readUploadedFile } from '@/lib/uploadIntake';
+import { runParkedJob, readJobRequest, jobError, uploadToJobArgs, loadJobUpload } from '@/lib/parkedJob';
 
-// Allow up to 5 minutes — large scanned PDFs can take 3–4 min
+// Park-and-poll (src/lib/parkedJob.js). A contract review is the longest
+// single model call in the app — 3–4 minutes on a large scanned PDF — so the
+// first request only writes the job down and the polls run and collect it.
+// The in-flight window is the Lambda's own ceiling: one run is trusted for
+// the whole five minutes before a poll would start it again.
 export const maxDuration = 300;
+const CONTRACT_INFLIGHT_MS = 300_000;
+const MAX_CONTRACT_BYTES   = 28 * 1024 * 1024;
 
 const anthropic = new Anthropic({ apiKey: getAnthropicKey() });
 
@@ -29,27 +37,48 @@ export async function POST(request, { params }) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  const { body, formData } = await readJobRequest(request);
+  let args = null;
+  if (!body.jobKey) {
+    if (formData) {
+      // Direct review without saving: the bytes are stashed under a key so the
+      // polls can find them; the job args stay small.
+      const up = await readUploadedFile(formData, { limit: MAX_CONTRACT_BYTES });
+      if (!up.ok) return NextResponse.json({ error: up.message || 'No file provided' }, { status: up.status || 400 });
+      args = await uploadToJobArgs(up, { scope: 'project' });
+    } else {
+      const fileId = body.fileId;
+      if (!fileId) return NextResponse.json({ error: 'fileId required' }, { status: 400 });
+      const file = await prisma.projectFile.findUnique({ where: { id: fileId }, select: { projectId: true } });
+      if (!file || file.projectId !== params.id) {
+        return NextResponse.json({ error: 'File not found' }, { status: 404 });
+      }
+      args = { fileId };
+    }
+  }
+
+  return runParkedJob({
+    body, kind: 'contract.analyze', scope: params.id, args, inflightMs: CONTRACT_INFLIGHT_MS,
+    run: (a) => reviewContract(a, { projectId: params.id, user }),
+  });
+}
+
+/** The review itself. Returns the response body; throws jobError for the route's own failures. */
+async function reviewContract(args, { projectId, user }) {
   // textContent = pre-extracted text from upload (fast path)
   // pdfBase64   = raw PDF binary (slow fallback for scanned/image PDFs)
   let textContent = null;
   let pdfBase64   = null;
   let fileName    = 'contract.pdf';
   let savedFileId = null;
+  let cleanup     = null;
 
-  const contentType = request.headers.get('content-type') || '';
-
-  if (contentType.includes('application/json')) {
-    const body   = await request.json();
-    const fileId = body.fileId;
-    if (!fileId) return NextResponse.json({ error: 'fileId required' }, { status: 400 });
-
-    const file = await prisma.projectFile.findUnique({ where: { id: fileId } });
-    if (!file || file.projectId !== params.id) {
-      return NextResponse.json({ error: 'File not found' }, { status: 404 });
-    }
+  if (args.fileId) {
+    const file = await prisma.projectFile.findUnique({ where: { id: args.fileId } });
+    if (!file || file.projectId !== projectId) throw jobError(404, { error: 'File not found' });
 
     fileName    = file.originalName;
-    savedFileId = fileId;
+    savedFileId = file.id;
 
     if (file.textContent && file.textContent.length > 100) {
       // Fast path: use pre-extracted text — no disk read, no base64, ~10× faster
@@ -57,20 +86,16 @@ export async function POST(request, { params }) {
     } else {
       // Slow path: scanned/image PDF — send binary to Claude vision
       const buffer = await getProjectFileBuffer(file.storedPath);
-      if (!buffer) return NextResponse.json({ error: 'File not found — it may have been deleted.' }, { status: 404 });
+      if (!buffer) throw jobError(404, { error: 'File not found — it may have been deleted.' });
       pdfBase64 = buffer.toString('base64');
     }
 
   } else {
-    // FormData direct upload — extract text on the fly, fall back to binary
-    const formData = await request.formData();
-    const file     = formData.get('file');
-    if (!file || typeof file === 'string') {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
-    }
-    const bytes  = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    fileName     = file.name;
+    // Direct upload — extract text on the fly, fall back to binary
+    const up = await loadJobUpload(args, { limit: MAX_CONTRACT_BYTES });
+    const buffer = up.buffer;
+    fileName     = up.name;
+    cleanup      = up.cleanup;
 
     // Try to extract text first
     try {
@@ -88,14 +113,20 @@ export async function POST(request, { params }) {
     if (!textContent) pdfBase64 = buffer.toString('base64');
   }
 
+  try {
+    return await reviewContent({ textContent, pdfBase64, fileName, savedFileId }, { projectId, user });
+  } finally {
+    // The stashed direct upload is only needed for this one read.
+    if (cleanup) await cleanup().catch(() => {});
+  }
+}
+
+async function reviewContent({ textContent, pdfBase64, fileName, savedFileId }, { projectId, user }) {
   // Guard: size check only needed for binary path
   if (pdfBase64) {
     const sizeBytes = Buffer.byteLength(pdfBase64, 'base64');
     if (sizeBytes > 28 * 1024 * 1024) {
-      return NextResponse.json(
-        { error: `File is too large to analyze (${(sizeBytes / 1048576).toFixed(1)} MB). Maximum ~28 MB. Try a text-based PDF.` },
-        { status: 413 }
-      );
+      throw jobError(413, { error: `File is too large to analyze (${(sizeBytes / 1048576).toFixed(1)} MB). Maximum ~28 MB. Try a text-based PDF.` });
     }
   }
 
@@ -119,7 +150,7 @@ export async function POST(request, { params }) {
     // reading as an instruction to the reviewer is worth a human knowing about
     // whether or not it was aimed at a model.
     console.warn('[contract.analyze] third-party document contains instruction-like text',
-      { projectId: params.id, input: sealed.seals[0].summary, markers: sealed.injection.markers.length });
+      { projectId, input: sealed.seals[0].summary, markers: sealed.injection.markers.length });
   }
 
   // Build the Claude message — text path is much faster and cheaper
@@ -141,7 +172,7 @@ export async function POST(request, { params }) {
     // Recorded per request rather than at the module-level client, so the run
     // carries the project and user it was for. wrapClient returns a Proxy, so
     // wrapping the shared client again per call is free.
-    const recorded = wrapClient(anthropic, 'contract.analyze', { projectId: params.id, userId: user.id });
+    const recorded = wrapClient(anthropic, 'contract.analyze', { projectId: projectId, userId: user.id });
     message = await recorded.messages.create({
       ...modelParams('contract.analyze'),
       max_tokens: answerBudget('contract.analyze', 16000),
@@ -152,7 +183,7 @@ export async function POST(request, { params }) {
     });
   } catch (err) {
     const msg = err?.message || String(err);
-    return NextResponse.json({ error: `Claude API error: ${msg}` }, { status: 502 });
+    throw jobError(502, { error: `Claude API error: ${msg}` });
   }
 
   // Extract and parse the JSON response
@@ -161,10 +192,7 @@ export async function POST(request, { params }) {
   const end   = raw.lastIndexOf('}');
 
   if (message.stop_reason === 'max_tokens' && (start === -1 || end === -1)) {
-    return NextResponse.json(
-      { error: 'Contract is too long for a single pass. Try uploading a specific exhibit or exhibit section.' },
-      { status: 422 }
-    );
+    throw jobError(422, { error: 'Contract is too long for a single pass. Try uploading a specific exhibit or exhibit section.' });
   }
 
   const clean = (start !== -1 && end > start) ? raw.slice(start, end + 1) : raw.trim();
@@ -174,15 +202,9 @@ export async function POST(request, { params }) {
     analysis = JSON.parse(clean);
   } catch {
     if (message.stop_reason === 'max_tokens') {
-      return NextResponse.json(
-        { error: 'Analysis was cut off — document too large. Upload a shorter PDF or specific exhibit.' },
-        { status: 422 }
-      );
+      throw jobError(422, { error: 'Analysis was cut off — document too large. Upload a shorter PDF or specific exhibit.' });
     }
-    return NextResponse.json(
-      { error: 'Claude returned malformed JSON', raw: raw.slice(0, 500) },
-      { status: 500 }
-    );
+    throw jobError(500, { error: 'Claude returned malformed JSON', raw: raw.slice(0, 500) });
   }
 
   // Persist analysis so it survives page refresh
@@ -195,5 +217,5 @@ export async function POST(request, { params }) {
     } catch (e) { console.error('[analyze-contract persist] failed:', e?.message ?? e); }
   }
 
-  return NextResponse.json({ analysis, fileName });
+  return { analysis, fileName };
 }

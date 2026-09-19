@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { writableSiteKeys, projectLevelSiteKeys, BUILDING_TYPE_KEYS } from '@/lib/siteFields';
+import { writableSiteKeys, projectLevelSiteKeys, BUILDING_TYPE_KEYS, siteFeatureTypeFromKey } from '@/lib/siteFields';
+import { LINEAR_SITE_FEATURES } from '@/lib/siteFeatures';
+import { writeSiteFeature, loadSiteFeatures, siteFeaturesForEngine } from '@/lib/siteFeatureRows';
 import { getRun, recordVerdict, VERDICT } from '@/lib/agent/reviewStore';
 import { describeSiteCorrection } from '@/lib/agent/siteDiff';
+import { parseLooseNumber } from '@/lib/numberInput';
 
 const WRITABLE      = new Set(writableSiteKeys());
 const PROJECT_LEVEL = new Set(projectLevelSiteKeys());
@@ -20,7 +23,7 @@ export async function POST(request, { params }) {
   if (error) return error;
   if (!await canAccess(params.id, user)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const { fileId = null, fields = {}, runId = null } = await request.json();
+  const { fileId = null, fields = {}, runId = null, sheets = {} } = await request.json();
 
   // ── The allowlist is the boundary, not the UI ──────────────────────────────
   //
@@ -31,8 +34,24 @@ export async function POST(request, { params }) {
   // which the unit matrix owns and a human has already signed off on.
   const write = {};          // ProjectData columns (numbers)
   const projectWrite = {};   // Project columns (today: buildingType)
+  const featureWrite = {};   // SiteFeature rows (0089), keyed 'siteFeature.<type>'
   const rejected = [];
   for (const [key, value] of Object.entries(fields)) {
+    // Sporadic site features are rows, not Project Info columns. A linear kind
+    // (courtyard, turf play) arrives as feet; the rest as a count. 0 = "none".
+    const featureType = siteFeatureTypeFromKey(key);
+    if (featureType) {
+      const n = parseLooseNumber(value);
+      if (value === null || value === '' || !Number.isFinite(n) || n < 0) continue;
+      const sheet = Number(sheets?.[key]);
+      featureWrite[key] = {
+        type: featureType,
+        ...(LINEAR_SITE_FEATURES.has(featureType) ? { lengthFt: n, count: 1 } : { count: n, lengthFt: null }),
+        source: 'drawing',
+        sheet: Number.isFinite(sheet) && sheet > 0 ? sheet : null,
+      };
+      continue;
+    }
     if (!WRITABLE.has(key)) { rejected.push(key); continue; }
     if (PROJECT_LEVEL.has(key)) {
       // The building type is a key from a fixed list, not a number. Anything
@@ -40,7 +59,7 @@ export async function POST(request, { params }) {
       if (key === 'buildingType' && TYPE_KEYS.has(value)) projectWrite.buildingType = value;
       continue;
     }
-    const n = Number(value);
+    const n = parseLooseNumber(value);
     // A field ticked on with no number is a mistake, not an instruction to
     // blank the project. Blanking is done in Project Info, deliberately.
     if (value === null || value === '' || !Number.isFinite(n) || n < 0) continue;
@@ -50,6 +69,7 @@ export async function POST(request, { params }) {
     console.warn(`[site/commit] ignored non-site field(s) in payload: ${rejected.join(', ')}`);
   }
   const applied = { ...write, ...projectWrite };
+  for (const [key, f] of Object.entries(featureWrite)) applied[key] = f.lengthFt ?? f.count;
   if (!Object.keys(applied).length) {
     return NextResponse.json({ error: 'nothing_to_apply', message: 'No site fields were selected.' }, { status: 400 });
   }
@@ -65,6 +85,10 @@ export async function POST(request, { params }) {
 
     if (Object.keys(projectWrite).length) {
       await tx.project.update({ where: { id: params.id }, data: projectWrite });
+    }
+
+    for (const f of Object.values(featureWrite)) {
+      await writeSiteFeature(tx, params.id, f);
     }
 
     if (fileId) {
@@ -112,18 +136,23 @@ export async function POST(request, { params }) {
     }
   }
 
-  const [projectData, project] = await Promise.all([
+  const [projectData, project, featureRows] = await Promise.all([
     prisma.projectData.findUnique({ where: { projectId: params.id } }),
     prisma.project.findUnique({ where: { id: params.id }, select: { buildingType: true } }),
+    loadSiteFeatures(prisma, params.id),
   ]);
   // The questionnaires replace their working copy of Project Info with this
   // row, and the engine reads the building type off it as `buildingTypeKey`
   // (see wizard/page.jsx) — so it rides along here, or an apply would drop
-  // the type until the next reload.
+  // the type until the next reload. The live site-feature rows ride the same
+  // way, as the engine's `siteFeatures` array.
+  const siteFeatures = siteFeaturesForEngine(featureRows);
   return NextResponse.json({
     ok: true,
     written: Object.keys(applied),
-    projectData: projectData ? { ...projectData, buildingTypeKey: project?.buildingType ?? null } : null,
+    projectData: projectData
+      ? { ...projectData, buildingTypeKey: project?.buildingType ?? null, siteFeatures }
+      : { buildingTypeKey: project?.buildingType ?? null, siteFeatures },
     verdict,
   });
 }

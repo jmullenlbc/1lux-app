@@ -2,6 +2,7 @@
 import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { TooltipBudgetRow } from '@/components/ui/Tooltip';
+import { siteFeatureLineLabel } from '@/lib/siteFeatureWords';
 
 function Divider() {
   return <div className="border-t border-slate-100 my-2" />;
@@ -135,6 +136,11 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
                       : 'Pathway lighting',
                   value: sections.exterior?.pathway?.product || 0 },
                 { label: 'Landscape',          value: sections.exterior?.landscape?.product || 0 },
+                // One detail per found feature (dog park, courtyard, …) so the
+                // dollars are traceable; a single $0 line when there are none.
+                ...(sections.exterior?.siteFeatures?.items?.length
+                  ? sections.exterior.siteFeatures.items.map(i => ({ label: siteFeatureLineLabel(i), value: i.product || 0 }))
+                  : [{ label: 'Site features', value: 0 }]),
                 { label: '5% misc buffer',     value: sections.exterior?.misc?.product      || 0 },
               ]}
             />

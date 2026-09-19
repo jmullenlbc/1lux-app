@@ -1,5 +1,6 @@
 'use client';
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { postParked } from '@/lib/parkedFetch';
 
 // ── Milestone type config (9 canonical types) ─────────────────────────────────
 const MILESTONE_CONFIG = {
@@ -354,7 +355,8 @@ export default function CAScheduleCard({ files, projectId, onFileUpdated }) {
     setAutoParsing(true);
     setAutoParseError(null);
 
-    fetch(`/api/projects/${projectId}/files/${scheduleFile.id}/reparse`, { method: 'POST' })
+    // Park-and-poll: the read runs in steps behind the front door.
+    postParked(`/api/projects/${projectId}/files/${scheduleFile.id}/reparse`, {})
       .then(r => r.json())
       .then(data => {
         if (data.milestones?.length > 0) {

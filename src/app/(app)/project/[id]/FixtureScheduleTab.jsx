@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import PdfViewerModal from '@/components/ui/PdfViewerModal';
 import { oversizeMessage } from '@/lib/uploadErrorMessage';
 import { appendUpload } from '@/lib/uploadClient';
+import { postParked } from '@/lib/parkedFetch';
 import ConfirmArchiveModal, { setArchived, ArchiveBoxIcon, KEPT_ON_ARCHIVE_PAGE } from '@/components/salesAutomation/ConfirmArchiveModal';
 
 const PHASE_OPTIONS = ['SD', 'DD', 'CD', 'IFC', 'ASI'];
@@ -236,7 +237,9 @@ export default function FixtureScheduleTab({ projectId }) {
     try {
       const fd2 = new FormData();
       await appendUpload(fd2, file, { scope: 'project' });
-      const res  = await fetch(`/api/projects/${projectId}/peer-review/parse-pdf`, { method: 'POST', body: fd2 });
+      // Park-and-poll: the read runs in steps behind the front door and the
+      // answer arrives with the same body and status it always had.
+      const res  = await postParked(`/api/projects/${projectId}/peer-review/parse-pdf`, fd2);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Parse failed');
       setFixtures((data.fixtures || []).map((f, i) => ({ ...f, _id: i, section: f.suggestedSection || 'other' })));

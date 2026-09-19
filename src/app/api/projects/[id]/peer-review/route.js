@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { looseNumberOrNull } from '@/lib/numberInput';
 
 export async function GET(request, { params }) {
   const { user, error } = await requireAuth();
@@ -47,19 +48,19 @@ export async function POST(request, { params }) {
       specManufacturer: specManufacturer ?? null,
       specModel:        specModel        ?? null,
       specDetails:      specDetails      ?? null,
-      qty:              qty              != null ? Number(qty)          : null,
-      prevQty:          prevQty          != null ? Number(prevQty)      : null,
+      qty:              looseNumberOrNull(qty),
+      prevQty:          looseNumberOrNull(prevQty),
       qtyType:          qtyType          ?? 'unit',
       altChoices:       altChoices       ?? null,
       propManufacturer: propManufacturer ?? null,
       propModel:        propModel        ?? null,
-      propUnitDN:       propUnitDN       != null ? Number(propUnitDN)   : null,
-      propUnitPrice:    propUnitPrice    != null ? Number(propUnitPrice): null,
+      propUnitDN:       looseNumberOrNull(propUnitDN),
+      propUnitPrice:    looseNumberOrNull(propUnitPrice),
       repName:          repName          ?? null,
       repEmail:         repEmail         ?? null,
       rfqStatus:        rfqStatus        ?? null,
-      unitSavings:      unitSavings      != null ? Number(unitSavings)  : null,
-      totalSavings:     totalSavings     != null ? Number(totalSavings) : null,
+      unitSavings:      looseNumberOrNull(unitSavings),
+      totalSavings:     looseNumberOrNull(totalSavings),
     },
   });
 

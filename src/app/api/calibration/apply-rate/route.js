@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { loadPricing, savePricing } from '@/lib/pricingLoader';
 import { isAppliablePricingKey, readPricingKey, withPricingKey } from '@/lib/calibration/lines';
+import { parseLooseNumber } from '@/lib/numberInput';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +16,7 @@ export async function POST(request) {
 
   const b = await request.json().catch(() => ({}));
   const key  = String(b.pricingKey || '');
-  const rate = Number(b.rate);
+  const rate = parseLooseNumber(b.rate);
   if (!isAppliablePricingKey(key))            return NextResponse.json({ error: 'That pricing key cannot be set from calibration' }, { status: 400 });
   if (!Number.isFinite(rate) || rate <= 0)    return NextResponse.json({ error: 'rate must be a positive number' }, { status: 400 });
 

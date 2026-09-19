@@ -5,6 +5,9 @@
 // public visitor's browser.
 import { formatCurrency } from '@/lib/format';
 import { TooltipBudgetRow } from '@/components/ui/Tooltip';
+// Words only — '@/lib/siteFeatures' carries the price defaults and must not
+// reach the public page either.
+import { siteFeatureLineLabel } from '@/lib/siteFeatureWords';
 
 function Row({ label, value }) {
   return (
@@ -17,7 +20,15 @@ function Row({ label, value }) {
   );
 }
 
+// " (approx. 47 area lights)" on the public budget; staff budgets carry no
+// `approx` field and print nothing extra here (their counts live on the sidebar).
+const approxSuffix = (line) => line?.approx ? ` (${line.approx})` : '';
+
 export default function SummaryBudgetBreakdown({ budget, freightPct, warehousingPct }) {
+  // The public budget page passes no percentages — the visitor sees the freight
+  // and warehousing dollars, never the rate behind them (Mike, 2026-09-17).
+  const freightLabel     = freightPct     == null ? 'Freight'     : `Freight (${freightPct}%)`;
+  const warehousingLabel = warehousingPct == null ? 'Warehousing' : `Warehousing (${warehousingPct}%)`;
   const { sections, freight, warehousing, lightingProductSubtotal, subtotalLightingOnly, controls, controlsFreight, controlsWarehousing, totalWithControls, contingencyRate, contingencyAmount, totalWithContingency, energyCreditPct, energyCreditLighting, energyCreditControls, salesTaxPct, lightingTaxAmount, controlsTaxAmount } = budget;
   const ecPctLabel = Math.round((energyCreditPct || 0) * 100);
   const contingencyPct = contingencyRate ? Math.round(contingencyRate * 100) : 0;
@@ -87,13 +98,13 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
       value: sections?.exterior?.total?.product || 0,
       details: [
         { label: 'Exterior amenities', value: sections?.exterior?.amenities?.product || 0 },
-        { label: sections?.exterior?.solar
+        { label: (sections?.exterior?.solar
             ? `Surface parking (solar × ${sections.exterior.solar.multiplier})`
-            : 'Surface parking',
+            : 'Surface parking') + approxSuffix(sections?.exterior?.parking),
           value: sections?.exterior?.parking?.product || 0 },
         { label: 'Carports',           value: sections?.exterior?.carports?.product  || 0 },
         { label: 'Garages',            value: sections?.exterior?.garages?.product   || 0 },
-        { label: 'Building wallpacks', value: sections?.exterior?.wallpacks?.product || 0 },
+        { label: 'Building wallpacks' + approxSuffix(sections?.exterior?.wallpacks), value: sections?.exterior?.wallpacks?.product || 0 },
         { label: sections?.exterior?.pathway?.suppressedByManual
             ? 'Pathway (manual entry)'
             : (sections?.exterior?.pathway?.solarMultiplier || 1) > 1
@@ -101,6 +112,10 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
               : 'Pathway lighting',
           value: sections?.exterior?.pathway?.product || 0 },
         { label: 'Landscape / adder',  value: sections?.exterior?.landscape?.product || 0 },
+        // One detail per found feature so the dollars are traceable.
+        ...(sections?.exterior?.siteFeatures?.items?.length
+          ? sections.exterior.siteFeatures.items.map(i => ({ label: siteFeatureLineLabel(i) + approxSuffix(i), value: i.product || 0 }))
+          : [{ label: 'Site features', value: 0 }]),
         { label: '5% misc buffer',     value: sections?.exterior?.misc?.product      || 0 },
       ],
     },
@@ -175,12 +190,12 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
 
       {/* Lighting freight + warehousing */}
       <div className="print:hidden space-y-0">
-        <TooltipBudgetRow label={`Freight (${freightPct}%)`}         value={freight     || 0} details={[]} />
-        <TooltipBudgetRow label={`Warehousing (${warehousingPct}%)`} value={warehousing || 0} details={[]} />
+        <TooltipBudgetRow label={freightLabel}         value={freight     || 0} details={[]} />
+        <TooltipBudgetRow label={warehousingLabel} value={warehousing || 0} details={[]} />
       </div>
       <div className="hidden print:block">
-        <Row label={`Freight (${freightPct}%)`}         value={freight     || 0} />
-        <Row label={`Warehousing (${warehousingPct}%)`} value={warehousing || 0} />
+        <Row label={freightLabel}         value={freight     || 0} />
+        <Row label={warehousingLabel} value={warehousing || 0} />
       </div>
       {/* Sales tax on lighting product — only when a rate is on file */}
       {lightingTaxAmount > 0 && (
@@ -224,12 +239,12 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
 
       {/* Controls freight + warehousing */}
       <div className="print:hidden space-y-0">
-        <TooltipBudgetRow label={`Freight (${freightPct}%)`}         value={controlsFreight     || 0} details={[]} />
-        <TooltipBudgetRow label={`Warehousing (${warehousingPct}%)`} value={controlsWarehousing || 0} details={[]} />
+        <TooltipBudgetRow label={freightLabel}         value={controlsFreight     || 0} details={[]} />
+        <TooltipBudgetRow label={warehousingLabel} value={controlsWarehousing || 0} details={[]} />
       </div>
       <div className="hidden print:block">
-        <Row label={`Freight (${freightPct}%)`}         value={controlsFreight     || 0} />
-        <Row label={`Warehousing (${warehousingPct}%)`} value={controlsWarehousing || 0} />
+        <Row label={freightLabel}         value={controlsFreight     || 0} />
+        <Row label={warehousingLabel} value={controlsWarehousing || 0} />
       </div>
       {controlsTaxAmount > 0 && (
         <>

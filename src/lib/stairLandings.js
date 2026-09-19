@@ -211,7 +211,12 @@ const PRIVATE_STAIR_TYPES = new Set(['townHouses', 'singleFamily']);
  *
  * @param {object} input
  *   stories         — story count (stated / counted / typed), or null
- *   stairs          — exit-stair (shaft) count, or null; 0 is a real answer
+ *   stairs          — exit-stair (shaft) count for the WHOLE PROJECT, or null;
+ *                     0 is a real answer
+ *   stairsPerBuilding — exit stairs in ONE building (what a floor plan or a
+ *                     code summary shows — Mike 2026-09-16: "buildings ×
+ *                     floors × 2"), used when `stairs` is null and multiplied
+ *                     by `buildings`; 0 is a real answer
  *   buildings       — residential building count, or null (treated as 1)
  *   footprintSf     — building footprint, for floor-plate size and story estimate
  *   grossSf         — total building gross SF, for the story estimate
@@ -249,6 +254,18 @@ export function estimateStairLandings(input, pricing = null) {
   let stairs = count(input?.stairs);
   let stairsEstimated = false;
   let buildings = null, perBuilding = null, plate = null, unitsBased = false;
+  // A per-building stair count (read off one building's plan) × the number
+  // of buildings. Lone Tree Ranch, 2026-09-16: 3 stairs on the typical plan
+  // were priced as 3 for the whole site — 4 buildings × 3 = 12 stairs, and
+  // 12 × 7 landings = 84, not 21.
+  let perBuildingGiven = false;
+  const stairsPerBuildingIn = count(input?.stairsPerBuilding);
+  if (stairs == null && stairsPerBuildingIn != null) {
+    buildings = Math.max(1, Math.round(pos(input?.buildings) ?? 1));
+    perBuilding = stairsPerBuildingIn;
+    stairs = buildings * perBuilding;
+    perBuildingGiven = true;
+  }
   if (stairs == null) {
     stairsEstimated = true;
     buildings = Math.max(1, Math.round(pos(input?.buildings) ?? 1));
@@ -288,6 +305,9 @@ export function estimateStairLandings(input, pricing = null) {
   if (storiesEstimated) {
     parts.push(`No story count was found, so stories ≈ gross ${fmt(gross)} SF ÷ footprint ${fmt(footprint)} SF = ${fmt(stories)}.`);
   }
+  if (perBuildingGiven) {
+    parts.push(`${fmt(buildings)} building${buildings === 1 ? '' : 's'} × ${fmt(perBuilding)} exit stair${perBuilding === 1 ? '' : 's'} each = ${fmt(stairs)} stairs.`);
+  }
   if (stairsEstimated) {
     if (privateStairs) {
       parts.push('Townhouse-style stairs are private, inside each unit — no shared egress stairs, so no shared landings to light.');
@@ -313,6 +333,7 @@ export function estimateStairLandings(input, pricing = null) {
 
   return {
     landings, base, stories, stairs, buildings, stairsPerBuilding: perBuilding, plateSf: plate,
+    perBuildingGiven,
     unitsBased, unitsPerStair: unitsBased ? f.breezewayUnitsPerStair : null,
     storiesEstimated, stairsEstimated, estimated, privateStairs, contingency: f.contingency,
     how: parts.join(' '), flag,

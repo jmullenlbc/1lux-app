@@ -66,7 +66,8 @@ export default function UnitsSection({ responses, projectData, allSections, pric
   const hasFans         = ans.fans !== 'none';
   // The master net adder per fan, mirroring the engine: the conceptual fan
   // price and the design fan levels are both GROSS on the sheet, so the disk
-  // credit comes off either one ($180 − $35 = $145 at conceptual).
+  // credit comes off either one ($175 − $35 = $140 at conceptual, at today's
+  // sheet — the figure is whatever /admin/pricing holds, never typed here).
   const fanDiskCredit   = P.fans?.diskCredit ?? 35;
   const fanConceptual   = Number(P.fans?.conceptualPerFan) > 0
     ? Math.max(0, Number(P.fans.conceptualPerFan) - fanDiskCredit)

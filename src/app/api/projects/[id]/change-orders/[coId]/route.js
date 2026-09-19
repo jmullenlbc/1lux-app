@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth, requirePermission, isClientViewer, can } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getProjectRates, calcCOTotal } from '@/lib/changeOrderRates';
+import { looseNumberOrNull } from '@/lib/numberInput';
 
 const CO_INCLUDE = {
   optionGroups: {
@@ -58,7 +59,7 @@ export async function PATCH(req, { params }) {
   if (totalInvoiced != null) {
     await prisma.project.update({
       where: { id: params.id },
-      data:  { totalInvoiced: parseFloat(totalInvoiced) || null },
+      data:  { totalInvoiced: looseNumberOrNull(totalInvoiced) },
     });
   }
 

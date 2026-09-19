@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, requirePermission, isClientViewer } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { looseNumberOrNull } from '@/lib/numberInput';
 
 const PRODUCT_FIELDS = ['partNumber','description','finish','cct','wattage','dimming','voltage','mounting','fixtureType','cost','salePrice','notes'];
 
@@ -9,7 +10,7 @@ function parseProductBody(body) {
   for (const f of PRODUCT_FIELDS) {
     if (!(f in body)) continue;
     if (f === 'wattage' || f === 'cost' || f === 'salePrice') {
-      const n = body[f] === '' || body[f] == null ? null : parseFloat(body[f]);
+      const n = looseNumberOrNull(body[f]); // "1,250.00" reads as 1250
       data[f] = isNaN(n) ? null : n;
     } else {
       data[f] = body[f] === '' ? null : (body[f] ?? null);

@@ -9,6 +9,8 @@ import { loadPricing } from '@/lib/pricingLoader';
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { recordRun } from '@/lib/agent/ledger';
 import { modelFor } from '@/lib/aiModels';
+import { SITE_FEATURE_LABELS, LINEAR_SITE_FEATURES, siteFeatureCostLine } from '@/lib/siteFeatures';
+import { SITE_FEATURE_INCLUDE, engineProjectData } from '@/lib/siteFeatureRows';
 
 const TAB_LABELS = {
   drawings:       'Drawings',
@@ -56,7 +58,7 @@ function parseTags(raw) {
 async function canAccess(projectId, user) {
   const project = await prisma.project.findUnique({
     where:   { id: projectId },
-    include: { responses: true },   // wizard Q&A answers
+    include: { responses: true, ...SITE_FEATURE_INCLUDE },   // wizard Q&A answers + live site feature rows
   });
   if (!project) return null;
   if (canSeeAllData(user) || project.createdById === user.id) return project;
@@ -100,7 +102,7 @@ export async function POST(request, { params }) {
 
   // ── Compute wizard budget ─────────────────────────────────────────────────
   const wizardSections  = responsesToSections(project.responses || []);
-  const wizardProjectData = { ...(project.projectData || {}), buildingTypeKey: project.buildingType };
+  const wizardProjectData = engineProjectData(project);
   const budget = calculateBudget(wizardProjectData, wizardSections, pricing || null);
 
   const clientName = clientRow?.name ?? null;
@@ -172,6 +174,11 @@ export async function POST(request, { params }) {
   if (pd.numCarports)          buildingLines.push(`Carports: ${pd.numCarports}`);
   if (pd.numGarages)           buildingLines.push(`Detached Garages: ${pd.numGarages}`);
   if (pd.numExteriorDoors)     buildingLines.push(`Exterior Doors: ${pd.numExteriorDoors}`);
+  // Sporadic site features — one row per kind, read off the site plan or typed.
+  for (const f of Array.isArray(pd.siteFeatures) ? pd.siteFeatures : []) {
+    const qty = LINEAR_SITE_FEATURES.has(f.type) ? `${Number(f.lengthFt || 0).toLocaleString()} ft long` : `${f.count || 0}`;
+    buildingLines.push(`${SITE_FEATURE_LABELS[f.type] || f.type}: ${qty}${f.sheet ? ` (sheet ${f.sheet})` : ''}${f.source === 'typed' ? ' (typed)' : ''}`);
+  }
   if (pd.lotSf)                buildingLines.push(`Lot SF: ${Number(pd.lotSf).toLocaleString()}`);
   if (pd.buildingFootprintSf)  buildingLines.push(`Building Footprint SF: ${Number(pd.buildingFootprintSf).toLocaleString()}`);
   if (pd.freightPct != null)   buildingLines.push(`Freight rate: ${(pd.freightPct * 100).toFixed(1)}%`);
@@ -216,6 +223,10 @@ export async function POST(request, { params }) {
   budgetLines.push(`    Bldg wallpacks:   ${fmt(s.exterior?.wallpacks?.product)}`);
   budgetLines.push(`    Pathway lighting: ${fmt(s.exterior?.pathway?.product)}${s.exterior?.pathway?.suppressedByManual ? ' (manual entry carries it)' : ''}${(s.exterior?.pathway?.solarMultiplier || 1) > 1 ? ` (solar × ${s.exterior.pathway.solarMultiplier})` : ''}`);
   budgetLines.push(`    Landscape/adder:  ${fmt(s.exterior?.landscape?.product)}${s.exterior?.landscape?.netLotSf ? ` (2% of ${Math.round(s.exterior.landscape.netLotSf).toLocaleString()} SF net lot${s.exterior.landscape.capped ? ', capped' : ''})` : ''}`);
+  budgetLines.push(`    Site features:    ${fmt(s.exterior?.siteFeatures?.product)}${s.exterior?.siteFeatures?.items?.length ? '' : ' (none found or typed in)'}`);
+  for (const i of s.exterior?.siteFeatures?.items ?? []) {
+    budgetLines.push(`      ${i.label}: ${i.how} ${siteFeatureCostLine(i)}`);
+  }
   budgetLines.push(`    5% misc buffer:   ${fmt(s.exterior?.misc?.product)}`);
   budgetLines.push(`  Emergency Lighting: ${fmt(s.emergency?.product)}`);
   budgetLines.push(`  Exit Signs:         ${fmt(s.exitSigns?.product)}`);

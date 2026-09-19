@@ -373,6 +373,9 @@ const get_project_360 = {
         include: {
           client: true,
           projectData: true,
+          // Sporadic site features (dog park, courts, …) — live rows only, so a
+          // bot sees the same list the Project Data grid shows.
+          siteFeatures: { where: { archivedAt: null }, orderBy: { createdAt: 'asc' } },
           changeOrders: { include: { optionGroups: { include: { lineItems: true } } } },
           fixtureSchedules: { include: { items: true } },
           designBidMatrices: { where: { archivedAt: null }, include: { items: true }, orderBy: { version: 'desc' }, take: 1 },

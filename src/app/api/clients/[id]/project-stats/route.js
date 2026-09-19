@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { calculateBudget } from '@/lib/calculations';
 import { responsesToSections } from '@/lib/utils';
 import { loadPricing } from '@/lib/pricingLoader';
+import { SITE_FEATURE_INCLUDE, engineProjectData } from '@/lib/siteFeatureRows';
 
 // GET /api/clients/[id]/project-stats
 // Computes per-project budget metrics for every linked project, for the
@@ -20,7 +21,7 @@ export async function GET(request, { params }) {
 
   const projects = await prisma.project.findMany({
     where:   { clientId: params.id },
-    include: { projectData: true, responses: true },
+    include: { projectData: true, responses: true, ...SITE_FEATURE_INCLUDE },
   });
 
   const pricing = await loadPricing();
@@ -29,7 +30,7 @@ export async function GET(request, { params }) {
   for (const p of projects) {
     if (!p.projectData) continue;
     try {
-      const pd       = { ...p.projectData, buildingTypeKey: p.buildingType };
+      const pd       = engineProjectData(p);
       const budget   = calculateBudget(pd, responsesToSections(p.responses), pricing);
       const total    = budget.totalWithControls || 0;
       const units    = pd.numUnits || 0;

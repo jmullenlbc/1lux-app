@@ -363,6 +363,22 @@ test('a stated figure disagreeing with its counted twin is warned, never rewritt
   assert.equal(r.storiesCounted, 5, 'counted value preserved');
 });
 
+test('carports and buildings: stated vs counted disagreement warns, agreement does not (2026-09-16)', () => {
+  const r = validateSiteData({
+    ...base, totalUnits: 168,
+    carports: 60, carportsCounted: 48,
+    buildingCount: 4, buildingsCounted: 4,
+  });
+  assert.ok(warn(r, 'carports'), 'carport disagreement must warn');
+  assert.ok(!warn(r, 'buildingCount'), 'agreeing building counts must NOT warn');
+  assert.equal(r.carports, 60, 'stated value preserved');
+  assert.equal(r.carportsCounted, 48, 'counted value preserved');
+
+  const b = validateSiteData({ ...base, totalUnits: 168, buildingCount: 4, buildingsCounted: 5 });
+  assert.ok(warn(b, 'buildingCount'), 'building-count disagreement must warn');
+  assert.equal(b.buildingCount, 4);
+});
+
 test('a counted figure with no stated twin cannot trigger a disagreement warning', () => {
   const r = validateSiteData({ ...base, totalUnits: 200, storiesCounted: 5, egressStairwellsCounted: 2 });
   assert.ok(!warn(r, 'stories'));

@@ -37,6 +37,7 @@
  * @see scripts/tests/siteFields.test.mjs
  */
 import { estimateStairLandings } from './stairLandings.js';
+import { SITE_FEATURE_TYPES, SITE_FEATURE_LABELS, LINEAR_SITE_FEATURES, normalizeSiteFeatures } from './siteFeatures.js';
 
 /**
  * A stated number, or NaN.
@@ -228,7 +229,17 @@ export const SITE_FIELD_DEFS = [
     key:   'numCarports',
     label: '# Carports',
     unit:  'count',
-    read: (v) => num(v?.carports),
+    read: (v) => {
+      // Stated ("COVERED PARKING: 40" in a parking table) wins; otherwise the
+      // stalls counted under carport / canopy symbols on the site plan, or the
+      // printed canopy areas ÷ 189 SF a stall (Mike 2026-09-16: "If it isn't
+      // stated ... can you not figure it out from a site drawing?").
+      const r = num(v?.carports);
+      if (r) return r;
+      const c = num(v?.carportsCounted);
+      if (!c) return null;
+      return { ...c, note: 'COUNTED off the site plan (carport bays, or canopy areas ÷ 189 SF a stall) — no carport count was written. Confirm the count.' };
+    },
   },
   {
     key:   'numGarages',
@@ -242,13 +253,17 @@ export const SITE_FIELD_DEFS = [
     unit:  'count',
     read: (v) => {
       const r = num(v?.buildingCount);
-      if (!r) return null;
       // Not a cosmetic stat: calculations.js uses numBuildings ahead of the
       // walk-up fallback to size building wallpacks, so a wrong count changes
       // fixture quantities. Site data blocks also often include a standalone
       // clubhouse in their building total, and Project Info's definition
       // excludes it — hence the reviewer prompt.
-      return { ...r, note: 'Drives building wallpack counts. Confirm it counts residential buildings only — a standalone clubhouse should not be included.' };
+      if (r) return { ...r, note: 'Drives building wallpack counts and the stair-landing multiply. Confirm it counts residential buildings only — a standalone clubhouse should not be included.' };
+      // Nothing written: the building labels counted on the site plan
+      // ("BLDG 1" … "BLDG 4"), flagged as a count.
+      const c = num(v?.buildingsCounted);
+      if (!c) return null;
+      return { ...c, note: 'COUNTED from the building labels on the site plan — no building count was written. Drives wallpacks and the stair-landing multiply; confirm it.' };
     },
   },
   {
@@ -264,10 +279,14 @@ export const SITE_FIELD_DEFS = [
       // The building type the reader found (if any) steers the code fallback:
       // breezeway walk-ups pack more stairs per plate than a corridor building,
       // townhouse stairs are private. No type → the corridor factor.
+      // A stair count off the drawings is what ONE building shows (a code
+      // summary or a floor plan describes one building), so it is per
+      // building and multiplied by the building count (Mike 2026-09-16: "We
+      // counted 48, you counted 17" — buildings × stairs × (2N−1)).
       const est = estimateStairLandings({
-        stories:         v?.stories ?? v?.storiesCounted,
-        stairs:          v?.egressStairwells ?? v?.egressStairwellsCounted,
-        buildings:       v?.buildingCount,
+        stories:           v?.stories ?? v?.storiesCounted,
+        stairsPerBuilding: v?.egressStairwells ?? v?.egressStairwellsCounted,
+        buildings:         v?.buildingCount ?? v?.buildingsCounted,
         footprintSf:     v?.buildingFootprintSf,
         grossSf:         v?.grossSf,
         buildingTypeKey: buildingTypeKeyFromText(v?.buildingType),
@@ -290,11 +309,17 @@ export const SITE_FIELD_DEFS = [
     critical: true,
     read: (v) => {
       const r = num(v?.amenitySf);
-      if (!r) return null;
       // "AMENITY AREA" on a site plan is usually the outdoor programme — pool
       // deck, courtyard, dog run. Usually is not always, so it is labelled as an
       // assumption rather than presented as a reading.
-      return { ...r, note: 'Read as the outdoor amenity area. If this figure is the indoor amenity, clear it here and enter it in Project Info instead.' };
+      if (r) return { ...r, note: 'Read as the outdoor amenity area. If this figure is the indoor amenity, clear it here and enter it in Project Info instead.' };
+      // Nothing printed: the reader may have MEASURED the pool enclosure plus
+      // the hardscape touching the clubhouse off a scaled sheet (Mike
+      // 2026-09-16). A measurement is never as good as a printed figure, so
+      // it says how it found its scale and asks to be confirmed.
+      const m = num(v?.exteriorAmenitySfMeasured);
+      if (!m) return null;
+      return { ...m, note: `Measured off the sheet (scale basis: ${SCALE_BASIS_LABELS[v?.scaleBasis] || 'not stated'}) — pool enclosure plus the hardscape touching the clubhouse. Confirm before accepting.` };
     },
   },
   {
@@ -312,6 +337,63 @@ export const SITE_FIELD_DEFS = [
 function num(v) {
   const n = stated(v);
   return Number.isFinite(n) && n >= 0 ? { value: n, note: null } : null;
+}
+
+/** How the vision read found a scale for a measured figure, in plain words. */
+export const SCALE_BASIS_LABELS = {
+  scale:     'the printed scale',
+  dimension: 'a printed dimension',
+  stall:     'a standard 9 ft parking stall',
+  door:      'a 3 ft door — the weakest rung, check it',
+};
+
+/**
+ * The site features (dog park, courtyard, ...) the read found, as proposal
+ * rows alongside the numbers. They are not ProjectData columns — the commit
+ * route writes each accepted one as its own SiteFeature row — so they carry
+ * a `siteFeature.<type>` key the allowlist recognises on its own.
+ *
+ * @param {object} vision        output of extractSiteData()
+ * @param {Array}  [currentRows] the project's live SiteFeature rows
+ */
+export function proposeSiteFeatures(vision, currentRows = null) {
+  const found = normalizeSiteFeatures(vision?.siteFeatures);
+  const live = new Map((Array.isArray(currentRows) ? currentRows : [])
+    .filter(r => r && !r.archivedAt).map(r => [r.type, r]));
+  return found.map(f => {
+    const linear = LINEAR_SITE_FEATURES.has(f.type);
+    const value = linear ? f.lengthFt : f.count;
+    const cur = live.get(f.type);
+    const currentValue = cur ? (linear ? cur.lengthFt : cur.count) : null;
+    return {
+      key:        siteFeatureKey(f.type),
+      type:       f.type,
+      label:      SITE_FEATURE_LABELS[f.type] + (linear ? ' length' : 's'),
+      unit:       linear ? 'ft' : 'count',
+      value,
+      count:      f.count,
+      lengthFt:   f.lengthFt,
+      sheet:      f.sheet ?? null,
+      current:    currentValue,
+      confidence: vision?.confidence ?? null,
+      note:       [
+        f.label ? `Labelled "${f.label}" on the drawing.` : 'Found by its printed label on the drawing.',
+        linear && f.lengthFt == null ? 'No length could be measured — enter the longest dimension in feet to price it.' : null,
+        linear && f.lengthFt != null ? 'Length measured off the sheet — confirm.' : null,
+      ].filter(Boolean).join(' '),
+      critical:   false,
+      overwrites: currentValue != null && Number(currentValue) !== Number(value),
+    };
+  });
+}
+
+/** The proposal / commit key for one site-feature kind. */
+export function siteFeatureKey(type) { return `siteFeature.${type}`; }
+
+/** The kind behind a `siteFeature.<type>` key, or null. */
+export function siteFeatureTypeFromKey(key) {
+  const m = /^siteFeature\.([A-Za-z]+)$/.exec(String(key ?? ''));
+  return m && SITE_FEATURE_TYPES.includes(m[1]) ? m[1] : null;
 }
 
 /**

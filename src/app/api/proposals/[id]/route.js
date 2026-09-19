@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { parseLooseNumber, isUnreadableNumber, NUMBER_HELP } from '@/lib/numberInput';
 
 const PROPOSAL_FULL_INCLUDE = {
   project:   { select: { id: true, name: true, city: true, state: true, lifecycleStatus: true, clientId: true } },
-  deal:      { select: { id: true, dealNumber: true, pipeline: true, stage: true } },
   template:  { select: { id: true, name: true } },
   createdBy: { select: { id: true, name: true } },
   lineItems: { orderBy: [{ area: 'asc' }, { sortOrder: 'asc' }] },
@@ -37,6 +37,14 @@ export async function PUT(req, { params }) {
     overrideFee, overrideActive, adderPct, milestoneSplit, calculatedFee,
   } = body;
 
+  // Fees and the adder % are typed; "12,500" and "12%" must read as numbers.
+  if ([overrideFee, adderPct, calculatedFee].some(isUnreadableNumber)) {
+    return NextResponse.json({ error: NUMBER_HELP }, { status: 400 });
+  }
+  const feeIn   = parseLooseNumber(overrideFee);
+  const adderIn = parseLooseNumber(adderPct);
+  const calcIn  = parseLooseNumber(calculatedFee);
+
   const updated = await prisma.proposal.update({
     where: { id: params.id },
     data: {
@@ -46,11 +54,11 @@ export async function PUT(req, { params }) {
       ...(clientLegalName  !== undefined && { clientLegalName }),
       ...(location         !== undefined && { location }),
       ...(effectiveDate    !== undefined && { effectiveDate: effectiveDate ? new Date(effectiveDate) : null }),
-      ...(overrideFee      !== undefined && { overrideFee }),
+      ...(feeIn            !== undefined && { overrideFee: feeIn }),
       ...(overrideActive   !== undefined && { overrideActive }),
-      ...(adderPct         !== undefined && { adderPct }),
+      ...(adderIn          !== undefined && adderIn !== null && { adderPct: adderIn }),
       ...(milestoneSplit   !== undefined && { milestoneSplit }),
-      ...(calculatedFee    !== undefined && { calculatedFee }),
+      ...(calcIn           !== undefined && { calculatedFee: calcIn }),
     },
     include: PROPOSAL_FULL_INCLUDE,
   });

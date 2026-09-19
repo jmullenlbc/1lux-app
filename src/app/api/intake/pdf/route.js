@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
 import { checkLocation } from '@/lib/usStates';
 import { answersToMap } from '@/lib/intake/quantities';
-import { computeIntakeEstimate, intakeEstimateGate } from '@/lib/intake/estimate';
+import { publicIntakeEstimate, intakeEstimateGate } from '@/lib/intake/estimate';
 import { buildIntakePdfHtml, intakePdfFilename } from '@/lib/intake/pdfHtml';
 import { loadPricing } from '@/lib/pricingLoader';
 import { htmlToPdf } from '@/lib/pdf';
@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
  *
  * The browser sends the same inputs it sends /api/intake/estimate — answers
  * and drawings — plus the project name and location. It never sends a
- * number: the budget is recomputed here with computeIntakeEstimate(), the
+ * number: the budget is recomputed here with publicIntakeEstimate(), the
  * same function the live estimate uses, so a doctored request can't put a
  * made-up figure on an ILC-branded page.
  *
@@ -72,7 +72,9 @@ export async function POST(req) {
 
   try {
     const pricing = await loadPricing();
-    const { budget, projectData } = computeIntakeEstimate({ answers, drawings, pricing });
+    // The PUBLIC projection: the PDF goes to the same visitor the page does, so
+    // it gets the same formula-free budget (no "priced at 2.3× conventional").
+    const { budget, projectData } = publicIntakeEstimate({ answers, drawings, pricing });
     // Same test the review step uses before it shows a budget at all.
     if (!budget || !((projectData?.grossSf || 0) > 0)) {
       return NextResponse.json({ error: 'We need a little more building information before we can make a PDF.' }, { status: 422 });

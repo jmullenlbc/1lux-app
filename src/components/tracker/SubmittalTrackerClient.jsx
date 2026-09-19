@@ -7,6 +7,7 @@ import ImportModal from './ImportModal';
 import NewSubmissionModal from './NewSubmissionModal';
 import TocImportModal from './TocImportModal';
 import { appendUpload } from '@/lib/uploadClient';
+import { postParked } from '@/lib/parkedFetch';
 
 const ALL_ROLES = [
   { key: 'ILC',       label: 'ILC Studios' },
@@ -70,7 +71,9 @@ export default function SubmittalTrackerClient({ projectId, projectName }) {
       const fd = new FormData();
       await appendUpload(fd, file, { scope: 'project' });
       fd.append('submissionName', file.name.replace(/\.pdf$/i, ''));
-      const res  = await fetch(`/api/projects/${projectId}/tracker/extract`, { method: 'POST', body: fd });
+      // Park-and-poll: the read runs in steps behind the front door and the
+      // answer arrives with the same body and status it always had.
+      const res  = await postParked(`/api/projects/${projectId}/tracker/extract`, fd);
       const data = await res.json();
       if (res.ok) {
         setExtractResult(data);

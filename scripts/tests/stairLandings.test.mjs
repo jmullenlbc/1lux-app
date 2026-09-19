@@ -52,6 +52,25 @@ test('Town Lake shape: 2 stairs on a 20-story tower ≈ Mike\'s 80 landings', ()
   assert.equal(e.landings, 86);
 });
 
+test('Lone Tree shape (Mike 2026-09-16): 3 stairs per building × 4 buildings, 7 stories', () => {
+  const e = estimateStairLandings({ stories: 7, stairsPerBuilding: 3, buildings: 4 });
+  assert.equal(e.stairs, 12);
+  assert.equal(e.base, 156);                                   // 12 × (2 × 7 − 1)
+  assert.equal(e.landings, 172);                               // 171.6 → 172
+  assert.equal(e.perBuildingGiven, true);
+  assert.equal(e.estimated, false);
+  assert.equal(e.flag, null);
+  assert.match(e.how, /4 buildings × 3 exit stairs each = 12 stairs/);
+  assert.match(e.how, /12 stairs × \(2 × 7 stories − 1\) = 156 landings, \+ 10% = 172/);
+});
+
+test('a project-total stair count is never multiplied by the building count', () => {
+  const e = estimateStairLandings({ stories: 7, stairs: 12, buildings: 4 });
+  assert.equal(e.stairs, 12);
+  assert.equal(e.perBuildingGiven, false);
+  assert.equal(e.landings, 172);
+});
+
 test('no stair count: code minimum of 2 per building when there is no footprint', () => {
   const e = estimateStairLandings({ stories: 3, stairs: null, buildings: 5 });
   assert.equal(e.stairsEstimated, true);

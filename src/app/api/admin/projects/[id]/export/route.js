@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { calculateBudget } from '@/lib/calculations';
 import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
 import { responsesToSections } from '@/lib/utils';
+import { SITE_FEATURE_INCLUDE, engineProjectData } from '@/lib/siteFeatureRows';
 
 // GET /api/admin/projects/[id]/export
 //
@@ -30,6 +31,7 @@ export async function GET(request, { params }) {
     include: {
       projectData: true,
       responses:   true,
+      ...SITE_FEATURE_INCLUDE,
       client:      true,
       assignees:   { include: { user: { select: { id: true, name: true, email: true } } } },
       createdBy:   { select: { id: true, name: true, email: true } },
@@ -43,7 +45,7 @@ export async function GET(request, { params }) {
   const pricing = pricingForProject(project.pricingSnapshot, await loadPricing());
 
   const sections    = responsesToSections(project.responses);
-  const projectData = { ...(project.projectData || {}), buildingTypeKey: project.buildingType };
+  const projectData = engineProjectData(project);
   const budget      = calculateBudget(projectData, sections, pricing);
 
   // Restructure responses by section/question so a human can read them

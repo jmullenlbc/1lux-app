@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { parseLooseNumber } from '@/lib/numberInput';
 import Button from '@/components/ui/Button';
 
 // Flat definition of every editable pricing field
@@ -21,7 +22,7 @@ const PRICING_FIELDS = [
   { group: 'Kitchen Island Pendants', key: 'kitchenPendants.oneLinear.product',        label: '(1) Linear over Island',     desc: 'Per unit', unit: '$/unit' },
 
   // ── CEILING FANS ──────────────────────────────────────────────────────
-  { group: 'Ceiling Fans', key: 'fans.conceptualPerFan', label: 'Conceptual Per Fan', desc: 'GROSS price per fan on a conceptual budget, before a design fan level is picked; the $35 disk credit comes off it in the budget (Mike 2026-09-05: $180 gross → $145 net)', unit: '$/fan' },
+  { group: 'Ceiling Fans', key: 'fans.conceptualPerFan', label: 'Conceptual Per Fan', desc: 'GROSS price per fan on a conceptual budget, before a design fan level is picked; the $35 disk credit comes off it in the budget (Mike 2026-09-16: $175 gross → $140 net)', unit: '$/fan' },
   { group: 'Ceiling Fans', key: 'fans.adderPerFan', label: 'Net Adder Per Fan (legacy)', desc: 'Fallback only if Conceptual Per Fan is blank', unit: '$/fan' },
   { group: 'Ceiling Fans', key: 'fans.diskCredit',  label: 'Disk Credit',       desc: 'Base disk removed when fan installed', unit: '$/fan' },
   { group: 'Ceiling Fans', key: 'fans.totalPerFan', label: 'Gross Per Fan',     desc: 'Full product cost before credit', unit: '$/fan' },
@@ -41,6 +42,7 @@ const PRICING_FIELDS = [
 
   // ── CORRIDORS ─────────────────────────────────────────────────────────
   { group: 'Corridors & Stairwells', key: 'corridors.diskPerSf',                       label: 'Corridor Disk Rate',       desc: '7" disk @ 10ft spacing, flat $/SF', unit: '$/SF' },
+  { group: 'Corridors & Stairwells', key: 'corridors.maxPctOfGross',                   label: 'Corridor Cap (share of gross)', desc: 'Only trims a corridor / circulation figure printed on the drawings when it is above this share of the building gross SF; it never rounds a smaller figure up (Mike 2026-09-16: "a cap like BOH"). When nothing is printed, the takeoff estimates corridors at the building type\'s typical share (12% on corridor buildings, 0 on breezeway types). Typed as a fraction: 0.15 = 15%.', unit: '× gross' },
   { group: 'Corridors & Stairwells', key: 'corridors.stairwellPerLanding.product',     label: 'Stairwell Per Landing',    desc: '4ft LED strip + occupancy + battery — enclosed corridor-building stairs (wrap / podium / mid-rise / high-rise)', unit: '$/landing' },
   { group: 'Corridors & Stairwells', key: 'corridors.breezewaySmallMultiplier',       label: 'Small Breezeway Multiplier', desc: 'Garden / stacked-flat / gurban walk-ups, small breezeway (like Lowell + I76): EM disk at the ground floor, a wall pack up each flight, 7" disks + frogeye at the landings. Each landing prices at Stairwell Per Landing × this. Mike 2026-09-14: 10–15% more → 1.125 (1.125 × $200 = $225). Small vs long is picked only when drawings are on file; without them a breezeway prices at the average of this and the long multiplier (1.175 × $200 = $235).', unit: '×' },
   { group: 'Corridors & Stairwells', key: 'corridors.breezewayLongMultiplier',        label: 'Long Breezeway Multiplier',  desc: 'Long breezeway (like Lone Tree Ranch): 2 wall packs over long stairs, 4 disks along the open corridor above, 2 with EM batteries. Mike 2026-09-14: 20–25% more → 1.225 (1.225 × $200 = $245). Also half of the no-drawings average.', unit: '×' },
@@ -121,6 +123,21 @@ const PRICING_FIELDS = [
   { group: 'Exterior Site', key: 'exterior.landscape.pctOfNetLotSf',     label: 'Landscape $ per SF of Net Lot', desc: 'Landscape lighting in dollars per square foot of the NET lot — lot SF minus building footprint (0.02 = two cents per SF). Not a percentage. Falls back to the full lot when no footprint is on file; capped by the Landscape Cap below', unit: '$/SF' },
   { group: 'Exterior Site', key: 'exterior.landscape.maxTotal',          label: 'Landscape Cap',             desc: 'Hard ceiling on landscape lighting regardless of net lot size', unit: '$' },
   { group: 'Exterior Site', key: 'exterior.miscBufferPct',               label: 'Misc Buffer %',             desc: '% of exterior subtotal before misc', unit: '%' },
+
+  // ── SITE FEATURES (Mike 2026-09-16) ────────────────────────────────────
+  // Dog parks, courtyards, playgrounds, courts and turf play areas found by
+  // their printed words on the site / landscape plan. Each is its own line
+  // under Exterior & Site; never merged into the amenity SF or the parking
+  // area lights. Nothing is guessed — a feature not on the drawings and not
+  // typed in prices at $0.
+  { group: 'Site Features', key: 'exterior.siteFeatures.areaLight',                   label: 'Area Light — Each',              desc: 'Pole-mounted area light used at dog park entrances and on tennis / pickleball courts. Mike 2026-09-16: $1,400', unit: '$' },
+  { group: 'Site Features', key: 'exterior.siteFeatures.pedestrianPole',              label: '12 ft Pedestrian Pole — Each',   desc: 'Pedestrian pole used in courtyards, playgrounds and turf play areas. Mike 2026-09-16: $2,000', unit: '$' },
+  { group: 'Site Features', key: 'exterior.siteFeatures.dogPark.areaLights',          label: 'Dog Park — Area Lights Each',    desc: 'Area lights per dog park (one at the entrance)', unit: 'fixtures' },
+  { group: 'Site Features', key: 'exterior.siteFeatures.playground.pedestrianPoles',  label: 'Playground — Poles Each',        desc: '12 ft pedestrian poles per playground', unit: 'fixtures' },
+  { group: 'Site Features', key: 'exterior.siteFeatures.tennisCourt.areaLights',      label: 'Tennis Court — Area Lights Each', desc: 'Area lights per tennis court', unit: 'fixtures' },
+  { group: 'Site Features', key: 'exterior.siteFeatures.pickleballCourt.areaLights',  label: 'Pickleball Court — Area Lights Each', desc: 'Area lights per pickleball court', unit: 'fixtures' },
+  { group: 'Site Features', key: 'exterior.siteFeatures.courtyard.ftPerPole',         label: 'Courtyard — Feet per Pole',      desc: 'One 12 ft pedestrian pole per this many feet of courtyard (longest dimension)', unit: 'ft' },
+  { group: 'Site Features', key: 'exterior.siteFeatures.turfPlay.ftPerPole',          label: 'Turf Play — Feet per Pole',      desc: 'One 12 ft pedestrian pole per this many feet of turf play area (longest dimension)', unit: 'ft' },
 
   // ── EMERGENCY ─────────────────────────────────────────────────────────
   { group: 'Emergency — Frogeyes', key: 'emergency.strategies.frogeyes.corridorPerSf', label: 'Corridor $/SF', desc: '', unit: '$/SF' },
@@ -290,8 +307,8 @@ export default function PricingEditor({ initialPricing, initialPricingIntel }) {
   }
 
   function handleChange(key, rawValue) {
-    const num = parseFloat(rawValue);
-    const val = isNaN(num) ? rawValue : num;
+    const num = parseLooseNumber(rawValue);
+    const val = Number.isFinite(num) ? num : rawValue;
     setPricing(prev => setNestedValue(prev, key, val));
     setSaved(false);
   }

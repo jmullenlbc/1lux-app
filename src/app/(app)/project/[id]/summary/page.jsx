@@ -15,6 +15,7 @@ import ContingencyWidget from './ContingencyWidget';
 import SalesTaxWidget from './SalesTaxWidget';
 import MissingInputsWarning from '@/components/MissingInputsWarning';
 import SendBudgetButton from './SendBudgetButton';
+import { SITE_FEATURE_INCLUDE, engineProjectData } from '@/lib/siteFeatureRows';
 
 function formatActivityTime(dateStr) {
   return new Date(dateStr).toLocaleString('en-US', {
@@ -32,7 +33,7 @@ export default async function SummaryPage({ params }) {
   try {
     project = await prisma.project.findUnique({
       where: { id: params.id },
-      include: { projectData: true, responses: true, createdBy: { select: { name: true, email: true } } },
+      include: { projectData: true, responses: true, ...SITE_FEATURE_INCLUDE, createdBy: { select: { name: true, email: true } } },
     });
     budgetHistory = await prisma.projectActivity.findMany({
       where: {
@@ -53,7 +54,7 @@ export default async function SummaryPage({ params }) {
   // the master sheet; current pricing if an older project has no snapshot.
   const pricing     = pricingForProject(project.pricingSnapshot, await loadPricing());
   const sections    = responsesToSections(project.responses);
-  const projectData = { ...(project.projectData || {}), buildingTypeKey: project.buildingType };
+  const projectData = engineProjectData(project);
   const budget      = calculateBudget(projectData, sections, pricing);
   const pd       = projectData;
 

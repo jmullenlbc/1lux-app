@@ -4,6 +4,7 @@ import FixtureImportModal from './FixtureImportModal';
 import PushToBidModal from './PushToBidModal';
 import { oversizeMessage, uploadErrorMessage } from '@/lib/uploadErrorMessage';
 import { appendUpload } from '@/lib/uploadClient';
+import { postParked } from '@/lib/parkedFetch';
 
 // ── Location tags — matches Peer Review Matrix exactly ───────────────────────
 const LOCATION_TAGS = [
@@ -234,10 +235,9 @@ function ParseFromPdfModal({ projectId, onParsed, onClose }) {
     try {
       const fd = new FormData();
       await appendUpload(fd, file, { scope: 'project' });
-      const res  = await fetch(`/api/projects/${projectId}/fixture-schedule/parse`, {
-        method: 'POST',
-        body: fd,
-      });
+      // Park-and-poll: the read runs in steps behind the front door and the
+      // answer arrives with the same body and status it always had.
+      const res  = await postParked(`/api/projects/${projectId}/fixture-schedule/parse`, fd);
       if (!res.ok) throw new Error(await uploadErrorMessage(res, file));
       const data = await res.json();
       if (data.error && data.importedCount === 0) {

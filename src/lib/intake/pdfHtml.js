@@ -89,8 +89,6 @@ export function buildIntakePdfHtml({ projectName, location, buildingType, budget
   const name = String(projectName ?? '').trim() || 'Your project';
   const typeLabel = PROJECT_TYPES.includes(buildingType) ? buildingType : null;
 
-  const freightPct     = Math.round((b.freightRate     ?? 0.06) * 100);
-  const warehousingPct = Math.round((b.warehousingRate ?? 0.03) * 100);
   const contingencyPct = b.contingencyRate ? Math.round(b.contingencyRate * 100) : 0;
   const ecPctLabel     = Math.round((b.energyCreditPct || 0) * 100);
   const taxLabel       = `Sales Tax (${Math.round((b.salesTaxPct || 0) * 10000) / 100}%)`;
@@ -129,14 +127,14 @@ export function buildIntakePdfHtml({ projectName, location, buildingType, budget
     solarNote,
     b.energyCreditLighting > 0 ? row(`Energy Credit (${ecPctLabel}%)`, b.energyCreditLighting) : '',
     row('Lighting Subtotal', b.lightingProductSubtotal, true),
-    row(`Freight (${freightPct}%)`, b.freight),
-    row(`Warehousing (${warehousingPct}%)`, b.warehousing),
+    row('Freight', b.freight),
+    row('Warehousing', b.warehousing),
     b.lightingTaxAmount > 0 ? row(taxLabel, b.lightingTaxAmount) : '',
     row('Lighting Total', b.subtotalLightingOnly, true),
     row('Controls (IECC)', b.controls),
     b.energyCreditControls > 0 ? row(`Energy Credit (${ecPctLabel}%)`, b.energyCreditControls) : '',
-    row(`Freight (${freightPct}%)`, b.controlsFreight),
-    row(`Warehousing (${warehousingPct}%)`, b.controlsWarehousing),
+    row('Freight', b.controlsFreight),
+    row('Warehousing', b.controlsWarehousing),
     b.controlsTaxAmount > 0 ? row(taxLabel, b.controlsTaxAmount) : '',
     row('Total w/ Controls', b.totalWithControls, true),
     ...(b.contingencyAmount > 0

@@ -31,6 +31,7 @@ import { isPdfDoc } from './drawingExtract.js';
 // Relative, not `@/lib/...`, on purpose: scripts/tests/siteVision.test.mjs
 // imports this file under plain Node, which does not know the `@/` alias.
 import { ATTACHED_DOCUMENT_RULE } from './agent/untrusted.js';
+import { normalizeSiteFeatures } from './siteFeatures.js';
 import { modelFor, textFrom, answerBudget, warnIfTruncated } from './aiModels.js';
 
 /**
@@ -234,7 +235,9 @@ Return ONLY valid JSON — no markdown, no commentary:
   "surfaceParkingCounted": number or null,
   "garages": number or null,
   "carports": number or null,
+  "carportsCounted": number or null,
   "buildingCount": number or null,
+  "buildingsCounted": number or null,
   "clubhouseSf": number or null,
   "amenitySf": number or null,
   "grossSf": number or null,
@@ -248,6 +251,9 @@ Return ONLY valid JSON — no markdown, no commentary:
   "lotCoveragePct": number or null,
   "buildingType": one of "singleFamily" | "townHouses" | "stackedFlats" | "garden" | "gurban" | "wrap" | "podium" | "midRise" | "highRise", or null,
   "driveLengthFtMeasured": number or null,
+  "exteriorAmenitySfMeasured": number or null,
+  "scaleBasis": one of "scale" | "dimension" | "stall" | "door", or null,
+  "siteFeatures": [ { "type": one of "dogPark" | "courtyard" | "playground" | "tennisCourt" | "pickleballCourt" | "turfPlay", "count": number, "lengthFt": number or null, "label": "the words printed on the sheet" } ],
   "confidence": number (0.0-1.0),
   "foundSiteDataBlock": boolean,
   "notes": "string - what you read it from, and anything ambiguous. AT MOST TWO SENTENCES."
@@ -261,25 +267,38 @@ CRITICAL RULES:
 - parkingProvided is what the drawing says is PROVIDED; parkingRequired is what code REQUIRES. They differ, and both may appear in a parking table.
 - parkingRatioRequired: the required parking RATE per dwelling unit, only if WRITTEN ("1.5 SPACES/UNIT", "PARKING REQUIRED: 1.75 PER D.U.", "2 STALLS PER UNIT"). Report the per-unit number exactly as written (1.5, not a total). If the rate is split by bedroom count (e.g. "1 PER 1BR, 2 PER 2BR"), return null and mention the rates in notes. Do NOT compute a total from it — code does that.
 - surfaceParking: only if the drawing distinguishes surface stalls from structured/garage parking.
+- carports: covered open-air stalls, only if a parking table or site data block STATES them — a line labelled "CARPORT", "CARPORTS", "COVERED PARKING", "COVERED STALLS", "CANOPY PARKING" or "UNDER CANOPY". Report the stall count, not an area. A carport stall is a surface stall with a roof — it is NOT a garage; "GARAGE" / "TUCK-UNDER" / "ENCLOSED" lines go in garages.
+- buildingCount: the number of RESIDENTIAL buildings, only if STATED ("6 BUILDINGS", "BUILDINGS: 4", "NO. OF BLDGS"). A standalone clubhouse, leasing office, garage building or maintenance shed is not a residential building.
 - grossSf: the TOTAL BUILDING gross square footage, only if a total is WRITTEN — look for a "TOTAL", "GROSS BUILDING AREA", "TOTAL BLDG", or "GSF" line in an area summary, code summary, or title block. If the sheet prints both a gross and a net (or rentable/leasable) total, report the GROSS figure. Do NOT add up per-floor or per-building areas yourself — a written total or null.
 - stories: the number of stories/levels, only if WRITTEN ("4 STORIES", "NO. OF STORIES: 5", "3-STORY WALK-UP") — a code summary or title block usually states it. If buildings differ in height, report the TALLEST and mention the range in notes.
-- egressStairwells: the number of exit/egress stair enclosures, only if STATED ("2 EXIT STAIRS", "STAIR ENCLOSURES: 2", an exit-stair line in a code summary).
+- egressStairwells: the number of exit/egress stair enclosures IN ONE BUILDING, only if STATED ("2 EXIT STAIRS", "STAIR ENCLOSURES: 2", an exit-stair line in a code summary). A code summary describes one building; report that building's figure and do NOT multiply it across the site — code multiplies by buildingCount.
 - exitDoors: the number of exits, only if STATED ("NUMBER OF EXITS: 4", an "EXITS REQUIRED / PROVIDED" table — report the PROVIDED figure).
 - buildingFootprintSf: the building footprint area, only if a footprint figure is WRITTEN ("BUILDING FOOTPRINT", "FOOTPRINT AREA"). Do NOT derive it from a lot-coverage percentage — report the percentage separately instead (below).
 - lotCoveragePct: the lot/building coverage percentage, only if WRITTEN ("LOT COVERAGE: 28%", "BUILDING COVERAGE 32.5%"). Report the number only (28, not 0.28).
 
-COUNTED FIGURES — the one deliberate exception to the no-counting rule. These four "...Counted" fields are the ONLY fields you may fill by counting what is drawn, they are kept separate from the stated fields precisely so a human can tell the difference, and each one may only come from the kind of view named for it:
+COUNTED FIGURES — the one deliberate exception to the no-counting rule. These six "...Counted" fields are the ONLY fields you may fill by counting what is drawn, they are kept separate from the stated fields precisely so a human can tell the difference, and each one may only come from the kind of view named for it:
 - storiesCounted: ONLY from a building ELEVATION view (a straight-on exterior view of the building face). Count the distinct floor levels — rows of windows, floor lines. Never count stories from a plan, a rendering, or a section you are unsure of. If no elevation view is in the image, null.
-- egressStairwellsCounted: ONLY from a floor plan or life-safety plan. Count the distinct enclosed stair shafts — stair-run symbols inside shaft walls, often tagged "STAIR 1", "ST-2". Count stairwells (shafts), NOT flights or runs; a switchback stair is one stairwell. If the image is not a plan view, null.
+- egressStairwellsCounted: ONLY from a floor plan or life-safety plan, and for ONE BUILDING — the building whose plan is shown. Count the distinct enclosed or open exit stair shafts — stair-run symbols inside shaft walls or at breezeway ends, often tagged "STAIR 1", "ST-2", "STAIR A". Count stairwells (shafts), NOT flights or runs; a switchback stair is one stairwell. Report the per-building count — code multiplies by the number of buildings. If the image is not a plan view, null.
+- buildingsCounted: ONLY from a SITE PLAN view. Count the distinct RESIDENTIAL buildings by their labels — "BLDG 1", "BUILDING A", "BLDG TYPE II", a numbered or lettered building tag on each footprint. Do NOT count a clubhouse, leasing office, pool house, maintenance building, garage building or carport canopy. If footprints are drawn but not labelled and you cannot tell homes from other buildings, null.
+- carportsCounted: ONLY from a SITE PLAN view. Count the covered open-air stalls: stalls drawn under a carport / canopy symbol (a hatched or dashed roof outline over a row of stalls, legend words CARPORT, CANOPY, COVERED PARKING, "OVERHEAD CAR CANOPY"). Count the striped bays under the roof outlines. If the sheet prints only a canopy AREA per structure ("OVERHEAD CAR CANOPY = 1,890 SF") and no bays are legible, add up every canopy area and divide by 189 SF per stall, then say so in notes. If there is no carport symbol or legend on the sheet, null — never guess that a row of stalls is covered.
 - exitDoorsCounted: ONLY from a ground-floor or life-safety plan. Count doors marked as exits — EXIT tags, exit-sign symbols, egress arrows discharging to the exterior. Unmarked exterior doors do not count. If the image is not a plan view showing grade level, null.
 - surfaceParkingCounted: ONLY from a SITE PLAN view (the whole property seen from above, with drive aisles and striped parking). Count the individual striped open-air surface stalls. Do NOT count stalls inside garages, under carports, in a parking structure, or on a podium level. Count it even when a total is stated elsewhere, so the two can be compared. If the stalls are too small or crowded to count one by one, or the image is not a site plan, null.
 - When a counted figure and a stated figure are both available, report BOTH — never overwrite a stated number with your count.
 
-MEASURED FIGURE — driveLengthFtMeasured is the one field you may MEASURE rather than read or count:
-- ONLY from a SITE PLAN that shows a scale — a written one ("1\\" = 40'-0\\"", "SCALE: 1:50") or a graphic scale bar. No scale on the sheet means null; never assume one.
-- Measure the total centerline length, in feet, of the PRIVATE drives / private streets the homes front onto — the community's own internal road, typical of townhome and single-family layouts. Add up every branch.
-- Do NOT include drive aisles between striped parking stalls (those are lit by the stall count) and do NOT include public streets outside the property line.
-- If there is no private drive, or you cannot follow it end to end, null. Round to the nearest 10 ft.
+MEASURED FIGURES — driveLengthFtMeasured, exteriorAmenitySfMeasured and a site feature's lengthFt are the only fields you may MEASURE rather than read or count. Every measurement needs a scale, and you find one by going down this ladder and STOPPING at the first rung that exists on the sheet:
+  1. "scale" — a written scale ("1\\" = 40'-0\\"", "SCALE: 1:50") or a graphic scale bar.
+  2. "dimension" — a printed dimension string on the plan (a building side labelled 220'-0\\", a property line labelled 412.5'). Use the longest legible one as the ruler.
+  3. "stall" — a standard striped parking stall is 9 ft wide and 18 ft deep, and a two-way drive aisle between stall rows is 24 ft. Use a few plain mid-row stalls, not an end or accessible stall, and average them.
+  4. "door" — an exterior door leaf is 3 ft wide. Last resort, only when nothing above exists.
+- Report the rung you used in scaleBasis; null when you measured nothing. Never mix rungs on one sheet, and never assume a scale that is not drawn.
+- driveLengthFtMeasured: ONLY from a SITE PLAN. The total centerline length, in feet, of the PRIVATE drives / private streets the homes front onto — the community's own internal road, typical of townhome and single-family layouts. Add up every branch. Do NOT include drive aisles between striped parking stalls (those are lit by the stall count) and do NOT include public streets outside the property line. No private drive, or you cannot follow it end to end → null. Round to the nearest 10 ft.
+- exteriorAmenitySfMeasured: the outdoor amenity area that gets lit. A LANDSCAPE, HARDSCAPE or SITE FURNISHINGS plan is the best source — it labels these areas and often prints their square footage; a printed area figure beats a measurement, so if one is printed put it in amenitySf instead and leave this null. Otherwise measure, from a site or landscape plan, the POOL ENCLOSURE (everything inside the pool fence line, pool included) PLUS every contiguous hardscape area that touches the clubhouse or leasing building — pool deck, plaza, patio, outdoor kitchen, fire-pit court. EXCLUDE drive aisles, parking, the public sidewalk, lawn, and any hardscape that does not touch the clubhouse. Rectangles are fine: length × width of each piece, added up, rounded to the nearest 100 SF. No clubhouse and no pool → null.
+
+SITE FEATURES — sporadic outdoor amenities, found by their WORDS on a site plan or landscape plan and listed one entry per kind. Look for these labels, on the plan or in its legend: "DOG PARK" / "DOG RUN" / "BARK PARK" / "PET AREA" → "dogPark"; "COURTYARD" → "courtyard"; "PLAYGROUND" / "TOT LOT" / "PLAY AREA" → "playground"; "TENNIS" → "tennisCourt"; "PICKLEBALL" → "pickleballCourt"; "SPORT COURT" or "MULTI-USE COURT" → "pickleballCourt"; "TURF" / "LAWN GAMES" / "GREAT LAWN" / "EVENT LAWN" → "turfPlay".
+- count: how many distinct areas of that kind are labelled (two courtyards labelled on the plan = 2). Courts count each court.
+- lengthFt: ONLY for "courtyard" and "turfPlay", and only when the sheet has a scale by the ladder above — the LONGEST dimension of each area, added across the areas. Courts, dog parks and playgrounds take null here; they are priced per court / per area.
+- label: the words exactly as printed, so a person can find them.
+- Leave the array EMPTY when none of these words appear. Never list a feature because a community usually has one, and never call the pool, the pool deck or the clubhouse patio a site feature — those are the amenity area above.
 
 BUILDING TYPE — the one classification you may make, and only from evidence that is on the sheet. The lighting budget prices stairs, wall packs and controls differently by type, so a wrong type is worse than a null. Look for the words first: a title block, code summary or site data block often says it outright ("GARDEN STYLE", "3-STORY WALK-UP", "PODIUM", "WRAP", "TOWNHOMES", "MID-RISE"). Then apply these rules, in order, and return the key:
 - "townHouses": units labelled TOWNHOME / TOWNHOUSE / ROWHOUSE, each with its own front door and garage, 2–3 stories, no shared corridor or shared stair.
@@ -358,8 +377,25 @@ BUILDING TYPE — the one classification you may make, and only from evidence th
  * a site plan with a scale, private drives only — lot aisles and public
  * streets excluded. The takeoff turns it into one area light per 81 ft and
  * flags it for a human to confirm.
+ *
+ * 2026-09-16b (the amenity build, Mike: "Do what you said on how to scale a
+ * site plan"): the single "scale or null" rule becomes a four-rung SCALE
+ * LADDER (written scale → printed dimension → 9 ft parking stall → 3 ft
+ * door) reported in `scaleBasis`, so a measured figure always says what it
+ * leaned on. Adds exteriorAmenitySfMeasured (pool enclosure + hardscape
+ * touching the clubhouse; drives, parking, public sidewalk excluded — Mike's
+ * boundary rule) and `siteFeatures[]`, sporadic outdoor amenities found by
+ * their printed words (dog park, courtyard, playground, tennis, pickleball,
+ * turf) with a count and, for the linear ones, a length. Each is priced as
+ * its own fixture package, never folded into the amenity SF.
  */
-export const SITE_VISION_PROMPT_VERSION = `siteVision-2026-09-13-${MAX_EDGE}px`;
+export const SITE_VISION_PROMPT_VERSION = `siteVision-2026-09-16b-${MAX_EDGE}px`;
+
+// The site-feature vocabulary and cleaner live in the canvas-free
+// `siteFeatures.js` (the engine, takeoff and unit tests import them; this
+// file cannot be loaded by any of those). Re-exported here for callers that
+// already reach the vision read.
+export { SITE_FEATURE_TYPES, SITE_FEATURE_LABELS, LINEAR_SITE_FEATURES, normalizeSiteFeatures } from './siteFeatures.js';
 
 /**
  * Run vision extraction over rendered pages.
@@ -475,10 +511,12 @@ export async function extractSiteData(images, anthropic, { model = modelFor('dra
 /** The fields a site read reports, other than the ones merged by hand below. */
 const SITE_FIELDS = [
   'lotAcres', 'lotSf', 'totalUnits', 'parkingProvided', 'parkingRequired', 'parkingRatioRequired',
-  'surfaceParking', 'surfaceParkingCounted', 'garages', 'carports', 'buildingCount', 'clubhouseSf',
+  'surfaceParking', 'surfaceParkingCounted', 'garages', 'carports', 'carportsCounted',
+  'buildingCount', 'buildingsCounted', 'clubhouseSf',
   'amenitySf', 'grossSf', 'stories', 'storiesCounted', 'egressStairwells',
   'egressStairwellsCounted', 'exitDoors', 'exitDoorsCounted',
   'buildingFootprintSf', 'lotCoveragePct', 'buildingType', 'driveLengthFtMeasured',
+  'exteriorAmenitySfMeasured', 'scaleBasis',
 ];
 const BED_FIELDS = ['studio', 'oneBed', 'twoBed', 'threeBed'];
 
@@ -513,12 +551,22 @@ const BED_FIELDS = ['studio', 'oneBed', 'twoBed', 'threeBed'];
  */
 export function mergeSiteData(acc, next, page = null) {
   if (!next) return acc;
-  if (!acc) return { ...next, notes: labelNote(next.notes, page) };
+  if (!acc) {
+    return { ...next, siteFeatures: normalizeSiteFeatures(next.siteFeatures, page), notes: labelNote(next.notes, page) };
+  }
 
   const out = { ...acc };
   for (const f of SITE_FIELDS) {
     if (out[f] === null || out[f] === undefined) out[f] = next[f] ?? null;
   }
+
+  // Site features: FIRST sheet wins PER KIND. The site plan and the landscape
+  // plan both label the same courtyard; adding them would double it. A kind
+  // the earlier sheet never mentioned is filled from the later one.
+  const have = normalizeSiteFeatures(acc.siteFeatures);
+  const seen = new Set(have.map(f => f.type));
+  const extra = normalizeSiteFeatures(next.siteFeatures, page).filter(f => !seen.has(f.type));
+  out.siteFeatures = normalizeSiteFeatures([...have, ...extra]);
 
   const mix = { ...(acc.bedMix ?? {}) };
   for (const f of BED_FIELDS) {
@@ -611,6 +659,8 @@ export function validateSiteData(data) {
     ['egressStairwells', 'egressStairwellsCounted', 'egress stairwells'],
     ['exitDoors', 'exitDoorsCounted', 'exit doors'],
     ['surfaceParking', 'surfaceParkingCounted', 'surface parking stalls'],
+    ['carports', 'carportsCounted', 'carport stalls'],
+    ['buildingCount', 'buildingsCounted', 'residential buildings'],
   ]) {
     if (typeof data[statedField] === 'number' && typeof data[countedField] === 'number'
         && data[statedField] !== data[countedField]) {
@@ -631,9 +681,40 @@ export function validateSiteData(data) {
     });
   }
 
+  // A measured figure without a scale basis, or a scale basis with nothing
+  // measured, means the model skipped the ladder. Not rewritten — flagged.
+  const measuredAny = typeof data.driveLengthFtMeasured === 'number'
+    || typeof data.exteriorAmenitySfMeasured === 'number'
+    || (Array.isArray(data.siteFeatures) && data.siteFeatures.some(f => typeof f?.lengthFt === 'number'));
+  const basisOk = ['scale', 'dimension', 'stall', 'door'].includes(data.scaleBasis);
+  if (measuredAny && !basisOk) {
+    warnings.push({
+      field: 'scaleBasis',
+      message: 'A figure was measured off the sheet but no scale basis was reported. Confirm the measurement against the drawing.',
+    });
+  }
+  // The door rung is a 3 ft ruler stretched across a whole site; it is kept,
+  // but a person should know how thin the evidence is.
+  if (measuredAny && data.scaleBasis === 'door') {
+    warnings.push({
+      field: 'scaleBasis',
+      message: 'Measured off the sheet using a 3 ft door as the only scale reference — the weakest rung. Confirm.',
+    });
+  }
+
+  // A measured outdoor amenity larger than the lot is a scale slip, not a
+  // pool deck.
+  if (typeof data.exteriorAmenitySfMeasured === 'number' && typeof data.lotSf === 'number'
+      && data.lotSf > 0 && data.exteriorAmenitySfMeasured > data.lotSf) {
+    warnings.push({
+      field: 'exteriorAmenitySfMeasured',
+      message: `The measured outdoor amenity area (${data.exteriorAmenitySfMeasured.toLocaleString()} SF) is larger than the lot. The scale was misread — confirm.`,
+    });
+  }
+
   const confidence = warnings.length
     ? Math.min(data.confidence ?? 0.5, 0.45)
     : data.confidence;
 
-  return { ...data, warnings, confidence };
+  return { ...data, siteFeatures: normalizeSiteFeatures(data.siteFeatures), warnings, confidence };
 }

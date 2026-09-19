@@ -5,6 +5,8 @@ import { uploadDirect, holdScreenAwake } from '@/lib/uploadClient';
 import { READING_TIME_HINT } from '@/components/ReadingWait';
 import { runStagedParse, STEP_WORDS } from '@/lib/intake/stagedParse';
 import ReadingSteps from './ReadingSteps';
+// Words only — never '@/lib/siteFeatures', which carries the price defaults.
+import { siteFeatureFindings, SITE_FEATURE_KINDS_SENTENCE } from '@/lib/siteFeatureWords';
 
 /**
  * Multi-file drawing upload + parse for the conceptual-budget intake.
@@ -30,9 +32,10 @@ import ReadingSteps from './ReadingSteps';
 const MAX_UPLOAD_BYTES = 400 * 1024 * 1024;
 
 // Landscape, site and architectural are often three separate exports, and a GC
-// sends what he has. Five covers that; past five it is someone dragging a whole
-// folder in, and every file is a paid read.
-const MAX_FILES = 5;
+// sends what he has. Three covers that (Mike, 2026-09-17: "3 should be max and
+// we should state it"); past three it is someone dragging a whole folder in, and
+// every file is a paid read.
+const MAX_FILES = 3;
 
 const STATUS = {
   queued:    { label: 'Queued',      cls: 'bg-slate-100 text-slate-500 border-slate-200' },
@@ -379,7 +382,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
             <strong>site plan</strong> (lot size, parking, buildings). Landscape or civil can be separate files.
           </p>
           <p className="text-[11px] text-slate-400 mt-1.5">
-            PDF or Excel · up to {MAX_FILES} files, {Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB each
+            PDF or Excel · <strong>{MAX_FILES} files maximum</strong>, {Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB each
           </p>
           {/* Said before anything is chosen, not after. A set is read sheet by
               sheet and takes minutes, and someone who was not told that reads a
@@ -488,6 +491,10 @@ export default function DrawingDropzone({ onResults, restored = null }) {
                             ? <> · {fmt(item.proposal.siteData.lotSf)} SF lot</>
                             : item.proposal.siteData?.lotAcres != null && <> · {item.proposal.siteData.lotAcres} acres</>}
                           {item.proposal.siteData?.buildingCount != null && <> · {fmt(item.proposal.siteData.buildingCount)} buildings</>}
+                          {/* Mike 2026-09-16: "If we find 1 dog park it should say that." */}
+                          {siteFeatureFindings(item.proposal.siteData?.siteFeatures).map(words => (
+                            <span key={words}> · {words}</span>
+                          ))}
                         </>
                       : types > 0
                         ? <>Found <span className="font-semibold text-slate-700">{types}</span> unit type{types !== 1 ? 's' : ''}</>
@@ -597,6 +604,28 @@ export default function DrawingDropzone({ onResults, restored = null }) {
             )}
           </div>
 
+          {/* Site features, named one by one. Mike 2026-09-16: "If we find 1
+              dog park it should say that." Each one is priced on its own line
+              under Exterior & Site, so the visitor can see where it went. When
+              a site sheet was read and named none, say that too — silence
+              reads as "it didn't look". */}
+          {merged.siteData && (() => {
+            const found = siteFeatureFindings(merged.siteData.siteFeatures);
+            return found.length > 0 ? (
+              <p className="mt-2 text-xs text-slate-700 leading-snug">
+                <span className="font-semibold text-slate-800">Found on the drawings:</span>{' '}
+                {found.map((words, i) => (
+                  <span key={words}>{i > 0 && <span className="text-slate-300"> · </span>}{words}</span>
+                ))}
+                <span className="text-slate-500"> — each is priced on its own line under Exterior &amp; Site.</span>
+              </p>
+            ) : (
+              <p className="mt-2 text-[11px] text-slate-500 leading-snug">
+                No {SITE_FEATURE_KINDS_SENTENCE} is named on the sheets read — none is priced. Type one in Project Data below if the site has one.
+              </p>
+            );
+          })()}
+
           {/* Net-vs-gross is invisible to a visitor unless we say it out loud.
               The three totals an architect publishes for one building differ by
               5–8%, and the wrong one produces a budget that looks completely
@@ -644,15 +673,26 @@ export default function DrawingDropzone({ onResults, restored = null }) {
                 {merged.conflicts.length} disagreement{merged.conflicts.length !== 1 ? 's' : ''} between files
               </p>
               <ul className="mt-1 space-y-0.5">
+                {/* Each side names its file (Mike 2026-09-16: "just because
+                    it read one first doesn't mean it should use that data")
+                    — a bare "168 vs 144" says nothing about which sheet to
+                    trust. The first value is the one kept. */}
                 {merged.conflicts.slice(0, 4).map((c, i) => (
                   <li key={i} className="text-xs text-slate-600">
                     <span className="font-medium">{c.field}:</span>{' '}
-                    {c.values.map(v => fmt(v.value)).join(' vs ')}
+                    {c.values.map((v, j) => (
+                      <span key={j}>
+                        {j > 0 && <span className="text-slate-400"> vs </span>}
+                        {fmt(v.value)}
+                        {v.file && <span className="text-slate-400"> ({j === 0 ? 'kept — ' : ''}{v.file})</span>}
+                      </span>
+                    ))}
                   </li>
                 ))}
               </ul>
               <p className="text-[11px] text-slate-400 mt-1">
-                We kept the most confident reading. Someone at ILC will confirm these.
+                Where files disagree we keep the file the unit count came from, then the more confident read.
+                Someone at ILC will confirm these.
               </p>
             </div>
           )}

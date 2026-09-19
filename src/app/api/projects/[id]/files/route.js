@@ -7,19 +7,15 @@ import { putProjectFile } from '@/lib/projectFileStorage';
 import { readUploadedFile } from '@/lib/uploadIntake';
 import { logActivity, TAB_LABELS } from '@/lib/activity';
 import { sendNotification } from '@/lib/notify';
-import Anthropic from '@anthropic-ai/sdk';
-import { getAnthropicKey } from '@/lib/anthropicKey';
-import { wrapClient } from '@/lib/agent/client';
-import { extractScheduleMilestones } from '@/lib/scheduleExtract';
 
-// Reading a full construction schedule with Fable 5 takes ~30s on an 84-page P6
-// export. Without this the request is cut off long before the answer arrives and
-// the upload silently lands with no milestones. Matches the ceiling already set
-// on the other AI parse routes.
+// The upload itself is quick: store the bytes, pull the text layer, write the
+// row. The two schedule reads that used to run in here (design milestones and
+// construction milestones) ran past Amplify's ~30-second front door on a real
+// P6 export, so they now live in files/[fileId]/reparse behind park-and-poll,
+// and the browser starts that read the moment the upload row comes back
+// (src/lib/scheduleReadClient.js). Text extraction on a big set still needs
+// more than the default.
 export const maxDuration = 120;
-
-
-// Anthropic client created per-request inside the POST handler so env vars are available
 
 const VALID_TABS = ['drawings', 'correspondence', 'submittals', 'ca', 'contracts', 'meetings', 'designInfo', 'takeoffs', 'budgets', 'fixture-schedule', 'unit-matrix', 'site-plan'];
 
@@ -84,14 +80,6 @@ export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
   if (!await canAccess(params.id, user)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-
-  // Recorded: see src/lib/agent/ledger.js. Only used for the schedule-milestone
-  // extraction below, so it carries that task name rather than "file upload".
-  const anthropic = wrapClient(
-    new Anthropic({ apiKey: getAnthropicKey() }),
-    'schedule.milestones.extract',
-    { projectId: params.id, userId: user.id },
-  );
 
   const formData = await request.formData();
   const tab      = formData.get('tab');
@@ -196,57 +184,12 @@ export async function POST(request, { params }) {
     } catch {}
   }
 
-  // ── Design Info: Design Schedule AI milestone extraction ─────────────
-  let designScheduleUpdate = null;
-  if (tab === 'designInfo' && tags.includes('Design Schedule') && textContent) {
-    try {
-      const { extractDesignMilestonesWithAI } = await import('@/lib/parseDesignSchedule.js');
-      const milestones = await extractDesignMilestonesWithAI(textContent, { projectId: params.id });
-      if (milestones && milestones.length > 0) {
-        takeoffData          = JSON.stringify({ milestones });
-        designScheduleUpdate = { milestones };
-        // Persist to questionnaire responses so widget pre-populates on reload
-        await prisma.questionnaireResponse.upsert({
-          where:  { projectId_section_questionKey: { projectId: params.id, section: 'design-info', questionKey: 'designMilestones' } },
-          update: { answerValue: JSON.stringify(milestones) },
-          create: { projectId: params.id, section: 'design-info', questionKey: 'designMilestones', answerValue: JSON.stringify(milestones) },
-        });
-      }
-    } catch {}
-  }
-
-  // ── CA Construction Schedule: row-structured, whole-document extraction ──
-  let scheduleUpdate = null;
-  if (tab === 'ca' && tags.includes('Construction Schedule')) {
-    try {
-      const { text: schedText, milestones } = await extractScheduleMilestones(buffer, anthropic, { projectId: params.id });
-      if (schedText) textContent = schedText; // store the clean row text
-      if (milestones && milestones.length > 0) {
-        takeoffData    = JSON.stringify({ milestones });
-        scheduleUpdate = { milestones };
-        // Legacy project-level date columns (rough-in may have -N suffix; pick earliest)
-        const get = (id) => milestones.find(m => m.id === id)?.date ?? null;
-        const getEarliest = (prefix) => {
-          const dates = milestones
-            .filter(m => m.id === prefix || m.id.startsWith(prefix + '-'))
-            .map(m => m.date).filter(Boolean).sort();
-          return dates[0] ?? null;
-        };
-        const start = get('construction-start');
-        const mep   = getEarliest('mep-rough');
-        const end   = get('construction-end');
-        // Typed client, not raw SQL: `?` placeholders are SQLite-only and throw on
-        // Postgres, which is what prod runs — this silently never saved a date there.
-        const data = {};
-        if (start) data.constructionStartDate = start;
-        if (mep)   data.mepRoughInDate        = mep;
-        if (end)   data.constructionEndDate   = end;
-        if (Object.keys(data).length > 0) {
-          await prisma.project.update({ where: { id: params.id }, data });
-        }
-      }
-    } catch (e) { console.error('[upload schedule extraction] failed:', e?.message ?? e); }
-  }
+  // Schedule milestones (Design Schedule on Design Info, Construction Schedule
+  // on CA) are no longer read here. Both come back null and the browser asks
+  // files/[fileId]/reparse for them right after this returns — see
+  // src/lib/scheduleReadClient.js. The response shape is unchanged.
+  const designScheduleUpdate = null;
+  const scheduleUpdate       = null;
 
   // Prepend YY.MM.DD date prefix for drawing and fixture-schedule uploads
   const DATE_PREFIX_TABS = new Set(['drawings', 'ca', 'fixture-schedule', 'designInfo']);

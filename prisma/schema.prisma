@@ -660,6 +660,7 @@ model Project {
   lifecycleStatus     String              @default("ACTIVE") // PROSPECT | ACTIVE | COMPLETED | LOST
 
   projectData         ProjectData?
+  siteFeatures        SiteFeature[]
   responses           QuestionnaireResponse[]
   shares              ProjectShare[]
   peerReviewItems     PeerReviewItem[]
@@ -850,6 +851,31 @@ model ProjectData {
   garageManualAdder    Float?
   exitSignsManualAdder Float?
   contingencyPct       Float?
+}
+
+// Sporadic exterior site features (Mike 2026-09-16, migration 0089): dog parks,
+// courtyards, playgrounds, tennis / pickleball courts, turf play areas. One
+// LIVE row per kind per project; a new drawing read or a typed value archives
+// the old row and writes a fresh one (archive-only, never deleted — see
+// src/lib/archive.js NEVER_DELETED). Count kinds fill `count`; the linear kinds
+// (courtyard, turf play) fill `lengthFt` with count 1. Priced as their own
+// fixture packages by src/lib/siteFeatures.js — never folded into the amenity
+// SF, parking or carport lines. Structured rows, not a JSON blob, so a bot can
+// ask "which jobs have a dog park".
+model SiteFeature {
+  id         String    @id @default(cuid())
+  projectId  String
+  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type       String    // dogPark | courtyard | playground | tennisCourt | pickleballCourt | turfPlay
+  count      Int?
+  lengthFt   Float?
+  source     String    // drawing | typed
+  sheet      Int?      // 1-based sheet number the reading came from (drawing source)
+  label      String?   // the words on the sheet, when read off a drawing
+  createdAt  DateTime  @default(now())
+  archivedAt DateTime?
+
+  @@index([projectId, archivedAt])
 }
 
 model ProjectShare {
@@ -2826,6 +2852,9 @@ model ConceptualSubmission {
   // The unfinished draft this request grew out of, when the visitor saved one
   // along the way (migration 0087).
   draft ConceptualDraft?
+
+  // Page visits that ended in this request (migration 0090).
+  visits ConceptualVisit[]
 }
 
 // One row per questionnaire answer on a public conceptual-budget submission.
@@ -2891,6 +2920,7 @@ model ConceptualDraft {
   submission ConceptualSubmission? @relation(fields: [submissionId], references: [id], onDelete: SetNull)
   archivedBy User?                 @relation("DraftArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
   fields     ConceptualDraftField[]
+  visits     ConceptualVisit[]
 
   @@index([lastSavedAt])
   @@index([email])
@@ -2910,6 +2940,46 @@ model ConceptualDraftField {
 
   @@unique([draftId, kind, key])
   @@index([kind, key])
+}
+
+// One row per visit to the public /conceptual_budget page (Mike, 2026-09-16:
+// "build the tracking feature, it would be hugely helpful"). Migration 0090.
+//
+// Answers "how many people opened the page, where did they come from, how far
+// did they get, and which of them became a lead". Rows and columns, so the
+// Sales dashboard and the bots can count them.
+//
+// No personal data: no IP address, no browser string, no full web address.
+// `visitorKey` is a one-way SHA-256 of the two, there only so a second visit
+// from the same place reads as a returning visitor. A visit gets a name only
+// when that person saves a draft or submits — through draftId / submissionId.
+// Archive-only, like everything else.
+model ConceptualVisit {
+  id           String    @id @default(cuid())
+  visitorKey   String
+  referrerHost String?   // "linkedin.com" — the site only, never the full address
+  utmSource    String?
+  utmMedium    String?
+  utmCampaign  String?
+  deviceKind   String    @default("desktop") // desktop | tablet | mobile
+  stepReached  String    @default("about")   // furthest wizard step id opened
+  stepIndex    Int       @default(0)         // its position, so funnels sort and count
+  pings        Int       @default(1)
+  visitedAt    DateTime  @default(now())
+  lastSeenAt   DateTime  @default(now())
+  draftId      String?
+  submissionId String?
+  archivedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  draft      ConceptualDraft?      @relation(fields: [draftId], references: [id], onDelete: SetNull)
+  submission ConceptualSubmission? @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+
+  @@index([visitedAt])
+  @@index([visitorKey])
+  @@index([draftId])
+  @@index([submissionId])
 }
 
 // Governed AI Layer, Slice 4b — one row per reviewable AI run: what the model

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, requirePermission, isClientViewer } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { looseNumberOrNull } from '@/lib/numberInput';
 
 const MFR_FIELDS = [
   'name','acctLastUpdated','setupToSell','terms','credit','notes',
@@ -14,7 +15,7 @@ function parseBody(body) {
     if (!(f in body)) continue;
     if (f === 'setupToSell') { data[f] = Boolean(body[f]); continue; }
     if (f === 'credit' || f === 'ffa') {
-      const n = body[f] === '' || body[f] == null ? null : parseFloat(body[f]);
+      const n = looseNumberOrNull(body[f]); // "1,250.00" reads as 1250
       data[f] = isNaN(n) ? null : n;
       continue;
     }

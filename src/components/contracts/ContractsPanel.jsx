@@ -3,6 +3,7 @@ import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import PdfViewerModal from '@/components/ui/PdfViewerModal';
 import { oversizeMessage, uploadErrorMessage, uploadThrowMessage } from '@/lib/uploadErrorMessage';
 import { appendUpload } from '@/lib/uploadClient';
+import { postParked } from '@/lib/parkedFetch';
 import ConfirmArchiveModal, { setArchived, ArchiveBoxIcon, KEPT_ON_ARCHIVE_PAGE } from '@/components/salesAutomation/ConfirmArchiveModal';
 
 // ─── Tag definitions ──────────────────────────────────────────────────────────
@@ -371,22 +372,15 @@ function ContractFileRow({ file, projectId, onDelete, analysisOverride, onView =
     setAnalyzing(true);
     setAnalyzeErr(null);
     try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 180_000); // 3 min hard timeout
-      let res;
-      try {
-        res = await fetch(`/api/projects/${projectId}/analyze-contract`, {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ fileId: file.id }),
-          signal:  controller.signal,
-        });
-      } finally {
-        clearTimeout(timer);
-      }
+      // Park-and-poll: the review runs in steps behind the front door, so a
+      // 4-minute scanned contract no longer dies at 30 seconds. No client-side
+      // clock — the server says when it has given up (job_timeout).
+      const res  = await postParked(`/api/projects/${projectId}/analyze-contract`, { fileId: file.id });
       const data = await res.json();
       if (!res.ok) {
-        setAnalyzeErr(data.error || 'Analysis failed');
+        setAnalyzeErr(data.error === 'job_timeout'
+          ? 'Analysis timed out — the document may be too large. Try a smaller PDF or a specific exhibit.'
+          : (data.message || data.error || 'Analysis failed'));
       } else {
         setAnalysis(data.analysis);
         setExpanded(true);
@@ -717,11 +711,7 @@ export default function ContractsPanel({ projectId, initialFiles = [], onFileAdd
     // Auto-run AI review for supply contracts
     if (aiReview && uploadedFile?.id) {
       try {
-        const res = await fetch(`/api/projects/${projectId}/analyze-contract`, {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ fileId: uploadedFile.id }),
-        });
+        const res  = await postParked(`/api/projects/${projectId}/analyze-contract`, { fileId: uploadedFile.id });
         const data = await res.json();
         if (res.ok && data.analysis) {
           setNewAnalyses(prev => ({ ...prev, [uploadedFile.id]: data.analysis }));

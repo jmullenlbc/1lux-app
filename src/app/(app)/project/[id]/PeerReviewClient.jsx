@@ -6,6 +6,7 @@ import RetailPriceDot from '@/components/pricing/RetailPriceDot';
 import Link from 'next/link';
 import { oversizeMessage } from '@/lib/uploadErrorMessage';
 import { appendUpload } from '@/lib/uploadClient';
+import { postParked } from '@/lib/parkedFetch';
 import ReadingWait, { READING_TIME_HINT } from '@/components/ReadingWait';
 import ConfirmArchiveModal, { setArchived, ArchiveBoxIcon, KEPT_ON_ARCHIVE_PAGE } from '@/components/salesAutomation/ConfirmArchiveModal';
 
@@ -232,7 +233,9 @@ function ImportModal({ projectId, onImported, onClose }) {
       // Inside the try: sending straight to S3 can fail too, and that message
       // belongs in the same red banner as everything else.
       await appendUpload(fd, file, { scope: 'project' });
-      const res  = await fetch(`/api/projects/${projectId}/peer-review/parse-pdf`, { method: 'POST', body: fd });
+      // Park-and-poll: the read runs in steps behind the front door and the
+      // answer arrives with the same body and status it always had.
+      const res  = await postParked(`/api/projects/${projectId}/peer-review/parse-pdf`, fd);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Parse failed');
 

@@ -24,8 +24,10 @@
 import { useState, useRef, useCallback } from 'react';
 import { oversizeMessage, uploadErrorMessage, uploadThrowMessage } from '@/lib/uploadErrorMessage';
 import { appendUpload } from '@/lib/uploadClient';
+import { postParked } from '@/lib/parkedFetch';
 import ReadingWait, { READING_TIME_HINT } from '@/components/ReadingWait';
 import { BUILDING_TYPES, buildingTypeLabel } from '@/lib/utils';
+import { siteFeatureFindings, SITE_FEATURE_KINDS_SENTENCE } from '@/lib/siteFeatureWords';
 
 function fmt(n) {
   if (n == null) return '—';
@@ -140,7 +142,8 @@ function FieldRow({ row, checked, value, onToggle, onChange }) {
           />
         )}
         <div className="text-[10px] text-slate-400 mt-0.5 uppercase tracking-wide">
-          {row.unit === 'sf' ? 'sq ft' : row.unit === 'type' ? 'building type' : 'count'}
+          {row.unit === 'sf' ? 'sq ft' : row.unit === 'type' ? 'building type' : row.unit === 'ft' ? 'feet' : 'count'}
+          {row.sheet ? ` · sheet ${row.sheet}` : ''}
         </div>
       </div>
     </div>
@@ -246,11 +249,9 @@ export default function SiteDataUpload({ projectId, onCommitted }) {
     setState('parsing');
     setReadingSince(Date.now());
     try {
-      const r = await fetch(`/api/projects/${projectId}/site/parse`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileId }),
-      });
+      // Park-and-poll: the read runs in steps behind the front door and the
+      // answer arrives with the same body and status it always had.
+      const r = await postParked(`/api/projects/${projectId}/site/parse`, { fileId });
       const d = await r.json();
       if (!r.ok) throw new Error(d.message || d.error || 'Extraction failed');
 
@@ -274,8 +275,13 @@ export default function SiteDataUpload({ projectId, onCommitted }) {
 
   async function apply() {
     const fields = {};
+    // Which sheet each site feature was read from, so the row can say so.
+    const sheets = {};
     for (const [key, v] of Object.entries(picked)) {
       if (v.on && v.value != null && v.value !== '') fields[key] = v.value;
+    }
+    for (const row of parsed?.proposal ?? []) {
+      if (fields[row.key] != null && row.sheet) sheets[row.key] = row.sheet;
     }
     if (!Object.keys(fields).length) {
       setErrMsg('Nothing is ticked — there is nothing to apply.');
@@ -290,7 +296,7 @@ export default function SiteDataUpload({ projectId, onCommitted }) {
         // runId ties this apply back to the extraction that produced it, so the
         // server can diff what was applied against what the model read and
         // record the verdict itself. See src/lib/agent/siteDiff.js.
-        body: JSON.stringify({ fileId: parsed?.fileId, fields, runId: parsed?.review?.runId ?? null }),
+        body: JSON.stringify({ fileId: parsed?.fileId, fields, sheets, runId: parsed?.review?.runId ?? null }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.message || 'Could not save.');
@@ -378,6 +384,25 @@ export default function SiteDataUpload({ projectId, onCommitted }) {
 
           <div className="p-4 space-y-3">
             <CheckList review={parsed?.review} />
+
+            {/* Site features named on the sheet, said plainly before the rows
+                (Mike 2026-09-16: "If we find 1 dog park it should say that").
+                The rows below carry each one into Project Data; the budget
+                prices each on its own Exterior line. */}
+            {(() => {
+              const found = siteFeatureFindings(parsed?.site?.siteFeatures);
+              return found.length > 0 ? (
+                <p className="text-xs text-slate-700 leading-snug px-1">
+                  <span className="font-semibold text-slate-800">Named on this sheet:</span>{' '}
+                  {found.join(' · ')}
+                  <span className="text-slate-500"> — each gets its own line under Exterior &amp; Site.</span>
+                </p>
+              ) : (
+                <p className="text-[11px] text-slate-500 leading-snug px-1">
+                  No {SITE_FEATURE_KINDS_SENTENCE} is named on this sheet — none will be priced unless typed in.
+                </p>
+              );
+            })()}
 
             <div className="rounded-xl border border-slate-200 divide-y divide-slate-100">
               {(parsed?.proposal ?? []).map(row => (

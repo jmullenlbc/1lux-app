@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { looseInteger } from '@/lib/numberInput';
 
 // GET — release history for a line item
 export async function GET(req, { params }) {
@@ -32,7 +33,7 @@ export async function POST(req, { params }) {
   }
 
   const body = await req.json().catch(() => ({}));
-  const qty  = parseInt(body.qty);
+  const qty  = looseInteger(body.qty);
   if (!qty || qty <= 0) return NextResponse.json({ error: 'qty must be a positive integer' }, { status: 400 });
 
   const release = await prisma.warehouseRelease.create({

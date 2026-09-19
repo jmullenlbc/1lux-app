@@ -11,8 +11,13 @@ import { wrapClient } from '@/lib/agent/client';
 import { modelParams, textFrom, answerBudget, warnIfTruncated } from '@/lib/aiModels';
 import { buildUntrustedPrompt } from '@/lib/agent/untrusted';
 import { readUploadedFile } from '@/lib/uploadIntake';
+import { runParkedJob, readJobRequest, jobError, uploadToJobArgs, loadJobUpload } from '@/lib/parkedJob';
 
-export const maxDuration = 120;
+// Park-and-poll (src/lib/parkedJob.js). Three pages of a fixture schedule
+// through one model call is usually quick, but a dense sheet runs past
+// Amplify's ~30-second front door. The first request only writes the job
+// down; the polls run it and collect it.
+export const maxDuration = 300;
 
 // Resolve pdfjs's bundled standard fonts (same setup as scheduleExtract.js / ocr.js).
 // Without this, getTextContent can throw in Amplify's serverless runtime — which is
@@ -145,27 +150,45 @@ async function getOrCreateDraft(projectId) {
 // POST /api/projects/[id]/fixture-schedule/parse
 // multipart/form-data: file (PDF, 1–3 pages)
 export async function POST(request, { params }) {
-  try {
   const { user, error } = await requireAuth();
   if (error) return error;
 
   const project = await prisma.project.findUnique({ where: { id: params.id } });
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  if (!canSeeAllData(user) && project.createdById !== user.id)
+  if (!canSeeAllData(user) && project.createdById !== user.id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-
-  let formData;
-  try {
-    formData = await request.formData();
-  } catch {
-    return NextResponse.json({ error: 'No file provided' }, { status: 400 });
   }
-  const upload = await readUploadedFile(formData);
-  if (!upload.ok) return NextResponse.json({ error: upload.message }, { status: upload.status });
-  const buffer = upload.buffer;
-  // Keeps the rest of the route reading the same as before the direct-to-S3 split.
-  const file = { name: upload.name, type: upload.type };
-  await upload.cleanup();
+
+  const { body, formData } = await readJobRequest(request);
+  let args = null;
+  if (!body.jobKey) {
+    if (!formData) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+    const upload = await readUploadedFile(formData);
+    if (!upload.ok) return NextResponse.json({ error: upload.message }, { status: upload.status });
+    // Not cleaned up here: the poll that runs the read needs the bytes.
+    args = await uploadToJobArgs(upload, { scope: 'project' });
+  }
+
+  return runParkedJob({
+    body, kind: 'fixtureSchedule.parse', scope: params.id, args,
+    run: (a) => parseSchedule(a, { projectId: params.id, user }),
+  });
+}
+
+/**
+ * The read itself. Soft failures stay 200 bodies with an `error` string and
+ * zero counts — the editor branches on `data.error && data.importedCount === 0`.
+ * Anything unexpected becomes the same "Server error" body the route always
+ * sent, just as a parked 500 now.
+ */
+async function parseSchedule(args, { projectId, user }) {
+  let cleanup = null;
+  try {
+    const upload = await loadJobUpload(args);
+    cleanup = upload.cleanup;
+    const buffer = upload.buffer;
+    // Keeps the rest of the read reading the same as before the direct-to-S3 split.
+    const file = { name: upload.name, type: upload.type };
 
   // Extract text (max 3 pages per spec)
   let extractedText = '';
@@ -175,22 +198,22 @@ export async function POST(request, { params }) {
     extractedText = result.text;
     numPages      = result.numPages;
   } catch (e) {
-    return NextResponse.json({ error: 'Failed to read PDF: ' + e.message }, { status: 422 });
+    throw jobError(422, { error: 'Failed to read PDF: ' + e.message });
   }
 
   if (numPages > 3) {
-    return NextResponse.json({
+    throw jobError(400, {
       error: 'Please upload only the fixture schedule pages — max 3 pages. Extract those pages from the full drawing set first.',
-    }, { status: 400 });
+    });
   }
 
   // Store the source PDF (non-critical — parse continues even if storage fails)
   let storedPath = null;
   try {
-    const uploadDir = path.join(process.cwd(), 'uploads', params.id, 'fixture-schedule-parse');
+    const uploadDir = path.join(process.cwd(), 'uploads', projectId, 'fixture-schedule-parse');
     await mkdir(uploadDir, { recursive: true });
     const stored = `${Date.now()}-${Math.random().toString(36).slice(2)}.pdf`;
-    storedPath   = path.join(params.id, 'fixture-schedule-parse', stored);
+    storedPath   = path.join(projectId, 'fixture-schedule-parse', stored);
     await writeFile(path.join(uploadDir, stored), buffer);
   } catch (e) {
     console.warn('PDF storage skipped:', e.message);
@@ -208,7 +231,7 @@ export async function POST(request, { params }) {
     const anthropic  = wrapClient(
       new Anthropic({ apiKey }),
       'fixtureSchedule.parse',
-      { projectId: params.id, userId: user.id },
+      { projectId, userId: user.id },
     );
     // A contractor's fixture schedule is third-party text, so the instructions
     // and the document go in separate, labelled halves rather than either side
@@ -220,7 +243,7 @@ export async function POST(request, { params }) {
     });
     if (sealed.injection.found) {
       console.warn('[fixtureSchedule.parse] uploaded document contains instruction-like text',
-        { projectId: params.id, input: sealed.seals[0].summary, markers: sealed.injection.markers.length });
+        { projectId, input: sealed.seals[0].summary, markers: sealed.injection.markers.length });
     }
 
     const msg = await anthropic.messages.create({
@@ -293,23 +316,23 @@ export async function POST(request, { params }) {
 
   } catch (e) {
     console.error('AI parse error:', e.message, e.status ?? '');
-    return NextResponse.json({
+    return {
       error: `AI parse failed: ${e.message}`,
       importedCount: 0,
       flaggedCount:  0,
-    }, { status: 200 });
+    };
   }
 
   if (rows.length === 0) {
-    return NextResponse.json({
+    return {
       error:         'No fixture schedule found in this PDF. Check that you uploaded the correct pages.',
       importedCount: 0,
       flaggedCount:  0,
-    }, { status: 200 });
+    };
   }
 
   // Get or create draft
-  const draft = await getOrCreateDraft(params.id);
+  const draft = await getOrCreateDraft(projectId);
 
   // Clear existing DRAFT items (replacing with fresh parse)
   await prisma.fixtureScheduleItem.deleteMany({ where: { scheduleId: draft.id } });
@@ -356,19 +379,23 @@ export async function POST(request, { params }) {
     items.push(item);
   }
 
-  return NextResponse.json({
+  return {
     importedCount: items.length,
     flaggedCount,
     scheduleId:    draft.id,
-  });
+  };
 
   } catch (e) {
-    // Top-level safety net — always return JSON so the client never gets an empty 500
+    if (e?.isJobError) throw e;
+    // Safety net — always a JSON body so the client never gets an empty 500
     console.error('fixture-schedule/parse unhandled error:', e.message);
-    return NextResponse.json({
+    throw jobError(500, {
       error: `Server error: ${e.message}`,
       importedCount: 0,
       flaggedCount: 0,
-    }, { status: 500 });
+    });
+  } finally {
+    // The stashed upload is only needed for this one read.
+    if (cleanup) await cleanup().catch(() => {});
   }
 }

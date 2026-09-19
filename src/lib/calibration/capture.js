@@ -16,13 +16,14 @@ import { calculateBudget } from '@/lib/calculations';
 import { responsesToSections } from '@/lib/utils';
 import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
 import { buildSamples } from './lines.js';
+import { SITE_FEATURE_SELECT, engineProjectData } from '@/lib/siteFeatureRows';
 
 const REPLACED_SOURCES = ['engine', 'bidmatrix'];
 const THROTTLE_MS = 10 * 60 * 1000;
 
 const PROJECT_SELECT = {
   id: true, name: true, buildingType: true, pricingSnapshot: true, serviceType: true, projectType: true,
-  projectData: true, responses: true,
+  projectData: true, responses: true, ...SITE_FEATURE_SELECT,
   designBidMatrices: { where: { archivedAt: null }, select: { version: true, items: { select: { cnTotal: true } } } },
 };
 
@@ -41,7 +42,7 @@ export async function samplesForProject(project, defaultPricing) {
   const pricing = pricingForProject(project.pricingSnapshot, defaultPricing || await loadPricing());
 
   const sections    = responsesToSections(project.responses || []);
-  const projectData = { ...(project.projectData || {}), buildingTypeKey: project.buildingType };
+  const projectData = engineProjectData(project);
   const budget      = calculateBudget(projectData, sections, pricing);
 
   const rows = buildSamples({ projectData, sections, budget, pricing })

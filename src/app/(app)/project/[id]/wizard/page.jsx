@@ -9,6 +9,7 @@ import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
 import WizardClient from '../WizardClient';
 import DesignWizardClient from '../DesignWizardClient';
 import PeerReviewClient from '../PeerReviewClient';
+import { SITE_FEATURE_INCLUDE, engineProjectData } from '@/lib/siteFeatureRows';
 
 export default async function ProjectWizardPage({ params }) {
   const session = await getSession();
@@ -19,6 +20,7 @@ export default async function ProjectWizardPage({ params }) {
     include: {
       projectData:    true,
       responses:      true,
+      ...SITE_FEATURE_INCLUDE,
       peerReviewItems: { orderBy: [{ section: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }] },
       client:         true,
       createdBy:      { select: { id: true, name: true, email: true } },
@@ -31,7 +33,7 @@ export default async function ProjectWizardPage({ params }) {
   const pricing = pricingForProject(project.pricingSnapshot, await loadPricing());
 
   const sections       = responsesToSections(project.responses);
-  const projectData    = { ...(project.projectData || {}), buildingTypeKey: project.buildingType };
+  const projectData    = engineProjectData(project);
   const budget         = calculateBudget(projectData, sections, pricing);
   const completedSteps = JSON.parse(project.completedSteps || '[]');
 

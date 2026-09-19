@@ -1,8 +1,10 @@
 'use client';
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { cleanNumberInput } from '@/lib/numberInput';
 import { buildingTypeLabel, PROJECT_TYPES, projectTypeLabel } from '@/lib/utils';
 import { PIPELINE_STAGES, STAGE_LABEL, STATUS_LABEL, PIPELINE_STATUS, inDesignPipeline, stagesOutOfSync } from '@/lib/pipeline';
 import { PROJECT_TEAM_ROLES } from '@/lib/projectTeam';
+import { siteFeaturesToRows } from '@/lib/siteFeatures';
 import MissingInputsWarning from './MissingInputsWarning';
 
 const PROC_STAGE_OPTIONS   = PIPELINE_STAGES.PROCUREMENT.map(s => ({ value: s.key, label: s.label }));
@@ -165,6 +167,18 @@ function ReadStat({ label, value, wide, accent }) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
+// A stored date that will not parse must not take the whole screen down
+// (toISOString() throws on an invalid Date).
+function dateInputValue(v) {
+  if (!v) return '';
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+}
+
+// Money boxes: '1,200,000' or '$41,200' is what people type. Send only the
+// digits so the API never sees a comma (Maram, 9-18).
+const cleanMoney = cleanNumberInput;
+
 export default function ProjectDashboard({
   project: initialProject,
   budget,
@@ -180,6 +194,8 @@ export default function ProjectDashboard({
   const [projectData, setProjectData] = useState(initialProject.projectData ?? {});
 
   const pd = projectData;
+  // Site features come as rows (`pd.siteFeatures`); the grid shows them flat.
+  const feat = siteFeaturesToRows(pd?.siteFeatures);
 
   // ── Sales / Pipeline fields live on the project itself (Deal merged in) ──────
   const isDesignPipeline = inDesignPipeline(project.serviceType);
@@ -285,6 +301,7 @@ export default function ProjectDashboard({
   const d = (field) => (val) => saveData(field, val);
   // Convenience: project field saver factory
   const p = (field) => (val) => saveProject(field, val);
+  const pMoney = (field) => (val) => saveProject(field, cleanMoney(val));
 
   // ── Building type options ─────────────────────────────────────────────────
   const BUILDING_TYPES = [
@@ -432,6 +449,15 @@ export default function ProjectDashboard({
           <EditableStat label="# Surface Parking"   displayValue={fmtNum(pd.numSurfaceParking)}   rawValue={pd.numSurfaceParking}   onSave={d('numSurfaceParking')} />
           <EditableStat label="# Carports"          displayValue={fmtNum(pd.numCarports)}         rawValue={pd.numCarports}         onSave={d('numCarports')} />
           <EditableStat label="# Exterior Doors"    displayValue={fmtNum(pd.numExteriorDoors)}    rawValue={pd.numExteriorDoors}    onSave={d('numExteriorDoors')} />
+          {/* Sporadic site features (Mike 2026-09-16) — one SiteFeature row per
+              kind, read off the site plan or typed here. 0 = none. Each is
+              priced as its own fixture package under Exterior & Site. */}
+          <EditableStat label="# Dog Parks"          displayValue={fmtNum(feat.dogParks)}          rawValue={feat.dogParks}          onSave={d('dogParks')} />
+          <EditableStat label="Courtyard Length (ft)" displayValue={fmtNum(feat.courtyardFt)}      rawValue={feat.courtyardFt}       onSave={d('courtyardFt')} />
+          <EditableStat label="# Playgrounds"        displayValue={fmtNum(feat.playgrounds)}       rawValue={feat.playgrounds}       onSave={d('playgrounds')} />
+          <EditableStat label="# Tennis Courts"      displayValue={fmtNum(feat.tennisCourts)}      rawValue={feat.tennisCourts}      onSave={d('tennisCourts')} />
+          <EditableStat label="# Pickleball Courts"  displayValue={fmtNum(feat.pickleballCourts)}  rawValue={feat.pickleballCourts}  onSave={d('pickleballCourts')} />
+          <EditableStat label="Turf Play Length (ft)" displayValue={fmtNum(feat.turfPlayFt)}       rawValue={feat.turfPlayFt}        onSave={d('turfPlayFt')} />
           {/* Drawing-takeoff counts (Phase 1, 2026-08-12) — filled by the
               drawing parser later; editable here, deliberately not wizard
               questions. */}
@@ -514,15 +540,15 @@ export default function ProjectDashboard({
 
           {/* ── Revenue ── */}
           <Rule label="Revenue" />
-          <EditableStat label="Product Sale Total ($)" displayValue={fmt(project.contractValue)}       rawValue={project.contractValue ?? ''}       onSave={p('contractValue')} />
-          <EditableStat label="Design Fee Total ($)"   displayValue={fmt(project.designContractValue)} rawValue={project.designContractValue ?? ''} onSave={p('designContractValue')} />
+          <EditableStat label="Product Sale Total ($)" displayValue={fmt(project.contractValue)}       rawValue={project.contractValue ?? ''}       onSave={pMoney('contractValue')} />
+          <EditableStat label="Design Fee Total ($)"   displayValue={fmt(project.designContractValue)} rawValue={project.designContractValue ?? ''} onSave={pMoney('designContractValue')} />
           <ReadStat     label="Total Combined ($)"     value={fmt(combinedRevenue)} accent="text-blue-600" />
           <EditableStat label="Probability to Win (%)"          displayValue={project.probabilityToWin != null ? `${project.probabilityToWin}%` : null}                 rawValue={project.probabilityToWin ?? ''}          onSave={p('probabilityToWin')} type="number" />
           <EditableStat label="Probability to Move Forward (%)" displayValue={project.probabilityToMoveForward != null ? `${project.probabilityToMoveForward}%` : null} rawValue={project.probabilityToMoveForward ?? ''} onSave={p('probabilityToMoveForward')} type="number" />
           <ReadStat     label="Average Probability (%)"          value={avgProbability != null ? `${avgProbability}%` : null} accent="text-blue-600" />
           <EditableStat label="Expected Order Date"
             displayValue={project.expectedOrderDate ? new Date(project.expectedOrderDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null}
-            rawValue={project.expectedOrderDate ? new Date(project.expectedOrderDate).toISOString().slice(0, 10) : ''}
+            rawValue={dateInputValue(project.expectedOrderDate)}
             onSave={p('expectedOrderDate')} type="date" />
         </div>
       </div>

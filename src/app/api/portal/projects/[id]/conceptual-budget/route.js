@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { responsesToSections } from '@/lib/utils';
 import { calculateBudget } from '@/lib/calculations';
 import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
+import { SITE_FEATURE_INCLUDE, engineProjectData } from '@/lib/siteFeatureRows';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +26,7 @@ export async function GET(req, { params }) {
 
   const project = await prisma.project.findUnique({
     where: { id: params.id },
-    include: { projectData: true, responses: true },
+    include: { projectData: true, responses: true, ...SITE_FEATURE_INCLUDE },
   });
 
   // Return null budget if no project data or no grossSf entered yet
@@ -36,7 +37,7 @@ export async function GET(req, { params }) {
   const pricing = pricingForProject(project.pricingSnapshot, await loadPricing());
 
   const sections = responsesToSections(project.responses);
-  const projectData = { ...project.projectData, buildingTypeKey: project.buildingType };
+  const projectData = engineProjectData(project);
   const budget = calculateBudget(projectData, sections, pricing);
 
   return NextResponse.json({

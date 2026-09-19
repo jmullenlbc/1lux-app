@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { looseNumberOrNull } from '@/lib/numberInput';
 
 // PATCH /api/projects/[id]/design-bid-matrix/items/[itemId]
 // Editable fields on the current (latest) bid matrix only: pricing, salesRep, rfqStatus, notes
@@ -36,11 +37,11 @@ export async function PATCH(request, { params }) {
   const updated = await prisma.designBidMatrixItem.update({
     where: { id: params.itemId },
     data: {
-      ...(dnPerUnit      !== undefined && { dnPerUnit:      dnPerUnit      === '' ? null : Number(dnPerUnit)  }),
-      ...(cnPerUnit      !== undefined && { cnPerUnit:      cnPerUnit      === '' ? null : Number(cnPerUnit)  }),
+      ...(dnPerUnit      !== undefined && { dnPerUnit:      looseNumberOrNull(dnPerUnit) }),
+      ...(cnPerUnit      !== undefined && { cnPerUnit:      looseNumberOrNull(cnPerUnit) }),
       ...(salesRep       !== undefined && { salesRep:       salesRep       || null }),
       ...(rfqStatus      !== undefined && { rfqStatus:      rfqStatus      || null }),
-      ...(qty            !== undefined && { qty:            qty            === '' ? null : Number(qty)        }),
+      ...(qty            !== undefined && { qty:            looseNumberOrNull(qty) }),
       ...(qtyType        !== undefined && { qtyType:        qtyType        || null }),
       ...(notes          !== undefined && { notes:          notes          || null }),
       ...(internalNotes  !== undefined && { internalNotes:  internalNotes  || null }),

@@ -21,6 +21,7 @@
  * @see src/lib/pricing.js      — the option keys the maps must hit
  */
 import { INTERIOR_AMENITY_RATES } from '../interiorAmenityTiers.js';
+import { looseInteger } from '../numberInput.js';
 
 export const INTAKE_QUESTIONS = [
   // ── RESIDENTIAL UNITS ──────────────────────────────────────────────────────
@@ -366,10 +367,22 @@ export const FIGURE_KEYS = [
   // overrides the townhome "1 garage per home" estimate.
   { key: 'figureGarages',            section: 'Project figures', question: '# Garages (entered by the submitter)' },
   { key: 'figureCarports',           section: 'Project figures', question: '# Carport bays (entered by the submitter)' },
+  // Sporadic site features (Mike, 2026-09-16). Counts for the per-feature
+  // kinds, feet (longest dimension) for courtyards and turf play areas. 0 is
+  // a real answer — "there is no dog park" — and nothing is ever guessed.
+  { key: 'figureDogParks',           section: 'Project figures', question: '# Dog parks (entered by the submitter)' },
+  { key: 'figureCourtyardFt',        section: 'Project figures', question: 'Courtyard length, feet (entered by the submitter)' },
+  { key: 'figurePlaygrounds',        section: 'Project figures', question: '# Playgrounds (entered by the submitter)' },
+  { key: 'figureTennisCourts',       section: 'Project figures', question: '# Tennis courts (entered by the submitter)' },
+  { key: 'figurePickleballCourts',   section: 'Project figures', question: '# Pickleball courts (entered by the submitter)' },
+  { key: 'figureTurfPlayFt',         section: 'Project figures', question: 'Turf play area length, feet (entered by the submitter)' },
 ];
 
 // Figures where a typed 0 is a real answer rather than a blank.
-const ZERO_OK_FIGURES = new Set(['figureSurfaceParking', 'figureGarages', 'figureCarports']);
+const ZERO_OK_FIGURES = new Set([
+  'figureSurfaceParking', 'figureGarages', 'figureCarports',
+  'figureDogParks', 'figureCourtyardFt', 'figurePlaygrounds', 'figureTennisCourts', 'figurePickleballCourts', 'figureTurfPlayFt',
+]);
 
 // Which building types get detached-garage and carport lights — one shared
 // copy, also read by the internal Project Data screen and the budget engine.
@@ -392,7 +405,14 @@ export const NO_DRAWINGS_KEY = 'noDrawings';
 export const CLUBHOUSE_KEY = 'hasClubhouse';
 export const CLUBHOUSE_ANSWERS = ['yes', 'no'];
 
-const digitsOnly = v => (typeof v === 'string' ? v.replace(/[,\s]/g, '') : '');
+// "250,000", "$300", "226,000 SF" all read as the figure they mean (Mike 9-18:
+// commas and dressing are fine in any number field); anything that is not a
+// number at all reads as '' and fails the digit test below.
+const digitsOnly = v => {
+  if (typeof v !== 'string') return '';
+  const n = looseInteger(v);
+  return n != null && Number.isFinite(n) ? String(n) : '';
+};
 const typedFigure = v => (/^\d{1,9}$/.test(digitsOnly(v)) && Number(digitsOnly(v)) > 0 ? Number(digitsOnly(v)) : null);
 // A count where 0 is a real answer (no surface lot at all).
 const typedCount = v => (/^\d{1,9}$/.test(digitsOnly(v)) ? Number(digitsOnly(v)) : null);

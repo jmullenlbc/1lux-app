@@ -39,12 +39,18 @@
 // The numeric fields a site-plan read can carry (mirrors SITE_VISION_SYSTEM in
 // siteVision.js). Listed for the same reason as `totals` below: a new field in
 // the vision schema must be a deliberate decision here too.
+// The WORDS file, not siteFeatures.js — this module reaches the public
+// visitor's browser through DrawingDropzone, and the price defaults must not.
+import { normalizeSiteFeatures } from './siteFeatureWords.js';
+
 const SITE_DATA_KEYS = [
   'lotAcres', 'lotSf', 'totalUnits', 'parkingProvided', 'parkingRequired', 'parkingRatioRequired',
-  'surfaceParking', 'surfaceParkingCounted', 'garages', 'carports', 'buildingCount', 'clubhouseSf',
+  'surfaceParking', 'surfaceParkingCounted', 'garages', 'carports', 'carportsCounted',
+  'buildingCount', 'buildingsCounted', 'clubhouseSf',
   'amenitySf', 'grossSf', 'stories', 'storiesCounted', 'egressStairwells',
   'egressStairwellsCounted', 'exitDoors', 'exitDoorsCounted',
   'buildingFootprintSf', 'lotCoveragePct', 'buildingType', 'driveLengthFtMeasured',
+  'exteriorAmenitySfMeasured', 'scaleBasis',
 ];
 
 /**
@@ -349,6 +355,16 @@ export function mergeProposals(results) {
       } else if (siteData[field] !== val) {
         conflicts.push({ field: `site ${field}`, values: [{ value: siteData[field], file: siteFrom[field] }, { value: val, file: fileName }] });
       }
+    }
+    // Site features (dog park, courtyard, ...) are a list, one entry per
+    // kind. The highest-priority file that names a kind wins that kind; a
+    // second file adds only the kinds the first did not mention. Two files
+    // naming the same courtyard must not double it.
+    const seen = new Set(normalizeSiteFeatures(siteData.siteFeatures).map(f => f.type));
+    const extra = normalizeSiteFeatures(proposal.siteData.siteFeatures).filter(f => !seen.has(f.type));
+    if (extra.length) {
+      siteData.siteFeatures = normalizeSiteFeatures([...(siteData.siteFeatures || []), ...extra]);
+      for (const f of extra) siteFrom[`siteFeatures.${f.type}`] = fileName;
     }
   }
 

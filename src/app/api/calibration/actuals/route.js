@@ -3,6 +3,7 @@ import { requireAuth, actsAsAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { LINE_KEYS } from '@/lib/calibration/lines';
 import { captureProject } from '@/lib/calibration/capture';
+import { parseLooseNumber } from '@/lib/numberInput';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +19,7 @@ export async function POST(request) {
   const b = await request.json().catch(() => ({}));
   const projectId = String(b.projectId || '');
   const lineKey   = String(b.lineKey || '');
-  const actual    = Number(b.actualAmount);
+  const actual    = parseLooseNumber(b.actualAmount);
   if (!projectId || !LINE_KEYS.includes(lineKey)) return NextResponse.json({ error: 'projectId and a known lineKey are required' }, { status: 400 });
   if (!Number.isFinite(actual) || actual <= 0)     return NextResponse.json({ error: 'actualAmount must be a positive number' }, { status: 400 });
 

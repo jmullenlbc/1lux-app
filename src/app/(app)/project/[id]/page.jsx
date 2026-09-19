@@ -9,6 +9,7 @@ import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
 import { PROJECT_TEAM_ROLES } from '@/lib/projectTeam';
 import ProjectHubClient from './ProjectHubClient';
 import ArchivedBanner from '@/components/ArchivedBanner';
+import { SITE_FEATURE_INCLUDE, engineProjectData } from '@/lib/siteFeatureRows';
 
 // The six companies on the project team, by name, so the team card reads right
 // on the first paint instead of filling in once the client list arrives.
@@ -28,6 +29,7 @@ export default async function ProjectHubPage({ params }) {
       },
       projectData: true,
       responses: true,
+      ...SITE_FEATURE_INCLUDE,
       client: true,
       archivedBy: { select: { name: true, email: true } },
       peerReviewItems: { orderBy: [{ section: 'asc' }, { sortOrder: 'asc' }] },
@@ -43,18 +45,26 @@ export default async function ProjectHubPage({ params }) {
   const pricing = pricingForProject(project.pricingSnapshot, await loadPricing());
 
   const sections    = responsesToSections(project.responses);
-  const projectData = { ...(project.projectData || {}), buildingTypeKey: project.buildingType };
+  const projectData = engineProjectData(project);
   const budget      = calculateBudget(projectData, sections, pricing);
 
   const peerReviewTotal = project.peerReviewItems.reduce(
     (s, item) => s + (item.totalSavings || 0), 0
   );
 
-  const projectFiles = await prisma.projectFile.findMany({
+  // Every file's full extracted text used to ride along here — on a file-heavy
+  // job that is a megabyte or more of page the screen never shows past a
+  // 280-character summary (Marmalade: 49 files, ~1 MB of text). Only the head
+  // of each text travels now; a read that needs the whole thing fetches it.
+  const FILE_TEXT_PREVIEW = 600;
+  const projectFiles = (await prisma.projectFile.findMany({
     where: { projectId: params.id },
     include: { uploadedBy: { select: { name: true, email: true } } },
     orderBy: { createdAt: 'desc' },
-  });
+  })).map(f => ({
+    ...f,
+    textContent: f.textContent ? f.textContent.slice(0, FILE_TEXT_PREVIEW) : f.textContent,
+  }));
 
   const clients = await prisma.client.findMany({
     select: { id: true, name: true, type: true, locationType: true },

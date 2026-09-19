@@ -11,6 +11,7 @@
  * screens can never disagree about what a field means or which are required.
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { cleanNumberInput } from '@/lib/numberInput';
 import Link from 'next/link';
 import {
   PIPELINE_STAGES, STAGE_LABEL, PIPELINE_STATUS, STATUS_LABEL,
@@ -29,6 +30,18 @@ const money = v => (v == null || v === '' ? null : `$${Number(v).toLocaleString(
  * dropdown and saves on blur — the same click-to-edit behaviour as the project
  * screen, so nothing new has to be learned to use it.
  */
+// A stored date that will not parse must not take the whole screen down
+// (toISOString() throws on an invalid Date).
+function dateInputValue(v) {
+  if (!v) return '';
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+}
+
+// Money boxes: '1,200,000' or '$41,200' is what people type. Send only the
+// digits so the API never sees a comma (Maram, 9-18).
+const cleanMoney = cleanNumberInput;
+
 function Field({ label, displayValue, rawValue, onSave, select, options = [], type = 'text', readOnly, accent }) {
   const [editing, setEditing] = useState(false);
   const [value,   setValue]   = useState(rawValue ?? '');
@@ -158,6 +171,7 @@ export default function PipelineSidePanel({ project, onClose, onUpdate }) {
   }, [project, onUpdate, salesUsers]);
 
   const p = field => value => save(field, value);
+  const pMoney = field => value => save(field, cleanMoney(value));
 
   const isDesign     = inDesignPipeline(project.serviceType);
   const combined     = (project.contractValue || 0) + (project.designContractValue || 0);
@@ -251,9 +265,9 @@ export default function PipelineSidePanel({ project, onClose, onUpdate }) {
 
           <Rule label="Revenue" />
           <Field label="Product Sale Total ($)" displayValue={money(project.contractValue)}
-            rawValue={project.contractValue ?? ''} onSave={p('contractValue')} />
+            rawValue={project.contractValue ?? ''} onSave={pMoney('contractValue')} />
           <Field label="Design Fee Total ($)" displayValue={money(project.designContractValue)}
-            rawValue={project.designContractValue ?? ''} onSave={p('designContractValue')} />
+            rawValue={project.designContractValue ?? ''} onSave={pMoney('designContractValue')} />
           <Field label="Total Combined ($)" displayValue={money(combined)} readOnly accent="text-blue-600" />
 
           <Rule label="Forecast" />
@@ -264,7 +278,7 @@ export default function PipelineSidePanel({ project, onClose, onUpdate }) {
           <Field label="Average Probability (%)" displayValue={avgProb != null ? `${avgProb}%` : null} readOnly accent="text-blue-600" />
           <Field label="Expected Order Date"
             displayValue={project.expectedOrderDate ? new Date(project.expectedOrderDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null}
-            rawValue={project.expectedOrderDate ? new Date(project.expectedOrderDate).toISOString().slice(0, 10) : ''}
+            rawValue={dateInputValue(project.expectedOrderDate)}
             onSave={p('expectedOrderDate')} type="date" />
 
           {team.length > 0 && (

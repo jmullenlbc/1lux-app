@@ -45,6 +45,29 @@ export async function post(path, body, auth) {
   return { status: res.status, text, json };
 }
 
+/**
+ * postParked — the test-side twin of src/lib/parkedFetch.js. Every in-app AI
+ * read is park-and-poll now (Mike 2026-09-17): the first POST only writes the
+ * job down ({ jobKey, queued: true }); each POST { jobKey } after that runs it
+ * or reports { waiting: true }. This keeps asking until the real answer comes
+ * back, then returns it in the same { status, text, json } shape as post().
+ */
+export async function postParked(path, body, auth, { pollMs = 1500, maxWaitMs = 4 * 60 * 1000 } = {}) {
+  const first = await post(path, body, auth);
+  if (!first.json?.jobKey || !first.json?.queued) return first;
+  const jobKey = first.json.jobKey;
+  const startedAt = Date.now();
+  for (;;) {
+    const r = await post(path, { jobKey }, auth);
+    if (!(r.json && (r.json.waiting || r.json.queued))) {
+      if (r.status >= 200 && r.status < 300) post(path, { jobKey, sweep: true }, auth).catch(() => {});
+      return r;
+    }
+    if (Date.now() - startedAt > maxWaitMs) return { status: 504, text: '', json: { error: 'timeout', message: `parked job ${jobKey} never finished` } };
+    await new Promise(res => setTimeout(res, pollMs));
+  }
+}
+
 export async function serverUp() {
   try { const r = await fetch(`${BASE}/login`, { redirect: 'manual' }); return r.status < 500; }
   catch { return false; }

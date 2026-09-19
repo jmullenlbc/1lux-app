@@ -6,6 +6,7 @@ import { breezewayStairPackage } from './stairLandings.js';
 import { emergencyStrategyCost } from './emergencyCost.js';
 import { allowsGarages, allowsCarports } from './coveredParkingTypes.js';
 import { amenityRate } from './amenityLevel.js';
+import { priceSiteFeatures } from './siteFeatures.js';
 
 // Safely convert any value to a finite number
 function n(val, fallback = 0) {
@@ -127,6 +128,11 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const numGarages     = allowsGarages(chosenTypeKey)  ? n(pd.numGarages)  : 0;
   const lotSf          = n(pd.lotSf);
   const footprintSf    = n(pd.buildingFootprintSf);
+  // Sporadic site features (dog park, courtyard, playground, courts, turf —
+  // Mike 2026-09-16). An array of {type, count, lengthFt}: the internal wizard
+  // loads the project's SiteFeature rows into it, the public estimate builds
+  // it from the takeoff rows. Empty = nothing found or typed = $0.
+  const siteFeatures   = priceSiteFeatures(Array.isArray(pd.siteFeatures) ? pd.siteFeatures : [], PRICING.exterior.siteFeatures);
   // Accent qty: prefer the value entered in the Corridors section, else Project Data
   const numAccents     = n(r.corridors?.accentQty) > 0 ? n(r.corridors.accentQty) : n(pd.numAccentDownlights);
 
@@ -158,8 +164,11 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // Two price ladders, decided by whether a fan finish level has been chosen —
   // both GROSS on the sheet, both net of the $35 disk credit here (a 12" disk
   // comes out of the base when a fan goes in):
-  //   - no level yet (conceptual budget): the flat conceptual fan price (Mike
-  //     2026-09-05: "$180 … should be gross"), so $180 − $35 = $145 per fan;
+  //   - no level yet (conceptual budget): the flat conceptual fan price from
+  //     the master pricing sheet — never a number typed in here (Mike
+  //     2026-09-16: "There shouldn't be a coded price for fans. It should
+  //     always pull from the master pricing sheet and should be $175 entered
+  //     in there."), so $175 − $35 = $140 per fan at today's sheet;
   //   - a level (design questionnaire): that level's price minus the credit.
   // The conceptual questionnaire never saves a level; the design one always does.
   // An old frozen sheet with no conceptual price falls to the legacy NET adder.
@@ -433,7 +442,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const pathwayProduct = pathwayManual > 0 ? 0 : pathwayAuto;
 
   // Misc buffer = 5% of formula-line subtotal + manual adder. Both contribute.
-  const extSubBeforeMisc     = extAmenityProduct + parkingProduct + carportProduct + garageExtProduct + wallpackProduct + landscapeFlat + pathwayProduct;
+  const extSubBeforeMisc     = extAmenityProduct + parkingProduct + carportProduct + garageExtProduct + wallpackProduct + landscapeFlat + pathwayProduct + siteFeatures.product;
   const extBufferBase        = extSubBeforeMisc + exteriorManualTotal;
   const extMiscBuffer        = extBufferBase * PRICING.exterior.miscBufferPct;
   const exteriorFormulaTotal = extSubBeforeMisc + extMiscBuffer;
@@ -726,6 +735,13 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const pathwayCount = pathwayProduct > 0 ? Math.max(1, Math.round(pathwayProduct / pathwayEach)) : 0;
   addQ('exterior.pathwayBollards', [pathwayCount > 0 && { label: 'Walking-path lights', count: pathwayCount, countLabel: 'lights', each: pathwayProduct / pathwayCount, product: pathwayProduct, laborEach: lab('pathwayFixture'), labor: pathwayCount * lab('pathwayFixture') }]);
 
+  // Site features: one line per feature kind found. Both fixture kinds are
+  // pole-set and trenched to, so they carry the area-pole labor.
+  addQ('exterior.siteFeatures', siteFeatures.items.map(it => it.fixtures > 0 && line(
+    `${it.label} — ${it.fixtureKind === 'areaLight' ? 'area lights' : '12 ft pedestrian poles'}`,
+    it.fixtures, it.fixtureKind === 'areaLight' ? 'area lights' : 'poles', it.each, poleLabor,
+  )));
+
   // $/SF lines — cost only, no labor (Mike 2026-09-13: "Leave labor off of those").
   const sfLine = (label, product) => product > 0 ? { label, count: null, countLabel: null, each: null, product, laborEach: null, labor: 0 } : null;
   addQ('amenities.interiorLevel', [sfLine('Interior amenity lighting', intAmenityBaseProduct)]);
@@ -825,6 +841,16 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
           solarMultiplier:    pathwaySolarMultiplier,
           asksBollards:       pathwayAsksBollards,
           bollardsDeclined:   pathwayBollardsDeclined,
+        },
+        // Site features (Mike 2026-09-16): dog parks, courtyards, playgrounds,
+        // tennis / pickleball courts, turf play areas — each its own fixture
+        // package. `items` is one row per kind with its fixture count and how
+        // it was worked out; empty when nothing was found or typed.
+        siteFeatures: {
+          product:         siteFeatures.product,
+          items:           siteFeatures.items,
+          areaLights:      siteFeatures.areaLights,
+          pedestrianPoles: siteFeatures.pedestrianPoles,
         },
         // Solar site design (Fulshear review, 2026-09-04): the parking product
         // above already includes the multiplier; the note rides along for every

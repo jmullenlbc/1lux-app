@@ -7,13 +7,14 @@ import { normalizeAmenityLevel } from '@/lib/amenityLevel';
 import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
 import ShareViewTracker from './ShareViewTracker';
 import SummaryBudgetBreakdown from '@/app/(app)/project/[id]/summary/SummaryBudgetBreakdown';
+import { SITE_FEATURE_INCLUDE, engineProjectData } from '@/lib/siteFeatureRows';
 
 export default async function SharePage({ params }) {
   const share = await prisma.projectShare.findUnique({
     where: { token: params.token },
     include: {
       project: {
-        include: { projectData: true, responses: true },
+        include: { projectData: true, responses: true, ...SITE_FEATURE_INCLUDE },
       },
     },
   });
@@ -23,12 +24,12 @@ export default async function SharePage({ params }) {
   const project    = share.project;
   const pricing    = pricingForProject(project.pricingSnapshot, await loadPricing());
   const sections   = responsesToSections(project.responses);
-  const projectData = { ...(project.projectData || {}), buildingTypeKey: project.buildingType };
+  const projectData = engineProjectData(project);
   const budget     = calculateBudget(projectData, sections, pricing);
   const pd         = projectData;
 
-  const freightPct     = Math.round((budget.freightRate     ?? 0.06) * 100);
-  const warehousingPct = Math.round((budget.warehousingRate ?? 0.03) * 100);
+  // No percentages on the contractor's copy — the dollars only (Mike, 2026-09-17:
+  // "Yes hide them"). The rate behind them stays a staff-only figure.
   const today          = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
   function getLabel(cat, key) { return OPTION_LABELS[cat]?.[key] || key || '—'; }
@@ -131,7 +132,7 @@ export default async function SharePage({ params }) {
           {/* Budget Breakdown */}
           <div className="bg-white rounded-xl border border-slate-200 p-5">
             <h3 className="font-semibold text-slate-900 mb-3">Budget Breakdown</h3>
-            <SummaryBudgetBreakdown budget={budget} freightPct={freightPct} warehousingPct={warehousingPct} />
+            <SummaryBudgetBreakdown budget={budget} />
           </div>
         </div>
 

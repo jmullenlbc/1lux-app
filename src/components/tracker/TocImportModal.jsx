@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { postParked } from '@/lib/parkedFetch';
 
 /**
  * TocImportModal
@@ -47,11 +48,9 @@ export default function TocImportModal({ projectId, onClose, onImported }) {
     setImporting(true);
     setError('');
     try {
-      const res  = await fetch(`/api/projects/${projectId}/tracker/import-toc`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileId }),
-      });
+      // Park-and-poll: the read runs in steps behind the front door and the
+      // answer arrives with the same body and status it always had.
+      const res  = await postParked(`/api/projects/${projectId}/tracker/import-toc`, { fileId });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Import failed'); }
       else {

@@ -75,6 +75,10 @@ export default function WizardClient({ project, projectData, initialSections, in
         const num = parseFloat(v);
         parsed[k] = (!isNaN(num) && isFinite(num)) ? num : 0;
       }
+      // Site features (dog parks, courts, …) are rows, not columns: the engine
+      // reads them as `siteFeatures`, which the route returns freshly loaded.
+      const saved = await res.json().catch(() => ({}));
+      if (Array.isArray(saved?.projectData?.siteFeatures)) parsed.siteFeatures = saved.projectData.siteFeatures;
       setLocalPD(parsed);
       recalculate(parsed, sections);
     } finally {

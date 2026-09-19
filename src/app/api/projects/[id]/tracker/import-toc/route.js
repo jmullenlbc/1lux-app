@@ -7,6 +7,7 @@ import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
 import { modelParams, answerBudget } from '@/lib/aiModels';
 import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
+import { runParkedJob, readJobRequest, jobError } from '@/lib/parkedJob';
 
 const anthropic = new Anthropic({ apiKey: getAnthropicKey() });
 
@@ -77,6 +78,12 @@ RULES:
 // POST /api/projects/[id]/tracker/import-toc
 // Body: { fileId } — ID of a ProjectFile in the submittals tab
 // Parses its TOC and bulk-creates SubmittalItems on the tracker.
+// Park-and-poll (src/lib/parkedJob.js). The regex read is instant; the model
+// fallback on an odd TOC is not, and one request holding both can run past
+// Amplify's ~30-second front door. The first request only writes the job
+// down; the polls run it and collect it.
+export const maxDuration = 300;
+
 export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
@@ -87,15 +94,28 @@ export async function POST(request, { params }) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const body = await request.json();
-  const { fileId } = body;
-
-  if (!fileId) return NextResponse.json({ error: 'fileId required' }, { status: 400 });
-
-  const file = await prisma.projectFile.findUnique({ where: { id: fileId } });
-  if (!file || file.projectId !== params.id) {
-    return NextResponse.json({ error: 'File not found' }, { status: 404 });
+  const { body } = await readJobRequest(request);
+  let args = null;
+  if (!body.jobKey) {
+    const { fileId } = body;
+    if (!fileId) return NextResponse.json({ error: 'fileId required' }, { status: 400 });
+    const file = await prisma.projectFile.findUnique({ where: { id: fileId }, select: { projectId: true } });
+    if (!file || file.projectId !== params.id) {
+      return NextResponse.json({ error: 'File not found' }, { status: 404 });
+    }
+    args = { fileId };
   }
+
+  return runParkedJob({
+    body, kind: 'tracker.importToc', scope: params.id, args,
+    run: (a) => importToc(a, { projectId: params.id, user }),
+  });
+}
+
+/** The import itself. Returns the response body; throws jobError for the route's own failures. */
+async function importToc({ fileId }, { projectId, user }) {
+  const file = await prisma.projectFile.findUnique({ where: { id: fileId } });
+  if (!file || file.projectId !== projectId) throw jobError(404, { error: 'File not found' });
 
   // Always re-extract using Y-position-aware method (reconstructs proper table rows).
   // The stored file.textContent uses naive join(' ') which collapses multi-column table rows
@@ -116,25 +136,25 @@ export async function POST(request, { params }) {
       rawText = smartText; // use smart text as AI input if no stored textContent
     }
   } catch (err) {
-    return NextResponse.json({ error: 'Failed to parse PDF: ' + err.message }, { status: 500 });
+    throw jobError(500, { error: 'Failed to parse PDF: ' + err.message });
   }
 
   // AI fallback when regex finds nothing
   if (items.length === 0 && rawText) {
     try {
-      items = await extractTOCWithAI(rawText, { projectId: params.id, userId: user.id });
+      items = await extractTOCWithAI(rawText, { projectId, userId: user.id });
     } catch {}
   }
 
   if (items.length === 0) {
-    return NextResponse.json({ error: 'No fixture types found in this PDF. The TOC may not be in a recognisable format.' }, { status: 422 });
+    throw jobError(422, { error: 'No fixture types found in this PDF. The TOC may not be in a recognisable format.' });
   }
 
   // Ensure tracker exists
-  let tracker = await prisma.submittalTracker.findUnique({ where: { projectId: params.id } });
+  let tracker = await prisma.submittalTracker.findUnique({ where: { projectId: projectId } });
   if (!tracker) {
     tracker = await prisma.submittalTracker.create({
-      data: { projectId: params.id },
+      data: { projectId: projectId },
     });
   }
 
@@ -165,12 +185,12 @@ export async function POST(request, { params }) {
     });
   }
 
-  return NextResponse.json({
+  return {
     created:   newItems.length,
     skipped:   items.length - newItems.length,
     total:     items.length,
     trackerId: tracker.id,
-  });
+  };
 }
 
 // GET /api/projects/[id]/tracker/import-toc?fileId=xxx — preview without creating

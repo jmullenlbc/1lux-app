@@ -6,6 +6,7 @@ import { OPTION_LABELS } from '@/lib/pricing';
 import { responsesToSections } from '@/lib/utils';
 import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
 import { htmlToPdf } from '@/lib/pdf';
+import { SITE_FEATURE_INCLUDE, engineProjectData } from '@/lib/siteFeatureRows';
 
 function esc(s) {
   if (s == null) return '';
@@ -27,13 +28,13 @@ export async function GET(request, { params }) {
 
   const project = await prisma.project.findUnique({
     where: { id: params.id },
-    include: { projectData: true, responses: true, createdBy: { select: { name: true, email: true } } },
+    include: { projectData: true, responses: true, ...SITE_FEATURE_INCLUDE, createdBy: { select: { name: true, email: true } } },
   });
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const pricing  = pricingForProject(project.pricingSnapshot, await loadPricing());
   const sections = responsesToSections(project.responses);
-  const pd       = { ...(project.projectData || {}), buildingTypeKey: project.buildingType };
+  const pd       = engineProjectData(project);
   const budget   = calculateBudget(pd, sections, pricing);
   const r        = sections;
 

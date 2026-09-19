@@ -30,16 +30,21 @@ export const PRICING = {
   },
 
   // ─── CEILING FANS ─────────────────────────────────────────────────────────
-  // Net adder per fan = $180 gross - $35 disk credit already in base
+  // Net adder per fan = conceptualPerFan gross − $35 disk credit already in
+  // base. These are the DEFAULTS the master pricing sheet starts from; the
+  // live figure is the /admin/pricing row (SystemConfig 'pricing'), which
+  // every budget reads. Mike 2026-09-16: "There shouldn't be a coded price
+  // for fans. It should always pull from the master pricing sheet."
   fans: {
-    adderPerFan: 145, // net adder per fan location (legacy fallback)
+    adderPerFan: 145, // net adder per fan location (legacy fallback, old frozen sheets only)
     diskCredit:   35, // credit for 12" disk removed from base
-    totalPerFan: 180, // gross product cost per fan
+    totalPerFan: 180, // legacy gross product cost per fan (shown on the sheet; the engine does not read it)
     // What a CONCEPTUAL budget prices a fan at, GROSS, before a finish level is
-    // picked (Mike 2026-09-05: "Fans can show $175 at conceptual … Should be
-    // gross but make it $180."). The engine takes the disk credit off it, the
-    // same way it does for a design fan level: $180 − $35 = $145 net per fan.
-    conceptualPerFan: 180,
+    // picked. Was $180 (Mike 2026-09-05); Mike 2026-09-16, reconciling Lone
+    // Tree against his own sheet: "keep $175 for fans on the gross number for
+    // the master pricing sheet." The engine takes the disk credit off it, the
+    // same way it does for a design fan level: $175 − $35 = $140 net per fan.
+    conceptualPerFan: 175,
   },
 
   // ─── BATHROOM VANITY LIGHTING ─────────────────────────────────────────────
@@ -79,6 +84,12 @@ export const PRICING = {
   // Flat $/SF rate (bakes in 7" disk at 10ft spacing). Stairwells per landing.
   corridors: {
     diskPerSf: 0.27,             // $/SF of corridor area (7" disk @ 10ft spacing)
+    // Mike 2026-09-16: corridors are "a very typical % range of the overall
+    // gross SF", so like BOH they get a cap. It only TRIMS a printed corridor
+    // figure that lands above it (a "CORRIDORS & STAIRS & AMENITY" line, say)
+    // — it never rounds a smaller printed figure up. The no-drawings share per
+    // building type lives in intake/noDrawingGuesses.js (corridorPctOfGross).
+    maxPctOfGross: 0.15,
     stairwellPerLanding: {
       product: 200,              // 4ft LED strip w/ occupancy sensor + integrated battery backup
       labor:   0,                // $175 → $200 (Mike 2026-09-14: "We have seen a cost increase")
@@ -353,6 +364,27 @@ export const PRICING = {
     },
     detachedGarage: {
       sconcePerDoor: 80,
+    },
+    // ── SITE FEATURES (Mike 2026-09-16) ──────────────────────────────────────
+    // Sporadic outdoor amenities found by their printed words on the site or
+    // landscape plan, each priced as its own small fixture package on its own
+    // budget line. Never folded into the amenity SF, the parking area lights
+    // or the carports. Absent = $0; nothing is guessed.
+    //   Dog park:          1 area light at the entrance
+    //   Courtyard:         one 12 ft pedestrian pole per 30 ft
+    //   Playground:        two 12 ft pedestrian poles
+    //   Tennis court:      4 area lights per court
+    //   Pickleball court:  4 area lights per court
+    //   Turf play area:    one 12 ft pedestrian pole per 50 ft
+    siteFeatures: {
+      areaLight:      1400, // $ each
+      pedestrianPole: 2000, // $ each, 12 ft pole
+      dogPark:         { areaLights: 1 },
+      playground:      { pedestrianPoles: 2 },
+      tennisCourt:     { areaLights: 4 },
+      pickleballCourt: { areaLights: 4 },
+      courtyard:       { ftPerPole: 30 },
+      turfPlay:        { ftPerPole: 50 },
     },
     // ── SUPERSEDED, no longer wired ─────────────────────────────────────────
     // The exterior-door sconce line (doors × avg of primary+secondary) was

@@ -7,6 +7,7 @@ import { modelParams, textFrom, answerBudget } from '@/lib/aiModels';
 import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
 import { getProjectFileBuffer } from '@/lib/projectFileStorage';
 import { readUploadedFile } from '@/lib/uploadIntake';
+import { runParkedJob, readJobRequest, jobError, uploadToJobArgs, loadJobUpload } from '@/lib/parkedJob';
 import {
   extractPdfPages,
   extractNotesFromPages,
@@ -43,6 +44,13 @@ async function getOrCreateTracker(projectId) {
  *   6. Detect repeats against existing SubmittalOpenItems
  *   7. Upsert SubmittalOpenItem records
  */
+// Park-and-poll (src/lib/parkedJob.js). A submittal review round is one PDF
+// read plus up to fifty short model calls — minutes, not seconds, on a big
+// package. The first request only writes the job down; the polls run it and
+// collect it. In-flight window is the Lambda's own ceiling.
+export const maxDuration = 300;
+const EXTRACT_INFLIGHT_MS = 300_000;
+
 export async function POST(req, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
@@ -53,41 +61,59 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  let buffer, fileName, submissionName;
-
-  const contentType = req.headers.get('content-type') || '';
-  if (contentType.includes('multipart/form-data')) {
-    const formData = await req.formData();
-    const upload = await readUploadedFile(formData);
-    if (!upload.ok) return NextResponse.json({ error: upload.message }, { status: upload.status });
-    buffer         = upload.buffer;
-    fileName       = upload.name;
-    submissionName = formData.get('submissionName') || upload.name.replace(/\.pdf$/i, '');
-    await upload.cleanup();
-  } else {
-    const body = await req.json();
-    if (body.fileId) {
-      const pf = await prisma.projectFile.findUnique({ where: { id: body.fileId } });
-      if (!pf) return NextResponse.json({ error: 'File not found' }, { status: 404 });
-      buffer = await getProjectFileBuffer(pf.storedPath);
-      if (!buffer) return NextResponse.json({ error: 'Could not read stored file' }, { status: 422 });
-      fileName       = pf.originalName;
-      submissionName = body.submissionName || pf.originalName.replace(/\.pdf$/i, '');
+  const { body, formData } = await readJobRequest(req);
+  let args = null;
+  if (!body.jobKey) {
+    if (formData) {
+      const upload = await readUploadedFile(formData);
+      if (!upload.ok) return NextResponse.json({ error: upload.message }, { status: upload.status });
+      // Not cleaned up here: the poll that runs the read needs the bytes.
+      args = await uploadToJobArgs(upload, { scope: 'project' });
+      args.submissionName = String(formData.get('submissionName') || '') || null;
+    } else if (body.fileId) {
+      const pf = await prisma.projectFile.findUnique({ where: { id: body.fileId }, select: { projectId: true } });
+      if (!pf || pf.projectId !== params.id) return NextResponse.json({ error: 'File not found' }, { status: 404 });
+      args = { fileId: body.fileId, submissionName: body.submissionName || null };
     } else {
       return NextResponse.json({ error: 'Provide file upload or fileId' }, { status: 400 });
     }
   }
+
+  return runParkedJob({
+    body, kind: 'tracker.extract', scope: params.id, args, inflightMs: EXTRACT_INFLIGHT_MS,
+    run: (a) => extractSubmittal(a, { projectId: params.id, user }),
+  });
+}
+
+/** The read itself. Returns the response body; throws jobError for the route's own failures. */
+async function extractSubmittal(args, { projectId, user }) {
+  let buffer, fileName, submissionName, cleanup = null;
+  try {
+    if (args.fileId) {
+      const pf = await prisma.projectFile.findUnique({ where: { id: args.fileId } });
+      if (!pf) throw jobError(404, { error: 'File not found' });
+      buffer = await getProjectFileBuffer(pf.storedPath);
+      if (!buffer) throw jobError(422, { error: 'Could not read stored file' });
+      fileName       = pf.originalName;
+      submissionName = args.submissionName || pf.originalName.replace(/\.pdf$/i, '');
+    } else {
+      const upload = await loadJobUpload(args);
+      cleanup        = upload.cleanup;
+      buffer         = upload.buffer;
+      fileName       = upload.name;
+      submissionName = args.submissionName || upload.name.replace(/\.pdf$/i, '');
+    }
 
   // ── STEP 1: Extract PDF text ─────────────────────────────────────────────
   let pages;
   try {
     pages = await extractPdfPages(buffer);
   } catch (e) {
-    return NextResponse.json({ error: 'Failed to read PDF: ' + e.message }, { status: 422 });
+    throw jobError(422, { error: 'Failed to read PDF: ' + e.message });
   }
 
   // ── STEP 2: Load known type codes for this project ───────────────────────
-  const tracker = await getOrCreateTracker(params.id);
+  const tracker = await getOrCreateTracker(projectId);
 
   // Load existing items
   const existingItems = await prisma.submittalItem.findMany({
@@ -100,10 +126,10 @@ export async function POST(req, { params }) {
   const rawNotes = extractNotesFromPages(pages, knownTypeCodes);
 
   if (rawNotes.length === 0) {
-    return NextResponse.json({
+    return {
       message: 'No reviewer notes detected in this PDF. The PDF may be text-layer-only without reviewer annotations, or the fixture types are not in the tracker yet.',
       notesExtracted: 0,
-    });
+    };
   }
 
   // ── STEP 4: Ensure all referenced type codes exist as SubmittalItems ─────
@@ -205,7 +231,7 @@ export async function POST(req, { params }) {
       const anthropic  = wrapClient(
         new Anthropic({ apiKey: getAnthropicKey() }),
         'tracker.review.classify',
-        { projectId: params.id, userId: user.id },
+        { projectId, userId: user.id },
       );
 
       const categories = Object.keys(require('@/lib/submittalExtractor').NOTE_CATEGORIES || {}).join('|') ||
@@ -218,7 +244,7 @@ export async function POST(req, { params }) {
           instructions: `Classify this submittal reviewer note into exactly one category. Respond with ONLY the category name, nothing else.\n\nCategories: ${categories}`,
           documents:    [{ text: review.notes || '', descriptor: 'reviewer note', maxChars: 4000 }],
         });
-        warnOnInjection('tracker.review.classify', params.id, sealed);
+        warnOnInjection('tracker.review.classify', projectId, sealed);
 
         const msg = await anthropic.messages.create({
           ...modelParams('tracker.extract'),
@@ -241,7 +267,7 @@ export async function POST(req, { params }) {
 
   // ── STEP 7: Open items + repeat detection (Phase 4) ──────────────────────
   const existingOpenItems = await prisma.submittalOpenItem.findMany({
-    where: { projectId: params.id },
+    where: { projectId: projectId },
   });
 
   // Determine current round number from submission count
@@ -275,7 +301,7 @@ export async function POST(req, { params }) {
       // Create new open item
       await prisma.submittalOpenItem.create({
         data: {
-          projectId:       params.id,
+          projectId:       projectId,
           typeCode,
           noteCategory:    review.noteCategory || 'OTHER',
           responsibleParty,
@@ -294,16 +320,20 @@ export async function POST(req, { params }) {
   });
   for (const review of approvedTypes) {
     await prisma.submittalOpenItem.updateMany({
-      where: { projectId: params.id, typeCode: review.version.item.typeCode, closedRound: null },
+      where: { projectId, typeCode: review.version.item.typeCode, closedRound: null },
       data:  { closedRound: roundNumber },
     });
   }
 
-  return NextResponse.json({
+  return {
     ok:             true,
     submissionId:   submission.id,
     notesExtracted: reviewsCreated,
     newTypeCodes:   newCodes,
     pagesScanned:   pages.length,
-  }, { status: 201 });
+  };
+  } finally {
+    // The stashed upload is only needed for this one read.
+    if (cleanup) await cleanup().catch(() => {});
+  }
 }

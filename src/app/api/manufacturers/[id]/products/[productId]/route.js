@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth, requirePermission, isClientViewer } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { archiveData, readArchivedFlag, deleteRefused, ARCHIVED_FLAG_HELP } from '@/lib/archive';
+import { looseNumberOrNull } from '@/lib/numberInput';
 
 const FLOAT_FIELDS  = ['cost', 'salePrice', 'wattage'];
 const STRING_FIELDS = ['partNumber', 'description', 'finish', 'cct', 'dimming', 'voltage', 'mounting', 'fixtureType', 'notes'];
@@ -14,7 +15,7 @@ function parseBody(body) {
   }
   for (const f of FLOAT_FIELDS) {
     if (!(f in body)) continue;
-    const n = body[f] === '' || body[f] == null ? null : parseFloat(body[f]);
+    const n = looseNumberOrNull(body[f]); // "1,250.00" reads as 1250
     data[f] = n == null || isNaN(n) ? null : n;
   }
   return data;

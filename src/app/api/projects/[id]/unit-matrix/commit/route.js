@@ -3,6 +3,7 @@ import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getRun, recordVerdict, VERDICT } from '@/lib/agent/reviewStore';
 import { describeUnitMatrixCorrection } from '@/lib/agent/unitMatrixDiff';
+import { looseNumberOrNull } from '@/lib/numberInput';
 
 async function canAccess(projectId, user) {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
@@ -32,24 +33,24 @@ export async function POST(request, { params }) {
           projectId:  params.id,
           code:       ut.code,
           label:      ut.label ?? null,
-          qty:        Number(ut.qty) || 0,
-          unitSf:     ut.unitSf != null ? Number(ut.unitSf) : null,
-          bedrooms:   ut.bedrooms != null ? Number(ut.bedrooms) : null,
-          bathrooms:  ut.bathrooms != null ? Number(ut.bathrooms) : null,
-          balconies:  ut.balconies != null ? Number(ut.balconies) : null,
+          qty:        looseNumberOrNull(ut.qty) || 0,
+          unitSf:     looseNumberOrNull(ut.unitSf),
+          bedrooms:   looseNumberOrNull(ut.bedrooms),
+          bathrooms:  looseNumberOrNull(ut.bathrooms),
+          balconies:  looseNumberOrNull(ut.balconies),
           sortOrder:  i,
           source:     ut.source ?? 'EXTRACTED',
-          confidence: ut.confidence != null ? Number(ut.confidence) : null,
+          confidence: looseNumberOrNull(ut.confidence),
         })),
       });
     }
 
     // Write only the confirmed fields to ProjectData
     const dataUpdate = {};
-    if ('numUnits'    in confirmedFields) dataUpdate.numUnits    = confirmedFields.numUnits    != null ? Number(confirmedFields.numUnits)    : null;
-    if ('unitsSf'     in confirmedFields) dataUpdate.unitsSf     = confirmedFields.unitsSf     != null ? Number(confirmedFields.unitsSf)     : null;
-    if ('numBedrooms' in confirmedFields) dataUpdate.numBedrooms = confirmedFields.numBedrooms != null ? Number(confirmedFields.numBedrooms) : null;
-    if ('numBathrooms'in confirmedFields) dataUpdate.numBathrooms= confirmedFields.numBathrooms!= null ? Number(confirmedFields.numBathrooms): null;
+    if ('numUnits'    in confirmedFields) dataUpdate.numUnits    = looseNumberOrNull(confirmedFields.numUnits);
+    if ('unitsSf'     in confirmedFields) dataUpdate.unitsSf     = looseNumberOrNull(confirmedFields.unitsSf);
+    if ('numBedrooms' in confirmedFields) dataUpdate.numBedrooms = looseNumberOrNull(confirmedFields.numBedrooms);
+    if ('numBathrooms'in confirmedFields) dataUpdate.numBathrooms= looseNumberOrNull(confirmedFields.numBathrooms);
     if ('numBalconies'in confirmedFields) dataUpdate.numBalconies= confirmedFields.numBalconies!= null ? Number(confirmedFields.numBalconies): null;
     if ('grossSf'     in confirmedFields) dataUpdate.grossSf     = confirmedFields.grossSf     != null ? Number(confirmedFields.grossSf)     : null;
     // garageSf/corridorSf were parsed by the extractor from day one but never

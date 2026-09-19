@@ -6,6 +6,7 @@ import { packDraft, unpackDraft, diffFields } from '@/lib/intake/drafts';
 import { newToken, hashToken } from '@/lib/intake/draftTokens';
 import { computeQuantities } from '@/lib/intake/quantities';
 import { answersToEngine } from '@/lib/intake/questionnaire';
+import { parseLooseNumber } from '@/lib/numberInput';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,7 +45,7 @@ function leadColumns(packed) {
     const rows = computeQuantities(drawings, answers, null);
     const pick = key => {
       const r = rows.find(x => x.key === key);
-      const n = Number(r?.value);
+      const n = parseLooseNumber(r?.value);
       return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
     };
     return {

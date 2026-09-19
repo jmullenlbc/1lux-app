@@ -509,6 +509,7 @@ function WidgetEditModal({ widget, dashboardId, onSave, onClose }) {
     width:     widget?.width     || 'HALF',
   });
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
 
   function addFilter() {
     setForm(f => ({ ...f, filters: [...f.filters, { field: 'pipeline', operator: 'is', value: 'PROCUREMENT' }] }));
@@ -516,8 +517,10 @@ function WidgetEditModal({ widget, dashboardId, onSave, onClose }) {
 
   async function handleSave() {
     setSaving(true);
+    setSaveError(null);
     const payload = { ...form };
     let res;
+    try {
     if (isNew) {
       res = await fetch(`/api/crm/dashboards/${dashboardId}/widgets`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -529,7 +532,25 @@ function WidgetEditModal({ widget, dashboardId, onSave, onClose }) {
         body: JSON.stringify(payload),
       });
     }
-    const saved = await res.json();
+    } catch (e) {
+      setSaveError('Could not reach the server. Check your connection and try again.');
+      setSaving(false);
+      return;
+    }
+    // Maram (9-18): a failed save used to leave the button greyed out for good
+    // and, worse, hand the API's error body to the board as if it were a widget
+    // (which then crashed the page). Now the error is shown and the form stays open.
+    let saved = null;
+    try {
+      saved = await res.json();
+    } catch {
+      saved = null;
+    }
+    if (!res.ok || !saved || !saved.id) {
+      setSaveError(saved?.error || 'That widget did not save. Please try again.');
+      setSaving(false);
+      return;
+    }
     onSave(saved, isNew);
     setSaving(false);
   }
@@ -638,7 +659,10 @@ function WidgetEditModal({ widget, dashboardId, onSave, onClose }) {
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3">
+        <div className="px-6 py-4 border-t border-slate-200 flex justify-end items-center gap-3">
+          {saveError && (
+            <p className="mr-auto text-sm text-red-600" role="alert">{saveError}</p>
+          )}
           <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:text-slate-800">Cancel</button>
           <button onClick={handleSave} disabled={saving}
             className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60">

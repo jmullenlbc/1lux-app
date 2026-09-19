@@ -47,6 +47,9 @@ export const NEVER_DELETED = [
   'userAccessEvent',
   // Unfinished public budgets (0087): staff "Put away" stamps archivedAt.
   'conceptualDraft', 'conceptualDraftField',
+  // Site features (0089): a re-read or a typed value archives the old row.
+  // Not auto-hidden; every reader filters archivedAt by hand (siteFeatureRows.js).
+  'siteFeature',
 ];
 
 export class DeleteRefusedError extends Error {

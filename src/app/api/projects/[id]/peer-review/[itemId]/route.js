@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { looseNumberOrNull } from '@/lib/numberInput';
 
 async function getAuthorizedItem(projectId, itemId, user) {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
@@ -35,7 +36,7 @@ export async function PATCH(request, { params }) {
     if (key in body) updates[key] = body[key] ?? null;
   }
   for (const key of FLOAT_FIELDS) {
-    if (key in body) updates[key] = body[key] != null ? Number(body[key]) : null;
+    if (key in body) updates[key] = looseNumberOrNull(body[key]);
   }
   if ('sortOrder' in body) updates.sortOrder = body.sortOrder;
 

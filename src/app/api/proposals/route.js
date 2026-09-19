@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { parseLooseNumber } from '@/lib/numberInput';
 
 const PROPOSAL_INCLUDE = {
   project: { select: { id: true, name: true, city: true, state: true, lifecycleStatus: true } },
@@ -43,7 +44,8 @@ export async function GET(req) {
   return NextResponse.json({ proposals });
 }
 
-// POST /api/proposals — create proposal + PROSPECT project + DESIGN deal
+// POST /api/proposals — create proposal + PROSPECT project (the project IS the
+// pipeline row on both boards; there is no separate Deal record any more)
 export async function POST(req) {
   const { user, error } = await requireAuth(req);
   if (error) return error;
@@ -108,7 +110,7 @@ export async function POST(req) {
         clientName:    clientName || null,
         location:      location  || null,
         docBody:       template?.docBody || '',
-        adderPct:      adderPct ?? template?.defaultAdderPct ?? 10,
+        adderPct:      (Number.isFinite(parseLooseNumber(adderPct)) ? parseLooseNumber(adderPct) : null) ?? template?.defaultAdderPct ?? 10,
         milestoneSplit: type === 'FULL_DESIGN'
           ? (template?.milestoneSplit || defaultMilestones)
           : null,
@@ -130,7 +132,7 @@ export async function POST(req) {
       },
     });
 
-    return { proposalId: created.id, project: projectRecord, deal: dealRecord };
+    return { proposalId: created.id, project: projectRecord };
   });
 
   // Re-fetch with full lineItems array so EmptyState can seed the calculator
@@ -138,7 +140,6 @@ export async function POST(req) {
     where: { id: result.proposalId },
     include: {
       project:   { select: { id: true, name: true, city: true, state: true, lifecycleStatus: true } },
-      deal:      { select: { id: true, dealNumber: true, pipeline: true, stage: true } },
       template:  { select: { id: true, name: true } },
       createdBy: { select: { id: true, name: true } },
       lineItems: { orderBy: [{ area: 'asc' }, { sortOrder: 'asc' }] },
