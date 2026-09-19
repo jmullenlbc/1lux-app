@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Maram's whole CRM list: wording, statuses, weighted figures, On Hold, buyout tracker, meeting tabs, accepted-only sales notes] - September 19, 2026 (DEPLOYED) — **migration 0091** (additive: two columns on Project)
+## [Maram's whole CRM list: wording, statuses, weighted figures, On Hold, buyout tracker, meeting tabs, accepted-only sales notes] - September 19, 2026 (DEPLOYED d3306e2) — **migration 0091** (additive: two columns on Project)
 
 Mike 9-18: *"No the wording is no big deal. Go!"* — the rest of Maram's list, in his order: wording → statuses and widgets → sales notes. Mike 9-19 answered the open questions and said *"Deploy the rest"*; his three corrections are folded in below (Buyout Duration from the stage history, Project Subtype as the fixed building-type list, the calendar bot trigger gated on acceptance).
 
