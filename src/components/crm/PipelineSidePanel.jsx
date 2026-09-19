@@ -16,8 +16,18 @@ import Link from 'next/link';
 import {
   PIPELINE_STAGES, STAGE_LABEL, PIPELINE_STATUS, STATUS_LABEL,
   inDesignPipeline, stagesOutOfSync, averageProbability,
+  WEIGHTED_PROBABILITY_LABEL, WEIGHTED_REVENUE_LABEL, weightedRevenue,
 } from '@/lib/pipeline';
 import { PROJECT_TEAM_ROLES } from '@/lib/projectTeam';
+import { PROJECT_TYPES, projectTypeLabel, SERVICE_TYPES, serviceTypeLabel, BUILDING_TYPES, buildingTypeLabel } from '@/lib/utils';
+import { useBuyoutDays } from '@/lib/useBuyoutDays';
+
+const PROJECT_TYPE_OPTIONS = [{ value: '', label: '— Select —' }, ...PROJECT_TYPES];
+// Mike 9-19: the subtype is the fixed building-type list the app already has (Garden, Wrap, Podium …).
+const PROJECT_SUBTYPE_OPTIONS = [{ value: '', label: '— Select —' }, ...BUILDING_TYPES];
+const SERVICE_TYPE_OPTIONS = SERVICE_TYPES;
+const contactName = c => c?.name || [c?.firstName, c?.lastName].filter(Boolean).join(' ') || c?.email || '—';
+const fmtDate = v => (v ? new Date(v).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null);
 
 const STATUS_OPTIONS      = PIPELINE_STATUS.map(s => ({ value: s.key, label: s.label }));
 const PROC_STAGE_OPTIONS  = PIPELINE_STAGES.PROCUREMENT.map(s => ({ value: s.key, label: s.label }));
@@ -106,6 +116,105 @@ function Field({ label, displayValue, rawValue, onSave, select, options = [], ty
   );
 }
 
+/**
+ * Lead Person — the one person on the project whose record the win/loss
+ * counts on (ProjectContact.isLead). Maram 9-17 wants it in the popup with a
+ * way to add a person right here. Search is against the whole people list
+ * (the project's company first when it has one), and picking someone both
+ * attaches them and makes them the lead — the API stands the old lead down.
+ */
+function LeadPersonField({ project, onError }) {
+  const [links, setLinks]     = useState(null);
+  const [open, setOpen]       = useState(false);
+  const [q, setQ]             = useState('');
+  const [found, setFound]     = useState([]);
+  const [busy, setBusy]       = useState(false);
+
+  const load = useCallback(() => {
+    fetch(`/api/projects/${project.id}/people`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => setLinks(d?.links || []))
+      .catch(() => setLinks([]));
+  }, [project.id]);
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    const params = new URLSearchParams();
+    if (q.trim()) params.set('search', q.trim());
+    else if (project.clientId || project.client?.id) params.set('clientId', project.clientId || project.client.id);
+    fetch(`/api/crm/contacts?${params}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (alive) setFound(Array.isArray(d) ? d : (d?.contacts || [])); })
+      .catch(() => { if (alive) setFound([]); });
+    return () => { alive = false; };
+  }, [open, q, project.clientId, project.client?.id]);
+
+  async function makeLead(contactId) {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/projects/${project.id}/people`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contactId, isLead: true }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { onError?.(d.error || 'Could not set the lead person.'); return; }
+      setOpen(false); setQ(''); load();
+    } finally { setBusy(false); }
+  }
+
+  const lead   = links?.find(l => l.isLead)?.contact || null;
+  const others = (links || []).filter(l => !l.isLead);
+
+  return (
+    <div className="py-2 flex items-baseline gap-3">
+      <p className="w-40 shrink-0 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Lead Person</p>
+      <div className="flex-1 min-w-0">
+        {!open ? (
+          <button type="button" onClick={() => setOpen(true)}
+            className={`text-left w-full text-sm font-semibold rounded px-1 -mx-1 hover:bg-amber-50 transition-colors ${lead ? 'text-slate-800' : 'text-slate-300'}`}>
+            {links === null ? <span className="text-slate-300">…</span> : lead ? (
+              <>{contactName(lead)}{lead.title && <span className="font-normal text-slate-400"> · {lead.title}</span>}</>
+            ) : '— none yet —'}
+          </button>
+        ) : (
+          <div className="border border-amber-300 rounded-lg p-2">
+            <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Search people…"
+              onKeyDown={e => { if (e.key === 'Escape') { setOpen(false); setQ(''); } }}
+              className="w-full px-2 py-1 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-400" />
+            <div className="mt-1 max-h-40 overflow-y-auto">
+              {others.length > 0 && !q.trim() && (
+                <p className="px-2 pt-1 text-[10px] uppercase tracking-wider text-slate-300">Already on this project</p>
+              )}
+              {!q.trim() && others.map(l => (
+                <button key={l.contact.id} type="button" disabled={busy} onClick={() => makeLead(l.contact.id)}
+                  className="block w-full text-left px-2 py-1 text-sm rounded hover:bg-amber-50 text-slate-700">
+                  {contactName(l.contact)}{l.contact.title && <span className="text-slate-400"> · {l.contact.title}</span>}
+                </button>
+              ))}
+              {found.filter(c => !links?.some(l => l.contact.id === c.id)).map(c => (
+                <button key={c.id} type="button" disabled={busy} onClick={() => makeLead(c.id)}
+                  className="block w-full text-left px-2 py-1 text-sm rounded hover:bg-amber-50 text-slate-700">
+                  {contactName(c)}
+                  {(c.title || c.client?.name || c.company) && <span className="text-slate-400"> · {[c.title, c.client?.name || c.company].filter(Boolean).join(', ')}</span>}
+                </button>
+              ))}
+              {found.length === 0 && others.length === 0 && (
+                <p className="px-2 py-1 text-xs text-slate-400">{q.trim() ? 'Nobody matches.' : 'Type a name to search.'}</p>
+              )}
+            </div>
+            <div className="mt-1 flex items-center justify-between">
+              <Link href="/crm/contacts" className="text-[11px] text-amber-600 hover:text-amber-700 font-semibold">+ Add a new person</Link>
+              <button type="button" onClick={() => { setOpen(false); setQ(''); }} className="text-[11px] text-slate-400 hover:text-slate-600">Cancel</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Rule({ label }) {
   return (
     <p className="mt-4 mb-1 pt-3 border-t border-slate-100 text-[10px] font-bold text-slate-300 uppercase tracking-wider">
@@ -173,9 +282,12 @@ export default function PipelineSidePanel({ project, onClose, onUpdate }) {
   const p = field => value => save(field, value);
   const pMoney = field => value => save(field, cleanMoney(value));
 
-  const isDesign     = inDesignPipeline(project.serviceType);
+  const isDesign     = inDesignPipeline(project);
   const combined     = (project.contractValue || 0) + (project.designContractValue || 0);
   const avgProb      = averageProbability(project);
+  const weightedProc = weightedRevenue(project, 'PROCUREMENT');
+  const weightedDes  = isDesign ? weightedRevenue(project, 'DESIGN') : null;
+  const buyout       = useBuyoutDays(project.id, `${project.procurementStage}|${project.designStage}`);
   const outOfSync    = stagesOutOfSync(project);
   const ownerId      = project.salesOwnerId ?? project.salesOwner?.id ?? '';
   const ownerOptions = [{ value: '', label: '— Unassigned —' }, ...salesUsers.map(u => ({ value: u.id, label: u.name || u.email }))];
@@ -263,23 +375,43 @@ export default function PipelineSidePanel({ project, onClose, onUpdate }) {
           )}
           <Field label="Sales Owner" displayValue={ownerName} rawValue={ownerId} onSave={p('salesOwnerId')} select options={ownerOptions} />
 
+          {/* Maram 9-17: project type, sub-type, service type and the lead person, right here. */}
+          <Rule label="Project" />
+          <Field label="Project Type" displayValue={project.projectType ? projectTypeLabel(project.projectType) : null}
+            rawValue={project.projectType || ''} onSave={p('projectType')} select options={PROJECT_TYPE_OPTIONS} />
+          <Field label="Project Subtype" displayValue={project.projectSubtype ? buildingTypeLabel(project.projectSubtype) : null}
+            rawValue={project.projectSubtype ?? ''} onSave={p('projectSubtype')} select options={PROJECT_SUBTYPE_OPTIONS} />
+          <Field label="Service Type" displayValue={serviceTypeLabel(project.serviceType)}
+            rawValue={project.serviceType || 'other'} onSave={p('serviceType')} select options={SERVICE_TYPE_OPTIONS} />
+          <LeadPersonField project={project} onError={setError} />
+
           <Rule label="Revenue" />
           <Field label="Product Sale Total ($)" displayValue={money(project.contractValue)}
             rawValue={project.contractValue ?? ''} onSave={pMoney('contractValue')} />
           <Field label="Design Fee Total ($)" displayValue={money(project.designContractValue)}
             rawValue={project.designContractValue ?? ''} onSave={pMoney('designContractValue')} />
           <Field label="Total Combined ($)" displayValue={money(combined)} readOnly accent="text-blue-600" />
+          <Field label={`${WEIGHTED_REVENUE_LABEL} — Product`} displayValue={money(Math.round(weightedProc))} readOnly accent="text-blue-600" />
+          {isDesign && <Field label={`${WEIGHTED_REVENUE_LABEL} — Design`} displayValue={money(Math.round(weightedDes))} readOnly accent="text-blue-600" />}
 
           <Rule label="Forecast" />
           <Field label="Probability to Win (%)" displayValue={project.probabilityToWin != null ? `${project.probabilityToWin}%` : null}
             rawValue={project.probabilityToWin ?? ''} onSave={p('probabilityToWin')} type="number" />
           <Field label="Probability to Move Forward (%)" displayValue={project.probabilityToMoveForward != null ? `${project.probabilityToMoveForward}%` : null}
             rawValue={project.probabilityToMoveForward ?? ''} onSave={p('probabilityToMoveForward')} type="number" />
-          <Field label="Average Probability (%)" displayValue={avgProb != null ? `${avgProb}%` : null} readOnly accent="text-blue-600" />
+          <Field label={WEIGHTED_PROBABILITY_LABEL} displayValue={avgProb != null ? `${avgProb}%` : null} readOnly accent="text-blue-600" />
+          {/* Contract execution sits ABOVE the order date (Maram 9-17): sign first, order after. */}
+          <Field label="Expected Contract Execution Date"
+            displayValue={fmtDate(project.expectedContractExecutionDate)}
+            rawValue={dateInputValue(project.expectedContractExecutionDate)}
+            onSave={p('expectedContractExecutionDate')} type="date" />
           <Field label="Expected Order Date"
             displayValue={project.expectedOrderDate ? new Date(project.expectedOrderDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null}
             rawValue={dateInputValue(project.expectedOrderDate)}
             onSave={p('expectedOrderDate')} type="date" />
+          {buyout != null && (
+            <Field label="Buyout Duration" displayValue={`${buyout} day${buyout === 1 ? '' : 's'}`} readOnly />
+          )}
 
           {team.length > 0 && (
             <>

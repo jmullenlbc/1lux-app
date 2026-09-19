@@ -10,6 +10,7 @@ function fmtVal(v, unit) {
     return `$${Math.round(v).toLocaleString()}`;
   }
   if (unit === '%') return `${Math.round(v)}%`;
+  if (unit === 'days') return `${Math.round(v)} days`;
   return Number.isInteger(v) ? v.toLocaleString() : v.toFixed(1);
 }
 

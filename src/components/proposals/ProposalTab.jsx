@@ -18,6 +18,9 @@ const STATUS_META = {
   SENT:     { label: 'Sent',     color: 'bg-blue-100 text-blue-700 border-blue-200' },
   ACCEPTED: { label: 'Accepted', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
   DECLINED: { label: 'Declined', color: 'bg-red-100 text-red-700 border-red-200' },
+};
+// Expired retired 2026-09-18 (Maram 9-17) — read-only for rows that already have it.
+const LEGACY_STATUS_META = {
   EXPIRED:  { label: 'Expired',  color: 'bg-slate-100 text-slate-500 border-slate-200' },
 };
 
@@ -60,7 +63,7 @@ function computeFee(lineItems, rates, adderPct) {
 }
 
 function StatusBadge({ status }) {
-  const m = STATUS_META[status] || STATUS_META.DRAFT;
+  const m = STATUS_META[status] || LEGACY_STATUS_META[status] || STATUS_META.DRAFT;
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${m.color}`}>
       {m.label}
@@ -609,7 +612,7 @@ function EmptyState({ projectId, onCreated }) {
             { value: 'FULL_DESIGN',   label: 'Full Design' },
             { value: 'DESIGN_ASSIST', label: 'Design Assist' },
             { value: 'PEER_REVIEW',   label: 'Peer Review' },
-            { value: 'SCOPE_LETTER',  label: 'Scope Letter' },
+            // Scope Letter retired 2026-09-18 (Maram 9-17).
           ].map(t => (
             <button key={t.value} onClick={() => set('type', t.value)}
               className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${

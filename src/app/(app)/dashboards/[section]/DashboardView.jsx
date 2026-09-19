@@ -178,6 +178,8 @@ export default function DashboardView({ section, sectionLabel }) {
         </div>
         <div className="flex items-center gap-2">
           {section === 'SALES' && <Link href="/sales/visitors" className="px-3 py-1.5 rounded-lg border border-orange-200 bg-orange-50 text-orange-700 text-xs font-semibold hover:bg-orange-100">Budget page visitors</Link>}
+          {/* Maram 9-17: the Brief lives here now, beside + Widget, not on the CRM boards. */}
+          {section === 'SALES' && <Link href="/crm/brief" className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50" title="The written pipeline brief">Brief →</Link>}
           {dash && <button onClick={() => setEditor({ spec: newSpec() })} className="px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-semibold hover:bg-orange-600">+ Widget</button>}
           {dash && <button onClick={openShare} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50">Share</button>}
           {dash && meta.hiddenCards?.length > 0 && (

@@ -4,7 +4,9 @@ import { useRouter } from 'next/navigation';
 import {
   PIPELINE_STAGES, STAGE_LABEL, PIPELINE_STATUS, STATUS_LABEL,
   stageFieldFor, statusFieldFor, revenueFor, inDesignPipeline, stagesOutOfSync,
-  winRate, averageProbability, WIN_RATE_DESCRIPTION,
+  winRate, winRateAllProjects, averageProbability, WIN_RATE_DESCRIPTION, WIN_RATE_ALL_DESCRIPTION,
+  WEIGHTED_PROBABILITY_LABEL, WEIGHTED_PROBABILITY_HINT, WEIGHTED_REVENUE_LABEL,
+  weightedRevenue, weightedForecast, FORECAST_WINDOW_DAYS,
 } from '@/lib/pipeline';
 import PipelineSidePanel from '@/components/crm/PipelineSidePanel';
 
@@ -18,9 +20,10 @@ export const PROJECT_TYPE_LABELS = {};
 
 const STATUS_CONFIG = {
   OPEN:      { label: 'Open',      color: 'text-blue-700  bg-blue-50   border-blue-200'   },
+  ON_HOLD:   { label: 'On Hold',   color: 'text-amber-700 bg-amber-50  border-amber-200'  },
   WON:       { label: 'Won',       color: 'text-green-700 bg-green-50  border-green-200'  },
   LOST:      { label: 'Lost',      color: 'text-red-700   bg-red-50    border-red-200'    },
-  COMPLETED: { label: 'Completed', color: 'text-slate-700 bg-slate-100 border-slate-300' },
+  COMPLETED: { label: 'Completed', color: 'text-slate-700 bg-slate-100 border-slate-300' }, // legacy rows only — not in the picker
   ABANDONED: { label: 'Abandoned', color: 'text-slate-500 bg-slate-50  border-slate-200' },
 };
 
@@ -180,10 +183,10 @@ function ProjectCard({ project, pipeline, onOpen, onDragStart, onDragEnd, isDrag
           {project.expectedOrderDate && <span className="text-slate-400">{fmtDate(project.expectedOrderDate)}</span>}
         </div>
 
-        {/* Average Probability is DERIVED (win % + move-forward %, averaged), so it
+        {/* Weighted Probability % is DERIVED (win % + move-forward %, averaged), so it
             is shown read-only here — edit the two source fields on the project. */}
         <div className="flex items-center gap-2 mt-1.5"
-          title="Average Probability — the average of Probability to Win and Probability to Move Forward. Edit those on the project.">
+          title={`${WEIGHTED_PROBABILITY_HINT} Edit Probability to Win / to Move Forward on the project.`}>
           <div className="w-12 h-1 rounded-full bg-slate-200 overflow-hidden">
             <div className="h-full rounded-full bg-orange-400" style={{ width: `${averageProbability(project) ?? 0}%` }} />
           </div>
@@ -277,11 +280,11 @@ function KanbanColumn({ stageCfg, projects, requests = [], pipeline, onOpen, onA
 }
 
 // ── Pipeline Summary Bar ──────────────────────────────────────────────────────
-function PipelineSummary({ projects, pipeline }) {
+function PipelineSummary({ projects, pipeline, onNeedsAttention }) {
   const sf       = statusFieldFor(pipeline);
   const open     = projects.filter(p => p[sf] === 'OPEN');
   const won      = projects.filter(p => p[sf] === 'WON' && daysSince(p.updatedAt) <= 30);
-  const lost     = projects.filter(p => p[sf] === 'LOST');
+  const onHold   = projects.filter(p => p[sf] === 'ON_HOLD');
   // Probability + win rate come from src/lib/pipeline.js — one definition, used by
   // the CRM bar AND the dashboards. Do not recompute either of them here.
   const highProb = open.filter(p => (averageProbability(p) ?? 0) >= 80);
@@ -290,31 +293,39 @@ function PipelineSummary({ projects, pipeline }) {
 
   const rate    = winRate(projects, sf);                 // won ÷ everything past Open
   const rateStr = rate == null ? '—' : `${rate}%`;
-  const weightedTotal = open.reduce(
-    (s, p) => s + (revenueFor(p, pipeline) || 0) * (averageProbability(p) ?? 0) / 100,
-    0
-  );
+  const rateAll = winRateAllProjects(projects, sf);      // won ÷ everything on the board
+  const rateAllStr = rateAll == null ? '—' : `${rateAll}%`;
+  const weightedTotal = open.reduce((s, p) => s + weightedRevenue(p, pipeline), 0);
+  // Maram 9-17 / Mike 9-18: the 90-day figure is WEIGHTED (revenue × probability)
+  // and the tile says so. One definition in src/lib/pipeline.js.
+  const forecast90 = weightedForecast(open, pipeline, FORECAST_WINDOW_DAYS);
 
   const stats = [
     { label: 'Open Pipeline',    value: fmtMoney(sum(open))     || '—', color: 'text-slate-900'  },
     { label: 'High Prob (80%+)', value: fmtMoney(sum(highProb)) || '—', color: 'text-orange-600',
-      hint: 'Average Probability (win % and move-forward % averaged) of 80 or more.' },
-    { label: 'Weighted Pipeline', value: fmtMoney(Math.round(weightedTotal)) || '—', color: 'text-blue-700',
-      hint: 'Open pipeline value × each project’s Average Probability.' },
+      hint: `${WEIGHTED_PROBABILITY_LABEL} of 80 or more.` },
+    { label: WEIGHTED_REVENUE_LABEL, value: fmtMoney(Math.round(weightedTotal)) || '—', color: 'text-blue-700',
+      hint: `Open pipeline value × each project’s ${WEIGHTED_PROBABILITY_LABEL}.` },
+    { label: `Weighted ${FORECAST_WINDOW_DAYS}-Day Forecast`, value: fmtMoney(Math.round(forecast90)) || '—', color: 'text-indigo-700',
+      hint: `Open projects with an Expected Order Date in the next ${FORECAST_WINDOW_DAYS} days, each counted at revenue × ${WEIGHTED_PROBABILITY_LABEL}. Weighted, not gross.` },
+    { label: 'On Hold',          value: fmtMoney(sum(onHold))   || '—', color: 'text-amber-700',
+      hint: `Revenue parked On Hold (${onHold.length} project${onHold.length === 1 ? '' : 's'}). Not in the open pipeline and not in the win rate.` },
     { label: 'Won (30 days)',    value: fmtMoney(sum(won))      || '—', color: 'text-green-700'  },
     { label: 'Win Rate',         value: rateStr,                        color: rate != null && rate >= 50 ? 'text-green-700' : 'text-red-600',
       hint: WIN_RATE_DESCRIPTION },
-    { label: 'Lost',             value: lost.length,                    color: 'text-red-600'    },
-    { label: 'Open Projects',    value: open.length,                    color: 'text-slate-700'  },
+    { label: 'Win Rate (all)',   value: rateAllStr,                     color: 'text-slate-700',
+      hint: WIN_RATE_ALL_DESCRIPTION },
     { label: 'Needs Attention',  value: stale.length,                   color: stale.length > 0 ? 'text-amber-600' : 'text-slate-400',
-      hint: 'Open projects with no update in 30+ days.' },
+      hint: 'Open projects with no update in 30+ days. Click to see the list.',
+      onClick: stale.length > 0 && onNeedsAttention ? onNeedsAttention : undefined },
   ];
 
   return (
     <div className="flex items-center gap-px bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm mb-4">
       {stats.map((s, i) => (
-        <div key={i} title={s.hint || undefined}
-          className={`flex-1 px-4 py-2.5 ${i < stats.length - 1 ? 'border-r border-slate-100' : ''}`}>
+        <div key={i} title={s.hint || undefined} onClick={s.onClick}
+          role={s.onClick ? 'button' : undefined}
+          className={`flex-1 px-4 py-2.5 ${i < stats.length - 1 ? 'border-r border-slate-100' : ''} ${s.onClick ? 'cursor-pointer hover:bg-amber-50' : ''}`}>
           <p className={`text-base font-bold ${s.color}`}>{s.value}</p>
           <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide mt-0.5 flex items-center gap-1">
             {s.label}
@@ -341,8 +352,8 @@ function ListView({ projects, pipeline, onOpen, onUpdate }) {
   }
 
   const sorted = [...projects].sort((a, b) => {
-    let av = sortKey === 'revenue' ? rev(a) : sortKey === 'stage' ? a[stageField] : sortKey === 'client' ? (a.client?.name || '') : sortKey === 'probability' ? (averageProbability(a) ?? 0) : a[sortKey];
-    let bv = sortKey === 'revenue' ? rev(b) : sortKey === 'stage' ? b[stageField] : sortKey === 'client' ? (b.client?.name || '') : sortKey === 'probability' ? (averageProbability(b) ?? 0) : b[sortKey];
+    let av = sortKey === 'revenue' ? rev(a) : sortKey === 'weighted' ? weightedRevenue(a, pipeline) : sortKey === 'stage' ? a[stageField] : sortKey === 'client' ? (a.client?.name || '') : sortKey === 'probability' ? (averageProbability(a) ?? 0) : a[sortKey];
+    let bv = sortKey === 'revenue' ? rev(b) : sortKey === 'weighted' ? weightedRevenue(b, pipeline) : sortKey === 'stage' ? b[stageField] : sortKey === 'client' ? (b.client?.name || '') : sortKey === 'probability' ? (averageProbability(b) ?? 0) : b[sortKey];
     if (typeof av === 'string' || typeof bv === 'string') {
       const as = String(av ?? ''), bs = String(bv ?? '');
       return sortDir === 'asc' ? as.localeCompare(bs) : bs.localeCompare(as);
@@ -378,7 +389,7 @@ function ListView({ projects, pipeline, onOpen, onUpdate }) {
   }
 
   const Th = ({ col, label }) => (
-    <th onClick={() => toggleSort(col)} className="px-3 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-600 whitespace-nowrap select-none">
+    <th onClick={() => toggleSort(col)} className="px-3 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-600 whitespace-normal leading-tight align-bottom select-none">
       {label}{sortKey === col && <span className="ml-1">{sortDir === 'asc' ? '↑' : '↓'}</span>}
     </th>
   );
@@ -388,15 +399,16 @@ function ListView({ projects, pipeline, onOpen, onUpdate }) {
       <table className="w-full text-sm">
         <thead className="bg-slate-50 border-b border-slate-200">
           <tr>
-            <th className="px-3 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider w-16">#</th>
+            {/* Maram 9-17: no project-number column here; headers wrap instead of forcing a scroll. */}
             <Th col="name" label="Project" />
             <Th col="client" label="Client" />
             <Th col="stage" label="Stage" />
             <Th col="revenue" label={pipeline === 'DESIGN' ? 'Design Fee' : 'Product Sale'} />
-            <Th col="probability" label="Prob" />
-            <Th col="expectedOrderDate" label="Expected" />
+            <Th col="probability" label={WEIGHTED_PROBABILITY_LABEL} />
+            <Th col="weighted" label={WEIGHTED_REVENUE_LABEL} />
+            <Th col="expectedOrderDate" label="Expected Order" />
             <Th col={statusField} label="Status" />
-            <th className="px-3 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sales Owner</th>
+            <th className="px-3 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider whitespace-normal leading-tight align-bottom">Sales Owner</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
@@ -404,7 +416,6 @@ function ListView({ projects, pipeline, onOpen, onUpdate }) {
             const st = STATUS_CONFIG[project[statusField]] || STATUS_CONFIG.OPEN;
             return (
               <tr key={project.id} onClick={() => onOpen(project)} className="cursor-pointer hover:bg-slate-50 transition-colors">
-                <td className="px-3 py-2.5 text-[10px] font-mono text-slate-400">{project.projectNumber ? `PRJ-${String(project.projectNumber).padStart(4, '0')}` : '—'}</td>
                 <td className="px-3 py-2.5">
                   <p className="font-semibold text-slate-900 truncate max-w-[200px]">{project.name}</p>
                   {(project._count?.noteLinks ?? 0) > 0 && (
@@ -420,9 +431,10 @@ function ListView({ projects, pipeline, onOpen, onUpdate }) {
                 <td className="px-3 py-2.5 whitespace-nowrap">
                   <div className="flex items-center gap-1.5">
                     <div className="w-10 h-1.5 rounded-full bg-slate-200 overflow-hidden"><div className="h-full rounded-full bg-orange-400" style={{ width: `${averageProbability(project) ?? 0}%` }} /></div>
-                    <span className="text-[11px] text-slate-500" title="Average Probability (win % + move-forward %, averaged)">{averageProbability(project) ?? 0}%</span>
+                    <span className="text-[11px] text-slate-500" title={WEIGHTED_PROBABILITY_HINT}>{averageProbability(project) ?? 0}%</span>
                   </div>
                 </td>
+                <td className="px-3 py-2.5 text-blue-700 font-semibold whitespace-nowrap" title={`${fmtMoney(rev(project)) || '$0'} × ${averageProbability(project) ?? 0}%`}>{fmtMoney(Math.round(weightedRevenue(project, pipeline))) || <span className="text-slate-300">—</span>}</td>
                 <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap text-xs">{fmtDate(project.expectedOrderDate) || '—'}</td>
                 <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
                   <select
@@ -472,7 +484,7 @@ export default function CRMClient({ initialProjects, users, newRequests = [] }) 
   const statusField = statusFieldFor(pipeline);
 
   // Board membership: Procurement = all; Design = design-fee service types only.
-  const inBoard = p => pipeline === 'DESIGN' ? inDesignPipeline(p.serviceType) : true;
+  const inBoard = p => pipeline === 'DESIGN' ? inDesignPipeline(p) : true;
 
   const filtered = useMemo(() => projects.filter(p => {
     if (!inBoard(p)) return false;
@@ -528,7 +540,7 @@ export default function CRMClient({ initialProjects, users, newRequests = [] }) 
     const stagef = stageFieldFor(pipeline);
     const headers = [
       'Project', 'Client', 'Stage', 'Status',
-      'Revenue', 'Probability', 'Expected Order',
+      'Revenue', WEIGHTED_PROBABILITY_LABEL, WEIGHTED_REVENUE_LABEL, 'Expected Contract Execution', 'Expected Order',
     ];
     const rows = filtered.map(p => [
       p.name,
@@ -538,6 +550,9 @@ export default function CRMClient({ initialProjects, users, newRequests = [] }) 
       revenueFor(p, pipeline)
         ? `$${revenueFor(p, pipeline).toLocaleString()}` : '',
       `${averageProbability(p) ?? 0}%`,
+      weightedRevenue(p, pipeline) ? `${Math.round(weightedRevenue(p, pipeline)).toLocaleString()}` : '',
+      p.expectedContractExecutionDate
+        ? new Date(p.expectedContractExecutionDate).toLocaleDateString() : '',
       p.expectedOrderDate
         ? new Date(p.expectedOrderDate).toLocaleDateString() : '',
     ]);
@@ -597,9 +612,7 @@ export default function CRMClient({ initialProjects, users, newRequests = [] }) 
             <button onClick={handleExportCSV} className="text-xs border border-slate-200 text-slate-600 hover:bg-slate-50 px-2.5 py-1.5 rounded-lg">
               Export CSV
             </button>
-            <button onClick={() => router.push('/crm/brief')} className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-sm font-semibold transition-colors">
-              Brief →
-            </button>
+            {/* The Brief button now lives on the Sales dashboard beside + Widget (Maram 9-17). */}
             <a href="/crm/contacts" className="text-xs text-slate-500 hover:text-amber-600 font-medium transition-colors">
               Contacts →
             </a>
@@ -620,7 +633,7 @@ export default function CRMClient({ initialProjects, users, newRequests = [] }) 
             <input value={filters.search} onChange={e => setFilters(f => ({ ...f, search: e.target.value }))} placeholder="Search projects…" className="pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-orange-400 w-44" />
           </div>
           <div className="flex items-center gap-1">
-            {[{ val: '', label: 'All' }, { val: 'OPEN', label: 'Open' }, { val: 'WON', label: 'Won' }, { val: 'LOST', label: 'Lost' }].map(s => (
+            {[{ val: '', label: 'All' }, { val: 'OPEN', label: 'Open' }, { val: 'ON_HOLD', label: 'On Hold' }, { val: 'WON', label: 'Won' }, { val: 'LOST', label: 'Lost' }].map(s => (
               <button key={s.val} onClick={() => setFilters(f => ({ ...f, status: s.val }))} className={`px-2.5 py-1.5 text-[10px] font-bold rounded-lg transition-colors ${filters.status === s.val ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-200'}`}>{s.label}</button>
             ))}
             <button
@@ -673,7 +686,7 @@ export default function CRMClient({ initialProjects, users, newRequests = [] }) 
             <span className="ml-auto font-semibold">Review them →</span>
           </a>
         )}
-        <PipelineSummary projects={activeList} pipeline={pipeline} />
+        <PipelineSummary projects={activeList} pipeline={pipeline} onNeedsAttention={() => setNeedsAttention(true)} />
 
         {activeViewMode === 'kanban' && (
           <div className="flex gap-3 overflow-x-auto flex-1 pb-4">

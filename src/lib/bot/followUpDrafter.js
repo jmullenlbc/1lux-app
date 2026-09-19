@@ -34,7 +34,7 @@ export function getLastActivityDate(project) {
 
 // The project's stage in its "primary" board (Design for design-fee types, else Procurement).
 function primaryStage(project) {
-  return inDesignPipeline(project.serviceType) ? project.designStage : project.procurementStage;
+  return inDesignPipeline(project) ? project.designStage : project.procurementStage;
 }
 
 // Skip automation while a human is still drafting a Sales Note for these contacts.
@@ -198,7 +198,7 @@ export async function findStaleProjects(rules) {
       const staleDays    = parseInt(config.staleDays || config.stale_days || 14);
 
       // Pipeline membership: DESIGN rules only apply to design-fee projects.
-      if (rulePipeline === 'DESIGN' && !inDesignPipeline(project.serviceType)) continue;
+      if (rulePipeline === 'DESIGN' && !inDesignPipeline(project)) continue;
       if (ruleStages.length && !ruleStages.includes((primaryStage(project) || '').toUpperCase())) continue;
 
       const daysSinceAct = daysSince(getLastActivityDate(project));

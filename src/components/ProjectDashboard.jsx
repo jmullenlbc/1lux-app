@@ -1,8 +1,9 @@
 'use client';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { cleanNumberInput } from '@/lib/numberInput';
-import { buildingTypeLabel, PROJECT_TYPES, projectTypeLabel } from '@/lib/utils';
-import { PIPELINE_STAGES, STAGE_LABEL, STATUS_LABEL, PIPELINE_STATUS, inDesignPipeline, stagesOutOfSync } from '@/lib/pipeline';
+import { buildingTypeLabel, PROJECT_TYPES, projectTypeLabel, BUILDING_TYPES } from '@/lib/utils';
+import { useBuyoutDays } from '@/lib/useBuyoutDays';
+import { PIPELINE_STAGES, STAGE_LABEL, STATUS_LABEL, PIPELINE_STATUS, inDesignPipeline, stagesOutOfSync, WEIGHTED_PROBABILITY_LABEL } from '@/lib/pipeline';
 import { PROJECT_TEAM_ROLES } from '@/lib/projectTeam';
 import { siteFeaturesToRows } from '@/lib/siteFeatures';
 import MissingInputsWarning from './MissingInputsWarning';
@@ -198,7 +199,7 @@ export default function ProjectDashboard({
   const feat = siteFeaturesToRows(pd?.siteFeatures);
 
   // ── Sales / Pipeline fields live on the project itself (Deal merged in) ──────
-  const isDesignPipeline = inDesignPipeline(project.serviceType);
+  const isDesignPipeline = inDesignPipeline(project);
   const combinedRevenue  = (project.contractValue || 0) + (project.designContractValue || 0);
   // Average Probability — mean of the two entered values (falls back to whichever is present).
   const _probParts = [project.probabilityToWin, project.probabilityToMoveForward].filter(v => v != null && v !== '');
@@ -207,6 +208,8 @@ export default function ProjectDashboard({
 
   // Sales Owner dropdown — Sales + marketing department only.
   const [salesUsers, setSalesUsers] = useState([]);
+  // Buyout Duration comes from the stage history, so it re-reads after a stage move.
+  const buyout = useBuyoutDays(project.id, `${project.procurementStage}|${project.designStage}`);
   useEffect(() => {
     let alive = true;
     fetch('/api/users?department=SALES_MARKETING')
@@ -524,6 +527,7 @@ export default function ProjectDashboard({
             <EditableStat label="Design Stage" displayValue={STAGE_LABEL[project.designStage] || 'Qualified'} rawValue={project.designStage || 'QUALIFIED'} onSave={p('designStage')} select options={DESIGN_STAGE_OPTIONS} />
           )}
           <EditableStat label="Project Type" displayValue={project.projectType ? projectTypeLabel(project.projectType) : null} rawValue={project.projectType || ''} onSave={p('projectType')} select options={[{ value: '', label: '— Select —' }, ...PROJECT_TYPES]} />
+          <EditableStat label="Project Subtype" displayValue={project.projectSubtype ? buildingTypeLabel(project.projectSubtype) : null} rawValue={project.projectSubtype ?? ''} onSave={p('projectSubtype')} select options={[{ value: '', label: '— Select —' }, ...BUILDING_TYPES]} />
           <EditableStat label="Procurement Status" displayValue={STATUS_LABEL[project.procurementStatus] || 'Open'} rawValue={project.procurementStatus || 'OPEN'} onSave={p('procurementStatus')} select options={STATUS_OPTIONS} />
           {isDesignPipeline && (
             <EditableStat label="Design Status" displayValue={STATUS_LABEL[project.designStatus] || 'Open'} rawValue={project.designStatus || 'OPEN'} onSave={p('designStatus')} select options={STATUS_OPTIONS} />
@@ -545,11 +549,19 @@ export default function ProjectDashboard({
           <ReadStat     label="Total Combined ($)"     value={fmt(combinedRevenue)} accent="text-blue-600" />
           <EditableStat label="Probability to Win (%)"          displayValue={project.probabilityToWin != null ? `${project.probabilityToWin}%` : null}                 rawValue={project.probabilityToWin ?? ''}          onSave={p('probabilityToWin')} type="number" />
           <EditableStat label="Probability to Move Forward (%)" displayValue={project.probabilityToMoveForward != null ? `${project.probabilityToMoveForward}%` : null} rawValue={project.probabilityToMoveForward ?? ''} onSave={p('probabilityToMoveForward')} type="number" />
-          <ReadStat     label="Average Probability (%)"          value={avgProbability != null ? `${avgProbability}%` : null} accent="text-blue-600" />
+          <ReadStat     label={WEIGHTED_PROBABILITY_LABEL}          value={avgProbability != null ? `${avgProbability}%` : null} accent="text-blue-600" />
+          {/* Contract execution sits ABOVE the order date (Maram 9-17). */}
+          <EditableStat label="Expected Contract Execution Date"
+            displayValue={project.expectedContractExecutionDate ? new Date(project.expectedContractExecutionDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null}
+            rawValue={dateInputValue(project.expectedContractExecutionDate)}
+            onSave={p('expectedContractExecutionDate')} type="date" />
           <EditableStat label="Expected Order Date"
             displayValue={project.expectedOrderDate ? new Date(project.expectedOrderDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null}
             rawValue={dateInputValue(project.expectedOrderDate)}
             onSave={p('expectedOrderDate')} type="date" />
+          {buyout != null && (
+            <ReadStat label="Buyout Duration" value={`${buyout} day${buyout === 1 ? '' : 's'}`} />
+          )}
         </div>
       </div>
     </div>

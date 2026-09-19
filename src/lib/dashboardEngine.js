@@ -6,7 +6,7 @@
 // File extensions on purpose: the test suite imports this module straight into
 // plain Node, which will not guess at a missing ".js" the way the app build does.
 import {
-  averageProbability, STAGE_LABEL, STATUS_LABEL, DESIGN_SERVICE_TYPES,
+  averageProbability, STAGE_LABEL, STATUS_LABEL, DESIGN_SERVICE_TYPES, FEE_OPTIONAL_DESIGN_TYPES,
   PIPELINE_LABEL, PIPELINE_KEYS, boardRows, combinedRevenue,
   normalizeStage, DECIDED_STATUSES, WON_STATUSES,
 } from './pipeline.js';
@@ -190,7 +190,12 @@ function pipelineWhere(rule) {
   if (rule.operator !== 'is' && rule.operator !== 'is_any_of') return {};
   const picked = Array.isArray(rule.value) ? rule.value : [rule.value];
   if (picked.includes('DESIGN') && !picked.includes('PROCUREMENT')) {
-    return { serviceType: { in: DESIGN_SERVICE_TYPES } };
+    // Peer Reviews ride along when they carry a design fee (Maram 9-17); the
+    // per-row check in boardRows() is what finally decides, this only pre-narrows.
+    return { OR: [
+      { serviceType: { in: DESIGN_SERVICE_TYPES } },
+      { serviceType: { in: FEE_OPTIONAL_DESIGN_TYPES }, designContractValue: { gt: 0 } },
+    ] };
   }
   return {}; // Procurement (or both) — no narrowing, every project is on that board
 }

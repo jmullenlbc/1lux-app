@@ -25,6 +25,9 @@ export default async function CRMPage() {
           contractValue: true, designContractValue: true,
           procurementStage: true, designStage: true,
           pipelineProbability: true, probabilityToWin: true, probabilityToMoveForward: true, procurementStatus: true, designStatus: true, expectedOrderDate: true,
+          expectedContractExecutionDate: true, projectSubtype: true,
+          // Lead person (Maram 9-17) — shown in the pipeline popup.
+          contactLinks: { where: { isLead: true }, select: { contact: { select: { id: true, name: true, firstName: true, lastName: true } } } },
           // Why a deal was lost or abandoned — shown on the card and the list row.
           procurementStatusReason: true, designStatusReason: true,
           updatedAt: true,

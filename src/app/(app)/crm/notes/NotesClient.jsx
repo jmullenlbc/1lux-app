@@ -861,9 +861,18 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
           />
         </div>
 
+        {/* Maram 9-17: two sections — what we knew going in, then what was said. */}
+        {note.noteType !== 'PROJECT_MEETING' && (
+          <div className="border-t border-slate-100 pt-4">
+            <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Pre-meeting info</h3>
+            <MeetingPrep noteId={note.id} />
+          </div>
+        )}
+
         {/* Notes body */}
-        <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1">Notes</label>
+        <div className="border-t border-slate-100 pt-4">
+          <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Meeting notes</h3>
+          <label className="block text-xs font-medium text-slate-500 mb-1">What was said, decided and promised</label>
           <textarea
             value={form.noteBody}
             onChange={e => set('noteBody', e.target.value)}
@@ -873,8 +882,7 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
           />
         </div>
 
-        {/* Meeting Prep — facts on file + cited talking points (internal only) */}
-        {note.noteType !== 'PROJECT_MEETING' && <MeetingPrep noteId={note.id} />}
+        {/* Meeting Prep now sits above the notes as "Pre-meeting info". */}
 
         {/* AI-extracted action items */}
         <NoteActions noteId={note.id} noteBody={form.noteBody} published={note.isPublished} />

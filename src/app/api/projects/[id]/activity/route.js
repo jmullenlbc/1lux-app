@@ -15,9 +15,11 @@ export async function GET(request, { params }) {
   const { searchParams } = new URL(request.url);
   const limit  = Math.min(parseInt(searchParams.get('limit')  || '50'), 200);
   const cursor = searchParams.get('cursor') || null;
+  // ?type=deal_stage — the stage moves alone (Buyout Duration on the CRM popup and hub).
+  const type   = searchParams.get('type') || null;
 
   const activities = await prisma.projectActivity.findMany({
-    where:   { projectId: params.id },
+    where:   { projectId: params.id, ...(type ? { type } : {}) },
     orderBy: { createdAt: 'desc' },
     take:    limit + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),

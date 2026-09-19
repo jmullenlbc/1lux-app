@@ -594,11 +594,16 @@ model Project {
   probabilityToWin         Int?                     // % chance ILC wins the job
   probabilityToMoveForward Int?                     // % chance the project moves forward at all
   // Average Probability (mean of the two above) is DERIVED, never stored — computed in the sales provider.
-  procurementStatus        String    @default("OPEN")    // OPEN | WON | LOST | COMPLETED | ABANDONED
+  procurementStatus        String    @default("OPEN")    // OPEN | ON_HOLD | WON | LOST | ABANDONED (COMPLETED = legacy, read-only since 0091)
   procurementStatusReason  String?                        // required note when set to LOST or ABANDONED
   designStatus             String    @default("OPEN")    // dual-pipeline (Full Design / Design Assist) only
   designStatusReason       String?                        // required note when set to LOST or ABANDONED
   expectedOrderDate        DateTime?
+  // Maram 9-17: "Expected Contract Execution Date" sits ABOVE Expected Order Date
+  // in the pipeline popup — the day the contract is signed, before the order lands.
+  expectedContractExecutionDate DateTime?
+  // Maram 9-17 / Mike 9-19: the sub-type under Project Type — a BUILDING_TYPES key from utils.js (garden, wrap, podium …).
+  projectSubtype           String?
   salesOwnerId             String?                        // the ONE project owner across the platform
   salesOwner               User?     @relation("ProjectSalesOwner", fields: [salesOwnerId], references: [id])
   preconManagerId          String?
@@ -726,7 +731,7 @@ model ProjectStatusEvent {
   project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   pipeline     String   // PROCUREMENT | DESIGN
   fromStatus   String?  // null on the opening row (the deal being created)
-  toStatus     String   // OPEN | WON | LOST | COMPLETED | ABANDONED
+  toStatus     String   // OPEN | ON_HOLD | WON | LOST | ABANDONED (COMPLETED legacy)
   reason       String?  // the written reason captured when losing or abandoning
   changedAt    DateTime @default(now())
   changedById  String?

@@ -122,6 +122,9 @@ export function fromGraphEvent(ev, mailboxAddress = '') {
                         || (ev?.isOnlineMeeting ? 'online' : null),
     isCancelled:      Boolean(ev?.isCancelled),
     isAllDay:         Boolean(ev?.isAllDay),
+    // Graph: none | organizer | tentativelyAccepted | accepted | declined | notResponded.
+    // Lower-cased here; the gate in worthANote.js decides what each one means.
+    responseStatus:   String(ev?.responseStatus?.response || '').trim().toLowerCase() || null,
     webUrl:           ev?.webLink || null,
   };
 }

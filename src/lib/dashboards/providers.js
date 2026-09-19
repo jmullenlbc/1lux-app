@@ -8,6 +8,7 @@ import { calculateBudget } from '@/lib/calculations';
 import { responsesToSections } from '@/lib/utils';
 import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
 import { SITE_FEATURE_SELECT, engineProjectData } from '@/lib/siteFeatureRows';
+import { weightedRevenue, buyoutDays } from '@/lib/pipeline';
 
 export async function getSectionRows(section) {
   switch (section) {
@@ -26,14 +27,25 @@ async function getSalesRows() {
       pipelineProbability: true, probabilityToWin: true, probabilityToMoveForward: true,
       projectType: true, serviceType: true, procurementStage: true,
       procurementStatus: true, designStage: true, designStatus: true,
-      expectedOrderDate: true, createdAt: true,
+      expectedOrderDate: true, expectedContractExecutionDate: true, projectSubtype: true, createdAt: true,
       client:     { select: { name: true } },
       salesOwner: { select: { name: true } },
+      // Stage moves, for Buyout Duration (entering Buyout → entering CA / Procurement).
+      activities: { where: { type: 'deal_stage' }, select: { type: true, metadata: true, createdAt: true }, orderBy: { createdAt: 'asc' } },
     },
   });
   // Average Probability is derived (never stored) — mean of the two entered values,
   // falling back to whichever is present, then the legacy single probability.
-  return rows.map(r => ({ ...r, averageProbability: avgProbability(r) }));
+  // Weighted Revenue and Buyout Duration are derived the same way (Maram 9-17),
+  // from the one definition in pipeline.js, so a dashboard tile and the CRM
+  // board can never disagree.
+  return rows.map(({ activities, ...r }) => ({
+    ...r,
+    averageProbability: avgProbability(r),
+    weightedRevenue:    weightedRevenue(r, 'PROCUREMENT'),
+    weightedDesignFee:  weightedRevenue(r, 'DESIGN'),
+    buyoutDays:         buyoutDays(r, activities),
+  }));
 }
 
 function avgProbability(r) {

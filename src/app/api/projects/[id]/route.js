@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db';
 import { INCLUDE_ARCHIVED, archiveData, readArchivedFlag, deleteRefused, ARCHIVED_FLAG_HELP } from '@/lib/archive';
 import { logActivity, PHASE_LABELS } from '@/lib/activity';
 import { sendNotification } from '@/lib/notify';
-import { NEXT_ACTION_KEYS, STAGE_KEYS, STAGE_LABEL, PIPELINE_LABEL } from '@/lib/pipeline';
+import { NEXT_ACTION_KEYS, STAGE_KEYS, STAGE_LABEL, PIPELINE_LABEL, SETTABLE_STATUS_KEYS } from '@/lib/pipeline';
 import { recordStatusChanges, describeStatusChange } from '@/lib/statusEvents';
 import { PROJECT_TEAM_ROLES, pickTeamUpdate } from '@/lib/projectTeam';
 import { parseLooseNumber, isUnreadableNumber, NUMBER_HELP } from '@/lib/numberInput';
@@ -58,7 +58,7 @@ export async function PATCH(request, { params }) {
   const body = await request.json();
   const { name, buildingType, location, address, date, status, currentStep, completedSteps, contactEmail, contactName, clientId, phase, city, state, zip, serviceType, flagged, flagNote, contractValue, contractSignedDate, designContractValue, designContractSignedDate, constructionStartDate, mepRoughInDate, constructionEndDate, budgetType, budgetSentDate, peerReviewMatrixType,
     // ── Pipeline / CRM fields (merged from Deal) ──
-    projectType, procurementStage, designStage, pipelineProbability, probabilityToWin, probabilityToMoveForward, procurementStatus, designStatus, expectedOrderDate, salesOwnerId,
+    projectType, procurementStage, designStage, pipelineProbability, probabilityToWin, probabilityToMoveForward, procurementStatus, designStatus, expectedOrderDate, expectedContractExecutionDate, projectSubtype, salesOwnerId,
     procurementStatusReason, designStatusReason,
     // ── Weekly sales meeting fields ──
     proposalSentDate, nextActionType, nextActionOwnerId, nextActionDueDate } = body;
@@ -100,7 +100,10 @@ export async function PATCH(request, { params }) {
   // stage added there is accepted here without a second edit.
   const validProcurementStages = STAGE_KEYS;
   const validDesignStages      = validProcurementStages;
-  const validPipelineStatus    = ['OPEN', 'WON', 'LOST', 'COMPLETED', 'ABANDONED'];
+  // The picker list from pipeline.js: OPEN, ON_HOLD, WON, LOST, ABANDONED.
+  // COMPLETED can no longer be SET (Maram 9-17); rows already holding it are
+  // left alone and still read as won.
+  const validPipelineStatus    = SETTABLE_STATUS_KEYS;
 
   // Mike's rule: Lost and Abandoned both need a written reason. Enforced here so
   // no screen can slip a deal into either state without one — the reason may
@@ -171,6 +174,7 @@ export async function PATCH(request, { params }) {
       ...(peerReviewMatrixType !== undefined && ['PEER_REVIEW', 'DESIGN_BID'].includes(peerReviewMatrixType) && { peerReviewMatrixType }),
       // ── Pipeline / CRM fields (merged from Deal — a project IS the pipeline entity) ──
       ...(projectType         !== undefined && { projectType: projectType || null }),
+      ...(projectSubtype      !== undefined && { projectSubtype: String(projectSubtype || '').trim().slice(0, 120) || null }),
       ...(procurementStage    !== undefined && validProcurementStages.includes(procurementStage) && { procurementStage }),
       ...(designStage         !== undefined && validDesignStages.includes(designStage) && { designStage }),
       ...(pipelineProbability !== undefined && { pipelineProbability: clampPct(pipelineProbability) ?? 50 }),
@@ -186,6 +190,7 @@ export async function PATCH(request, { params }) {
       ...(procurementStatus !== undefined && !NEEDS_REASON.includes(procurementStatus) && { procurementStatusReason: null }),
       ...(designStatus      !== undefined && !NEEDS_REASON.includes(designStatus)      && { designStatusReason:      null }),
       ...(expectedOrderDate   !== undefined && { expectedOrderDate: expectedOrderDate ? new Date(expectedOrderDate) : null }),
+      ...(expectedContractExecutionDate !== undefined && { expectedContractExecutionDate: expectedContractExecutionDate ? new Date(expectedContractExecutionDate) : null }),
       ...(salesOwnerId        !== undefined && { salesOwnerId: salesOwnerId || null }),
       ...(proposalSentDate    !== undefined && { proposalSentDate: proposalSentDate ? new Date(proposalSentDate) : null }),
       ...(nextActionType      !== undefined && { nextActionType: (nextActionType && NEXT_ACTION_KEYS.includes(nextActionType)) ? nextActionType : null }),

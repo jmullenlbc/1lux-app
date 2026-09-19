@@ -23,6 +23,7 @@
  *    standup classifies as SKIP and no note appears.
  */
 import { classifyEvent } from '@/lib/bot/activityClassifier';
+import { notAcceptedReason } from '@/lib/calendar/worthANote';
 
 /** The note body the sync writes, so an empty draft still says something. */
 function draftBody(event, classification) {
@@ -121,6 +122,22 @@ export async function recordCalendarEvent(
       data:  { title: `Cancelled — ${event.title || 'meeting'}`.slice(0, 300), isInPerson: false },
     });
     return { noteId: existing.id, status: 'updated', reason: 'the meeting was cancelled',
+             activityType: null, isInPerson: false, linkedContactIds: [] };
+  }
+
+  // Not accepted (declined / never answered / tentative) — Maram 9-17: accepted
+  // invites only. A draft that already exists is marked, never deleted.
+  const notAccepted = notAcceptedReason(event);
+  if (notAccepted) {
+    if (!existing) {
+      return { noteId: null, status: 'skipped', reason: notAccepted,
+               activityType: null, isInPerson: false, linkedContactIds: [] };
+    }
+    await prisma.note.update({
+      where: { id: existing.id },
+      data:  { title: `Not accepted — ${event.title || 'meeting'}`.slice(0, 300), isInPerson: false },
+    });
+    return { noteId: existing.id, status: 'updated', reason: notAccepted,
              activityType: null, isInPerson: false, linkedContactIds: [] };
   }
 

@@ -12,6 +12,7 @@ import { runTrigger } from '@/lib/bot/ruleEngine';
 import { normalizeEvent } from '@/lib/calendar/normalize';
 import { classifyEvent } from '@/lib/bot/activityClassifier';
 import { recordCalendarEvent } from '@/lib/calendar/recorder';
+import { notAcceptedReason } from '@/lib/calendar/worthANote';
 
 // Resolve the ILC owner of an inbound item (the mailbox/organizer), by email.
 async function resolveOwner({ ownerUserId, ownerEmail }) {
@@ -92,7 +93,11 @@ export function normalizeCalendarEvent(raw = {}, classification = null) {
  *      Publishing the note is still a person's decision, and publishing is what
  *      sets off the AI action items, the bot drafts and the Last In Person date.
  *   4. The CALENDAR_EVENT_CREATED trigger fires, so any rule Mike built on the
- *      automation screen still runs exactly as before.
+ *      automation screen runs — but only when the sales person ACCEPTED the
+ *      invite (Mike 9-19: "it should only trigger when the sales person has
+ *      accepted that invite"). Declined, unanswered and tentative invites
+ *      write no note and fire no rule; the owner's own events and events
+ *      with no response field (.ics files) pass.
  *
  * `dryRun` classifies and fires the trigger in preview mode but writes no note,
  * which is what the Test panel wants.
@@ -124,6 +129,13 @@ export async function ingestCalendarEvent(raw, opts = {}) {
       console.error('[intake] could not write the calendar note:', err?.message ?? err);
       note = { noteId: null, status: 'skipped', reason: `note not saved: ${err?.message ?? 'unknown error'}` };
     }
+  }
+
+  // Mike 9-19: no rule runs for an invite the sales person has not accepted.
+  const notAccepted = notAcceptedReason(event);
+  if (notAccepted) {
+    return { triggerType: 'CALENDAR_EVENT_CREATED', dryRun: !!opts.dryRun, baseline: null, fired: [], matched: [], ruleCount: 0,
+             skipped: true, reason: `not accepted — ${notAccepted}`, classification, note };
   }
 
   const payload = normalizeCalendarEvent(event, classification);

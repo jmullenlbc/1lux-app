@@ -34,6 +34,27 @@ import { excludeFromNotes } from './personal.js';
 
 export const OUR_DOMAIN = 'ilcstudios.com';
 
+/**
+ * Maram 9-17: pull ACCEPTED invites only.
+ *
+ * An invite the owner declined, left unanswered or only marked tentative is a
+ * meeting they did not commit to, so it never becomes a note — business title
+ * or not. Their own events ('organizer'), plain appointments with nobody to
+ * answer ('none'), and events from sources that carry no response at all
+ * (an .ics export, the loose test shape) all pass: only an explicit non-answer
+ * is a non-answer.
+ */
+const NOT_ACCEPTED = {
+  declined:            'the invite was declined',
+  notresponded:        'the invite was never answered',
+  tentativelyaccepted: 'the invite was only marked tentative',
+};
+/** Returns the plain-English reason when the owner did not accept, else null. */
+export function notAcceptedReason(event = {}) {
+  const r = String(event.responseStatus || '').trim().toLowerCase();
+  return NOT_ACCEPTED[r] || null;
+}
+
 const domainOf = email => String(email || '').split('@')[1]?.toLowerCase() || '';
 
 /**
@@ -48,7 +69,7 @@ const domainOf = email => String(email || '').split('@')[1]?.toLowerCase() || ''
  * @returns {
  *   keep:    boolean
  *   bucket:  'business title' | 'candidate' | 'personal' | 'not a meeting'
- *          | 'auto booking' | 'cancelled' | 'internal only'
+ *          | 'auto booking' | 'cancelled' | 'not accepted' | 'internal only'
  *          | 'no one else invited' | 'all-day block'
  *   reason:  string          — plain English, safe to show or log
  *   verdict: object|null     — the title/location read, if one was made
@@ -62,6 +83,14 @@ export function isWorthANote(event = {}, opts = {}) {
   // 1. A cancelled meeting did not happen.
   if (event.isCancelled) {
     return { keep: false, bucket: 'cancelled', reason: 'the meeting was cancelled', verdict: null };
+  }
+
+  // 1b. An invite that was declined, ignored or left tentative did not happen
+  //     either (Maram 9-17: accepted invites only). Checked ahead of the
+  //     business-title rule: a declined golf mixer is still a mixer missed.
+  const notAccepted = notAcceptedReason(event);
+  if (notAccepted) {
+    return { keep: false, bucket: 'not accepted', reason: notAccepted, verdict: null };
   }
 
   // 2. His life is not the company's business. Final answer, checked before we

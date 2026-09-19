@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { NEXT_ACTION_TYPES } from '@/lib/pipeline';
+import { MEETING_LEVELS, cardLevel } from '@/lib/meeting/cards';
 
 // Weekly Sales Meeting — the run-of-show. Live queues you work down and edit in
 // the meeting, so the pipeline maintains itself (no carried-forward doc).
@@ -19,6 +20,8 @@ export default function MeetingDashboard() {
   const [loading, setLoad]  = useState(true);
   const [editing, setEdit]  = useState(false);
   const [saving, setSaving] = useState(false);
+  // Maram 9-17: two tabs — project-level cards and people-level cards.
+  const [tab, setTab]       = useState('project');
 
   // Load the layout first, then only the data the cards on screen actually need.
   const load = useCallback(async () => {
@@ -62,6 +65,9 @@ export default function MeetingDashboard() {
   const cards = layout.cards || [];
   const titleOf = k => (layout.catalog.find(x => x.key === k) || {}).title || k;
   const subOf   = k => (layout.catalog.find(x => x.key === k) || {}).subtitle || '';
+  const levelOf = k => (layout.catalog.find(x => x.key === k) || {}).level || cardLevel(k);
+  const shown   = cards.filter(k => levelOf(k) === tab);
+  const countOn = lvl => cards.filter(k => levelOf(k) === lvl).length;
 
   return (
     <div className="p-6 space-y-6">
@@ -92,9 +98,23 @@ export default function MeetingDashboard() {
           onSave={saveLayout} onReset={resetToShared} />
       )}
 
-      {cards.length === 0 && <Empty>No cards on the screen. Hit “Choose cards”.</Empty>}
+      {/* Project-level / people-level tabs (Maram 9-17) */}
+      <div className="flex items-center gap-1 border-b border-slate-200">
+        {MEETING_LEVELS.map(l => (
+          <button key={l.key} type="button" onClick={() => setTab(l.key)} title={l.hint}
+            className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+              tab === l.key ? 'border-orange-500 text-orange-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
+            {l.label} <span className="ml-1 text-[11px] font-normal text-slate-400">{countOn(l.key)}</span>
+          </button>
+        ))}
+      </div>
 
-      {cards.map(key => (
+      {cards.length === 0 && <Empty>No cards on the screen. Hit “Choose cards”.</Empty>}
+      {cards.length > 0 && shown.length === 0 && (
+        <Empty>No {tab === 'people' ? 'people' : 'project'}-level cards are switched on. Hit “Choose cards” to add some.</Empty>
+      )}
+
+      {shown.map(key => (
         <Section key={key} title={titleOf(key)} subtitle={subOf(key)}>
           <CardBody cardKey={key} data={data} users={users} patch={patch} />
         </Section>

@@ -39,7 +39,7 @@ export function dealCounts(projects = []) {
   for (const project of projects) {
     if (!project) continue;
     const statuses = [project.procurementStatus || 'OPEN'];
-    if (inDesignPipeline(project.serviceType)) {
+    if (inDesignPipeline(project)) {
       statuses.push(project.designStatus || 'OPEN');
     }
     for (const status of statuses) {
@@ -67,7 +67,7 @@ export function dealCounts(projects = []) {
 export function projectOutcome(project) {
   if (!project) return null;
   const statuses = [project.procurementStatus || 'OPEN'];
-  if (inDesignPipeline(project.serviceType)) {
+  if (inDesignPipeline(project)) {
     statuses.push(project.designStatus || 'OPEN');
   }
   if (statuses.some(s => WON_STATUSES.includes(s)))                  return 'won';
@@ -104,7 +104,7 @@ export function dealLossReasons(projects = []) {
     if (!project) continue;
     const pairs = [
       ['Procurement', project.procurementStatus, project.procurementStatusReason],
-      ...(inDesignPipeline(project.serviceType)
+      ...(inDesignPipeline(project)
         ? [['Design', project.designStatus, project.designStatusReason]]
         : []),
     ];

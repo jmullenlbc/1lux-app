@@ -29,15 +29,22 @@ const { getDealKey, countJobs, wonByBoard } = __testing;
 
 // ── Filters that had been doing nothing ──────────────────────────────────────
 
+// The Design board is the two design service types PLUS a Peer Review that
+// carries a design fee (Maram 9-17). The per-row check decides; this only pre-narrows.
+const DESIGN_WHERE = { OR: [
+  { serviceType: { in: DESIGN_SERVICE_TYPES } },
+  { serviceType: { in: ['peerReview'] }, designContractValue: { gt: 0 } },
+] };
+
 test('filtering to the Design board narrows to design service types', () => {
   const where = filtersToWhere([{ field: 'pipeline', operator: 'is_any_of', value: ['DESIGN'] }]);
-  assert.deepEqual(where, { serviceType: { in: DESIGN_SERVICE_TYPES } });
+  assert.deepEqual(where, DESIGN_WHERE);
 });
 
 test('the seeded Design Fee Forecast filter (operator "is") narrows too', () => {
   // This is the shape stored in defaultDashboard.js — a plain string, not an array.
   const where = filtersToWhere([{ field: 'pipeline', operator: 'is', value: 'DESIGN' }]);
-  assert.deepEqual(where, { serviceType: { in: DESIGN_SERVICE_TYPES } });
+  assert.deepEqual(where, DESIGN_WHERE);
 });
 
 test('filtering to Procurement does not narrow — every project sells product', () => {
@@ -76,7 +83,7 @@ test('two project-level filters combine instead of one winning', () => {
     { field: 'serviceType', operator: 'is_any_of', value: ['fullDesign'] },
   ]);
   assert.deepEqual(where, { AND: [
-    { serviceType: { in: DESIGN_SERVICE_TYPES } },
+    DESIGN_WHERE,
     { serviceType: { in: ['fullDesign'] } },
   ] });
 });

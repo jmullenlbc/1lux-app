@@ -21,7 +21,11 @@ export { AGG_LABEL, MATH_LABEL };
 
 function nums(rows, field) {
   const src = field?.source;
-  return rows.map(r => Number(readField(r, src))).filter(v => Number.isFinite(v));
+  // A blank cell is missing, not zero — otherwise an average over a mostly-blank
+  // column (Buyout Duration, probability) is dragged toward 0 by every empty row.
+  return rows.map(r => readField(r, src))
+    .filter(v => v !== null && v !== undefined && v !== '')
+    .map(Number).filter(v => Number.isFinite(v));
 }
 
 // A measure can carry a `where` predicate (e.g. Won = count where status in [WON]).

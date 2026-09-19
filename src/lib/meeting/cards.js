@@ -47,6 +47,19 @@ const DEALS = { showsOwner: true };
 const INFO  = { showsOwner: false };
 
 /**
+ * Maram 9-17: the meeting screen splits into a project-level tab and a
+ * people-level tab. Every card belongs to exactly one. Deals, proposals,
+ * budgets and submissions are about projects; who has gone quiet, new leads,
+ * travel and who is out are about people.
+ */
+export const MEETING_LEVELS = [
+  { key: 'project', label: 'Projects', hint: 'Deals, proposals, budgets and submissions' },
+  { key: 'people',  label: 'People',   hint: 'Relationships, leads, travel and who is out' },
+];
+const PEOPLE_LEVEL_CARDS = new Set(['wentQuiet', 'newLeads', 'travel', 'whosOut']);
+export function cardLevel(key) { return PEOPLE_LEVEL_CARDS.has(key) ? 'people' : 'project'; }
+
+/**
  * The catalog.
  *
  * `needs` names a field the app does not have yet. A card with `needs` set is
@@ -194,6 +207,10 @@ export const MEETING_CARDS = [
     needs: 'somewhere to type it — a meeting notes table',
   },
 ];
+
+// Stamp the level on every card so the catalog carries it (the layout route
+// ships the catalog to the screen, and the screen filters by it).
+for (const c of MEETING_CARDS) c.level = cardLevel(c.key);
 
 const BY_KEY = new Map(MEETING_CARDS.map(c => [c.key, c]));
 

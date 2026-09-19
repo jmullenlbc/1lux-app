@@ -51,7 +51,7 @@ export async function GET() {
     canEditShared: actsAsAdmin(user),
     catalog: MEETING_CARDS.map(c => ({
       key: c.key, title: c.title, subtitle: c.subtitle,
-      showsOwner: c.showsOwner, needs: c.needs || null,
+      showsOwner: c.showsOwner, needs: c.needs || null, level: c.level,
     })),
   });
 }

@@ -9,7 +9,8 @@ const PROPOSAL_TYPES = [
   { value: 'FULL_DESIGN',    label: 'Full Design' },
   { value: 'DESIGN_ASSIST',  label: 'Design Assist' },
   { value: 'PEER_REVIEW',    label: 'Peer Review' },
-  { value: 'SCOPE_LETTER',   label: 'Scope Letter' },
+  // SCOPE_LETTER retired 2026-09-18 (Maram 9-17). Old rows still read as
+  // "Scope Letter" in TypeBadge; nobody can pick it any more.
 ];
 
 const STATUS_META = {
@@ -17,6 +18,10 @@ const STATUS_META = {
   SENT:     { label: 'Sent',     color: 'bg-blue-100 text-blue-700 border-blue-200' },
   ACCEPTED: { label: 'Accepted', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
   DECLINED: { label: 'Declined', color: 'bg-red-100 text-red-700 border-red-200' },
+};
+// Expired left the picker and the filter chips 2026-09-18 (Maram 9-17). A row
+// that was already Expired keeps its badge; it just cannot be chosen any more.
+const LEGACY_STATUS_META = {
   EXPIRED:  { label: 'Expired',  color: 'bg-slate-100 text-slate-500 border-slate-200' },
 };
 
@@ -40,7 +45,7 @@ function fmtMoney(v) {
 }
 
 function StatusBadge({ status }) {
-  const m = STATUS_META[status] || STATUS_META.DRAFT;
+  const m = STATUS_META[status] || LEGACY_STATUS_META[status] || STATUS_META.DRAFT;
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${m.color}`}>
       {m.label}

@@ -7,7 +7,8 @@ const PROPOSAL_TYPES = [
   { value: 'FULL_DESIGN',   label: 'Full Design' },
   { value: 'DESIGN_ASSIST', label: 'Design Assist' },
   { value: 'PEER_REVIEW',   label: 'Peer Review' },
-  { value: 'SCOPE_LETTER',  label: 'Scope Letter' },
+  // SCOPE_LETTER retired 2026-09-18 (Maram 9-17); an old template of that type
+  // still shows its raw type below, it just cannot be created.
 ];
 
 const MERGE_TOKENS = [

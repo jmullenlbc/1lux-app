@@ -27,7 +27,7 @@ function fmtDateTime(d) {
  * Budgets started on the public page and never sent (migration 0087). Each
  * one is a lead: a name, a work email and a project, saved the moment the
  * About You page was passed. "Still working" for the first day, "Abandoned"
- * after that (Mike, 2026-09-15: "Yes we should see it abandoned"). Put away
+ * after that (Mike, 2026-09-15: "Yes we should see it abandoned"). Archive
  * archives the row — nothing is deleted.
  */
 function UnfinishedBudgets({ drafts, onArchived }) {
@@ -124,7 +124,7 @@ function UnfinishedBudgets({ drafts, onArchived }) {
                         className="text-xs font-semibold text-slate-500 hover:text-slate-800 disabled:opacity-50"
                         title="Move this off the list. Nothing is deleted."
                       >
-                        {busyId === d.id ? 'Putting away…' : 'Put away'}
+                        {busyId === d.id ? 'Archiving…' : 'Archive'}
                       </button>
                     </td>
                   </tr>
