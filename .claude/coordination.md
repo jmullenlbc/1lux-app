@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-23 — Mike's Claude — ✅ **DEPLOYED**: everything built 9-19 plus today's widget save fix. **Migrations 0092 + 0093 + 0094 + 0095** (all additive, no DROP). **Next free migration is 0096.**
+### 2026-09-23 — Mike's Claude — ✅ **DEPLOYED c8d8393**: everything built 9-19 plus today's widget save fix. **Migrations 0092 + 0093 + 0094 + 0095** (all additive, no DROP). **Next free migration is 0096.**
 - **Mike 9-23:** "Yes" to "Deploy everything now?"
 - **Debug pass before the push:** `verify --full` 14/14 (incl. production build + runtime assets), smoke 7/7, upload-flow e2e 4/4.
 - **Widget save fix:** the 9-18 fix went into the old `/crm/dashboards` screen (not in the nav). The live one is `/dashboards/[section]/DashboardView.jsx`. Three faults: (1) legacy widgets (`dataSpec` null) opened with Save disabled, and now save title/width only unless a measure is picked; (2) a failed save closed the editor silently, and now the error shows in red; (3) the fork mapped widgets by position only, and positions repeat, so it now matches position + name.
