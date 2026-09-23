@@ -44,7 +44,9 @@ const LOCATION_TYPES = [
 ];
 
 // Seed departments (creatable — clients can add their own, e.g. a GC differs from a developer)
-const CONTACT_DEPARTMENTS = ['Development', 'Design', 'Pre-construction', 'Construction', 'Finance'];
+// The department list used to be five words typed out here and offered as
+// suggestions next to a free-text box. It is now the controlled list in
+// src/lib/contactDepartments.js — same eight everywhere, stored as keys.
 
 const TABS = [
   { id: 'overview',   label: 'Overview'       },
@@ -971,7 +973,7 @@ function DealListPopup({ contact, bucket, projects, onClose }) {
  */
 function PersonField({
   value, onSave, placeholder, type = 'text', className = '', display,
-  list, width = 'min-w-[6rem]', prefixIcon,
+  list, width = 'min-w-[6rem]', prefixIcon, options,
 }) {
   const [editing, setEditing] = useState(false);
   const [draft,   setDraft]   = useState(value ?? '');
@@ -985,6 +987,31 @@ function PersonField({
     setBusy(true);
     await onSave(draft);
     setBusy(false);
+  }
+
+  // A controlled list (the department) edits as a dropdown and saves the
+  // moment a choice is made — there is nothing to type, so waiting for a blur
+  // just leaves the menu sitting open.
+  if (editing && options) {
+    async function choose(next) {
+      setEditing(false);
+      if ((next ?? '') === (value ?? '')) return;
+      setBusy(true);
+      await onSave(next);
+      setBusy(false);
+    }
+    return (
+      <select
+        autoFocus
+        value={value ?? ''}
+        onChange={e => choose(e.target.value)}
+        onBlur={() => setEditing(false)}
+        onKeyDown={e => { if (e.key === 'Escape') setEditing(false); }}
+        className={`${width} border border-amber-300 rounded px-1.5 py-0.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-amber-400 ${className}`}
+      >
+        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    );
   }
 
   if (editing) {
@@ -1166,10 +1193,6 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
         ) : null;
       })()}
 
-      <datalist id="dept-options">
-        {CONTACT_DEPARTMENTS.map(d => <option key={d} value={d} />)}
-      </datalist>
-
       {/* ── One person, two lines ── */}
       <div className="divide-y divide-slate-100">
         {contacts.map(c => (
@@ -1196,11 +1219,11 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
                   value={c.department}
                   onSave={v => saveField(c, 'department', v)}
                   placeholder="Add a department"
-                  list="dept-options"
+                  options={departmentOptions(c.department)}
                   width="min-w-[9rem]"
                   className="text-xs text-slate-500"
                   display={c.department
-                    ? <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">{c.department}</span>
+                    ? <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">{contactDepartmentLabel(c.department)}</span>
                     : undefined}
                 />
               </div>
@@ -1287,7 +1310,9 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
               onChange={e => setAddForm(f => ({ ...f, name: e.target.value, ...splitName(e.target.value) }))}
               placeholder="Full name *" className={inputCls} />
             <input value={addForm.title} onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))} placeholder="Job title" className={inputCls} />
-            <input list="dept-options" value={addForm.department} onChange={e => setAddForm(f => ({ ...f, department: e.target.value }))} placeholder="Department" className={inputCls} />
+            <select value={addForm.department} onChange={e => setAddForm(f => ({ ...f, department: e.target.value }))} className={inputCls} title="Department">
+              {departmentOptions(addForm.department).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
             <input type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} placeholder="Email" className={inputCls} />
             <input type="tel" value={addForm.workPhone} onChange={e => setAddForm(f => ({ ...f, workPhone: e.target.value }))} placeholder="Work phone" className={inputCls} />
             <input type="tel" value={addForm.cellPhone} onChange={e => setAddForm(f => ({ ...f, cellPhone: e.target.value }))} placeholder="Cell phone" className={inputCls} />

@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 
 import { redirect } from 'next/navigation';
-import { getSession, isClientViewer } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
+import { projectScopeWhere } from '@/lib/projectScope';
 import { prisma } from '@/lib/db';
 import { calculateBudget } from '@/lib/calculations';
 import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
@@ -14,7 +15,7 @@ export default async function DashboardPage() {
   if (!session) redirect('/login');
 
   // Projects are visible to all ILC staff; Client Viewers stay scoped to their own.
-  const where = isClientViewer(session.role) ? { createdById: session.id } : {};
+  const where = projectScopeWhere(session);
 
   const projects = await prisma.project.findMany({
     where,

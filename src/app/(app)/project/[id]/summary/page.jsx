@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 
 import { notFound, redirect } from 'next/navigation';
-import { getSession, isClientViewer } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
+import { canOpenProject } from '@/lib/projectScope';
 import { prisma } from '@/lib/db';
 import { responsesToSections } from '@/lib/utils';
 import { calculateBudget, formatCurrency } from '@/lib/calculations';
@@ -48,7 +49,7 @@ export default async function SummaryPage({ params }) {
   }
 
   if (!project) notFound();
-  if (isClientViewer(session.role) && project.createdById !== session.id) notFound();
+  if (!(await canOpenProject(prisma, session, project))) notFound();
 
   // The snapshot frozen at project creation, with later-added lines filled from
   // the master sheet; current pricing if an older project has no snapshot.

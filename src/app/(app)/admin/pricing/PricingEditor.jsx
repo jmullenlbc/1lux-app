@@ -163,6 +163,11 @@ const PRICING_FIELDS = [
   { group: 'Exit Signs', key: 'exitSigns.perSf', label: 'Rate', desc: '% of total gross SF (0.025 = 2.5%)', unit: 'decimal' },
   { group: 'Exit Signs', key: 'exitSigns.largeProjectThreshold', label: 'Large-Project Threshold', desc: 'Above this SF, halve the exit-sign cost', unit: 'SF' },
 
+  { group: 'Exit Signs — Design Levels', key: 'designExitSigns.thermoplasticPerSign', label: 'Thermoplastic', desc: 'Code baseline sign', unit: '$/sign' },
+  { group: 'Exit Signs — Design Levels', key: 'designExitSigns.mixedPerSign',         label: 'Mixed (edge-lit front, thermo back)', desc: 'Blended average across the building', unit: '$/sign' },
+  { group: 'Exit Signs — Design Levels', key: 'designExitSigns.edgelitPerSign',       label: 'Edge-Lit Everywhere', desc: 'Edge-lit in every location', unit: '$/sign' },
+  { group: 'Exit Signs — Design Levels', key: 'designExitSigns.sfPerSign',            label: 'SF Per Sign', desc: 'About one sign per N gross SF', unit: 'SF' },
+
   // ── EMERGENCY LIGHTING ────────────────────────────────────────────────
   { group: 'Emergency Lighting', key: 'emergency.frogeyesPerSf', label: 'Frogeyes — Flat Rate', desc: '"Frogeyes everywhere" strategy: flat $/SF across corridors, amenities, and garage', unit: '$/SF' },
 
@@ -187,6 +192,7 @@ const PRICING_FIELDS = [
 
   { group: 'Garage — Design Levels', key: 'designGarage.baseMediumPerSf', label: 'Base (Medium)', desc: 'eLuma garage fixture', unit: '$/SF' },
   { group: 'Garage — Design Levels', key: 'designGarage.baseHighPerSf',   label: 'Base (High)',   desc: 'Higher-end linear LED', unit: '$/SF' },
+  { group: 'Garage — Design Levels', key: 'designGarage.daylightingAdderPerSf', label: 'Occupancy + Daylight Sensors', desc: 'Adder on garage SF when sensors are chosen', unit: '$/SF' },
 
   { group: 'Corridors — Design', key: 'designCorridors.accentDownlightEach',    label: 'Recessed Accent Downlight', desc: '1-hr fire-rated, each', unit: '$/ea' },
   { group: 'Corridors — Design', key: 'designCorridors.stairwellElevatedAdder', label: 'Stairwell Elevated Adder',  desc: 'Per landing above code', unit: '$/landing' },

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ConfirmArchiveModal from '@/components/salesAutomation/ConfirmArchiveModal';
 import { formatCurrency } from '@/lib/calculations';
-import { buildingTypeLabel, phaseLabel, serviceTypeLabel, PROJECT_PHASES, SERVICE_TYPES } from '@/lib/utils';
+import { buildingTypeLabel, phaseLabel, serviceTypeLabel, PROJECT_PHASES, ALL_SERVICE_TYPES } from '@/lib/utils';
 
 const PHASE_COLORS = {
   sd:           'bg-slate-100 text-slate-500',
@@ -236,7 +236,7 @@ export default function DashboardClient({ projects = [], user }) {
       {/* Service type chips */}
       <div className="flex flex-wrap gap-1.5 mb-5">
         <button onClick={() => setSvcFilter('all')} className={`${CHIP_BASE} ${svcFilter === 'all' ? CHIP_ON : CHIP_OFF}`}>All Types</button>
-        {SERVICE_TYPES.map(t => (
+        {ALL_SERVICE_TYPES.map(t => (
           <button key={t.value} onClick={() => setSvcFilter(svcFilter === t.value ? 'all' : t.value)}
             className={`${CHIP_BASE} ${svcFilter === t.value ? CHIP_ON : CHIP_OFF}`}>
             {t.label}

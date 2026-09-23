@@ -30,9 +30,12 @@
 import { byModel, objectKeys, objects } from '@/lib/ontology/index.js';
 import { readableProps } from '@/lib/ontology/redact.js';
 import { isNeverReadable } from '@/lib/ontology/sensitivity.js';
+import { DEFAULT_LIMIT, MAX_LIMIT } from './catalog.js';
 
-export const DEFAULT_LIMIT = 25;
-export const MAX_LIMIT     = 100;
+// Declared in the pure catalogue so the agents.md generator can print them
+// without loading anything that touches a database. Re-exported here because
+// every existing caller imports them from guards.
+export { DEFAULT_LIMIT, MAX_LIMIT };
 export const QUERY_TIMEOUT_MS = 10_000;
 
 /**

@@ -10,9 +10,12 @@
 import { INCLUDE_ARCHIVED } from '@/lib/archive';
 import { loadPricing } from '@/lib/pricingLoader';
 import { recordProjectCreated } from '@/lib/statusEvents';
+import { SETTABLE_SERVICE_TYPE_KEYS } from '@/lib/utils';
 
 const VALID_PHASES        = ['sd', 'dd', 'cd', 'ifc', 'construction', 'closeout'];
-const VALID_SERVICE_TYPES = ['fullDesign', 'designAssist', 'peerReview', 'bidOnly', 'other'];
+// Mike 2026-09-19: "Other" dropped. Derived so the picker and the validator
+// can never drift; a new project can no longer be saved as 'other'.
+const VALID_SERVICE_TYPES = SETTABLE_SERVICE_TYPE_KEYS;
 
 export async function createProject(db, userId, fields) {
   const { name, buildingType, location, contactEmail, contactName, budgetType, clientId, city, state, zip, phase, serviceType, projectType } = fields;

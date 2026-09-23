@@ -105,6 +105,8 @@ export const DesignBidMatrix = {
     createdAt:        { type: 'datetime', sensitivity: 'client_ok' },
     changeSummary:    { type: 'json',     sensitivity: 'ilc_only', desc: 'JSON-as-string diff vs prior version' },
     pushedById:       { type: 'string',   sensitivity: 'ilc_only' },
+    archivedAt:       { type: 'datetime', sensitivity: 'client_ok', desc: 'set = archived; budget versions are archived, never deleted' },
+    archivedById:     { type: 'string',   sensitivity: 'ilc_only' },
   },
 
   links: {
@@ -245,6 +247,8 @@ export const ProjectData = {
     corridorSf:           { type: 'float', sensitivity: 'client_ok' },
     garageSf:             { type: 'float', sensitivity: 'client_ok' },
     bohSf:                { type: 'float', sensitivity: 'client_ok' },
+    numFloors:            { type: 'int',   sensitivity: 'client_ok' },
+    numElevatorShafts:    { type: 'int',   sensitivity: 'client_ok' },
 
     // ── rates the client is entitled to see on a quote ──
     salesTaxPct:     { type: 'percent', sensitivity: 'client_ok' },

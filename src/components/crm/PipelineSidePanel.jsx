@@ -19,13 +19,12 @@ import {
   WEIGHTED_PROBABILITY_LABEL, WEIGHTED_REVENUE_LABEL, weightedRevenue,
 } from '@/lib/pipeline';
 import { PROJECT_TEAM_ROLES } from '@/lib/projectTeam';
-import { PROJECT_TYPES, projectTypeLabel, SERVICE_TYPES, serviceTypeLabel, BUILDING_TYPES, buildingTypeLabel } from '@/lib/utils';
+import { PROJECT_TYPES, projectTypeLabel, serviceTypeOptions, serviceTypeLabel, BUILDING_TYPES, buildingTypeLabel } from '@/lib/utils';
 import { useBuyoutDays } from '@/lib/useBuyoutDays';
 
 const PROJECT_TYPE_OPTIONS = [{ value: '', label: '— Select —' }, ...PROJECT_TYPES];
 // Mike 9-19: the subtype is the fixed building-type list the app already has (Garden, Wrap, Podium …).
 const PROJECT_SUBTYPE_OPTIONS = [{ value: '', label: '— Select —' }, ...BUILDING_TYPES];
-const SERVICE_TYPE_OPTIONS = SERVICE_TYPES;
 const contactName = c => c?.name || [c?.firstName, c?.lastName].filter(Boolean).join(' ') || c?.email || '—';
 const fmtDate = v => (v ? new Date(v).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null);
 
@@ -382,7 +381,8 @@ export default function PipelineSidePanel({ project, onClose, onUpdate }) {
           <Field label="Project Subtype" displayValue={project.projectSubtype ? buildingTypeLabel(project.projectSubtype) : null}
             rawValue={project.projectSubtype ?? ''} onSave={p('projectSubtype')} select options={PROJECT_SUBTYPE_OPTIONS} />
           <Field label="Service Type" displayValue={serviceTypeLabel(project.serviceType)}
-            rawValue={project.serviceType || 'other'} onSave={p('serviceType')} select options={SERVICE_TYPE_OPTIONS} />
+            rawValue={project.serviceType || ''} onSave={p('serviceType')} select
+            options={[{ value: '', label: '— Select —' }, ...serviceTypeOptions(project.serviceType)]} />
           <LeadPersonField project={project} onError={setError} />
 
           <Rule label="Revenue" />

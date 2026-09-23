@@ -15,6 +15,47 @@ const fmtRate  = (v, unit) => {
 const driftClass = (v) => v == null ? 'text-slate-400' : Math.abs(v) >= 15 ? 'text-red-600 font-bold' : Math.abs(v) >= 5 ? 'text-amber-600 font-semibold' : 'text-emerald-600';
 const FLAG = { review: ['Review', 'bg-red-50 text-red-700'], watch: ['Watch', 'bg-amber-50 text-amber-700'], ok: ['OK', 'bg-emerald-50 text-emerald-700'] };
 
+/**
+ * A column-driven table for the calibration widgets that are NOT rate drift —
+ * the two Phase 3 driver views. Rate drift earns its own hand-built layout
+ * because it has an Apply button and a nested breakdown; these do not, and a
+ * generic renderer keeps a new report from needing a new component.
+ */
+function PlainTable({ table }) {
+  const cols = table?.columns || [];
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="text-[10px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
+            {cols.map(c => (
+              <th key={c.key} className={`px-3 py-2 font-semibold ${c.unit ? 'text-right' : 'text-left'}`}>{c.label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {table.rows.map((r, i) => (
+            <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/60 align-top">
+              {cols.map(c => {
+                const v = r[c.key];
+                const text = c.unit === 'rate' ? fmtRate(v, r.bestUnit || r.unit)
+                  : c.unit === '$' ? fmtMoney(v)
+                  : c.unit === '%' ? fmtPct(v)
+                  : (v == null || v === '' ? '—' : String(v));
+                return (
+                  <td key={c.key} className={`px-3 py-2 ${c.unit ? 'text-right tabular-nums text-slate-700' : 'text-slate-600'} ${c.key === 'label' ? 'font-semibold text-slate-700' : ''}`}>
+                    {text}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function CalibrationTable({ table, isAdmin, onApplied }) {
   const [open, setOpen]       = useState({});
   const [busy, setBusy]       = useState(null);
@@ -25,6 +66,9 @@ export default function CalibrationTable({ table, isAdmin, onApplied }) {
   if (!rows.length) {
     return <p className="text-xs text-slate-400 italic px-3 py-6 text-center">{table?.empty || 'No data'}</p>;
   }
+
+  // Anything that is not the rate-drift table renders off its own columns.
+  if (table?.kind && table.kind !== 'drift') return <PlainTable table={table} />;
 
   async function apply(row) {
     if (!row.pricingKey || row.suggestedRate == null) return;

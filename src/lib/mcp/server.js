@@ -78,12 +78,19 @@ export async function handleMessage(message, caller) {
       return ok(id, {});
 
     case 'tools/list':
+      // Filtered to the caller. A client viewer being handed the NAME
+      // get_calibration would learn that ILC keeps a record of how far its own
+      // pricing is off, which is a fact about the business, not about them.
+      // The refusal in tools.js is still the boundary; this only stops the
+      // catalogue advertising doors nobody is going to open.
       return ok(id, {
-        tools: TOOLS.map(t => ({
-          name: t.name,
-          description: t.description,
-          inputSchema: t.inputSchema,
-        })),
+        tools: TOOLS
+          .filter(t => t.audience !== 'ilc' || caller?.audience === 'ilc')
+          .map(t => ({
+            name: t.name,
+            description: t.description,
+            inputSchema: t.inputSchema,
+          })),
       });
 
     case 'tools/call':
@@ -110,7 +117,13 @@ export async function executeTool({ name, args = {}, caller }) {
   const tool = TOOLS_BY_NAME[name];
   if (!tool) {
     await logQuery({ caller, tool: String(name), params: args, status: 'error', error: 'unknown tool' });
-    throw new McpError(`Unknown tool "${name}". Available: ${TOOLS.map(t => t.name).join(', ')}.`);
+    // Only the tools this caller could actually have called. Naming the
+    // ILC-only ones in a typo message would be a catalogue leak through the
+    // error channel.
+    const offered = TOOLS
+      .filter(t => t.audience !== 'ilc' || caller?.audience === 'ilc')
+      .map(t => t.name);
+    throw new McpError(`Unknown tool "${name}". Available: ${offered.join(', ')}.`);
   }
 
   const started = Date.now();

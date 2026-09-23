@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { PersonOptions } from '@/components/people/PeopleOptions';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -194,7 +195,7 @@ function IntakeDrawer({ projectId, allUsers, onCreated, onClose }) {
             <select value={form.assignedToId} onChange={e => set('assignedToId', e.target.value)}
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
               <option value="">— Unassigned —</option>
-              {(allUsers || []).map(u => <option key={u.id} value={u.id}>{u.name || u.email}</option>)}
+              <PersonOptions users={allUsers} picker="rfiAssignee" />
             </select>
           </div>
 

@@ -10,12 +10,14 @@
 //   type:'dimension' → a group-by category.
 //   type:'date'      → a time axis (group by week/month/quarter).
 
-import { SERVICE_TYPES, BUILDING_TYPES } from '@/lib/utils';
+import { ALL_SERVICE_TYPES, BUILDING_TYPES } from '@/lib/utils';
 import { WON_STATUSES, DECIDED_STATUSES, ON_HOLD_STATUSES, STAGE_LABEL, WEIGHTED_PROBABILITY_LABEL, WEIGHTED_REVENUE_LABEL } from '@/lib/pipeline';
 
 // Value → layman label maps so dashboards never show raw field values.
 // serviceType mirrors the platform-wide SERVICE_TYPES (single source of truth).
-const SERVICE_TYPE_LABELS = Object.fromEntries(SERVICE_TYPES.map(t => [t.value, t.label]));
+// ALL_SERVICE_TYPES, not SERVICE_TYPES: "Other" left the picker on 2026-09-19
+// but old rows still hold it, and a dashboard must still be able to name them.
+const SERVICE_TYPE_LABELS = Object.fromEntries(ALL_SERVICE_TYPES.map(t => [t.value, t.label]));
 const SUBTYPE_LABELS = Object.fromEntries(BUILDING_TYPES.map(t => [t.value, t.label]));
 const STATUS_LABELS = { OPEN: 'Open', ON_HOLD: 'On Hold', WON: 'Won', LOST: 'Lost', COMPLETED: 'Completed', ABANDONED: 'Abandoned' };
 // Comes from pipeline.js, never a copy. This map used to be typed out here, so a

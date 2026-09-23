@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, isClientViewer } from '@/lib/auth';
+import { projectScopeWhere } from '@/lib/projectScope';
 import { prisma } from '@/lib/db';
 import { createProject } from '@/lib/projects/createProject';
 
@@ -9,9 +10,7 @@ export async function GET() {
 
   // Projects are visible to all ILC staff (Mike, 2026-07). External Client Viewers
   // stay scoped to their own — never widen this to CLIENT_VIEWER.
-  const where = isClientViewer(user.role)
-    ? { createdById: user.id }
-    : {};
+  const where = projectScopeWhere(user);
 
   const projects = await prisma.project.findMany({
     where,

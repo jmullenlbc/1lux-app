@@ -61,10 +61,13 @@ export const Client = {
     createdById:     { type: 'string', sensitivity: 'ilc_only' },
     createdAt:       { type: 'datetime', sensitivity: 'ilc_only' },
     updatedAt:       { type: 'datetime', sensitivity: 'ilc_only' },
+    archivedAt:      { type: 'datetime', sensitivity: 'ilc_only', desc: 'set = archived; rows are archived, never deleted' },
+    archivedById:    { type: 'string',   sensitivity: 'ilc_only' },
   },
 
   links: {
     projects: { object: 'Project', via: 'clientId', cardinality: 'many' },
+    contacts: { object: 'Contact', via: 'clientId', cardinality: 'many' },
   },
 
   actions: [],

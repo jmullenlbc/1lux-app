@@ -65,10 +65,22 @@ export async function notifyUser({ userId, type, title, message = '', link = nul
   if (!userId || !title) return { created: false, reason: 'missing userId or title' };
   try {
     const client = db || await defaultDb();
+
+    // "Don't need this kind" (migration 0093). Checked here rather than in each
+    // caller, so one switch covers everything that has ever rung the bell. A
+    // muted alert is simply not written: the event still happened, this one
+    // person just isn't told about it.
+    const alertType = type || 'GENERAL';
+    const muted = await client.alertMute.findUnique({
+      where:  { userId_alertType: { userId, alertType } },
+      select: { id: true },
+    }).catch(() => null);
+    if (muted) return { created: false, reason: 'muted' };
+
     const alert = await client.userAlert.create({
       data: {
         userId,
-        type:      type || 'GENERAL',
+        type:      alertType,
         title,
         message:   message || '',
         link:      link || null,

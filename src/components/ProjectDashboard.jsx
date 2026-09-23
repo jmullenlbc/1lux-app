@@ -1,7 +1,7 @@
 'use client';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { cleanNumberInput } from '@/lib/numberInput';
-import { buildingTypeLabel, PROJECT_TYPES, projectTypeLabel, BUILDING_TYPES } from '@/lib/utils';
+import { buildingTypeLabel, PROJECT_TYPES, projectTypeLabel, BUILDING_TYPES, ALL_SERVICE_TYPES } from '@/lib/utils';
 import { useBuyoutDays } from '@/lib/useBuyoutDays';
 import { PIPELINE_STAGES, STAGE_LABEL, STATUS_LABEL, PIPELINE_STATUS, inDesignPipeline, stagesOutOfSync, WEIGHTED_PROBABILITY_LABEL } from '@/lib/pipeline';
 import { PROJECT_TEAM_ROLES } from '@/lib/projectTeam';
@@ -37,9 +37,11 @@ function fmtDate(str) {
     });
   } catch { return str; }
 }
+// From src/lib/utils.js rather than a second copy of the list. 'conceptual' is
+// a budget type that reaches this card, so it stays as a local extra.
 const SERVICE_TYPE_LABELS = {
-  fullDesign: 'Full Design', designAssist: 'Design Assist',
-  peerReview: 'Peer Review', bidOnly: 'Bid Only', conceptual: 'Conceptual',
+  ...Object.fromEntries(ALL_SERVICE_TYPES.map(t => [t.value, t.label])),
+  conceptual: 'Conceptual',
 };
 function serviceTypeLabel(val) {
   if (!val) return null;

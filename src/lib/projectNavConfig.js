@@ -29,6 +29,7 @@ export const NAV_CONFIG = {
         { id: 'proposal',        label: 'Proposal',        icon: 'FileSignature' },
         { id: 'drawings',        label: 'Drawings',        icon: 'FileText' },
         { id: 'fixture-schedule',label: 'Fixture Schedule',icon: 'ListChecks' },
+        { id: 'unit-selections', label: 'Unit Selections', icon: 'Lightbulb' },
         { id: 'code',            label: 'Code',            icon: 'Code2' },
         { id: 'design-schedule', label: 'Design Schedule', icon: 'CalendarDays' },
         { id: 'design-contracts',label: 'Contracts',       icon: 'Receipt' },
@@ -80,6 +81,7 @@ export const NAV_CONFIG = {
       items: [
         { id: 'drawings',        label: 'Drawings',        icon: 'FileText' },
         { id: 'fixture-schedule',label: 'Fixture Schedule',icon: 'ListChecks' },
+        { id: 'unit-selections', label: 'Unit Selections', icon: 'Lightbulb' },
         { id: 'code',            label: 'Code',            icon: 'Code2' },
         { id: 'design-schedule', label: 'Design Schedule', icon: 'CalendarDays' },
         { id: 'design-contracts',label: 'Contracts',       icon: 'Receipt' },

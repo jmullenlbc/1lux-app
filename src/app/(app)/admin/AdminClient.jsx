@@ -228,7 +228,106 @@ function AccessHistory({ userId, refreshKey }) {
 
 // ── Edit User Modal ───────────────────────────────────────────────────────────
 
-function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
+// Which jobs one Client Viewer can open.
+//
+// Everyone on staff sees every job, so this only appears for a Client Viewer.
+// The rows live in ProjectAccess, which sat unused in the database until now:
+// before this, a Client Viewer could see only jobs they had created, and a
+// Client Viewer cannot create a job — so the honest answer was always "none".
+//
+// Saves on its own, separately from the rest of the window, because the list
+// can be long and half-finished tick-boxes should not ride along with a
+// password reset.
+function ClientViewerJobs({ userId, projects, onSaved }) {
+  const [ids,     setIds]     = useState(null);
+  const [saving,  setSaving]  = useState(false);
+  const [message, setMessage] = useState('');
+  const [search,  setSearch]  = useState('');
+
+  useEffect(() => {
+    let alive = true;
+    fetch(`/api/admin/users/${userId}/projects`)
+      .then(r => r.json())
+      .then(d => { if (alive) setIds(d.projectIds || []); })
+      .catch(() => { if (alive) setIds([]); });
+    return () => { alive = false; };
+  }, [userId]);
+
+  function toggle(id) {
+    setMessage('');
+    setIds(cur => (cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id]));
+  }
+
+  async function save() {
+    setSaving(true); setMessage('');
+    try {
+      const res  = await fetch(`/api/admin/users/${userId}/projects`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectIds: ids }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setMessage(data.error || 'Could not save the job list.'); return; }
+      setIds(data.projectIds || []);
+      setMessage(`Saved. They can open ${data.total} ${data.total === 1 ? 'job' : 'jobs'}.`);
+      onSaved?.();
+    } catch {
+      setMessage('Network error.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const term    = search.trim().toLowerCase();
+  const shown   = term
+    ? projects.filter(p => `${p.projectNumber || ''} ${p.name}`.toLowerCase().includes(term))
+    : projects;
+
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-slate-600 mb-1">
+        Jobs this person can open
+        {ids && <span className="text-slate-400 font-normal"> — {ids.length} selected</span>}
+      </label>
+      <p className="text-xs text-slate-400 mb-2">
+        A Client Viewer sees nothing until a job is ticked here. Buy price is never shown to them on any of them.
+      </p>
+
+      {ids === null ? (
+        <p className="text-xs text-slate-400">Loading…</p>
+      ) : (
+        <>
+          <input
+            type="text" value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search jobs…"
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+
+          <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-200 divide-y divide-slate-100">
+            {shown.length === 0 && <p className="text-xs text-slate-400 px-3 py-3">No jobs match.</p>}
+            {shown.map(p => (
+              <label key={p.id} className="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-slate-50">
+                <input type="checkbox" checked={ids.includes(p.id)} onChange={() => toggle(p.id)} className="accent-amber-500" />
+                <span className="text-sm text-slate-700 truncate">
+                  {p.projectNumber ? <span className="text-slate-400 mr-1.5">#{p.projectNumber}</span> : null}
+                  {p.name}
+                </span>
+              </label>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-3 mt-2">
+            <button type="button" onClick={save} disabled={saving}
+              className="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-xs font-semibold hover:bg-slate-700 disabled:opacity-50">
+              {saving ? 'Saving…' : 'Save job list'}
+            </button>
+            {message && <span className="text-xs text-slate-500">{message}</span>}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function EditUserModal({ user, currentUserRole, projects, onSaved, onClose }) {
   const parsedPerms = (() => { try { return JSON.parse(user.permissions || '{}'); } catch { return {}; } })();
 
   const [form, setForm] = useState({
@@ -337,6 +436,13 @@ function EditUserModal({ user, currentUserRole, onSaved, onClose }) {
 
                 <DepartmentPicker value={form.departments} onChange={v => set('departments', v)} />
 
+                {form.role === 'CLIENT_VIEWER' && (
+                  <ClientViewerJobs
+                    userId={user.id}
+                    projects={projects}
+                    onSaved={() => setHistoryKey(k => k + 1)} />
+                )}
+
                 {/* Reset Password */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">
@@ -431,6 +537,77 @@ function canManageUser(actor, target) {
   return canManageAccount(effectiveRole(actor), target.role);
 }
 
+// Which notifications people find useful and which they call noise.
+//
+// Counts only — no names. The point is to fix a noisy alert, not to see who
+// clicked what. "Turned off" counts the people who said stop after being asked
+// three times; a high number there is the loudest signal on the screen.
+function AlertFeedbackReport() {
+  const [data,  setData]  = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/admin/alert-feedback')
+      .then(r => (r.ok ? r.json() : Promise.reject()))
+      .then(d => { if (alive) setData(d); })
+      .catch(() => { if (alive) setError("Couldn't load the report."); });
+    return () => { alive = false; };
+  }, []);
+
+  if (error)  return <p className="text-sm text-red-500">{error}</p>;
+  if (!data)  return <p className="text-sm text-slate-400">Loading…</p>;
+
+  if (data.summary.length === 0) {
+    return (
+      <div className="bg-white rounded-xl border border-slate-200 px-6 py-8">
+        <p className="text-sm text-slate-500">
+          Nobody has rated a notification yet. Every notification in the bell carries
+          <span className="font-medium"> Useful</span> and <span className="font-medium">Don&apos;t need</span> buttons;
+          this report fills in as people use them.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div className="px-6 py-4 border-b border-slate-100">
+        <p className="text-sm text-slate-600">
+          {data.totalClicks} {data.totalClicks === 1 ? 'rating' : 'ratings'} so far.
+          {data.totalMutes > 0 && ` ${data.totalMutes} ${data.totalMutes === 1 ? 'person has' : 'people have'} turned a kind off.`}
+          {' '}Noisiest first.
+        </p>
+      </div>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-slate-100">
+            <th className="text-left  px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Notification</th>
+            <th className="text-right px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Useful</th>
+            <th className="text-right px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Don&apos;t need</th>
+            <th className="text-right px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Turned off</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-50">
+          {data.summary.map(row => (
+            <tr key={row.alertType} className="hover:bg-slate-50 align-top">
+              <td className="px-6 py-4">
+                <div className="font-medium text-slate-800">{row.label}</div>
+                <div className="text-xs text-slate-400 mt-0.5">{row.verdict}</div>
+              </td>
+              <td className="px-4 py-4 text-right text-slate-600">{row.useful}</td>
+              <td className={`px-4 py-4 text-right font-medium ${row.noisePct >= 60 ? 'text-red-600' : 'text-slate-600'}`}>
+                {row.notUseful}
+              </td>
+              <td className="px-4 py-4 text-right text-slate-600">{row.mutedBy}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function AdminClient({ users: initialUsers, projects, currentUser }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -490,6 +667,7 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
     { id: 'users',  label: `Users (${users.length})`          },
     { id: 'create', label: '+ Create User'                    },
     { id: 'projects', label: `All Projects (${projects.length})` },
+    { id: 'alerts',   label: 'Notification feedback'            },
   ];
 
   return (
@@ -670,6 +848,9 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
         />
       )}
 
+      {/* Notification feedback tab */}
+      {tab === 'alerts' && <AlertFeedbackReport />}
+
       {/* Projects tab */}
       {tab === 'projects' && (
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
@@ -714,6 +895,7 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
         <EditUserModal
           user={editUser}
           currentUserRole={effectiveRole(currentUser)}
+          projects={projects}
           onSaved={handleUserSaved}
           onClose={() => setEditUser(null)}
         />

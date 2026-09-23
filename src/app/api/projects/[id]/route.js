@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, isClientViewer, can } from '@/lib/auth';
+import { canOpenProject } from '@/lib/projectScope';
 import { deniedMessage } from '@/lib/permissions';
 import { prisma } from '@/lib/db';
 import { INCLUDE_ARCHIVED, archiveData, readArchivedFlag, deleteRefused, ARCHIVED_FLAG_HELP } from '@/lib/archive';
@@ -9,6 +10,7 @@ import { NEXT_ACTION_KEYS, STAGE_KEYS, STAGE_LABEL, PIPELINE_LABEL, SETTABLE_STA
 import { recordStatusChanges, describeStatusChange } from '@/lib/statusEvents';
 import { PROJECT_TEAM_ROLES, pickTeamUpdate } from '@/lib/projectTeam';
 import { parseLooseNumber, isUnreadableNumber, NUMBER_HELP } from '@/lib/numberInput';
+import { SETTABLE_SERVICE_TYPE_KEYS, serviceTypeLabel } from '@/lib/utils';
 
 // The six companies on a project's team, loaded by name so a screen can show
 // "Architect: Studio Nine" without a second round trip. Built from the shared
@@ -30,7 +32,7 @@ async function getProjectForUser(projectId, user) {
   if (!project) return null;
   // All ILC staff can reach any project; Client Viewers stay scoped to their own.
   // (Previously ILC_ADMIN-only, which also locked out SUPER_ADMINs.)
-  if (isClientViewer(user.role) && project.createdById !== user.id) return null;
+  if (!(await canOpenProject(prisma, user, project))) return null;
   return project;
 }
 
@@ -95,7 +97,10 @@ export async function PATCH(request, { params }) {
 
   const validPhases      = ['sd', 'dd', 'cd', 'ifc', 'construction', 'closeout'];
   const validBudgetTypes = ['conceptual', 'design', 'peer_review'];
-  const validServiceTypes = ['fullDesign', 'designAssist', 'peerReview', 'bidOnly', 'other'];
+  // Mike 2026-09-19: "Other" was dropped. Derived from src/lib/utils.js so this
+  // third copy of the list can never drift again. A project already stored as
+  // 'other' keeps that value — it just cannot be written back.
+  const validServiceTypes = SETTABLE_SERVICE_TYPE_KEYS;
   // Both boards share one stage list (2026-09-04), taken from pipeline.js so a
   // stage added there is accepted here without a second edit.
   const validProcurementStages = STAGE_KEYS;
@@ -247,7 +252,7 @@ export async function PATCH(request, { params }) {
       events.push('Updated assigned client');
     }
     if (serviceType !== undefined && serviceType !== project.serviceType) {
-      events.push(`Set service type to **${serviceType || 'none'}**`);
+      events.push(`Set service type to **${serviceType ? serviceTypeLabel(serviceType) : 'none'}**`);
     }
     if (budgetType !== undefined && budgetType !== project.budgetType) {
       const BUDGET_LABELS = { conceptual: 'Conceptual Budget', design: 'Design Budget', peer_review: 'Peer Review' };

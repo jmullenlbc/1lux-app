@@ -8,107 +8,110 @@ datasource db {
 }
 
 model User {
-  id                 String                     @id @default(cuid())
-  email              String                     @unique
-  name               String?
-  passwordHash       String?
-  role               String                     @default("USER")
+  id                         String                       @id @default(cuid())
+  email                      String                       @unique
+  name                       String?
+  passwordHash               String?
+  role                       String                       @default("USER")
   // Retired 2026-09-12 (migration 0079): replaced by `departments` below. Kept,
   // never dropped; the app no longer reads or writes them.
-  division           String?                    // SALES | OPERATIONS | FINANCE | PRECONSTRUCTION | CONSTRUCTION
-  deptRoles          String                     @default("[]") // JSON: ["Operations","Design",...]
-  departments        UserDepartment[]
+  division                   String? // SALES | OPERATIONS | FINANCE | PRECONSTRUCTION | CONSTRUCTION
+  deptRoles                  String                       @default("[]") // JSON: ["Operations","Design",...]
+  departments                UserDepartment[]
   // Roles: SUPER_ADMIN | COMPANY_ADMIN | USER | CLIENT_VIEWER
   // Legacy roles still supported: ILC_ADMIN (=SUPER_ADMIN), ADMIN (=COMPANY_ADMIN)
-  permissions        String                     @default("{}") // JSON: { projects, clients, preCon, manufacturers, admin, knowledgeBase }
-  mustChangePassword Boolean                    @default(false)
-  isActive           Boolean                    @default(true)
-  inviteToken        String?                    @unique
-  inviteExpiry       DateTime?
-  dashboardConfig    String? // JSON: { version, widgets: [{id, order, size?}] }
+  permissions                String                       @default("{}") // JSON: { projects, clients, preCon, manufacturers, admin, knowledgeBase }
+  mustChangePassword         Boolean                      @default(false)
+  isActive                   Boolean                      @default(true)
+  inviteToken                String?                      @unique
+  inviteExpiry               DateTime?
+  dashboardConfig            String? // JSON: { version, widgets: [{id, order, size?}] }
   // Which internal alerts this person wants (Profile screen). The screen saved
   // here for months while the column did not exist, so every choice was lost.
   // Added by migration 0084.
-  notificationPrefs  String? // JSON: { [notificationType]: boolean }
-  createdAt          DateTime                   @default(now())
-  updatedAt          DateTime                   @updatedAt
-  invitedById        String?
-  projects           Project[]
-  clients            Client[]
-  assignedProjects   ProjectAssignee[]
-  uploadedFiles      ProjectFile[]
-  projectAccess      ProjectAccess[]
-  standardsCreated   DesignStandard[]           @relation("KBCreator")
-  standardsUpdated   DesignStandard[]           @relation("KBUpdater")
-  salesOwnedProjects Project[]                  @relation("ProjectSalesOwner")
-  notesCreated       Note[]                     @relation("NoteCreator")
-  publishedSchedules FixtureSchedule[]          @relation("SchedulePublisher")
-  pushedBidMatrices  DesignBidMatrix[]          @relation("BidPusher")
-  tasksCreated       Task[]                     @relation("TaskCreator")
-  tasksAssigned      Task[]                     @relation("TaskAssignee")
-  dashboards         Dashboard[]                @relation("DashboardCreator")
-  ownedDashboards    Dashboard[]                @relation("DashboardOwner")
-  dashboardShares    DashboardShare[]           @relation("DashboardSharedWith")
-  hiddenDashboardWidgets DashboardHiddenWidget[] @relation("DashboardWidgetHider")
-  archivedClients  Client[]  @relation("ClientArchiver")
-  archivedProjects Project[] @relation("ProjectArchiver")
-  archivedContacts Contact[] @relation("ContactArchiver")
-  archivedNotes    Note[]    @relation("NoteArchiver")
-  archivedProjectFiles   ProjectFile[]         @relation("ProjectFileArchiver")
-  archivedDrawingSets    DrawingSubmission[]   @relation("DrawingSubmissionArchiver")
-  archivedProducts       ManufacturerProduct[] @relation("ProductArchiver")
-  archivedBidMatrices    DesignBidMatrix[]     @relation("BidMatrixArchiver")
-  standardsAnswers   ClientStandardsAnswer[]    @relation("AnsweredByUser")
-  standardsOverrides ProjectStandardsOverride[] @relation("OverrideActivator")
-  confirmedFixtures  PlacedFixture[]            @relation("FixtureConfirmer")
-  drawingUploads     DrawingSubmission[]        @relation("DrawingUploader")
-  fixtureShares      FixtureScheduleShare[]     @relation("FixtureShareCreator")
-  changeOrdersCreated ChangeOrder[]             @relation("COCreator")
-  changeOrderSends   ChangeOrderSend[]          @relation("COSender")
-  changeOrderShares  ChangeOrderShare[]         @relation("COShareCreator")
-  parsedEmails       EmailMessage[]             @relation("EmailParser")
-  qcAssignments      BudgetQCChecklist[]        @relation("QCAssignee")
-  qcItemsChecked     BudgetQCItem[]             @relation("QCItemChecker")
-  assignedRFIs       RFI[]                      @relation("RFIAssignee")
-  warehouseReleases  WarehouseRelease[]         @relation("WarehouseReleaser")
-  statusChanges      ProjectStatusEvent[]       @relation("ProjectStatusEventChangedBy")
-  verificationActions VerificationAction[]    @relation("VerificationActor")
-  approvedReleases   WarehouseRelease[]         @relation("ReleaseApprover")
-  deliveryEventsCreated ManufacturerDeliveryEvent[] @relation("DeliveryEventCreator")
-  shipSchedulePushes ShipSchedulePush[]         @relation("ShipPusher")
-  ownedClients       Client[]                   @relation("ClientOwner")
-  alerts             UserAlert[]
+  notificationPrefs          String? // JSON: { [notificationType]: boolean }
+  createdAt                  DateTime                     @default(now())
+  updatedAt                  DateTime                     @updatedAt
+  invitedById                String?
+  projects                   Project[]
+  clients                    Client[]
+  assignedProjects           ProjectAssignee[]
+  uploadedFiles              ProjectFile[]
+  projectAccess              ProjectAccess[]
+  alertFeedback              AlertFeedback[]
+  alertMutes                 AlertMute[]
+  standardsCreated           DesignStandard[]             @relation("KBCreator")
+  standardsUpdated           DesignStandard[]             @relation("KBUpdater")
+  salesOwnedProjects         Project[]                    @relation("ProjectSalesOwner")
+  notesCreated               Note[]                       @relation("NoteCreator")
+  publishedSchedules         FixtureSchedule[]            @relation("SchedulePublisher")
+  pushedBidMatrices          DesignBidMatrix[]            @relation("BidPusher")
+  tasksCreated               Task[]                       @relation("TaskCreator")
+  tasksAssigned              Task[]                       @relation("TaskAssignee")
+  dashboards                 Dashboard[]                  @relation("DashboardCreator")
+  ownedDashboards            Dashboard[]                  @relation("DashboardOwner")
+  dashboardShares            DashboardShare[]             @relation("DashboardSharedWith")
+  hiddenDashboardWidgets     DashboardHiddenWidget[]      @relation("DashboardWidgetHider")
+  archivedClients            Client[]                     @relation("ClientArchiver")
+  archivedProjects           Project[]                    @relation("ProjectArchiver")
+  archivedContacts           Contact[]                    @relation("ContactArchiver")
+  archivedNotes              Note[]                       @relation("NoteArchiver")
+  archivedProjectFiles       ProjectFile[]                @relation("ProjectFileArchiver")
+  archivedDrawingSets        DrawingSubmission[]          @relation("DrawingSubmissionArchiver")
+  archivedProducts           ManufacturerProduct[]        @relation("ProductArchiver")
+  archivedBidMatrices        DesignBidMatrix[]            @relation("BidMatrixArchiver")
+  standardsAnswers           ClientStandardsAnswer[]      @relation("AnsweredByUser")
+  standardsOverrides         ProjectStandardsOverride[]   @relation("OverrideActivator")
+  confirmedFixtures          PlacedFixture[]              @relation("FixtureConfirmer")
+  drawingUploads             DrawingSubmission[]          @relation("DrawingUploader")
+  fixtureShares              FixtureScheduleShare[]       @relation("FixtureShareCreator")
+  changeOrdersCreated        ChangeOrder[]                @relation("COCreator")
+  changeOrderSends           ChangeOrderSend[]            @relation("COSender")
+  changeOrderShares          ChangeOrderShare[]           @relation("COShareCreator")
+  parsedEmails               EmailMessage[]               @relation("EmailParser")
+  qcAssignments              BudgetQCChecklist[]          @relation("QCAssignee")
+  qcItemsChecked             BudgetQCItem[]               @relation("QCItemChecker")
+  assignedRFIs               RFI[]                        @relation("RFIAssignee")
+  warehouseReleases          WarehouseRelease[]           @relation("WarehouseReleaser")
+  statusChanges              ProjectStatusEvent[]         @relation("ProjectStatusEventChangedBy")
+  verificationActions        VerificationAction[]         @relation("VerificationActor")
+  approvedReleases           WarehouseRelease[]           @relation("ReleaseApprover")
+  deliveryEventsCreated      ManufacturerDeliveryEvent[]  @relation("DeliveryEventCreator")
+  shipSchedulePushes         ShipSchedulePush[]           @relation("ShipPusher")
+  ownedClients               Client[]                     @relation("ClientOwner")
+  alerts                     UserAlert[]
   // Sales Bot
-  homeBaseCity       String?
-  homeBaseAddress    String?
+  homeBaseCity               String?
+  homeBaseAddress            String?
   // Email tone profile — extracted from sent email history (mbox upload)
-  toneProfile        String?   // JSON: { summary, phrases[], openers[], closers[], formality, examples[] }
-  toneProfileBuiltAt DateTime? // when the profile was last generated
-  toneProfileSource  String?   // "gmail_mbox" | "outlook_mbox" | "manual"
-  botConfig          BotConfig?
-  botDrafts          BotDraft[]                 @relation("BotDraftOwner")
-  schedulingRules    SchedulingRule[]           @relation("SchedulingRuleCreator")
-  messageTemplates   MessageTemplate[]          @relation("TemplateCreator")
-  botKnowledgeEntries BotKnowledgeEntry[]       @relation("KnowledgeCreator")
-  botKnowledgeDocs    BotKnowledgeDoc[]         @relation("BotKnowledgeDocCreator")
-  userLocationStates  UserLocationState[]       @relation("LocationStateOwner")
-  botRulesCreated    BotRule[]                  @relation("BotRuleCreator")
-  submittalResponses SubmittalResponse[]        @relation("SubmittalResponseCreator")
-  cadenceRulesCreated       RelationshipCadenceRule[]       @relation("CadenceRuleCreator")
-  exclusionRulesCreated     ActivityExclusionRule[]         @relation("ExclusionRuleCreator")
-  classificationRulesCreated ActivityClassificationRule[]   @relation("ClassificationRuleCreator")
-  proposalsCreated          Proposal[]                      @relation("UserProposals")
-  proposalSends             ProposalSend[]                  @relation("UserProposalSends")
-  proposalTemplatesCreated  ProposalTemplate[]              @relation("UserProposalTemplates")
-  proposalRatesUpdated      ProposalRate[]                  @relation("ProposalRateUpdater")
-  bugReportsCreated  BugReport[] @relation("BugReportReporter")
-  bugReportsAssigned BugReport[] @relation("BugReportAssignee")
-  archivedBugReports BugReport[] @relation("BugReportArchiver")
-  preconManagedProjects  Project[]              @relation("ProjectPreconManager")
-  reviewedSubmissions    ConceptualSubmission[] @relation("SubmissionReviewer")
-  accessEvents           UserAccessEvent[]      @relation("UserAccessEventSubject")
-  accessChangesMade      UserAccessEvent[]      @relation("UserAccessEventActor")
-  archivedDrafts         ConceptualDraft[]      @relation("DraftArchiver")
+  toneProfile                String? // JSON: { summary, phrases[], openers[], closers[], formality, examples[] }
+  toneProfileBuiltAt         DateTime? // when the profile was last generated
+  toneProfileSource          String? // "gmail_mbox" | "outlook_mbox" | "manual"
+  botConfig                  BotConfig?
+  botDrafts                  BotDraft[]                   @relation("BotDraftOwner")
+  schedulingRules            SchedulingRule[]             @relation("SchedulingRuleCreator")
+  messageTemplates           MessageTemplate[]            @relation("TemplateCreator")
+  botKnowledgeEntries        BotKnowledgeEntry[]          @relation("KnowledgeCreator")
+  botKnowledgeDocs           BotKnowledgeDoc[]            @relation("BotKnowledgeDocCreator")
+  userLocationStates         UserLocationState[]          @relation("LocationStateOwner")
+  botRulesCreated            BotRule[]                    @relation("BotRuleCreator")
+  submittalResponses         SubmittalResponse[]          @relation("SubmittalResponseCreator")
+  cadenceRulesCreated        RelationshipCadenceRule[]    @relation("CadenceRuleCreator")
+  exclusionRulesCreated      ActivityExclusionRule[]      @relation("ExclusionRuleCreator")
+  classificationRulesCreated ActivityClassificationRule[] @relation("ClassificationRuleCreator")
+  proposalsCreated           Proposal[]                   @relation("UserProposals")
+  proposalSends              ProposalSend[]               @relation("UserProposalSends")
+  proposalTemplatesCreated   ProposalTemplate[]           @relation("UserProposalTemplates")
+  proposalRatesUpdated       ProposalRate[]               @relation("ProposalRateUpdater")
+  bugReportsCreated          BugReport[]                  @relation("BugReportReporter")
+  bugReportsAssigned         BugReport[]                  @relation("BugReportAssignee")
+  archivedBugReports         BugReport[]                  @relation("BugReportArchiver")
+  preconManagedProjects      Project[]                    @relation("ProjectPreconManager")
+  reviewedSubmissions        ConceptualSubmission[]       @relation("SubmissionReviewer")
+  accessEvents               UserAccessEvent[]            @relation("UserAccessEventSubject")
+  accessChangesMade          UserAccessEvent[]            @relation("UserAccessEventActor")
+  archivedDrafts             ConceptualDraft[]            @relation("DraftArchiver")
+  mcpApiKeys                 McpApiKey[]
 }
 
 model UserAlert {
@@ -125,11 +128,11 @@ model UserAlert {
 }
 
 model BugReport {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   title         String
-  description   String   @default("")
-  status        String   @default("NEW")        // NEW | IN_PROGRESS | FIXED
-  severity      String   @default("MAJOR")      // BLOCKER | MAJOR | MINOR | COSMETIC
+  description   String    @default("")
+  status        String    @default("NEW") // NEW | IN_PROGRESS | FIXED
+  severity      String    @default("MAJOR") // BLOCKER | MAJOR | MINOR | COSMETIC
   module        String?
   pageUrl       String?
   projectId     String?
@@ -137,26 +140,26 @@ model BugReport {
   actualText    String?
   screenshotKey String?
   recordingKey  String?
-  consoleJson   String   @default("[]")         // JSON string: [{level,msg,ts}]
-  networkJson   String   @default("[]")         // JSON string: [{method,url,status,ts}]
+  consoleJson   String    @default("[]") // JSON string: [{level,msg,ts}]
+  networkJson   String    @default("[]") // JSON string: [{method,url,status,ts}]
   pageStateJson String?
   browserInfo   String?
   viewport      String?
   // Null for a public beta visitor, who has no account (migration 0078): their
   // typed name and email ride in reporterName/reporterEmail instead.
   reporterId    String?
-  reporter      User?    @relation("BugReportReporter", fields: [reporterId], references: [id], onDelete: NoAction)
+  reporter      User?     @relation("BugReportReporter", fields: [reporterId], references: [id], onDelete: NoAction)
   reporterName  String?
   reporterEmail String?
-  source        String   @default("STAFF")      // STAFF | PUBLIC
+  source        String    @default("STAFF") // STAFF | PUBLIC
   assigneeId    String?
-  assignee      User?    @relation("BugReportAssignee", fields: [assigneeId], references: [id])
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  assignee      User?     @relation("BugReportAssignee", fields: [assigneeId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
   // Archived, never deleted (migration 0079). The S3 screenshot stays too.
   archivedAt    DateTime?
   archivedById  String?
-  archivedBy    User?    @relation("BugReportArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
+  archivedBy    User?     @relation("BugReportArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
 
   // Declared to match what migration 0027 already built, so the schema and the
   // database agree. No database change.
@@ -170,7 +173,7 @@ model BugReport {
 model UserDepartment {
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  department String   // SALES_MARKETING | OPERATIONS | PRECONSTRUCTION | CONSTRUCTION | DESIGN | FINANCE (PROJECT_MANAGEMENT folded into CONSTRUCTION, migration 0085)
+  department String // SALES_MARKETING | OPERATIONS | PRECONSTRUCTION | CONSTRUCTION | DESIGN | FINANCE (PROJECT_MANAGEMENT folded into CONSTRUCTION, migration 0085)
   createdAt  DateTime @default(now())
 
   @@id([userId, department])
@@ -219,13 +222,13 @@ model KbCategory {
 }
 
 model DesignStandard {
-  id          String   @id @default(cuid())
-  category    String
-  title       String
-  content     String
-  severity    String   @default("REQUIRED") // REQUIRED | RECOMMENDED | NOTE
-  tags        String   @default("[]")
-  sourceUrl   String?
+  id             String   @id @default(cuid())
+  category       String
+  title          String
+  content        String
+  severity       String   @default("REQUIRED") // REQUIRED | RECOMMENDED | NOTE
+  tags           String   @default("[]")
+  sourceUrl      String?
   isActive       Boolean  @default(true)
   superAdminOnly Boolean  @default(false)
   createdById    String
@@ -237,8 +240,8 @@ model DesignStandard {
 }
 
 model Client {
-  id           String @id @default(cuid())
-  clientNumber Int?   @unique
+  id           String    @id @default(cuid())
+  clientNumber Int?      @unique
   // Archived, never deleted (Mike, 2026-09-11: "archive only for everything").
   // Set = hidden from every list, picker and count; the row and everything
   // hanging off it is kept, and Restore on the Archive page clears it.
@@ -246,8 +249,8 @@ model Client {
   archivedById String?
   archivedBy   User?     @relation("ClientArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
   name         String
-  type         String @default("developer")
-  locationType String @default("standalone")
+  type         String    @default("developer")
+  locationType String    @default("standalone")
 
   email   String?
   phone   String?
@@ -264,44 +267,44 @@ model Client {
 
   notes String?
 
-  tier          String?
-  markets       String  @default("[]")
-  geographies   String  @default("[]")
-  projectTypes  String  @default("[]")
+  tier            String?
+  markets         String  @default("[]")
+  geographies     String  @default("[]")
+  projectTypes    String  @default("[]")
   projectsPerYear Int?
-  pipelinePerUnit Float?  // ILC $/unit used for the pipeline value rollup
-  developerType String?  // legacy single value — kept in sync with developerTypes[0]
-  developerTypes String @default("[]")  // JSON array: merchant | longTermHold (Mike 2026-09-06: multi-select)
-  rating        String?  // Client Rating — free-text placeholder until the equation is defined
-  orgTypes      String  @default("[]")
-  emailDomains  String  @default("[]")
+  pipelinePerUnit Float? // ILC $/unit used for the pipeline value rollup
+  developerType   String? // legacy single value — kept in sync with developerTypes[0]
+  developerTypes  String  @default("[]") // JSON array: merchant | longTermHold (Mike 2026-09-06: multi-select)
+  rating          String? // Client Rating — free-text placeholder until the equation is defined
+  orgTypes        String  @default("[]")
+  emailDomains    String  @default("[]")
 
-  ownerId          String?
-  owner            User?                   @relation("ClientOwner", fields: [ownerId], references: [id])
-  createdAt        DateTime                @default(now())
-  updatedAt        DateTime                @updatedAt
-  createdById      String
-  createdBy        User                    @relation(fields: [createdById], references: [id])
-  projects         Project[]
-  contacts         Contact[]
-  kbSections       ClientKBSection[]
-  standardsAnswers ClientStandardsAnswer[]
-  standardFixtures ClientStandardFixture[]
-  productOptions   ClientProductOption[]
-  noteLinks        NoteClient[]
-  standardsShare   ClientStandardsShare?
-  playbook         ClientPlaybook?
-  paymentTerms     String?  // NET30 | NET45 | NET60 | OTHER — shown on Overview (moved off Playbook)
-  playbookAssignments   PlaybookAssignment[]   @relation("ClientPlaybookAssignments")
-  playbookDistribution  PlaybookDistribution[] @relation("ClientPlaybookDistribution")
-  playbookNotes         PlaybookNote[]         @relation("ClientPlaybookNotes")
-  pipelineUploads  PipelineUpload[]
-  pipelineProjects PipelineProject[]
-  signals          MarketSignal[]
-  aliases          ClientAlias[]
-  cadenceDays      Int?    // company-level cadence override; null = use individual tier defaults
-  intakeSubmissions ConceptualSubmission[]
-  tagLinks         ClientTagLink[]
+  ownerId              String?
+  owner                User?                   @relation("ClientOwner", fields: [ownerId], references: [id])
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+  createdById          String
+  createdBy            User                    @relation(fields: [createdById], references: [id])
+  projects             Project[]
+  contacts             Contact[]
+  kbSections           ClientKBSection[]
+  standardsAnswers     ClientStandardsAnswer[]
+  standardFixtures     ClientStandardFixture[]
+  productOptions       ClientProductOption[]
+  noteLinks            NoteClient[]
+  standardsShare       ClientStandardsShare?
+  playbook             ClientPlaybook?
+  paymentTerms         String? // NET30 | NET45 | NET60 | OTHER — shown on Overview (moved off Playbook)
+  playbookAssignments  PlaybookAssignment[]    @relation("ClientPlaybookAssignments")
+  playbookDistribution PlaybookDistribution[]  @relation("ClientPlaybookDistribution")
+  playbookNotes        PlaybookNote[]          @relation("ClientPlaybookNotes")
+  pipelineUploads      PipelineUpload[]
+  pipelineProjects     PipelineProject[]
+  signals              MarketSignal[]
+  aliases              ClientAlias[]
+  cadenceDays          Int? // company-level cadence override; null = use individual tier defaults
+  intakeSubmissions    ConceptualSubmission[]
+  tagLinks             ClientTagLink[]
 
   // Projects where this company holds a seat on the team but is not the client
   // we are selling to. `projects` above is still "their own jobs".
@@ -314,30 +317,30 @@ model Client {
 }
 
 model ClientPlaybook {
-  id      String @id @default(cuid())
+  id       String @id @default(cuid())
   clientId String @unique
   client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   // Section 1 — Account Profile (relationships normalized → PlaybookRelationship)
-  projectTypes    String?  // JSON array: ['BTR','GARDEN','PODIUM','HIGHRISE','LIHTC']
+  projectTypes    String? // JSON array: ['BTR','GARDEN','PODIUM','HIGHRISE','LIHTC']
   projectsPerYear Int?
-  primaryMarkets  String?  // JSON array of US state codes
+  primaryMarkets  String? // JSON array of US state codes
 
   // Section 2 — Introductions & Onboarding
-  introOwnerContactId String?  // who introduces ILC (Contact id)
-  introOwnerNote      String?  // fallback / context when not a CRM contact
-  onVendorList        Boolean  @default(false)
+  introOwnerContactId String? // who introduces ILC (Contact id)
+  introOwnerNote      String? // fallback / context when not a CRM contact
+  onVendorList        Boolean @default(false)
   vendorListNote      String?
-  pipelineFeed        String?  // how ILC learns of new deals
+  pipelineFeed        String? // how ILC learns of new deals
   introNotes          String?
 
   // Section 3 — Communication posture (recipients normalized → PlaybookDistribution)
-  commsPosture      String?  // e.g. "CC more, not less"
+  commsPosture String? // e.g. "CC more, not less"
 
   // Section 5 — Process & Timeframes
-  engagementTiming  String?  // SD|DD|CD|BID|VARIES
-  submittalPlatform String?  // EMAIL|PROCORE|BUILDING_CONNECTED|BLUEBEAM|OTHER
-  processNotes      String?
+  engagementTiming       String? // SD|DD|CD|BID|VARIES
+  submittalPlatform      String? // EMAIL|PROCORE|BUILDING_CONNECTED|BLUEBEAM|OTHER
+  processNotes           String?
   engagementLeadTime     String?
   budgetCadence          String?
   submittalTurnaround    String?
@@ -356,11 +359,12 @@ model PlaybookAssignment {
   id        String   @id @default(cuid())
   clientId  String
   client    Client   @relation("ClientPlaybookAssignments", fields: [clientId], references: [id], onDelete: Cascade)
-  role      String   // PROPOSAL_SIGNER_STANDARDS | PROPOSAL_SIGNER_PROJECT | CONTRACT_SIGNER | INVOICING_STANDARDS | INVOICING_PROJECT | DESIGN_INTRO | GC_INTRO
-  contactId String?  // Contact id
+  role      String // PROPOSAL_SIGNER_STANDARDS | PROPOSAL_SIGNER_PROJECT | CONTRACT_SIGNER | INVOICING_STANDARDS | INVOICING_PROJECT | DESIGN_INTRO | GC_INTRO
+  contactId String? // Contact id
   note      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
   @@unique([clientId, role])
 }
 
@@ -368,12 +372,13 @@ model PlaybookDistribution {
   id           String   @id @default(cuid())
   clientId     String
   client       Client   @relation("ClientPlaybookDistribution", fields: [clientId], references: [id], onDelete: Cascade)
-  event        String   // BUDGETS | DESIGN_MILESTONE | FIXTURE_SCHEDULE | PHOTOMETRICS | SUBMITTALS | RFIS | CHANGE_ORDERS | SHIP_SCHEDULE | OTHER
-  contactId    String?  // Contact id
-  freetextName String?  // when not yet a CRM contact
+  event        String // BUDGETS | DESIGN_MILESTONE | FIXTURE_SCHEDULE | PHOTOMETRICS | SUBMITTALS | RFIS | CHANGE_ORDERS | SHIP_SCHEDULE | OTHER
+  contactId    String? // Contact id
+  freetextName String? // when not yet a CRM contact
   note         String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
   @@index([clientId, event])
 }
 
@@ -381,11 +386,12 @@ model PlaybookNote {
   id        String   @id @default(cuid())
   clientId  String
   client    Client   @relation("ClientPlaybookNotes", fields: [clientId], references: [id], onDelete: Cascade)
-  topic     String   // short, queryable title
-  body      String   @default("")  // markdown
+  topic     String // short, queryable title
+  body      String   @default("") // markdown
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
   @@index([clientId])
 }
 
@@ -395,7 +401,7 @@ model PipelineUpload {
   clientId     String
   client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   fileName     String
-  fileKey      String   // S3 key (reuses the qc bucket)
+  fileKey      String // S3 key (reuses the qc bucket)
   rowCount     Int      @default(0)
   uploadedById String?
   createdAt    DateTime @default(now())
@@ -408,8 +414,8 @@ model PipelineProject {
   client        Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   name          String
   units         Int?
-  startDate     String?  // ISO yyyy-mm-dd (source formats vary)
-  projectType   String?  // New Construction | Rehab (derived from the file's sections)
+  startDate     String? // ISO yyyy-mm-dd (source formats vary)
+  projectType   String? // New Construction | Rehab (derived from the file's sections)
   buildingType  String?
   phase         String?
   ilcRevenue    Float?
@@ -419,8 +425,8 @@ model PipelineProject {
   gcEmail       String?
   address       String?
   preconManager String?
-  raw           String?  // JSON of the full original row
-  dismissed     Boolean  @default(false)  // "we're not working on it" — stays out across re-syncs
+  raw           String? // JSON of the full original row
+  dismissed     Boolean  @default(false) // "we're not working on it" — stays out across re-syncs
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -441,53 +447,55 @@ model PipelineProject {
 // renames nothing else and risks every index and foreign key hanging off it, and
 // nobody but Prisma ever reads the name. The MODEL name is what the code says.
 model Contact {
-  id            String   @id @default(cuid())
-  contactNumber Int?     @unique  // human-readable number, same idea as clientNumber
+  id                  String              @id @default(cuid())
+  contactNumber       Int?                @unique // human-readable number, same idea as clientNumber
   // Archived, never deleted (Mike, 2026-09-11: "archive only for everything").
   // Set = hidden from every list, picker and count; the row and everything
   // hanging off it is kept, and Restore on the Archive page clears it.
-  archivedAt   DateTime?
-  archivedById String?
-  archivedBy   User?     @relation("ContactArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
+  archivedAt          DateTime?
+  archivedById        String?
+  archivedBy          User?               @relation("ContactArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
   // Optional: we meet people before we know where they work. Deleting a company
   // must NOT delete the human — it just unhooks them (this was Cascade when the
   // table only ever held employees of a client).
-  clientId   String?
-  client     Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  name       String
-  firstName  String?  // parsed from name on save; editable
-  lastName   String?
-  preferredName String? // "Ryan" — used in email salutation
-  title      String?
-  company    String?  // employer as typed (independent of clientId)
-  email      String?
-  phone      String?  // legacy single phone — kept in sync with workPhone
-  cellPhone  String?
-  workPhone  String?
-  linkedInUrl String?
-  department String?  // Development | Design | Pre-construction | Construction | Finance | custom
-  notes      String?
+  clientId            String?
+  client              Client?             @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  name                String
+  firstName           String? // parsed from name on save; editable
+  lastName            String?
+  preferredName       String? // "Ryan" — used in email salutation
+  title               String?
+  company             String? // employer as typed (independent of clientId)
+  email               String?
+  phone               String? // legacy single phone — kept in sync with workPhone
+  cellPhone           String?
+  workPhone           String?
+  linkedInUrl         String?
+  // One of Mike's eight, stored as a KEY (migration 0092). The list, the
+  // labels and the spelling aliases live in src/lib/contactDepartments.js.
+  // NOT the ILC staff department in src/lib/departments.js — different question.
+  department          String? // CORPORATE | PRECONSTRUCTION | CONSTRUCTION | PROCUREMENT | DESIGN | DEVELOPMENT | ARCHITECT | INTERIOR_DESIGN (+ legacy FINANCE)
+  notes               String?
   // Relationship intelligence
-  cadenceTier      String?    // VIP_CLIENT | ACTIVE_DEAL | WARM_PROSPECT | PAST_CLIENT | COLD_PROSPECT
-  cadenceDays      Int?       // null = use tier default from RelationshipCadenceRule
-  lastInPersonAt   DateTime?  // most recent in-person activity (Coffee/Lunch/Golf/etc.)
-  lastTouchpointAt DateTime?  // most recent ANY touchpoint
-  nextCheckInAt    DateTime?  // snoozed until this date (overrides cadence clock temporarily)
+  cadenceTier         String? // VIP_CLIENT | ACTIVE_DEAL | WARM_PROSPECT | PAST_CLIENT | COLD_PROSPECT
+  cadenceDays         Int? // null = use tier default from RelationshipCadenceRule
+  lastInPersonAt      DateTime? // most recent in-person activity (Coffee/Lunch/Golf/etc.)
+  lastTouchpointAt    DateTime? // most recent ANY touchpoint
+  nextCheckInAt       DateTime? // snoozed until this date (overrides cadence clock temporarily)
   // Email intelligence. Both are CACHES of the newest matching EmailContactLink
   // — kept so a list of 200 people does not have to scan the mailbox — and both
   // ignore mass sends (25+ people), calendar invites, replies and automatic
   // messages. Rebuilt by refreshContactEmailDates() in src/lib/email/recorder.js.
   lastEmailReceivedAt DateTime?
   lastEmailSentAt     DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  projectLinks ProjectContact[]
-  emailLinks   EmailContactLink[]
-  noteLinks    NoteContact[]
-  employment   ContactEmployment[]
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  projectLinks        ProjectContact[]
+  emailLinks          EmailContactLink[]
+  noteLinks           NoteContact[]
+  employment          ContactEmployment[]
 
   @@index([clientId])
-
   @@map("ClientContact")
 }
 
@@ -521,13 +529,13 @@ model ContactEmployment {
 // Person ↔ project link. isLead marks the Lead Person on that project; every
 // linked person inherits the project's win/loss counts.
 model ProjectContact {
-  id        String        @id @default(cuid())
+  id        String   @id @default(cuid())
   projectId String
-  project   Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   contactId String
-  contact   Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  isLead    Boolean       @default(false)
-  createdAt DateTime      @default(now())
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  isLead    Boolean  @default(false)
+  createdAt DateTime @default(now())
 
   @@unique([projectId, contactId])
   @@index([contactId])
@@ -557,82 +565,82 @@ model ClientKBAttachment {
 }
 
 model Project {
-  id                       String    @id @default(cuid())
-  projectNumber            Int?      @unique
+  id                            String         @id @default(cuid())
+  projectNumber                 Int?           @unique
   // Archived, never deleted (Mike, 2026-09-11: "archive only for everything").
   // Set = hidden from every list, picker and count; the row and everything
   // hanging off it is kept, and Restore on the Archive page clears it.
-  archivedAt   DateTime?
-  archivedById String?
-  archivedBy   User?     @relation("ProjectArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
-  name                     String
-  buildingType             String?
-  location                 String?
-  contactEmail             String?
-  address                  String?
-  date                     String?
-  budgetType               String    @default("conceptual")
-  budgetNumber             String?   @unique
-  budgetSentDate           DateTime?
-  phase                    String    @default("sd")
-  city                     String?
-  state                    String?
-  zip                      String?   // 5 digits or ZIP+4 (migration 0078)
-  contactName              String?   // the client-side contact; pairs with contactEmail (0078)
-  status                   String    @default("DRAFT")
-  serviceType              String?
-  peerReviewMatrixType     String    @default("PEER_REVIEW")
+  archivedAt                    DateTime?
+  archivedById                  String?
+  archivedBy                    User?          @relation("ProjectArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
+  name                          String
+  buildingType                  String?
+  location                      String?
+  contactEmail                  String?
+  address                       String?
+  date                          String?
+  budgetType                    String         @default("conceptual")
+  budgetNumber                  String?        @unique
+  budgetSentDate                DateTime?
+  phase                         String         @default("sd")
+  city                          String?
+  state                         String?
+  zip                           String? // 5 digits or ZIP+4 (migration 0078)
+  contactName                   String? // the client-side contact; pairs with contactEmail (0078)
+  status                        String         @default("DRAFT")
+  serviceType                   String?
+  peerReviewMatrixType          String         @default("PEER_REVIEW")
   // ── Pipeline / CRM (merged from Deal — a project IS the pipeline entity) ─────
   // The project is one source of truth across budgets, the pipeline, and the CRM.
   // Board membership is DERIVED from serviceType (Procurement = all; Design =
   // fullDesign/designAssist). Revenue reuses contractValue (Product Sale Total)
   // + designContractValue (Design Fee Total); Total Combined is their sum (never stored).
-  projectType              String?                       // Multi-Family, etc. (from Deal)
-  procurementStage         String    @default("QUALIFIED")        // Procurement board column
-  designStage              String    @default("QUALIFIED")  // Design board column (dual-pipeline only); shares the Procurement stage list since 0061
-  pipelineProbability      Int       @default(50)   // legacy single probability (kept; = probabilityToWin)
-  probabilityToWin         Int?                     // % chance ILC wins the job
-  probabilityToMoveForward Int?                     // % chance the project moves forward at all
+  projectType                   String? // Multi-Family, etc. (from Deal)
+  procurementStage              String         @default("QUALIFIED") // Procurement board column
+  designStage                   String         @default("QUALIFIED") // Design board column (dual-pipeline only); shares the Procurement stage list since 0061
+  pipelineProbability           Int            @default(50) // legacy single probability (kept; = probabilityToWin)
+  probabilityToWin              Int? // % chance ILC wins the job
+  probabilityToMoveForward      Int? // % chance the project moves forward at all
   // Average Probability (mean of the two above) is DERIVED, never stored — computed in the sales provider.
-  procurementStatus        String    @default("OPEN")    // OPEN | ON_HOLD | WON | LOST | ABANDONED (COMPLETED = legacy, read-only since 0091)
-  procurementStatusReason  String?                        // required note when set to LOST or ABANDONED
-  designStatus             String    @default("OPEN")    // dual-pipeline (Full Design / Design Assist) only
-  designStatusReason       String?                        // required note when set to LOST or ABANDONED
-  expectedOrderDate        DateTime?
+  procurementStatus             String         @default("OPEN") // OPEN | ON_HOLD | WON | LOST | ABANDONED (COMPLETED = legacy, read-only since 0091)
+  procurementStatusReason       String? // required note when set to LOST or ABANDONED
+  designStatus                  String         @default("OPEN") // dual-pipeline (Full Design / Design Assist) only
+  designStatusReason            String? // required note when set to LOST or ABANDONED
+  expectedOrderDate             DateTime?
   // Maram 9-17: "Expected Contract Execution Date" sits ABOVE Expected Order Date
   // in the pipeline popup — the day the contract is signed, before the order lands.
   expectedContractExecutionDate DateTime?
   // Maram 9-17 / Mike 9-19: the sub-type under Project Type — a BUILDING_TYPES key from utils.js (garden, wrap, podium …).
-  projectSubtype           String?
-  salesOwnerId             String?                        // the ONE project owner across the platform
-  salesOwner               User?     @relation("ProjectSalesOwner", fields: [salesOwnerId], references: [id])
-  preconManagerId          String?
-  preconManager            User?     @relation("ProjectPreconManager", fields: [preconManagerId], references: [id])
+  projectSubtype                String?
+  salesOwnerId                  String? // the ONE project owner across the platform
+  salesOwner                    User?          @relation("ProjectSalesOwner", fields: [salesOwnerId], references: [id])
+  preconManagerId               String?
+  preconManager                 User?          @relation("ProjectPreconManager", fields: [preconManagerId], references: [id])
   // ── Weekly sales meeting: discrete operational signals (Mike, 2026-07-06) ──
-  proposalSentDate         DateTime?                      // when a proposal went out → "awaiting signature" aging
-  nextActionType           String?                        // NEXT_ACTION_TYPES key (CALL, CHASE_SIGNATURE, …)
-  nextActionOwnerId        String?                        // who owes the action (User id, resolved in UI)
-  nextActionDueDate        DateTime?                      // when it's due → overdue flagging
-  flagged                  Boolean   @default(false)
-  flagNote                 String?
-  contractValue            Float?
-  contractSignedDate       String?
-  totalInvoiced            Float?
-  designContractValue      Float?
-  designContractSignedDate String?
-  constructionStartDate    String?
-  mepRoughInDate           String?
-  constructionEndDate      String?
-  currentStep              String    @default("project-data")
-  completedSteps           String    @default("[]")
-  pricingSnapshot          String?
-  createdAt                DateTime  @default(now())
-  updatedAt                DateTime  @updatedAt
-  createdById              String
-  createdBy                User      @relation(fields: [createdById], references: [id])
-  marketSignals            MarketSignal[]
-  clientId                 String?
-  client                   Client?   @relation(fields: [clientId], references: [id])
+  proposalSentDate              DateTime? // when a proposal went out → "awaiting signature" aging
+  nextActionType                String? // NEXT_ACTION_TYPES key (CALL, CHASE_SIGNATURE, …)
+  nextActionOwnerId             String? // who owes the action (User id, resolved in UI)
+  nextActionDueDate             DateTime? // when it's due → overdue flagging
+  flagged                       Boolean        @default(false)
+  flagNote                      String?
+  contractValue                 Float?
+  contractSignedDate            String?
+  totalInvoiced                 Float?
+  designContractValue           Float?
+  designContractSignedDate      String?
+  constructionStartDate         String?
+  mepRoughInDate                String?
+  constructionEndDate           String?
+  currentStep                   String         @default("project-data")
+  completedSteps                String         @default("[]")
+  pricingSnapshot               String?
+  createdAt                     DateTime       @default(now())
+  updatedAt                     DateTime       @updatedAt
+  createdById                   String
+  createdBy                     User           @relation(fields: [createdById], references: [id])
+  marketSignals                 MarketSignal[]
+  clientId                      String?
+  client                        Client?        @relation(fields: [clientId], references: [id])
 
   // -- Project team (Mike, 2026-09-09) ----------------------------------------
   // Mike: "we have six project team fields and they connect to clients." Six
@@ -649,61 +657,62 @@ model Project {
   // their own GC, and the picker should not argue with him.
   //
   // Deleting a company clears its seat on the team; it never deletes the project.
-  developerId              String?
-  developer                Client?   @relation("ProjectDeveloper", fields: [developerId], references: [id], onDelete: SetNull)
-  generalContractorId      String?
-  generalContractor        Client?   @relation("ProjectGeneralContractor", fields: [generalContractorId], references: [id], onDelete: SetNull)
-  electricalContractorId   String?
-  electricalContractor     Client?   @relation("ProjectElectricalContractor", fields: [electricalContractorId], references: [id], onDelete: SetNull)
-  interiorDesignerId       String?
-  interiorDesigner         Client?   @relation("ProjectInteriorDesigner", fields: [interiorDesignerId], references: [id], onDelete: SetNull)
-  electricalEngineerId     String?
-  electricalEngineer       Client?   @relation("ProjectElectricalEngineer", fields: [electricalEngineerId], references: [id], onDelete: SetNull)
-  architectId              String?
-  architect                Client?   @relation("ProjectArchitect", fields: [architectId], references: [id], onDelete: SetNull)
+  developerId            String?
+  developer              Client? @relation("ProjectDeveloper", fields: [developerId], references: [id], onDelete: SetNull)
+  generalContractorId    String?
+  generalContractor      Client? @relation("ProjectGeneralContractor", fields: [generalContractorId], references: [id], onDelete: SetNull)
+  electricalContractorId String?
+  electricalContractor   Client? @relation("ProjectElectricalContractor", fields: [electricalContractorId], references: [id], onDelete: SetNull)
+  interiorDesignerId     String?
+  interiorDesigner       Client? @relation("ProjectInteriorDesigner", fields: [interiorDesignerId], references: [id], onDelete: SetNull)
+  electricalEngineerId   String?
+  electricalEngineer     Client? @relation("ProjectElectricalEngineer", fields: [electricalEngineerId], references: [id], onDelete: SetNull)
+  architectId            String?
+  architect              Client? @relation("ProjectArchitect", fields: [architectId], references: [id], onDelete: SetNull)
 
-  lifecycleStatus     String              @default("ACTIVE") // PROSPECT | ACTIVE | COMPLETED | LOST
+  lifecycleStatus String @default("ACTIVE") // PROSPECT | ACTIVE | COMPLETED | LOST
 
-  projectData         ProjectData?
-  siteFeatures        SiteFeature[]
-  responses           QuestionnaireResponse[]
-  shares              ProjectShare[]
-  peerReviewItems     PeerReviewItem[]
-  assignees           ProjectAssignee[]
-  files               ProjectFile[]
-  projectAccess       ProjectAccess[]
-  notes               Note[]
-  submittalTracker    SubmittalTracker?
-  activities          ProjectActivity[]
-  chatConversations   ChatConversation[]
-  botDrafts           BotDraft[]                  @relation("ProjectBotDrafts")
-  noteLinks           NoteProject[]               @relation("ProjectNoteLinks")
-  fixtureSchedules    FixtureSchedule[]
-  designBidMatrices   DesignBidMatrix[]
-  standardsOverrides  ProjectStandardsOverride[]
-  placedFixtures      PlacedFixture[]
-  shipments           Shipment[]
-  notificationConfigs ProjectNotificationConfig[]
-  notificationLogs    NotificationLog[]
-  notificationQueue   NotificationQueue[]
-  externalContacts    ProjectExternalContact[]
-  drawingSubmissions  DrawingSubmission[]
-  fixtureShares       FixtureScheduleShare[]
-  changeOrders        ChangeOrder[]
-  budgetQC            BudgetQCChecklist?         @relation("ProjectBudgetQC")
-  priceHistory        ProductPriceHistory[]      @relation("PriceHistory")
-  emails              EmailMessage[]
-  shipSchedulePushes  ShipSchedulePush[]
-  rfis                RFI[]
-  rfiRoutingMode      String?            @default("DIRECT")
-  submittalOpenItems  SubmittalOpenItem[] @relation("SubmittalOpenItems") // DIRECT|THROUGH_ARCHITECT|REVIEW_ONLY
-  proposals           Proposal[]         @relation("ProjectProposals")
-  unitTypes           ProjectUnitType[]
-  submissions         ConceptualSubmission[] @relation("SubmissionDuplicateMatch")
-  suggestedSubmissions ConceptualSubmission[] @relation("SubmissionSuggestedMatch")
-  calibrationSamples  CalibrationSample[]
-  contactLinks        ProjectContact[]
-  statusEvents        ProjectStatusEvent[]
+  projectData          ProjectData?
+  siteFeatures         SiteFeature[]
+  responses            QuestionnaireResponse[]
+  shares               ProjectShare[]
+  peerReviewItems      PeerReviewItem[]
+  assignees            ProjectAssignee[]
+  files                ProjectFile[]
+  projectAccess        ProjectAccess[]
+  notes                Note[]
+  submittalTracker     SubmittalTracker?
+  activities           ProjectActivity[]
+  chatConversations    ChatConversation[]
+  botDrafts            BotDraft[]                  @relation("ProjectBotDrafts")
+  noteLinks            NoteProject[]               @relation("ProjectNoteLinks")
+  fixtureSchedules     FixtureSchedule[]
+  designBidMatrices    DesignBidMatrix[]
+  standardsOverrides   ProjectStandardsOverride[]
+  placedFixtures       PlacedFixture[]
+  shipments            Shipment[]
+  notificationConfigs  ProjectNotificationConfig[]
+  notificationLogs     NotificationLog[]
+  notificationQueue    NotificationQueue[]
+  externalContacts     ProjectExternalContact[]
+  drawingSubmissions   DrawingSubmission[]
+  fixtureShares        FixtureScheduleShare[]
+  unitSelections       UnitSelectionSurvey[]       @relation("ProjectUnitSelections")
+  changeOrders         ChangeOrder[]
+  budgetQC             BudgetQCChecklist?          @relation("ProjectBudgetQC")
+  priceHistory         ProductPriceHistory[]       @relation("PriceHistory")
+  emails               EmailMessage[]
+  shipSchedulePushes   ShipSchedulePush[]
+  rfis                 RFI[]
+  rfiRoutingMode       String?                     @default("DIRECT")
+  submittalOpenItems   SubmittalOpenItem[]         @relation("SubmittalOpenItems") // DIRECT|THROUGH_ARCHITECT|REVIEW_ONLY
+  proposals            Proposal[]                  @relation("ProjectProposals")
+  unitTypes            ProjectUnitType[]
+  submissions          ConceptualSubmission[]      @relation("SubmissionDuplicateMatch")
+  suggestedSubmissions ConceptualSubmission[]      @relation("SubmissionSuggestedMatch")
+  calibrationSamples   CalibrationSample[]
+  contactLinks         ProjectContact[]
+  statusEvents         ProjectStatusEvent[]
 
   // A company's Related Projects reads all six of these at once.
   @@index([developerId])
@@ -729,10 +738,10 @@ model ProjectStatusEvent {
   id           String   @id @default(cuid())
   projectId    String
   project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  pipeline     String   // PROCUREMENT | DESIGN
-  fromStatus   String?  // null on the opening row (the deal being created)
-  toStatus     String   // OPEN | ON_HOLD | WON | LOST | ABANDONED (COMPLETED legacy)
-  reason       String?  // the written reason captured when losing or abandoning
+  pipeline     String // PROCUREMENT | DESIGN
+  fromStatus   String? // null on the opening row (the deal being created)
+  toStatus     String // OPEN | ON_HOLD | WON | LOST | ABANDONED (COMPLETED legacy)
+  reason       String? // the written reason captured when losing or abandoning
   changedAt    DateTime @default(now())
   changedById  String?
   changedBy    User?    @relation("ProjectStatusEventChangedBy", fields: [changedById], references: [id])
@@ -749,10 +758,10 @@ model UserAccessEvent {
   id          String   @id @default(cuid())
   userId      String
   user        User     @relation("UserAccessEventSubject", fields: [userId], references: [id], onDelete: Restrict)
-  kind        String   // CREATED | NAME | ROLE | ACTIVE | DEPARTMENT | PERMISSION | PASSWORD_RESET | MUST_CHANGE_PASSWORD
-  field       String?  // the permission key, on PERMISSION rows
-  fromValue   String?  // null on CREATED and on a department being added
-  toValue     String?  // null on a department being removed and on PASSWORD_RESET
+  kind        String // CREATED | NAME | ROLE | ACTIVE | DEPARTMENT | PERMISSION | PASSWORD_RESET | MUST_CHANGE_PASSWORD
+  field       String? // the permission key, on PERMISSION rows
+  fromValue   String? // null on CREATED and on a department being added
+  toValue     String? // null on a department being removed and on PASSWORD_RESET
   changedAt   DateTime @default(now())
   changedById String?
   changedBy   User?    @relation("UserAccessEventActor", fields: [changedById], references: [id], onDelete: SetNull)
@@ -762,30 +771,30 @@ model UserAccessEvent {
 }
 
 model ProjectFile {
-  id             String          @id @default(cuid())
-  projectId      String
-  project        Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  tab            String
-  fileType       String?
-  originalName   String
-  storedPath     String
-  size           Int
-  mimeType       String?
-  tags           String?
-  textContent    String?
-  takeoffData    String?
-  parsedAmount   Float?
-  analysisData   String?
-  uploadedById   String
-  uploadedBy     User            @relation(fields: [uploadedById], references: [id])
-  createdAt         DateTime              @default(now())
-  placedFixtures    PlacedFixture[]
-  rfiAttachments    RFIAttachment[]       @relation("RFIDrawing")
-  drawingRevisions  DrawingRevisionFlag[] @relation("DrawingRevisionFlags")
+  id               String                @id @default(cuid())
+  projectId        String
+  project          Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tab              String
+  fileType         String?
+  originalName     String
+  storedPath       String
+  size             Int
+  mimeType         String?
+  tags             String?
+  textContent      String?
+  takeoffData      String?
+  parsedAmount     Float?
+  analysisData     String?
+  uploadedById     String
+  uploadedBy       User                  @relation(fields: [uploadedById], references: [id])
+  createdAt        DateTime              @default(now())
+  placedFixtures   PlacedFixture[]
+  rfiAttachments   RFIAttachment[]       @relation("RFIDrawing")
+  drawingRevisions DrawingRevisionFlag[] @relation("DrawingRevisionFlags")
   // Archived, never deleted (Mike, 2026-09-11: "drawings and budgets and products should be archive only").
-  archivedAt   DateTime?
-  archivedById String?
-  archivedBy   User?     @relation("ProjectFileArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
+  archivedAt       DateTime?
+  archivedById     String?
+  archivedBy       User?                 @relation("ProjectFileArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
 }
 
 model ProjectAssignee {
@@ -871,12 +880,12 @@ model SiteFeature {
   id         String    @id @default(cuid())
   projectId  String
   project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  type       String    // dogPark | courtyard | playground | tennisCourt | pickleballCourt | turfPlay
+  type       String // dogPark | courtyard | playground | tennisCourt | pickleballCourt | turfPlay
   count      Int?
   lengthFt   Float?
-  source     String    // drawing | typed
-  sheet      Int?      // 1-based sheet number the reading came from (drawing source)
-  label      String?   // the words on the sheet, when read off a drawing
+  source     String // drawing | typed
+  sheet      Int? // 1-based sheet number the reading came from (drawing source)
+  label      String? // the words on the sheet, when read off a drawing
   createdAt  DateTime  @default(now())
   archivedAt DateTime?
 
@@ -1008,61 +1017,61 @@ model SubmittalItemVersion {
   submission          SubmittalSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   manufacturer        String?
   modelNumber         String?
-  isDiscontinued      Boolean?            // auto-flagged by extraction
-  wetLocationRequired Boolean?            // auto-flagged by extraction
+  isDiscontinued      Boolean? // auto-flagged by extraction
+  wetLocationRequired Boolean? // auto-flagged by extraction
   createdAt           DateTime            @default(now())
   reviews             SubmittalReview[]
 }
 
 model SubmittalReview {
-  id             String               @id @default(cuid())
-  versionId      String
-  version        SubmittalItemVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
-  reviewerRole   String
-  reviewerName   String?
-  status         String
-  dateNoted      String?
-  notes          String?
-  noteCategory   String?              // FINISH|MODEL|ACCESSORY|VOLTAGE|LUMEN|WET_LOCATION|DRAWING_SYNC|DISCONTINUED|LED_TAPE|REPEAT|CODE|BOILERPLATE|OTHER
-  isExtracted    Boolean              @default(false)  // true = auto-populated from PDF
-  pageNumber     Int?                 // page in source PDF where note was found
-  createdAt      DateTime             @default(now())
-  createdById    String?
-  response       SubmittalResponse?
+  id           String               @id @default(cuid())
+  versionId    String
+  version      SubmittalItemVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  reviewerRole String
+  reviewerName String?
+  status       String
+  dateNoted    String?
+  notes        String?
+  noteCategory String? // FINISH|MODEL|ACCESSORY|VOLTAGE|LUMEN|WET_LOCATION|DRAWING_SYNC|DISCONTINUED|LED_TAPE|REPEAT|CODE|BOILERPLATE|OTHER
+  isExtracted  Boolean              @default(false) // true = auto-populated from PDF
+  pageNumber   Int? // page in source PDF where note was found
+  createdAt    DateTime             @default(now())
+  createdById  String?
+  response     SubmittalResponse?
 }
 
 // ILC's drafted response to a reviewer note
 model SubmittalResponse {
-  id           String          @id @default(cuid())
-  reviewId     String          @unique
-  review       SubmittalReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-  body         String          // ILC's response text
-  status       String          @default("DRAFT")  // DRAFT | APPROVED | SENT
-  generatedBy  String          @default("AI")     // "AI" | userId
-  editedAt     DateTime?
-  approvedAt   DateTime?
-  createdById  String?
-  createdBy    User?           @relation("SubmittalResponseCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+  id          String          @id @default(cuid())
+  reviewId    String          @unique
+  review      SubmittalReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  body        String // ILC's response text
+  status      String          @default("DRAFT") // DRAFT | APPROVED | SENT
+  generatedBy String          @default("AI") // "AI" | userId
+  editedAt    DateTime?
+  approvedAt  DateTime?
+  createdById String?
+  createdBy   User?           @relation("SubmittalResponseCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
   @@index([reviewId])
 }
 
 model SubmittalOpenItem {
-  id                String           @id @default(cuid())
-  projectId         String
-  project           Project          @relation("SubmittalOpenItems", fields: [projectId], references: [id], onDelete: Cascade)
-  typeCode          String           // fixture type code (D4, EL2, etc.)
-  noteCategory      String           // from REVIEW_CATEGORIES
-  responsibleParty  String           // ARCH|EE|ID|CONTRACTOR|ILC|OWNERSHIP
-  noteText          String           // latest note text
-  openedRound       Int              @default(1)
-  closedRound       Int?             // null = still open
-  isRepeat          Boolean          @default(false)  // open 2+ rounds
-  previousItemId    String?          // self-ref to prior round's open item
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
+  id               String   @id @default(cuid())
+  projectId        String
+  project          Project  @relation("SubmittalOpenItems", fields: [projectId], references: [id], onDelete: Cascade)
+  typeCode         String // fixture type code (D4, EL2, etc.)
+  noteCategory     String // from REVIEW_CATEGORIES
+  responsibleParty String // ARCH|EE|ID|CONTRACTOR|ILC|OWNERSHIP
+  noteText         String // latest note text
+  openedRound      Int      @default(1)
+  closedRound      Int? // null = still open
+  isRepeat         Boolean  @default(false) // open 2+ rounds
+  previousItemId   String? // self-ref to prior round's open item
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@index([projectId])
   @@index([projectId, typeCode])
@@ -1100,28 +1109,28 @@ model ChatMessage {
 }
 
 model Manufacturer {
-  id              String                @id @default(cuid())
-  numericId       Int                   @unique
-  name            String
+  id                 String                @id @default(cuid())
+  numericId          Int                   @unique
+  name               String
   acctLastUpdated    String?
   setupToSell        Boolean               @default(false)
-  defaultDiscountPct Float?                // e.g. 0.50 = 50% off MSRP. Used in Settings → Master Pricing.
-  terms           String?
-  credit          Float?
-  notes           String?
-  accountingEmail String?
-  ffa             Float?
-  paymentInfo     String?
-  website         String?
-  mainPhone       String?
-  address         String?
-  address2        String?
-  city            String?
-  state           String?
-  zip             String?
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
-  products        ManufacturerProduct[]
+  defaultDiscountPct Float? // e.g. 0.50 = 50% off MSRP. Used in Settings → Master Pricing.
+  terms              String?
+  credit             Float?
+  notes              String?
+  accountingEmail    String?
+  ffa                Float?
+  paymentInfo        String?
+  website            String?
+  mainPhone          String?
+  address            String?
+  address2           String?
+  city               String?
+  state              String?
+  zip                String?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  products           ManufacturerProduct[]
 }
 
 model ManufacturerProduct {
@@ -1144,45 +1153,41 @@ model ManufacturerProduct {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   // Archived, never deleted (Mike, 2026-09-11: "drawings and budgets and products should be archive only").
-  archivedAt   DateTime?
-  archivedById String?
-  archivedBy   User?     @relation("ProductArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
+  archivedAt     DateTime?
+  archivedById   String?
+  archivedBy     User?        @relation("ProductArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
 
   @@unique([manufacturerId, partNumber])
 }
-
-
-
-
 
 // ── Unified Note (merges SalesNote + project MeetingNote) ─────────────────────
 // noteType discriminates the two; each screen renders its own UI filtered by it.
 // One table → cross-searchable, and a single feed for the bot follow-up pipeline.
 model Note {
-  id           String   @id @default(cuid())
-  noteNumber   Int?     @unique
+  id           String    @id @default(cuid())
+  noteNumber   Int?      @unique
   // Archived, never deleted (Mike, 2026-09-11: "archive only for everything").
   // Set = hidden from every list, picker and count; the row and everything
   // hanging off it is kept, and Restore on the Archive page clears it.
   archivedAt   DateTime?
   archivedById String?
   archivedBy   User?     @relation("NoteArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
-  noteType     String   @default("SALES")  // SALES | PROJECT_MEETING
-  title        String   @default("")
-  body         String   @default("")
+  noteType     String    @default("SALES") // SALES | PROJECT_MEETING
+  title        String    @default("")
+  body         String    @default("")
   meetingDate  DateTime?
-  attendees    String   @default("[]")
+  attendees    String    @default("[]")
   calendarRef  String?
 
   // sales-specific
   // MEAL replaced LUNCH on 2026-09-07 (one category for breakfast, lunch and
   // dinner). Old rows still say LUNCH until migration 0066 rewrites them, and
   // normalizeActivityType() in src/lib/calendar/inPerson.js maps it forward.
-  activityType             String?  // COFFEE | MEAL | HAPPY_HOUR | GOLF | SITE_VISIT | TRAVEL | CALL | EMAIL | EVENT | OTHER
-  isInPerson               Boolean  @default(false)
-  classificationSource     String?  // keyword | rule | ai | manual
+  activityType             String? // COFFEE | MEAL | HAPPY_HOUR | GOLF | SITE_VISIT | TRAVEL | CALL | EMAIL | EVENT | OTHER
+  isInPerson               Boolean   @default(false)
+  classificationSource     String? // keyword | rule | ai | manual
   classificationConfidence Int?
-  isPublished              Boolean  @default(false)
+  isPublished              Boolean   @default(false)
   publishedAt              DateTime?
 
   // project-meeting-specific
@@ -1197,10 +1202,10 @@ model Note {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  contacts NoteContact[]
-  clients  NoteClient[]
-  projects NoteProject[]
-  actions  NoteAction[]
+  contacts      NoteContact[]
+  clients       NoteClient[]
+  projects      NoteProject[]
+  actions       NoteAction[]
   meetingBriefs MeetingBrief[]
 
   // The calendar sync looks a note up by the event's own id on every pass, so
@@ -1212,30 +1217,30 @@ model Note {
 // Structured items the AI extracts from a note's prose: ACTIONs (→ bot follow-ups)
 // and INTEL (facts about a person/company). type comes from the action taxonomy.
 model NoteAction {
-  id          String   @id @default(cuid())
-  noteId      String
-  note        Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
-  kind        String   @default("ACTION")     // ACTION | INTEL
-  type        String                          // taxonomy id (INTRO_OUTBOUND, SETUP_MEAL, …)
-  rawText     String   @default("")           // the original line
-  detail      String?                         // normalized one-liner
-  contactId   String?                         // soft link to a CRM Contact (if matched)
-  contactName String?                         // person as written (if unmatched)
-  targetName  String?                         // intro target / third party
-  company     String?
-  dueDate     DateTime?
-  reminderDays Int?                            // per-item override (e.g. Expect-intro wait) — null = use the type default
-  status      String   @default("SUGGESTED")  // SUGGESTED | CONFIRMED | DONE | DISMISSED
-  source      String   @default("ai")         // ai | manual
-  confirmedAt DateTime?                        // when a human confirmed it
-  executedAt  DateTime?                        // when the bot acted (draft created / reminder fired)
-  remindAt    DateTime?                        // for EXPECT_INTRO: when to remind if the intro hasn't happened
-  remindedAt  DateTime?                        // when the reminder was actually delivered — without this the
-                                               //   daily sweep re-alerts every day forever, because remindAt
-                                               //   stays in the past once it passes
-  botDraftId  String?                          // loose ref to the BotDraft this action produced
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String    @id @default(cuid())
+  noteId       String
+  note         Note      @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  kind         String    @default("ACTION") // ACTION | INTEL
+  type         String // taxonomy id (INTRO_OUTBOUND, SETUP_MEAL, …)
+  rawText      String    @default("") // the original line
+  detail       String? // normalized one-liner
+  contactId    String? // soft link to a CRM Contact (if matched)
+  contactName  String? // person as written (if unmatched)
+  targetName   String? // intro target / third party
+  company      String?
+  dueDate      DateTime?
+  reminderDays Int? // per-item override (e.g. Expect-intro wait) — null = use the type default
+  status       String    @default("SUGGESTED") // SUGGESTED | CONFIRMED | DONE | DISMISSED
+  source       String    @default("ai") // ai | manual
+  confirmedAt  DateTime? // when a human confirmed it
+  executedAt   DateTime? // when the bot acted (draft created / reminder fired)
+  remindAt     DateTime? // for EXPECT_INTRO: when to remind if the intro hasn't happened
+  remindedAt   DateTime? // when the reminder was actually delivered — without this the
+  //   daily sweep re-alerts every day forever, because remindAt
+  //   stays in the past once it passes
+  botDraftId   String? // loose ref to the BotDraft this action produced
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }
 
 // Meeting Prep (migration 0082). A brief built for one sales note, ahead of the
@@ -1247,8 +1252,8 @@ model MeetingBrief {
   id          String   @id @default(cuid())
   noteId      String
   note        Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
-  createdById String?                         // soft link to the User who asked
-  status      String   @default("ok")         // ok | no_points | error
+  createdById String? // soft link to the User who asked
+  status      String   @default("ok") // ok | no_points | error
   model       String?
   error       String?
   createdAt   DateTime @default(now())
@@ -1265,11 +1270,11 @@ model MeetingBriefFact {
   id         String       @id @default(cuid())
   briefId    String
   brief      MeetingBrief @relation(fields: [briefId], references: [id], onDelete: Cascade)
-  ref        String                        // "F3"
-  block      String                        // client | people | deals | followups | intel | changeOrders | rfis | news | standards | history
+  ref        String // "F3"
+  block      String // client | people | deals | followups | intel | changeOrders | rfis | news | standards | history
   position   Int
   text       String
-  sourceKind String?                       // Client | Contact | Project | NoteAction | ChangeOrder | RFI | MarketSignal | Note
+  sourceKind String? // Client | Contact | Project | NoteAction | ChangeOrder | RFI | MarketSignal | Note
   sourceId   String?
 
   citations MeetingBriefCitation[]
@@ -1304,18 +1309,18 @@ model MeetingBriefCitation {
 // Admin-controlled action taxonomy: each "method" tells the bot what to do, and
 // (for message methods) carries an editable template + instructions.
 model NoteActionType {
-  key          String   @id            // EMAIL, TEXT, CALL, SCHEDULE, EXPECT_INTRO, SEND_MATERIALS, ADD_TO_LIST, INTERNAL_TASK, INTEL, OTHER
-  label        String
-  executor     String                  // EMAIL | TEXT | CALL | SCHEDULE | EXPECT_INTRO | SEND_MATERIALS | ADD_TO_LIST | INTERNAL_TASK | INTEL | OTHER
-  kind         String   @default("ACTION")  // ACTION | INTEL
-  description  String?                  // guides the AI classifier
-  emailTemplate String?                 // message body template (blank to start) — for EMAIL/TEXT/SEND_MATERIALS
-  instructions String?                  // bot execution instructions (blank to start)
-  reminderDays Int?                     // default wait before a reminder (e.g. Expect-intro)
-  sortOrder    Int      @default(0)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  key           String   @id // EMAIL, TEXT, CALL, SCHEDULE, EXPECT_INTRO, SEND_MATERIALS, ADD_TO_LIST, INTERNAL_TASK, INTEL, OTHER
+  label         String
+  executor      String // EMAIL | TEXT | CALL | SCHEDULE | EXPECT_INTRO | SEND_MATERIALS | ADD_TO_LIST | INTERNAL_TASK | INTEL | OTHER
+  kind          String   @default("ACTION") // ACTION | INTEL
+  description   String? // guides the AI classifier
+  emailTemplate String? // message body template (blank to start) — for EMAIL/TEXT/SEND_MATERIALS
+  instructions  String? // bot execution instructions (blank to start)
+  reminderDays  Int? // default wait before a reminder (e.g. Expect-intro)
+  sortOrder     Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model NoteContact {
@@ -1351,7 +1356,6 @@ model NoteProject {
   @@unique([noteId, projectId])
 }
 
-
 model FixtureSchedule {
   id                String                @id @default(cuid())
   projectId         String
@@ -1369,31 +1373,31 @@ model FixtureSchedule {
 }
 
 model FixtureScheduleItem {
-  id             String                @id @default(cuid())
-  scheduleId     String
-  schedule       FixtureSchedule       @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-  type           String                @default("")
-  location       String                @default("")
-  description    String                @default("")
-  manufacturer   String?
-  catalogNumber  String?
-  finish         String?
-  cct            String?
-  lumens         String?
-  wattage        String?
-  voltage        String?
-  dimming        String?
-  mounting       String?
-  notes          String?
-  internalNotes  String?
-  sortOrder      Int                   @default(0)
-  isAlternate    Boolean               @default(false)
-  alternateOf    String?
-  aiFlagged      Boolean               @default(false)
+  id                    String                @id @default(cuid())
+  scheduleId            String
+  schedule              FixtureSchedule       @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  type                  String                @default("")
+  location              String                @default("")
+  description           String                @default("")
+  manufacturer          String?
+  catalogNumber         String?
+  finish                String?
+  cct                   String?
+  lumens                String?
+  wattage               String?
+  voltage               String?
+  dimming               String?
+  mounting              String?
+  notes                 String?
+  internalNotes         String?
+  sortOrder             Int                   @default(0)
+  isAlternate           Boolean               @default(false)
+  alternateOf           String?
+  aiFlagged             Boolean               @default(false)
   aiConfidence          Float?
-  drawingSheetReference String?          // e.g. 'EL-101 — Level 1 Lighting Plan'
-  createdAt             DateTime         @default(now())
-  updatedAt             DateTime         @updatedAt
+  drawingSheetReference String? // e.g. 'EL-101 — Level 1 Lighting Plan'
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
   designBidItems        DesignBidMatrixItem[]
 }
 
@@ -1412,25 +1416,26 @@ model DesignBidMatrix {
   changeSummary    String?
   items            DesignBidMatrixItem[]
   // Archived, never deleted (Mike, 2026-09-11: "drawings and budgets and products should be archive only").
-  archivedAt   DateTime?
-  archivedById String?
-  archivedBy   User?     @relation("BidMatrixArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
+  archivedAt       DateTime?
+  archivedById     String?
+  archivedBy       User?                 @relation("BidMatrixArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
 }
 
 model Dashboard {
-  id          String            @id @default(cuid())
-  name        String
-  section     String            @default("SALES")  // MAIN | SALES | BUDGET | CONSTRUCTION | DESIGN | FINANCE
-  isDefault   Boolean           @default(false)    // the admin default for its section (ownerUserId null)
-  ownerUserId String?                              // null = shared/admin default; set = a user's personal copy
-  owner       User?             @relation("DashboardOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
-  createdById String
-  createdBy   User              @relation("DashboardCreator", fields: [createdById], references: [id])
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  widgets     DashboardWidget[]
-  shares      DashboardShare[]
+  id            String                  @id @default(cuid())
+  name          String
+  section       String                  @default("SALES") // MAIN | SALES | BUDGET | CONSTRUCTION | DESIGN | FINANCE
+  isDefault     Boolean                 @default(false) // the admin default for its section (ownerUserId null)
+  ownerUserId   String? // null = shared/admin default; set = a user's personal copy
+  owner         User?                   @relation("DashboardOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  createdById   String
+  createdBy     User                    @relation("DashboardCreator", fields: [createdById], references: [id])
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  widgets       DashboardWidget[]
+  shares        DashboardShare[]
   hiddenWidgets DashboardHiddenWidget[]
+
   @@index([section, ownerUserId])
 }
 
@@ -1444,8 +1449,8 @@ model DashboardWidget {
   viewBy      String
   segmentBy   String?
   filters     String    @default("[]")
-  chartType   String    @default("BAR")           // BAR | LINE
-  dataSpec    String?                             // JSON for field-picker widgets: { fields, op, groupBy, ... }
+  chartType   String    @default("BAR") // BAR | LINE
+  dataSpec    String? // JSON for field-picker widgets: { fields, op, groupBy, ... }
   position    Int
   width       String    @default("HALF")
   createdAt   DateTime  @default(now())
@@ -1470,6 +1475,7 @@ model DashboardHiddenWidget {
   hiddenById  String?
   hiddenBy    User?     @relation("DashboardWidgetHider", fields: [hiddenById], references: [id], onDelete: SetNull)
   hiddenAt    DateTime  @default(now())
+
   @@unique([dashboardId, widgetKey])
 }
 
@@ -1497,7 +1503,7 @@ model DashboardHiddenWidget {
 model VerificationAction {
   id        String   @id @default(cuid())
   itemKey   String
-  kind      String   // SHOWN | DISMISSED
+  kind      String // SHOWN | DISMISSED
   userId    String?
   user      User?    @relation("VerificationActor", fields: [userId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
@@ -1506,10 +1512,10 @@ model VerificationAction {
   // on a DISMISSED row. The checks are recomputed from scratch every load, so
   // once a record is fixed or renamed the item stops being produced at all —
   // without this snapshot the archive could only ever show a bare key.
-  title      String?
-  detail     String?
-  href       String?
-  hrefLabel  String?
+  title     String?
+  detail    String?
+  href      String?
+  hrefLabel String?
 
   // Set when somebody pulls an item back out of the archive. Nothing here is
   // ever deleted (Mike, 2026-09-10: "I don't think these cards should ever get
@@ -1529,6 +1535,7 @@ model DashboardShare {
   sharedWith       User      @relation("DashboardSharedWith", fields: [sharedWithUserId], references: [id], onDelete: Cascade)
   createdById      String
   createdAt        DateTime  @default(now())
+
   @@unique([dashboardId, sharedWithUserId])
   @@index([sharedWithUserId])
 }
@@ -1577,9 +1584,9 @@ model ILCSpec {
 }
 
 model ClientStandardsAnswer {
-  id             String       @id @default(cuid())
+  id             String                   @id @default(cuid())
   clientId       String
-  client         Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client         Client                   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   section        String
   subsection     String
   question_key   String
@@ -1588,20 +1595,20 @@ model ClientStandardsAnswer {
   answer_value   String?
   answer_note    String?
   type_code      String?
-  fixtureType    FixtureType? @relation(fields: [type_code], references: [code])
+  fixtureType    FixtureType?             @relation(fields: [type_code], references: [code])
   resolved_sku   String?
-  adder_flag     Boolean      @default(false)
+  adder_flag     Boolean                  @default(false)
   adder_prompt   String?
   reference_key  String?
-  projectType    String       @default("")  // "" = global | "BTR"|"GARDEN"|"PODIUM"|"HIGHRISE"|"LIHTC"
-  region         String       @default("")  // "" = all regions | client-defined key e.g. "AZ_TX"
-  source         String       @default("MANUAL")  // MANUAL | CASCADE
+  projectType    String                   @default("") // "" = global | "BTR"|"GARDEN"|"PODIUM"|"HIGHRISE"|"LIHTC"
+  region         String                   @default("") // "" = all regions | client-defined key e.g. "AZ_TX"
+  source         String                   @default("MANUAL") // MANUAL | CASCADE
   answeredById   String?
-  answeredBy     User?        @relation("AnsweredByUser", fields: [answeredById], references: [id])
+  answeredBy     User?                    @relation("AnsweredByUser", fields: [answeredById], references: [id])
   answered_at    DateTime?
   concepts       StandardsAnswerConcept[]
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
 
   @@unique([clientId, question_key, projectType, region])
 }
@@ -1611,18 +1618,19 @@ model ClientStandardsAnswer {
 // and carries the image the bot/human references. (Standards "elicitation engine"
 // concept layer — built on top of the existing answer model.)
 model StandardsAnswerConcept {
-  id          String   @id @default(cuid())
+  id          String                @id @default(cuid())
   answerId    String
   answer      ClientStandardsAnswer @relation(fields: [answerId], references: [id], onDelete: Cascade)
-  clientId    String   // denormalized for direct "concepts for client X" queries
-  questionKey String   // denormalized for "concepts for question Y"
+  clientId    String // denormalized for direct "concepts for client X" queries
+  questionKey String // denormalized for "concepts for question Y"
   description String?
-  imageKey    String?  // qcStorage object key (resolved to a URL on read)
-  typeCode    String?  // bare ref to FixtureType.code
+  imageKey    String? // qcStorage object key (resolved to a URL on read)
+  typeCode    String? // bare ref to FixtureType.code
   resolvedSku String?
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  sortOrder   Int                   @default(0)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
   @@index([clientId, questionKey])
   @@index([answerId])
 }
@@ -1635,17 +1643,18 @@ model ClientProductOption {
   id            String   @id @default(cuid())
   clientId      String
   client        Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  category      String   @default("")   // 'Vanity' | 'Kitchen Pendants' | 'Ceiling Fans' ...
-  name          String   @default("")   // 'Cone glass'  (the "concept link" label)
-  imageKey      String?                 // uploaded picture
-  productUrl    String?                 // concept link
+  category      String   @default("") // 'Vanity' | 'Kitchen Pendants' | 'Ceiling Fans' ...
+  name          String   @default("") // 'Cone glass'  (the "concept link" label)
+  imageKey      String? // uploaded picture
+  productUrl    String? // concept link
   notes         String?
   priceEstimate Float?
   priceTarget   Float?
-  status        String   @default("PENDING")  // PENDING | APPROVED | REJECTED
+  status        String   @default("PENDING") // PENDING | APPROVED | REJECTED
   sortOrder     Int      @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
   @@index([clientId, category])
 }
 
@@ -1657,13 +1666,13 @@ model ClientStandardFixture {
   id            String   @id @default(cuid())
   clientId      String
   client        Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  typeCode      String   @default("")   // 'C1','D2','P1','X3'
-  location      String   @default("")   // UNITS | CORRIDOR | GARAGE | BOH | AMENITY | EXTERIOR
+  typeCode      String   @default("") // 'C1','D2','P1','X3'
+  location      String   @default("") // UNITS | CORRIDOR | GARAGE | BOH | AMENITY | EXTERIOR
   description   String   @default("")
-  imageKey      String?                 // approved product picture (carried from the option)
-  priceTarget   Float?                  // target price (carried from the option)
+  imageKey      String? // approved product picture (carried from the option)
+  priceTarget   Float? // target price (carried from the option)
   productUrl    String?
-  manufacturer  String?                 // optional; exact SKU picked per project
+  manufacturer  String? // optional; exact SKU picked per project
   catalogNumber String?
   finish        String?
   cct           String?
@@ -1673,10 +1682,11 @@ model ClientStandardFixture {
   dimming       String?
   mounting      String?
   notes         String?
-  optionId      String?                 // provenance: the approved ClientProductOption this came from
+  optionId      String? // provenance: the approved ClientProductOption this came from
   sortOrder     Int      @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
   @@index([clientId])
 }
 
@@ -1746,71 +1756,71 @@ model DesignBidMatrixItem {
 }
 
 model Shipment {
-  id             String             @id @default(cuid())
-  project_id     String
-  project        Project            @relation(fields: [project_id], references: [id], onDelete: Cascade)
-  manufacturer      String
-  poDate            DateTime?
-  leadTimeWeeks     String?
-  esdDate           DateTime?
-  trackingNumber    String?
-  deliveredDate     DateTime?
-  status            String             @default("PO_PLACED")
-  destinationType   String             @default("WAREHOUSE")  // WAREHOUSE | DIRECT_TO_SITE
-  notes             String?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  lineItems         ShipmentLineItem[]
+  id              String             @id @default(cuid())
+  project_id      String
+  project         Project            @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  manufacturer    String
+  poDate          DateTime?
+  leadTimeWeeks   String?
+  esdDate         DateTime?
+  trackingNumber  String?
+  deliveredDate   DateTime?
+  status          String             @default("PO_PLACED")
+  destinationType String             @default("WAREHOUSE") // WAREHOUSE | DIRECT_TO_SITE
+  notes           String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  lineItems       ShipmentLineItem[]
 }
 
 model ShipmentLineItem {
-  id               String             @id @default(cuid())
+  id               String                      @id @default(cuid())
   shipment_id      String
-  shipment         Shipment           @relation(fields: [shipment_id], references: [id], onDelete: Cascade)
+  shipment         Shipment                    @relation(fields: [shipment_id], references: [id], onDelete: Cascade)
   fixtureType      String
   description      String
   catalogNo        String?
-  qty              Int                @default(1)
+  qty              Int                         @default(1)
   qtyType          String?
   fixtureStatus    String?
   notes            String?
   submittalItemId  String?
-  submittalItem    SubmittalItem?     @relation(fields: [submittalItemId], references: [id], onDelete: SetNull)
+  submittalItem    SubmittalItem?              @relation(fields: [submittalItemId], references: [id], onDelete: SetNull)
   // Push-populated fields
-  sortOrder        Int                @default(0)
-  sourceItemId     String?            // DesignBidMatrixItem.id or PeerReviewItem.id
-  sourceType       String?            // "DESIGN_BID" | "PEER_REVIEW" | "CHANGE_ORDER" | "MANUAL"
-  sourceBatchLabel String?            // "Initial Order", "CO-00003 Supplemental", etc.
-  propManufacturer String?            // proposed mfr from bid (display only, no pricing)
-  propModel        String?            // proposed part # from bid
-  leadTimeWeeks    String?            // per-item lead time override (falls back to shipment-level)
-  esdDate          DateTime?          // per-item ESD override (falls back to shipment-level)
-  trackingNumber   String?            // per-item tracking number
-  isRemoved        Boolean                    @default(false)
+  sortOrder        Int                         @default(0)
+  sourceItemId     String? // DesignBidMatrixItem.id or PeerReviewItem.id
+  sourceType       String? // "DESIGN_BID" | "PEER_REVIEW" | "CHANGE_ORDER" | "MANUAL"
+  sourceBatchLabel String? // "Initial Order", "CO-00003 Supplemental", etc.
+  propManufacturer String? // proposed mfr from bid (display only, no pricing)
+  propModel        String? // proposed part # from bid
+  leadTimeWeeks    String? // per-item lead time override (falls back to shipment-level)
+  esdDate          DateTime? // per-item ESD override (falls back to shipment-level)
+  trackingNumber   String? // per-item tracking number
+  isRemoved        Boolean                     @default(false)
   releases         WarehouseRelease[]
   deliveryEvents   ManufacturerDeliveryEvent[]
-  createdAt        DateTime                   @default(now())
-  updatedAt        DateTime                   @updatedAt
+  createdAt        DateTime                    @default(now())
+  updatedAt        DateTime                    @updatedAt
 }
 
 model WarehouseRelease {
-  id                      String       @id @default(cuid())
+  id                      String           @id @default(cuid())
   lineItemId              String
   lineItem                ShipmentLineItem @relation(fields: [lineItemId], references: [id], onDelete: Cascade)
-  qty                     Int          // qty requested (legacy: qty released)
-  releasedById            String?      // null when PENDING; set to approving User on APPROVED
-  releasedBy              User?        @relation("WarehouseReleaser", fields: [releasedById], references: [id])
+  qty                     Int // qty requested (legacy: qty released)
+  releasedById            String? // null when PENDING; set to approving User on APPROVED
+  releasedBy              User?            @relation("WarehouseReleaser", fields: [releasedById], references: [id])
   notes                   String?
-  releasedAt              DateTime     @default(now())
+  releasedAt              DateTime         @default(now())
   // Approval workflow fields (added for portal release request flow)
-  status                  String       @default("APPROVED")  // PENDING | APPROVED | DECLINED
-  requestedAt             DateTime     @default(now())
+  status                  String           @default("APPROVED") // PENDING | APPROVED | DECLINED
+  requestedAt             DateTime         @default(now())
   requestedByPortalUserId String?
-  requestedByPortalUser   PortalUser?  @relation("PortalReleaseRequests", fields: [requestedByPortalUserId], references: [id])
+  requestedByPortalUser   PortalUser?      @relation("PortalReleaseRequests", fields: [requestedByPortalUserId], references: [id])
   approvedAt              DateTime?
   approvedById            String?
-  approvedBy              User?        @relation("ReleaseApprover", fields: [approvedById], references: [id])
-  qtyReleased             Int?         // set on approval; may differ from qty if ILC adjusts
+  approvedBy              User?            @relation("ReleaseApprover", fields: [approvedById], references: [id])
+  qtyReleased             Int? // set on approval; may differ from qty if ILC adjusts
 
   @@index([lineItemId])
 }
@@ -1835,13 +1845,13 @@ model ShipSchedulePush {
   id            String   @id @default(cuid())
   projectId     String
   project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  sourceType    String   // "DESIGN_BID" | "PEER_REVIEW" | "CHANGE_ORDER"
-  sourceVersion Int?     // bid matrix version number
-  sourceCoId    String?  // if pushed from a CO
+  sourceType    String // "DESIGN_BID" | "PEER_REVIEW" | "CHANGE_ORDER"
+  sourceVersion Int? // bid matrix version number
+  sourceCoId    String? // if pushed from a CO
   pushedById    String
   pushedBy      User     @relation("ShipPusher", fields: [pushedById], references: [id])
   pushedAt      DateTime @default(now())
-  summary       String?  // JSON { added, updated, removed }
+  summary       String? // JSON { added, updated, removed }
 
   @@index([projectId])
 }
@@ -1888,15 +1898,15 @@ model NotificationQueue {
 }
 
 model PortalUser {
-  id            String                   @id @default(cuid())
-  email         String                   @unique
-  passwordHash  String
-  name          String
-  role          String                   @default("EXTERNAL")
-  createdAt     DateTime                 @default(now())
-  updatedAt     DateTime                 @updatedAt
-  projectAccess    ProjectExternalContact[]
-  releaseRequests  WarehouseRelease[]       @relation("PortalReleaseRequests")
+  id              String                   @id @default(cuid())
+  email           String                   @unique
+  passwordHash    String
+  name            String
+  role            String                   @default("EXTERNAL")
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  projectAccess   ProjectExternalContact[]
+  releaseRequests WarehouseRelease[]       @relation("PortalReleaseRequests")
 }
 
 model ProjectExternalContact {
@@ -1949,33 +1959,32 @@ model MarketSource {
 }
 
 model MarketSignal {
-  id             String            @id @default(cuid())
-  sourceId       String
-  source         MarketSource      @relation(fields: [sourceId], references: [id])
-  title          String
-  summary        String?
-  url            String?
-  publishedAt    DateTime?
-  signalType     String            @default("NEWS") // NEWS | GROUNDBREAKING | FINANCING | ACQUISITION | DEVELOPER_AWARD
-  projectType    String?           // MARKET_RATE | AFFORDABLE | STUDENT_HOUSING | SENIOR_LIVING
-  developerNames String?           // JSON array of extracted org names
-  linkedClientId String?
-  linkedClient   Client?           @relation(fields: [linkedClientId], references: [id], onDelete: SetNull)
+  id                 String       @id @default(cuid())
+  sourceId           String
+  source             MarketSource @relation(fields: [sourceId], references: [id])
+  title              String
+  summary            String?
+  url                String?
+  publishedAt        DateTime?
+  signalType         String       @default("NEWS") // NEWS | GROUNDBREAKING | FINANCING | ACQUISITION | DEVELOPER_AWARD
+  projectType        String? // MARKET_RATE | AFFORDABLE | STUDENT_HOUSING | SENIOR_LIVING
+  developerNames     String? // JSON array of extracted org names
+  linkedClientId     String?
+  linkedClient       Client?      @relation(fields: [linkedClientId], references: [id], onDelete: SetNull)
   // A signal names a JOB as often as it names a company — "Trailhead breaks
   // ground" is about a project, not about a developer. Without this the answer
   // to "any news on The Approach?" is unreachable: the client is linked and the
   // project never was.
   linkedProjectId    String?
-  linkedProject      Project?      @relation(fields: [linkedProjectId], references: [id], onDelete: SetNull)
-  projectMatchStatus String        @default("UNREVIEWED") // AUTO_LINKED | SUGGESTED | UNREVIEWED | CONFIRMED | REJECTED
+  linkedProject      Project?     @relation(fields: [linkedProjectId], references: [id], onDelete: SetNull)
+  projectMatchStatus String       @default("UNREVIEWED") // AUTO_LINKED | SUGGESTED | UNREVIEWED | CONFIRMED | REJECTED
   projectMatchScore  Float?
-  matchScore     Float?
-  matchStatus    String            @default("UNREVIEWED") // AUTO_LINKED | SUGGESTED | UNREVIEWED | CONFIRMED | REJECTED
-  reviewStatus   String            @default("UNREVIEWED") // UNREVIEWED | REVIEWED | CONVERTED | DISMISSED
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  matchScore         Float?
+  matchStatus        String       @default("UNREVIEWED") // AUTO_LINKED | SUGGESTED | UNREVIEWED | CONFIRMED | REJECTED
+  reviewStatus       String       @default("UNREVIEWED") // UNREVIEWED | REVIEWED | CONVERTED | DISMISSED
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 }
-
 
 model ClientAlias {
   id              String   @id @default(cuid())
@@ -1992,7 +2001,7 @@ model FuzzyMatchFeedback {
   candidateName   String
   matchedClientId String?
   score           Float
-  outcome         String   // CONFIRMED | REJECTED
+  outcome         String // CONFIRMED | REJECTED
   signalId        String
   userId          String
   createdAt       DateTime @default(now())
@@ -2003,14 +2012,14 @@ model FuzzyMatchFeedback {
 // ── Fixture Schedule Share Links ─────────────────────────────────────────────
 
 model FixtureScheduleShare {
-  id         String   @id @default(cuid())
-  projectId  String
-  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  token      String   @unique @default(cuid())
-  permission String   @default("view")  // "view" | "edit"
-  createdById String
-  createdBy  User     @relation("FixtureShareCreator", fields: [createdById], references: [id])
-  createdAt  DateTime @default(now())
+  id           String    @id @default(cuid())
+  projectId    String
+  project      Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  token        String    @unique @default(cuid())
+  permission   String    @default("view") // "view" | "edit"
+  createdById  String
+  createdBy    User      @relation("FixtureShareCreator", fields: [createdById], references: [id])
+  createdAt    DateTime  @default(now())
   lastViewedAt DateTime?
 }
 
@@ -2018,7 +2027,7 @@ model DrawingSubmission {
   id           String        @id @default(cuid())
   projectId    String
   project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  phaseTag     String?       // SD | DD | CD | IFC | ASI | RFI | PERMIT | OTHER
+  phaseTag     String? // SD | DD | CD | IFC | ASI | RFI | PERMIT | OTHER
   source       String        @default("EXTERNAL") // EXTERNAL | INTERNAL
   notes        String?
   uploadedById String
@@ -2028,7 +2037,7 @@ model DrawingSubmission {
   // Archived, never deleted (Mike, 2026-09-11: "drawings and budgets and products should be archive only").
   archivedAt   DateTime?
   archivedById String?
-  archivedBy   User?     @relation("DrawingSubmissionArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
+  archivedBy   User?         @relation("DrawingSubmissionArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
 }
 
 model DrawingFile {
@@ -2046,62 +2055,62 @@ model DrawingFile {
 // ── Change Order Matrix ───────────────────────────────────────────────────────
 
 model ChangeOrder {
-  id           String                     @id @default(cuid())
+  id           String                   @id @default(cuid())
   projectId    String
-  project      Project                    @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  coNumber     String                     // auto-assigned: CO-00001, CO-00002, ...
+  project      Project                  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  coNumber     String // auto-assigned: CO-00001, CO-00002, ...
   title        String
-  date         DateTime                   @default(now())
-  status       String                     @default("DRAFT")  // DRAFT | SENT | APPROVED
+  date         DateTime                 @default(now())
+  status       String                   @default("DRAFT") // DRAFT | SENT | APPROVED
   notes        String?
   createdById  String
-  createdBy    User                       @relation("COCreator", fields: [createdById], references: [id])
-  createdAt    DateTime                   @default(now())
-  updatedAt    DateTime                   @updatedAt
+  createdBy    User                     @relation("COCreator", fields: [createdById], references: [id])
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
   optionGroups ChangeOrderOptionGroup[]
   sends        ChangeOrderSend[]
   shares       ChangeOrderShare[]
-  rfi          RFI?               @relation("COFromRFI", fields: [rfiId], references: [id])
-  rfiId        String?            @unique  // set when CO is generated from an RFI substitution
+  rfi          RFI?                     @relation("COFromRFI", fields: [rfiId], references: [id])
+  rfiId        String?                  @unique // set when CO is generated from an RFI substitution
 
   @@index([projectId])
 }
 
 model ChangeOrderOptionGroup {
-  id            String               @id @default(cuid())
+  id            String                @id @default(cuid())
   changeOrderId String
-  changeOrder   ChangeOrder          @relation(fields: [changeOrderId], references: [id], onDelete: Cascade)
-  label         String               @default("Default")
-  sortOrder     Int                  @default(0)
-  isSelected    Boolean              @default(false)
+  changeOrder   ChangeOrder           @relation(fields: [changeOrderId], references: [id], onDelete: Cascade)
+  label         String                @default("Default")
+  sortOrder     Int                   @default(0)
+  isSelected    Boolean               @default(false)
   lineItems     ChangeOrderLineItem[]
 
   @@index([changeOrderId])
 }
 
 model ChangeOrderLineItem {
-  id            String                 @id @default(cuid())
-  optionGroupId String
-  optionGroup   ChangeOrderOptionGroup @relation(fields: [optionGroupId], references: [id], onDelete: Cascade)
-  sortOrder     Int                    @default(0)
-  fixtureType   String                 @default("")
-  qty           Float                  @default(0)
-  manufacturer  String?
-  partNumber    String?
-  description   String?
-  originalDN    Float?                 // internal buy price — never shown to clients
-  cnUnitPrice   Float                  @default(0)
+  id               String                 @id @default(cuid())
+  optionGroupId    String
+  optionGroup      ChangeOrderOptionGroup @relation(fields: [optionGroupId], references: [id], onDelete: Cascade)
+  sortOrder        Int                    @default(0)
+  fixtureType      String                 @default("")
+  qty              Float                  @default(0)
+  manufacturer     String?
+  partNumber       String?
+  description      String?
+  originalDN       Float? // internal buy price — never shown to clients
+  cnUnitPrice      Float                  @default(0)
   // TOTAL CN = qty × cnUnitPrice — calculated, never stored
-  quoteReference  String?
-  leadTime        String?
-  notes           String?
+  quoteReference   String?
+  leadTime         String?
+  notes            String?
   // Per-line option groups: alternate pricing rows for the same fixture type
-  parentLineItemId String?              // null = standalone or Option A root; set = sibling option
-  isOptionRow      Boolean              @default(false)   // true = part of a group
-  optionLabel      String?              // "Option A", "Option B", etc.
-  isGroupSelected  Boolean              @default(false)   // true = this option counts toward total (one per group)
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
+  parentLineItemId String? // null = standalone or Option A root; set = sibling option
+  isOptionRow      Boolean                @default(false) // true = part of a group
+  optionLabel      String? // "Option A", "Option B", etc.
+  isGroupSelected  Boolean                @default(false) // true = this option counts toward total (one per group)
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
 
   @@index([optionGroupId])
   @@index([parentLineItemId])
@@ -2113,7 +2122,7 @@ model ChangeOrderSend {
   changeOrder   ChangeOrder @relation(fields: [changeOrderId], references: [id], onDelete: Cascade)
   sentById      String
   sentBy        User        @relation("COSender", fields: [sentById], references: [id])
-  recipients    String      // comma-separated email addresses
+  recipients    String // comma-separated email addresses
   notes         String?
   sentAt        DateTime    @default(now())
 
@@ -2136,22 +2145,22 @@ model ChangeOrderShare {
 // ── Email / Correspondence ────────────────────────────────────────────────────
 
 model EmailAccount {
-  id           String         @id @default(cuid())
-  provider     String         @default("MOCK")  // MOCK | MICROSOFT
-  email        String         @unique
-  displayName  String?
-  accountType  String         // USER | SHARED_MAILBOX
-  inboxRole    String         // PERSONAL | ORDERS | PRECON | DESIGN
-  accessToken  String?        // encrypted, Phase B only
-  refreshToken String?        // encrypted, Phase B only
-  tokenExpiry  DateTime?
-  webhookSubId  String?       // Graph subscription ID, Phase B
-  webhookExpiry DateTime?     // Graph subscriptions expire every ~3 days
-  lastSyncedAt DateTime?
-  isActive     Boolean        @default(true)
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  messages     EmailMessage[]
+  id            String         @id @default(cuid())
+  provider      String         @default("MOCK") // MOCK | MICROSOFT
+  email         String         @unique
+  displayName   String?
+  accountType   String // USER | SHARED_MAILBOX
+  inboxRole     String // PERSONAL | ORDERS | PRECON | DESIGN
+  accessToken   String? // encrypted, Phase B only
+  refreshToken  String? // encrypted, Phase B only
+  tokenExpiry   DateTime?
+  webhookSubId  String? // Graph subscription ID, Phase B
+  webhookExpiry DateTime? // Graph subscriptions expire every ~3 days
+  lastSyncedAt  DateTime?
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  messages      EmailMessage[]
 }
 
 model EmailMessage {
@@ -2160,29 +2169,29 @@ model EmailMessage {
   account           EmailAccount      @relation(fields: [accountId], references: [id], onDelete: Cascade)
   projectId         String?
   project           Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  externalId        String            @unique   // Graph message ID (cuid for mock)
-  conversationId    String                      // groups messages into threads
+  externalId        String            @unique // Graph message ID (cuid for mock)
+  conversationId    String // groups messages into threads
   subject           String
-  bodyPreview       String?           // first 255 chars, plain text
-  bodyHtml          String?           // full body HTML
+  bodyPreview       String? // first 255 chars, plain text
+  bodyHtml          String? // full body HTML
   fromEmail         String
   fromName          String?
-  toEmails          String            // JSON array: [{ email, name }]
-  ccEmails          String?           // JSON array: [{ email, name }]
-  bccEmails         String?           // JSON array: [{ email, name }]
+  toEmails          String // JSON array: [{ email, name }]
+  ccEmails          String? // JSON array: [{ email, name }]
+  bccEmails         String? // JSON array: [{ email, name }]
   sentAt            DateTime
   receivedAt        DateTime
-  tags              String            @default("[]")  // JSON array e.g. ["Design","Schedule"]
-  outlookLabel      String?           // Outlook category that triggered match (Phase B)
-  matchMethod       String?           // EXACT_LABEL | FUZZY | MANUAL | SEEDED
-  webUrl            String?           // open in Outlook (Phase B)
+  tags              String            @default("[]") // JSON array e.g. ["Design","Schedule"]
+  outlookLabel      String? // Outlook category that triggered match (Phase B)
+  matchMethod       String? // EXACT_LABEL | FUZZY | MANUAL | SEEDED
+  webUrl            String? // open in Outlook (Phase B)
   isRead            Boolean           @default(false)
   hasAttachments    Boolean           @default(false)
   attachments       EmailAttachment[]
   internetMessageId String?
   inReplyTo         String?
-  parsedFields      String?           // JSON: { esdDate, trackingNumber, leadTime }
-  parseStatus       String?           // PENDING | APPROVED | REJECTED | SKIPPED
+  parsedFields      String? // JSON: { esdDate, trackingNumber, leadTime }
+  parseStatus       String? // PENDING | APPROVED | REJECTED | SKIPPED
   parsedById        String?
   parsedBy          User?             @relation("EmailParser", fields: [parsedById], references: [id])
   parsedAt          DateTime?
@@ -2193,13 +2202,13 @@ model EmailMessage {
   // "when did we last really talk to them" is one indexed lookup instead of a
   // scan. Mike's rules: a mass email is 25 or more people on it; calendar
   // invites and replies do not count either.
-  peopleCount       Int?              // distinct people on it, sender included
-  isMassEmail       Boolean           @default(false)
-  isCalendarInvite  Boolean           @default(false)
-  isReplyMessage    Boolean           @default(false)
-  isAutomated       Boolean           @default(false)
-  countsAsContact   Boolean           @default(false)  // true only when all four above are false
-  contactLinks      EmailContactLink[]
+  peopleCount      Int? // distinct people on it, sender included
+  isMassEmail      Boolean            @default(false)
+  isCalendarInvite Boolean            @default(false)
+  isReplyMessage   Boolean            @default(false)
+  isAutomated      Boolean            @default(false)
+  countsAsContact  Boolean            @default(false) // true only when all four above are false
+  contactLinks     EmailContactLink[]
 
   @@index([projectId])
   @@index([conversationId])
@@ -2213,13 +2222,13 @@ model EmailMessage {
 // that is an email we received from them; if they were on the To/Cc/Bcc, that is
 // an email we sent to them. One row per person per message.
 model EmailContactLink {
-  id        String        @id @default(cuid())
+  id        String       @id @default(cuid())
   messageId String
-  message   EmailMessage  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  message   EmailMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
   contactId String
-  contact   Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  role      String        // FROM | TO | CC | BCC
-  createdAt DateTime      @default(now())
+  contact   Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  role      String // FROM | TO | CC | BCC
+  createdAt DateTime     @default(now())
 
   @@unique([messageId, contactId])
   @@index([contactId])
@@ -2230,8 +2239,8 @@ model EmailAttachment {
   messageId String
   message   EmailMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
   filename  String
-  size      Int?         // bytes — for display ("142 KB")
-  mimeType  String?      // used to choose file-type icon
+  size      Int? // bytes — for display ("142 KB")
+  mimeType  String? // used to choose file-type icon
   // fileUrl String?     // Phase B only — Microsoft Graph download URL
   createdAt DateTime     @default(now())
 
@@ -2241,27 +2250,27 @@ model EmailAttachment {
 // ── Budget QC Checklist ───────────────────────────────────────────────────────
 
 model BudgetQCChecklist {
-  id            String        @id @default(cuid())
-  projectId     String        @unique
-  project       Project       @relation("ProjectBudgetQC", fields: [projectId], references: [id], onDelete: Cascade)
-  assignedToId  String?
-  assignedTo    User?         @relation("QCAssignee", fields: [assignedToId], references: [id])
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  items         BudgetQCItem[]
+  id           String         @id @default(cuid())
+  projectId    String         @unique
+  project      Project        @relation("ProjectBudgetQC", fields: [projectId], references: [id], onDelete: Cascade)
+  assignedToId String?
+  assignedTo   User?          @relation("QCAssignee", fields: [assignedToId], references: [id])
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  items        BudgetQCItem[]
 }
 
 model BudgetQCItem {
-  id            String            @id @default(cuid())
-  checklistId   String
-  checklist     BudgetQCChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
-  itemKey       String
-  checked       Boolean           @default(false)
-  checkedById   String?
-  checkedBy     User?             @relation("QCItemChecker", fields: [checkedById], references: [id])
-  checkedAt     DateTime?
-  note          String?           // acknowledgment note for auto-warn items
-  createdAt     DateTime          @default(now())
+  id          String            @id @default(cuid())
+  checklistId String
+  checklist   BudgetQCChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  itemKey     String
+  checked     Boolean           @default(false)
+  checkedById String?
+  checkedBy   User?             @relation("QCItemChecker", fields: [checkedById], references: [id])
+  checkedAt   DateTime?
+  note        String? // acknowledgment note for auto-warn items
+  createdAt   DateTime          @default(now())
 
   @@unique([checklistId, itemKey])
   @@index([checklistId])
@@ -2271,8 +2280,8 @@ model BudgetQCItem {
 
 model ProductPriceHistory {
   id            String   @id @default(cuid())
-  manufacturer  String   // normalized lowercase
-  partNumber    String   // normalized lowercase
+  manufacturer  String // normalized lowercase
+  partNumber    String // normalized lowercase
   unitPrice     Float
   projectId     String
   project       Project  @relation("PriceHistory", fields: [projectId], references: [id], onDelete: Cascade)
@@ -2284,12 +2293,12 @@ model ProductPriceHistory {
 
 model ProductPriceCache {
   id            String   @id @default(cuid())
-  manufacturer  String   // normalized lowercase
-  partNumber    String   // normalized lowercase
-  retailResults String   // JSON: [{ source, price, link }] — max 5 results
+  manufacturer  String // normalized lowercase
+  partNumber    String // normalized lowercase
+  retailResults String // JSON: [{ source, price, link }] — max 5 results
   lowestRetail  Float
   lastChecked   DateTime @default(now())
-  lastCheckedBy String?  // userId — on manual refresh
+  lastCheckedBy String? // userId — on manual refresh
 
   @@unique([manufacturer, partNumber])
 }
@@ -2297,38 +2306,38 @@ model ProductPriceCache {
 // ── RFI Module ────────────────────────────────────────────────────────────────
 
 model RFI {
-  id                  String        @id @default(cuid())
-  projectId           String
-  project             Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  rfiNumber           String
-  subject             String
-  receivedFrom        String        // GC, EC, or 'ILC' if self-initiated
-  rfiType             String        // DIMENSION|CLASH_RELOCATION|CONTROLS|DRAWING_CLARIFICATION|SUBSTITUTION|MULTI_QUESTION|ILC_INITIATED|OTHER
-  routingMode         String        @default("DIRECT")   // DIRECT|THROUGH_ARCHITECT|REVIEW_ONLY
-  status              String        @default("OPEN")     // OPEN|IN_REVIEW|RESPONDED|CLOSED
-  assignedToId        String?
-  assignedTo          User?         @relation("RFIAssignee", fields: [assignedToId], references: [id])
-  procoreRfiId        String?       @unique
-  procoreProjectId    String?
-  dateReceived        DateTime      @default(now())
-  dateDue             DateTime?
-  shipFlag            Boolean       @default(false)
-  shipFlagAcknowledged Boolean      @default(false)
-  changeOrder         ChangeOrder?  @relation("COFromRFI") // backrelation — FK lives on ChangeOrder.rfiId
+  id                   String                @id @default(cuid())
+  projectId            String
+  project              Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  rfiNumber            String
+  subject              String
+  receivedFrom         String // GC, EC, or 'ILC' if self-initiated
+  rfiType              String // DIMENSION|CLASH_RELOCATION|CONTROLS|DRAWING_CLARIFICATION|SUBSTITUTION|MULTI_QUESTION|ILC_INITIATED|OTHER
+  routingMode          String                @default("DIRECT") // DIRECT|THROUGH_ARCHITECT|REVIEW_ONLY
+  status               String                @default("OPEN") // OPEN|IN_REVIEW|RESPONDED|CLOSED
+  assignedToId         String?
+  assignedTo           User?                 @relation("RFIAssignee", fields: [assignedToId], references: [id])
+  procoreRfiId         String?               @unique
+  procoreProjectId     String?
+  dateReceived         DateTime              @default(now())
+  dateDue              DateTime?
+  shipFlag             Boolean               @default(false)
+  shipFlagAcknowledged Boolean               @default(false)
+  changeOrder          ChangeOrder?          @relation("COFromRFI") // backrelation — FK lives on ChangeOrder.rfiId
   // Pre-write draft fields
-  draftText           String?
-  draftStatus         String        @default("NONE")  // NONE|GENERATING|READY|REVIEWED|SENT
-  draftConfidence     String?       // HIGH|MEDIUM|LOW|SUBSTITUTION
-  draftGeneratedAt    DateTime?
-  draftReviewedBy     String?
-  draftReviewedAt     DateTime?
-  closedAt            DateTime?
-  closedBy            String?
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
-  activities          RFIActivity[]
-  impactItems         RFIImpactItem[]
-  drawingFlags        DrawingRevisionFlag[]
+  draftText            String?
+  draftStatus          String                @default("NONE") // NONE|GENERATING|READY|REVIEWED|SENT
+  draftConfidence      String? // HIGH|MEDIUM|LOW|SUBSTITUTION
+  draftGeneratedAt     DateTime?
+  draftReviewedBy      String?
+  draftReviewedAt      DateTime?
+  closedAt             DateTime?
+  closedBy             String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  activities           RFIActivity[]
+  impactItems          RFIImpactItem[]
+  drawingFlags         DrawingRevisionFlag[]
 
   @@index([projectId])
 }
@@ -2337,7 +2346,7 @@ model RFIActivity {
   id          String          @id @default(cuid())
   rfiId       String
   rfi         RFI             @relation(fields: [rfiId], references: [id], onDelete: Cascade)
-  direction   String          // INBOUND|OUTBOUND
+  direction   String // INBOUND|OUTBOUND
   authoredBy  String
   bodyText    String
   sentAt      DateTime        @default(now())
@@ -2353,7 +2362,7 @@ model RFIAttachment {
   activity       RFIActivity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
   fileUrl        String
   fileName       String
-  attachmentType String       // ORIGINAL_RFI|ILC_MARKUP|ASI|GC_PHOTO|PRICING_DOC|OTHER
+  attachmentType String // ORIGINAL_RFI|ILC_MARKUP|ASI|GC_PHOTO|PRICING_DOC|OTHER
   drawingId      String?
   drawing        ProjectFile? @relation("RFIDrawing", fields: [drawingId], references: [id])
   createdAt      DateTime     @default(now())
@@ -2369,9 +2378,9 @@ model RFIImpactItem {
   fixtureTypeTo   String?
   qtyDelta        Int      @default(0)
   itemNumber      Int?
-  itemConfidence  String?  // HIGH|MEDIUM|LOW
+  itemConfidence  String? // HIGH|MEDIUM|LOW
   itemDraftText   String?
-  impactStatus    String   @default("PENDING")  // PENDING|SCHEDULE_UPDATED|CO_GENERATED|SHIP_REVIEWED
+  impactStatus    String   @default("PENDING") // PENDING|SCHEDULE_UPDATED|CO_GENERATED|SHIP_REVIEWED
   notes           String?
   createdAt       DateTime @default(now())
 
@@ -2398,39 +2407,39 @@ model DrawingRevisionFlag {
 
 // Per-user bot settings
 model BotConfig {
-  id                   String   @id @default(cuid())
-  userId               String   @unique
-  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  schedulingEnabled    Boolean  @default(false)
-  followUpEnabled      Boolean  @default(false)
-  reviewWindowMinutes  Int      @default(30)   // 0 = immediate, -1 = always manual
-  proposalCount        Int      @default(3)
-  confirmationMessage  String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schedulingEnabled   Boolean  @default(false)
+  followUpEnabled     Boolean  @default(false)
+  reviewWindowMinutes Int      @default(30) // 0 = immediate, -1 = always manual
+  proposalCount       Int      @default(3)
+  confirmationMessage String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }
 
 // Per-user or company-default scheduling rules (userId null = company default)
 model SchedulingRule {
-  id                   String   @id @default(cuid())
-  userId               String?
-  user                 User?    @relation("SchedulingRuleCreator", fields: [userId], references: [id], onDelete: Cascade)
-  meetingType          String   // COFFEE | SITE_VISIT | OFFICE_MEETING | CALL
-  dealStage            String?  // null = applies to all stages
-  preferredDaysOfWeek  String   @default("[\"MON\",\"TUE\",\"WED\",\"THU\",\"FRI\"]") // JSON array
-  preferredStartTime   String   @default("09:00")
-  preferredEndTime     String   @default("17:00")
-  bufferBeforeMinutes  Int      @default(15)
-  bufferAfterMinutes   Int      @default(15)
-  durationMinutes      Int      @default(60)
-  locationType         String   @default("IN_OFFICE") // IN_OFFICE | CLIENT_SITE | COFFEE_SHOP | VIRTUAL
-  homeBase             String?
-  travelCity           String?
-  travelBufferMinutes  Int      @default(45)
-  priority             Int      @default(0)
-  isActive             Boolean  @default(true)  // soft disable instead of delete
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  userId              String?
+  user                User?    @relation("SchedulingRuleCreator", fields: [userId], references: [id], onDelete: Cascade)
+  meetingType         String // COFFEE | SITE_VISIT | OFFICE_MEETING | CALL
+  dealStage           String? // null = applies to all stages
+  preferredDaysOfWeek String   @default("[\"MON\",\"TUE\",\"WED\",\"THU\",\"FRI\"]") // JSON array
+  preferredStartTime  String   @default("09:00")
+  preferredEndTime    String   @default("17:00")
+  bufferBeforeMinutes Int      @default(15)
+  bufferAfterMinutes  Int      @default(15)
+  durationMinutes     Int      @default(60)
+  locationType        String   @default("IN_OFFICE") // IN_OFFICE | CLIENT_SITE | COFFEE_SHOP | VIRTUAL
+  homeBase            String?
+  travelCity          String?
+  travelBufferMinutes Int      @default(45)
+  priority            Int      @default(0)
+  isActive            Boolean  @default(true) // soft disable instead of delete
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   @@index([userId])
 }
@@ -2442,15 +2451,15 @@ model BotDraft {
   user                 User      @relation("BotDraftOwner", fields: [userId], references: [id], onDelete: Cascade)
   projectId            String?
   project              Project?  @relation("ProjectBotDrafts", fields: [projectId], references: [id], onDelete: SetNull)
-  emailThreadId        String?   // loose ref to EmailThread.id (no FK yet — email pipeline Phase E)
-  type                 String    // SCHEDULING_REPLY | FOLLOW_UP
+  emailThreadId        String? // loose ref to EmailThread.id (no FK yet — email pipeline Phase E)
+  type                 String // SCHEDULING_REPLY | FOLLOW_UP
   status               String    @default("PENDING_REVIEW") // PENDING_REVIEW | SENT | MANUALLY_SENT | CANCELLED | CONFIRMED | AWAITING_CONFIRM
   toEmail              String
   toName               String?
   subject              String
   body                 String
-  proposedSlots        String?   // JSON: [{start, end, locationNote}]
-  confirmedSlot        String?   // JSON: {start, end}
+  proposedSlots        String? // JSON: [{start, end, locationNote}]
+  confirmedSlot        String? // JSON: {start, end}
   calendarEventId      String?
   reviewWindowMinutes  Int       @default(30)
   reviewExpiresAt      DateTime?
@@ -2470,22 +2479,22 @@ model BotDraft {
 
 // Automation rules: what triggers the bot and what it does
 model BotRule {
-  id              String    @id @default(cuid())
-  name            String
-  isActive        Boolean   @default(true)
-  triggerType     String    // INBOUND_EMAIL_INTENT | DEAL_STALE | MARKET_SIGNAL | DEAL_STAGE_CHANGE | MANUAL
-  triggerConfig   String    @default("{}") // JSON — varies by triggerType
-  actionType      String    // DRAFT_SCHEDULING_REPLY | DRAFT_FOLLOW_UP_EMAIL | DRAFT_LINKEDIN_MESSAGE | NOTIFY_ONLY
-  actionConfig    String    @default("{}") // JSON — templateId, reviewWindowMinutes, channel, etc.
-  appliesTo       String    @default("ALL_SALES") // "ALL_SALES" | specific userId (Phase B+)
-  executionOrder  Int       @default(0)
-  parentRuleId    String?   // null = standalone; set = step in a sequence (Phase B+)
-  parentRule      BotRule?  @relation("RuleChain", fields: [parentRuleId], references: [id])
-  childRules      BotRule[] @relation("RuleChain")
-  createdById     String
-  createdBy       User      @relation("BotRuleCreator", fields: [createdById], references: [id])
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  name           String
+  isActive       Boolean   @default(true)
+  triggerType    String // INBOUND_EMAIL_INTENT | DEAL_STALE | MARKET_SIGNAL | DEAL_STAGE_CHANGE | MANUAL
+  triggerConfig  String    @default("{}") // JSON — varies by triggerType
+  actionType     String // DRAFT_SCHEDULING_REPLY | DRAFT_FOLLOW_UP_EMAIL | DRAFT_LINKEDIN_MESSAGE | NOTIFY_ONLY
+  actionConfig   String    @default("{}") // JSON — templateId, reviewWindowMinutes, channel, etc.
+  appliesTo      String    @default("ALL_SALES") // "ALL_SALES" | specific userId (Phase B+)
+  executionOrder Int       @default(0)
+  parentRuleId   String? // null = standalone; set = step in a sequence (Phase B+)
+  parentRule     BotRule?  @relation("RuleChain", fields: [parentRuleId], references: [id])
+  childRules     BotRule[] @relation("RuleChain")
+  createdById    String
+  createdBy      User      @relation("BotRuleCreator", fields: [createdById], references: [id])
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@index([triggerType])
   @@index([isActive])
@@ -2496,15 +2505,15 @@ model BotRule {
 // result, so rules can be reviewed and improved over time.
 model AutomationLog {
   id          String   @id @default(cuid())
-  triggerType String                       // NOTE_ACTION_CONFIRMED | NOTE_PUBLISHED | EMAIL_RECEIVED | CALENDAR_EVENT_CREATED
-  eventRef    String?                      // id of the source (e.g. NoteAction.id)
-  ruleId      String?                      // null = baseline (method-defined) behavior
+  triggerType String // NOTE_ACTION_CONFIRMED | NOTE_PUBLISHED | EMAIL_RECEIVED | CALENDAR_EVENT_CREATED
+  eventRef    String? // id of the source (e.g. NoteAction.id)
+  ruleId      String? // null = baseline (method-defined) behavior
   ruleName    String?
-  actionType  String                       // DRAFT_EMAIL | DRAFT_TEXT | SCHEDULE_REMINDER | CREATE_TASK | ADD_TO_LIST | NOTIFY | BASELINE
-  matched     Boolean  @default(true)      // did the rule's conditions match?
-  status      String   @default("FIRED")   // FIRED | SKIPPED | ERROR
+  actionType  String // DRAFT_EMAIL | DRAFT_TEXT | SCHEDULE_REMINDER | CREATE_TASK | ADD_TO_LIST | NOTIFY | BASELINE
+  matched     Boolean  @default(true) // did the rule's conditions match?
+  status      String   @default("FIRED") // FIRED | SKIPPED | ERROR
   detail      String?
-  botDraftId  String?                      // the draft this produced, if any
+  botDraftId  String? // the draft this produced, if any
   outcome     String   @default("PENDING") // PENDING | ACCEPTED | EDITED | REJECTED | NA
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -2519,13 +2528,13 @@ model AutomationLog {
 model MessageTemplate {
   id          String   @id @default(cuid())
   name        String
-  channel     String   // EMAIL | LINKEDIN | MEETING_AGENDA
-  scenario    String   // new_intro | proposal_sent | follow_up | peer_review_sent | golf_invite | linkedin_connect | linkedin_move_to_email | meeting_recap | kick_off_agenda | custom
-  dealStage   String?  // null = all stages
-  clientType  String?  // null = all; DEVELOPER | ARCHITECT | GC | EC
-  subject     String?  // email only
+  channel     String // EMAIL | LINKEDIN | MEETING_AGENDA
+  scenario    String // new_intro | proposal_sent | follow_up | peer_review_sent | golf_invite | linkedin_connect | linkedin_move_to_email | meeting_recap | kick_off_agenda | custom
+  dealStage   String? // null = all stages
+  clientType  String? // null = all; DEVELOPER | ARCHITECT | GC | EC
+  subject     String? // email only
   body        String
-  direction   String?  // AI instructions: rules, tone guidance, activity references, personalization hints
+  direction   String? // AI instructions: rules, tone guidance, activity references, personalization hints
   variables   String   @default("[]") // JSON: ["clientName","projectName",...]
   isDefault   Boolean  @default(false)
   isActive    Boolean  @default(true)
@@ -2541,12 +2550,12 @@ model MessageTemplate {
 // Searchable knowledge base for bot context
 model BotKnowledgeEntry {
   id          String   @id @default(cuid())
-  category    String   // GENERAL | DEVELOPERS | ARCHITECTS | ENGINEERS | CONTRACTORS
-  keywords    String   // comma-separated
+  category    String // GENERAL | DEVELOPERS | ARCHITECTS | ENGINEERS | CONTRACTORS
+  keywords    String // comma-separated
   question    String
   answer      String
   isActive    Boolean  @default(true)
-  source      String?  // FAQ_IMPORT | MANUAL
+  source      String? // FAQ_IMPORT | MANUAL
   createdById String?
   createdBy   User?    @relation("KnowledgeCreator", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
@@ -2569,18 +2578,18 @@ model BotKnowledgeEntry {
 model BotKnowledgeDoc {
   id          String   @id @default(cuid())
   category    String   @default("GENERAL") // same free-text categories as BotKnowledgeEntry
-  title       String                       // defaults to the filename, editable
-  description String?                      // why this was added — typed by a human
+  title       String // defaults to the filename, editable
+  description String? // why this was added — typed by a human
   fileName    String
-  fileType    String                       // pdf | word | excel | image | text
+  fileType    String // pdf | word | excel | image | text
   mimeType    String?
   sizeBytes   Int
-  storedPath  String                       // S3 key in prod, relative path in dev
-  text        String?                      // extracted, what the bot searches
+  storedPath  String // S3 key in prod, relative path in dev
+  text        String? // extracted, what the bot searches
   charCount   Int      @default(0)
   pageCount   Int?
-  status      String   @default("PENDING")  // PENDING | READY | FAILED
-  statusNote  String?                       // why it failed, in plain English
+  status      String   @default("PENDING") // PENDING | READY | FAILED
+  statusNote  String? // why it failed, in plain English
   isActive    Boolean  @default(true)
   createdById String?
   createdBy   User?    @relation("BotKnowledgeDocCreator", fields: [createdById], references: [id], onDelete: SetNull)
@@ -2599,9 +2608,9 @@ model UserLocationState {
   id               String   @id @default(cuid())
   userId           String
   user             User     @relation("LocationStateOwner", fields: [userId], references: [id], onDelete: Cascade)
-  date             String   // "2026-06-10"
+  date             String // "2026-06-10"
   city             String
-  detectedFrom     String   // calendar_location | title_extraction | client_match | manual
+  detectedFrom     String // calendar_location | title_extraction | client_match | manual
   calendarEventId  String?
   confidence       Float?
   overriddenByUser Boolean  @default(false)
@@ -2619,9 +2628,9 @@ model UserLocationState {
 // Default cadence per relationship tier — managed in Sales Automation → Scheduling Rules
 model RelationshipCadenceRule {
   id          String   @id @default(cuid())
-  tier        String   // VIP_CLIENT | ACTIVE_DEAL | WARM_PROSPECT | PAST_CLIENT | COLD_PROSPECT
-  label       String   // "VIP Client", "Active Deal", etc.
-  cadenceDays Int      // days between required in-person touchpoints
+  tier        String // VIP_CLIENT | ACTIVE_DEAL | WARM_PROSPECT | PAST_CLIENT | COLD_PROSPECT
+  label       String // "VIP Client", "Active Deal", etc.
+  cadenceDays Int // days between required in-person touchpoints
   isActive    Boolean  @default(true)
   createdById String
   createdBy   User     @relation("CadenceRuleCreator", fields: [createdById], references: [id])
@@ -2634,8 +2643,8 @@ model RelationshipCadenceRule {
 // Rules for filtering out mass emails and recurring project meetings from relationship signal
 model ActivityExclusionRule {
   id          String   @id @default(cuid())
-  name        String   // "Weekly OAC meetings", "Golf league blasts"
-  ruleType    String   // RECURRING_WEEKLY | RECURRING_BIWEEKLY | KEYWORD_SUBJECT | MIN_RECIPIENTS | SENDER_DOMAIN
+  name        String // "Weekly OAC meetings", "Golf league blasts"
+  ruleType    String // RECURRING_WEEKLY | RECURRING_BIWEEKLY | KEYWORD_SUBJECT | MIN_RECIPIENTS | SENDER_DOMAIN
   config      String   @default("{}") // JSON: { keywords: ["OAC"], minRecipients: 10, domain: "noreply.com" }
   isActive    Boolean  @default(true)
   createdById String
@@ -2651,10 +2660,10 @@ model ActivityExclusionRule {
 model ActivityClassificationRule {
   id             String   @id @default(cuid())
   name           String
-  conditionType  String   // TITLE_CONTAINS | LOCATION_CONTAINS | LOCATION_TYPE | ATTENDEE_MAX | ATTENDEE_MIN | ORGANIZER_DOMAIN | DURATION_MIN | DURATION_MAX | BODY_CONTAINS
-  conditionValue String   // the value to test (e.g. "golf", "virtual", "15")
-  resultType     String   // COFFEE | MEAL | GOLF | HAPPY_HOUR | SITE_VISIT | TRAVEL | CALL | EVENT | OTHER | SKIP
-  priority       Int      @default(0)   // higher = checked first
+  conditionType  String // TITLE_CONTAINS | LOCATION_CONTAINS | LOCATION_TYPE | ATTENDEE_MAX | ATTENDEE_MIN | ORGANIZER_DOMAIN | DURATION_MIN | DURATION_MAX | BODY_CONTAINS
+  conditionValue String // the value to test (e.g. "golf", "virtual", "15")
+  resultType     String // COFFEE | MEAL | GOLF | HAPPY_HOUR | SITE_VISIT | TRAVEL | CALL | EVENT | OTHER | SKIP
+  priority       Int      @default(0) // higher = checked first
   isActive       Boolean  @default(true)
   createdById    String
   createdBy      User     @relation("ClassificationRuleCreator", fields: [createdById], references: [id])
@@ -2667,15 +2676,15 @@ model ActivityClassificationRule {
 // ── Proposals Module ──────────────────────────────────────────────────────────
 
 model Proposal {
-  id            String   @id @default(cuid())
-  projectId     String
-  project       Project  @relation("ProjectProposals", fields: [projectId], references: [id], onDelete: Cascade)
-  templateId    String?
-  template      ProposalTemplate? @relation("TemplateProposals", fields: [templateId], references: [id])
+  id         String            @id @default(cuid())
+  projectId  String
+  project    Project           @relation("ProjectProposals", fields: [projectId], references: [id], onDelete: Cascade)
+  templateId String?
+  template   ProposalTemplate? @relation("TemplateProposals", fields: [templateId], references: [id])
 
-  type          String            // FULL_DESIGN | DESIGN_ASSIST | PEER_REVIEW
-  status        String   @default("DRAFT") // DRAFT | SENT | ACCEPTED | DECLINED | EXPIRED
-  title         String
+  type   String // FULL_DESIGN | DESIGN_ASSIST | PEER_REVIEW
+  status String @default("DRAFT") // DRAFT | SENT | ACCEPTED | DECLINED | EXPIRED
+  title  String
 
   // merge-field values for live tokens in docBody
   clientName      String?
@@ -2683,17 +2692,17 @@ model Proposal {
   location        String?
   effectiveDate   DateTime?
 
-  docBody       String   @default("")   // HTML — seeded from template, then freely editable
+  docBody String @default("") // HTML — seeded from template, then freely editable
 
   // fee
-  calculatedFee  Float    @default(0)   // snapshot updated on every line-item autosave
+  calculatedFee  Float   @default(0) // snapshot updated on every line-item autosave
   overrideFee    Float?
-  overrideActive Boolean  @default(false)
-  adderPct       Float    @default(10)
-  milestoneSplit String?               // JSON [{label,pct}] — FULL_DESIGN only
+  overrideActive Boolean @default(false)
+  adderPct       Float   @default(10)
+  milestoneSplit String? // JSON [{label,pct}] — FULL_DESIGN only
 
   // rate snapshot — copied from ProposalRate at creation; never changes after
-  rateSnapshot   String   @default("{}") // JSON { SR_DESIGNER, DESIGNER, SALES, OUTSOURCE }
+  rateSnapshot String @default("{}") // JSON { SR_DESIGNER, DESIGNER, SALES, OUTSOURCE }
 
   sentAt     DateTime?
   acceptedAt DateTime?
@@ -2728,21 +2737,21 @@ model ProposalLineItem {
 model ProposalTemplate {
   id          String  @id @default(cuid())
   name        String
-  type        String              // FULL_DESIGN | DESIGN_ASSIST | PEER_REVIEW
-  projectType String?             // MARKET_RATE | AFFORDABLE | STUDENT | SENIOR | null = any
-  clientType  String?             // DEVELOPER | GC | EC | null = any
+  type        String // FULL_DESIGN | DESIGN_ASSIST | PEER_REVIEW
+  projectType String? // MARKET_RATE | AFFORDABLE | STUDENT | SENIOR | null = any
+  clientType  String? // DEVELOPER | GC | EC | null = any
 
   docBody         String  @default("")
-  milestoneSplit  String?          // JSON default for FULL_DESIGN
+  milestoneSplit  String? // JSON default for FULL_DESIGN
   defaultAdderPct Float   @default(10)
-  exclusions      String?          // rich text — scope notes / exclusions
-  scopeMatrixRef  String?          // optional file reference for RACI addendum
+  exclusions      String? // rich text — scope notes / exclusions
+  scopeMatrixRef  String? // optional file reference for RACI addendum
 
   isDefault Boolean @default(false)
   isActive  Boolean @default(true)
 
   createdById String
-  createdBy   User   @relation("UserProposalTemplates", fields: [createdById], references: [id])
+  createdBy   User     @relation("UserProposalTemplates", fields: [createdById], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -2757,30 +2766,30 @@ model ProposalTemplateTask {
 
   area           String
   task           String
-  sortOrder      Int   @default(0)
-  srHours        Float @default(0)
-  designerHours  Float @default(0)
-  salesHours     Float @default(0)
-  outsourceHours Float @default(0)
+  sortOrder      Int    @default(0)
+  srHours        Float  @default(0)
+  designerHours  Float  @default(0)
+  salesHours     Float  @default(0)
+  outsourceHours Float  @default(0)
 }
 
 model ProposalRate {
-  id         String   @id @default(cuid())
-  role       String   @unique // SR_DESIGNER | DESIGNER | SALES | OUTSOURCE
-  hourlyRate Float
-  updatedAt  DateTime @updatedAt
+  id          String   @id @default(cuid())
+  role        String   @unique // SR_DESIGNER | DESIGNER | SALES | OUTSOURCE
+  hourlyRate  Float
+  updatedAt   DateTime @updatedAt
   updatedById String?
-  updatedBy   User?   @relation("ProposalRateUpdater", fields: [updatedById], references: [id])
+  updatedBy   User?    @relation("ProposalRateUpdater", fields: [updatedById], references: [id])
 }
 
 model ProposalSend {
-  id           String   @id @default(cuid())
-  proposalId   String
-  proposal     Proposal @relation("ProposalSends", fields: [proposalId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  proposalId String
+  proposal   Proposal @relation("ProposalSends", fields: [proposalId], references: [id], onDelete: Cascade)
 
-  sentToEmails  String           // comma-separated
-  note          String?
-  docBodySnapshot String?        // serialised docBody at time of send — immutable paper trail
+  sentToEmails    String // comma-separated
+  note            String?
+  docBodySnapshot String? // serialised docBody at time of send — immutable paper trail
 
   sentById String
   sentBy   User     @relation("UserProposalSends", fields: [sentById], references: [id])
@@ -2792,16 +2801,16 @@ model ProjectUnitType {
   projectId String
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  code      String           // "2BR-K"
-  label     String?          // "2 Bed Corner K"
+  code      String // "2BR-K"
+  label     String? // "2 Bed Corner K"
   qty       Int
-  unitSf    Float?           // per-unit rentable SF
+  unitSf    Float? // per-unit rentable SF
   bedrooms  Int?
   bathrooms Int?
   balconies Int?
   sortOrder Int     @default(0)
 
-  source     String  @default("EXTRACTED") // EXTRACTED | MANUAL
+  source     String @default("EXTRACTED") // EXTRACTED | MANUAL
   confidence Float?
 
   createdAt DateTime @default(now())
@@ -2822,17 +2831,17 @@ model ConceptualSubmission {
   id               String   @id @default(cuid())
   submitterName    String
   submitterEmail   String
-  submitterDomain  String   // extracted from email; used to resolve clientId
+  submitterDomain  String // extracted from email; used to resolve clientId
   proposedName     String
   buildingType     String?
   // Where the job is (Mike, 2026-09-12: "We need location for data tracking").
   // Required on new requests; blank on anything older. Migration 0077.
   city             String?
-  state            String?  // two-letter code, e.g. TX
-  zip              String?  // 5 digits, or ZIP+4 stored as 12345-6789
-  rawPayload       String?  // JSON: full wizard answers from /start
+  state            String? // two-letter code, e.g. TX
+  zip              String? // 5 digits, or ZIP+4 stored as 12345-6789
+  rawPayload       String? // JSON: full wizard answers from /start
   fileRefs         String   @default("[]") // JSON: uploaded drawing keys/refs
-  duplicateMatchId String?  // Project id if a likely duplicate was detected
+  duplicateMatchId String? // Project id if a likely duplicate was detected
   status           String   @default("PENDING") // PENDING | APPROVED | REJECTED
   reviewNote       String?
   clientId         String?
@@ -2840,9 +2849,9 @@ model ConceptualSubmission {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  client      Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  reviewedBy  User?    @relation("SubmissionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
-  duplicateMatch Project? @relation("SubmissionDuplicateMatch", fields: [duplicateMatchId], references: [id], onDelete: SetNull)
+  client         Client?                      @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  reviewedBy     User?                        @relation("SubmissionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  duplicateMatch Project?                     @relation("SubmissionDuplicateMatch", fields: [duplicateMatchId], references: [id], onDelete: SetNull)
   answers        ConceptualSubmissionAnswer[]
 
   // "Looks like [Project X]" (Mike, 2026-09-12, migration 0078). Our guess,
@@ -2850,7 +2859,7 @@ model ConceptualSubmission {
   // duplicateMatchId on purpose: only a person links a request to a job.
   // "Not the same" stamps suggestionDismissedAt; nothing is deleted.
   suggestedProjectId    String?
-  suggestedMatchReason  String?   // plain English: "same name, same city"
+  suggestedMatchReason  String? // plain English: "same name, same city"
   suggestionDismissedAt DateTime?
   suggestedProject      Project?  @relation("SubmissionSuggestedMatch", fields: [suggestedProjectId], references: [id], onDelete: SetNull)
 
@@ -2868,9 +2877,9 @@ model ConceptualSubmission {
 model ConceptualSubmissionAnswer {
   id           String   @id @default(cuid())
   submissionId String
-  section      String   // spreadsheet section, e.g. RESIDENTIAL UNITS
-  questionKey  String   // stable machine key, e.g. ceilingFans
-  question     String   // the question text as asked, frozen at submit time
+  section      String // spreadsheet section, e.g. RESIDENTIAL UNITS
+  questionKey  String // stable machine key, e.g. ceilingFans
+  question     String // the question text as asked, frozen at submit time
   answer       String
   createdAt    DateTime @default(now())
 
@@ -2905,14 +2914,14 @@ model ConceptualDraft {
   city           String?
   state          String?
   zip            String?
-  haveDrawings   String?   // yes | no
-  stepId         String?   // wizard step the visitor last had open
+  haveDrawings   String? // yes | no
+  stepId         String? // wizard step the visitor last had open
   completedSteps String    @default("") // comma-separated step ids
   hasClubhouse   String?
-  buildingType   String?   // engine key from the takeoff at save time
+  buildingType   String? // engine key from the takeoff at save time
   unitCount      Int?
   grossSf        Int?
-  drawingsJson   String?   // merged drawing read (inputs only), capped — same exception rawPayload makes
+  drawingsJson   String? // merged drawing read (inputs only), capped — same exception rawPayload makes
   saveCount      Int       @default(1)
   lastSavedAt    DateTime  @default(now())
   linkEmailedAt  DateTime?
@@ -2922,8 +2931,8 @@ model ConceptualDraft {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  submission ConceptualSubmission? @relation(fields: [submissionId], references: [id], onDelete: SetNull)
-  archivedBy User?                 @relation("DraftArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
+  submission ConceptualSubmission?  @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+  archivedBy User?                  @relation("DraftArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
   fields     ConceptualDraftField[]
   visits     ConceptualVisit[]
 
@@ -2962,13 +2971,13 @@ model ConceptualDraftField {
 model ConceptualVisit {
   id           String    @id @default(cuid())
   visitorKey   String
-  referrerHost String?   // "linkedin.com" — the site only, never the full address
+  referrerHost String? // "linkedin.com" — the site only, never the full address
   utmSource    String?
   utmMedium    String?
   utmCampaign  String?
   deviceKind   String    @default("desktop") // desktop | tablet | mobile
-  stepReached  String    @default("about")   // furthest wizard step id opened
-  stepIndex    Int       @default(0)         // its position, so funnels sort and count
+  stepReached  String    @default("about") // furthest wizard step id opened
+  stepIndex    Int       @default(0) // its position, so funnels sort and count
   pings        Int       @default(1)
   visitedAt    DateTime  @default(now())
   lastSeenAt   DateTime  @default(now())
@@ -3000,10 +3009,10 @@ model ConceptualVisit {
 // project must never erase verdict history the trust tiers are computed from).
 model AgentRun {
   id            String  @id @default(cuid())
-  taskType      String            // "extract.unitMatrix", ...
-  feature       String?           // "unit-matrix", ...
+  taskType      String // "extract.unitMatrix", ...
+  feature       String? // "unit-matrix", ...
   model         String?
-  promptVersion String?           // trust history is keyed to this
+  promptVersion String? // trust history is keyed to this
   via           String  @default("app")
 
   projectId    String?
@@ -3017,21 +3026,21 @@ model AgentRun {
   costUsd      Float?
   latencyMs    Int?
 
-  inputSummary String?           // hash + descriptor ONLY — never the document
-  outputJson   String?           // JSON: the model's proposal, stored for review
+  inputSummary String? // hash + descriptor ONLY — never the document
+  outputJson   String? // JSON: the model's proposal, stored for review
   confidence   Float?
-  citations    String?           // JSON
+  citations    String? // JSON
 
   reviewable    Boolean  @default(true)
-  autoChecks    String?          // JSON: per-check results from autoChecks.js
-  autoCheckPass Boolean?         // null = all checks skipped, never coerced to true
+  autoChecks    String? // JSON: per-check results from autoChecks.js
+  autoCheckPass Boolean? // null = all checks skipped, never coerced to true
 
   // Write-once verdict — a signature. Enforced in reviewStore.recordVerdict
   // via updateMany({ where: { id, verdict: null } }).
-  verdict     String?            // accepted | corrected | rejected
+  verdict     String? // accepted | corrected | rejected
   verdictById String?
   verdictAt   DateTime?
-  correction  String?            // what the reviewer changed, human-readable
+  correction  String? // what the reviewer changed, human-readable
   note        String?
 
   status       String  @default("PENDING") // PENDING | AUTO_PASSED | AWAITING_REVIEW | CLOSED | ERROR
@@ -3054,18 +3063,18 @@ model AgentRun {
 model McpQueryLog {
   id          String   @id @default(cuid())
   at          DateTime @default(now())
-  callerKind  String?            // user | token
+  callerKind  String? // user | token
   callerId    String?
   callerEmail String?
   callerRole  String?
   audience    String?
-  tool        String             // get_client_360, ...
+  tool        String // get_client_360, ...
   model       String?
-  params      String?            // JSON: the question asked (≤ 4000 chars), not the answer
+  params      String? // JSON: the question asked (≤ 4000 chars), not the answer
   rowCount    Int?
   durationMs  Int?
   status      String   @default("ok") // ok | error | denied
-  error       String?            // ≤ 500 chars
+  error       String? // ≤ 500 chars
 
   @@index([at])
   @@index([tool])
@@ -3082,16 +3091,16 @@ model CalibrationSample {
   id              String   @id @default(cuid())
   projectId       String
   project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  source          String                    // engine | manual | actual | bidmatrix | backfill
-  lineKey         String                    // units | corridors | boh | interior | garage | exterior.* | emergency | exitSigns | controls | total
-  quantity        Float?                    // the driver the engine multiplied (SF, units, fixtures, landings…)
-  quantityUnit    String?                   // sf | units | fixtures | landings | stalls
-  modelAmount     Float                     // what the engine produced for this line
-  actualAmount    Float?                    // hand-built / bid-matrix / invoiced figure, when known
-  rateUsed        Float?                    // pricing-sheet rate the line was built from
-  impliedRate     Float?                    // actualAmount ÷ quantity — the rate reality implies
+  source          String // engine | manual | actual | bidmatrix | backfill
+  lineKey         String // units | corridors | boh | interior | garage | exterior.* | emergency | exitSigns | controls | total
+  quantity        Float? // the driver the engine multiplied (SF, units, fixtures, landings…)
+  quantityUnit    String? // sf | units | fixtures | landings | stalls
+  modelAmount     Float // what the engine produced for this line
+  actualAmount    Float? // hand-built / bid-matrix / invoiced figure, when known
+  rateUsed        Float? // pricing-sheet rate the line was built from
+  impliedRate     Float? // actualAmount ÷ quantity — the rate reality implies
   buildingType    String?
-  siteDesignLevel String?                   // conventional | solar
+  siteDesignLevel String? // conventional | solar
   note            String?
   capturedAt      DateTime @default(now())
 
@@ -3120,4 +3129,215 @@ model ClientTagLink {
 
   @@unique([clientId, tagId])
   @@index([tagId])
+}
+
+// ── Alert feedback (migration 0093) ───────────────────────────────────────────
+// Two buttons on every notification: Useful and Don't need. One row per click.
+// Structured rows, never a blob — "which alerts are noise" has to be a question
+// the admin report can answer by counting, not by reading text.
+model AlertFeedback {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  alertId   String? // the UserAlert clicked on; null once that alert is gone
+  alertType String // UserAlert.type — a NOTIFICATION_TYPES key where one fits
+  verdict   String // USEFUL | NOT_USEFUL
+  createdAt DateTime @default(now())
+
+  @@index([alertType, verdict])
+  @@index([userId, alertType])
+}
+
+// Someone said "Don't need" three times on the same kind of alert, was asked,
+// and said stop. One row per person per kind. Removing the row turns it back on.
+model AlertMute {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  alertType String
+  mutedAt   DateTime @default(now())
+
+  @@unique([userId, alertType])
+}
+
+// ── Per-person MCP keys (migration 0094) ──────────────────────────────────────
+// Before this table there was one shared MCP_API_TOKEN, so every line in the
+// audit log said "mcp-service" and the question "who asked for that client's
+// numbers?" had no answer. One row per issued key; the key belongs to a person,
+// and a key inherits that person's role — so a key issued to a CLIENT_VIEWER
+// sees exactly the client-redacted view, not the ILC one.
+//
+// Only the SHA-256 of the key is stored. Nothing anywhere can print the key back
+// after the moment it is created; a lost key is replaced, never recovered.
+// Keys are revoked, never deleted — a deleted key is an audit trail that stops
+// explaining itself.
+model McpApiKey {
+  id          String    @id @default(cuid())
+  name        String // what it is for: "Mike laptop agent", "nightly rollup"
+  prefix      String // the visible first characters, for telling keys apart
+  tokenHash   String    @unique // sha-256 hex of the whole presented key
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdById String?
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@index([revokedAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UNIT SELECTIONS (migration 0095)
+//
+// The five decorative fixtures a developer, architect and interior designer
+// argue about on every job: the kitchen island pendant (p1), the bath vanity
+// (v1), the balcony sconce (ew1), the unit-entry corridor sconce (w1) and the
+// ceiling fan (f1). Today that argument happens over email and lands in nobody's
+// records. This turns it into a short survey with one row per answer, so the
+// outcome is queryable — "what did Greystar pick for P1 last year" is a query,
+// not a search of somebody's inbox.
+//
+// Two rules the shape of these tables exists to enforce:
+//   1. Nothing is averaged. If three people disagree the survey SAYS they
+//      disagree (UnitSelectionResult.agreement = DIVERGENT) and a person picks.
+//   2. dnPrice lives on DecorativeOptionFinish and is INTERNAL ONLY. The share
+//      routes select fields explicitly and never name it. An outside respondent
+//      sees a price band, never a number.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// One decorative fixture body in the pool ILC offers. Finish-independent — the
+// same body in four finishes is one row here and four DecorativeOptionFinish
+// rows. Archive-only: isActive false retires it, nothing is deleted.
+model DecorativeOption {
+  id           String   @id @default(cuid())
+  category     String // p1 | v1 | ew1 | w1 | f1
+  name         String
+  bodyKey      String // stable slug for the body, so a finish change is not a new fixture
+  shape        String   @default("") // round | linear | drum | lantern | globe | bar | mirror
+  style        String   @default("") // modern | transitional | traditional | industrial | farmhouse
+  dimLabel     String   @default("") // "7in dia x 12in H" — displayed, never parsed
+  projectionIn Float? // wall projection in inches (w1, ew1). The 6'-8" rule reads this.
+  bladeSpanIn  Float? // blade span in inches (f1)
+  wetRated     Boolean  @default(false)
+  dampRated    Boolean  @default(false)
+  imageUrl     String?
+  sortOrder    Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  finishes DecorativeOptionFinish[]
+  choices  UnitSelectionChoice[]
+  results  UnitSelectionResult[]
+
+  @@index([category, isActive])
+}
+
+// One body in one finish: the thing that actually has a catalog number and a
+// price. dnPrice is the buy price and NEVER leaves the building — no share
+// route, no PDF, no client portal.
+model DecorativeOptionFinish {
+  id            String           @id @default(cuid())
+  optionId      String
+  option        DecorativeOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  finishKey     String // matte_black | brushed_nickel | aged_brass | bronze | white | chrome
+  catalogNumber String?
+  manufacturer  String?
+  productId     String? // provenance into the product library, same convention as ClientStandardFixture.optionId
+  dnPrice       Float? // INTERNAL ONLY — buy price. Never selected by a share route.
+  cnPrice       Float? // sell price. What the budget target is compared against.
+  leadTimeWks   Int?
+  imageUrl      String?
+  isDefault     Boolean          @default(false)
+  isActive      Boolean          @default(true)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@unique([optionId, finishKey])
+}
+
+// One run of the survey on one project. factsSnapshot freezes what the engine
+// resolved the moment the survey opened, so a later questionnaire edit cannot
+// silently change what people were shown.
+model UnitSelectionSurvey {
+  id            String    @id @default(cuid())
+  projectId     String
+  project       Project   @relation("ProjectUnitSelections", fields: [projectId], references: [id], onDelete: Cascade)
+  version       Int       @default(1)
+  status        String    @default("DRAFT") // DRAFT | SENT | CLOSED
+  factsSnapshot String    @default("{}") // JSON: the resolveFacts() result, frozen
+  styleSeed     String? // the style the survey opened on, if one was suggested
+  createdById   String?
+  closedAt      DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  responses UnitSelectionResponse[]
+  results   UnitSelectionResult[]
+
+  @@unique([projectId, version])
+}
+
+// One person answering. shareToken follows FixtureScheduleShare: a cuid on the
+// row, so a link is issued without a second table.
+model UnitSelectionResponse {
+  id             String              @id @default(cuid())
+  surveyId       String
+  survey         UnitSelectionSurvey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  respondentName String
+  respondentRole String // DEVELOPER | ARCHITECT | INTERIOR_DESIGNER | ILC
+  contactId      String? // the Contact row this is, when we know it
+  shareToken     String              @unique @default(cuid())
+  styleChoice    String?
+  finishOverride String? // set = the derived finish is ignored for this respondent
+  fanHoldWhite   Boolean             @default(true) // fans stay white regardless of the finish everything else landed on
+  notes          String              @default("{}") // JSON: {category: "free text"}
+  startedAt      DateTime?
+  submittedAt    DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  choices UnitSelectionChoice[]
+
+  @@index([surveyId])
+}
+
+// One person's verdict on one option. A REJECT is a first-class answer, not the
+// absence of a pick — it is what makes one dissenting voice visible.
+model UnitSelectionChoice {
+  id         String                @id @default(cuid())
+  responseId String
+  response   UnitSelectionResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  category   String
+  optionId   String
+  option     DecorativeOption      @relation(fields: [optionId], references: [id])
+  kind       String // PICK | REJECT
+  finishKey  String?
+  createdAt  DateTime              @default(now())
+
+  @@unique([responseId, category, optionId])
+}
+
+// What the survey concluded for one category. Never an average — agreement says
+// plainly whether everybody agreed, and divergence keeps who said what.
+model UnitSelectionResult {
+  id           String              @id @default(cuid())
+  surveyId     String
+  survey       UnitSelectionSurvey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  category     String
+  optionId     String
+  option       DecorativeOption    @relation(fields: [optionId], references: [id])
+  finishKey    String
+  agreement    String // UNANIMOUS | DIVERGENT | SINGLE
+  divergence   String              @default("[]") // JSON: [{respondentName, role, optionId, kind}]
+  resolvedById String?
+  resolvedAt   DateTime?
+  note         String?
+  pushedAt     DateTime?
+  pushedItemId String? // the FixtureScheduleItem this became
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@unique([surveyId, category])
 }

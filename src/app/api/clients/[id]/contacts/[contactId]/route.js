@@ -3,6 +3,7 @@ import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { archiveData, readArchivedFlag, deleteRefused, ARCHIVED_FLAG_HELP } from '@/lib/archive';
 import { splitName, joinName, isValidEmail } from '@/lib/crmClient';
+import { cleanDepartment } from '@/lib/contactDepartments';
 
 const PROJECT_LINK_INCLUDE = {
   projectLinks: {
@@ -81,7 +82,7 @@ export async function PATCH(request, { params }) {
       ...(email       !== undefined && { email: email || null }),
       ...(cellPhone   !== undefined && { cellPhone: cellPhone || null }),
       ...(linkedInUrl !== undefined && { linkedInUrl: linkedInUrl || null }),
-      ...(department  !== undefined && { department: department || null }),
+      ...(department  !== undefined && { department: cleanDepartment(department) }),
     },
     include: PROJECT_LINK_INCLUDE,
   });

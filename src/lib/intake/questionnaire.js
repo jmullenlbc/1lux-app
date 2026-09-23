@@ -138,7 +138,7 @@ export const INTAKE_QUESTIONS = [
       'Exterior balcony sconce (Medium finish)',
       'Exterior balcony sconce (High finish)',
     ],
-    default: 'Exterior balcony sconce (Low finish)',
+    default: 'None',
     engine: { section: 'units', field: 'balcony',
       map: {
         'None': 'none',

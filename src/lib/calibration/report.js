@@ -10,6 +10,7 @@
  * pricing LOW against reality, negative means it is pricing HIGH.
  */
 import { LINE_LABELS, LINE_KEYS } from './lines.js';
+import { driverAnalysis, betterDriverSuggestions, describeSpread, describeSuggestion } from './drivers.js';
 
 /** |drift| beyond this, with at least MIN_SAMPLES actuals, flags the line. */
 export const DRIFT_REVIEW_PCT = 15;
@@ -153,6 +154,8 @@ export const CALIBRATION_REPORTS = {
   modelVsActualByBuilding: { label: 'Drift % by building type',          chartType: 'BAR',   unit: '%'  },
   samplesByMonth:          { label: 'Projects with actuals, by month',   chartType: 'LINE',  unit: null },
   coverageByLine:          { label: 'Projects with an actual, per line', chartType: 'BAR',   unit: null },
+  driverFit:               { label: 'What each line really tracks',      chartType: 'TABLE', unit: null },
+  driverSuggestions:       { label: 'Lines priced off the wrong thing',  chartType: 'TABLE', unit: null },
 };
 
 /**
@@ -171,6 +174,7 @@ export function runCalibrationWidget(spec, samples, filters = []) {
       chartType: 'TABLE',
       series: table.map(r => ({ label: r.label, value: r.driftPct ?? 0 })),
       table: {
+        kind: 'drift',
         columns: [
           { key: 'label',         label: 'Budget line' },
           { key: 'projects',      label: 'Projects' },
@@ -191,5 +195,74 @@ export function runCalibrationWidget(spec, samples, filters = []) {
   if (report === 'modelVsActualByBuilding') return { chartType: 'BAR',  series: driftByBuildingType(rows) };
   if (report === 'samplesByMonth')          return { chartType: 'LINE', series: samplesByMonth(rows) };
   if (report === 'coverageByLine')          return { chartType: 'BAR',  series: coverageByLine(rows) };
+
+  // Phase 3. These two ask a different question from everything above: not
+  // "is the rate right" but "are we multiplying by the right thing at all".
+  if (report === 'driverFit') {
+    const table = driverAnalysis(rows).map(line => {
+      const best = line.candidates[0] || null;
+      return {
+        label:     line.label,
+        projects:  line.projects,
+        current:   line.current?.driverLabel || 'Hand-entered',
+        steadiness: describeSpread(line.current?.spread),
+        best:      best?.driverLabel || '—',
+        bestRate:  best?.impliedRate ?? null,
+        // The renderer reads bestUnit to print "$12/SF" instead of a bare number.
+        bestUnit:  best?.driverUnit || null,
+        bestSteadiness: describeSpread(best?.spread),
+      };
+    });
+    return {
+      chartType: 'TABLE',
+      series: table.map(r => ({ label: r.label, value: r.projects })),
+      table: {
+        kind: 'plain',
+        columns: [
+          { key: 'label',          label: 'Budget line' },
+          { key: 'projects',       label: 'Jobs' },
+          { key: 'current',        label: 'Priced off' },
+          { key: 'steadiness',     label: 'How steady' },
+          { key: 'best',           label: 'Best match' },
+          { key: 'bestRate',       label: 'Its rate', unit: 'rate' },
+          { key: 'bestSteadiness', label: 'How steady' },
+        ],
+        rows: table,
+        empty: 'Not enough jobs with real figures yet. A line needs five before this will say anything about it.',
+      },
+    };
+  }
+  if (report === 'driverSuggestions') {
+    const analysis = driverAnalysis(rows);
+    const found    = betterDriverSuggestions(analysis);
+    const table = found.map(s2 => ({
+      label:    s2.label,
+      projects: s2.projects,
+      from:     s2.from ? `per ${s2.from.unit}` : 'hand-entered',
+      to:       s2.to.driver,
+      finding:  describeSuggestion(s2),
+    }));
+    return {
+      chartType: 'TABLE',
+      series: table.map(r => ({ label: r.label, value: r.projects })),
+      table: {
+        kind: 'plain',
+        columns: [
+          { key: 'label',    label: 'Budget line' },
+          { key: 'projects', label: 'Jobs' },
+          { key: 'from',     label: 'Priced off' },
+          { key: 'to',       label: 'Really tracks' },
+          { key: 'finding',  label: 'What that means' },
+        ],
+        rows: table,
+        // "Nothing wrong" and "nothing to go on" look identical on screen and
+        // mean opposite things, so the card says which one it is.
+        empty: analysis.length
+          ? 'Nothing to report — every line with enough jobs behind it is already priced off the thing it actually follows.'
+          : 'Not enough jobs with real figures yet. A line needs five before this will say anything about it.',
+      },
+    };
+  }
+
   return { chartType: def.chartType, series: [] };
 }

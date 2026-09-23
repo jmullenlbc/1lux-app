@@ -78,8 +78,13 @@ export default function DashboardView({ section, sectionLabel }) {
   function resolveWidgetId(target, widget) {
     if (!widget) return null;
     if ((target.widgets || []).some(w => w.id === widget.id)) return widget.id;
-    const copy = (target.widgets || []).find(w => w.position === widget.position)
-              || (target.widgets || []).find(w => w.name === widget.name);
+    // Positions can repeat (two cards at 10 on the Sales default), so a
+    // position-only match could hand the edit to the wrong card.
+    const ws = target.widgets || [];
+    const copy = ws.find(w => w.position === widget.position && w.name === widget.name)
+              || ws.find(w => w.name === widget.name && w.dataSpec === widget.dataSpec)
+              || ws.find(w => w.position === widget.position)
+              || ws.find(w => w.name === widget.name);
     return copy?.id || null;
   }
 
@@ -92,18 +97,34 @@ export default function DashboardView({ section, sectionLabel }) {
     if (res.ok) load();
   }
 
+  // Returns null on success, or a sentence the editor shows in red. Before
+  // 2026-09-23 a failed save closed the editor anyway and the change vanished.
   async function saveWidget(spec, widget) {
     const target = await ensureEditable();
-    if (!target) return;
-    const body = { name: spec.name || 'Untitled', chartType: spec.chartType, width: spec.width, dataSpec: spec };
+    if (!target) return 'Could not make your own copy of this dashboard to edit. Please try again.';
+    const { legacy, ...clean } = spec;
+    // An older chart with no measure picked keeps its original settings —
+    // only the title and width change.
+    const keepOld = legacy && !clean.terms?.[0]?.field;
+    const body = keepOld
+      ? { name: clean.name || 'Untitled', width: clean.width }
+      : { name: clean.name || 'Untitled', chartType: clean.chartType, width: clean.width, dataSpec: clean };
     const editId = resolveWidgetId(target, widget);
-    if (editId) {
-      await fetch(`/api/dashboards/${target.id}/widgets/${editId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    } else {
-      await fetch(`/api/dashboards/${target.id}/widgets`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    let res;
+    try {
+      res = editId
+        ? await fetch(`/api/dashboards/${target.id}/widgets/${editId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        : await fetch(`/api/dashboards/${target.id}/widgets`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    } catch {
+      return 'Could not reach the server. Check your connection and try again.';
+    }
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      return j.error ? `That widget did not save: ${j.error}.` : `That widget did not save (error ${res.status}). Please try again.`;
     }
     setEditor(null);
     await reloadKeepId(target.id);
+    return null;
   }
 
   async function deleteWidget(w) {
@@ -264,7 +285,10 @@ function specFromWidget(w) {
   // Prebuilt (kind-tagged) widgets keep their kind/report through an edit —
   // the editor only lets you retitle/resize them.
   const prebuilt = s.kind ? { kind: s.kind, report: s.report } : {};
-  return { ...prebuilt, name: w.name, terms: s.terms || [{ field: '', agg: 'sum' }], op: s.op || 'single', groupBy: s.groupBy || '', timeBucket: s.timeBucket || 'month', customStart: s.customStart || '', customEnd: s.customEnd || '', chartType: w.chartType || 'BAR', width: w.width || 'HALF' };
+  // An older chart built before the field picker has no terms. Without this
+  // flag its editor opened with every field blank and Save greyed out.
+  const legacy = !s.kind && !Array.isArray(s.terms);
+  return { ...prebuilt, legacy, name: w.name, terms: s.terms || [{ field: '', agg: 'sum' }], op: s.op || 'single', groupBy: s.groupBy || '', timeBucket: s.timeBucket || 'month', customStart: s.customStart || '', customEnd: s.customEnd || '', chartType: w.chartType || 'BAR', width: w.width || 'HALF' };
 }
 function unitForWidget(section, w) {
   try {
@@ -281,7 +305,16 @@ function WidgetEditor({ section, measures, dimensions, init, onSave, onClose }) 
   const setTerm = (i, k, v) => setSpec(s => { const t = [...s.terms]; t[i] = { ...(t[i] || { agg: 'sum' }), [k]: v }; return { ...s, terms: t }; });
   const dim = dimensions.find(d => d.key === spec.groupBy);
   const prebuilt = !!spec.kind;
-  const valid = prebuilt || (spec.terms[0]?.field && (spec.op === 'single' || spec.terms[1]?.field));
+  const picked = spec.terms[0]?.field && (spec.op === 'single' || spec.terms[1]?.field);
+  const valid = prebuilt || picked || (spec.legacy && !spec.terms[0]?.field);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  async function save() {
+    setSaving(true); setSaveError(null);
+    const err = await onSave(spec, init.widget);
+    if (err) { setSaveError(err); setSaving(false); }
+  }
+  const errorLine = saveError && <p className="mt-4 text-xs text-red-600">{saveError}</p>;
 
   if (prebuilt) {
     const report = CALIBRATION_REPORTS[spec.report];
@@ -296,9 +329,10 @@ function WidgetEditor({ section, measures, dimensions, init, onSave, onClose }) 
             <Field label="Title"><input value={spec.name} onChange={e => set('name', e.target.value)} className="inp" /></Field>
             <Field label="Width"><select value={spec.width} onChange={e => set('width', e.target.value)} className="inp"><option value="HALF">Half</option><option value="FULL">Full</option></select></Field>
           </div>
+          {errorLine}
           <div className="flex justify-end gap-2 mt-5">
             <button onClick={onClose} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-500">Cancel</button>
-            <button onClick={() => onSave(spec, init.widget)} className="px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-semibold">Save</button>
+            <button disabled={saving} onClick={save} className="px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-semibold disabled:opacity-40">{saving ? 'Saving…' : 'Save'}</button>
           </div>
           <style jsx>{`.inp{ width:100%; border:1px solid #e2e8f0; border-radius:8px; padding:7px 9px; font-size:13px; outline:none; } .inp:focus{ border-color:#f59e0b; }`}</style>
         </div>
@@ -310,6 +344,7 @@ function WidgetEditor({ section, measures, dimensions, init, onSave, onClose }) 
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-5" onClick={e => e.stopPropagation()}>
         <h3 className="text-sm font-bold text-slate-800 mb-4">{init.widget ? 'Edit widget' : 'New widget'}</h3>
+        {spec.legacy && <p className="text-xs text-slate-500 -mt-2 mb-4">This is an older chart. Save as it is to change only the title or width, or pick a measure below to rebuild it.</p>}
         <div className="space-y-3">
           <Field label="Title"><input value={spec.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Product $ by client" className="inp" /></Field>
 
@@ -350,9 +385,10 @@ function WidgetEditor({ section, measures, dimensions, init, onSave, onClose }) 
           </div>
         </div>
 
+        {errorLine}
         <div className="flex justify-end gap-2 mt-5">
           <button onClick={onClose} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-500">Cancel</button>
-          <button disabled={!valid} onClick={() => onSave(spec, init.widget)} className="px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-semibold disabled:opacity-40">Save</button>
+          <button disabled={!valid || saving} onClick={save} className="px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-semibold disabled:opacity-40">{saving ? 'Saving…' : 'Save'}</button>
         </div>
       </div>
       <style jsx>{`.inp{ width:100%; border:1px solid #e2e8f0; border-radius:8px; padding:7px 9px; font-size:13px; outline:none; } .inp:focus{ border-color:#f59e0b; }`}</style>

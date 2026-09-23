@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 
-import { requireAuth, isClientViewer } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
+import { projectScopeWhere } from '@/lib/projectScope';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import Link from 'next/link';
@@ -16,7 +17,7 @@ export default async function PreConPage() {
       prisma.manufacturer.count(),
       prisma.manufacturerProduct.count(),
       prisma.project.findMany({
-        where: isClientViewer(user.role) ? { createdById: user.id } : {},
+        where: projectScopeWhere(user),
         include: {
           projectData: { select: { clientInitialBudget: true, freightPct: true, warehousingPct: true, salesTaxPct: true } },
           peerReviewItems: { select: { totalSavings: true } },

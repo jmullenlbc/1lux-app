@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { nextContactNumber } from '@/lib/contactNumber';
+import { cleanDepartment } from '@/lib/contactDepartments';
 
 // GET /api/crm/contacts
 // Query: search, clientId
@@ -42,7 +43,7 @@ export async function POST(request) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
-  const { name, title, email, phone, notes, clientId, linkedInUrl, preferredName, company } = await request.json();
+  const { name, title, email, phone, notes, clientId, linkedInUrl, preferredName, company, department } = await request.json();
   if (!name?.trim()) return NextResponse.json({ error: 'name is required' }, { status: 400 });
 
   // Validate clientId by ID — never by text
@@ -65,6 +66,7 @@ export async function POST(request) {
       linkedInUrl:   linkedInUrl   || null,
       preferredName: preferredName || null,
       company:       company       || null,
+      department:    cleanDepartment(department),
     },
     include: {
       client: { select: { id: true, clientNumber: true, name: true } },

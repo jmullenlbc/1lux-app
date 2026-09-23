@@ -3,6 +3,7 @@ import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { splitName, joinName, isValidEmail } from '@/lib/crmClient';
 import { nextContactNumber } from '@/lib/contactNumber';
+import { cleanDepartment } from '@/lib/contactDepartments';
 
 // Each person carries the projects they are attached to, so the page can work
 // out their own open / won / lost / abandoned counts without storing them.
@@ -82,7 +83,7 @@ export async function POST(request, { params }) {
       workPhone:  work        || null,
       cellPhone:  cellPhone   || null,
       linkedInUrl: linkedInUrl || null,
-      department: department  || null,
+      department: cleanDepartment(department),
     },
     include: PROJECT_LINK_INCLUDE,
   });

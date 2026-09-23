@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { ROLE_LABEL, normalizeRole } from '@/lib/roles';
 import { actsAsAdmin, can } from '@/lib/permissions';
+import { openSectionsFor } from '@/lib/deptScreens';
 import { useDraftReminder } from './useDraftReminder';
 
 // ── Alert Bell ────────────────────────────────────────────────────────────────
@@ -11,6 +12,11 @@ import { useDraftReminder } from './useDraftReminder';
 function AlertBell({ userId, expanded }) {
   const [alerts, setAlerts] = useState([]);
   const [open, setOpen]     = useState(false);
+  // Which alerts this person has already rated, and the one "stop sending this
+  // kind?" question waiting for an answer. Nothing is decided for them: three
+  // "Don't need" clicks on the same kind only earns the question.
+  const [rated, setRated]   = useState({});
+  const [askMute, setAskMute] = useState(null);
   const [pos, setPos]       = useState({ bottom: 0, left: 248 });
   const ref                 = useRef(null);
   const btnRef              = useRef(null);
@@ -46,6 +52,32 @@ function AlertBell({ userId, expanded }) {
   async function markRead(id) {
     await fetch('/api/alerts', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: [id] }) });
     setAlerts(prev => prev.map(a => a.id === id ? { ...a, isRead: true } : a));
+  }
+
+  // Useful / Don't need. The click is saved; the row stays in the bell either
+  // way, because hiding what you just rated makes the list jump under the mouse.
+  async function rate(alert, verdict) {
+    setRated(r => ({ ...r, [alert.id]: verdict }));
+    try {
+      const res  = await fetch('/api/alerts/feedback', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ alertId: alert.id, verdict }),
+      });
+      const data = await res.json();
+      if (res.ok && data.offerMute) setAskMute({ alertType: data.alertType, question: data.muteQuestion });
+    } catch {
+      setRated(r => { const n = { ...r }; delete n[alert.id]; return n; });
+    }
+  }
+
+  async function muteType(alertType) {
+    setAskMute(null);
+    try {
+      await fetch('/api/alerts/mute', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ alertType, muted: true }),
+      });
+    } catch {}
   }
 
   async function deleteAlert(id) {
@@ -98,6 +130,21 @@ function AlertBell({ userId, expanded }) {
               </button>
             )}
           </div>
+          {askMute && (
+            <div className="px-4 py-3 bg-slate-50 border-b border-slate-100">
+              <p className="text-xs text-slate-700">{askMute.question}</p>
+              <div className="flex gap-2 mt-2">
+                <button onClick={() => muteType(askMute.alertType)}
+                  className="px-2.5 py-1 rounded-lg bg-slate-800 text-white text-[11px] font-semibold hover:bg-slate-700">
+                  Stop sending it
+                </button>
+                <button onClick={() => setAskMute(null)}
+                  className="px-2.5 py-1 rounded-lg border border-slate-200 text-[11px] font-medium text-slate-600 hover:bg-white">
+                  Keep sending it
+                </button>
+              </div>
+            </div>
+          )}
           <div className="max-h-96 overflow-y-auto">
             {alerts.length === 0 ? (
               <p className="text-sm text-slate-400 text-center py-8">No notifications</p>
@@ -119,6 +166,24 @@ function AlertBell({ userId, expanded }) {
                           <button onClick={() => markRead(alert.id)} className="text-xs text-slate-400 hover:text-slate-600 font-medium">
                             Mark read
                           </button>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        {rated[alert.id] ? (
+                          <span className="text-[11px] text-slate-400">
+                            {rated[alert.id] === 'USEFUL' ? 'Thanks — marked useful.' : "Thanks — marked as one you don't need."}
+                          </span>
+                        ) : (
+                          <>
+                            <button onClick={() => rate(alert, 'USEFUL')}
+                              className="text-[11px] px-2 py-0.5 rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700 font-medium">
+                              Useful
+                            </button>
+                            <button onClick={() => rate(alert, 'NOT_USEFUL')}
+                              className="text-[11px] px-2 py-0.5 rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700 font-medium">
+                              Don&apos;t need
+                            </button>
+                          </>
                         )}
                       </div>
                     </div>
@@ -186,6 +251,14 @@ function IconHandshake() {
 function IconBarChart() {
   return <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg>;
 }
+function IconKey() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a4 4 0 11-4 4m0 0L4 18v3h3l1-1v-2h2v-2h2l1.5-1.5" />
+    </svg>
+  );
+}
+
 function IconSignature() {
   return <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" /></svg>;
 }
@@ -390,13 +463,18 @@ export default function Sidebar({ user }) {
                           startsWith('/sales-reps') || startsWith('/products') || startsWith('/dashboards/budget');
   const softwareRelated = startsWith('/admin/changelog') || startsWith('/admin/roadmap') ||
                           startsWith('/admin/tasks') || startsWith('/admin/tech-stack') ||
-                          startsWith('/admin/usage') || startsWith('/admin/agent-runs');
+                          startsWith('/admin/usage') || startsWith('/admin/agent-runs') ||
+                          startsWith('/admin/mcp-keys');
 
   // ── Collapsible open states ───────────────────────────────────────────────────
-  const [homeOpen,     setHomeOpen]     = useState(true);
-  const [crmOpen,      setCrmOpen]      = useState(true);
-  const [preconOpen,   setPreconOpen]   = useState(false);
-  const [softwareOpen, setSoftwareOpen] = useState(false);
+  // Which sections start open is decided by the person's departments, so the
+  // app opens on their own work. Somebody with no departments recorded gets
+  // exactly what everyone got before: Home and the CRM. See src/lib/deptScreens.js.
+  const startOpen = openSectionsFor(user);
+  const [homeOpen,     setHomeOpen]     = useState(startOpen.home);
+  const [crmOpen,      setCrmOpen]      = useState(startOpen.crm);
+  const [preconOpen,   setPreconOpen]   = useState(startOpen.precon);
+  const [softwareOpen, setSoftwareOpen] = useState(startOpen.software);
 
   // Auto-open when navigating to a related path
   useEffect(() => {
@@ -520,7 +598,8 @@ export default function Sidebar({ user }) {
               <SubNavItem href="/dashboards/budget" icon={<IconBarChart />} label="Dashboard"    expanded={expanded} active={startsWith('/dashboards/budget')} />
               <SubNavItem href="/manufacturers" icon={<IconFactory />} label="Manufacturers" expanded={expanded} active={startsWith('/manufacturers')} />
               <SubNavItem href="/sales-reps"    icon={<IconTag />}     label="Sales Reps"    expanded={expanded} active={startsWith('/sales-reps')} />
-              <SubNavItem href="/products"      icon={<IconPackage />} label="Products"      expanded={expanded} active={startsWith('/products')} />
+              <SubNavItem href="/products"      icon={<IconPackage />} label="Products"      expanded={expanded} active={startsWith('/products') && !startsWith('/products/decorative-options')} />
+              <SubNavItem href="/products/decorative-options" icon={<IconFixture />} label="Unit Fixture Choices" expanded={expanded} active={startsWith('/products/decorative-options')} />
             </div>
           )}
         </div>
@@ -548,6 +627,7 @@ export default function Sidebar({ user }) {
                 <SubNavItem href="/admin/tech-stack" icon={<IconTechStack />}  label="Tech Stack" expanded={expanded} active={startsWith('/admin/tech-stack')} />
                 {isIlcAdmin && <SubNavItem href="/admin/usage" icon={<IconBarChart />} label="Usage & Health" expanded={expanded} active={startsWith('/admin/usage')} />}
                 {isIlcAdmin && <SubNavItem href="/admin/agent-runs" icon={<IconSignature />} label="AI Review Queue" expanded={expanded} active={startsWith('/admin/agent-runs')} />}
+                {isIlcAdmin && <SubNavItem href="/admin/mcp-keys" icon={<IconKey />} label="AI Access Keys" expanded={expanded} active={startsWith('/admin/mcp-keys')} />}
               </div>
             )}
           </div>

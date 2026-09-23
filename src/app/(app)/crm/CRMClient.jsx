@@ -9,6 +9,7 @@ import {
   weightedRevenue, weightedForecast, FORECAST_WINDOW_DAYS,
 } from '@/lib/pipeline';
 import PipelineSidePanel from '@/components/crm/PipelineSidePanel';
+import { ALL_SERVICE_TYPES } from '@/lib/utils';
 
 // Re-exported for the (orphaned, Phase-2) Deal components' imports.
 export { PIPELINE_STAGES };

@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { PersonOptions } from '@/components/people/PeopleOptions';
 import { BUDGET_QC_ITEMS, QC_SECTIONS } from '@/lib/budgetQCItems';
 
 function fmtDate(d) {
@@ -216,9 +217,7 @@ export default function BudgetQCDrawer({
                   onChange={e => { onAssign(e.target.value || null); setAssigningOpen(false); }}
                 >
                   <option value="">— Unassigned —</option>
-                  {allUsers.map(u => (
-                    <option key={u.id} value={u.id}>{u.name || u.email}</option>
-                  ))}
+                  <PersonOptions users={allUsers} picker="qcAssignee" />
                 </select>
               </div>
             )}

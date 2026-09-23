@@ -2,7 +2,9 @@ export const dynamic = 'force-dynamic';
 
 import { notFound, redirect } from 'next/navigation';
 import { getSession, isClientViewer, can } from '@/lib/auth';
+import { canOpenProject } from '@/lib/projectScope';
 import { prisma } from '@/lib/db';
+import { DEPARTMENTS_SELECT, departmentKeys } from '@/lib/departments';
 import { responsesToSections } from '@/lib/utils';
 import { calculateBudget } from '@/lib/calculations';
 import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
@@ -40,7 +42,7 @@ export default async function ProjectHubPage({ params }) {
 
   if (!project) notFound();
   // Every ILC staff member can open any project; Client Viewers stay scoped to their own.
-  if (isClientViewer(session.role) && project.createdById !== session.id) notFound();
+  if (!(await canOpenProject(prisma, session, project))) notFound();
 
   const pricing = pricingForProject(project.pricingSnapshot, await loadPricing());
 
@@ -71,10 +73,12 @@ export default async function ProjectHubPage({ params }) {
     orderBy: { name: 'asc' },
   });
 
-  const allUsers = await prisma.user.findMany({
-    select: { id: true, name: true, email: true },
+  // Departments come along so the people pickers can lead with the department
+  // the field is really about (src/lib/deptScreens.js).
+  const allUsers = (await prisma.user.findMany({
+    select: { id: true, name: true, email: true, departments: DEPARTMENTS_SELECT },
     orderBy: { name: 'asc' },
-  });
+  })).map(u => ({ ...u, departments: departmentKeys(u) }));
 
   const masterTypes = prisma.masterType
     ? await prisma.masterType.findMany({

@@ -402,6 +402,72 @@ export function rangeFetcherFor(key) {
 }
 
 
+// ── Fixture photographs ─────────────────────────────────────────────────────
+//
+// The picture of a decorative fixture that somebody looks at while they choose
+// it. Same reasoning as kept sheets: these live under `fixtures/`, NOT
+// `uploads/`, because `uploads/` is swept a day after a file lands and a
+// fixture photo has to still be there next year when somebody asks what was on
+// the screen when the client picked it.
+//
+// They are small — a catalogue photo, not a drawing — so they come in through
+// the ordinary form post rather than the presign desk. FIXTURE_IMAGE_MAX_BYTES
+// keeps that under Amplify's front door, which answers a bigger body with an
+// empty 413 and no message at all.
+
+const FIXTURE_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+
+/** Comfortably under Amplify's ~4.4 MB request ceiling. */
+export const FIXTURE_IMAGE_MAX_BYTES = 4 * 1024 * 1024;
+
+/** True only for keys putFixtureImage could have written. */
+export function isFixtureKey(key) {
+  return typeof key === 'string'
+    && /^fixtures\/[a-z0-9]+\.(jpg|png|webp)$/i.test(key)
+    && !key.includes('..');
+}
+
+/**
+ * Store one fixture photograph.
+ * @returns {Promise<string|null>} the key, or null if it could not be stored
+ */
+export async function putFixtureImage(buffer, contentType = 'image/jpeg') {
+  const ext = FIXTURE_TYPES[contentType];
+  if (!ext || !buffer?.length || (!presignAvailable() && !devStoreOn())) return null;
+  const key = `fixtures/${createId()}.${ext}`;
+  if (!presignAvailable()) return devPut(key, buffer).then(() => key).catch(() => null);
+  try {
+    await s3Client().send(new PutObjectCommand({
+      Bucket: process.env.S3_BUCKET,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+    }));
+    return key;
+  } catch (err) {
+    console.error('[uploadStorage] putFixtureImage failed', err?.message ?? err);
+    return null;
+  }
+}
+
+/** Read one back. null means gone — the screen shows a gap, not a 500. */
+export async function getFixtureImage(key) {
+  if (!isFixtureKey(key)) return null;
+  if (!presignAvailable()) {
+    if (!devStoreOn()) return null;
+    return devGet(key).catch(() => null);
+  }
+  try {
+    const res = await s3Client().send(new GetObjectCommand({
+      Bucket: process.env.S3_BUCKET, Key: key,
+    }));
+    return Buffer.from(await res.Body.transformToByteArray());
+  } catch (err) {
+    console.error('[uploadStorage] getFixtureImage failed for key', key, err?.name ?? err?.message ?? err);
+    return null;
+  }
+}
+
 // ── Kept sheets ─────────────────────────────────────────────────────────────
 //
 // The four sheets we actually read out of a set, saved as images so ILC staff

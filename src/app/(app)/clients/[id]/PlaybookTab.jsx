@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { PROJECT_TYPES, SECTION_COLOR_MAP } from '@/lib/standards-questions';
 import { PLAYBOOK_CONTENT } from '@/lib/playbookContent';
 import PlaybookContent from '@/components/PlaybookContent';
+import { contactDepartmentLabel } from '@/lib/contactDepartments';
 
 // ── Sections (v3 — modify + extend; all internal-only data) ───────────────────
 const SECTIONS = [
@@ -97,7 +98,7 @@ function ChipMulti({ options, selected, onChange }) {
 // Single-contact dropdown grouped by department.
 function ContactSelect({ contacts, value, onChange, placeholder = 'Select a contact…' }) {
   const byDept = {};
-  for (const c of contacts) { const d = c.department || 'Other'; (byDept[d] ||= []).push(c); }
+  for (const c of contacts) { const d = contactDepartmentLabel(c.department) || 'Other'; (byDept[d] ||= []).push(c); }
   return (
     <select value={value || ''} onChange={e => onChange(e.target.value || null)}
       className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500">

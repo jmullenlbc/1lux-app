@@ -31,6 +31,11 @@ import {
   withTimeout, DEFAULT_LIMIT, MAX_LIMIT,
 } from './guards.js';
 import { rowScope, applyScope, DENY } from './scope.js';
+import { loadSamplesWithContext } from '@/lib/calibration/capture';
+import { rateDriftReport, applySampleFilters, DRIFT_REVIEW_PCT } from '@/lib/calibration/report';
+import { driverFindings, describeSuggestion } from '@/lib/calibration/drivers.js';
+import { loadCommitments } from './commitments.js';
+import { CATALOG } from './catalog.js';
 
 /**
  * An error the CALLER caused. Its message is safe to hand back verbatim; every
@@ -56,6 +61,21 @@ class McpError extends Error {
 const fail = (msg) => { throw new McpError(msg, 400); };
 /** The request was understood and refused. */
 const deny = (msg) => { throw new McpError(msg, 403); };
+
+/**
+ * Refuse a tool the caller is not cleared for, by reading the catalogue.
+ *
+ * The list of ILC-only tools is declared once, in src/lib/mcp/catalog.js, and
+ * agents.md is generated from that same field. A tool that says "ILC staff
+ * only" in its description and forgets to say so in its audience would read as
+ * private and behave as public; this is the one place that rule is enforced, so
+ * there is nowhere for the two to disagree.
+ */
+function requireAudience(toolName, caller) {
+  if (CATALOG[toolName]?.audience === 'ilc' && caller.audience !== 'ilc') {
+    deny(`${toolName} is not available to this caller.`);
+  }
+}
 
 /**
  * The row filter for this caller on this object — or a refusal if there is none.
@@ -91,11 +111,7 @@ function parseClause(value, label) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const list_models = {
-  name: 'list_models',
-  description:
-    'List the data objects available through this server, with a one-line description of each. ' +
-    'Start here — the names returned are the only valid `model` arguments for the other tools.',
-  inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  ...CATALOG.list_models,
   async run({ caller }) {
     return {
       models: objectKeys.map(key => ({
@@ -110,16 +126,7 @@ const list_models = {
 };
 
 const describe_model = {
-  name: 'describe_model',
-  description:
-    'Describe one object: its fields with types, and its links to other objects. ' +
-    'Fields you are not cleared to read are absent from the result, not marked.',
-  inputSchema: {
-    type: 'object',
-    properties: { model: { type: 'string', description: 'model or object name from list_models' } },
-    required: ['model'],
-    additionalProperties: false,
-  },
+  ...CATALOG.describe_model,
   async run({ args, caller }) {
     const check = checkModel(args.model);
     if (!check.ok) fail(check.message);
@@ -134,24 +141,7 @@ const describe_model = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const query_records = {
-  name: 'query_records',
-  description:
-    'Query records of one model with an optional filter, sort and limit. ' +
-    `Returns at most ${MAX_LIMIT} rows (default ${DEFAULT_LIMIT}). ` +
-    'Filters may only reference fields you are cleared to read.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      model:   { type: 'string' },
-      where:   { type: ['object', 'string'], description: 'Prisma where clause, or a JSON string of one' },
-      orderBy: { type: ['object', 'string'] },
-      include: { type: ['object', 'string'], description: 'relations to include, by link name' },
-      limit:   { type: 'number' },
-      skip:    { type: 'number' },
-    },
-    required: ['model'],
-    additionalProperties: false,
-  },
+  ...CATALOG.query_records,
   async run({ args, caller }) {
     const check = checkModel(args.model);
     if (!check.ok) fail(check.message);
@@ -204,18 +194,7 @@ const query_records = {
 };
 
 const get_record = {
-  name: 'get_record',
-  description: 'Fetch a single record of one model by id.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      model:   { type: 'string' },
-      id:      { type: 'string' },
-      include: { type: ['object', 'string'] },
-    },
-    required: ['model', 'id'],
-    additionalProperties: false,
-  },
+  ...CATALOG.get_record,
   async run({ args, caller }) {
     const check = checkModel(args.model);
     if (!check.ok) fail(check.message);
@@ -245,14 +224,7 @@ const get_record = {
 };
 
 const count_records = {
-  name: 'count_records',
-  description: 'Count records of one model matching an optional filter. Returns a number, not rows.',
-  inputSchema: {
-    type: 'object',
-    properties: { model: { type: 'string' }, where: { type: ['object', 'string'] } },
-    required: ['model'],
-    additionalProperties: false,
-  },
+  ...CATALOG.count_records,
   async run({ args, caller }) {
     const check = checkModel(args.model);
     if (!check.ok) fail(check.message);
@@ -281,19 +253,7 @@ const count_records = {
 };
 
 const search = {
-  name: 'search',
-  description:
-    'Free-text search across project names/numbers and client names. ' +
-    'Use when you have a name like "The Approach" and need the record it refers to.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      query: { type: 'string' },
-      limit: { type: 'number' },
-    },
-    required: ['query'],
-    additionalProperties: false,
-  },
+  ...CATALOG.search,
   async run({ args, caller }) {
     const q = String(args.query || '').trim();
     if (!q) fail('query must be a non-empty string.');
@@ -340,20 +300,7 @@ const search = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const get_project_360 = {
-  name: 'get_project_360',
-  description:
-    'Everything about one project in a single call: the project, its client, its budget ' +
-    '(design bid matrix versions or peer review items), its fixture schedules, its change ' +
-    'orders, and its project data inputs. Accepts an id, a project number, or a name.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      projectId:     { type: 'string' },
-      projectNumber: { type: 'number' },
-      name:          { type: 'string' },
-    },
-    additionalProperties: false,
-  },
+  ...CATALOG.get_project_360,
   async run({ args, caller }) {
     const where =
       args.projectId ? { id: String(args.projectId) }
@@ -392,20 +339,9 @@ const get_project_360 = {
 };
 
 const get_pipeline = {
-  name: 'get_pipeline',
-  description:
-    'The sales pipeline: projects with their probability, expected order date and contract value. ' +
-    'ILC staff only — these fields are commercial position, not project facts.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      lifecycleStatus: { type: 'string' },
-      limit:           { type: 'number' },
-    },
-    additionalProperties: false,
-  },
+  ...CATALOG.get_pipeline,
   async run({ args, caller }) {
-    if (caller.audience !== 'ilc') deny('get_pipeline is not available to this caller.');
+    requireAudience("get_pipeline", caller);
     const take = clampLimit(args.limit);
     const rows = await withTimeout(
       prisma.project.findMany({
@@ -422,15 +358,9 @@ const get_pipeline = {
 };
 
 const get_client_360 = {
-  name: 'get_client_360',
-  description: 'One client and all of their projects. ILC staff only.',
-  inputSchema: {
-    type: 'object',
-    properties: { clientId: { type: 'string' }, name: { type: 'string' } },
-    additionalProperties: false,
-  },
+  ...CATALOG.get_client_360,
   async run({ args, caller }) {
-    if (caller.audience !== 'ilc') deny('get_client_360 is not available to this caller.');
+    requireAudience("get_client_360", caller);
     const where =
       args.clientId ? { id: String(args.clientId) }
       : args.name ? { name: { contains: String(args.name) } }
@@ -446,6 +376,76 @@ const get_client_360 = {
   },
 };
 
+const get_calibration = {
+  ...CATALOG.get_calibration,
+  async run({ args, caller }) {
+    requireAudience("get_calibration", caller);
+    const view = args.view ? String(args.view) : 'both';
+
+    const all = await withTimeout(loadSamplesWithContext(), undefined, 'get_calibration');
+    const filters = ['buildingType', 'serviceType', 'projectType', 'client']
+      .filter(f => args[f])
+      .map(f => ({ field: f, value: String(args[f]) }));
+    const samples = applySampleFilters(all, filters);
+    const only = args.lineKey ? String(args.lineKey) : null;
+
+    const out = { samples: samples.length, filters };
+    // A filter that matched nothing is a real answer, and a very different one
+    // from "the rates all look fine". Say which it is.
+    if (!samples.length) {
+      out.note = all.length
+        ? 'No real figures match that filter yet, so there is nothing to say about it.'
+        : 'No real figures have been recorded anywhere yet.';
+      return out;
+    }
+
+    if (view === 'drift' || view === 'both') {
+      // The same rows the dashboard table shows, minus the per-project
+      // breakdown — a bot asking "which rates are drifting" wants the lines,
+      // not a list of every job behind each one.
+      out.driftReviewPct = DRIFT_REVIEW_PCT;
+      out.drift = rateDriftReport(samples)
+        .filter(row => !only || row.lineKey === only)
+        .map(({ details, ...row }) => row);
+    }
+
+    if (view === 'drivers' || view === 'both') {
+      const found = driverFindings(samples);
+      out.minProjectsForDrivers = found.minProjects;
+      out.linesWithEnoughJobs   = found.linesRead;
+      out.driverSuggestions     = only ? found.suggestions.filter(x => x.lineKey === only) : found.suggestions;
+      // Plain sentences, so a bot can answer without inventing its own wording
+      // for a statistic it did not compute.
+      out.findings              = (only ? out.driverSuggestions : found.suggestions).map(describeSuggestion);
+    }
+
+    return out;
+  },
+};
+
+const get_commitments = {
+  ...CATALOG.get_commitments,
+  async run({ args, caller }) {
+    // Who owes what is ILC's internal running list. A client asking it would
+    // learn which of their own requests we have not started, and worse, could
+    // fish for commitments on other jobs. Same posture as get_calibration.
+    requireAudience("get_commitments", caller);
+
+    return withTimeout(
+      loadCommitments({
+        clientId:  args.clientId  ? String(args.clientId)  : undefined,
+        projectId: args.projectId ? String(args.projectId) : undefined,
+        ownerId:   args.ownerId   ? String(args.ownerId)   : undefined,
+        direction: args.direction ? String(args.direction) : undefined,
+        status:    args.status    ? String(args.status)    : undefined,
+        limit:     args.limit,
+      }),
+      undefined,
+      'get_commitments',
+    );
+  },
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const TOOLS = Object.freeze([
@@ -458,6 +458,8 @@ export const TOOLS = Object.freeze([
   get_project_360,
   get_pipeline,
   get_client_360,
+  get_calibration,
+  get_commitments,
 ]);
 
 export const TOOLS_BY_NAME = Object.freeze(Object.fromEntries(TOOLS.map(t => [t.name, t])));

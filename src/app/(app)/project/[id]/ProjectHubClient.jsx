@@ -1,11 +1,12 @@
 'use client';
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { PersonTickList } from '@/components/people/PeopleOptions';
 import Link from 'next/link';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { NAV_CONFIG, getValidTabIds, getDefaultTab } from '@/lib/projectNavConfig';
 import ProjectSidebar from '@/components/project/ProjectSidebar';
 import { formatCurrency } from '@/lib/calculations';
-import { buildingTypeLabel, phaseLabel, serviceTypeLabel, clientTypeLabel, locationTypeLabel, PROJECT_PHASES, SERVICE_TYPES, BUILDING_TYPES } from '@/lib/utils';
+import { buildingTypeLabel, phaseLabel, serviceTypeLabel, clientTypeLabel, locationTypeLabel, PROJECT_PHASES, serviceTypeOptions, BUILDING_TYPES } from '@/lib/utils';
 import FileDropZone from '@/components/files/FileDropZone';
 import ConfirmArchiveModal, { setArchived, ArchiveBoxIcon, KEPT_ON_ARCHIVE_PAGE } from '@/components/salesAutomation/ConfirmArchiveModal';
 import { oversizeMessage, uploadErrorMessage, uploadThrowMessage } from '@/lib/uploadErrorMessage';
@@ -44,6 +45,7 @@ import HumanErrorRadar from '@/components/HumanErrorRadar';
 import ChangeOrdersTab from '@/components/changeOrders/ChangeOrdersTab';
 import ProposalTab from '@/components/proposals/ProposalTab';
 import { appendUpload } from '@/lib/uploadClient';
+import SurveyRunner from '@/components/unitSelections/SurveyRunner';
 
 const BUDGET_TYPE_META = {
   conceptual:  { label: 'Conceptual Budget',    color: 'bg-slate-100 text-slate-600' },
@@ -831,7 +833,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                   className="text-xs font-semibold border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-700 disabled:opacity-50"
                 >
                   <option value="">Service type…</option>
-                  {SERVICE_TYPES.map(t => (
+                  {serviceTypeOptions(serviceType).map(t => (
                     <option key={t.value} value={t.value}>{t.label}</option>
                   ))}
                 </select>
@@ -942,7 +944,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                 <div className="mt-2 bg-white border border-slate-200 rounded-xl shadow-lg p-3 w-64">
                   <div className="text-xs font-semibold text-slate-500 mb-2">Team Members</div>
                   <div className="space-y-1 max-h-48 overflow-y-auto">
-                    {allUsers.map(u => {
+                    <PersonTickList users={allUsers} picker="projectAssignee" renderPerson={u => {
                       const assigned = assignees.some(a => a.id === u.id);
                       return (
                         <button key={u.id}
@@ -960,7 +962,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                           )}
                         </button>
                       );
-                    })}
+                    }} />
                   </div>
                   <button onClick={() => setShowAssignees(false)} className="mt-2 text-xs text-slate-400 hover:text-slate-600 w-full text-center">
                     Done
@@ -1642,6 +1644,19 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
             <FixtureScheduleEditor projectId={project.id} serviceType={project.serviceType} />
             <CodeCheckPanel projectId={project.id} />
             <HumanErrorRadar projectId={project.id} />
+          </div>
+        )}
+
+        {/* ── UNIT SELECTIONS ──────────────────────────────────────────── */}
+        {activeTab === 'unit-selections' && (
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-800">Unit Selections</h2>
+              <p className="text-sm text-slate-400 mt-0.5">
+                The five decorative fixtures inside the unit · everyone picks, the answer says where they disagree
+              </p>
+            </div>
+            <SurveyRunner projectId={project.id} />
           </div>
         )}
 

@@ -19,6 +19,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { login, get, post, serverUp, BASE } from './_auth.mjs';
 import { PrismaClient } from '@prisma/client';
+import { generateKey, keyTableReady } from '../../src/lib/mcp/apiKeys.js';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -54,6 +55,13 @@ let ilc       = null;
 let viewer    = null;
 let viewerId  = null;
 let adminRole = null;   // whatever the seed actually gave the admin
+
+// Per-person MCP keys (migration 0094). Null when the table is not there yet,
+// and every key test below skips rather than fails in that case — the migration
+// is allowed to land after the code that tolerates its absence.
+let viewerKey = null;   // a key issued to the CLIENT_VIEWER
+let adminKey  = null;   // a key issued to the seeded admin
+let revoked   = null;   // a key that was turned off
 
 const mcp = (body, auth) => post('/api/mcp', body, auth);
 
@@ -166,6 +174,20 @@ before(async () => {
 
   ilc    = await login(ADMIN.email, ADMIN.password);
   viewer = await login(VIEWER_EMAIL, VIEWER_PW);
+
+  if (keyTableReady(prisma)) {
+    const mint = async (name, userId, revokedAt = null) => {
+      const { token, tokenHash, prefix } = generateKey();
+      const row = await prisma.mcpApiKey.create({
+        data: { name: `ZZ MCP ${name} (auto-delete)`, prefix, tokenHash, userId, revokedAt },
+        select: { id: true },
+      });
+      return { id: row.id, token };
+    };
+    viewerKey = await mint('viewer key', viewerId);
+    adminKey  = await mint('admin key', admin.id);
+    revoked   = await mint('revoked key', admin.id, new Date());
+  }
 });
 
 after(async () => {
@@ -182,16 +204,33 @@ after(async () => {
   }
   // The viewer owns fixture.projectId, so the user row must go last or the
   // delete fails on a foreign key and leaves the project behind.
+  for (const k of [viewerKey, adminKey, revoked]) {
+    if (k) await prisma.mcpApiKey.deleteMany({ where: { id: k.id } }).catch(() => {});
+  }
   await prisma.user.deleteMany({ where: { email: VIEWER_EMAIL } }).catch(() => {});
   await prisma.$disconnect().catch(() => {});
 });
 
 // ── Discovery and authentication ─────────────────────────────────────────────
 
-test('GET describes the service without a credential, and lists exactly the expected tools', async () => {
+test('GET without a credential describes the service and withholds the tool list', async () => {
   const { status, json } = await get('/api/mcp', null);
   assert.equal(status, 200);
   assert.equal(json.service, 'ilc-librarian');
+  assert.equal(json.readOnly, true);
+
+  // The names are themselves the disclosure. A stranger reading
+  // get_calibration and get_commitments on a public URL learns that ILC keeps
+  // a record of how far its own pricing is off and a ledger of what it owes
+  // people. The count is said out loud instead, so a real MCP client can tell
+  // the catalogue is being withheld rather than that the server has no tools.
+  assert.equal(json.tools, undefined, 'the anonymous card handed out the tool list');
+  assert.equal(json.toolCount, 11);
+});
+
+test('GET with an ILC credential lists exactly the expected tools', async () => {
+  const { status, json } = await get('/api/mcp', ilc.cookie);
+  assert.equal(status, 200);
 
   const names = json.tools.map(t => t.name).sort();
   // Pinned rather than counted. A tool appearing in this list is a deliberate
@@ -199,10 +238,10 @@ test('GET describes the service without a credential, and lists exactly the expe
   // to prevent — so the list is asserted whole and a new tool fails this test
   // until someone writes its guard tests.
   assert.deepEqual(names, [
-    'count_records', 'describe_model', 'get_client_360', 'get_pipeline',
-    'get_project_360', 'get_record', 'list_models', 'query_records', 'search',
+    'count_records', 'describe_model', 'get_calibration', 'get_client_360',
+    'get_commitments', 'get_pipeline', 'get_project_360', 'get_record',
+    'list_models', 'query_records', 'search',
   ]);
-  assert.equal(json.readOnly, true);
 });
 
 test('POST without a credential is refused — no degrading to a public view', async () => {
@@ -365,8 +404,12 @@ test('a select inside an include cannot request a forbidden field', async () => 
 
 // ── ILC-only tools ───────────────────────────────────────────────────────────
 
-test('get_pipeline and get_client_360 are refused to a client', async () => {
-  for (const tool of ['get_pipeline', 'get_client_360']) {
+test('the ILC-only tools are refused to a client', async () => {
+  // get_calibration is the pricing engine talking about itself — our rates, our
+  // drift, our drivers. get_commitments is ILC's internal running list of who
+  // owes what, across every job and every client at once. Both are the last
+  // thing that may ever reach an outside caller.
+  for (const tool of ['get_pipeline', 'get_client_360', 'get_calibration', 'get_commitments']) {
     const { status } = await mcp({ tool, params: { name: 'ZZ' } }, viewer.cookie);
     assert.equal(status, 403, `${tool} was not refused to a CLIENT_VIEWER`);
   }
@@ -376,6 +419,72 @@ test('search does not enumerate ILC clients for a client caller', async () => {
   const { status, json } = await mcp({ tool: 'search', params: { query: 'a' } }, viewer.cookie);
   assert.equal(status, 200);
   assert.deepEqual(json.clients, [], 'a client caller enumerated the account list');
+});
+
+test('get_commitments answers ILC staff, in one shape across four sources', async () => {
+  const { status, json } = await mcp({ tool: 'get_commitments', params: {} }, ilc.cookie);
+  assert.equal(status, 200);
+  assert.equal(typeof json.count, 'number');
+  assert.ok(Array.isArray(json.commitments), 'commitments is not a list');
+  assert.equal(json.commitments.length, json.count);
+
+  // Four systems of record, one row shape. If a source ever leaks its own
+  // column names through, this catches it before a bot has to guess.
+  for (const c of json.commitments) {
+    assert.ok(['task', 'note_action', 'deal_next_action', 'rfi'].includes(c.source), `unknown source ${c.source}`);
+    assert.ok(['WE_OWE_THEM', 'THEY_OWE_US', 'FOLLOW_UP'].includes(c.direction), `unknown direction ${c.direction}`);
+    assert.ok(typeof c.what === 'string' && c.what.length, 'a commitment has nothing to do');
+    assert.equal(typeof c.overdue, 'boolean');
+  }
+
+  // Undated items sort last: a date nobody set is weaker than one that has not
+  // arrived yet, and putting them first would bury the real overdue work.
+  const dated = json.commitments.map(c => !!c.dueDate);
+  assert.ok(!dated.slice(dated.indexOf(false)).includes(true), 'an undated commitment sorted above a dated one');
+});
+
+test('get_commitments overdue is a strict subset of open', async () => {
+  const open = await mcp({ tool: 'get_commitments', params: { status: 'open', limit: 200 } }, ilc.cookie);
+  const late = await mcp({ tool: 'get_commitments', params: { status: 'overdue', limit: 200 } }, ilc.cookie);
+  assert.equal(open.status, 200);
+  assert.equal(late.status, 200);
+  assert.ok(late.json.total <= open.json.total, 'more overdue than open');
+  for (const c of late.json.commitments) assert.equal(c.overdue, true, 'a non-overdue row came back from status:overdue');
+});
+
+test('get_commitments filtered to a client never returns an unattached task', async () => {
+  // A Task has no company and no job. Including one in "what do we owe LAC"
+  // would be a wrong answer in the direction that matters most.
+  const { status, json } = await mcp(
+    { tool: 'get_commitments', params: { clientId: 'no-such-client-id', limit: 200 } },
+    ilc.cookie,
+  );
+  assert.equal(status, 200);
+  assert.equal(json.bySource.task, undefined, 'an unattached task was scoped to a client');
+});
+
+test('get_calibration answers ILC staff, and never invents a finding', async () => {
+  const { status, json } = await mcp({ tool: 'get_calibration', params: {} }, ilc.cookie);
+  assert.equal(status, 200);
+  assert.equal(typeof json.samples, 'number');
+
+  // A database with no real figures in it yet says so in words rather than
+  // handing back empty tables that read like "everything is fine".
+  if (!json.samples) {
+    assert.ok(json.note, 'an empty answer should explain itself');
+    return;
+  }
+
+  assert.ok(Array.isArray(json.drift), 'the drift half should always be an array');
+  assert.ok(Array.isArray(json.findings), 'the driver half should always be an array');
+  // Five jobs is the floor, and a finding may never appear under it.
+  assert.equal(json.minProjectsForDrivers, 5);
+  for (const s2 of json.driverSuggestions || []) {
+    assert.ok(s2.projects >= 5, `a finding was reported off ${s2.projects} jobs`);
+  }
+  // The per-project breakdown stays out of the bot answer — it is a list of
+  // every job behind every line, and nobody asked for that.
+  for (const row of json.drift) assert.equal('details' in row, false);
 });
 
 // ── Row scope: WHICH ROWS, not which fields ─────────────────────────────────
@@ -785,10 +894,11 @@ test('get_project_360 redacts every branch it assembles', async () => {
   assert.ok(!asClient.text.includes(String(MARGIN)),   'the 360 view leaked the margin');
 });
 
-test('the unauthenticated catalogue names tools, never fields', async () => {
-  // GET is deliberately open so an MCP client can discover the endpoint before it
-  // has a token. That is only safe while it discloses nothing the public repo
-  // does not — tool names and argument shapes, no object names, no columns.
+test('the unauthenticated card never names a field, a column or an object', async () => {
+  // GET is deliberately open so an MCP client can discover that the endpoint
+  // exists before it has a token. What comes back is protocol and policy only:
+  // no tool names (those are behind the credential now), and — the thing this
+  // test guards — nothing at all about what is stored or what it is called.
   const { json, text } = await get('/api/mcp', null);
   assert.equal(json.readOnly, true);
   for (const name of ['originalDN', 'quoteReference', 'marginPct', 'dnPerUnit', 'passwordHash']) {
@@ -834,13 +944,25 @@ test('a notification gets 202 and an empty body, not a result', async () => {
 test('tools/list returns schemas a model can actually call', async () => {
   const { envelope } = await rpc('tools/list', {}, ilc.cookie);
   const tools = envelope.result.tools;
-  assert.equal(tools.length, 9);
+  assert.equal(tools.length, 11);
   for (const t of tools) {
     assert.equal(t.inputSchema?.type, 'object', `${t.name} has no object inputSchema`);
     assert.ok(t.description?.length > 20, `${t.name} has no usable description`);
   }
 });
 
+test('a client viewer\'s tools/list is the short one, and never names an ILC tool', async () => {
+  // Refusing get_calibration at the door is the boundary, and it is tested
+  // elsewhere. This is the quieter half: a client should not be handed the NAME
+  // of a tool they will only ever be refused, because the name alone says ILC
+  // keeps calibration data and an obligations ledger.
+  const { envelope } = await rpc('tools/list', {}, viewer.cookie);
+  const names = envelope.result.tools.map(t => t.name);
+  assert.equal(names.length, 7);
+  for (const ilcOnly of ['get_pipeline', 'get_client_360', 'get_calibration', 'get_commitments']) {
+    assert.ok(!names.includes(ilcOnly), `the client catalogue named ${ilcOnly}`);
+  }
+});
 test('an unknown JSON-RPC method is -32601, not a crash', async () => {
   const { envelope } = await rpc('tools/summon', {}, ilc.cookie);
   assert.equal(envelope.error?.code, -32601);
@@ -887,9 +1009,140 @@ test('a batch answers each request and drops the notifications', async () => {
   assert.deepEqual(json.map(r => r.id).sort(), ['a', 'b']);
 });
 
+test('a batch cannot buy more calls than the per-minute limit allows', async () => {
+  // The whole point of charging per MESSAGE rather than per HTTP request. If the
+  // limiter counted requests, one array would be an unlimited call budget.
+  //
+  // Every message here is a notification, so nothing runs even if it were let
+  // through — and a refusal is charged nothing, so this test cannot starve the
+  // ones after it.
+  const { limits } = (await get('/api/mcp')).json;
+  const oversized = Array.from(
+    { length: limits.requestsPerMinute + 50 },
+    () => ({ jsonrpc: '2.0', method: 'notifications/initialized' }),
+  );
+
+  const res = await fetch(`${BASE}/api/mcp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', cookie: ilc.cookie },
+    body: JSON.stringify(oversized),
+    redirect: 'manual',
+  });
+  assert.equal(res.status, 429, 'an oversized batch was not rate limited');
+
+  // A 429 without Retry-After teaches a client to hammer harder.
+  const retry = Number(res.headers.get('retry-after'));
+  assert.ok(Number.isFinite(retry) && retry >= 1, `no usable Retry-After (got "${res.headers.get('retry-after')}")`);
+  assert.equal(res.headers.get('ratelimit-limit'), String(limits.requestsPerMinute));
+
+  // And the refusal cost nothing — the next ordinary call still works.
+  const after = await mcp({ tool: 'list_models', params: {} }, ilc.cookie);
+  assert.equal(after.status, 200, 'a refused batch consumed the allowance of the caller');
+});
+
+test('the discovery card states the rate limit without claiming it is global', async () => {
+  const { json } = await get('/api/mcp');
+  assert.ok(Number.isInteger(json.limits.requestsPerMinute), 'the limit is not advertised');
+  assert.ok(json.limits.requestsPerMinute > 0);
+});
+
 test('JSON-RPC framing is not an unauthenticated side door', async () => {
   const { status } = await post('/api/mcp', { jsonrpc: '2.0', id: 1, method: 'tools/list' }, null);
   assert.equal(status, 401);
+});
+
+// ── Per-person keys (migration 0094) ─────────────────────────────────────────
+//
+// The shared MCP_API_TOKEN resolves every bearer to one fixed "mcp-service"
+// identity, so the audit log could never answer "who asked for that client's
+// numbers?". These prove the per-person key path end to end, over real HTTP:
+// it authenticates, it carries its owner role rather than an elevated one, a
+// revoked key is dead on the next request, and the log names the human.
+
+const skipKeys = { skip: keyTableReady(prisma) ? false : 'migration 0094 has not been applied here' };
+
+test('a per-person key authenticates over HTTP', skipKeys, async () => {
+  const { status, json } = await mcp({ tool: 'list_models', params: {} }, { bearer: adminKey.token });
+  assert.equal(status, 200, json?.error || '');
+});
+
+test('a key issued to a CLIENT_VIEWER gets the client view, not the ILC one', skipKeys, async () => {
+  // This is the entire reason per-person keys exist. If a key silently carried
+  // ILC_ADMIN the way the shared token does, handing one to a client hands them
+  // every buy price in the database.
+  const asKey = await mcp(
+    { tool: 'get_record', params: { model: 'ChangeOrderLineItem', id: fixture.lineItemId } },
+    { bearer: viewerKey.token },
+  );
+  assert.equal(asKey.status, 200, asKey.json?.error || '');
+  assert.ok(!asKey.text.includes(String(DN_VALUE)), 'a CLIENT_VIEWER key returned the buy price');
+
+  // Positive control on the same row, with an ILC key: the value was there to leak.
+  const asIlc = await mcp(
+    { tool: 'get_record', params: { model: 'ChangeOrderLineItem', id: fixture.lineItemId } },
+    { bearer: adminKey.token },
+  );
+  assert.ok(asIlc.text.includes(String(DN_VALUE)), 'the ILC key could not see the value either — the test proves nothing');
+});
+
+test('an ILC-only tool is refused to a CLIENT_VIEWER key', skipKeys, async () => {
+  const { json } = await mcp({ tool: 'get_pipeline', params: {} }, { bearer: viewerKey.token });
+  assert.ok(json?.isError || json?.error, 'a client key reached an ILC-only tool');
+});
+
+test('a revoked key is dead on the very next request', skipKeys, async () => {
+  const { status } = await mcp({ tool: 'list_models', params: {} }, { bearer: revoked.token });
+  assert.equal(status, 401, 'a revoked key still worked');
+});
+
+test('an invented key looks exactly like a revoked one', skipKeys, async () => {
+  // Nothing may tell a stranger whether they have found a real key.
+  const made = generateKey();
+  const invented = await mcp({ tool: 'list_models', params: {} }, { bearer: made.token });
+  const dead     = await mcp({ tool: 'list_models', params: {} }, { bearer: revoked.token });
+  assert.equal(invented.status, dead.status);
+  assert.equal(invented.json?.error, dead.json?.error);
+});
+
+test('the audit log names the person behind the key, not "mcp-service"', skipKeys, async () => {
+  const marker = `ZZ-key-${process.pid}-${Date.now()}`;
+  await mcp({ tool: 'query_records', params: { model: 'Project', where: { name: marker } } },
+            { bearer: viewerKey.token });
+
+  const tail = await auditTail();
+  if (tail === null) return;   // Prisma sink active
+
+  const entry = tail.find(e => e.params?.includes(marker));
+  assert.ok(entry, 'the key-authenticated query was not audited');
+  assert.equal(entry.callerKind, 'key');
+  assert.equal(entry.callerId, viewerId, 'the log did not name the person the key belongs to');
+  assert.equal(entry.callerEmail, VIEWER_EMAIL);
+  assert.equal(entry.callerRole, 'CLIENT_VIEWER');
+  assert.equal(entry.audience, 'client');
+});
+
+test('the admin key screen never hands the key back', skipKeys, async () => {
+  // The only copy of a key is the one in the create response. If a listing ever
+  // carried the hash, the screen itself would become the leak.
+  const { status, json, text } = await get('/api/admin/mcp-keys', ilc.cookie);
+  assert.equal(status, 200, json?.error || '');
+  assert.ok(Array.isArray(json.keys));
+  assert.ok(!text.includes('tokenHash'), 'the listing exposes the stored hash');
+  assert.ok(!text.includes(adminKey.token), 'the listing handed back a live key');
+});
+
+test('a key cannot be deleted, only turned off', skipKeys, async () => {
+  const res = await fetch(`${BASE}/api/admin/mcp-keys/${adminKey.id}`, {
+    method: 'DELETE', headers: { cookie: ilc.cookie },
+  });
+  assert.equal(res.status, 405, 'keys can be deleted — the audit trail can be erased');
+});
+
+test('a non-admin cannot list or issue keys', skipKeys, async () => {
+  const listed = await get('/api/admin/mcp-keys', viewer.cookie);
+  assert.ok(listed.status === 401 || listed.status === 403, `a CLIENT_VIEWER listed the keys (HTTP ${listed.status})`);
+  const issued = await post('/api/admin/mcp-keys', { name: 'nope', userId: viewerId }, viewer.cookie);
+  assert.ok(issued.status === 401 || issued.status === 403, `a CLIENT_VIEWER issued itself a key (HTTP ${issued.status})`);
 });
 
 // ── What the audit log holds ─────────────────────────────────────────────────

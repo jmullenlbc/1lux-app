@@ -25,6 +25,7 @@ export const Project = {
     name:          { type: 'string',   sensitivity: 'client_ok' },
     buildingType:  { type: 'string',   sensitivity: 'client_ok' },
     projectType:   { type: 'string',   sensitivity: 'client_ok' },
+    projectSubtype:{ type: 'string',   sensitivity: 'client_ok', desc: 'BUILDING_TYPES key under Project Type — garden | wrap | podium …' },
     budgetType:    { type: 'string',   sensitivity: 'client_ok', desc: 'conceptual | design | peerReview' },
     serviceType:   { type: 'string',   sensitivity: 'client_ok', desc: 'fullDesign | designAssist | peerReview | bid' },
     phase:         { type: 'string',   sensitivity: 'client_ok' },
@@ -33,6 +34,7 @@ export const Project = {
     address:       { type: 'string',   sensitivity: 'client_ok' },
     city:          { type: 'string',   sensitivity: 'client_ok' },
     state:         { type: 'string',   sensitivity: 'client_ok' },
+    zip:           { type: 'string',   sensitivity: 'client_ok', desc: '5 digits or ZIP+4' },
     location:      { type: 'string',   sensitivity: 'client_ok' },
     date:          { type: 'string',   sensitivity: 'client_ok' },
     constructionStartDate: { type: 'string', sensitivity: 'client_ok' },
@@ -52,12 +54,17 @@ export const Project = {
     probabilityToWin:         { type: 'int',     sensitivity: 'ilc_only' },
     probabilityToMoveForward: { type: 'int',     sensitivity: 'ilc_only' },
     expectedOrderDate:        { type: 'datetime',sensitivity: 'ilc_only' },
+    expectedContractExecutionDate: { type: 'datetime', sensitivity: 'ilc_only', desc: 'the day the contract is signed — sits above Expected Order Date' },
     proposalSentDate:         { type: 'datetime',sensitivity: 'ilc_only' },
     budgetSentDate:           { type: 'datetime',sensitivity: 'ilc_only' },
     procurementStage:         { type: 'string',  sensitivity: 'ilc_only' },
     designStage:              { type: 'string',  sensitivity: 'ilc_only' },
     procurementStatus:        { type: 'string',  sensitivity: 'ilc_only' },
     designStatus:             { type: 'string',  sensitivity: 'ilc_only' },
+    // Why we lost. Never widen these — the reason we lost a job to a competitor
+    // is the last thing that should reach the client we lost it to.
+    procurementStatusReason:  { type: 'string',  sensitivity: 'ilc_only', desc: 'required note when set to LOST or ABANDONED' },
+    designStatusReason:       { type: 'string',  sensitivity: 'ilc_only', desc: 'required note when set to LOST or ABANDONED' },
     // Frozen rate blob — contains marginPct. Never widen this.
     pricingSnapshot:          { type: 'json',    sensitivity: 'ilc_only', globalDeny: true, desc: 'JSON-as-string rate snapshot; contains margin' },
     // ── ILC internal workflow ──
@@ -75,6 +82,18 @@ export const Project = {
     contactEmail:    { type: 'string', sensitivity: 'ilc_only' },
     peerReviewMatrixType: { type: 'string', sensitivity: 'ilc_only' },
     rfiRoutingMode:  { type: 'string', sensitivity: 'ilc_only' },
+    contactName:     { type: 'string', sensitivity: 'ilc_only', desc: 'the client-side contact; pairs with contactEmail' },
+    archivedAt:      { type: 'datetime', sensitivity: 'ilc_only', desc: 'set = archived; rows are archived, never deleted' },
+    archivedById:    { type: 'string',   sensitivity: 'ilc_only' },
+
+    // ── the six Project Team company seats (migration 0071) ──
+    // Who else is on the job is ILC's read of the team, not a fact we publish.
+    developerId:            { type: 'string', sensitivity: 'ilc_only' },
+    generalContractorId:    { type: 'string', sensitivity: 'ilc_only' },
+    electricalContractorId: { type: 'string', sensitivity: 'ilc_only' },
+    interiorDesignerId:     { type: 'string', sensitivity: 'ilc_only' },
+    electricalEngineerId:   { type: 'string', sensitivity: 'ilc_only' },
+    architectId:            { type: 'string', sensitivity: 'ilc_only' },
   },
 
   links: {
@@ -84,6 +103,14 @@ export const Project = {
     designBidMatrices: { object: 'DesignBidMatrix',    via: 'projectId', cardinality: 'many' },
     peerReviewItems:   { object: 'PeerReviewItem',     via: 'projectId', cardinality: 'many' },
     projectData:       { object: 'ProjectData',        via: 'projectId', cardinality: 'one'  },
+    notes:             { object: 'Note',               via: 'projectId', cardinality: 'many' },
+    rfis:              { object: 'RFI',                via: 'projectId', cardinality: 'many' },
+    developer:            { object: 'Client', via: 'developerId',            cardinality: 'one' },
+    generalContractor:    { object: 'Client', via: 'generalContractorId',    cardinality: 'one' },
+    electricalContractor: { object: 'Client', via: 'electricalContractorId', cardinality: 'one' },
+    interiorDesigner:     { object: 'Client', via: 'interiorDesignerId',     cardinality: 'one' },
+    electricalEngineer:   { object: 'Client', via: 'electricalEngineerId',   cardinality: 'one' },
+    architect:            { object: 'Client', via: 'architectId',            cardinality: 'one' },
   },
 
   actions: [],  // Slice 3 is read-only. Actions land with Slice 4 / Phase D.

@@ -89,16 +89,34 @@ export function phaseLabel(key, long = false) {
   return long ? p.long : p.label;
 }
 
+// The service-type picker. Mike 2026-09-19: "Other" was dropped — it carried no
+// meaning and split the reporting. It is NOT deleted from the database: any
+// project already saved as 'other' still reads "Other" everywhere, it just can
+// no longer be chosen. Same shape as the legacy status handling in pipeline.js.
 export const SERVICE_TYPES = [
   { value: 'fullDesign',   label: 'Full Design' },
   { value: 'designAssist', label: 'Design Assist' },
   { value: 'peerReview',   label: 'Peer Review' },
   { value: 'bidOnly',      label: 'Bid Only' },
-  { value: 'other',        label: 'Other' },
 ];
 
+// Readable, never settable. Dashboards filter on ALL_SERVICE_TYPES so an old
+// row stays findable; every picker uses SERVICE_TYPES.
+export const LEGACY_SERVICE_TYPES = [
+  { value: 'other',        label: 'Other' },
+];
+export const ALL_SERVICE_TYPES = [...SERVICE_TYPES, ...LEGACY_SERVICE_TYPES];
+export const SETTABLE_SERVICE_TYPE_KEYS = SERVICE_TYPES.map(t => t.value);
+
+// The picker for ONE project. "Other" is not offered any more, but if this
+// project is still stored as 'other' the option stays in its list — otherwise
+// opening the dropdown would show the first option and quietly change the row.
+export function serviceTypeOptions(current) {
+  return [...SERVICE_TYPES, ...LEGACY_SERVICE_TYPES.filter(t => t.value === current)];
+}
+
 export function serviceTypeLabel(key) {
-  return SERVICE_TYPES.find(t => t.value === key)?.label || key || '—';
+  return ALL_SERVICE_TYPES.find(t => t.value === key)?.label || key || '—';
 }
 
 // Project's asset/product type — one controlled vocabulary used across the platform

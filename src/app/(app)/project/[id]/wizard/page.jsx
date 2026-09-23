@@ -1,8 +1,10 @@
 export const dynamic = 'force-dynamic';
 
 import { notFound, redirect } from 'next/navigation';
-import { getSession, isClientViewer } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
+import { canOpenProject } from '@/lib/projectScope';
 import { prisma } from '@/lib/db';
+import { DEPARTMENTS_SELECT, departmentKeys } from '@/lib/departments';
 import { responsesToSections } from '@/lib/utils';
 import { calculateBudget } from '@/lib/calculations';
 import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
@@ -28,7 +30,7 @@ export default async function ProjectWizardPage({ params }) {
   });
 
   if (!project) notFound();
-  if (isClientViewer(session.role) && project.createdById !== session.id) notFound();
+  if (!(await canOpenProject(prisma, session, project))) notFound();
 
   const pricing = pricingForProject(project.pricingSnapshot, await loadPricing());
 
@@ -55,11 +57,11 @@ export default async function ProjectWizardPage({ params }) {
   };
 
   if (project.budgetType === 'peer_review') {
-    const allUsers = await prisma.user.findMany({
-      select:  { id: true, name: true, email: true },
+    const allUsers = (await prisma.user.findMany({
+      select:  { id: true, name: true, email: true, departments: DEPARTMENTS_SELECT },
       where:   { isActive: true },
       orderBy: { name: 'asc' },
-    });
+    })).map(u => ({ ...u, departments: departmentKeys(u) }));
     return (
       <PeerReviewClient
         project={{ ...project, peerReviewItems: undefined }}

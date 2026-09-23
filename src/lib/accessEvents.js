@@ -15,6 +15,10 @@ import { DEPARTMENT_LABEL } from './departments.js';
 
 export const ACCESS_KINDS = [
   'CREATED', 'NAME', 'ROLE', 'ACTIVE', 'DEPARTMENT', 'PERMISSION', 'PASSWORD_RESET', 'MUST_CHANGE_PASSWORD',
+  // A Client Viewer handed one specific job, or had it taken back. `field` is
+  // the job id; the value side carries the job's name as it read that day, so
+  // the line still means something after the job is renamed or archived.
+  'PROJECT_ACCESS',
 ];
 
 const ROLE_LABEL = {
@@ -104,6 +108,9 @@ export function describeAccessEvent(ev) {
       if (ev.toValue === 'on' || ev.toValue === 'off') return `${label} turned ${ev.toValue}`;
       return `${label} changed from ${ev.fromValue} to ${ev.toValue}`;
     }
+    case 'PROJECT_ACCESS': return ev.toValue
+      ? `Given access to ${ev.toValue}`
+      : `Access removed from ${ev.fromValue || 'a job'}`;
     case 'PASSWORD_RESET':       return 'Password reset by an admin';
     case 'MUST_CHANGE_PASSWORD': return ev.toValue === 'on'
       ? 'Must set a new password at next sign-in'

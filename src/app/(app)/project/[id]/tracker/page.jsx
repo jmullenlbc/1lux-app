@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 
 import { notFound, redirect } from 'next/navigation';
-import { getSession, isClientViewer } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
+import { canOpenProject } from '@/lib/projectScope';
 import { prisma } from '@/lib/db';
 import SubmittalTrackerClient from '@/components/tracker/SubmittalTrackerClient';
 
@@ -15,7 +16,7 @@ export default async function TrackerPage({ params }) {
   });
 
   if (!project) notFound();
-  if (isClientViewer(session.role) && project.createdById !== session.id) notFound();
+  if (!(await canOpenProject(prisma, session, project))) notFound();
 
   return (
     <SubmittalTrackerClient

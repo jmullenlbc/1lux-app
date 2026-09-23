@@ -9,9 +9,12 @@
  * be no way to tell which one was wrong. One aggregation, two callers.
  *
  * ── Why no schema change ─────────────────────────────────────────────────────
- * Every number here comes from a table that already exists. `amplify.yml` runs
- * `prisma db push --accept-data-loss`, so a new model is a deploy-time risk that
- * has to be worth taking; a read-only dashboard is not a reason to take it. The
+ * Every number here comes from a table that already exists. A new model means a
+ * numbered migration that has to run cleanly against production on the next
+ * deploy, which is a risk worth taking for real data and not for a read-only
+ * dashboard. (This file used to say `amplify.yml` runs `prisma db push
+ * --accept-data-loss`. It runs `prisma migrate deploy`, and `db push` against
+ * production would drop tables no migration has declared.) The
  * one thing that genuinely needs storage — a day-over-day snapshot, which cannot
  * be reconstructed after the fact — goes into the existing `SystemConfig` k/v
  * table under a `usage.rollup.<date>` key.

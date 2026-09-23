@@ -15,10 +15,14 @@
  * record has to be rows.
  *
  * ── The same sink problem as mcp/audit.js, and the same answer ───────────────
- * The natural home is an `AgentRun` table, and schema changes are risky here:
- * `amplify.yml` runs `prisma db push --accept-data-loss`, so a model added on
- * one side and absent on the other is permanent data loss. So the sink is
- * resolved at runtime, in this order:
+ * The natural home is an `AgentRun` table, and a table this file cannot count
+ * on is still a table it must not crash without: the code ships ahead of the
+ * migration, and a warm Lambda can be running either side of one. So the sink
+ * is resolved at runtime, in this order:
+ *
+ * (This used to say `amplify.yml` runs `prisma db push --accept-data-loss`. It
+ * runs `prisma migrate deploy` — numbered migrations only. `db push` against
+ * production drops any table no migration has declared, ContactLegacy first.)
  *
  *   1. `prisma.agentRun` exists → write rows. (After the model is pushed.)
  *   2. not production           → append JSONL to .agent-runs/.

@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { companyLink, countMissingCompany } from '@/lib/crmClient';
+import { ALL_CONTACT_DEPARTMENTS, contactDepartmentLabel } from '@/lib/contactDepartments';
 
 function checkInStatus(contact) {
   const ref = contact.lastInPersonAt ?? contact.lastTouchpointAt;
@@ -62,6 +63,7 @@ export default function ContactsClient({ contacts }) {
   // employer at all can appear on their own. This makes them findable instead of
   // leaving them scattered down a long list.
   const [onlyMissingCompany, setOnlyMissingCompany] = useState(false);
+  const [department, setDepartment] = useState('');
 
   // Deep links land here already filtered. The Things Needing a Look card on the
   // Main dashboard sends people to a specific duplicated email address or to the
@@ -80,6 +82,7 @@ export default function ContactsClient({ contacts }) {
   const filtered = useMemo(() => {
     let rows = contacts;
     if (onlyMissingCompany) rows = rows.filter(c => companyLink(c).state === 'none');
+    if (department) rows = rows.filter(c => c.department === department);
     if (!search.trim()) return rows;
     const q = search.toLowerCase();
     return rows.filter(c =>
@@ -87,9 +90,10 @@ export default function ContactsClient({ contacts }) {
       c.email?.toLowerCase().includes(q) ||
       c.title?.toLowerCase().includes(q) ||
       c.company?.toLowerCase().includes(q) ||
-      c.client?.name?.toLowerCase().includes(q)
+      c.client?.name?.toLowerCase().includes(q) ||
+      contactDepartmentLabel(c.department)?.toLowerCase().includes(q)
     );
-  }, [contacts, search, onlyMissingCompany]);
+  }, [contacts, search, onlyMissingCompany, department]);
 
   return (
     <div className="min-h-screen bg-slate-50 p-6">
@@ -117,15 +121,24 @@ export default function ContactsClient({ contacts }) {
           )}
         </div>
 
-        {/* Search */}
-        <div className="mb-6">
+        {/* Search + department */}
+        <div className="mb-6 flex flex-col sm:flex-row gap-2">
           <input
             type="text"
-            placeholder="Search by name, email, title, company..."
+            placeholder="Search by name, email, title, company, department..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+            className="flex-1 px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
           />
+          <select
+            value={department}
+            onChange={e => setDepartment(e.target.value)}
+            title="Show only one department"
+            className="px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-orange-400"
+          >
+            <option value="">All departments</option>
+            {ALL_CONTACT_DEPARTMENTS.map(d => <option key={d.key} value={d.key}>{d.label}</option>)}
+          </select>
         </div>
 
         {/* Table */}
@@ -139,6 +152,7 @@ export default function ContactsClient({ contacts }) {
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Name</th>
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Company / Client</th>
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Title</th>
+                  <th className="px-4 py-3 text-left font-semibold text-slate-700">Department</th>
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Email</th>
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Last Contact</th>
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Check-in</th>
@@ -168,6 +182,7 @@ export default function ContactsClient({ contacts }) {
                         <CompanyCell contact={contact} />
                       </td>
                       <td className="px-4 py-3 text-slate-600">{contact.title || '—'}</td>
+                      <td className="px-4 py-3 text-slate-600">{contactDepartmentLabel(contact.department) || '—'}</td>
                       <td className="px-4 py-3 text-slate-600">{contact.email || '—'}</td>
                       <td className="px-4 py-3 text-slate-600">
                         {fmtDate(contact.lastInPersonAt ?? contact.lastTouchpointAt) || '—'}

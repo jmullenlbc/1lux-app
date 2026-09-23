@@ -5,7 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, Cell, PieChart, Pie,
 } from 'recharts';
-import { PROJECT_TYPES, SERVICE_TYPES } from '@/lib/utils';
+import { PROJECT_TYPES, ALL_SERVICE_TYPES } from '@/lib/utils';
 import { STAGE_KEYS, STAGE_LABEL, PIPELINE_STATUS, STATUS_LABEL } from '@/lib/pipeline';
 import { RELATIVE_DATE_OPTIONS } from '@/lib/dashboardEngine';
 
@@ -368,8 +368,9 @@ const FILTER_FIELDS = [
   // These are stored as fullDesign / designAssist / peerReview / bidOnly. The old
   // list here spelled them FULL_SERVICE_DESIGN etc., which matches nothing in the
   // database — every chart filtered this way came back empty.
-  { key: 'serviceType', label: 'Service Type', type: 'enum', options: SERVICE_TYPES.map(t => t.value),
-    labels: labelsFrom(SERVICE_TYPES) },
+  // ALL_SERVICE_TYPES so a project still stored as "Other" stays filterable.
+  { key: 'serviceType', label: 'Service Type', type: 'enum', options: ALL_SERVICE_TYPES.map(t => t.value),
+    labels: labelsFrom(ALL_SERVICE_TYPES) },
   { key: 'probability',      label: 'Win %',              type: 'number' },
   { key: 'totalRevenue',     label: 'Total Revenue',      type: 'number' },
   { key: 'expectedOrderDate',label: 'Expected Order Date',type: 'date' },

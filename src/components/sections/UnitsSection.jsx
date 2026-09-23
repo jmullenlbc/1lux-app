@@ -351,7 +351,7 @@ export default function UnitsSection({ responses, projectData, allSections, pric
 
               <QuestionCard
                 question='(Fans selected) 48" or upgrade to 52"?'
-                note='52" fans work better in larger or taller rooms. +$25/fan adder.'
+                note={`52" fans work better in larger or taller rooms.${(P.designUpgrades?.fanSize52Adder ?? 0) > 0 ? ` +$${P.designUpgrades.fanSize52Adder}/fan adder.` : ` No upcharge over the 48".`}`}
                 costSuffix="/fan"
                 options={[
                   { value: 'no',  label: '48" Fan — standard size',      cost: 0  },

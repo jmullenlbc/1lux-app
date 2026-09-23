@@ -47,6 +47,11 @@ const TEMPLATES_BY_SECTION = {
     { name: 'Drift by Building Type',             chartType: 'BAR',   width: 'HALF', dataSpec: { kind: 'calibration', report: 'modelVsActualByBuilding' } },
     { name: 'Calibration Coverage by Line',       chartType: 'BAR',   width: 'HALF', dataSpec: { kind: 'calibration', report: 'coverageByLine' } },
     { name: 'Projects with Actuals by Month',     chartType: 'LINE',  width: 'HALF', dataSpec: { kind: 'calibration', report: 'samplesByMonth' } },
+    // Phase 3. A different question from the four above: not "is the rate
+    // right" but "are we multiplying by the right thing at all". Both stay
+    // silent until a line has five jobs behind it — see drivers.js.
+    { name: 'Lines Priced Off the Wrong Thing',   chartType: 'TABLE', width: 'FULL', dataSpec: { kind: 'calibration', report: 'driverSuggestions' } },
+    { name: 'What Each Line Really Tracks',       chartType: 'TABLE', width: 'FULL', dataSpec: { kind: 'calibration', report: 'driverFit' } },
   ],
 };
 
