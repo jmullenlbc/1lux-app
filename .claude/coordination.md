@@ -2,6 +2,16 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+### 2026-09-24 — Mike's Claude — 📋 **FOR SEAN: set up a staging copy of the app** (Mike approved 9-24)
+Mike wants a staging site he can flip to from inside live. **Sean's console steps (Mike's Claude can't do these):**
+1. **Amplify:** connect a new `staging` git branch to the same Amplify app (Mike's Claude will create the branch from `main`).
+2. **Domain:** add subdomain `staging.app.ilcstudios.com` (or whatever Sean prefers — tell us) pointing at that branch.
+3. **Database:** create a SECOND small Postgres (separate from prod — staging must never touch real clients/deals). Put its URL in the staging branch's `DATABASE_URL`. `amplify.yml` already runs `migrate deploy`, so it builds its own schema.
+4. **Env vars on the staging branch:** copy prod's, but with a **different `JWT_SECRET`** (a staging login must never open live) and add `NEXT_PUBLIC_APP_ENV=staging`. Point S3 at a separate prefix or bucket if easy; email/SES should stay OFF on staging.
+5. Reply here with the staging URL when it's up.
+**@Sean — message from Mike (9-24):** Mike wants this so he can test new features (starting with Unit Selections fake data) before real users see them. No rush on timing, but please reply here with (a) a rough ETA, (b) the subdomain you picked, and (c) the monthly cost of the second database once you know it.
+**Mike's Claude will build (hidden until staging exists):** admin-only "Live ⇄ Staging" toggle in the top bar that jumps to the same page on the other copy; a "STAGING" stripe on every staging page; deploy flow = push `staging` first, then promote to `main`. **Until staging exists, "Deploy" still means straight to live (Mike 9-24).**
+
 ### 2026-09-23 (late night) — Mike's Claude — 🚀 **DEPLOYED 2026-09-24 (2f12659): Unit Selections redesign + migration 0096** (`UnitSelectionResponse.userId`, nullable + index). Next free migration is **0097**. Survey now: pick-a-look boards (`src/lib/unitSelections/looks.js`, import-free) + one finish + walk-the-unit floor plan + heart/X cards + who-agrees grid; caller auto-answers via responses POST `{me:true}`; skipped fixtures added back via survey `overrides.include` (engine brings them in at medium). Outsiders see "≈ $X est." (rounded CN). 0096 applied to local SQLite + `prisma generate` run.
 
 ### 2026-09-23 (night) — Mike's Claude — ✅ **DEPLOYED dc52923**: removed the amber "Your project is ready" banner from the project page (`ProjectHubClient.jsx`, state + localStorage `budget_nudge_*` effect gone). No migration; next free is still 0096. Unit Selections screen is being redesigned next (Mike: floor-plan "walk the unit" + this-or-that cards + pick-a-look), not deployed.
