@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-23 (night) — Mike's Claude — ✅ **DEPLOYED**: removed the amber "Your project is ready" banner from the project page (`ProjectHubClient.jsx`, state + localStorage `budget_nudge_*` effect gone). No migration; next free is still 0096. Unit Selections screen is being redesigned next (Mike: floor-plan "walk the unit" + this-or-that cards + pick-a-look), not deployed.
+### 2026-09-23 (night) — Mike's Claude — ✅ **DEPLOYED dc52923**: removed the amber "Your project is ready" banner from the project page (`ProjectHubClient.jsx`, state + localStorage `budget_nudge_*` effect gone). No migration; next free is still 0096. Unit Selections screen is being redesigned next (Mike: floor-plan "walk the unit" + this-or-that cards + pick-a-look), not deployed.
 
 ### 2026-09-23 (evening) — Mike's Claude — ✅ **DEPLOYED 0bbd018**: Maram's cards (below) + project-page crash fix + probability pick list — **no migration. Next free migration is still 0096.**
 
