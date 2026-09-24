@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-23 (evening) — Mike's Claude — ✅ **DEPLOYED**: Maram's cards (below) + project-page crash fix + probability pick list — **no migration. Next free migration is still 0096.**
+### 2026-09-23 (evening) — Mike's Claude — ✅ **DEPLOYED 0bbd018**: Maram's cards (below) + project-page crash fix + probability pick list — **no migration. Next free migration is still 0096.**
 
 **Prod bug fixed:** every project page threw "PrismaClient is unable to run in this browser environment". Chain: `ProjectHubClient` → `NotificationSettingsTab` ('use client') → `src/lib/notify.js` → `@/lib/db`. The constants `NOTIFICATION_TYPES`/`NOTIFICATION_MODULES` moved to the pure `src/lib/notificationTypes.js`; `notify.js` re-exports them. New verify gate `no prisma in browser` (`scripts/check-client-prisma.mjs`) walks every 'use client' import graph and fails on `@/lib/db` / `@prisma/client`. **Sean: never import notify.js (or anything that reaches db.js) from a browser component.** Also: probability to win / move forward are pickers of `PROBABILITY_STEPS` = 5/20/50/80/90/100 (`src/lib/pipeline.js`); off-list saved values are kept as an extra option. verify --full 15/15.
 
