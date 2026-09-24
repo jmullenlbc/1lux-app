@@ -2,6 +2,14 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+### 2026-09-23 (evening) — Mike's Claude — ✅ **DEPLOYED**: Maram's cards (below) + project-page crash fix + probability pick list — **no migration. Next free migration is still 0096.**
+
+**Prod bug fixed:** every project page threw "PrismaClient is unable to run in this browser environment". Chain: `ProjectHubClient` → `NotificationSettingsTab` ('use client') → `src/lib/notify.js` → `@/lib/db`. The constants `NOTIFICATION_TYPES`/`NOTIFICATION_MODULES` moved to the pure `src/lib/notificationTypes.js`; `notify.js` re-exports them. New verify gate `no prisma in browser` (`scripts/check-client-prisma.mjs`) walks every 'use client' import graph and fails on `@/lib/db` / `@prisma/client`. **Sean: never import notify.js (or anything that reaches db.js) from a browser component.** Also: probability to win / move forward are pickers of `PROBABILITY_STEPS` = 5/20/50/80/90/100 (`src/lib/pipeline.js`); off-list saved values are kept as an extra option. verify --full 15/15.
+
+### 2026-09-23 (later) — Mike's Claude — Maram's Procurement Revenue cards (deployed in the evening entry above), no migration
+
+Source: 9-16 Gemini notes docx on Mike's Desktop — a screenshot of Maram's Pipedrive "Procurement Revenue" dashboard + the buyout / on-hold discussion. Five Sales cards added to `TEMPLATES_BY_SECTION.SALES` with a new `dataSpec.tpl` identity: `prebuiltKey()` returns `tpl:<name>` for them, so `appendMissingPrebuilt` puts them on every existing Sales dashboard (personal copies too) and a removed one stays removed, but they stay ordinary editable field charts (no `kind`). Engine: `timeBucket: 'next12'` (this month + 11, $0 months kept), `cumulative`, `hideZero`, filter op `in`. Editor now keeps a card's `filters`/`cumulative`/`tpl` through a save — before, `specFromWidget` silently dropped `filters`. `fieldCatalog.js` now imports `../utils.js` / `../pipeline.js` relatively so the engine loads under plain `node --test`. verify 12/12; new `procurementForecast.test.mjs` + `dashboardPrebuilt.test.mjs` now in the unit-test gate.
+
 ### 2026-09-23 — Mike's Claude — ✅ **DEPLOYED c8d8393**: everything built 9-19 plus today's widget save fix. **Migrations 0092 + 0093 + 0094 + 0095** (all additive, no DROP). **Next free migration is 0096.**
 - **Mike 9-23:** "Yes" to "Deploy everything now?"
 - **Debug pass before the push:** `verify --full` 14/14 (incl. production build + runtime assets), smoke 7/7, upload-flow e2e 4/4.

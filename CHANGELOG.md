@@ -5,6 +5,28 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Every project page crashed; probability is picked, not typed] - September 23, 2026 (DEPLOYED September 23, 2026) — no migration
+
+- **Fixed: opening any project showed "PrismaClient is unable to run in this browser environment."** The project page's notification settings tab (and the profile page and notification log) read two lists of notification types from `src/lib/notify.js`, which also talks to the database. The browser can't load the database code, so the page crashed. The two lists now live in the new `src/lib/notificationTypes.js`, which has no database import. `notify.js` still exports them, so server code is unchanged.
+- **New verify gate, `no prisma in browser`** (`scripts/check-client-prisma.mjs`): walks every `'use client'` file's imports, however deep, and fails the check if any reaches `@/lib/db` or `@prisma/client`. A green build did not catch this one.
+- **Probability to Win and Probability to Move Forward are now pick lists: 5, 20, 50, 80, 90, 100%** (Mike 9-23), on the project dashboard and the pipeline side panel. `PROBABILITY_STEPS` and `probabilityOptions()` are in `src/lib/pipeline.js`. If an older job has an off-list number such as 60, the picker keeps it as an extra option, so opening the picker never changes the saved value. Pinned in `procurementForecast.test.mjs`.
+
+## [Maram's Procurement Revenue cards on the Sales dashboard] - September 23, 2026 (DEPLOYED September 23, 2026) — no migration
+
+From the 9-16 call (Maram's Pipedrive "Procurement Revenue" dashboard, screenshot in the Gemini notes). Five cards arrive on every existing Sales dashboard by themselves, including personal copies, and stay fully editable:
+
+- **Next 12 Months — Open 80%+ Product Revenue by Order Month.** Open projects, Weighted Probability 80 or more, by expected order month. Every month shows, $0 ones included.
+- **Next 12 Months — Open + Won 20%+ Product Revenue, Running Total.** Same window, 20% or more, open and won, each bar adds up everything before it.
+- **Buyout — Not Yet Ordered.** Open jobs sitting in Buyout, product revenue by client.
+- **Average Days in Buyout by Owner.** From the stage history.
+- **On Hold Revenue by Client.** Product plus design fee on jobs marked On Hold.
+
+Chart editor: new "Next 12 Months" time option and a "Running total" checkbox; a card's built-in filters are listed in the editor and kept on save (they were silently dropped before).
+
+A removed card stays removed (same rule as the other prebuilt cards).
+
+Files: `src/lib/dashboards/engine.js` (next12 window, running total, hideZero, 'in' filter), `src/lib/dashboards/prebuilt.js` (`tpl` identity), `src/lib/dashboards/fieldCatalog.js` (relative imports so it can be unit-tested), `prisma/seeds/dashboardTemplates.js`, `DashboardView.jsx`, `scripts/tests/procurementForecast.test.mjs` (new; it and `dashboardPrebuilt.test.mjs` now run in verify).
+
 ## [Editing a dashboard widget saves again] - September 23, 2026 (DEPLOYED September 23, 2026) — no migration
 
 Mike 9-23: *"you still cant save widgets when you try to edit them."* The 9-18 fix for Maram went into the old `/crm/dashboards` screen, which is no longer in the menu. The Sales dashboard people actually use is `/dashboards/sales` (`DashboardView.jsx`), and it had three faults of its own:

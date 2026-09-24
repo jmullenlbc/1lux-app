@@ -3,7 +3,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { cleanNumberInput } from '@/lib/numberInput';
 import { buildingTypeLabel, PROJECT_TYPES, projectTypeLabel, BUILDING_TYPES, ALL_SERVICE_TYPES } from '@/lib/utils';
 import { useBuyoutDays } from '@/lib/useBuyoutDays';
-import { PIPELINE_STAGES, STAGE_LABEL, STATUS_LABEL, PIPELINE_STATUS, inDesignPipeline, stagesOutOfSync, WEIGHTED_PROBABILITY_LABEL } from '@/lib/pipeline';
+import { PIPELINE_STAGES, STAGE_LABEL, STATUS_LABEL, PIPELINE_STATUS, inDesignPipeline, stagesOutOfSync, WEIGHTED_PROBABILITY_LABEL, probabilityOptions } from '@/lib/pipeline';
 import { PROJECT_TEAM_ROLES } from '@/lib/projectTeam';
 import { siteFeaturesToRows } from '@/lib/siteFeatures';
 import MissingInputsWarning from './MissingInputsWarning';
@@ -549,8 +549,8 @@ export default function ProjectDashboard({
           <EditableStat label="Product Sale Total ($)" displayValue={fmt(project.contractValue)}       rawValue={project.contractValue ?? ''}       onSave={pMoney('contractValue')} />
           <EditableStat label="Design Fee Total ($)"   displayValue={fmt(project.designContractValue)} rawValue={project.designContractValue ?? ''} onSave={pMoney('designContractValue')} />
           <ReadStat     label="Total Combined ($)"     value={fmt(combinedRevenue)} accent="text-blue-600" />
-          <EditableStat label="Probability to Win (%)"          displayValue={project.probabilityToWin != null ? `${project.probabilityToWin}%` : null}                 rawValue={project.probabilityToWin ?? ''}          onSave={p('probabilityToWin')} type="number" />
-          <EditableStat label="Probability to Move Forward (%)" displayValue={project.probabilityToMoveForward != null ? `${project.probabilityToMoveForward}%` : null} rawValue={project.probabilityToMoveForward ?? ''} onSave={p('probabilityToMoveForward')} type="number" />
+          <EditableStat label="Probability to Win (%)"          displayValue={project.probabilityToWin != null ? `${project.probabilityToWin}%` : null}                 rawValue={project.probabilityToWin ?? ''}          onSave={p('probabilityToWin')} select options={probabilityOptions(project.probabilityToWin)} />
+          <EditableStat label="Probability to Move Forward (%)" displayValue={project.probabilityToMoveForward != null ? `${project.probabilityToMoveForward}%` : null} rawValue={project.probabilityToMoveForward ?? ''} onSave={p('probabilityToMoveForward')} select options={probabilityOptions(project.probabilityToMoveForward)} />
           <ReadStat     label={WEIGHTED_PROBABILITY_LABEL}          value={avgProbability != null ? `${avgProbability}%` : null} accent="text-blue-600" />
           {/* Contract execution sits ABOVE the order date (Maram 9-17). */}
           <EditableStat label="Expected Contract Execution Date"

@@ -148,6 +148,18 @@ export const WEIGHTED_PROBABILITY_LABEL = 'Weighted Probability %';
 export const WEIGHTED_PROBABILITY_HINT  = 'Weighted Probability % — win % and move-forward % averaged.';
 export const WEIGHTED_REVENUE_LABEL     = 'Weighted Revenue';
 export const FORECAST_WINDOW_DAYS       = 90;
+
+// Mike 9-23: probability is picked from set steps, not typed. An older job
+// holding an off-list number (e.g. 60) keeps it as an extra option, so opening
+// the picker never quietly changes what is saved.
+export const PROBABILITY_STEPS = [5, 20, 50, 80, 90, 100];
+export function probabilityOptions(current) {
+  const steps = [...PROBABILITY_STEPS];
+  const n = current === '' || current == null ? null : Number(current);
+  if (n != null && Number.isFinite(n) && !steps.includes(n)) steps.push(n);
+  steps.sort((a, b) => a - b);
+  return [{ value: '', label: '—' }, ...steps.map(v => ({ value: String(v), label: `${v}%` }))];
+}
 export function averageProbability(project) {
   const parts = [project?.probabilityToWin, project?.probabilityToMoveForward]
     .filter(v => v != null && v !== '');

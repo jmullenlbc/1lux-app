@@ -18,6 +18,7 @@ export function applyFilters(rows, section, filters = []) {
     switch (f.op) {
       case 'is':       return String(v ?? '') === String(f.value);
       case 'is_not':   return String(v ?? '') !== String(f.value);
+      case 'in':       return (Array.isArray(f.value) ? f.value : [f.value]).map(String).includes(String(v ?? ''));
       case 'gte':      return Number(v) >= Number(f.value);
       case 'lte':      return Number(v) <= Number(f.value);
       case 'contains': return String(v ?? '').toLowerCase().includes(String(f.value).toLowerCase());
@@ -56,6 +57,11 @@ function dateWindow(bucket, spec) {
     const now = new Date();
     return { start: new Date(now.getFullYear(), 0, 1), end: now };
   }
+  if (bucket === 'next12') {
+    // This month plus the eleven after it — Maram's "next 12 months" forecast.
+    const now = new Date();
+    return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: new Date(now.getFullYear(), now.getMonth() + 12, 0, 23, 59, 59) };
+  }
   // custom
   return {
     start: spec.customStart ? new Date(spec.customStart) : null,
@@ -85,7 +91,8 @@ export function runFieldWidget(widget, rows, section, globalFilters = []) {
   // Year-to-Date / Custom-Range are date-window modes: restrict to the window,
   // then bucket by month. (Plain week/month/quarter/year just bucket.)
   const bucket = spec.timeBucket || 'month';
-  const win = (dim?.type === 'date' && (bucket === 'ytd' || bucket === 'custom')) ? dateWindow(bucket, spec) : null;
+  const windowed = bucket === 'ytd' || bucket === 'custom' || bucket === 'next12';
+  const win = (dim?.type === 'date' && windowed) ? dateWindow(bucket, spec) : null;
   if (win) {
     filtered = filtered.filter(r => {
       const v = readField(r, dim.source); if (!v) return false;
@@ -95,10 +102,18 @@ export function runFieldWidget(widget, rows, section, globalFilters = []) {
       return true;
     });
   }
-  const effBucket = (bucket === 'ytd' || bucket === 'custom') ? 'month' : bucket;
+  const effBucket = windowed ? 'month' : bucket;
 
   // Group rows
   const groups = new Map(); // key -> { label, sort, rows }
+  // A forecast shows every month in the window, $0 ones included, so a gap
+  // reads as "nothing ordering then" rather than a missing bar.
+  if (win && bucket === 'next12') {
+    for (let i = 0; i < 12; i++) {
+      const g = timeKey(new Date(win.start.getFullYear(), win.start.getMonth() + i, 15), 'month');
+      groups.set(g.key, { label: g.label, sort: g.sort, rows: [] });
+    }
+  }
   for (const row of filtered) {
     let g = { key: '_total', label: 'Total', sort: 0 };
     if (dim) {
@@ -114,6 +129,13 @@ export function runFieldWidget(widget, rows, section, globalFilters = []) {
   // Ordered dimensions (dates, numeric buckets) sort by their natural order; everything else by value.
   if (dim?.type === 'date' || dim?.type === 'bucket') series.sort((a, b) => a.sort - b.sort);
   else series.sort((a, b) => b.value - a.value);
+  // hideZero drops empty groups (e.g. every client with nothing On Hold).
+  if (spec.hideZero && dim?.type !== 'date') series = series.filter(s => s.value);
+  // Running total — each bar is everything up to and including that period.
+  if (spec.cumulative && dim?.type === 'date') {
+    let run = 0;
+    series = series.map(s => (s.sort === Infinity ? s : { ...s, value: (run += s.value) }));
+  }
 
   return { chartType: widget.chartType || 'BAR', series: series.map(({ label, value }) => ({ label, value })) };
 }

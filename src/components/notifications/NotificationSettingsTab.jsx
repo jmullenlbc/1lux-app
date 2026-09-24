@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { NOTIFICATION_TYPES, NOTIFICATION_MODULES } from '@/lib/notify';
+import { NOTIFICATION_TYPES, NOTIFICATION_MODULES } from '@/lib/notificationTypes';
 import NotificationLog from './NotificationLog';
 
 // ── Pattern badge metadata — plain English ────────────────────────────────────

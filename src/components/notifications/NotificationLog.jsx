@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { NOTIFICATION_TYPES } from '@/lib/notify';
+import { NOTIFICATION_TYPES } from '@/lib/notificationTypes';
 
 function relativeTime(dateStr) {
   if (!dateStr) return '';

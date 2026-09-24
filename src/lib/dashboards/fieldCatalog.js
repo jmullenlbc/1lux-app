@@ -10,8 +10,8 @@
 //   type:'dimension' → a group-by category.
 //   type:'date'      → a time axis (group by week/month/quarter).
 
-import { ALL_SERVICE_TYPES, BUILDING_TYPES } from '@/lib/utils';
-import { WON_STATUSES, DECIDED_STATUSES, ON_HOLD_STATUSES, STAGE_LABEL, WEIGHTED_PROBABILITY_LABEL, WEIGHTED_REVENUE_LABEL } from '@/lib/pipeline';
+import { ALL_SERVICE_TYPES, BUILDING_TYPES } from '../utils.js';
+import { WON_STATUSES, DECIDED_STATUSES, ON_HOLD_STATUSES, STAGE_LABEL, WEIGHTED_PROBABILITY_LABEL, WEIGHTED_REVENUE_LABEL } from '../pipeline.js';
 
 // Value → layman label maps so dashboards never show raw field values.
 // serviceType mirrors the platform-wide SERVICE_TYPES (single source of truth).

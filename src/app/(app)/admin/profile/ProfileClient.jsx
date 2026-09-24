@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { NOTIFICATION_TYPES, NOTIFICATION_MODULES } from '@/lib/notify';
+import { NOTIFICATION_TYPES, NOTIFICATION_MODULES } from '@/lib/notificationTypes';
 import { ROLE_LABEL } from '@/lib/roles';
 
 // ── Tone Profile Section ──────────────────────────────────────────────────────

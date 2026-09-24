@@ -288,7 +288,7 @@ function specFromWidget(w) {
   // An older chart built before the field picker has no terms. Without this
   // flag its editor opened with every field blank and Save greyed out.
   const legacy = !s.kind && !Array.isArray(s.terms);
-  return { ...prebuilt, legacy, name: w.name, terms: s.terms || [{ field: '', agg: 'sum' }], op: s.op || 'single', groupBy: s.groupBy || '', timeBucket: s.timeBucket || 'month', customStart: s.customStart || '', customEnd: s.customEnd || '', chartType: w.chartType || 'BAR', width: w.width || 'HALF' };
+  return { ...prebuilt, legacy, name: w.name, terms: s.terms || [{ field: '', agg: 'sum' }], op: s.op || 'single', groupBy: s.groupBy || '', timeBucket: s.timeBucket || 'month', customStart: s.customStart || '', customEnd: s.customEnd || '', filters: s.filters || [], cumulative: !!s.cumulative, hideZero: !!s.hideZero, ...(s.tpl ? { tpl: s.tpl } : {}), chartType: w.chartType || 'BAR', width: w.width || 'HALF' };
 }
 function unitForWidget(section, w) {
   try {
@@ -366,11 +366,17 @@ function WidgetEditor({ section, measures, dimensions, init, onSave, onClose }) 
             </Field>
           )}
 
+          {spec.filters?.length > 0 && (
+            <p className="text-xs text-gray-500">Only counts projects where {spec.filters.map(f => `${(measures.concat(dimensions).find(m => m.key === f.field)?.label) || f.field} ${f.op === 'gte' ? '≥' : f.op === 'lte' ? '≤' : 'is'} ${Array.isArray(f.value) ? f.value.join(' or ') : f.value}`).join(', ')}. These stay when you save.</p>
+          )}
           <Field label="Group by">
             <select value={spec.groupBy} onChange={e => set('groupBy', e.target.value)} className="inp"><option value="">Single total</option>{dimensions.map(d => <option key={d.key} value={d.key}>{d.label}</option>)}</select>
           </Field>
           {dim?.type === 'date' && (
-            <Field label="Time bucket"><select value={spec.timeBucket} onChange={e => set('timeBucket', e.target.value)} className="inp"><option value="week">Week</option><option value="month">Month</option><option value="quarter">Quarter</option><option value="year">Annual</option><option value="ytd">Year to Date</option><option value="custom">Custom Range</option></select></Field>
+            <Field label="Time bucket"><select value={spec.timeBucket} onChange={e => set('timeBucket', e.target.value)} className="inp"><option value="week">Week</option><option value="month">Month</option><option value="quarter">Quarter</option><option value="year">Annual</option><option value="ytd">Year to Date</option><option value="next12">Next 12 Months</option><option value="custom">Custom Range</option></select></Field>
+          )}
+          {dim?.type === 'date' && (
+            <label className="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" checked={!!spec.cumulative} onChange={e => set('cumulative', e.target.checked)} /> Running total (each bar adds up everything before it)</label>
           )}
           {dim?.type === 'date' && spec.timeBucket === 'custom' && (
             <div className="flex gap-3">

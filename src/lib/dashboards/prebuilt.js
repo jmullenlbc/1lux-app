@@ -20,6 +20,9 @@ export function parseSpec(dataSpec) {
 // any card that had been renamed.
 export function prebuiltKey(dataSpec) {
   const s = parseSpec(dataSpec);
+  // `tpl` marks an ordinary, fully editable field chart that should still
+  // arrive on every dashboard by itself (Maram's procurement cards, 9-23).
+  if (s?.tpl && !s.kind) return `tpl:${s.tpl}`;
   if (!s?.kind) return null;
   return s.report ? `${s.kind}:${s.report}` : String(s.kind);
 }

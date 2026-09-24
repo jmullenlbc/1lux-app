@@ -14,6 +14,17 @@ const TEMPLATES_BY_SECTION = {
     { name: 'Open Pipeline by Probability',chartType: 'BAR',  width: 'HALF', dataSpec: { groupBy: 'probabilityTier', terms: [{ field: 'projectCount', agg: 'count' }], op: 'single' } },
     { name: 'Projects by Service Type',    chartType: 'BAR',  width: 'HALF', dataSpec: { groupBy: 'serviceType', terms: [{ field: 'projectCount', agg: 'count' }], op: 'single' } },
     { name: 'Lost + Abandoned by Stage',   chartType: 'BAR',  width: 'HALF', dataSpec: { groupBy: 'procurementStage', terms: [{ field: 'lostAbandonedCount', agg: 'count' }], op: 'single' } },
+    // Maram's Procurement Revenue cards (9-16 call; her Pipedrive dashboard).
+    // `tpl` makes each one arrive on every existing Sales dashboard by itself
+    // while staying an ordinary, editable chart. See src/lib/dashboards/prebuilt.js.
+    { name: 'Next 12 Months — Open 80%+ Product Revenue by Order Month', chartType: 'BAR', width: 'FULL', dataSpec: { tpl: 'procurement-open-80', groupBy: 'expectedOrderDate', timeBucket: 'next12', terms: [{ field: 'productSaleTotal', agg: 'sum' }], op: 'single',
+      filters: [{ field: 'procurementStatus', op: 'is', value: 'OPEN' }, { field: 'averageProbability', op: 'gte', value: 80 }] } },
+    { name: 'Next 12 Months — Open + Won 20%+ Product Revenue, Running Total', chartType: 'BAR', width: 'FULL', dataSpec: { tpl: 'procurement-open-won-20-cumulative', groupBy: 'expectedOrderDate', timeBucket: 'next12', cumulative: true, terms: [{ field: 'productSaleTotal', agg: 'sum' }], op: 'single',
+      filters: [{ field: 'procurementStatus', op: 'in', value: ['OPEN', 'WON'] }, { field: 'averageProbability', op: 'gte', value: 20 }] } },
+    { name: 'Buyout — Not Yet Ordered (Product Revenue)', chartType: 'BAR', width: 'HALF', dataSpec: { tpl: 'procurement-buyout-open', hideZero: true, groupBy: 'client', terms: [{ field: 'productSaleTotal', agg: 'sum' }], op: 'single',
+      filters: [{ field: 'procurementStage', op: 'is', value: 'BUYOUT' }, { field: 'procurementStatus', op: 'is', value: 'OPEN' }] } },
+    { name: 'Average Days in Buyout by Owner', chartType: 'BAR', width: 'HALF', dataSpec: { tpl: 'procurement-buyout-days', groupBy: 'salesOwner', terms: [{ field: 'buyoutDays', agg: 'avg' }], op: 'single' } },
+    { name: 'On Hold Revenue by Client', chartType: 'BAR', width: 'HALF', dataSpec: { tpl: 'procurement-on-hold', hideZero: true, groupBy: 'client', terms: [{ field: 'onHoldRevenue', agg: 'sum' }, { field: 'onHoldDesignFee', agg: 'sum' }], op: 'add' } },
   ],
   MAIN: [
     // "Things Needing a Look" — five checks for records that disagree with each

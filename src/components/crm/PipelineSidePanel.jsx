@@ -17,6 +17,7 @@ import {
   PIPELINE_STAGES, STAGE_LABEL, PIPELINE_STATUS, STATUS_LABEL,
   inDesignPipeline, stagesOutOfSync, averageProbability,
   WEIGHTED_PROBABILITY_LABEL, WEIGHTED_REVENUE_LABEL, weightedRevenue,
+  probabilityOptions,
 } from '@/lib/pipeline';
 import { PROJECT_TEAM_ROLES } from '@/lib/projectTeam';
 import { PROJECT_TYPES, projectTypeLabel, serviceTypeOptions, serviceTypeLabel, BUILDING_TYPES, buildingTypeLabel } from '@/lib/utils';
@@ -396,9 +397,9 @@ export default function PipelineSidePanel({ project, onClose, onUpdate }) {
 
           <Rule label="Forecast" />
           <Field label="Probability to Win (%)" displayValue={project.probabilityToWin != null ? `${project.probabilityToWin}%` : null}
-            rawValue={project.probabilityToWin ?? ''} onSave={p('probabilityToWin')} type="number" />
+            rawValue={project.probabilityToWin ?? ''} onSave={p('probabilityToWin')} select options={probabilityOptions(project.probabilityToWin)} />
           <Field label="Probability to Move Forward (%)" displayValue={project.probabilityToMoveForward != null ? `${project.probabilityToMoveForward}%` : null}
-            rawValue={project.probabilityToMoveForward ?? ''} onSave={p('probabilityToMoveForward')} type="number" />
+            rawValue={project.probabilityToMoveForward ?? ''} onSave={p('probabilityToMoveForward')} select options={probabilityOptions(project.probabilityToMoveForward)} />
           <Field label={WEIGHTED_PROBABILITY_LABEL} displayValue={avgProb != null ? `${avgProb}%` : null} readOnly accent="text-blue-600" />
           {/* Contract execution sits ABOVE the order date (Maram 9-17): sign first, order after. */}
           <Field label="Expected Contract Execution Date"
