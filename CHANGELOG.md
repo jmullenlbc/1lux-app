@@ -5,6 +5,10 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Removed the "Your project is ready" banner] - September 23, 2026 (DEPLOYED) — no migration
+
+- The amber "Your project is ready — Open the Budgets tab to get started" banner at the top of a project with no budget is gone (Mike: "It's useless"). Its state, its `localStorage` flag, and the effect that decided when to show it were removed from `ProjectHubClient.jsx`.
+
 ## [Every project page crashed; probability is picked, not typed] - September 23, 2026 (DEPLOYED September 23, 2026) — no migration
 
 - **Fixed: opening any project showed "PrismaClient is unable to run in this browser environment."** The project page's notification settings tab (and the profile page and notification log) read two lists of notification types from `src/lib/notify.js`, which also talks to the database. The browser can't load the database code, so the page crashed. The two lists now live in the new `src/lib/notificationTypes.js`, which has no database import. `notify.js` still exports them, so server code is unchanged.
