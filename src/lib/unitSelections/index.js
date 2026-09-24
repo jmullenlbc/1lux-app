@@ -62,7 +62,7 @@ export async function resolveFacts(projectId, overrides = {}) {
 
 /** The fields every screen and route wants back for one person's answers. */
 export const RESPONSE_SHAPE = {
-  id: true, respondentName: true, respondentRole: true, contactId: true,
+  id: true, respondentName: true, respondentRole: true, contactId: true, userId: true,
   styleChoice: true, finishOverride: true, fanHoldWhite: true, notes: true,
   startedAt: true, submittedAt: true, createdAt: true,
   choices: { select: { id: true, category: true, optionId: true, kind: true, finishKey: true } },

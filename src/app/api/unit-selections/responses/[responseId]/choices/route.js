@@ -43,6 +43,44 @@ export async function POST(request, { params }) {
 
   let body; try { body = await request.json(); } catch { body = {}; }
 
+  // `picks: [{category, optionId, finishKey}]` — a whole look, or a re-finish,
+  // in one go. Every item is a PICK and never toggles off: choosing a look
+  // twice should not un-choose half of it.
+  if (Array.isArray(body?.picks)) {
+    const picks = body.picks
+      .map(p => ({
+        category: String(p?.category || ''),
+        optionId: String(p?.optionId || ''),
+        finishKey: p?.finishKey ? String(p.finishKey) : null,
+      }))
+      .filter(p => CATEGORY_KEYS.includes(p.category) && p.optionId);
+    const seen = new Set();
+    for (const p of picks) {
+      if (seen.has(p.category)) return NextResponse.json({ error: 'One pick per fixture.' }, { status: 400 });
+      seen.add(p.category);
+    }
+    const options = await prisma.decorativeOption.findMany({
+      where: { id: { in: picks.map(p => p.optionId) } },
+      select: { id: true, category: true },
+    });
+    const catOf = Object.fromEntries(options.map(o => [o.id, o.category]));
+    if (picks.some(p => catOf[p.optionId] !== p.category)) {
+      return NextResponse.json({ error: 'One of those fixtures is not here any more.' }, { status: 400 });
+    }
+    const responseId = params.responseId;
+    await prisma.$transaction(picks.flatMap(p => [
+      prisma.unitSelectionChoice.deleteMany({
+        where: { responseId, category: p.category, kind: 'PICK', NOT: { optionId: p.optionId } },
+      }),
+      prisma.unitSelectionChoice.upsert({
+        where: { responseId_category_optionId: { responseId, category: p.category, optionId: p.optionId } },
+        create: { responseId, category: p.category, optionId: p.optionId, kind: 'PICK', finishKey: p.finishKey },
+        update: { kind: 'PICK', finishKey: p.finishKey },
+      }),
+    ]));
+    return NextResponse.json(await reload(responseId));
+  }
+
   const category = String(body?.category || '');
   if (!CATEGORY_KEYS.includes(category)) {
     return NextResponse.json({ error: 'That is not one of the five fixtures.' }, { status: 400 });

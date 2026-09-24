@@ -22,7 +22,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { CATEGORIES, CATEGORY_KEYS, eligibleOptions, resolveFacts } from '@/lib/unitSelections';
+import { CATEGORIES, CATEGORY_KEYS, RESPONSE_SHAPE, eligibleOptions, resolveFacts } from '@/lib/unitSelections';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,15 +37,6 @@ const OPTION_SHAPE = {
     where: { isActive: true },
     select: { id: true, finishKey: true, cnPrice: true, leadTimeWks: true, imageUrl: true, isDefault: true, isActive: true },
     orderBy: [{ isDefault: 'desc' }, { finishKey: 'asc' }],
-  },
-};
-
-const RESPONSE_SHAPE = {
-  id: true, respondentName: true, respondentRole: true, contactId: true,
-  styleChoice: true, finishOverride: true, fanHoldWhite: true, notes: true,
-  startedAt: true, submittedAt: true, createdAt: true,
-  choices: {
-    select: { id: true, category: true, optionId: true, kind: true, finishKey: true },
   },
 };
 
@@ -70,6 +61,7 @@ function overridesFrom(survey) {
     targets: snap?.overrides?.targets || {},
     entryMountHigh: snap?.overrides?.entryMountHigh ?? null,
     islandLength: snap?.overrides?.islandLength ?? null,
+    include: Array.isArray(snap?.overrides?.include) ? snap.overrides.include : [],
   };
 }
 
@@ -137,6 +129,8 @@ export async function GET(request, { params }) {
 
   return NextResponse.json({
     project: { id: project.id, name: project.name, serviceType: project.serviceType },
+    // Who is looking. The screen answers as this person without asking.
+    me: { id: user.id, name: user.name || user.email },
     survey: survey
       ? { ...survey, factsSnapshot: undefined, overrides: overridesFrom(survey) }
       : null,
@@ -158,6 +152,7 @@ export async function POST(request, { params }) {
     targets: body?.targets || {},
     entryMountHigh: body?.entryMountHigh ?? null,
     islandLength: body?.islandLength ?? null,
+    include: Array.isArray(body?.include) ? body.include.filter(k => CATEGORY_KEYS.includes(k)) : [],
   };
 
   const last = await prisma.unitSelectionSurvey.findFirst({
@@ -208,6 +203,10 @@ export async function PATCH(request, { params }) {
     targets: { ...current.targets, ...(body?.targets || {}) },
     entryMountHigh: body?.entryMountHigh === undefined ? current.entryMountHigh : body.entryMountHigh,
     islandLength: body?.islandLength === undefined ? current.islandLength : body.islandLength,
+    // Skipped fixtures added back from the survey. Sent whole, like notes.
+    include: Array.isArray(body?.include)
+      ? body.include.filter(k => CATEGORY_KEYS.includes(k))
+      : current.include,
   };
   // A blank box means "go back to what the job says", not "target nothing".
   for (const [k, v] of Object.entries(overrides.targets)) {

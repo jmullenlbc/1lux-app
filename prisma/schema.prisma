@@ -3288,6 +3288,7 @@ model UnitSelectionResponse {
   respondentName String
   respondentRole String // DEVELOPER | ARCHITECT | INTERIOR_DESIGNER | ILC
   contactId      String? // the Contact row this is, when we know it
+  userId         String? // the staff member answering for themselves; set automatically, never typed
   shareToken     String              @unique @default(cuid())
   styleChoice    String?
   finishOverride String? // set = the derived finish is ignored for this respondent
@@ -3301,6 +3302,7 @@ model UnitSelectionResponse {
   choices UnitSelectionChoice[]
 
   @@index([surveyId])
+  @@index([surveyId, userId])
 }
 
 // One person's verdict on one option. A REJECT is a first-class answer, not the

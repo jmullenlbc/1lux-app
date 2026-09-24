@@ -5,6 +5,35 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Unit Selections redesigned: pick a look, walk the unit, heart or X] - September 23, 2026 (DEPLOYED 2026-09-24) — migration 0096
+
+- **The screen was rebuilt from scratch** (Mike: "The UI/UX of the unit selections is really bad"). He picked all three ideas, so they're combined in one screen:
+  - **Start with a look.** Five style boards (Modern, Transitional, Traditional, Farmhouse, Industrial). One click picks a fixture in that style for every fixture in the job; if the pool has none in that style, the nearest style stands in. Under it is **one finish for everything** (six swatches) and a **Fans stay white** switch.
+  - **Walk the unit.** A simple floor plan with a dot per fixture: kitchen, bath, balcony, front door, living room. Amber means chosen (with a finish dot), white means still open, dashed means not in this job.
+  - **Big pictures.** Each option is a large card with a ♥ (this one) and an ✕ (not for us). Finish chips preview the colour; on the chosen card they change it.
+  - **Who agrees.** A grid with fixtures down the side and people across the top. Rows where people picked different fixtures turn amber.
+- **Nobody types their own name any more.** The signed-in person gets their own answers automatically. "Answer for someone in the room" is a small link for adding a developer, architect or designer by name.
+- **All five fixtures always show.** Mike saw only two steps because the questionnaire's house default for the pendant, balcony sconce and fan is "None". A fixture the job left out now says **"Not in this job — add it?"** Adding it brings it in at a medium finish, on this survey only; it's saved on the survey's frozen facts as `overrides.include`, and there's a "take it back out" link.
+- **Outside viewers see "≈ $X est."**: the sell price rounded, instead of the old $/$$/$$$ band (Mike's call). They don't see the budget line or the raise-the-budget box. The buy price is still never selected.
+- **Placeholder pictures:** until real photos are loaded, each card shows a line drawing of the fixture's shape (dome, globe, drum, lantern, linear, vanity bar, mirror, sconce, fan) painted in the selected finish.
+- **Mirrors** stay a choice inside the bath vanity (four in the pool already).
+- **Migration 0096:** `UnitSelectionResponse.userId` (nullable) + index on `(surveyId, userId)`. It's added only; nothing is dropped.
+- **API changes:**
+  - `GET /api/projects/[id]/unit-selections` now returns `me`.
+  - Its POST and PATCH accept `include`.
+  - `POST …/surveys/[surveyId]/responses` accepts `{me:true}` (finds or creates the caller's own response).
+  - `POST …/responses/[id]/choices` accepts `picks:[…]`: a bulk pick in one transaction that never toggles off.
+- **Files:**
+  - new `src/lib/unitSelections/looks.js` (pure, no imports, safe in the browser)
+  - `src/lib/unitSelections/engine.js` (`include`)
+  - `src/lib/unitSelections/index.js` (`userId` in `RESPONSE_SHAPE`)
+  - the three routes above
+  - `src/components/unitSelections/SurveyRunner.jsx` (rewritten)
+  - `prisma/schema.prisma`
+  - new `scripts/tests/unitLooks.test.mjs`
+  - `unitSelections.test.mjs` (+1 test)
+- **Local:** 0096 applied to the local database and `prisma generate` run; screen checked at phone width.
+
 ## [Removed the "Your project is ready" banner] - September 23, 2026 (DEPLOYED) — no migration
 
 - The amber "Your project is ready — Open the Budgets tab to get started" banner at the top of a project with no budget is gone (Mike: "It's useless"). Its state, its `localStorage` flag, and the effect that decided when to show it were removed from `ProjectHubClient.jsx`.

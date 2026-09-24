@@ -365,3 +365,16 @@ test('one respondent is SINGLE, and nobody at all is nothing', () => {
   assert.equal(reconcileCategory('w1', []), null);
   assert.equal(reconcileCategory('w1', [{ respondentName: 'Dev', choices: [] }]), null);
 });
+
+test('a skipped fixture added on the survey comes back at a medium finish', () => {
+  const facts = deriveFacts({ answers: {}, overrides: { include: ['p1', 'f1'] } });
+  assert.deepEqual(facts.skipped, ['ew1']);
+  assert.equal(facts.levels.p1, 'medium');
+  assert.ok(facts.targets.p1 > 0, 'an added pendant needs a real target');
+  assert.ok(facts.targets.f1 > 0);
+  assert.match(facts.source.p1, /added on this survey/);
+  // Including something the job already has changes nothing.
+  const plain = deriveFacts({ answers: {} });
+  const same = deriveFacts({ answers: {}, overrides: { include: ['v1'] } });
+  assert.deepEqual(same.targets.v1, plain.targets.v1);
+});

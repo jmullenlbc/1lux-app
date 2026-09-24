@@ -125,6 +125,15 @@ const HOUSE_DEFAULT_ANSWER = Object.freeze({
   p1: 'none', v1: 'bathBarLow', ew1: 'none', w1: 'low', f1: 'none',
 });
 
+/**
+ * The answer a skipped fixture runs on once somebody adds it back from the
+ * survey ("Not in this job — add it?"). Medium finish, the smallest count,
+ * so the target reads off the master sheet like any other answer.
+ */
+const ADDED_ANSWER = Object.freeze({
+  p1: 'twoMediumMedium', v1: 'bathBarMedium', ew1: 'sconceMedium', w1: 'medium', f1: 'masterOnly',
+});
+
 /** The island length a pendant answer implies. */
 const ISLAND_LENGTH = Object.freeze({
   oneLarge: 'short',
@@ -180,7 +189,8 @@ function sheetPricePerFixture(catKey, answer, pricing, count) {
  * @param {object}  input.answers         {units:{...}, corridors:{...}} questionnaire values
  * @param {object} [input.pricing]        this project's pricing snapshot; falls back to the master sheet
  * @param {object} [input.clientTargets]  {P1: 240, ...} from ClientStandardFixture.priceTarget
- * @param {object} [input.overrides]      typed on this survey: {targets:{}, entryMountHigh, islandLength}
+ * @param {object} [input.overrides]      typed on this survey: {targets:{}, entryMountHigh, islandLength, include:[]}
+ *                                        `include` = skipped fixtures added back from the survey screen
  */
 export function deriveFacts({ answers = {}, pricing = null, clientTargets = {}, overrides = {} } = {}) {
   const targets = {};
@@ -191,8 +201,12 @@ export function deriveFacts({ answers = {}, pricing = null, clientTargets = {}, 
 
   for (const cat of CATEGORIES) {
     const raw = answers?.[cat.section]?.[cat.answerKey];
-    const answer = raw || HOUSE_DEFAULT_ANSWER[cat.key];
-    const spec = ANSWERS[cat.key][answer];
+    let answer = raw || HOUSE_DEFAULT_ANSWER[cat.key];
+    let spec = ANSWERS[cat.key][answer];
+    // Added back on this survey although the questionnaire said no. The
+    // questionnaire itself is never written — the survey remembers it.
+    const added = (!spec || spec.skip) && (overrides?.include || []).includes(cat.key);
+    if (added) { answer = ADDED_ANSWER[cat.key]; spec = ANSWERS[cat.key][answer]; }
 
     if (!spec || spec.skip) {
       skipped.push(cat.key);
@@ -227,7 +241,7 @@ export function deriveFacts({ answers = {}, pricing = null, clientTargets = {}, 
     const sheet = sheetPricePerFixture(cat.key, answer, pricing, spec.count);
     if (sheet !== null && sheet > 0) {
       targets[cat.key] = sheet;
-      source[cat.key] = 'the answer on the design questionnaire';
+      source[cat.key] = added ? 'added on this survey, at a medium finish' : 'the answer on the design questionnaire';
       continue;
     }
 

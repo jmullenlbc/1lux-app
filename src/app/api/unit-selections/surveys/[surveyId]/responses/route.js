@@ -11,6 +11,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { RESPONSE_SHAPE } from '@/lib/unitSelections';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +38,29 @@ export async function POST(request, { params }) {
 
   let body; try { body = await request.json(); } catch { body = {}; }
 
+  // `{me: true}` — the person signed in, answering for themselves. Nobody types
+  // a name; the same row comes back every time they open the survey.
+  if (body?.me) {
+    const mine = await prisma.unitSelectionResponse.findFirst({
+      where: { surveyId: survey.id, userId: user.id },
+      orderBy: { createdAt: 'asc' },
+      select: RESPONSE_SHAPE,
+    });
+    if (mine) return NextResponse.json({ response: mine });
+    const created = await prisma.unitSelectionResponse.create({
+      data: {
+        surveyId: survey.id,
+        userId: user.id,
+        respondentName: user.name || user.email,
+        respondentRole: 'ILC',
+        startedAt: new Date(),
+      },
+      select: RESPONSE_SHAPE,
+    });
+    return NextResponse.json({ response: created }, { status: 201 });
+  }
+
+  // Otherwise: answering for somebody else in the room, by name.
   const respondentName = String(body?.respondentName || '').trim();
   if (!respondentName) return NextResponse.json({ error: 'Who is answering?' }, { status: 400 });
 
@@ -51,12 +75,8 @@ export async function POST(request, { params }) {
       styleChoice: body?.styleChoice ? String(body.styleChoice) : null,
       startedAt: new Date(),
     },
-    select: {
-      id: true, respondentName: true, respondentRole: true, contactId: true,
-      styleChoice: true, finishOverride: true, fanHoldWhite: true, notes: true,
-      startedAt: true, submittedAt: true, createdAt: true,
-    },
+    select: RESPONSE_SHAPE,
   });
 
-  return NextResponse.json({ response: { ...response, choices: [] } }, { status: 201 });
+  return NextResponse.json({ response }, { status: 201 });
 }
