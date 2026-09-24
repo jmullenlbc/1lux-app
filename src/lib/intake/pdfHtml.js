@@ -15,7 +15,8 @@
  * render it without a browser.
  */
 import { formatCurrency } from '../format.js';
-import { INTAKE_QUESTIONS } from './questionnaire.js';
+import { INTAKE_QUESTIONS, designChoices } from './questionnaire.js';
+import { controlsMathWords } from './controlsWords.js';
 
 export const INTAKE_PDF_DISCLAIMER = 'Conceptual estimate — for budgeting only, not a quote.';
 // The same wording the public page's footer uses.
@@ -81,8 +82,9 @@ export function intakeProjectDataRows(pd = {}) {
  * @param {object} p.budget       — calculateBudget() output, recomputed on the server
  * @param {object} p.projectData  — the estimate's projectData
  * @param {string} p.dateLabel    — e.g. "September 12, 2026"
+ * @param {object} [p.answers]   — the visitor's questionnaire answers (printed as "Your design choices")
  */
-export function buildIntakePdfHtml({ projectName, location, buildingType, budget, projectData, dateLabel }) {
+export function buildIntakePdfHtml({ projectName, location, buildingType, budget, projectData, dateLabel, answers }) {
   if (!budget) throw new Error('buildIntakePdfHtml: no budget');
   const b = budget;
   const s = b.sections || {};
@@ -153,6 +155,22 @@ export function buildIntakePdfHtml({ projectName, location, buildingType, budget
   ].join('');
   const pdGrid = intakeProjectDataRows(projectData || {}).map(r => cell(r.label, r.value)).join('');
 
+  const ctrlWords = controlsMathWords(b.controlsMath);
+  const ctrlNote = ctrlWords
+    ? `<p style="font-size:7.5pt;color:#475569;margin-top:6px"><strong>Controls:</strong> ${esc(ctrlWords)}</p>`
+    : '';
+  const choices = designChoices(answers).map(c =>
+    `<tr><td style="padding:2px 8px 2px 0;color:#64748b;white-space:nowrap;vertical-align:top">${esc(c.section)}</td><td style="padding:2px 8px 2px 0;vertical-align:top">${esc(c.question)}</td><td style="padding:2px 0;font-weight:600;vertical-align:top">${esc(c.answer)}</td></tr>`).join('');
+  const choicesBlock = choices
+    ? `<div style="margin-top:12px;page-break-inside:avoid">
+  <div style="margin-bottom:4px;font-weight:700;font-size:8.5pt;color:#0f172a">Your design choices</div>
+  <table style="width:100%;border-collapse:collapse;font-size:7.5pt">
+    <tr style="text-align:left;color:#94a3b8;font-size:7pt"><th style="padding:2px 8px 2px 0">LOCATION</th><th style="padding:2px 8px 2px 0">QUESTION</th><th style="padding:2px 0">ANSWER</th></tr>
+    ${choices}
+  </table>
+</div>`
+    : '';
+
   const perSf   = Number(b.perSf) > 0 ? `<div><span style="color:#94a3b8">$/SF: </span><span style="font-weight:600">$${Number(b.perSf).toFixed(2)}</span></div>` : '';
   const perUnit = Number(b.perUnit) > 0 ? `<div><span style="color:#94a3b8">$/Unit: </span><span style="font-weight:600">${esc(fmt(b.perUnit))}</span></div>` : '';
 
@@ -216,6 +234,8 @@ ${pdGrid ? `<div style="margin:10px 0 8px 0">
 <!-- Budget Breakdown — SummaryBudgetBreakdown's visible rows -->
 <div style="margin-bottom:4px;font-weight:700;font-size:8.5pt;color:#0f172a">Budget Breakdown</div>
 ${breakdown}
+${ctrlNote}
+${choicesBlock}
 
 <p style="font-size:8pt;color:#475569;margin-top:14px;padding-top:8px;border-top:1px solid #e2e8f0">
   ${esc(INTAKE_PDF_CONTACT)} · ILC Studios

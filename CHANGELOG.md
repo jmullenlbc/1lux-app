@@ -5,6 +5,24 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Mill Creek feedback: balconies 0 or 1, whole baths, controls math, design choices, amenity measuring] - September 24, 2026 (DEPLOYED 2026-09-24) — migration 0097
+
+Mill Creek (Slava Korobov) ran Modera Town Lake through the public budget: balconies came back **23,488** (a balcony square-footage column read as a count), exterior amenity SF read 0, controls showed a flat $180K with no math, and the PDF had no design choices.
+- **Balconies are 0 or 1 per unit, never square footage** (Mike). New import-free `src/lib/unitRules.js`: any balcony figure above 0 on a unit type = 1. The drawing-read prompt says the same (a nonzero balcony SF column = 1), prompt version bumped. Typed or guessed totals are capped at the unit count with a flag; the engine caps `numBalconies` at `numUnits` too.
+- **Bathrooms are always whole numbers, app-wide** (Mike): 1.5 baths = 2. Applied in the questionnaire math, the internal unit-matrix rollup, the drawing-read prompt and the engine's vanity count.
+- **Controls show their math on the public page and PDF** (Mike approved this one exception): "$0.50/SF × 623,594 SF = $311,797, capped at $190,000 — we have not seen even large multifamily projects go over that." The engine now returns `controlsCap`, `controlsCapped`, `controlsOverridden`; the public allow-list passes only `controlsMath {perSf, sf, cap, capped}`, and nothing when a manual override is typed. Wording lives in import-free `src/lib/intake/controlsWords.js`.
+- **"Your design choices" at the bottom** of the public result screen and the PDF: Location | Question | Answer, like QUESTIONNAIRE RESPONSES on the internal client doc. Answers only, no prices (`designChoices()` in `questionnaire.js`).
+- **Exterior amenity measuring widened** (`siteVision.js`): pool enclosure + every courtyard + clubhouse hardscape, and podium/rooftop amenity decks count. The sheet picker now reads both landscape sheets when there's room (Modera's level-5 amenity deck was being cut) and recognises "amenity deck"/"courtyard" sheets. **Not yet retested live:** the Anthropic API account ran out of credit mid-test.
+- **Round 2 (Mike's answers, same day):**
+  - **Controls cap is $190K, not $180K.** `pricing.js` default, the controls section fallback and the public wording all moved. **Migration 0097** updates the saved master pricing sheet (`SystemConfig` key `pricing`) only if it still says 180,000 — a code default never changes a saved sheet. Per-building-type caps already existed (garden $65K … high-rise $190K); the lower of the two applies.
+  - **Bathrooms ladder** (Mike): the drawings' count → a typed count → the bedroom rule (studio / 1-bed / 2-bed = 1 bath, 3- and 4-bed = 2 minimum) → 1 bath per unit. Estimated counts are flagged ESTIMATED. Vanities follow the bathroom figure, including a typed one. The old 1.4-per-apartment vanity guess is retired; townhomes and single-family keep 2.5 per home. New `bathsFromBedrooms()` in `unitRules.js`.
+  - **Amenity SF per level.** The drawing read now returns every level of an area-by-level table (`amenityLevels`: interior and exterior SF per level) plus `interiorAmenitySf` / `exteriorAmenitySf` totals. The takeoff sums them and says which levels ("From the area-by-level table: L1 4,354 + …"). Modera: interior 13,876 SF, amenity decks 8,918 SF (real 14,315 / 8,806). Pool decks and amenity decks count as exterior; private balconies never do.
+  - **Exterior amenity SF is required when we can't read it.** No-drawings form: required field ("0 if none"). Drawings: the amber box must be filled before Next. The per-unit guess would have said 28,575 SF on Modera against a real 8,806.
+  - **"# of Balconies"** everywhere a balcony count is labelled (public form, unit matrix, project dashboard, unit sections, project data API).
+  - **Public summary page:** Download PDF (and the greyed-out Email button) now sit in one row at the top, same style. Design choices moved inside the Budget Breakdown card, under the breakdown, like the internal view; the duplicate list at the bottom is gone ("Figures you entered" stays).
+  - Tests: new `bathLadderAmenityLevels.test.mjs` (in `verify`); controlsCap (190K + the 0097 SQL); no-drawings fixtures now carry exterior amenity SF.
+- Tests: quantities (0/1 balconies, typed cap, whole baths), clubhouseControls (engine cap, controls math), intakePublicMath (controlsMath allow-listed), intakePdf (design choices + controls line), sheetIndex (both landscape picks). `verify` passes (13 gates).
+
 ## [Unit Selections redesigned: pick a look, walk the unit, heart or X] - September 23, 2026 (DEPLOYED 2026-09-24) — migration 0096
 
 - **The screen was rebuilt from scratch** (Mike: "The UI/UX of the unit selections is really bad"). He picked all three ideas, so they're combined in one screen:

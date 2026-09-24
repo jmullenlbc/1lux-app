@@ -19,6 +19,7 @@ import { computeQuantities, answersToMap } from './quantities.js';
 import { calculateBudget } from '../calculations.js';
 import { siteFeaturesFromRows } from '../siteFeatures.js';
 import { parseLooseNumber } from '../numberInput.js';
+import { controlsMathOf } from './controlsWords.js';
 
 /** A stated, usable number — or null (Number(null) is 0, hence the dance). */
 function num(v) {
@@ -245,6 +246,7 @@ export function publicBudget(budget) {
   const out = { sections: publicLines(budget.sections) || {} };
   for (const k of PUBLIC_BUDGET_KEYS) if (budget[k] !== undefined) out[k] = budget[k];
   out.questionCosts = publicQuestionCosts(budget.questionCosts);
+  out.controlsMath = controlsMathOf(budget);
   return out;
 }
 

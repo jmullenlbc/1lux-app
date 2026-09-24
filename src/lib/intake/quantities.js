@@ -40,6 +40,7 @@
  * @see src/lib/intake/questionnaire.js — the answers some rows derive from
  * @see src/lib/intake/reviewFlags.js   — drawing-level trust; this is field-level
  */
+import { perUnitRule, bathsFromBedrooms } from '../unitRules.js';
 import { lotSquareFeet, ACRE_SF } from '../siteFields.js';
 import { parseLooseNumber } from '../numberInput.js';
 import { PRICING } from '../pricing.js';
@@ -157,7 +158,7 @@ function sumPerUnit(rows, field) {
     // "stated zero" (the same doctrine as stated() in siteFields.js).
     const raw = r[field];
     if (raw === null || raw === undefined || raw === '') continue;
-    const v = Number(raw);
+    const v = perUnitRule(field, raw);
     if (Number.isFinite(v) && v >= 0) { covered += q; sum += q * v; }
   }
   if (!total || !covered) return null;
@@ -407,46 +408,78 @@ export function computeQuantities(drawings, answers, pricing = null) {
   }
 
   const baths = scaledToUnits(sumPerUnit(rows, 'bathrooms'), unitCount);
-  add('bathrooms', '# Bathrooms', 'count', baths ? baths.value : null,
-    'drawing',
+  // No bathroom column (Mike 2026-09-24): the drawings' count → the bedroom
+  // mix (studio/1BR/2BR = 1 bath, 3BR/4BR = 2 minimum) → 1 bath per unit.
+  // Townhouse / single-family forms with no bedroom info keep their type
+  // guess (2.5 per home) further down — a house is almost never one bath.
+  let bathEst = null;
+  if (!baths && unitCount > 0) {
+    const bedRows = rows.filter(r => qtyOf(r) && r.bedrooms != null && r.bedrooms !== '');
+    if (bedRows.length) {
+      const est = scaledToUnits(sumPerUnit(rows.map(r => ({ ...r, bathrooms: bathsFromBedrooms(r.bedrooms) })), 'bathrooms'), unitCount);
+      if (est) bathEst = { value: est.value, how: 'Estimated from the bedroom mix: studio, 1- and 2-bed units at 1 bath, 3- and 4-bed units at 2. No bathroom count was found on the drawings.' };
+    } else if (mix && mix.units > 0) {
+      const b3 = stated(site?.bedMix?.threeBed) ?? 0;
+      const v = Math.round((mix.units + b3) * (unitCount / mix.units));
+      bathEst = { value: v, how: 'Estimated from the site plan bed mix: 1 bath per unit, 2 for three-beds. No bathroom count was found on the drawings.' };
+    } else if (!(manual && (typeKey === 'townHouses' || typeKey === 'singleFamily'))) {
+      bathEst = { value: unitCount, how: `${fmt(unitCount)} units × 1 bath — no bathroom count or bedroom mix was found, so every unit is taken at one bath.` };
+    }
+  }
+  const bathVal = baths ? baths.value : bathEst?.value ?? null;
+  const bathSettled = add('bathrooms', '# Bathrooms', 'count', bathVal,
+    baths ? 'drawing' : bathEst ? 'derived' : 'drawing',
     baths
       ? (baths.scaled
           ? `Bathrooms per unit type × unit quantities from the unit matrix (${fmt(baths.sum)} across ${fmt(baths.matrixUnits)} units), scaled to all ${fmt(baths.unitCount)} units.`
           : 'Bathrooms per unit type × unit quantities, from the unit matrix.')
+      : bathEst ? bathEst.how
       : manual ? 'Not entered — sets the vanity count.' : 'No bathroom counts found — unit matrices often omit them.',
-    columnFlag(baths, 'a bathroom count'));
+    baths ? columnFlag(baths, 'a bathroom count')
+      : bathEst ? 'ESTIMATED — no bathroom count on the drawings. Enter the real count if you have it.' : null);
 
-  add('vanities', '# Vanities', 'count', baths ? baths.value : null,
+  add('vanities', '# Vanities', 'count', bathSettled ?? null,
     'derived',
-    baths ? 'One vanity per bathroom.' : 'Follows the bathroom count, which was not found.',
-    columnFlag(baths, 'a bathroom count'));
+    bathSettled != null ? 'One vanity per bathroom (half baths count as whole).' : 'Follows the bathroom count, which was not found.',
+    baths ? columnFlag(baths, 'a bathroom count') : null);
 
   // ── BALCONIES ──────────────────────────────────────────────────────────────
-  const balc = scaledToUnits(sumPerUnit(rows, 'balconies'), unitCount);
+  // Never more balconies than units (Mike, 2026-09-24): 0 or 1 per unit, so
+  // a balcony SF column misread as a count (Modera Town Lake came back 23,488
+  // for 245) still counts each unit type once — see perUnitRule. The cap below
+  // catches typed and guessed totals.
+  const balcRaw = scaledToUnits(sumPerUnit(rows, 'balconies'), unitCount);
+  const overUnits = v => unitCount > 0 && v > unitCount;
+  const capBalc = v => (overUnits(v) ? unitCount : v);
+  const capFlag = v => (overUnits(v)
+    ? `We read ${fmt(v)} balconies, more than the ${fmt(unitCount)} units. Capped at one per unit — check the drawings.`
+    : null);
+  const balc = balcRaw ? { ...balcRaw, value: capBalc(balcRaw.value), read: balcRaw.value } : null;
   const balcHow = balc && balc.scaled
     ? `Balconies per unit type × unit quantities from the unit matrix (${fmt(balc.sum)} across ${fmt(balc.matrixUnits)} units), scaled to all ${fmt(balc.unitCount)} units.`
     : 'Balconies per unit type × unit quantities, from the unit matrix.';
   const noBalconies = ans.balconyLighting === 'No balconies';
   if (balc && balc.value > 0 && noBalconies) {
-    add('balconies', '# Balconies', 'count', balc.value, 'drawing', balcHow,
+    add('balconies', '# of Balconies', 'count', balc.value, 'drawing', balcHow,
       `The questionnaire says there are no balconies, but the unit matrix lists ${fmt(balc.value)}. Check which is right.`);
   } else if (noBalconies) {
-    add('balconies', '# Balconies', 'count', 0, 'questionnaire', 'The questionnaire says the project has no balconies.');
+    add('balconies', '# of Balconies', 'count', 0, 'questionnaire', 'The questionnaire says the project has no balconies.');
   } else if (balc) {
-    add('balconies', '# Balconies', 'count', balc.value, 'drawing', balcHow,
-      columnFlag(balc, 'a balcony count'));
+    add('balconies', '# of Balconies', 'count', balc.value, 'drawing', balcHow,
+      capFlag(balc.read) || columnFlag(balc, 'a balcony count'));
   } else if (statedAnswer(ans.figureBalconies) != null) {
     // Without a count, the balcony-lighting answer prices to $0 no matter what
     // the visitor picks (Mike, 2026-09-04: "Why does none ... not change the
     // budget?") — so the wizard now asks for the count when drawings lack it.
-    add('balconies', '# Balconies', 'count', statedAnswer(ans.figureBalconies), 'questionnaire',
-      'Entered on the questionnaire — no balcony counts were found on the drawings.');
+    const typed = statedAnswer(ans.figureBalconies);
+    add('balconies', '# of Balconies', 'count', capBalc(typed), 'questionnaire',
+      'Entered on the questionnaire — no balcony counts were found on the drawings.', capFlag(typed));
   } else if (guess('balconiesPerUnit') != null && unitCount > 0 && ans.balconyLighting !== 'None') {
-    const est = Math.round(unitCount * guess('balconiesPerUnit'));
-    add('balconies', '# Balconies', 'count', est, 'derived',
+    const est = capBalc(Math.round(unitCount * guess('balconiesPerUnit')));
+    add('balconies', '# of Balconies', 'count', est, 'derived',
       `${fmt(unitCount)} units × ${guess('balconiesPerUnit')} balcony per unit — a typical figure for this building type.`, GUESS_FLAG);
   } else {
-    add('balconies', '# Balconies', 'count', null, null, 'No balcony counts found in any drawing, and the questionnaire did not rule them out.');
+    add('balconies', '# of Balconies', 'count', null, null, 'No balcony counts found in any drawing, and the questionnaire did not rule them out.');
   }
 
   // ── CEILING FANS ───────────────────────────────────────────────────────────
@@ -626,8 +659,26 @@ export function computeQuantities(drawings, answers, pricing = null) {
     corridorSf = add('corridorSf', 'Corridors & Stairwells SF', 'sf', null, null,
       manual ? 'Not entered.' : 'No corridor / circulation line was found on any drawing — enter it.');
   }
-  const interiorAmenitySf = areaRow('interiorAmenitySf', 'Interior Amenity SF', stated(site?.clubhouseSf),
-    'From the clubhouse figure on the site plan.', 'figureInteriorAmenitySf');
+  // Amenity by level (Mike 2026-09-24, Modera Town Lake): high-rise and podium
+  // sets print a gross-area-by-level table with AMENITY and AMENITY DECK
+  // columns. The reader lists each level's printed figures; THIS code adds
+  // them up, so the row shows which levels it came from.
+  const amenityLevels = Array.isArray(totals?.amenityLevels)
+    ? totals.amenityLevels.filter(l => l && (stated(l.interiorSf) > 0 || stated(l.exteriorSf) > 0)) : [];
+  const levelSum = (k) => {
+    const hits = amenityLevels.filter(l => stated(l[k]) > 0);
+    return hits.length ? { sf: hits.reduce((a, l) => a + stated(l[k]), 0),
+      words: hits.map(l => `${String(l.level || 'level').trim()} ${fmt(stated(l[k]))}`).join(' + ') } : null;
+  };
+  const intLevels = levelSum('interiorSf');
+  const extLevels = levelSum('exteriorSf');
+  const intTable  = intLevels ? null : stated(totals?.interiorAmenitySf);
+  const extTable  = extLevels ? null : stated(totals?.exteriorAmenitySf);
+  const interiorAmenitySf = areaRow('interiorAmenitySf', 'Interior Amenity SF',
+    intLevels?.sf ?? intTable ?? stated(site?.clubhouseSf),
+    intLevels ? `From the area-by-level table: ${intLevels.words} SF.`
+      : intTable != null ? "From the amenity line in the drawings' area table."
+      : 'From the clubhouse figure on the site plan.', 'figureInteriorAmenitySf');
   // Exterior amenity SF is the multiplicand for the exterior amenity $/SF
   // question. Mike, 2026-09-15: "Exterior amenity math in the conceptual
   // budgeting tool isn't working. I click a different $/sf and nothing
@@ -642,11 +693,13 @@ export function computeQuantities(drawings, answers, pricing = null) {
   // the hardscape touching the clubhouse) → typed → $0 with the flag above.
   // A measurement is flagged with how the scale was found, so a reviewer can
   // see it is arithmetic off a drawing rather than something the drawing said.
-  const printedExtSf  = stated(site?.amenitySf);
+  const printedExtSf  = extLevels?.sf ?? extTable ?? stated(site?.amenitySf);
   const measuredExtSf = printedExtSf == null ? stated(site?.exteriorAmenitySfMeasured) : null;
   const extAmenitySf = areaRow('exteriorAmenitySf', 'Exterior Amenity SF',
     printedExtSf ?? (measuredExtSf > 0 ? measuredExtSf : null),
-    printedExtSf != null
+    extLevels ? `From the area-by-level table (amenity / pool decks): ${extLevels.words} SF.`
+      : extTable != null ? "From the amenity-deck line in the drawings' area table."
+      : printedExtSf != null
       ? 'From the amenity-area figure on the site plan — usually the outdoor programme (pool deck, courtyards).'
       : 'Measured off the scaled site / landscape plan — the pool enclosure plus the hardscape touching the clubhouse.',
     'figureExteriorAmenitySf');

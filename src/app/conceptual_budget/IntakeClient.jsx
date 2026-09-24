@@ -7,7 +7,8 @@ import SummaryBudgetBreakdown from '@/app/(app)/project/[id]/summary/SummaryBudg
 import QuestionCard from '@/components/sections/QuestionCard';
 import InteriorTierPicker from '@/components/sections/InteriorTierPicker';
 import { classifyIntakeEmail } from '@/lib/intake';
-import { INTAKE_QUESTIONS, noDrawingsReady } from '@/lib/intake/questionnaire';
+import { INTAKE_QUESTIONS, noDrawingsReady, BOLLARD_PROJECT_TYPES, designChoices } from '@/lib/intake/questionnaire';
+import { controlsMathWords } from '@/lib/intake/controlsWords';
 import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -58,6 +59,8 @@ const CONFIRM_NOTE = 'We will confirm all numbers are correct and send you a bud
 // email is hooked up (Mike, 2026-09-15: "The link we should build but can't
 // show until we hook up Microsoft email to it").
 const RESUME_LINK_ENABLED = false;
+// One look for every button in the summary page's top row.
+const topBtn = 'px-5 py-2.5 rounded-lg font-semibold text-sm border transition-colors';
 const DRAFT_KEY = 'ilc.conceptualBudget.draft.v1';
 // This tab's visit id for the staff visitors page. sessionStorage, so a new
 // tab or a later day is a new visit; it holds an id and nothing else.
@@ -209,7 +212,7 @@ const FIGURE_FIELDS = [
   CARPORT_FIELD,
   // Without a balcony count the balcony-lighting answer prices to $0 whatever
   // the visitor picks — ask for it whenever the unit matrix didn't list one.
-  { key: 'figureBalconies',      qKey: 'balconies',        label: '# Balconies',              placeholder: 'e.g. 150' },
+  { key: 'figureBalconies',      qKey: 'balconies',        label: '# of Balconies',           placeholder: 'e.g. 150' },
   // Same trap, same fix (Mike, 2026-09-15: "Exterior amenity math ... isn't
   // working. I click a different $/sf and nothing changes"). The exterior
   // amenity $/SF question multiplies this figure, so with no square footage
@@ -244,12 +247,12 @@ const MANUAL_FIELDS = [
   { key: 'figureSurfaceParking',    qKey: 'surfaceParking',    label: '# Surface parking stalls',  placeholder: 'e.g. 120',     need: 'required', hint: 'Open-air stalls only. Enter 0 if all parking is in a garage.' },
   GARAGE_FIELD,
   CARPORT_FIELD,
-  { key: 'figureBalconies',         qKey: 'balconies',         label: '# Balconies',               placeholder: 'e.g. 150' },
+  { key: 'figureBalconies',         qKey: 'balconies',         label: '# of Balconies',            placeholder: 'e.g. 150' },
   { key: 'figureInteriorAmenitySf', qKey: 'interiorAmenitySf', label: 'Interior amenity SF',       placeholder: 'e.g. 5,000',   hint: 'Clubhouse, leasing, fitness.' },
   { key: 'figureCorridorSf',        qKey: 'corridorSf',        label: 'Corridors & stairwells SF', placeholder: 'e.g. 30,000' },
   { key: 'figureBohSf',             qKey: 'bohSf',             label: 'Back of house SF',          placeholder: 'e.g. 10,000',  hint: 'Mechanical, storage, trash, bike rooms.' },
   { key: 'figureGarageSf',          qKey: 'garageSf',          label: 'Garage SF',                 placeholder: 'e.g. 80,000',  hint: 'Leave blank if there is no parking garage.' },
-  { key: 'figureExteriorAmenitySf', qKey: 'exteriorAmenitySf', label: 'Exterior amenity SF',       placeholder: 'e.g. 12,000',  hint: 'Pool deck, courtyards. Leave blank if none.' },
+  { key: 'figureExteriorAmenitySf', qKey: 'exteriorAmenitySf', label: 'Exterior amenity SF',       placeholder: 'e.g. 12,000',  need: 'required', hint: 'Pool deck, amenity deck, courtyards. Enter 0 if none.' },
   // Townhomes / single-family only (`types`) — Mike 2026-09-13.
   DRIVE_LENGTH_FIELD,
   ...SITE_FEATURE_FIELDS,
@@ -279,7 +282,7 @@ function FigureField({ label, labelRight, hint, note, children }) {
 
 const PROJECT_TYPE_OPTIONS =INTAKE_QUESTIONS.find(q => q.key === 'projectType')?.options || [];
 // Project types that get the walking-path bollard question (Mike, 2026-09-12).
-const BOLLARD_PROJECT_TYPES = ['Town Houses (2-3 Levels)', 'Single Family (1-2 Levels)'];
+
 
 function Field({ label, labelRight, hint, error, children }) {
   return (
@@ -1029,6 +1032,10 @@ export default function IntakeClient() {
   const neededRows = useMemo(
     () => correctableRows.filter(r => r.display === '' && String(corrections[r.key] ?? '').trim() === ''),
     [correctableRows, corrections]);
+  // Exterior amenity SF is the one blank a drawing-read job may not skip (Mike
+  // 2026-09-24: "when it's not listed we should require them to input
+  // Exterior SF"). 0 is a real answer — "there is none".
+  const extAmenityNeeded = !manual && !!drawings && neededRows.some(r => r.key === 'exteriorAmenitySf');
 
   // ── The one Project Data grid ─────────────────────────────────────────────
   // Shown on the Drawings page (right under the upload) and again on the
@@ -1057,7 +1064,7 @@ export default function IntakeClient() {
                 <span>{row.label}</span>
                 {needed && (
                   <span className="rounded bg-amber-200 px-1 py-px text-[10px] font-bold uppercase tracking-wide text-amber-900">
-                    Needed
+                    {row.key === 'exteriorAmenitySf' ? 'Required — 0 if none' : 'Needed'}
                   </span>
                 )}
                 {!needed && !edited && row.estimated && (
@@ -1514,6 +1521,8 @@ export default function IntakeClient() {
                                   : `Still needed: ${manualCheck.missing.join(', ')}`)
                               : drawingsReading > 0
                                 ? `Reading ${drawingsReading} drawing${drawingsReading !== 1 ? 's' : ''} — your figures appear once every file is read`
+                              : extAmenityNeeded
+                                ? 'Enter the exterior amenity SF above (pool deck, amenity deck, courtyards — 0 if none) to continue'
                               : drawings
                                 ? `${drawings.sources.length} drawing${drawings.sources.length !== 1 ? 's' : ''} read${
                                     neededRows.length > 0
@@ -1522,7 +1531,7 @@ export default function IntakeClient() {
                                 : 'Upload drawings to see live pricing — you can still submit without them'}
                         </span>
                         {(() => {
-                          const ok = !!answers.projectType && (haveDrawings === 'yes' || (manual && manualCheck.ready));
+                          const ok = !!answers.projectType && !extAmenityNeeded && (haveDrawings === 'yes' || (manual && manualCheck.ready));
                           return (
                             <button onClick={() => ok && goNext()} disabled={!ok} className={navBtn(ok)}>
                               {manual || drawings || haveDrawings === null ? 'Continue to units →' : 'Skip — continue to units →'}
@@ -1583,6 +1592,40 @@ export default function IntakeClient() {
                 {/* ── Review & send — the internal summary page, then the send form ── */}
                 {stepId === 'review' && (
                   <div className="space-y-5">
+                    {/* Actions — at the top, one style for every button (Mike 2026-09-24) */}
+                    {hasEstimate && (
+                      <div>
+                        <div className="flex flex-wrap items-center justify-end gap-3">
+                          {RESUME_LINK_ENABLED && resumeLink && (
+                            <>
+                              <button type="button" onClick={copyResumeLink} className={cn(topBtn, 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50')}>
+                                {linkCopied ? 'Link copied' : 'Copy my resume link'}
+                              </button>
+                              <button type="button" onClick={emailResumeLink} className={cn(topBtn, 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50')}>
+                                Email me the link
+                              </button>
+                            </>
+                          )}
+                          {!(RESUME_LINK_ENABLED && resumeLink) && (
+                            <button type="button" disabled aria-disabled="true" title="Coming soon — email isn't connected yet."
+                              className={cn(topBtn, 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed')}>
+                              Email this budget
+                            </button>
+                          )}
+                          <button type="button" onClick={handleDownloadPdf} disabled={pdfBusy}
+                            className={cn(topBtn, pdfBusy ? 'border-slate-200 bg-white text-slate-400 cursor-wait' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50')}>
+                            {pdfBusy ? 'Preparing…' : 'Download PDF'}
+                          </button>
+                        </div>
+                        {RESUME_LINK_ENABLED && resumeLink && linkEmailed && (
+                          <p className="text-xs text-slate-400 mt-2 text-right">
+                            {linkEmailed === 'sent' ? `Sent to ${email}.` : 'We could not send the email just now — copy the link instead.'}
+                          </p>
+                        )}
+                        {pdfError && <p className="text-xs text-red-600 mt-2 text-right" role="alert">{pdfError}</p>}
+                      </div>
+                    )}
+
                     {/* Budget hero — dark navy, identical to the internal summary */}
                     {hasEstimate && (
                       <div
@@ -1638,66 +1681,31 @@ export default function IntakeClient() {
                           <span className="text-xs text-slate-400 italic">Hover a line for details</span>
                         </div>
                         <SummaryBudgetBreakdown budget={budget} />
-                      </div>
-                    )}
-
-                    {/* Keep a copy — PDF download, plus email once it's wired up */}
-                    {hasEstimate && (
-                      <div className="bg-white rounded-xl border border-slate-200 p-5">
-                        <h3 className="font-bold text-slate-900">Keep a copy</h3>
-                        <p className="text-xs text-slate-500 mt-0.5">Download this budget as a PDF to share with your team.</p>
-                        <div className="flex flex-wrap items-center gap-3 mt-3">
-                          <button
-                            type="button"
-                            onClick={handleDownloadPdf}
-                            disabled={pdfBusy}
-                            className={cn(
-                              'px-5 py-2.5 rounded-lg font-semibold text-sm border transition-colors',
-                              pdfBusy
-                                ? 'border-slate-200 text-slate-400 cursor-wait'
-                                : 'border-slate-300 text-slate-700 hover:bg-slate-50'
-                            )}
-                          >
-                            {pdfBusy ? 'Preparing…' : 'Download PDF'}
-                          </button>
-                          {RESUME_LINK_ENABLED && resumeLink ? (
-                            <>
-                              <button
-                                type="button"
-                                onClick={copyResumeLink}
-                                className="px-5 py-2.5 rounded-lg font-semibold text-sm border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors"
-                              >
-                                {linkCopied ? 'Link copied' : 'Copy my resume link'}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={emailResumeLink}
-                                className="px-5 py-2.5 rounded-lg font-semibold text-sm border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors"
-                              >
-                                Email me the link
-                              </button>
-                            </>
-                          ) : (
-                            <button
-                              type="button"
-                              disabled
-                              aria-disabled="true"
-                              className="px-5 py-2.5 rounded-lg font-semibold text-sm border border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed"
-                            >
-                              Email this budget
-                            </button>
-                          )}
-                        </div>
-                        {RESUME_LINK_ENABLED && resumeLink ? (
-                          <p className="text-xs text-slate-400 mt-2">
-                            {linkEmailed === 'sent' && `Sent to ${email}. `}
-                            {linkEmailed === 'failed' && 'We could not send the email just now — copy the link instead. '}
-                            The link opens this budget on any device. Anyone with it can see what you entered, so keep it to yourself.
+                        {controlsMathWords(budget.controlsMath) && (
+                          <p className="text-xs text-slate-500 mt-3">
+                            <span className="font-semibold text-slate-700">Controls: </span>{controlsMathWords(budget.controlsMath)}
                           </p>
-                        ) : (
-                          <p className="text-xs text-slate-400 mt-2">Coming soon — email isn&apos;t connected yet.</p>
                         )}
-                        {pdfError && <p className="text-xs text-red-600 mt-2" role="alert">{pdfError}</p>}
+                        {/* Your design choices — under the breakdown, like the internal summary */}
+                        <h3 className="font-bold text-slate-900 mt-5 mb-3 pt-4 border-t border-slate-100">Your design choices</h3>
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="text-left text-slate-400 uppercase tracking-wider">
+                              <th className="py-1 pr-3 font-semibold">Location</th>
+                              <th className="py-1 pr-3 font-semibold">Question</th>
+                              <th className="py-1 font-semibold">Answer</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {designChoices(answers).map(c => (
+                              <tr key={c.question} className="border-t border-slate-100 align-top">
+                                <td className="py-1.5 pr-3 text-slate-500 whitespace-nowrap">{c.section}</td>
+                                <td className="py-1.5 pr-3 text-slate-700">{c.question}</td>
+                                <td className="py-1.5 font-semibold text-slate-900">{c.answer}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     )}
 
@@ -1730,17 +1738,10 @@ export default function IntakeClient() {
                       </div>
                     </dl>
 
+                    {fieldsFor(manual ? MANUAL_FIELDS : FIGURE_FIELDS, answers.projectType).some(f => String(figures[f.key] ?? '').trim()) && (
                     <div className="mt-4">
-                      <h3 className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Your design choices</h3>
+                      <h3 className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Figures you entered</h3>
                       <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-1 text-xs">
-                        {INTAKE_QUESTIONS.map(q => (
-                          <div key={q.key} className="flex justify-between gap-3 py-1 border-b border-slate-50 min-w-0">
-                            <dt className="text-slate-400 truncate min-w-0">{q.question.replace(/\s*\(.*\)\s*/g, ' ').trim()}</dt>
-                            <dd className="text-slate-700 font-medium text-right shrink-0">
-                              {answers[q.key] ? optionLabel(q, answers[q.key]) : '—'}
-                            </dd>
-                          </div>
-                        ))}
                         {fieldsFor(manual ? MANUAL_FIELDS : FIGURE_FIELDS, answers.projectType).filter(f => String(figures[f.key] ?? '').trim()).map(f => (
                           <div key={f.key} className="flex justify-between gap-3 py-1 border-b border-slate-50 min-w-0">
                             <dt className="text-slate-400 truncate min-w-0">{f.label} (entered by you)</dt>
@@ -1749,6 +1750,7 @@ export default function IntakeClient() {
                         ))}
                       </dl>
                     </div>
+                    )}
 
                     {submitError && (
                       <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 mt-4">

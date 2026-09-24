@@ -32,7 +32,7 @@ export default function ControlsSection({ responses, projectData, budget, pricin
   const baseRate      = P.controls?.rates?.[buildingType] || P.controls?.rates?.midRise || FALLBACK_RATE;
   // Mirrors the engine: the building type's own cap AND the sheet-wide cap both apply — lower wins.
   const lowerCap      = Math.min(baseRate.cap ?? Infinity, P.controls?.cap ?? Infinity);
-  const controlsCap   = Number.isFinite(lowerCap) ? lowerCap : 180000;
+  const controlsCap   = Number.isFinite(lowerCap) ? lowerCap : 190000;
   const selectedRate  = { ...baseRate, cap: controlsCap };
 
   // Town houses / single family (a $0/SF type rate) price controls on the

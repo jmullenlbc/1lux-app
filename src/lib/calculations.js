@@ -106,8 +106,10 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const grossSf        = n(pd.grossSf);
   const unitsSf        = n(pd.unitsSf) || grossSf;
   const numUnits       = n(pd.numUnits);
-  const numBalconies   = n(pd.numBalconies);
-  const numVanities    = n(pd.numVanities) || n(pd.numBathrooms);
+  // Never more balconies than units (Mike, 2026-09-24), whatever was typed or read.
+  const numBalconies   = numUnits > 0 ? Math.min(n(pd.numBalconies), numUnits) : n(pd.numBalconies);
+  // Whole numbers only — a half bath still gets a vanity light (Mike, 2026-09-24).
+  const numVanities    = Math.ceil(n(pd.numVanities) || n(pd.numBathrooms));
   const corridorSf     = n(pd.corridorSf);
   const intAmenitySf   = n(pd.interiorAmenitySf);
   const extAmenitySf   = n(pd.exteriorAmenitySf);
@@ -598,7 +600,9 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const controlsBasis    = (n(ctrlRate.perSf) === 0 && intAmenitySf > 0 && clubhousePerSf > 0) ? 'clubhouse' : 'gross';
   const controlsBasisSf  = controlsBasis === 'clubhouse' ? intAmenitySf : grossSf;
   const controlsRateUsed = controlsBasis === 'clubhouse' ? clubhousePerSf : n(ctrlRate.perSf);
-  let controlsProduct = Math.min(controlsBasisSf * controlsRateUsed, controlsCap);
+  const controlsFormula = controlsBasisSf * controlsRateUsed;
+  let controlsProduct = Math.min(controlsFormula, controlsCap);
+  const controlsCapped = controlsFormula > controlsCap;
 
   // Manual override — an explicit override replaces the formula result.
   const controlsOverrideVal = n(controls.controlsOverride);
@@ -898,6 +902,9 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     controlsBasis,
     controlsBasisSf,
     controlsRateUsed,
+    controlsCap: Number.isFinite(controlsCap) ? controlsCap : null,
+    controlsCapped: controlsCapped && !(controlsOverrideVal > 0),
+    controlsOverridden: controlsOverrideVal > 0,
     controlsSubtotal,
     controlsFreight,
     controlsWarehousing,

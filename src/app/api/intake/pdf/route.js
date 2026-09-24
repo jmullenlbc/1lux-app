@@ -86,6 +86,7 @@ export async function POST(req) {
       buildingType: answersToMap(answers).projectType,
       budget,
       projectData,
+      answers: answersToMap(answers),
       dateLabel: new Date().toLocaleDateString('en-US', {
         year: 'numeric', month: 'long', day: 'numeric', timeZone: safeTimeZone(body.timeZone),
       }),

@@ -80,3 +80,27 @@ test('the energy-credit adder rides on top of the clubhouse controls', () => {
   assert.equal(b.controls, 20_000);
   assert.equal(Math.round(b.energyCreditControls), Math.round(20_000 * PRICING.controls.energyCreditAdderPct));
 });
+
+// Mike, 2026-09-24: balconies can never outnumber units, whatever was typed.
+test('engine caps balconies at the unit count', () => {
+  const r = calculateBudget({ numUnits: 245, numBalconies: 23488 }, { units: { balcony: 'disk5inch' } });
+  const capped = calculateBudget({ numUnits: 245, numBalconies: 245 }, { units: { balcony: 'disk5inch' } });
+  assert.ok(capped.sections.units.balcony.product > 0);
+  assert.equal(r.sections.units.balcony.product, capped.sections.units.balcony.product);
+});
+
+test('controls report their cap and whether it bit, and the public words show the math', async () => {
+  const { controlsMathOf, controlsMathWords } = await import('../../src/lib/intake/controlsWords.js');
+  const big = calculateBudget(pd('highRise', { grossSf: 5_000_000 }), SECTIONS);
+  assert.equal(big.controlsCap, Math.min(PRICING.controls.rates.highRise.cap, PRICING.controls.cap));
+  assert.equal(big.controlsCapped, true);
+  assert.equal(big.controls, big.controlsCap);
+  assert.match(controlsMathWords(controlsMathOf(big)), /\/SF × 5,000,000 SF = .*capped at \$/);
+
+  const small = calculateBudget(pd('garden', { grossSf: 50_000 }), SECTIONS);
+  assert.equal(small.controlsCapped, false);
+  assert.doesNotMatch(controlsMathWords(controlsMathOf(small)), /capped at \$[\d,]+\. Controls are capped because/);
+
+  const over = calculateBudget(pd('highRise'), { ...SECTIONS, controls: { controlsOverride: 50_000 } });
+  assert.equal(controlsMathOf(over), null);
+});

@@ -175,7 +175,7 @@ export function mergeProposals(results) {
   // is a deliberate decision here too. `statedTotalUnits` is what the auto-check
   // reconciles row quantities against — dropping it silently would turn that
   // check into a permanent SKIP without anything appearing to break.
-  const totals = { grossInteriorSf: null, garageSf: null, corridorSf: null, bohSf: null, statedTotalUnits: null, buildingType: null };
+  const totals = { grossInteriorSf: null, garageSf: null, corridorSf: null, bohSf: null, interiorAmenitySf: null, exteriorAmenitySf: null, amenityLevels: null, statedTotalUnits: null, buildingType: null };
   let siteData = null;
   // The gross-SF verdict travels as a BUNDLE, not as independent fields — see
   // GROSS_SF_META below.

@@ -74,7 +74,8 @@ const ROLE_SIGNALS = {
   landscapePlan: [
     [/\b(overall|composite)\s+(landscape|hardscape)\s+plan\b/i, 40],
     [/\b(landscape|hardscape|planting|site\s+furnish\w*|site\s+amenit\w*)\s+plan\b/i, 34],
-    [/\b(amenity|pool)\s+(area|deck|court|enlargement)\b/i, 24],
+    [/\b(amenity|pool|roof(top)?)\s+(area|deck|court|terrace|enlargement)\b/i, 24],
+    [/\bcourtyard\b/i, 20],
     [/\b(landscape|hardscape)\b/i, 14],
   ],
   unitMatrix: [
@@ -343,6 +344,16 @@ export const RENDER_ORDER = ['sitePlan', 'landscapePlan', 'areaSummary', 'floorP
 export function pagesToRender(picks, { order = RENDER_ORDER, max = 3 } = {}) {
   const seen = new Set();
   const out = [];
+  // A podium or high-rise job keeps its pool deck and roof terrace on two
+  // different amenity plans (Modera Town Lake, 2026-09-24: the level-5 deck
+  // was the landscape pick that got cut). The first TWO landscape picks go
+  // in right behind the site plan, when there is room for both.
+  const land = (picks?.landscapePlan ?? []).slice(0, 2);
+  if (max >= 4 && land.length === 2 && order.includes('landscapePlan')) {
+    const first = picks?.[order[0]]?.[0];
+    if (first != null && order[0] !== 'landscapePlan') { seen.add(first); out.push(first); }
+    for (const p of land) if (!seen.has(p)) { seen.add(p); out.push(p); }
+  }
   const depth = Math.max(0, ...order.map(r => (picks?.[r] ?? []).length));
   for (let rank = 0; rank < depth; rank++) {
     for (const role of order) {

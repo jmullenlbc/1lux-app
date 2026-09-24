@@ -145,7 +145,7 @@ export default function UnitsSection({ responses, projectData, allSections, pric
             { label: 'Total Units',    value: numUnits    || '—' },
             { label: 'Units Gross SF', value: unitsSf > 0 ? unitsSf.toLocaleString() : '—' },
             { label: 'Vanities',       value: numVanities || '—' },
-            { label: 'Balconies',      value: numBalconies|| '—' },
+            { label: '# of Balconies', value: numBalconies|| '—' },
           ].map(item => (
             <div key={item.label} className="bg-white rounded-lg border border-slate-100 p-3">
               <div className="text-xl font-bold text-slate-900">{item.value}</div>

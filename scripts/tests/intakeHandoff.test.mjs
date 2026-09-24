@@ -26,6 +26,7 @@ const ANSWERS = {
   figureGrossSf: '250000',
   figureStories: '3',
   figureSurfaceParking: '300',
+  figureExteriorAmenitySf: '5000',
   figureDogParks: '1',
   figurePickleballCourts: '2',
   figureCourtyardFt: '90',

@@ -12,7 +12,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { computeIntakeEstimate, intakeEstimateGate } from '../../src/lib/intake/estimate.js';
+import { computeIntakeEstimate, intakeEstimateGate, publicIntakeEstimate } from '../../src/lib/intake/estimate.js';
 import {
   buildIntakePdfHtml, intakePdfFilename, intakeProjectDataRows,
   INTAKE_PDF_DISCLAIMER, INTAKE_PDF_CONTACT,
@@ -23,7 +23,7 @@ import { formatCurrency } from '../../src/lib/format.js';
 const GARDEN = 'Garden (3 Levels)';
 const TYPED = {
   noDrawings: 'yes', projectType: GARDEN,
-  figureTotalUnits: '200', figureGrossSf: '250000', figureStories: '3', figureSurfaceParking: '300',
+  figureTotalUnits: '200', figureGrossSf: '250000', figureStories: '3', figureSurfaceParking: '300', figureExteriorAmenitySf: '5000',
 };
 
 const estimate = () => computeIntakeEstimate({ answers: { ...TYPED }, drawings: null });
@@ -130,7 +130,18 @@ test('the pricing model never ships to the public page', () => {
   }
   const builder = fs.readFileSync(new URL('../../src/lib/intake/pdfHtml.js', import.meta.url), 'utf8');
   const imports = [...builder.matchAll(/^import .* from '([^']+)';/gm)].map(m => m[1]).sort();
-  assert.deepEqual(imports, ['../format.js', './questionnaire.js']);
+  assert.deepEqual(imports, ['../format.js', './controlsWords.js', './questionnaire.js']);
+  const words = fs.readFileSync(new URL('../../src/lib/intake/controlsWords.js', import.meta.url), 'utf8');
+  assert.ok(!/^import /m.test(words), 'controlsWords.js must stay import-free');
+});
+
+test("the PDF ends with the visitor's design choices and the controls $/SF line", () => {
+  const { budget } = publicIntakeEstimate({ answers: { ...TYPED }, drawings: null });
+  const html = render(budget, { answers: { undercabinet: '120v', projectType: 'Garden (3 Levels)' } });
+  assert.ok(html.includes('Your design choices'));
+  assert.ok(html.includes('Do you want undercabinet lighting?'));
+  assert.ok(html.includes('>120v<'));
+  assert.match(html, /<strong>Controls:<\/strong> \$[\d.]+\/SF × /);
 });
 
 test('the project name is escaped — the PDF renderer is a real browser on our server', () => {

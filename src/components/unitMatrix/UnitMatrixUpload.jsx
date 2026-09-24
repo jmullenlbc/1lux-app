@@ -4,6 +4,7 @@ import { oversizeMessage, uploadErrorMessage, uploadThrowMessage } from '@/lib/u
 import { appendUpload } from '@/lib/uploadClient';
 import { postParked } from '@/lib/parkedFetch';
 import ReadingWait, { READING_TIME_HINT } from '@/components/ReadingWait';
+import { wholeBaths, balconiesPerUnit } from '@/lib/unitRules';
 
 // ── confidence → display tier ────────────────────────────────────────────────
 function confidenceTier(conf) {
@@ -32,8 +33,8 @@ function rollup(rows) {
     units += q;
     if (r.unitSf    != null) sf   += q * (Number(r.unitSf)    || 0);
     if (r.bedrooms  != null) bed  += q * (Number(r.bedrooms)  || 0);
-    if (r.bathrooms != null) bath += q * (Number(r.bathrooms) || 0);
-    if (r.balconies != null) balc += q * (Number(r.balconies) || 0);
+    if (r.bathrooms != null) bath += q * (wholeBaths(r.bathrooms) || 0);
+    if (r.balconies != null) balc += q * (balconiesPerUnit(r.balconies) || 0);
   }
   const hasSf   = rows.some(r => r.unitSf    != null);
   const hasBed  = rows.some(r => r.bedrooms  != null);
@@ -279,7 +280,7 @@ function ReviewModal({ proposal, fileName, onConfirm, onCancel }) {
                     <th className="px-4 py-2.5 text-right">Unit SF</th>
                     <th className="px-4 py-2.5 text-center">Bed</th>
                     <th className="px-4 py-2.5 text-center">Bath</th>
-                    <th className="px-4 py-2.5 text-center">Balc</th>
+                    <th className="px-4 py-2.5 text-center" title="0 or 1 per unit — never square feet">Balcony</th>
                     <th className="px-4 py-2.5 text-center">Conf.</th>
                     <th className="px-2 py-2.5 w-6"></th>
                   </tr>
@@ -427,7 +428,7 @@ function ReviewModal({ proposal, fileName, onConfirm, onCancel }) {
                     available={live.bath != null}
                   />
                   <FieldRow
-                    label="# Balconies"
+                    label="# of Balconies"
                     value={live.balc}
                     fieldKey="numBalconies"
                     checked={checked}
@@ -719,7 +720,7 @@ export default function UnitMatrixUpload({ projectId, onCommitted }) {
                   <th className="px-4 py-2.5 text-right">Unit SF</th>
                   <th className="px-4 py-2.5 text-center">Bed</th>
                   <th className="px-4 py-2.5 text-center">Bath</th>
-                  <th className="px-4 py-2.5 text-center">Balc</th>
+                  <th className="px-4 py-2.5 text-center" title="0 or 1 per unit — never square feet">Balcony</th>
                 </tr>
               </thead>
               <tbody className="text-slate-700">

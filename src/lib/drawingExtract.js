@@ -450,6 +450,9 @@ Return ONLY valid JSON matching this exact schema — no markdown, no explanatio
     "garageSf": number or null,
     "corridorSf": number or null,
     "bohSf": number or null,
+    "interiorAmenitySf": number or null,
+    "exteriorAmenitySf": number or null,
+    "amenityLevels": [ { "level": "string", "interiorSf": number or null, "exteriorSf": number or null } ] or null,
     "statedTotalUnits": number or null,
     "buildingType": "string or null"
   },
@@ -466,6 +469,10 @@ Rules:
   must keep two different codes; a "Type A" (accessible) variant is its own type too. Every row in
   unitTypes must have a code different from every other row. If a matrix truly names its rows by
   bedroom count alone, make each code unique by appending the unit SF (e.g. "3BR 1,120 SF").
+- balconies: 0 or 1 — does ONE unit of this type have a balcony/patio? Never more than 1 per unit, and
+  never a square footage. A "Balcony SF" or "Patio/Balcony Area" column with a number above 0 means 1;
+  blank, "-" or 0 means 0. Not shown anywhere → null.
+- bathrooms: whole bathrooms per unit; a half bath counts as a whole one (1.5 → 2).
 - Bedrooms: use the bedroom column if present; otherwise infer from the type code (e.g. "2BR" → 2, "1BR" → 1, "STUDIO" → 0).
 - confidence per row: how confident you are in this row's data. 1.0 = exact numbers clearly stated; 0.5 = inferred/ambiguous.
 - If a column is missing entirely, set that field to null for all rows — do not guess.
@@ -500,6 +507,15 @@ Rules:
   (mechanical, electrical, trash, storage, maintenance, bike, janitor, riser, elevator machine, IT/telecom).
   Only rooms with a printed area count; never estimate one, never take a percentage of gross, and never
   include corridors, stairs, amenity, leasing, garage or unit areas. null when no such areas are printed.
+- interiorAmenitySf / exteriorAmenitySf / amenityLevels: many sets print an area table BY LEVEL ("GROSS
+  BUILDING AREA BY LEVEL", a code-area summary, a program matrix) with columns such as RESIDENTIAL /
+  GARAGE / AMENITY / AMENITY DECK / POOL DECK / ROOF TERRACE. Read EVERY level row. List each level that
+  prints a nonzero amenity figure in amenityLevels: interiorSf = the indoor AMENITY / CLUBHOUSE / LEASING /
+  FITNESS column on that level; exteriorSf = the outdoor AMENITY DECK / POOL DECK / ROOF TERRACE /
+  COURTYARD column on that level. Then interiorAmenitySf = the sum of the interiorSf figures and
+  exteriorAmenitySf = the sum of the exteriorSf figures, adding ONLY printed per-level numbers (say so in
+  notes). Private unit balconies and terraces are NOT amenity. Never estimate, never measure, never take a
+  percentage. null when no amenity column or amenity area line is printed.
 - statedTotalUnits: the total unit count as PRINTED on the document ("TOTAL UNITS: 364", a matrix total row,
   a cover-sheet project summary). Do NOT add up the rows yourself to fill this in — null is the correct answer
   when the document does not state a total. This field exists so the row quantities can be checked against
@@ -514,7 +530,7 @@ Rules:
  * to break that, which is why the constant lives here, next to the prompt,
  * rather than at the call sites.
  */
-export const EXTRACT_PROMPT_VERSION = 'unitMatrix-2026-09-16b';
+export const EXTRACT_PROMPT_VERSION = 'unitMatrix-2026-09-24b';
 
 /**
  * Which JOB this drawing is, in src/lib/aiModels.js terms.

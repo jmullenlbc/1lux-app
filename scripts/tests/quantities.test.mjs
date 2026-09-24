@@ -789,3 +789,29 @@ test('mergeProposals carries the counted carports and buildings through a merge'
   assert.equal(merged.siteData.carportsCounted, 40);
   assert.equal(merged.siteData.buildingsCounted, 4);
 });
+
+// Mike, 2026-09-24, after Mill Creek's Modera Town Lake read 23,488 balconies
+// for 245 (balcony SF read as a count): balconies can never outnumber units.
+test('balconies are 0 or 1 per unit — a balcony SF column (62) counts as one', () => {
+  const d = cleanDrawings();
+  d.unitTypes[1].balconies = 62;   // "Balcony SF" column read as the count
+  const q = byKey(computeQuantities(d, {}));
+  assert.equal(q.balconies.value, 180);          // A1 100 + B2 80, one each
+  for (const r of d.unitTypes) r.balconies = 2;  // never 2 per unit
+  assert.equal(byKey(computeQuantities(d, {})).balconies.value, 200);
+});
+
+test('a typed balcony figure is capped at the unit count, with a flag', () => {
+  const d = cleanDrawings();
+  for (const r of d.unitTypes) r.balconies = null;
+  const typed = byKey(computeQuantities(d, { figureBalconies: '900' }));
+  assert.equal(typed.balconies.value, 200);
+  assert.match(typed.balconies.flag, /Capped at one per unit/);
+});
+
+test('half baths count as whole bathrooms, and vanities follow', () => {
+  const d = cleanDrawings();
+  d.unitTypes[2].bathrooms = 1.5;  // B2 × 80 → 2 each
+  const q = byKey(computeQuantities(d, {}));
+  assert.equal(q.bathrooms.value, 20 + 100 + 160);
+});

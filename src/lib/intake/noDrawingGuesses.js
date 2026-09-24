@@ -64,6 +64,9 @@ export const NO_DRAWING_GUESSES = {
   // Bathroom vanities per unit — without it the vanity answer prices at $0.
   // Real counts: 1.37–1.44 per apartment (Eastchase 468/324, Greenville
   // 559/408, Lake Pointe 493/352, Rice 468/331). Townhomes run 2–3 baths.
+  // Since 2026-09-24 only the townhouse / single-family figures are used:
+  // apartments take Mike's bath rule in quantities.js (1 bath per studio/1/2-bed,
+  // 2 per 3/4-bed, 1 per unit when the mix is unknown), which fills first.
   vanitiesPerUnit: {
     singleFamily: 2.5, townHouses: 2.5, stackedFlats: 1.4, garden: 1.4, gurban: 1.4,
     wrap: 1.4, podium: 1.4, midRise: 1.4, highRise: 1.4,

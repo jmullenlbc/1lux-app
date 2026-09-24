@@ -27,7 +27,7 @@ const drawingRows = (siteData, answers = {}) => byKey(computeQuantities(
   { sources: ['site.pdf'], unitTypes: [], projectTotals: null, siteData: { confidence: 0.9, ...siteData } },
   answers));
 
-const TOWN_BASE = { projectType: TOWN, figureTotalUnits: '64', figureAvgUnitSf: '1800', figureStories: '3', figureSurfaceParking: '0' };
+const TOWN_BASE = { projectType: TOWN, figureTotalUnits: '64', figureAvgUnitSf: '1800', figureStories: '3', figureSurfaceParking: '0', figureExteriorAmenitySf: '0' };
 
 test('which building types get garages and carports', () => {
   assert.deepEqual(GARAGE_TYPE_KEYS, ['singleFamily', 'townHouses', 'stackedFlats', 'garden']);

@@ -349,7 +349,7 @@ export const FIGURE_KEYS = [
   // directly (figureStairLandings); this stays so old submissions replay.
   { key: 'figureStairwells',      section: 'Project figures', question: '# Egress stairwells (entered by the submitter — not found on the drawings)' },
   { key: 'figureStairLandings',   section: 'Project figures', question: '# Egress stairwell landings (entered by the submitter — not found on the drawings)' },
-  { key: 'figureBalconies',       section: 'Project figures', question: '# Balconies (entered by the submitter — not found on the drawings)' },
+  { key: 'figureBalconies',       section: 'Project figures', question: '# of Balconies (entered by the submitter — not found on the drawings)' },
   { key: 'figureExitDoors',       section: 'Project figures', question: '# Egress/exit doors (entered by the submitter — not found on the drawings)' },
   { key: 'figureSurfaceParking',  section: 'Project figures', question: '# Surface parking stalls (entered by the submitter — not found on the drawings)' },
   // The no-drawings form (Mike, 2026-09-11: "someone without any drawings can
@@ -440,6 +440,9 @@ export function noDrawingsReady(answers) {
   }
   if (typedFigure(a.figureStories) == null) missing.push('Stories');
   if (typedCount(a.figureSurfaceParking) == null) missing.push('Surface parking stalls');
+  // Mike 2026-09-24: guessing it by building type ran 3× high on Modera Town
+  // Lake (28,575 guessed vs 8,806 real). 0 = none.
+  if (typedCount(a.figureExteriorAmenitySf) == null) missing.push('Exterior amenity SF (0 if none)');
   return { ready: missing.length === 0, missing };
 }
 
@@ -532,4 +535,28 @@ export function answersToEngine(answers) {
   }
 
   return { sections, buildingTypeKey };
+}
+
+/** Project types that are asked the walking-path bollard question. */
+export const BOLLARD_PROJECT_TYPES = ['Town Houses (2-3 Levels)', 'Single Family (1-2 Levels)'];
+
+/**
+ * "Your design choices" — every design question the visitor was asked, with
+ * the answer they picked (or the default they left), in questionnaire order.
+ * Printed at the bottom of the public result screen and PDF, like the
+ * QUESTIONNAIRE RESPONSES block on the internal client-facing doc (Mike
+ * 2026-09-24). The visitor's own answers only: no prices, no rules.
+ */
+export function designChoices(answers) {
+  const a = {};
+  for (const [k, v] of Object.entries(answers || {})) if (typeof v === 'string') a[k] = v;
+  return INTAKE_QUESTIONS
+    .filter(q => q.key !== 'projectType')
+    .filter(q => q.key !== 'pathwayBollards' || BOLLARD_PROJECT_TYPES.includes(a.projectType))
+    .map(q => {
+      const raw = a[q.key] || q.default || '';
+      if (!raw) return null;
+      return { section: q.section, question: q.question, answer: q.format === 'perSf' ? `$${raw}/SF` : raw };
+    })
+    .filter(Boolean);
 }

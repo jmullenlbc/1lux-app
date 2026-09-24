@@ -248,3 +248,12 @@ test('the threshold for paying to index a set lives in one place', async () => {
     );
   }
 });
+
+test('both landscape picks survive a 5-sheet read (Modera Town Lake: the level-5 amenity deck was cut)', () => {
+  const picks = { sitePlan: [23, 5], landscapePlan: [6, 4], elevations: [9, 10], cover: [1] };
+  const pages = pagesToRender(picks, { max: 5 });
+  assert.equal(pages.length, 5);
+  assert.deepEqual(pages.slice(0, 3), [23, 6, 4]);
+  // Room for only three: the old order holds.
+  assert.equal(pagesToRender(picks, { max: 3 }).includes(4), false);
+});

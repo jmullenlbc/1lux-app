@@ -28,6 +28,7 @@ const ANSWERS = {
   figureGrossSf: '250000',
   figureStories: '3',
   figureSurfaceParking: '300',
+  figureExteriorAmenitySf: '5000',
 };
 
 /** Keys that only ever carry working-out. None may appear anywhere public. */
@@ -190,4 +191,12 @@ test('the public page takes three drawing files at most, and says so', () => {
   const src = readFileSync(new URL('../../src/components/intake/DrawingDropzone.jsx', import.meta.url), 'utf8');
   assert.match(src, /const MAX_FILES = 3;/);
   assert.ok(src.includes('{MAX_FILES} files maximum'));
+});
+
+test('controls is the one line that shows its $/SF math, on purpose (Mike 2026-09-24)', () => {
+  const full = computeIntakeEstimate({ answers: ANSWERS, drawings: null });
+  const pub  = publicIntakeEstimate({ answers: ANSWERS, drawings: null });
+  assert.deepEqual(Object.keys(pub.budget.controlsMath).sort(), ['cap', 'capped', 'perSf', 'sf']);
+  assert.equal(pub.budget.controlsMath.sf, full.budget.controlsBasisSf);
+  assert.equal(pub.budget.controlsMath.perSf, full.budget.controlsRateUsed);
 });

@@ -54,7 +54,7 @@ const NON_QUESTIONNAIRE_FIELDS = ['numElevatorShafts', 'numFloors'];
 const FIELD_LABELS = {
   grossSf: 'Total Gross SF', unitsSf: 'Units SF', numUnits: '# Units',
   numBuildings: '# Buildings',
-  numBedrooms: '# Bedrooms', numBalconies: '# Balconies', numBathrooms: '# Bathrooms',
+  numBedrooms: '# Bedrooms', numBalconies: '# of Balconies', numBathrooms: '# Bathrooms',
   numVanities: '# Vanities', numEgressStairwells: '# Stairwell Landings',
   numFans: '# of Fans', numAccentDownlights: '# Accent Downlights',
   numSurfaceParking: '# Surface Parking',
