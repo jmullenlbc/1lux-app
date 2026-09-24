@@ -338,18 +338,18 @@ assert(thNoClub.controls === 0, 'townHouses with no clubhouse SF produces $0 con
 // type cap, so a garden project could be charged $180K of controls against its
 // own $65K ceiling.
 const huge = calculateBudget({ ...baselinePD, grossSf: 5000000, buildingTypeKey: 'midRise' }, {});
-assert(huge.controls === 175000, 'mid-rise stops at its own $175,000 cap, below the sheet-wide $180,000');
+assert(huge.controls === 175000, 'mid-rise stops at its own $175,000 cap, below the sheet-wide $190,000');
 
 // A high-rise's own cap is $190K, ABOVE the sheet-wide number, so there the
 // sheet-wide cap is the one that bites. Between them the two assertions prove
 // the lower ceiling wins in both directions.
 const hugeHR = calculateBudget({ ...baselinePD, grossSf: 5000000, buildingTypeKey: 'highRise' }, {});
-assert(hugeHR.controls === 180000, 'high-rise stops at the sheet-wide $180,000, below its own $190,000 cap');
+assert(hugeHR.controls === 190000, 'high-rise stops at $190,000 — its own cap and the sheet-wide cap agree (Mike 2026-09-24)');
 
 // And the case that started it: a garden project must never be dragged up to
 // the sheet-wide number.
 const hugeGarden = calculateBudget({ ...baselinePD, grossSf: 5000000, buildingTypeKey: 'garden' }, {});
-assert(hugeGarden.controls === 65000, 'garden stops at its own $65,000 cap, not the sheet-wide $180,000');
+assert(hugeGarden.controls === 65000, 'garden stops at its own $65,000 cap, not the sheet-wide $190,000');
 
 // ───────────────────────────────────────────────────────────────────────────
 // Scenario 8: Sales tax = 0 sanity
