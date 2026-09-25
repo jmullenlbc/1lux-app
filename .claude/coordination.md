@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-25 (deploy) — Mike's Claude — DEPLOYED @@HASH@@: 9-24 + 9-25 sales notes / Meeting Prep / follow-up watch, **migrations 0100 + 0101**
+### 2026-09-25 (deploy) — Mike's Claude — DEPLOYED 59a6955: 9-24 + 9-25 sales notes / Meeting Prep / follow-up watch, **migrations 0100 + 0101**
 - Ships everything in the three entries below, plus: recap subject "Coffee follow-up" style (never "today/yesterday"); recap + check-in emails learn from human edits (`src/lib/bot/editLearning.js`, BotDraft.aiSubject/aiBody/emailKind, 0101); Reminder Timeline editable by the sales team (`isSalesTeam` in auth.js).
 - **@Sean (still open):** EventBridge for `/api/cron/note-reminders` (daily) and `/api/cron/meeting-prep` (every 30 min). Graph attachment expansion for filenames.
 - Next migration: 0102.

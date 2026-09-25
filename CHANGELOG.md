@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Follow-up emails learn from your edits + "Coffee follow-up" subjects + sales team edits the Reminder Timeline] - September 25, 2026 (DEPLOYED @@HASH@@) — migration 0101
+## [Follow-up emails learn from your edits + "Coffee follow-up" subjects + sales team edits the Reminder Timeline] - September 25, 2026 (DEPLOYED 59a6955) — migration 0101
 
 Mike 9-25: "It should always say something like Coffee follow-up. We may not approve it for 2 days so if it says yesterday that doesn't work. The system needs to learn from the email edits too."
 - **Recap subject names the meeting, never the day:** "Coffee follow-up", "Golf follow-up", "Dinner follow-up" (meals read the title), else "Meeting follow-up". The email body is told never to say today / yesterday / this morning, because it may go out days later.
@@ -15,7 +15,7 @@ Mike 9-25: "It should always say something like Coffee follow-up. We may not app
 - Migration **0101**: `BotDraft.aiSubject`, `aiBody`, `emailKind` (RECAP | CHECK_IN) + index. Additive only.
 - Tests: `followUp.test.mjs` now 16.
 
-## [Meeting follow-up: recap email, automatic next steps, email watch, Reminder Timeline] - September 25, 2026 (DEPLOYED @@HASH@@) — migration 0100
+## [Meeting follow-up: recap email, automatic next steps, email watch, Reminder Timeline] - September 25, 2026 (DEPLOYED 59a6955) — migration 0100
 
 Mike: "a drafted email needs to be built based on what's come from the notes… automatic next steps… do they reply, do they send drawings? Do they send that invite?… if not, have a reminder… 14 days or 30 days or 60 days… we can change that cadence".
 - **Publishing a note switches its next steps on.** The first publish reads the steps out of the words and confirms them (no extra click); one recap email per person goes to the Bot Queue. It thanks them for what *they* offered (drawings, intro, invite) and lists what *we* will do. `src/lib/notes/publishActions.js`, `src/lib/bot/composeOutreach.js`.
@@ -28,7 +28,7 @@ Mike: "a drafted email needs to be built based on what's come from the notes… 
 - Migration **0100**: reminder 2 / 3 days on step types; reminder count + "done by which email" on each step; seeds the three new step types.
 - Demo: `node --env-file=.env --import ./scripts/demo/alias.mjs scripts/demo/coffeeWithLee.mjs` runs the Lee coffee end to end on local test data (refuses anything but the local database). Tests: new `scripts/tests/followUp.test.mjs` (14 pass), added to verify.
 
-## [Sales Meetings screen: Prep + Notes tabs, calendar invites, archive] - September 25, 2026 (DEPLOYED @@HASH@@) — no migration
+## [Sales Meetings screen: Prep + Notes tabs, calendar invites, archive] - September 25, 2026 (DEPLOYED 59a6955) — no migration
 
 Mike: "only an accepted invite triggers that. A declined one after accepted should remove it too" / "it should go to the ILC person on the invite that is tagged as a salesperson" / "it just looks like an email inbox… it really needs to have a prep tab and a notes tab" / "manually add a note. Connect it to a calendar link, archive a note, delete a note".
 - **Calendar invites:** only accepted invites make a draft note. Declined or cancelled after accepting archives the draft; accepting again restores it (a note a person archived stays archived; published notes are never touched). `src/lib/calendar/recorder.js`.
@@ -40,7 +40,7 @@ Mike: "only an accepted invite triggers that. A declined one after accepted shou
 - **Archive for everyone** (was admin-only). Notes stay archive-only — the Delete built earlier the same day was taken back out (see the entry above).
 - Tests: new `scripts/tests/notesCalendar.test.mjs` (15 pass), added to verify. Trials: 5 sample notes run through the next-steps reader — all sensible.
 
-## [Sales notes + Meeting Prep fixes] - September 24, 2026 (DEPLOYED @@HASH@@) — no migration
+## [Sales notes + Meeting Prep fixes] - September 24, 2026 (DEPLOYED 59a6955) — no migration
 
 - **"New" sales note works again.** The create route refused an empty note (400), so the New button always failed. Empty drafts are allowed now. `src/app/api/crm/notes/route.js`.
 - **People on a note now show and save.** The editor read the wrong field, the list page never loaded people, and saving ignored the people list. All three fixed; GET/PATCH/create/list share one `NOTE_CONTACTS_INCLUDE`. New `src/lib/noteLinks.js` (links added without `skipDuplicates`, so it also works on local SQLite).
