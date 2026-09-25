@@ -27,7 +27,7 @@ export const TRIGGERS = {
     source: 'Sales Notes',
     live: true,
     fields: [
-      { key: 'method',      label: 'Method',        type: 'enum', options: ['EMAIL','TEXT','CALL','SCHEDULE','EXPECT_INTRO','SEND_MATERIALS','ADD_TO_LIST','INTERNAL_TASK','INTEL','OTHER'] },
+      { key: 'method',      label: 'Method',        type: 'enum', options: ['EMAIL','TEXT','CALL','SCHEDULE','EXPECT_INTRO','EXPECT_REPLY','EXPECT_FILES','EXPECT_INVITE','SEND_MATERIALS','ADD_TO_LIST','INTERNAL_TASK','INTEL','OTHER'] },
       { key: 'typeLabel',   label: 'Type label',    type: 'string' },
       { key: 'contactName', label: 'Contact name',  type: 'string' },
       { key: 'company',     label: 'Company',       type: 'string' },

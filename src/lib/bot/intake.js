@@ -13,6 +13,17 @@ import { normalizeEvent } from '@/lib/calendar/normalize';
 import { classifyEvent } from '@/lib/bot/activityClassifier';
 import { recordCalendarEvent } from '@/lib/calendar/recorder';
 import { notAcceptedReason } from '@/lib/calendar/worthANote';
+import { pickSalesOwner } from '@/lib/calendar/salesOwner';
+
+// The owner of a synced meeting is the salesperson on the invite (Mike 9-25).
+// Emails are compared in JS: Prisma's case-insensitive match is Postgres-only.
+async function resolveCalendarOwner(event, opts) {
+  if (opts.ownerUserId) return opts.ownerUserId;
+  const users = await prisma.user.findMany({
+    select: { id: true, email: true, departments: { select: { department: true } } },
+  }).catch(() => []);
+  return pickSalesOwner(event, users, { mailbox: opts.mailboxAddress || opts.ownerEmail || '' });
+}
 
 // Resolve the ILC owner of an inbound item (the mailbox/organizer), by email.
 async function resolveOwner({ ownerUserId, ownerEmail }) {
@@ -109,10 +120,7 @@ export async function ingestCalendarEvent(raw, opts = {}) {
   });
 
   const [ownerUserId, classification] = await Promise.all([
-    resolveOwner({
-      ownerUserId: opts.ownerUserId,
-      ownerEmail:  event.organizerEmail || opts.ownerEmail,
-    }),
+    resolveCalendarOwner(event, opts),
     classifyEvent(event),
   ]);
 

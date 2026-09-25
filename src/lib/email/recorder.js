@@ -125,7 +125,7 @@ export async function recordEmailMessage(
     sentAt:            message.sentAt ? new Date(message.sentAt) : new Date(),
     receivedAt:        new Date(message.receivedAt || message.sentAt || Date.now()),
     isRead:            Boolean(message.isRead),
-    hasAttachments:    Boolean(message.hasAttachments),
+    hasAttachments:    Boolean(message.hasAttachments || message.attachments?.length),
     internetMessageId: message.internetMessageId ?? null,
     inReplyTo:         message.inReplyTo ?? null,
     webUrl:            message.webUrl ?? null,
@@ -174,6 +174,27 @@ export async function recordEmailMessage(
 
   for (const { contactId } of roles) {
     await refreshContactEmailDates(prisma, contactId);
+  }
+
+  // Attachment names (not the files), written once per message.
+  const files = (message.attachments || []).filter(a => a?.filename);
+  if (files.length && prisma.emailAttachment && !(await prisma.emailAttachment.count({ where: { messageId: saved.id } }))) {
+    for (const a of files) {
+      await prisma.emailAttachment.create({
+        data: { messageId: saved.id, filename: a.filename, mimeType: a.mimeType || null, size: a.size || null },
+      });
+    }
+  }
+
+  // Did this email do something we were waiting on (a reply, drawings, an
+  // invite, an intro)? Never fails the recording.
+  if (roles.length && prisma.noteAction) {
+    try {
+      const { matchEmailToWaits } = await import('../followUp/engine.js');
+      await matchEmailToWaits(prisma, saved.id);
+    } catch (err) {
+      console.error('[email] follow-up match failed:', err?.message || err);
+    }
   }
 
   return {

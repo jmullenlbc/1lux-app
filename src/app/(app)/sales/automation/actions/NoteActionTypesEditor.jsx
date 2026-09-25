@@ -9,6 +9,9 @@ const EXECUTORS = [
   { v: 'CALL',           label: 'Call (reminder/task)' },
   { v: 'SCHEDULE',       label: 'Schedule an event' },
   { v: 'EXPECT_INTRO',   label: 'Expect intro (wait + remind)' },
+  { v: 'EXPECT_REPLY',   label: 'Expect a reply (watch email + remind)' },
+  { v: 'EXPECT_FILES',   label: 'Expect drawings / files (watch email + remind)' },
+  { v: 'EXPECT_INVITE',  label: 'Expect an invite (watch email + calendar + remind)' },
   { v: 'SEND_MATERIALS', label: 'Send materials (deck/DocSend)' },
   { v: 'ADD_TO_LIST',    label: 'Add to list' },
   { v: 'INTERNAL_TASK',  label: 'Internal task' },
@@ -16,6 +19,8 @@ const EXECUTORS = [
   { v: 'OTHER',          label: 'Other' },
 ];
 const TEMPLATE_EXECUTORS = new Set(['EMAIL', 'TEXT', 'SEND_MATERIALS']);
+// Waiting on them — the full 1st/2nd/3rd ladder is on Sales Automation → Reminder Timeline.
+const WAIT_EXECUTORS = new Set(['EXPECT_INTRO', 'EXPECT_REPLY', 'EXPECT_FILES', 'EXPECT_INVITE']);
 
 const blankType = () => ({
   key: '', label: '', executor: 'EMAIL', kind: 'ACTION',
@@ -103,7 +108,7 @@ export default function NoteActionTypesEditor({ initialTypes }) {
                 <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">{t.key}</span>
                 <span className="text-[11px] px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600 border border-indigo-100">{t.executor}</span>
                 {t.kind === 'INTEL' && <span className="text-[11px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-100">INTEL</span>}
-                {t.executor === 'EXPECT_INTRO' && (
+                {WAIT_EXECUTORS.has(t.executor) && (
                   <span className="text-[11px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-100">
                     remind after {t.reminderDays || '—'}d
                   </span>
@@ -144,7 +149,7 @@ function Field({ label, hint, children }) {
 function TypeForm({ draft, setDraft, onSave, onCancel, busy, msg }) {
   const set = (k, v) => setDraft(d => ({ ...d, [k]: v }));
   const showTemplate = TEMPLATE_EXECUTORS.has(draft.executor);
-  const showReminder = draft.executor === 'EXPECT_INTRO';
+  const showReminder = WAIT_EXECUTORS.has(draft.executor);
   const input = 'w-full px-2.5 py-1.5 text-sm border border-slate-300 rounded-md focus:ring-1 focus:ring-slate-400 focus:border-slate-400 outline-none';
 
   return (

@@ -6,7 +6,9 @@
  */
 import { prisma } from '@/lib/db';
 import { runTrigger } from '@/lib/bot/ruleEngine';
-import { draftContactOutreach, OUTREACH_EMAIL_METHODS } from '@/lib/bot/composeOutreach';
+import { draftContactOutreach, RECAP_EMAIL_METHODS } from '@/lib/bot/composeOutreach';
+import { isWaitExecutor } from '@/lib/followUp/watch';
+import { firstRemindAt } from '@/lib/followUp/engine';
 
 async function reviewWindow() {
   try { const cfg = await prisma.botConfig.findFirst(); if (cfg?.reviewWindowMinutes > 0) return cfg.reviewWindowMinutes; } catch {}
@@ -23,15 +25,23 @@ export async function fireNoteActionConfirmed(noteId, actionId, opts = {}) {
 
   const [type, note, contact] = await Promise.all([
     prisma.noteActionType.findUnique({ where: { key: action.type } }),
-    prisma.note.findUnique({ where: { id: noteId }, select: { createdById: true, title: true } }),
+    prisma.note.findUnique({ where: { id: noteId }, select: { createdById: true, title: true, meetingDate: true } }),
     action.contactId
       ? prisma.contact.findUnique({ where: { id: action.contactId }, select: { id: true, name: true, email: true, company: true } }).catch(() => null)
       : Promise.resolve(null),
   ]);
   const rw = opts.reviewWindowMinutes ?? await reviewWindow();
 
-  // Trigger baseline + user rules — once per action (guard on executed/remind).
-  if (!action.executedAt && !action.remindAt) {
+  // Trigger baseline + user rules — once per action. A waiting step (intro,
+  // reply, drawings, invite) is also in the recap email, which stamps
+  // executedAt on it — so for those, "already started" means its reminder
+  // ladder has begun, not executedAt. (Found by the Lee demo, 9-25: only the
+  // first waiting step on a note ever got a reminder date.)
+  const waiting = isWaitExecutor(type?.executor);
+  const started = waiting
+    ? Boolean(action.remindAt || action.reminderCount || action.fulfilledAt)
+    : Boolean(action.executedAt || action.remindAt);
+  if (!started) {
     const payload = {
       method:      type?.executor || action.type,
       typeKey:     action.type,
@@ -48,10 +58,14 @@ export async function fireNoteActionConfirmed(noteId, actionId, opts = {}) {
       ownerUserId: note?.createdById, contact, reviewWindowMinutes: rw,
       action, type, noteActionId: action.id, eventRef: action.id,
     });
+  } else if (waiting && !action.remindAt && !action.fulfilledAt) {
+    // Re-published after a pause: pick the ladder up on the rung it was on.
+    const remindAt = firstRemindAt(action, type, note || {});
+    if (remindAt) await prisma.noteAction.update({ where: { id: action.id }, data: { remindAt } });
   }
 
   // Consolidate the contact's outreach email (recompose-aware, idempotent).
-  if (OUTREACH_EMAIL_METHODS.has(type?.executor) && action.contactId) {
+  if (RECAP_EMAIL_METHODS.has(type?.executor) && action.contactId) {
     await draftContactOutreach(noteId, action.contactId, note?.createdById, rw);
   }
 }

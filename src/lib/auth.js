@@ -190,6 +190,11 @@ export async function requireSalesAdmin(request) {
   return { user, error: null };
 }
 
+// The sales team: any admin, a Sales Admin, or anyone in Sales + marketing.
+export function isSalesTeam(user) {
+  return !!user && (actsAsAdmin(user) || isSalesAdmin(user) || hasDepartment(user, SALES_MARKETING));
+}
+
 // Who can work the web budget request queue: any admin, plus anyone in the
 // Sales + marketing department (Mike, 2026-09-12 — sales follows up on every
 // new request). Departments come from the live account.

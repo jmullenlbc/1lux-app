@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 
-import { requireAuth, actsAsAdmin } from '@/lib/auth';
+import { requireAuth, actsAsAdmin, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { NOTE_CONTACTS_INCLUDE } from '@/lib/noteLinks';
 import { redirect } from 'next/navigation';
 import NotesClient from './NotesClient';
 
@@ -25,6 +26,7 @@ export default async function NotesPage({ searchParams }) {
         createdBy: { select: { id: true, name: true } },
         clients:  { include: { client:  { select: { id: true, clientNumber: true, name: true, type: true } } } },
         projects: { include: { project: { select: { id: true, projectNumber: true, name: true, serviceType: true, procurementStage: true, designStage: true } } } },
+        contacts: NOTE_CONTACTS_INCLUDE,
       },
     }),
     prisma.client.findMany({
@@ -47,7 +49,7 @@ export default async function NotesPage({ searchParams }) {
       clients={clients}
       projects={projects}
       initialStatus={initialStatus}
-      currentUser={{ id: user.id, name: user.name, email: user.email, role: user.role, isAdmin: actsAsAdmin(user) }}
+      currentUser={{ id: user.id, name: user.name, email: user.email, role: user.role, isAdmin: actsAsAdmin(user), canPrep: canSeeAllData(user) }}
     />
   );
 }

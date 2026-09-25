@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db';
 import { requireAuth, actsAsAdmin } from '@/lib/auth';
 import { notifyUser } from '@/lib/alerts';
 import { planNoteReminder, MAX_LATE_DAYS } from '@/lib/noteReminders';
+import { sendDueWaitReminders } from '@/lib/followUp/engine';
+import { WAIT_EXECUTORS } from '@/lib/followUp/watch';
 
 /**
  * GET /api/cron/note-reminders
@@ -40,15 +42,28 @@ export async function GET(req) {
   }
 
   const now = new Date();
-  const log = { due: 0, sent: 0, skipped: 0, stale: 0, errors: [] };
+  const log = { due: 0, sent: 0, skipped: 0, stale: 0, errors: [], waiting: null };
 
   try {
+    // Waiting on them (reply, drawings, invite, intro): the reminder ladder —
+    // a "still waiting" draft for review plus a bell, then the next rung.
+    try {
+      log.waiting = await sendDueWaitReminders(prisma, { now });
+    } catch (err) {
+      log.errors.push(`waiting: ${err?.message ?? err}`);
+    }
+    const waitTypes = await prisma.noteActionType.findMany({
+      where: { executor: { in: Object.keys(WAIT_EXECUTORS) } }, select: { key: true },
+    });
+
+    // Everything else: the one-time bell.
     const due = await prisma.noteAction.findMany({
       where: {
         remindAt:   { lte: now },
         remindedAt: null,
         status:     { in: ['CONFIRMED', 'SUGGESTED'] },
         kind:       'ACTION',
+        type:       { notIn: waitTypes.map(t => t.key) },
       },
       orderBy: { remindAt: 'asc' },
       take: 500,

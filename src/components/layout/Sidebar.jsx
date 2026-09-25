@@ -578,7 +578,8 @@ export default function Sidebar({ user }) {
               <SubNavItem href="/sales/activity"   icon={<IconBarChart />}  label="Sales Activity"      expanded={expanded} active={startsWith('/sales/activity')} />
               <SubNavItem href="/sales/visitors"   icon={<IconClientUsers />} label="Budget Page Visitors" expanded={expanded} active={startsWith('/sales/visitors')} />
               <SubNavItem href="/sales/bot-queue"  icon={<IconBot />}       label="Bot Queue"           expanded={expanded} active={startsWith('/sales/bot-queue')} />
-              <SubNavItem href="/sales/automation" icon={<IconSparkles />}  label="Sales Automation"    expanded={expanded} active={startsWith('/sales/automation')} />
+              <SubNavItem href="/sales/automation" icon={<IconSparkles />}  label="Sales Automation"    expanded={expanded} active={startsWith('/sales/automation') && !startsWith('/sales/automation/timeline')} />
+              <SubNavItem href="/sales/automation/timeline" icon={<IconTask />} label="Reminder Timeline"   expanded={expanded} active={startsWith('/sales/automation/timeline')} />
             </div>
           )}
         </div>

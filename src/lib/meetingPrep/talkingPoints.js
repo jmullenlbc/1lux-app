@@ -8,7 +8,7 @@
 import { agentClient } from '@/lib/agent/client';
 import { modelParams, textFrom } from '@/lib/aiModels';
 import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
-import { buildPrepPrompt, parseTalkingPoints } from './brief';
+import { buildPrepPrompt, parseTalkingPoints, parseJson } from './brief';
 
 const JOB = 'bot.meetingPrep';
 
@@ -33,5 +33,8 @@ export async function draftTalkingPoints(facts, note, ctx = {}) {
     system:   sealed.system,
     messages: [{ role: 'user', content: sealed.content }],
   });
-  return { points: parseTalkingPoints(textFrom(msg), facts), model: params.model };
+  const reply = textFrom(msg);
+  // A reply we cannot read is a failure, not "nothing to say" — the panel says so.
+  if (parseJson(reply) == null) throw new Error(`unreadable reply (stop: ${msg?.stop_reason || 'unknown'})`);
+  return { points: parseTalkingPoints(reply, facts), model: params.model };
 }

@@ -79,6 +79,8 @@ function computeStats(notes, dateRange, selectedUserId = 'all') {
   const ceiling = rangeEnd(dateRange);  // null for most ranges, Dec 31 last year for 'lastyear'
 
   const filtered = notes.filter(n => {
+    // Only finished notes count — a draft (incl. every calendar draft) is not activity yet.
+    if (!n.isPublished) return false;
     const d = new Date(n.meetingDate || n.createdAt);
     const inRange = d >= cutoff && (!ceiling || d <= ceiling);
     if (!inRange) return false;
@@ -475,7 +477,7 @@ export default function SalesActivityPage() {
               {upcoming.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-8 text-center">
                   <p className="text-xs text-slate-400">No upcoming events in the next 2 weeks</p>
-                  <p className="text-[10px] text-slate-300 mt-1">Future calendar events appear here automatically</p>
+                  <p className="text-[10px] text-slate-300 mt-1">Meetings with a date in the next two weeks show here</p>
                 </div>
               ) : (
                 <div className="space-y-2.5">

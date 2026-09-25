@@ -2,6 +2,29 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+### 2026-09-25 (deploy) — Mike's Claude — DEPLOYED @@HASH@@: 9-24 + 9-25 sales notes / Meeting Prep / follow-up watch, **migrations 0100 + 0101**
+- Ships everything in the three entries below, plus: recap subject "Coffee follow-up" style (never "today/yesterday"); recap + check-in emails learn from human edits (`src/lib/bot/editLearning.js`, BotDraft.aiSubject/aiBody/emailKind, 0101); Reminder Timeline editable by the sales team (`isSalesTeam` in auth.js).
+- **@Sean (still open):** EventBridge for `/api/cron/note-reminders` (daily) and `/api/cron/meeting-prep` (every 30 min). Graph attachment expansion for filenames.
+- Next migration: 0102.
+
+### 2026-09-25 (later) — Mike's Claude — built, NOT deployed, **migration 0100**: meeting follow-up watch + Reminder Timeline
+- Publishing a sales note now confirms its next steps, drafts the recap email, and starts "waiting" steps (they reply / send drawings / send an invite / make an intro). Incoming email + calendar sync close a step when it arrives and cancel any unsent check-in draft. `src/lib/followUp/watch.js` (pure rules) + `engine.js` (sweep, ladder).
+- If nothing comes, a check-in draft (PENDING_REVIEW, never auto-sent) is made on a day ladder, default 14/30/60, editable at `/sales/automation/timeline` (Sales Admin / Super Admin).
+- **@Sean:** `/api/cron/note-reminders` must run **daily** for the ladder sweep. The meeting-prep cron from the entry below still needs its EventBridge rule too.
+- **@Sean:** Graph mail sync should expand attachments so filenames reach the watcher; fallback today is the `hasAttachments` flag + a files word in the subject/body.
+- Trap fixed: `composeOutreach.js` stamps `executedAt` on every action in the recap group incl. wait steps, so `noteActionRunner.js` now judges wait steps by `remindAt/reminderCount/fulfilledAt`.
+- Notes are archive-only again — the SALES-note DELETE built earlier today was taken back out (Mike). `crmArchive.test.mjs` wording is correct as-is.
+- Demo (local SQLite only, refuses otherwise): `node --env-file=.env --import ./scripts/demo/alias.mjs scripts/demo/coffeeWithLee.mjs`. Tests: `scripts/tests/followUp.test.mjs` (14), in verify.
+
+### 2026-09-25 — Mike's Claude — built, NOT deployed, no migration: Sales Meetings screen (Prep + Notes tabs), accepted-invite rules, salesperson owner, calendar link, delete
+- Accepted invites only; decline/cancel after accepting archives the draft (sync archive has `archivedById: null`, so a re-accept restores it). Owner = SALES_MARKETING person on the invite. Hand-made notes with a matching `meetingLink` are adopted by the sync. Screen rebuilt as an agenda with Prep/Notes tabs; archive + real DELETE open to everyone for SALES notes.
+- **@Sean:** new `GET /api/cron/meeting-prep` (x-cron-secret) builds briefs for meetings in the next 48h. Needs an EventBridge rule, every 30 min is plenty.
+- `recorder.js` now uses relative imports and loads the AI classifier lazily (so tests can run it with a fake db).
+- `crmArchive.test.mjs` still passes (non-SALES notes still 405 on DELETE) but its wording still describes notes as archive-only — Mike to approve updating it.
+
+### 2026-09-24 (late) — Mike's Claude — built, NOT deployed, no migration: sales notes + Meeting Prep fixes
+New sales-note button (was 400), people on notes saved/shown, last-met on publish only, calendar guests kept, meeting time kept, calendar sync no longer locked out by opening a draft, stats count finished notes only; Meeting Prep keeps the note's own people, skips archived/drafts, real error on unreadable AI reply. New `src/lib/noteLinks.js`, `src/lib/noteAttendees.js`, `scripts/tests/salesNotes.test.mjs`. Still missing (needs Mike/Sean): any live calendar feed — nothing calls `POST /api/automation/intake/calendar`.
+
 ### 2026-09-24 (after deploy) — Mike's Claude — 🚀 DEPLOYED 23ec391, no migration: size-aware (20% vs questionnaire, 30% of normal size) questionnaire alerts + test logins moved to .env
 - **@Sean:** `npm run verify:dn`, `verify:mcp` and `verify:smoke` now need `E2E_ADMIN_EMAIL` and `E2E_ADMIN_PASSWORD` in your `.env` (the admin login used to be typed in the test files). Mike is changing the live admin password.
 

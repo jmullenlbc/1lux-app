@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth, requireSalesAdmin } from '@/lib/auth';
+import { requireAuth, requireSalesAdmin, isSalesTeam } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getAllActionTypes } from '@/lib/noteActionTypesStore';
 import { EXECUTORS } from '@/lib/noteActions';
@@ -17,6 +17,14 @@ export async function GET(request) {
 }
 
 // POST — create a new type (admin)
+// Reminder rungs: a whole number of days (1–3650), or blank for "no reminder".
+// Anything else is dropped to blank rather than saved as NaN.
+const days = v => {
+  if (v === '' || v == null) return null;
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) && n >= 1 && n <= 3650 ? n : null;
+};
+
 export async function POST(request) {
   const { error } = await requireSalesAdmin();
   if (error) return error;
@@ -39,7 +47,9 @@ export async function POST(request) {
       description:  b.description || null,
       emailTemplate: b.emailTemplate || null,
       instructions: b.instructions || null,
-      reminderDays: b.reminderDays === '' || b.reminderDays == null ? null : Number(b.reminderDays),
+      reminderDays: days(b.reminderDays),
+      reminder2Days: days(b.reminder2Days),
+      reminder3Days: days(b.reminder3Days),
       sortOrder:    Number.isFinite(+b.sortOrder) ? +b.sortOrder : 0,
       isActive:     b.isActive !== false,
     },
@@ -47,12 +57,20 @@ export async function POST(request) {
   return NextResponse.json({ type: created });
 }
 
-// PATCH — update a type (admin). Body: { key, ...fields }
+// PATCH — update a type. Body: { key, ...fields }. The reminder days alone are
+// open to the whole sales team (Mike 9-25); everything else is Sales Admin.
+const TIMELINE_FIELDS = ['key', 'reminderDays', 'reminder2Days', 'reminder3Days'];
 export async function PATCH(request) {
-  const { error } = await requireSalesAdmin();
-  if (error) return error;
-
   const b = await request.json();
+  if (Object.keys(b).every(k => TIMELINE_FIELDS.includes(k))) {
+    const { user, error } = await requireAuth();
+    if (error) return error;
+    if (!isSalesTeam(user)) return NextResponse.json({ error: 'Only the sales team can change the reminder timeline.' }, { status: 403 });
+  } else {
+    const { error } = await requireSalesAdmin();
+    if (error) return error;
+  }
+
   if (!b.key) return NextResponse.json({ error: 'key required' }, { status: 400 });
 
   const data = {};
@@ -62,7 +80,9 @@ export async function PATCH(request) {
   if (b.description  !== undefined) data.description  = b.description || null;
   if (b.emailTemplate!== undefined) data.emailTemplate = b.emailTemplate || null;
   if (b.instructions !== undefined) data.instructions = b.instructions || null;
-  if (b.reminderDays !== undefined) data.reminderDays = (b.reminderDays === '' || b.reminderDays == null) ? null : Number(b.reminderDays);
+  if (b.reminderDays !== undefined) data.reminderDays = days(b.reminderDays);
+  if (b.reminder2Days !== undefined) data.reminder2Days = days(b.reminder2Days);
+  if (b.reminder3Days !== undefined) data.reminder3Days = days(b.reminder3Days);
   if (b.sortOrder    !== undefined) data.sortOrder    = Number.isFinite(+b.sortOrder) ? +b.sortOrder : 0;
   if (b.isActive     !== undefined) data.isActive     = !!b.isActive;
 

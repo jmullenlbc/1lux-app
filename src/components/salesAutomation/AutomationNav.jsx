@@ -7,6 +7,7 @@ const TABS = [
   { href: '/sales/automation/rules',     label: 'Rules' },
   { href: '/sales/automation/templates', label: 'Templates' },
   { href: '/sales/automation/knowledge', label: 'Bot Knowledge' },
+  { href: '/sales/automation/timeline',  label: 'Reminder Timeline' },
 ];
 
 // Shown only to Sales Admins / Super Admins.

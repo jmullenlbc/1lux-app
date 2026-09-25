@@ -3,19 +3,22 @@
  * Meeting Prep panel on a sales note. Shows the latest brief — 3–5 talking
  * points, each with chips naming the facts it rests on — and the facts
  * themselves, folded away. "Prep for this meeting" builds a new one.
+ * autoRun: build one by itself when none exists yet — an upcoming meeting with
+ * something linked, so the Prep tab is never empty the day before (Mike 9-25).
  * Internal only; the route refuses a CLIENT_VIEWER. Budgets and sale totals
  * can appear; DN and buy price never do.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { BLOCKS, BLOCK_LABEL } from '@/lib/meetingPrep/brief';
 
-export default function MeetingPrep({ noteId }) {
+export default function MeetingPrep({ noteId, autoRun = false }) {
   const [brief, setBrief]         = useState(null);
   const [loading, setLoading]     = useState(true);
   const [busy, setBusy]           = useState(false);
   const [error, setError]         = useState('');
   const [showFacts, setShowFacts] = useState(false);
   const [lit, setLit]             = useState(null); // ref highlighted from a chip
+  const autoRanRef                = useRef(null);   // the note autoRun already fired for
 
   useEffect(() => {
     let live = true;
@@ -43,6 +46,13 @@ export default function MeetingPrep({ noteId }) {
       setBusy(false);
     }
   }, [noteId]);
+
+  // Once the saved brief has loaded and there is none, build one — once per note.
+  useEffect(() => {
+    if (!autoRun || loading || brief || busy || autoRanRef.current === noteId) return;
+    autoRanRef.current = noteId;
+    run();
+  }, [autoRun, loading, brief, busy, noteId, run]);
 
   const factByRef = Object.fromEntries((brief?.facts || []).map(f => [f.ref, f]));
 
@@ -78,7 +88,7 @@ export default function MeetingPrep({ noteId }) {
 
       {!loading && !brief && !error && (
         <p className="mt-2 text-xs text-slate-500">
-          Pulls what the CRM already knows about the people, companies and deals on this note — where each person has worked, the jobs we have with them and their budgets — and suggests a few talking points.
+          Pulls what the CRM already knows about the people, companies and deals on this note — the jobs we have with them, their budgets, open follow-ups and recent news — and suggests a few talking points.
         </p>
       )}
 

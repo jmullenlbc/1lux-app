@@ -53,6 +53,7 @@ Rules:
 - ACTIONS are follow-ups/to-dos. INTEL is a FACT about a person or company (NOT a to-do) — e.g. "Acme does student housing out of St. Louis".
 - Pick the type that matches HOW the follow-up should happen: emailing → EMAIL, texting → TEXT, calling → CALL, setting up a meeting/coffee/golf → SCHEDULE, waiting for someone to introduce me → EXPECT_INTRO, sending a deck/DocSend/pricing → SEND_MATERIALS, adding someone to a list (e.g. golf league) → ADD_TO_LIST, an internal ILC to-do → INTERNAL_TASK.
 - For EXPECT_INTRO: "contact" = the person who will make the intro; "target" = the third party being introduced.
+- Things the OTHER person said they would do are their own types, so the app can watch the inbox for them: they will send drawings / plans / a set / files, or send jobs for peer review → EXPECT_DRAWINGS; they will send a calendar invite or set up the next meeting themselves → EXPECT_INVITE; they will get back to me / check and reply / let me know → EXPECT_REPLY. Things MIKE will do stay EMAIL / SEND_MATERIALS / SCHEDULE.
 - Extract any person name (contact), third party (target), and company or project mentioned.
 - Skip purely personal/non-business lines.
 

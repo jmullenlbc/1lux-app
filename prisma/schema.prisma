@@ -1303,8 +1303,24 @@ model NoteAction {
   //   daily sweep re-alerts every day forever, because remindAt
   //   stays in the past once it passes
   botDraftId   String? // loose ref to the BotDraft this action produced
+
+  // Follow-up watch (0100, Mike 9-25). A waiting step (reply / drawings /
+  // invite / intro) is DONE when a matching email or invite arrives; until
+  // then reminders walk the type's ladder (reminderDays → reminder2Days →
+  // reminder3Days), reminderCount rungs so far.
+  reminderCount      Int           @default(0)
+  nudgeDraftId       String? // loose ref to the latest "still waiting" BotDraft (botDraftId stays the recap email)
+  fulfilledAt        DateTime?
+  fulfilledVia       String? // email | calendar | manual
+  fulfilledByEmailId String?
+  fulfilledByEmail   EmailMessage? @relation("NoteActionFulfilledBy", fields: [fulfilledByEmailId], references: [id], onDelete: SetNull)
+  fulfilledNote      String? // plain words: "Lee sent Seattle drawings.pdf"
+
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+
+  @@index([fulfilledByEmailId])
+  @@index([contactId, status])
 }
 
 // Meeting Prep (migration 0082). A brief built for one sales note, ahead of the
@@ -1380,7 +1396,9 @@ model NoteActionType {
   description   String? // guides the AI classifier
   emailTemplate String? // message body template (blank to start) — for EMAIL/TEXT/SEND_MATERIALS
   instructions  String? // bot execution instructions (blank to start)
-  reminderDays  Int? // default wait before a reminder (e.g. Expect-intro)
+  reminderDays  Int? // default wait before a reminder (e.g. Expect-intro) — 1st rung
+  reminder2Days Int? // 2nd reminder, days after the ask (0100); blank = stop
+  reminder3Days Int? // 3rd reminder, days after the ask (0100); blank = stop
   sortOrder     Int      @default(0)
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
@@ -2273,6 +2291,7 @@ model EmailMessage {
   isAutomated      Boolean            @default(false)
   countsAsContact  Boolean            @default(false) // true only when all four above are false
   contactLinks     EmailContactLink[]
+  fulfilledActions NoteAction[]       @relation("NoteActionFulfilledBy")
 
   @@index([projectId])
   @@index([conversationId])
@@ -2533,12 +2552,18 @@ model BotDraft {
   intentConfidence     Float?
   draftModel           String?
   classificationReason String?
+  // What the bot first wrote, kept so the edits a person makes can be learned
+  // from (src/lib/bot/editLearning.js, migration 0101). RECAP | CHECK_IN.
+  aiSubject            String?
+  aiBody               String?
+  emailKind            String?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
   @@index([userId])
   @@index([projectId])
   @@index([status])
+  @@index([emailKind])
 }
 
 // Automation rules: what triggers the bot and what it does

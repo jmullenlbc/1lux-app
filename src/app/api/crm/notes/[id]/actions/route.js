@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { extractNoteActions } from '@/lib/bot/extractNoteActions';
 import { getActiveActionTypes } from '@/lib/noteActionTypesStore';
 import { fireNoteActionConfirmed } from '@/lib/bot/noteActionRunner';
+import { isWaitExecutor, waitStatus, ladderOf } from '@/lib/followUp/watch';
 
 // Candidate contacts for soft-resolution: the note's linked contacts + contacts of linked clients.
 async function candidateContacts(noteId) {
@@ -25,9 +26,19 @@ async function candidateContacts(noteId) {
 export async function GET(request, { params }) {
   const { error } = await requireAuth();
   if (error) return error;
-  const actions = await prisma.noteAction.findMany({
+  const rows = await prisma.noteAction.findMany({
     where:   { noteId: params.id },
     orderBy: [{ kind: 'asc' }, { createdAt: 'asc' }],
+    include: { fulfilledByEmail: { select: { subject: true, sentAt: true } } },
+  });
+  // Steps that wait on them get a plain-words line: "Lee sent Seattle
+  // drawings.pdf", "Watching email — reminder 1 of 3 on Oct 8".
+  const types = await prisma.noteActionType.findMany({ where: { key: { in: [...new Set(rows.map(a => a.type))] } } });
+  const byKey = new Map(types.map(t => [t.key, t]));
+  const now = new Date();
+  const actions = rows.map(a => {
+    const t = byKey.get(a.type);
+    return isWaitExecutor(t?.executor) ? { ...a, watch: waitStatus(a, ladderOf(t, a), now) } : a;
   });
   return NextResponse.json({ actions });
 }

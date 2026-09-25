@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
-import { requireAuth, actsAsAdmin } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { addNoteLinks, removeNoteLinks, setNoteContacts, stampLastMet, NOTE_CONTACTS_INCLUDE } from '@/lib/noteLinks';
 import { archiveData, readArchivedFlag, deleteRefused, ARCHIVED_FLAG_HELP } from '@/lib/archive';
-import { extractNoteActions } from '@/lib/bot/extractNoteActions';
-import { getActiveActionTypes } from '@/lib/noteActionTypesStore';
+import { extractActionsOnPublish } from '@/lib/notes/publishActions';
 import { executeNotePublished, pauseNoteOnUnpublish } from '@/lib/bot/noteActionRunner';
 // Which activity types count as in person lives in one place now — shared with
 // the note-create route and the calendar sync.
 import { isInPersonType } from '@/lib/calendar/inPerson';
+import { cleanCalendarLink } from '@/lib/calendar/salesOwner';
 
 const NOTE_INCLUDE = {
   createdBy: { select: { id: true, name: true } },
@@ -23,6 +24,7 @@ const NOTE_INCLUDE = {
     },
     orderBy: { createdAt: 'asc' },
   },
+  contacts: NOTE_CONTACTS_INCLUDE,
 };
 
 // GET /api/crm/notes/[id]
@@ -45,13 +47,14 @@ export async function PATCH(request, { params }) {
 
   const body = await request.json();
   const {
-    title, noteBody, meetingDate, attendees, calendarRef,
+    title, noteBody, meetingDate, attendees, calendarRef, meetingLink,
     activityType,
     publish,          // true = mark complete (enable automations); false = revert to draft
     addClientIds    = [],
     removeClientIds = [],
     addProjectIds   = [],
     removeProjectIds = [],
+    contactIds,       // the note's full list of people, when the editor changed it
   } = body;
 
   const data = {};
@@ -59,6 +62,11 @@ export async function PATCH(request, { params }) {
   if (noteBody     !== undefined) data.body         = noteBody;
   if (calendarRef  !== undefined) data.calendarRef  = calendarRef || null;
   if (meetingDate  !== undefined) data.meetingDate  = meetingDate ? new Date(meetingDate) : null;
+  if (meetingLink  !== undefined) {
+    const link = cleanCalendarLink(meetingLink);
+    if (link === undefined) return NextResponse.json({ error: 'The calendar link has to be a web address (https://…).' }, { status: 400 });
+    data.meetingLink = link;
+  }
   if (attendees    !== undefined) {
     data.attendees = typeof attendees === 'string' ? attendees : JSON.stringify(attendees);
   }
@@ -75,24 +83,6 @@ export async function PATCH(request, { params }) {
   if (publish === true && !note.isPublished) {
     data.isPublished = true;
     data.publishedAt = new Date();
-    // Update Contact.lastInPersonAt for linked contacts if in-person
-    const noteIsInPerson = data.isInPerson ?? note.isInPerson;
-    const noteMeetingDate = data.meetingDate ?? note.meetingDate;
-    if (noteIsInPerson && noteMeetingDate) {
-      const linkedContacts = await prisma.noteContact.findMany({
-        where:  { noteId: params.id },
-        select: { contactId: true },
-      });
-      for (const { contactId } of linkedContacts) {
-        const c = await prisma.contact.findUnique({ where: { id: contactId }, select: { lastInPersonAt: true } });
-        if (!c?.lastInPersonAt || c.lastInPersonAt < new Date(noteMeetingDate)) {
-          await prisma.contact.update({
-            where: { id: contactId },
-            data:  { lastInPersonAt: new Date(noteMeetingDate), lastTouchpointAt: new Date(noteMeetingDate) },
-          });
-        }
-      }
-    }
   }
   // Unpublish: revert to draft
   if (publish === false && note.isPublished) {
@@ -105,56 +95,31 @@ export async function PATCH(request, { params }) {
       if (Object.keys(data).length > 0) {
         await tx.note.update({ where: { id: params.id }, data });
       }
-      if (addClientIds.length > 0) {
-        await tx.noteClient.createMany({
-          data: addClientIds.map(cid => ({ noteId: params.id, clientId: cid })),
-          skipDuplicates: true,
-        });
-      }
-      if (removeClientIds.length > 0) {
-        await tx.noteClient.deleteMany({
-          where: { noteId: params.id, clientId: { in: removeClientIds } },
-        });
-      }
-      if (addProjectIds.length > 0) {
-        await tx.noteProject.createMany({
-          data: addProjectIds.map(pid => ({ noteId: params.id, projectId: pid })),
-          skipDuplicates: true,
-        });
-      }
-      if (removeProjectIds.length > 0) {
-        await tx.noteProject.deleteMany({
-          where: { noteId: params.id, projectId: { in: removeProjectIds } },
-        });
-      }
+      await addNoteLinks(tx, 'client', params.id, addClientIds);
+      await removeNoteLinks(tx, 'client', params.id, removeClientIds);
+      await addNoteLinks(tx, 'project', params.id, addProjectIds);
+      await removeNoteLinks(tx, 'project', params.id, removeProjectIds);
+      if (Array.isArray(contactIds)) await setNoteContacts(tx, params.id, contactIds);
     });
   } catch (err) {
     console.error('[PATCH /api/crm/notes] error:', err);
     return NextResponse.json({ error: err?.message || 'Database error' }, { status: 500 });
   }
 
-  // On first publish, extract structured actions from the note's prose (best-effort).
+  // Published and in person → the people on it were met on the meeting date.
   if (publish === true && !note.isPublished) {
-    try {
-      const existing = await prisma.noteAction.count({ where: { noteId: params.id } });
-      if (existing === 0) {
-        const full = await prisma.note.findUnique({
-          where: { id: params.id },
-          include: {
-            contacts: { include: { contact: { select: { id: true, name: true } } } },
-            clients:  { include: { client: { include: { contacts: { select: { id: true, name: true } } } } } },
-          },
-        });
-        const cand = new Map();
-        for (const c of full.contacts) if (c.contact) cand.set(c.contact.id, c.contact);
-        for (const cl of full.clients) for (const c of (cl.client?.contacts || [])) cand.set(c.id, c);
-        const actionTypes = await getActiveActionTypes();
-        const extracted = await extractNoteActions(full, [...cand.values()], actionTypes);
-        if (extracted.length) {
-          await prisma.noteAction.createMany({ data: extracted.map(a => ({ ...a, noteId: params.id })) });
-        }
-      }
-    } catch (e) { console.error('[notes publish] action extraction failed:', e?.message ?? e); }
+    const inPerson = data.isInPerson ?? note.isInPerson;
+    if (inPerson) {
+      try { await stampLastMet(prisma, params.id, data.meetingDate ?? note.meetingDate); }
+      catch (e) { console.error('[notes publish] last-met update failed:', e?.message ?? e); }
+    }
+  }
+
+  // On first publish, read the next steps out of the words and switch them on
+  // (src/lib/notes/publishActions.js). Best-effort: a failed read never blocks publish.
+  if (publish === true && !note.isPublished) {
+    try { await extractActionsOnPublish(params.id); }
+    catch (e) { console.error('[notes publish] action extraction failed:', e?.message ?? e); }
 
     // Now the note is live → run the bot for every already-confirmed action
     // (compose outreach emails, schedule reminders, fire if-then rules).
@@ -173,20 +138,18 @@ export async function PATCH(request, { params }) {
 }
 
 // DELETE /api/crm/notes/[id] — refused. Notes are archived, never deleted
-// (Mike, 2026-09-11).
+// (Mike, 2026-09-11; reconfirmed 9-25: "just make an archive to forget delete").
 export async function DELETE() {
   return NextResponse.json({ error: deleteRefused('Notes') }, { status: 405 });
 }
 
 // POST /api/crm/notes/[id]  { archived: true | false } — archive or restore.
-// Admins only, as deleting was. Archiving holds any follow-up emails the note
+// Anyone signed in (Mike 9-25: "anyone can touch it"). Archiving holds any follow-up emails the note
 // queued that have not gone out yet (same as un-publishing it); restoring does
 // not send them — publish the note again to re-run its actions.
 export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
-
-  if (!actsAsAdmin(user)) return NextResponse.json({ error: 'Only an admin can archive or restore a note.' }, { status: 403 });
 
   const note = await prisma.note.findUnique({ where: { id: params.id }, select: { id: true } });
   if (!note) return NextResponse.json({ error: 'Not found' }, { status: 404 });

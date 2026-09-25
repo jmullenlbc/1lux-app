@@ -23,6 +23,18 @@ const NEWS_LOOKBACK_DAYS = 120;
 // show get one: the note's own, the people's, and open ones — at most this many.
 const MAX_BUDGETS = 60;
 
+const CONTACT_SELECT = {
+  id: true, name: true, title: true, company: true, clientId: true,
+  lastInPersonAt: true, lastTouchpointAt: true, lastEmailReceivedAt: true, lastEmailSentAt: true,
+  // Nested lists skip the archive filter in db.js — filter by hand.
+  projectLinks: { where: { project: { archivedAt: null } }, select: { projectId: true, isLead: true } },
+  employment: {
+    where: { archivedAt: null },
+    orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+    select: { company: true, title: true, startYear: true, startMonth: true, endYear: true, endMonth: true, isCurrent: true, position: true },
+  },
+};
+
 const uniq = xs => [...new Set(xs.filter(Boolean))];
 
 // One failing table should thin the brief, not sink it.
@@ -54,17 +66,21 @@ export async function gatherMeetingFacts(prisma, noteId, now = new Date(), opts 
   });
   if (!note) return null;
 
-  const linkedProjectIds = uniq([note.projectId, ...note.projects.map(p => p.projectId)]);
-  const noteContactIds   = uniq(note.contacts.map(c => c.contactId));
+  const noteProjectIds = uniq([note.projectId, ...note.projects.map(p => p.projectId)]);
+  const notePersonIds  = uniq(note.contacts.map(c => c.contactId));
 
+  // The link rows above skip the archive filter; these top-level reads don't,
+  // so from here on an archived job or person on the note is simply not there.
   const [linkedProjects, noteContacts] = await Promise.all([
-    linkedProjectIds.length
-      ? prisma.project.findMany({ where: { id: { in: linkedProjectIds } }, select: { id: true, clientId: true } })
+    noteProjectIds.length
+      ? prisma.project.findMany({ where: { id: { in: noteProjectIds } }, select: { id: true, clientId: true } })
       : [],
-    noteContactIds.length
-      ? prisma.contact.findMany({ where: { id: { in: noteContactIds } }, select: { id: true, clientId: true } })
+    notePersonIds.length
+      ? prisma.contact.findMany({ where: { id: { in: notePersonIds } }, select: { id: true, clientId: true } })
       : [],
   ]);
+  const linkedProjectIds = linkedProjects.map(p => p.id);
+  const noteContactIds   = noteContacts.map(c => c.id);
 
   const clientIds = uniq([
     ...note.clients.map(c => c.clientId),
@@ -78,22 +94,17 @@ export async function gatherMeetingFacts(prisma, noteId, now = new Date(), opts 
       where: { id: { in: clientIds } },
       select: { id: true, name: true, type: true, city: true, state: true, tier: true, rating: true },
     })),
-    safe('contacts', prisma.contact.findMany({
-      where: { OR: [{ id: { in: noteContactIds } }, { clientId: { in: clientIds } }] },
-      select: {
-        id: true, name: true, title: true, company: true, clientId: true,
-        lastInPersonAt: true, lastTouchpointAt: true, lastEmailReceivedAt: true, lastEmailSentAt: true,
-        // Nested lists skip the archive filter in db.js — filter by hand.
-        projectLinks: { where: { project: { archivedAt: null } }, select: { projectId: true, isLead: true } },
-        employment: {
-          where: { archivedAt: null },
-          orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
-          select: { company: true, title: true, startYear: true, startMonth: true, endYear: true, endMonth: true, isCurrent: true, position: true },
-        },
-      },
-      orderBy: { lastTouchpointAt: 'desc' },
-      take: 40,
-    })),
+    // The people on the note always come first and are never cut; their
+    // companies' other people fill in behind, most recently in touch first.
+    safe('contacts', Promise.all([
+      noteContactIds.length ? prisma.contact.findMany({ where: { id: { in: noteContactIds } }, select: CONTACT_SELECT }) : [],
+      clientIds.length ? prisma.contact.findMany({
+        where: { clientId: { in: clientIds }, id: { notIn: noteContactIds } },
+        select: CONTACT_SELECT,
+        orderBy: [{ lastTouchpointAt: { sort: 'desc', nulls: 'last' } }, { name: 'asc' }],
+        take: 40,
+      }) : [],
+    ]).then(([mine, theirs]) => [...mine, ...theirs])),
   ]);
 
   const personProjectIds = uniq(contacts.flatMap(c => (c.projectLinks || []).map(l => l.projectId)));
@@ -150,7 +161,7 @@ export async function gatherMeetingFacts(prisma, noteId, now = new Date(), opts 
       where: {
         kind: 'ACTION',
         status: { in: ['SUGGESTED', 'CONFIRMED'] },
-        AND: [{ OR: [{ contactId: { in: contactIds } }, { note: relatedNote }] }, { note: { isPublished: true, id: { not: noteId } } }],
+        AND: [{ OR: [{ contactId: { in: contactIds } }, { note: relatedNote }] }, { note: { isPublished: true, archivedAt: null, id: { not: noteId } } }],
       },
       select: actionSelect,
       orderBy: { createdAt: 'desc' },
@@ -160,7 +171,7 @@ export async function gatherMeetingFacts(prisma, noteId, now = new Date(), opts 
       where: {
         kind: 'INTEL',
         status: { not: 'DISMISSED' },
-        AND: [{ OR: [{ contactId: { in: contactIds } }, { note: relatedNote }] }, { note: { id: { not: noteId } } }],
+        AND: [{ OR: [{ contactId: { in: contactIds } }, { note: relatedNote }] }, { note: { isPublished: true, archivedAt: null, id: { not: noteId } } }],
       },
       select: actionSelect,
       orderBy: { createdAt: 'desc' },

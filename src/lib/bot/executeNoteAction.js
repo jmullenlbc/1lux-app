@@ -3,15 +3,17 @@
  *
  *  • Email / Send-materials / Schedule → marked "ready"; the note consolidates
  *    ALL of a contact's asks into ONE email (see composeOutreach).
- *  • Expect-intro → schedules a reminder (remindAt).
+ *  • Expect intro / reply / drawings / invite → a "waiting" step: the email
+ *    watch closes it when they do it, and the reminder ladder (14/30/60 days
+ *    after the meeting, editable) nudges when they don't. See src/lib/followUp/.
  *  • Text / Call → confirmed to-do only — the bot can't send texts or place
  *    calls yet (down the road), so no draft is produced.
  *  • Add-to-list / Internal task / Other → confirmed to-do.
  */
 import { prisma } from '@/lib/db';
 import { OUTREACH_EMAIL_METHODS } from '@/lib/bot/composeOutreach';
-
-const DAY_MS = 24 * 60 * 60 * 1000;
+import { isWaitExecutor } from '@/lib/followUp/watch';
+import { firstRemindAt, sendDueWaitReminders } from '@/lib/followUp/engine';
 
 /**
  * @param {object} action  a NoteAction row
@@ -29,13 +31,16 @@ export async function executeNoteAction(action, type, opts = {}) {
     return { ready: true, detail: 'ready for consolidated outreach email' };
   }
 
-  // EXPECT_INTRO → schedule a reminder rather than drafting now.
-  if (executor === 'EXPECT_INTRO') {
-    const days = action.reminderDays ?? type?.reminderDays ?? 7;
-    const remindAt = new Date(now.getTime() + days * DAY_MS);
+  // Waiting on THEM (intro, reply, drawings, invite) → start the watch and put
+  // the first rung of the reminder ladder on the calendar. Counted from the
+  // meeting, not from publish, so a note written a week late is not a week late
+  // on every reminder too.
+  if (isWaitExecutor(executor)) {
+    const note = await prisma.note.findUnique({ where: { id: action.noteId }, select: { meetingDate: true } });
+    const remindAt = firstRemindAt({ ...action, confirmedAt: action.confirmedAt || now }, type, note || {});
     await prisma.noteAction.update({
       where: { id: action.id },
-      data: { confirmedAt: now, remindAt },
+      data: { confirmedAt: action.confirmedAt || now, remindAt, reminderCount: 0 },
     });
     return { remindAt, executed: false };
   }
@@ -50,46 +55,11 @@ export async function executeNoteAction(action, type, opts = {}) {
 }
 
 /**
- * Find EXPECT_INTRO actions whose reminder is due and create reminder drafts.
- * Called by the queue processor (cron). Returns the number of reminders fired.
+ * Waiting steps whose reminder is due → one "still waiting" draft per person
+ * per note, and the next rung. Kept under its old name for the queue
+ * processor; the work is src/lib/followUp/engine.js (Mike 9-25).
  */
 export async function fireDueIntroReminders() {
-  const now = new Date();
-  const due = await prisma.noteAction.findMany({
-    where: {
-      status: 'CONFIRMED',
-      remindAt: { not: null, lte: now },
-      executedAt: null,
-    },
-    include: { note: { select: { id: true, title: true, createdById: true } } },
-    take: 100,
-  });
-
-  let fired = 0;
-  for (const a of due) {
-    const ownerUserId = a.note?.createdById;
-    if (!ownerUserId) {
-      // No owner to notify — just clear the reminder so we don't loop.
-      await prisma.noteAction.update({ where: { id: a.id }, data: { executedAt: now } });
-      continue;
-    }
-    const who    = a.contactName || 'someone';
-    const target = a.targetName ? ` to ${a.targetName}` : '';
-    const draft = await prisma.botDraft.create({
-      data: {
-        userId:  ownerUserId,
-        type:    'FOLLOW_UP',   // surfaces in the Bot Queue → Follow-Ups tab
-        status:  'PENDING_REVIEW',
-        toEmail: '',
-        toName:  who,
-        subject: `Reminder: intro from ${who}${target}`,
-        body:    `You were expecting ${who} to make an intro${target}. It's been a while — follow up?\n\n(From note: ${a.note?.title || ''})`,
-        reviewWindowMinutes: 30,
-        classificationReason: 'Expect-intro reminder',
-      },
-    });
-    await prisma.noteAction.update({ where: { id: a.id }, data: { executedAt: now, botDraftId: draft.id } });
-    fired++;
-  }
-  return fired;
+  const log = await sendDueWaitReminders(prisma);
+  return log.drafted;
 }

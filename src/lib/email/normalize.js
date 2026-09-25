@@ -63,6 +63,11 @@ export function fromGraphMessage(msg, mailboxAddress = '') {
     receivedAt:        msg?.receivedDateTime || msg?.sentDateTime || null,
     isRead:            Boolean(msg?.isRead),
     hasAttachments:    Boolean(msg?.hasAttachments),
+    // Only present when the sync asks Graph to expand attachments. Names are
+    // what "did they send the drawings?" reads (src/lib/followUp/watch.js).
+    attachments:       (Array.isArray(msg?.attachments) ? msg.attachments : [])
+      .filter(a => a?.name)
+      .map(a => ({ filename: String(a.name).slice(0, 300), mimeType: a.contentType || null, size: Number(a.size) || 0 })),
     internetMessageId: msg?.internetMessageId || null,
     inReplyTo:         graphHeaders(msg?.internetMessageHeaders)['in-reply-to'] || null,
     isCalendarInvite:  /eventMessage/i.test(odataType),

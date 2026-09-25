@@ -10,9 +10,16 @@ import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
 import { modelParams, textFrom } from '@/lib/aiModels';
 import { knowledgeContextBlock } from '@/lib/botKnowledge/retrieve';
+import { WAIT_EXECUTORS } from '@/lib/followUp/watch';
+import { EMAIL_KINDS, followUpSubject, editExamples, editExamplesSection } from '@/lib/bot/editLearning';
 
 // Methods that belong in an outreach email to the contact.
 export const OUTREACH_EMAIL_METHODS = new Set(['EMAIL', 'SEND_MATERIALS', 'SCHEDULE']);
+
+// Things THEY offered to do (reply, drawings, invite, intro) also go in the
+// recap email — thanked and confirmed, never demanded (Mike 9-25). They are
+// watched for separately; see src/lib/followUp/.
+export const RECAP_EMAIL_METHODS = new Set([...OUTREACH_EMAIL_METHODS, ...Object.keys(WAIT_EXECUTORS)]);
 
 // Draft statuses that are still "working" (reusable). DRAFT = paused because the
 // note was reverted to draft; PENDING_REVIEW = live in the queue.
@@ -34,7 +41,7 @@ export async function getOutreachGroups(noteId, { includeDrafted = false } = {})
   const execByKey = new Map(types.map(t => [t.key, t.executor]));
   const labelByKey = new Map(types.map(t => [t.key, t.label]));
 
-  const eligible = actions.filter(a => OUTREACH_EMAIL_METHODS.has(execByKey.get(a.type)));
+  const eligible = actions.filter(a => RECAP_EMAIL_METHODS.has(execByKey.get(a.type)));
   if (eligible.length === 0) return [];
 
   const contactIds = [...new Set(eligible.map(a => a.contactId))];
@@ -43,18 +50,21 @@ export async function getOutreachGroups(noteId, { includeDrafted = false } = {})
     select: { id: true, name: true, preferredName: true, email: true, company: true },
   });
   const cById = new Map(contacts.map(c => [c.id, c]));
+  const note = await prisma.note.findUnique({ where: { id: noteId }, select: { activityType: true, title: true } });
 
   const groups = new Map();
   for (const a of eligible) {
     const g = groups.get(a.contactId) || {
       contactId: a.contactId,
+      meetingType: note?.activityType || null, meetingTitle: note?.title || '',
       contactName: cById.get(a.contactId)?.name || a.contactName || 'contact',
       email: cById.get(a.contactId)?.email || '',
       company: cById.get(a.contactId)?.company || a.company || '',
       contact: cById.get(a.contactId) || null,
       actions: [],
     };
-    g.actions.push({ id: a.id, label: labelByKey.get(a.type) || a.type, detail: a.detail || a.rawText, targetName: a.targetName, botDraftId: a.botDraftId });
+    g.actions.push({ id: a.id, label: labelByKey.get(a.type) || a.type, detail: a.detail || a.rawText, targetName: a.targetName, botDraftId: a.botDraftId,
+                     waitingFor: WAIT_EXECUTORS[execByKey.get(a.type)] || null });
     groups.set(a.contactId, g);
   }
   return [...groups.values()];
@@ -63,8 +73,14 @@ export async function getOutreachGroups(noteId, { includeDrafted = false } = {})
 function fallbackEmail(group) {
   const first = (group.contact?.preferredName || group.contactName || '').split(' ')[0] || 'there';
   const lines = group.actions.map(a => `• ${a.detail}`).join('\n');
+  if (group.nudge) {
+    return {
+      subject: 'Checking in',
+      body: `Hi ${first},\n\nHope all is well. Circling back on a couple of things from when we last met:\n\n${lines}\n\nNo rush — just let me know if I can help on my end.\n\nBest,\nMike`,
+    };
+  }
   return {
-    subject: `Following up — ${group.actions.length} item${group.actions.length !== 1 ? 's' : ''}`,
+    subject: followUpSubject(group.meetingType, group.meetingTitle),
     body: `Hi ${first},\n\nGreat connecting. A couple of things on my end:\n\n${lines}\n\nBest,\nMike`,
   };
 }
@@ -99,19 +115,44 @@ in just because it is here:\n${text}\n`
     : '';
 }
 
-/** Compose ONE email covering all of a group's asks (AI, with a deterministic fallback). */
+async function lessonsFor(emailKind) {
+  try { return editExamplesSection(await editExamples(prisma, emailKind)); }
+  catch (e) {
+    console.error('[composeOutreach] edit examples failed, drafting without them:', e?.message ?? e);
+    return '';
+  }
+}
+
+/**
+ * Compose ONE email covering all of a group's asks (AI, with a deterministic
+ * fallback). Returns { subject, body, emailKind } — the caller also stores
+ * subject and body as aiSubject/aiBody so a person's later edits can be learned.
+ */
 export async function composeContactEmail(group) {
-  const askList = group.actions.map(a => `- ${a.label}: ${a.detail}${a.targetName ? ` (re ${a.targetName})` : ''}`).join('\n');
+  const emailKind = group.nudge ? EMAIL_KINDS.CHECK_IN : EMAIL_KINDS.RECAP;
+  const fixedSubject = group.nudge ? null : followUpSubject(group.meetingType, group.meetingTitle);
+  const meetingNoun = (fixedSubject || 'meeting').replace(/ follow-up$/, '').toLowerCase();
+  const line = a => `- ${a.label}: ${a.detail}${a.targetName ? ` (re ${a.targetName})` : ''}`;
+  const ours = group.actions.filter(a => !a.waitingFor);
+  const theirs = group.actions.filter(a => a.waitingFor);
   let key;
   try { key = getAnthropicKey()?.trim(); } catch { key = null; }
-  if (!key) return fallbackEmail(group);
+  if (!key) return { ...fallbackEmail(group), emailKind };
 
-  const prompt = `Write ONE short, warm, professional outreach email from Mike at ILC Studios (lighting) to ${group.contactName}${group.company ? ` (${group.company})` : ''}.
+  const items = group.nudge
+    ? `This is a gentle check-in about things from our meeting that have not happened yet:
+${theirs.concat(ours).map(line).join('\n')}
+Be light and helpful, never pushy or guilt-inducing. Do not say "reminder" or mention how long it has been.`
+    : `It is the recap after our meeting and must cover ALL of these items in a single email — one greeting, one sign-off, no repetition:
+${ours.length ? `Things Mike will do or is asking for:\n${ours.map(line).join('\n')}\n` : ''}${theirs.length ? `Things they offered to do — thank them and confirm warmly, never demand:\n${theirs.map(line).join('\n')}\n` : ''}`;
 
-It must cover ALL of these follow-up items in a single email — one greeting, one sign-off, no repetition:
-${askList}
-${knowledgeSection(await knowledgeFor(group))}
-Keep it concise and natural (not a bulleted list unless it reads well). Sign off as "Mike".
+  const prompt = `Write ONE short, warm, professional email from Mike at ILC Studios (lighting) to ${group.contactName}${group.company ? ` (${group.company})` : ''}.
+
+${items}
+${knowledgeSection(await knowledgeFor(group))}${await lessonsFor(emailKind)}
+It may be reviewed and sent days after the meeting, so never say when the meeting was —
+no "today", "yesterday", "this morning" or "earlier this week". Say "our ${meetingNoun}" instead.
+${fixedSubject ? `The subject is exactly "${fixedSubject}".\n` : ''}Keep it concise and natural (not a bulleted list unless it reads well). Sign off as "Mike".
 Return ONLY JSON: {"subject": "...", "body": "..."}`;
 
   try {
@@ -123,11 +164,11 @@ Return ONLY JSON: {"subject": "...", "body": "..."}`;
     const msg = await anthropic.messages.create({ ...modelParams('bot.outreach.compose'), max_tokens: 700, messages: [{ role: 'user', content: prompt }] });
     const raw = (textFrom(msg) || '').replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(raw);
-    if (parsed?.subject && parsed?.body) return { subject: String(parsed.subject), body: String(parsed.body) };
+    if (parsed?.subject && parsed?.body) return { subject: fixedSubject || String(parsed.subject), body: String(parsed.body), emailKind };
   } catch (e) {
     console.error('[composeContactEmail] AI compose failed, using fallback:', e?.message ?? e);
   }
-  return fallbackEmail(group);
+  return { ...fallbackEmail(group), emailKind };
 }
 
 /** Compose extra paragraph(s) to APPEND to an email the human already edited —
@@ -187,21 +228,22 @@ export async function draftContactOutreach(noteId, contactId, ownerUserId, revie
   let draft, mode;
   if (!pending) {
     // No working draft yet → compose a fresh one covering the open asks.
-    const { subject, body } = await composeContactEmail(openGroup);
+    const { subject, body, emailKind } = await composeContactEmail(openGroup);
     draft = await prisma.botDraft.create({
       data: {
         userId: ownerUserId, type: 'FOLLOW_UP', status: 'PENDING_REVIEW',
         toEmail: group.email || '', toName: group.contactName,
-        subject, body, reviewWindowMinutes, classificationReason: reason,
+        subject, body, aiSubject: subject, aiBody: body, emailKind,
+        reviewWindowMinutes, classificationReason: reason,
       },
     });
     mode = 'created';
   } else if (!pending.editedByUserId) {
     // Untouched draft → safe to fully recompose covering all open asks.
-    const { subject, body } = await composeContactEmail(openGroup);
+    const { subject, body, emailKind } = await composeContactEmail(openGroup);
     draft = await prisma.botDraft.update({
       where: { id: pending.id },
-      data: { subject, body, status: 'PENDING_REVIEW', toEmail: group.email || '', toName: group.contactName, classificationReason: reason },
+      data: { subject, body, aiSubject: subject, aiBody: body, emailKind, status: 'PENDING_REVIEW', toEmail: group.email || '', toName: group.contactName, classificationReason: reason },
     });
     mode = 'recomposed';
   } else {

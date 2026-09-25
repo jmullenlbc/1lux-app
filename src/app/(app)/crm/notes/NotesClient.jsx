@@ -4,6 +4,9 @@ import ConfirmArchiveModal from '@/components/salesAutomation/ConfirmArchiveModa
 import MeetingPrep from './MeetingPrep';
 import { draftsChanged } from '@/components/layout/useDraftReminder';
 import { isReminderDraft } from '@/lib/calendar/draftReminder';
+import { attendeesToText, textToAttendees, toLocalInput, fromLocalInput } from '@/lib/noteAttendees';
+import { groupNotesForAgenda, agendaGroup, defaultNoteTab } from '@/lib/notes/agenda';
+import { shouldAutoPrep } from '@/lib/meetingPrep/due';
 
 // ── Contact tag chip + inline link picker ────────────────────────────────────
 function ContactChip({ name, linked, onClick }) {
@@ -128,7 +131,8 @@ function ActionRow({ a, onPatch, intel, types }) {
 
   const typeList = types && types.length ? types : [{ key: a.type, label: a.type }];
   const typeDef  = typeList.find(t => t.key === a.type);
-  const isIntro  = typeDef?.executor === 'EXPECT_INTRO';
+  // Waiting on THEM (intro, reply, drawings, invite): the email watch + reminder ladder.
+  const isIntro  = WAIT_EXECUTOR_SET.has(typeDef?.executor);
   const waitDays = a.reminderDays ?? typeDef?.reminderDays ?? null;
 
   function save() { onPatch(a.id, { detail: f.detail, contactName: f.contactName, targetName: f.targetName, company: f.company }); setEditing(false); }
@@ -165,12 +169,18 @@ function ActionRow({ a, onPatch, intel, types }) {
             )}
             {!editing && a.targetName && <span className="text-[11px] text-slate-500">→ {a.targetName}</span>}
             {!editing && a.company && <span className="text-[11px] text-slate-500">· {a.company}</span>}
-            {!editing && isIntro && (
-              <span className="text-[11px] text-emerald-600" title="Bot reminds if the intro hasn't happened by then">
-                ⏰ remind in {waitDays ?? '—'}d
+            {!editing && isIntro && !a.watch && (
+              <span className="text-[11px] text-emerald-600" title="First reminder, in days after the meeting, if they haven't done it">
+                ⏰ first reminder at {waitDays ?? '—'}d
               </span>
             )}
           </div>
+          {!editing && a.watch && (
+            <p className={`text-[11px] mt-0.5 ${a.watch.state === 'done' ? 'text-emerald-700 font-semibold' : a.watch.state === 'gave up' ? 'text-rose-600' : 'text-slate-500'}`}
+               title={a.fulfilledByEmail?.subject ? `Email: ${a.fulfilledByEmail.subject}` : undefined}>
+              {a.watch.state === 'done' ? '✔ ' : a.watch.state === 'gave up' ? '⚠ ' : '👀 '}{a.watch.text}
+            </p>
+          )}
 
           {!editing ? (
             <p className="text-xs text-slate-500 mt-0.5">{a.detail || a.rawText}</p>
@@ -184,7 +194,7 @@ function ActionRow({ a, onPatch, intel, types }) {
               </div>
               {isIntro && (
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-slate-500 whitespace-nowrap">Remind after</span>
+                  <span className="text-[11px] text-slate-500 whitespace-nowrap">First reminder after</span>
                   <input type="number" min="0" defaultValue={a.reminderDays ?? ''}
                     placeholder={typeDef?.reminderDays != null ? String(typeDef.reminderDays) : 'days'}
                     onBlur={e => onPatch(a.id, { reminderDays: e.target.value })}
@@ -212,7 +222,9 @@ function ActionRow({ a, onPatch, intel, types }) {
   );
 }
 
-const OUTREACH_METHODS = new Set(['EMAIL', 'SEND_MATERIALS', 'SCHEDULE']);
+// Things they offered to do are thanked in the same recap email (composeOutreach RECAP_EMAIL_METHODS).
+const WAIT_EXECUTOR_SET = new Set(['EXPECT_INTRO', 'EXPECT_REPLY', 'EXPECT_FILES', 'EXPECT_INVITE']);
+const OUTREACH_METHODS = new Set(['EMAIL', 'SEND_MATERIALS', 'SCHEDULE', ...WAIT_EXECUTOR_SET]);
 
 function NoteActions({ noteId, noteBody, published }) {
   const [actions, setActions] = useState(null);
@@ -291,13 +303,13 @@ function NoteActions({ noteId, noteBody, published }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <label className="text-xs font-medium text-slate-500">Action items <span className="text-slate-600">(AI · automatic)</span></label>
+        <label className="text-sm font-semibold text-slate-800">Next steps <span className="text-xs font-normal text-slate-400">pulled from your notes automatically</span></label>
         {busy
           ? <span className="text-xs text-slate-500">Reading note…</span>
           : <button onClick={runExtract} className="text-xs text-slate-500 hover:text-amber-600" title="Re-extract now">↻</button>}
       </div>
       {visible.length === 0 ? (
-        <p className="text-xs text-slate-600">{busy ? 'Reading your note…' : 'Action items appear here automatically as you write.'}</p>
+        <p className="text-xs text-slate-600">{busy ? 'Reading your note…' : 'Next steps show up here a few seconds after you write them — "send Jane the cut sheets", "call back Tuesday".'}</p>
       ) : (
         <div className="space-y-2">
           {acts.map(a => <ActionRow key={a.id} a={a} onPatch={patch} types={types} />)}
@@ -354,13 +366,20 @@ const ACTIVITY_META = {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function fmt(dateStr) {
-  if (!dateStr) return '';
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+function formFromNote(note) {
+  return {
+    title:        note.title       || '',
+    noteBody:     note.body        || '',
+    meetingDate:  toLocalInput(note.meetingDate),
+    attendees:    attendeesToText(note.attendees),
+    meetingLink:  note.meetingLink || '',
+    activityType: note.activityType || '',
+  };
 }
-function fmtInput(dateStr) {
-  if (!dateStr) return '';
-  return new Date(dateStr).toISOString().slice(0, 10);
+function contactsFromNote(note) {
+  return (note.contacts || []).filter(nc => nc.contact).map(nc => ({
+    id: nc.contactId, name: nc.contact.name, company: nc.contact.client?.name || nc.contact.company || '',
+  }));
 }
 function initials(name) {
   if (!name) return '?';
@@ -376,12 +395,6 @@ function avatarColor(name) {
   ];
   return colors[Math.abs(h) % colors.length];
 }
-function pipelineBadge(pipeline) {
-  if (pipeline === 'PROCUREMENT') return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-blue-100 text-blue-700">Proc</span>;
-  if (pipeline === 'DESIGN')      return <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-purple-100 text-purple-700">Design</span>;
-  return null;
-}
-
 // ── Icons ────────────────────────────────────────────────────────────────────
 
 function IconPlus() {
@@ -393,83 +406,81 @@ function IconSearch() {
 function IconX() {
   return <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>;
 }
-function IconCalendar() {
-  return <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5m-9-6h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM9.75 15h.008v.008H9.75V15zm0 2.25h.008v.008H9.75v-.008zM7.5 15h.008v.008H7.5V15zm0 2.25h.008v.008H7.5v-.008zm6.75-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V15zm0 2.25h.008v.008h-.008v-.008zm2.25-4.5h.008v.008H16.5v-.008zm0 2.25h.008v.008H16.5V15z" /></svg>;
-}
 function IconNote() {
   return <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>;
 }
 
-// ── NoteCard ─────────────────────────────────────────────────────────────────
+// ── Agenda list (Mike 9-25: "it just looks like an email inbox") ────────────
 
-function NoteCard({ note, active, onClick }) {
-  const linkedClients  = note.clients?.map(nc => nc.client?.name).filter(Boolean).join(', ');
-  const linkedProjects = note.projects?.length || 0;
+function fmtTime(d) {
+  return new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+function fmtWhen(d) {
+  if (!d) return '';
+  return new Date(d).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
 
+function DateTile({ date, tone }) {
+  const d = date ? new Date(date) : null;
+  const tones = {
+    upcoming:   'bg-amber-500 text-white',
+    needsNotes: 'bg-white text-slate-700 border border-slate-200',
+    done:       'bg-slate-100 text-slate-500',
+  };
   return (
-    <button
-      onClick={onClick}
-      className={`w-full text-left px-4 py-3 border-b transition-colors ${
-        active
-          ? 'bg-amber-50 border-l-2 border-l-amber-500'
-          : 'hover:bg-slate-100 border-l-2 border-l-transparent'
-      }`}
-      style={{ borderBottomColor: '#e2e8f0' }}
-    >
-      <div className="flex items-start justify-between gap-2 mb-1">
-        <span className="text-sm font-medium text-slate-800 line-clamp-1 flex-1">
-          {note.title || <span className="text-slate-500 italic">Untitled note</span>}
-        </span>
-        <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
-          {!note.isPublished && (
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-200 uppercase tracking-wide">
-              Draft
-            </span>
-          )}
-          <span className="text-[10px] text-slate-500">#{note.noteNumber}</span>
+    <div className={`w-11 shrink-0 rounded-lg text-center py-1 ${tones[tone]}`}>
+      {d ? (
+        <>
+          <div className="text-[9px] font-bold uppercase leading-none tracking-wide">{d.toLocaleDateString('en-US', { month: 'short' })}</div>
+          <div className="text-base font-semibold leading-tight">{d.getDate()}</div>
+        </>
+      ) : <div className="text-[10px] py-1.5">No date</div>}
+    </div>
+  );
+}
+
+function NoteRow({ note, tone, active, onClick }) {
+  const meta = ACTIVITY_META[note.activityType];
+  const company = note.clients?.map(nc => nc.client?.name).filter(Boolean).join(', ');
+  return (
+    <button onClick={onClick}
+      className={`w-full text-left flex gap-3 px-3 py-2.5 rounded-lg transition-colors ${active ? 'bg-amber-50 ring-1 ring-amber-300' : 'hover:bg-white'}`}>
+      <DateTile date={note.meetingDate} tone={tone} />
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-medium text-slate-800 truncate">
+          {note.title || <span className="text-slate-400 italic">Untitled meeting</span>}
         </div>
-      </div>
-      {note.meetingDate && (
-        <div className="flex items-center gap-1.5 text-[11px] text-amber-600 mb-1">
-          <IconCalendar />
-          {fmt(note.meetingDate)}
-          {note.activityType && (() => {
-            const meta = ACTIVITY_META[note.activityType];
-            return meta ? (
-              <span className="text-slate-500">{meta.emoji} {meta.label}</span>
-            ) : null;
-          })()}
+        <div className="text-[11px] text-slate-500 truncate">
+          {note.meetingDate && fmtTime(note.meetingDate)}
+          {meta && <> · {meta.emoji} {meta.label}</>}
+          {note.calendarRef && <span title="Came from the calendar"> · 📅</span>}
         </div>
-      )}
-      {linkedClients && (
-        <div className="text-[11px] text-slate-500 line-clamp-1 mb-0.5">{linkedClients}</div>
-      )}
-      <div className="flex items-center gap-2 mt-1">
-        {linkedProjects > 0 && (
-          <span className="text-[10px] text-slate-500">{linkedProjects} project{linkedProjects !== 1 ? 's' : ''}</span>
-        )}
-        {note.body && (
-          <span className="text-[10px] text-slate-600 line-clamp-1 flex-1">{note.body.slice(0, 60)}</span>
-        )}
+        {company && <div className="text-[11px] text-slate-400 truncate">{company}</div>}
       </div>
     </button>
   );
 }
 
-// ── LinkedItem (small tag) ────────────────────────────────────────────────────
+const GROUPS = [
+  ['upcoming',   'Coming up',   'Prep builds itself before the meeting.'],
+  ['needsNotes', 'Needs notes', 'The meeting happened — write what was said, then mark it complete.'],
+  ['done',       'Done',        null],
+];
+
+// ── Small pieces ──────────────────────────────────────────────────────────────
 
 function LinkedTag({ label, onRemove }) {
   return (
     <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs bg-slate-100 text-slate-700">
       {label}
-      <button onClick={onRemove} className="text-slate-500 hover:text-slate-900 transition-colors ml-0.5">
-        <IconX />
-      </button>
+      {onRemove && (
+        <button onClick={onRemove} className="text-slate-500 hover:text-slate-900 transition-colors ml-0.5">
+          <IconX />
+        </button>
+      )}
     </span>
   );
 }
-
-// ── AddLinkDropdown ───────────────────────────────────────────────────────────
 
 function AddLinkDropdown({ placeholder, items, onAdd, onClose }) {
   const [q, setQ] = useState('');
@@ -481,7 +492,7 @@ function AddLinkDropdown({ placeholder, items, onAdd, onClose }) {
   ).slice(0, 20);
 
   return (
-    <div className="absolute z-50 top-full mt-1 left-0 w-72 rounded-lg shadow-xl border border-slate-300 bg-white overflow-hidden">
+    <div className="absolute z-50 top-full mt-1 right-0 w-72 rounded-lg shadow-xl border border-slate-300 bg-white overflow-hidden">
       <div className="p-2 border-b border-slate-200">
         <input
           ref={inputRef}
@@ -513,42 +524,123 @@ function AddLinkDropdown({ placeholder, items, onAdd, onClose }) {
   );
 }
 
+function MoreMenu({ onArchive }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [open]);
+  return (
+    <div className="relative" ref={ref}>
+      <button onClick={() => setOpen(v => !v)} title="More"
+        className="w-8 h-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 text-lg leading-none">⋯</button>
+      {open && (
+        <div className="absolute right-0 z-50 mt-1 w-44 rounded-lg border border-slate-200 bg-white shadow-xl py-1">
+          <button onClick={() => { setOpen(false); onArchive(); }} className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">Archive</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── New note (manual) ─────────────────────────────────────────────────────────
+
+const BLANK_NEW = { title: '', meetingDate: '', activityType: '', meetingLink: '', clientId: '' };
+
+function NewNoteModal({ open, clients, onClose, onCreated }) {
+  const [f, setF] = useState(BLANK_NEW);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  useEffect(() => { if (open) { setF(BLANK_NEW); setErr(''); } }, [open]);
+  if (!open) return null;
+
+  async function create(e) {
+    e.preventDefault();
+    setBusy(true); setErr('');
+    try {
+      const res = await fetch('/api/crm/notes', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title:        f.title,
+          noteBody:     '',
+          meetingDate:  fromLocalInput(f.meetingDate),
+          activityType: f.activityType || undefined,
+          meetingLink:  f.meetingLink.trim() || null,
+          clientIds:    f.clientId ? [f.clientId] : [],
+        }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { setErr(d.error || 'Could not create the note.'); return; }
+      onCreated(d);
+    } catch { setErr('Network error — try again.'); }
+    finally { setBusy(false); }
+  }
+
+  const input = 'w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-amber-500';
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4" onMouseDown={onClose}>
+      <form onSubmit={create} className="w-full max-w-md rounded-xl bg-white shadow-2xl p-5 space-y-3" onMouseDown={e => e.stopPropagation()}>
+        <h2 className="text-base font-semibold text-slate-900">New meeting note</h2>
+        <div>
+          <label className="block text-xs font-medium text-slate-500 mb-1">Meeting</label>
+          <input autoFocus value={f.title} onChange={e => setF({ ...f, title: e.target.value })} placeholder="Coffee with Jane — Hilltop Apartments" className={input} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">Date &amp; time</label>
+            <input type="datetime-local" value={f.meetingDate} onChange={e => setF({ ...f, meetingDate: e.target.value })} className={input} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">Type</label>
+            <select value={f.activityType} onChange={e => setF({ ...f, activityType: e.target.value })} className={input}>
+              <option value="">—</option>
+              {Object.entries(ACTIVITY_META).filter(([, m]) => !m.legacy).map(([k, m]) => <option key={k} value={k}>{m.emoji} {m.label}</option>)}
+            </select>
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-500 mb-1">Company <span className="font-normal text-slate-400">(optional)</span></label>
+          <select value={f.clientId} onChange={e => setF({ ...f, clientId: e.target.value })} className={input}>
+            <option value="">—</option>
+            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-500 mb-1">Calendar link <span className="font-normal text-slate-400">(optional — paste the Outlook event link)</span></label>
+          <input value={f.meetingLink} onChange={e => setF({ ...f, meetingLink: e.target.value })} placeholder="https://outlook.office.com/calendar/item/…" className={input} />
+          <p className="mt-1 text-[11px] text-slate-400">When the calendar syncs, this note joins that meeting instead of a second note appearing.</p>
+        </div>
+        {err && <p className="text-xs text-red-600">{err}</p>}
+        <div className="flex justify-end gap-2 pt-1">
+          <button type="button" onClick={onClose} className="px-3 py-1.5 rounded-lg text-sm text-slate-600 hover:bg-slate-100">Cancel</button>
+          <button type="submit" disabled={busy} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-500 text-white hover:bg-amber-400 disabled:opacity-50">
+            {busy ? 'Creating…' : 'Create note'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 // ── NoteDetail ────────────────────────────────────────────────────────────────
 
 function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }) {
-  const isAdmin = currentUser?.isAdmin === true;
+  const canPrep = currentUser?.canPrep === true;
+  const [tab, setTab] = useState(() => defaultNoteTab(note, { canPrep }));
+  const hasLinks = (note.clients?.length || 0) + (note.projects?.length || 0) + (note.contacts?.length || 0) > 0;
+  const [detailsOpen, setDetailsOpen] = useState(() => !note.title && !note.meetingDate && !hasLinks);
+
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [archiving,   setArchiving]   = useState(false);
+  const [publishing,  setPublishing]  = useState(false);
 
-  const [publishing, setPublishing] = useState(false);
-
-  async function togglePublish(n) {
-    setPublishing(true);
-    try {
-      const res = await fetch(`/api/crm/notes/${n.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ publish: !n.isPublished }),
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        onUpdate(updated);
-        draftsChanged();
-      }
-    } catch {}
-    setPublishing(false);
-  }
-
-  const [form, setForm] = useState({
-    title:        note.title       || '',
-    noteBody:     note.body        || '',
-    meetingDate:  fmtInput(note.meetingDate),
-    attendees:    (() => {
-      try { return JSON.parse(note.attendees || '[]').join(', '); } catch { return ''; }
-    })(),
-    calendarRef:  note.calendarRef || '',
-    activityType: note.activityType || '',
-  });
+  const [form, setForm] = useState(() => formFromNote(note));
+  // Only fields a person actually touched are saved — so opening a calendar
+  // draft never stamps it 'manual' or rewrites its guest list.
+  const dirtyRef = useRef(new Set());
   const formRef   = useRef(form);
   formRef.current = form;
 
@@ -556,67 +648,69 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
   const [contactSearch,    setContactSearch]    = useState('');
   const [contactResults,   setContactResults]   = useState([]);
   const [contactSearching, setContactSearching] = useState(false);
-  const [selectedContacts, setSelectedContacts] = useState(
-    note.noteContacts?.map(nc => ({ id: nc.contactId || nc.id, name: nc.contact?.name || nc.name || nc.contactId, company: nc.contact?.company?.name || '' })) || []
-  );
-  const contactSearchRef = useRef(null);
+  const [selectedContacts, setSelectedContacts] = useState(() => contactsFromNote(note));
   const contactDebounce  = useRef(null);
   const debounceRef   = useRef(null);
   const savedTimerRef = useRef(null);
   const [saveStatus, setSaveStatus] = useState('idle');
-
-  // Reset form when note changes
-  useEffect(() => {
-    const f = {
-      title:        note.title       || '',
-      noteBody:     note.body        || '',
-      meetingDate:  fmtInput(note.meetingDate),
-      attendees:    (() => {
-        try { return JSON.parse(note.attendees || '[]').join(', '); } catch { return ''; }
-      })(),
-      calendarRef:  note.calendarRef || '',
-      activityType: note.activityType || '',
-    };
-    setForm(f);
-    formRef.current = f;
-    setSaveStatus('idle');
-    clearTimeout(debounceRef.current);
-    setSelectedContacts(
-      note.noteContacts?.map(nc => ({ id: nc.contactId || nc.id, name: nc.contact?.name || nc.name || nc.contactId, company: nc.contact?.company?.name || '' })) || []
-    );
-    setContactSearch('');
-    setContactResults([]);
-  }, [note.id]);
+  const [saveError,  setSaveError]  = useState('');
 
   const persist = useCallback(async (snapshot, contacts) => {
+    const keys = [...dirtyRef.current];
+    dirtyRef.current = new Set();
+    const body = {};
+    for (const k of keys) {
+      if (k === 'meetingDate')       body.meetingDate  = fromLocalInput(snapshot.meetingDate);
+      else if (k === 'attendees')    body.attendees    = textToAttendees(snapshot.attendees, note.attendees);
+      else if (k === 'meetingLink')  body.meetingLink  = snapshot.meetingLink.trim() || null;
+      else if (k === 'activityType') body.activityType = snapshot.activityType || null;
+      else body[k] = snapshot[k];
+    }
+    if (contacts) body.contactIds = contacts.map(c => c.id);
+    if (!Object.keys(body).length) return;
     setSaveStatus('saving');
+    setSaveError('');
     try {
-      const attendeesArr = snapshot.attendees
-        ? snapshot.attendees.split(',').map(s => s.trim()).filter(Boolean)
-        : [];
       const res = await fetch(`/api/crm/notes/${note.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title:        snapshot.title,
-          noteBody:     snapshot.noteBody,
-          meetingDate:  snapshot.meetingDate || null,
-          attendees:    JSON.stringify(attendeesArr),
-          calendarRef:  snapshot.calendarRef || null,
-          activityType: snapshot.activityType || null,
-          contactIds:   (contacts || selectedContacts).map(c => c.id),
-        }),
+        body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        if (res.status === 400) { setSaveError(d.error || ''); setSaveStatus('error'); return; }
+        throw new Error(d.error || String(res.status));
+      }
       const updated = await res.json();
       onUpdate(updated);
       setSaveStatus('saved');
       clearTimeout(savedTimerRef.current);
       savedTimerRef.current = setTimeout(() => setSaveStatus('idle'), 2500);
     } catch {
+      for (const k of keys) dirtyRef.current.add(k);
       setSaveStatus('error');
     }
-  }, [note.id, onUpdate, selectedContacts]);
+  }, [note.id, note.attendees, onUpdate]);
+
+  async function togglePublish() {
+    setPublishing(true);
+    // Save any typing still waiting on the autosave first, so publishing reads the final words.
+    clearTimeout(debounceRef.current);
+    await persist(formRef.current);
+    try {
+      const res = await fetch(`/api/crm/notes/${note.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ publish: !note.isPublished }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        onUpdate(updated);
+        draftsChanged();
+      } else alert('Could not save: ' + ((await res.json().catch(() => null))?.error || res.status));
+    } catch {}
+    setPublishing(false);
+  }
 
   function scheduleSave(newForm, delay = 1000) {
     clearTimeout(debounceRef.current);
@@ -624,6 +718,7 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
   }
 
   function set(key, val, delay = 1000) {
+    dirtyRef.current.add(key);
     const next = { ...formRef.current, [key]: val };
     setForm(next);
     scheduleSave(next, delay);
@@ -641,7 +736,6 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
         if (res.ok) {
           const data = await res.json();
           const contacts = data.contacts || data || [];
-          // Filter out already-selected
           const selectedIds = new Set(selectedContacts.map(c => c.id));
           setContactResults(contacts.filter(c => !selectedIds.has(c.id)).slice(0, 10));
         }
@@ -651,7 +745,7 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
   }
 
   function addContact(contact) {
-    const next = [...selectedContacts, { id: contact.id, name: contact.name, company: contact.company?.name || '' }];
+    const next = [...selectedContacts, { id: contact.id, name: contact.name, company: contact.client?.name || contact.company?.name || '' }];
     setSelectedContacts(next);
     setContactSearch('');
     setContactResults([]);
@@ -664,14 +758,11 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
     persist(formRef.current, next);
   }
 
-  // Linked clients
-  const linkedClientIds = new Set(note.clients?.map(nc => nc.clientId) || []);
-  const [showClientDrop, setShowClientDrop] = useState(false);
-  const clientDropRef = useRef(null);
-
-  // Linked projects
+  const linkedClientIds  = new Set(note.clients?.map(nc => nc.clientId) || []);
   const linkedProjectIds = new Set(note.projects?.map(np => np.projectId) || []);
+  const [showClientDrop,  setShowClientDrop]  = useState(false);
   const [showProjectDrop, setShowProjectDrop] = useState(false);
+  const clientDropRef  = useRef(null);
   const projectDropRef = useRef(null);
 
   useEffect(() => {
@@ -683,44 +774,21 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  async function addClient(clientId) {
+  async function patchLinks(body, what) {
     const res = await fetch(`/api/crm/notes/${note.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ addClientIds: [clientId] }),
+      body: JSON.stringify(body),
     });
     if (res.ok) onUpdate(await res.json());
-    else alert('Failed to link client: ' + await res.text());
+    else alert(`Could not ${what}: ` + ((await res.json().catch(() => null))?.error || res.status));
   }
-  async function removeClient(clientId) {
-    const res = await fetch(`/api/crm/notes/${note.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ removeClientIds: [clientId] }),
-    });
-    if (res.ok) onUpdate(await res.json());
-    else alert('Failed to unlink client: ' + await res.text());
-  }
-  async function addProject(projectId) {
-    const res = await fetch(`/api/crm/notes/${note.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ addProjectIds: [projectId] }),
-    });
-    if (res.ok) onUpdate(await res.json());
-    else alert('Failed to link project: ' + await res.text());
-  }
-  async function removeProject(projectId) {
-    const res = await fetch(`/api/crm/notes/${note.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ removeProjectIds: [projectId] }),
-    });
-    if (res.ok) onUpdate(await res.json());
-    else alert('Failed to unlink project: ' + await res.text());
-  }
+  const addClient     = id => patchLinks({ addClientIds:     [id] }, 'link that company');
+  const removeClient  = id => patchLinks({ removeClientIds:  [id] }, 'unlink that company');
+  const addProject    = id => patchLinks({ addProjectIds:    [id] }, 'link that project');
+  const removeProject = id => patchLinks({ removeProjectIds: [id] }, 'unlink that project');
 
-  // Notes are archived, never deleted (Mike, 2026-09-11).
+  // Archive: hidden, restorable from the Archive page. Anyone may (Mike 9-25).
   async function handleArchive() {
     setArchiving(true);
     try {
@@ -752,307 +820,259 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
   }));
 
   const saveColor = saveStatus === 'saving' ? 'text-slate-500' : saveStatus === 'saved' ? 'text-emerald-600' : saveStatus === 'error' ? 'text-red-600' : 'text-slate-600';
-  const saveText  = saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved ✓' : saveStatus === 'error' ? 'Save failed' : '';
+  const saveText  = saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved ✓' : saveStatus === 'error' ? (saveError || 'Save failed') : '';
+
+  const meta = ACTIVITY_META[note.activityType];
+  const upcoming = agendaGroup(note) === 'upcoming';
+  const input = 'w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-amber-500 transition-colors';
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="px-6 pt-5 pb-3 border-b border-slate-200 shrink-0">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs text-slate-500">Note #{note.noteNumber}</span>
-          <span className={`text-xs transition-colors ${saveColor}`}>{saveText}</span>
-        </div>
-
-        {/* Draft/Published badge + toggle */}
-        <div className="flex items-center gap-2 mb-3">
+      <div className="px-6 pt-4 pb-0 border-b border-slate-200 shrink-0 bg-white">
+        <div className="flex items-center gap-2 mb-2">
           {note.isPublished ? (
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-700 border border-green-200">
-              ✓ Published
-            </span>
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200">✓ Complete</span>
+          ) : upcoming ? (
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500 text-white">Coming up</span>
           ) : (
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-              ● Draft — bot paused
-            </span>
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">Needs notes</span>
           )}
-          <button
-            onClick={() => togglePublish(note)}
-            disabled={publishing}
-            className={`text-xs font-semibold px-3 py-1 rounded-lg transition-colors disabled:opacity-50 ${
-              note.isPublished
-                ? 'text-slate-500 hover:text-slate-700 border border-slate-200 hover:bg-slate-50'
-                : 'bg-green-600 text-white hover:bg-green-700'
-            }`}
-          >
-            {publishing ? '...' : note.isPublished ? 'Revert to Draft' : 'Mark Complete ✓'}
-          </button>
+          <span className="text-xs text-slate-400">#{note.noteNumber}</span>
+          {note.calendarRef && <span className="text-[11px] text-emerald-700" title="This note follows a meeting on the calendar">📅 On the calendar</span>}
+          {note.meetingLink && (
+            <a href={note.meetingLink} target="_blank" rel="noopener noreferrer" className="text-[11px] text-amber-700 hover:underline">Open in calendar ↗</a>
+          )}
+          <span className={`ml-auto text-xs transition-colors ${saveColor}`}>{saveText}</span>
+          <MoreMenu onArchive={() => setArchiveOpen(true)} />
         </div>
 
         <input
           value={form.title}
           onChange={e => set('title', e.target.value)}
-          placeholder="Note title…"
-          className="w-full bg-transparent text-xl font-semibold text-slate-900 placeholder:text-slate-500 outline-none"
+          placeholder="What was the meeting?"
+          className="w-full bg-transparent text-xl font-semibold text-slate-900 placeholder:text-slate-400 outline-none"
         />
-        <div className="flex items-center gap-1 mt-1 text-[11px] text-slate-500">
-          <span>Created {fmt(note.createdAt)}</span>
-          {note.createdBy?.name && <><span>·</span><span>{note.createdBy.name}</span></>}
-        </div>
-      </div>
 
-      {/* Body */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
-
-        {/* Activity type picker */}
-        <div>
-          <label className="block text-xs font-medium text-slate-500 mb-2">Activity Type</label>
-          <div className="flex flex-wrap gap-1.5">
-            {Object.entries(ACTIVITY_META).filter(([, meta]) => !meta.legacy).map(([key, meta]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => set('activityType', form.activityType === key ? '' : key, 0)}
-                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
-                  form.activityType === key
-                    ? 'border-orange-500 bg-orange-500 text-white shadow-sm'
-                    : meta.inPerson
-                      ? 'border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-400'
-                      : 'border-slate-300 bg-white text-slate-500 hover:border-slate-400'
-                }`}
-              >
-                {meta.emoji} {meta.label}
-              </button>
-            ))}
-          </div>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-xs text-slate-500">
+          {note.meetingDate ? <span>{fmtWhen(note.meetingDate)}</span> : <span className="italic">No date yet</span>}
+          {meta && <><span>·</span><span>{meta.emoji} {meta.label}</span></>}
+          {note.isInPerson && <><span>·</span><span className="text-amber-700">In person</span></>}
+          {note.createdBy?.name && <><span>·</span><span>Owner: {note.createdBy.name}</span></>}
+          <button onClick={() => setDetailsOpen(v => !v)} className="ml-1 text-amber-700 hover:underline">
+            {detailsOpen ? 'Hide details' : 'Edit details'}
+          </button>
         </div>
 
-        {/* Meeting date + Calendar ref */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Meeting Date</label>
-            <input
-              type="date"
-              value={form.meetingDate}
-              onChange={e => set('meetingDate', e.target.value, 0)}
-              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 outline-none focus:border-amber-500 transition-colors"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">
-              Calendar Ref
-              <span className="ml-1 text-slate-600 font-normal">(Outlook / Google)</span>
-            </label>
-            <input
-              value={form.calendarRef}
-              onChange={e => set('calendarRef', e.target.value)}
-              placeholder="Event ID or URL"
-              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 outline-none focus:border-amber-500 transition-colors"
-            />
-          </div>
-        </div>
-
-        {/* Attendees */}
-        <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1">Attendees</label>
-          <input
-            value={form.attendees}
-            onChange={e => set('attendees', e.target.value)}
-            placeholder="Jane Smith, John Doe…  (comma-separated)"
-            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 outline-none focus:border-amber-500 transition-colors"
-          />
-        </div>
-
-        {/* Maram 9-17: two sections — what we knew going in, then what was said. */}
-        {note.noteType !== 'PROJECT_MEETING' && (
-          <div className="border-t border-slate-100 pt-4">
-            <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Pre-meeting info</h3>
-            <MeetingPrep noteId={note.id} />
+        {/* Who and what it is about, at a glance */}
+        {!detailsOpen && (note.clients?.length > 0 || note.projects?.length > 0 || selectedContacts.length > 0) && (
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {note.clients?.map(nc => <span key={nc.clientId} className="px-2 py-0.5 rounded-md text-[11px] bg-slate-100 text-slate-700">🏢 {nc.client?.name}</span>)}
+            {note.projects?.map(np => <span key={np.projectId} className="px-2 py-0.5 rounded-md text-[11px] bg-blue-50 text-blue-700">{np.project?.name || 'Project'}</span>)}
+            {selectedContacts.map(c => <span key={c.id} className="px-2 py-0.5 rounded-md text-[11px] bg-orange-50 text-orange-700">{c.name}</span>)}
           </div>
         )}
 
-        {/* Notes body */}
-        <div className="border-t border-slate-100 pt-4">
-          <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Meeting notes</h3>
-          <label className="block text-xs font-medium text-slate-500 mb-1">What was said, decided and promised</label>
-          <textarea
-            value={form.noteBody}
-            onChange={e => set('noteBody', e.target.value)}
-            placeholder="Meeting notes, action items, follow-ups…"
-            rows={10}
-            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 outline-none focus:border-amber-500 transition-colors resize-y leading-relaxed"
-          />
-        </div>
-
-        {/* Meeting Prep now sits above the notes as "Pre-meeting info". */}
-
-        {/* AI-extracted action items */}
-        <NoteActions noteId={note.id} noteBody={form.noteBody} published={note.isPublished} />
-
-        {/* Linked Clients */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-xs font-medium text-slate-500">Linked Clients</label>
-            <div className="relative" ref={clientDropRef}>
-              <button
-                onClick={() => setShowClientDrop(v => !v)}
-                className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900 transition-colors"
-              >
-                <IconPlus /> Add
-              </button>
-              {showClientDrop && (
-                <AddLinkDropdown
-                  placeholder="Search clients…"
-                  items={availableClients}
-                  onAdd={addClient}
-                  onClose={() => setShowClientDrop(false)}
-                />
-              )}
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {note.clients?.length === 0 && (
-              <span className="text-xs text-slate-600 italic">No clients linked</span>
-            )}
-            {note.clients?.map(nc => (
-              <LinkedTag
-                key={nc.clientId}
-                label={nc.client?.name || nc.clientId}
-                onRemove={() => removeClient(nc.clientId)}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Linked Projects */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-xs font-medium text-slate-500">Linked Projects</label>
-            <div className="relative" ref={projectDropRef}>
-              <button
-                onClick={() => setShowProjectDrop(v => !v)}
-                className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900 transition-colors"
-              >
-                <IconPlus /> Add
-              </button>
-              {showProjectDrop && (
-                <AddLinkDropdown
-                  placeholder="Search projects…"
-                  items={availableProjects}
-                  onAdd={addProject}
-                  onClose={() => setShowProjectDrop(false)}
-                />
-              )}
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {note.projects?.length === 0 && (
-              <span className="text-xs text-slate-600 italic">No projects linked</span>
-            )}
-            {note.projects?.map(np => (
-              <LinkedTag
-                key={np.projectId}
-                label={np.project?.name || np.projectId}
-                onRemove={() => removeProject(np.projectId)}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Contact attendees picker */}
-        <div>
-          <label className="block text-xs font-medium text-slate-500 mb-2">Attendees</label>
-          {/* Selected contacts chips */}
-          {selectedContacts.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-2">
-              {selectedContacts.map(c => (
-                <span key={c.id} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs bg-orange-50 text-orange-700 border border-orange-200">
-                  <span className={`w-4 h-4 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0 ${avatarColor(c.name)}`}>
-                    {initials(c.name)}
-                  </span>
-                  <span>{c.name}</span>
-                  {c.company && <span className="text-orange-500 text-[10px]">{c.company}</span>}
-                  <button onClick={() => removeContact(c.id)} className="text-orange-600 hover:text-slate-900 transition-colors ml-0.5">
-                    <IconX />
+        {/* Details — everything that describes the meeting, folded away once filled */}
+        {detailsOpen && (
+          <div className="mt-3 mb-1 rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-4 max-h-[45vh] overflow-y-auto">
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-2">Type</label>
+              <div className="flex flex-wrap gap-1.5">
+                {Object.entries(ACTIVITY_META).filter(([, m]) => !m.legacy).map(([key, m]) => (
+                  <button key={key} type="button"
+                    onClick={() => set('activityType', form.activityType === key ? '' : key, 0)}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+                      form.activityType === key
+                        ? 'border-orange-500 bg-orange-500 text-white shadow-sm'
+                        : m.inPerson
+                          ? 'border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-400'
+                          : 'border-slate-300 bg-white text-slate-500 hover:border-slate-400'
+                    }`}>
+                    {m.emoji} {m.label}
                   </button>
-                </span>
-              ))}
+                ))}
+              </div>
             </div>
-          )}
-          {/* Search input */}
-          <div className="relative" ref={contactSearchRef}>
-            <div className="relative">
-              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500"><IconSearch /></span>
-              <input
-                value={contactSearch}
-                onChange={e => handleContactSearch(e.target.value)}
-                placeholder="Search contacts to add…"
-                className="w-full bg-white border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-500 outline-none focus:border-amber-500 transition-colors"
-              />
-              {contactSearching && (
-                <span className="absolute right-2.5 top-1/2 -translate-y-1/2">
-                  <div className="w-3.5 h-3.5 border-2 border-slate-400 border-t-amber-400 rounded-full animate-spin" />
-                </span>
-              )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Date &amp; time</label>
+                <input type="datetime-local" value={form.meetingDate} onChange={e => set('meetingDate', e.target.value, 0)} className={input} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Calendar link</label>
+                <input value={form.meetingLink} onChange={e => set('meetingLink', e.target.value)}
+                  placeholder="Paste the Outlook event link" className={input} />
+              </div>
             </div>
-            {contactResults.length > 0 && (
-              <div className="absolute z-50 top-full mt-1 left-0 right-0 rounded-lg shadow-xl border border-slate-300 bg-white overflow-hidden">
-                <div className="max-h-48 overflow-y-auto">
-                  {contactResults.map(c => (
-                    <button
-                      key={c.id}
-                      onClick={() => addContact(c)}
-                      className="w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-slate-100 transition-colors"
-                    >
-                      <div className={`w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-white text-[10px] font-bold ${avatarColor(c.name)}`}>
-                        {initials(c.name)}
-                      </div>
-                      <div>
-                        <div className="text-sm text-slate-700 font-medium">{c.name}</div>
-                        {c.company?.name && <div className="text-xs text-slate-500">{c.company.name}</div>}
-                      </div>
-                    </button>
-                  ))}
+
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Who was there <span className="font-normal text-slate-400">(names, comma-separated)</span></label>
+              <input value={form.attendees} onChange={e => set('attendees', e.target.value)} placeholder="Jane Smith, John Doe…" className={input} />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-medium text-slate-500">Companies</label>
+                <div className="relative" ref={clientDropRef}>
+                  <button onClick={() => setShowClientDrop(v => !v)} className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900"><IconPlus /> Add</button>
+                  {showClientDrop && <AddLinkDropdown placeholder="Search companies…" items={availableClients} onAdd={addClient} onClose={() => setShowClientDrop(false)} />}
                 </div>
               </div>
-            )}
-          </div>
-        </div>
+              <div className="flex flex-wrap gap-1.5">
+                {!note.clients?.length && <span className="text-xs text-slate-400 italic">None linked</span>}
+                {note.clients?.map(nc => <LinkedTag key={nc.clientId} label={nc.client?.name || nc.clientId} onRemove={() => removeClient(nc.clientId)} />)}
+              </div>
+            </div>
 
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-medium text-slate-500">Projects</label>
+                <div className="relative" ref={projectDropRef}>
+                  <button onClick={() => setShowProjectDrop(v => !v)} className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900"><IconPlus /> Add</button>
+                  {showProjectDrop && <AddLinkDropdown placeholder="Search projects…" items={availableProjects} onAdd={addProject} onClose={() => setShowProjectDrop(false)} />}
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {!note.projects?.length && <span className="text-xs text-slate-400 italic">None linked</span>}
+                {note.projects?.map(np => <LinkedTag key={np.projectId} label={np.project?.name || np.projectId} onRemove={() => removeProject(np.projectId)} />)}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1.5">People</label>
+              {selectedContacts.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {selectedContacts.map(c => (
+                    <span key={c.id} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs bg-orange-50 text-orange-700 border border-orange-200">
+                      <span className={`w-4 h-4 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0 ${avatarColor(c.name)}`}>{initials(c.name)}</span>
+                      <span>{c.name}</span>
+                      {c.company && <span className="text-orange-500 text-[10px]">{c.company}</span>}
+                      <button onClick={() => removeContact(c.id)} className="text-orange-600 hover:text-slate-900 ml-0.5"><IconX /></button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="relative">
+                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500"><IconSearch /></span>
+                <input value={contactSearch} onChange={e => handleContactSearch(e.target.value)} placeholder="Search people to add…"
+                  className="w-full bg-white border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-amber-500" />
+                {contactSearching && (
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                    <div className="w-3.5 h-3.5 border-2 border-slate-400 border-t-amber-400 rounded-full animate-spin" />
+                  </span>
+                )}
+                {contactResults.length > 0 && (
+                  <div className="absolute z-50 top-full mt-1 left-0 right-0 rounded-lg shadow-xl border border-slate-300 bg-white overflow-hidden max-h-48 overflow-y-auto">
+                    {contactResults.map(c => (
+                      <button key={c.id} onClick={() => addContact(c)} className="w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-slate-100">
+                        <div className={`w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-white text-[10px] font-bold ${avatarColor(c.name)}`}>{initials(c.name)}</div>
+                        <div>
+                          <div className="text-sm text-slate-700 font-medium">{c.name}</div>
+                          {c.company?.name && <div className="text-xs text-slate-500">{c.company.name}</div>}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tabs — Prep before the meeting, Notes after it (Mike 9-25) */}
+        <div className="flex gap-5 mt-3">
+          {[...(canPrep ? [['prep', 'Prep']] : []), ['notes', 'Notes']].map(([key, label]) => (
+            <button key={key} onClick={() => setTab(key)}
+              className={`pb-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                tab === key ? 'border-amber-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}>
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Footer */}
-      {isAdmin && (
-        <div className="shrink-0 px-6 py-3 border-t border-slate-200">
-          <button
-            onClick={() => setArchiveOpen(true)}
-            className="text-xs text-slate-600 hover:text-amber-600 transition-colors"
-          >
-            Archive this note
-          </button>
-          <ConfirmArchiveModal
-            open={archiveOpen}
-            title="Archive this note?"
-            what={note.title || `Note #${note.noteNumber}`}
-            body="It disappears from the notes list and from the companies and projects it is linked to. Any follow-up emails it set up that have not gone out yet are held. Nothing is deleted, and you can restore it from the Archive page at any time."
-            busy={archiving}
-            onCancel={() => setArchiveOpen(false)}
-            onConfirm={handleArchive}
-          />
-        </div>
-      )}
+      {/* Tab body */}
+      <div className="flex-1 overflow-y-auto px-6 py-5 bg-slate-50">
+        {tab === 'prep' && canPrep && (
+          <div className="max-w-3xl space-y-3">
+            {!hasLinks && (
+              <p className="text-sm text-slate-600 rounded-lg border border-dashed border-slate-300 bg-white px-4 py-3">
+                Link a company, project or person in <button onClick={() => setDetailsOpen(true)} className="text-amber-700 hover:underline">Edit details</button> and the prep builds itself before the meeting.
+              </p>
+            )}
+            <MeetingPrep noteId={note.id} autoRun={shouldAutoPrep(note, false)} />
+          </div>
+        )}
+
+        {tab === 'notes' && (
+          <div className="max-w-3xl space-y-5">
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">What was said, decided and promised</label>
+              <textarea
+                value={form.noteBody}
+                onChange={e => set('noteBody', e.target.value)}
+                placeholder="Type as you go — next steps are pulled out below automatically."
+                rows={10}
+                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-amber-500 resize-y leading-relaxed"
+              />
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-white p-4">
+              <NoteActions noteId={note.id} noteBody={form.noteBody} published={note.isPublished} />
+            </div>
+
+            <div className={`rounded-lg border p-4 flex flex-wrap items-center gap-3 ${note.isPublished ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'}`}>
+              <p className="text-xs text-slate-700 flex-1 min-w-[16rem]">
+                {note.isPublished
+                  ? 'Complete. The bot is working the next steps — drafts land in the Bot Queue for review, and reminders are set.'
+                  : 'Nothing happens until you mark it complete. Then the bot drafts the follow-up emails, sets the reminders, and moves "last met" for everyone on the note.'}
+              </p>
+              <button
+                onClick={togglePublish}
+                disabled={publishing}
+                className={`text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50 ${
+                  note.isPublished ? 'text-slate-600 border border-slate-300 bg-white hover:bg-slate-50' : 'bg-green-600 text-white hover:bg-green-700'
+                }`}>
+                {publishing ? '…' : note.isPublished ? 'Back to draft' : 'Mark complete ✓'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <ConfirmArchiveModal
+        open={archiveOpen}
+        title="Archive this note?"
+        what={note.title || `Note #${note.noteNumber}`}
+        body="It disappears from the notes list and from the companies and projects it is linked to. Any follow-up emails it set up that have not gone out yet are held. You can restore it from the Archive page at any time."
+        busy={archiving}
+        onCancel={() => setArchiveOpen(false)}
+        onConfirm={handleArchive}
+      />
     </div>
   );
 }
 
 // ── NotesClient (main) ────────────────────────────────────────────────────────
 
+function firstInAgenda(notes) {
+  const g = groupNotesForAgenda(notes);
+  return (g.upcoming[0] || g.needsNotes[0] || g.done[0])?.id || null;
+}
+
 export default function NotesClient({ initialNotes, clients, projects, currentUser, initialStatus = 'all' }) {
-  const isAdmin = currentUser?.isAdmin === true;
-  const firstMine = initialStatus === 'mine' ? initialNotes.find(n => isReminderDraft(n, currentUser?.id)) : null;
   const [notes,        setNotes]        = useState(initialNotes);
-  const [selected,     setSelected]     = useState(firstMine?.id || initialNotes[0]?.id || null);
+  const [selected,     setSelected]     = useState(() => {
+    const mine = initialStatus === 'mine' ? initialNotes.find(n => isReminderDraft(n, currentUser?.id)) : null;
+    return mine?.id || firstInAgenda(initialNotes);
+  });
   const [search,       setSearch]       = useState('');
   const [statusFilter, setStatusFilter] = useState(initialStatus);
-  const [creating,     setCreating]     = useState(false);
+  const [newOpen,      setNewOpen]      = useState(false);
+  const [doneOpen,     setDoneOpen]     = useState(false);
 
   // The reminder's "Open them" link can be clicked while already on this screen.
   useEffect(() => {
@@ -1076,27 +1096,17 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
       n.title?.toLowerCase().includes(q) ||
       n.body?.toLowerCase().includes(q)  ||
       n.clients?.some(nc => nc.client?.name?.toLowerCase().includes(q)) ||
-      n.projects?.some(np => np.project?.name?.toLowerCase().includes(q))
+      n.projects?.some(np => np.project?.name?.toLowerCase().includes(q)) ||
+      n.contacts?.some(c => c.contact?.name?.toLowerCase().includes(q))
     );
   });
+  const groups = groupNotesForAgenda(filtered);
 
-  async function createNote() {
-    setCreating(true);
-    try {
-      const res = await fetch('/api/crm/notes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: '', noteBody: '' }),
-      });
-      if (!res.ok) throw new Error('Failed to create');
-      const note = await res.json();
-      setNotes(prev => [note, ...prev]);
-      setSelected(note.id);
-    } catch (err) {
-      alert('Could not create note: ' + err.message);
-    } finally {
-      setCreating(false);
-    }
+  function handleCreated(note) {
+    setNotes(prev => [note, ...prev]);
+    setSelected(note.id);
+    setNewOpen(false);
+    setStatusFilter('all');
   }
 
   function handleUpdate(updated) {
@@ -1104,52 +1114,46 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
   }
 
   function handleDelete(id) {
-    setNotes(prev => {
-      const next = prev.filter(n => n.id !== id);
-      setSelected(next[0]?.id || null);
-      return next;
-    });
+    const next = notes.filter(n => n.id !== id);
+    setNotes(next);
+    setSelected(firstInAgenda(next));
   }
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-800">
-      {/* ── Left panel ── */}
-      <div className="w-80 shrink-0 flex flex-col border-r border-slate-200">
-        {/* Header */}
+      {/* ── Left: the agenda ── */}
+      <div className="w-80 shrink-0 flex flex-col border-r border-slate-200 bg-slate-100/60">
         <div className="px-4 pt-4 pb-3 shrink-0 border-b border-slate-200">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h1 className="text-base font-semibold text-slate-900">Sales Notes</h1>
-              <p className="text-xs text-slate-500">{filtered.length} note{filtered.length !== 1 ? 's' : ''}</p>
+              <h1 className="text-base font-semibold text-slate-900">Sales Meetings</h1>
+              <p className="text-xs text-slate-500">
+                {groups.upcoming.length} coming up · {groups.needsNotes.length} need notes
+              </p>
             </div>
             <button
-              onClick={createNote}
-              disabled={creating}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500 hover:bg-amber-400 text-white transition-colors disabled:opacity-50"
+              onClick={() => setNewOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500 hover:bg-amber-400 text-white transition-colors"
             >
-              <IconPlus /> New
+              <IconPlus /> New note
             </button>
           </div>
-          {/* Search */}
           <div className="relative mb-2">
             <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500"><IconSearch /></span>
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search notes…"
+              placeholder="Search meetings, companies, people…"
               className="w-full bg-white border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-500 outline-none focus:border-amber-500 transition-colors"
             />
           </div>
-          {/* Status filter pills */}
           <div className="flex flex-wrap gap-1.5">
-            {[['all', 'All'], ['draft', 'Drafts'], ['published', 'Published'], ['mine', 'Mine to publish']].map(([val, label]) => (
+            {[['all', 'All'], ['mine', 'Mine to publish']].map(([val, label]) => (
               <button
                 key={val}
                 onClick={() => setStatusFilter(val)}
-                className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide transition-colors ${
-                  statusFilter === val
-                    ? 'bg-amber-500 text-white'
-                    : 'bg-white text-slate-500 hover:text-slate-900 border border-slate-200'
+                className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
+                  statusFilter === val ? 'bg-slate-800 text-white' : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'
                 }`}
               >
                 {label}
@@ -1158,25 +1162,36 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
           </div>
         </div>
 
-        {/* Note list */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto px-2 py-2">
           {filtered.length === 0 && (
             <div className="px-4 py-8 text-center text-sm text-slate-500">
-              {search ? 'No notes match your search' : 'No notes yet — click New to start'}
+              {search ? 'Nothing matches your search' : 'No meetings yet — accepted invites show up here, or click New note.'}
             </div>
           )}
-          {filtered.map(note => (
-            <NoteCard
-              key={note.id}
-              note={note}
-              active={note.id === selected}
-              onClick={() => setSelected(note.id)}
-            />
-          ))}
+          {GROUPS.map(([key, label, hint]) => {
+            const rows = groups[key];
+            if (!rows.length) return null;
+            const folded = key === 'done' && !doneOpen && !search;
+            return (
+              <section key={key} className="mb-3">
+                <button
+                  onClick={key === 'done' ? () => setDoneOpen(v => !v) : undefined}
+                  className="w-full flex items-center justify-between px-2 pt-2 pb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500"
+                >
+                  <span>{label} <span className="font-normal text-slate-400">{rows.length}</span></span>
+                  {key === 'done' && !search && <span className="font-normal normal-case text-slate-400">{doneOpen ? 'Hide' : 'Show'}</span>}
+                </button>
+                {hint && !folded && <p className="px-2 pb-1 text-[11px] text-slate-400">{hint}</p>}
+                {!folded && rows.map(n => (
+                  <NoteRow key={n.id} note={n} tone={key} active={n.id === selected} onClick={() => setSelected(n.id)} />
+                ))}
+              </section>
+            );
+          })}
         </div>
       </div>
 
-      {/* ── Right panel ── */}
+      {/* ── Right: the meeting ── */}
       <div className="flex-1 min-w-0 overflow-hidden">
         {activeNote ? (
           <NoteDetail
@@ -1191,10 +1206,12 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-slate-500 gap-3">
             <IconNote />
-            <p className="text-sm">Select a note or create a new one</p>
+            <p className="text-sm">Pick a meeting, or start a new note</p>
           </div>
         )}
       </div>
+
+      <NewNoteModal open={newOpen} clients={clients} onClose={() => setNewOpen(false)} onCreated={handleCreated} />
     </div>
   );
 }

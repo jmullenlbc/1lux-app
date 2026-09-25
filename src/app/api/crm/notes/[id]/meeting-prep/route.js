@@ -2,10 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { assertNoIlcOnly } from '@/lib/redact';
-import { gatherMeetingFacts } from '@/lib/meetingPrep/gather';
-import { buildFactBlocks } from '@/lib/meetingPrep/brief';
-import { draftTalkingPoints } from '@/lib/meetingPrep/talkingPoints';
-import { budgetTotals } from '@/lib/meetingPrep/budgets';
+import { buildMeetingBrief } from '@/lib/meetingPrep/build';
 
 export const dynamic = 'force-dynamic';
 
@@ -75,59 +72,9 @@ export async function POST(request, { params }) {
     return NextResponse.json({ error: 'Meeting prep is for sales notes.' }, { status: 400 });
   }
 
-  const raw = await gatherMeetingFacts(prisma, note.id, new Date(), { budgetFor: budgetTotals });
-  if (!raw || raw.empty) {
-    return NextResponse.json(
-      { error: 'Link a company, project or person to this note first, so there is something to prep from.' },
-      { status: 400 },
-    );
-  }
-
-  const facts = buildFactBlocks(raw, new Date());
-
-  let points = [];
-  let model = null;
-  let aiError = null;
-  try {
-    ({ points, model } = await draftTalkingPoints(facts, note, { projectId: note.projectId || null, userId: user.id }));
-  } catch (e) {
-    console.error('[meeting-prep] talking points failed:', e?.message ?? e);
-    aiError = 'the AI step did not answer';
-  }
-  const status = points.length ? 'ok' : aiError ? 'error' : 'no_points';
-
-  const briefId = await prisma.$transaction(async tx => {
-    const brief = await tx.meetingBrief.create({
-      data: {
-        noteId: note.id,
-        createdById: user.id,
-        status,
-        model,
-        error: aiError,
-        facts: {
-          create: facts.map(f => ({
-            ref: f.ref, block: f.block, position: f.position, text: f.text,
-            sourceKind: f.sourceKind, sourceId: f.sourceId,
-          })),
-        },
-      },
-      include: { facts: { select: { id: true, ref: true } } },
-    });
-    const idByRef = Object.fromEntries(brief.facts.map(f => [f.ref, f.id]));
-    for (const [position, p] of points.entries()) {
-      const factIds = [...new Set(p.refs.map(r => idByRef[r]).filter(Boolean))];
-      if (!factIds.length) continue;
-      await tx.meetingBriefPoint.create({
-        data: {
-          briefId: brief.id,
-          position,
-          text: p.text,
-          citations: { create: factIds.map(factId => ({ factId })) },
-        },
-      });
-    }
-    return brief.id;
-  });
+  const built = await buildMeetingBrief(prisma, note, { userId: user.id });
+  if (built.error) return NextResponse.json({ error: built.error }, { status: built.status });
+  const briefId = built.briefId;
 
   const saved = await prisma.meetingBrief.findUnique({ where: { id: briefId }, include: BRIEF_INCLUDE });
   return NextResponse.json({ brief: shape(saved) });

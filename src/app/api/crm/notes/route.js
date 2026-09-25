@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { addNoteLinks, NOTE_CONTACTS_INCLUDE } from '@/lib/noteLinks';
 // Which activity types count as in person lives in one place now, so this route,
 // the note PATCH route and the calendar sync can never drift apart.
 import { isInPersonType } from '@/lib/calendar/inPerson';
+import { cleanCalendarLink } from '@/lib/calendar/salesOwner';
 
 async function nextNoteNumber() {
   const max = await prisma.note.aggregate({ where: { noteType: 'SALES' }, _max: { noteNumber: true } });
@@ -24,10 +26,7 @@ const NOTE_INCLUDE = {
     },
     orderBy: { createdAt: 'asc' },
   },
-  contacts: {
-    include: { contact: { select: { id: true, name: true, title: true } } },
-    orderBy: { createdAt: 'asc' },
-  },
+  contacts: NOTE_CONTACTS_INCLUDE,
 };
 
 // GET /api/crm/notes — Query params: search, clientId, dealId
@@ -71,19 +70,17 @@ export async function POST(request) {
     meetingDate,
     attendees    = '[]',
     calendarRef,
+    meetingLink,
     clientIds    = [],
     projectIds   = [],
     activityType,
     contactIds   = [],
   } = body;
 
-  if (!noteBody?.trim()) {
-    return NextResponse.json(
-      { error: 'Note body is required' },
-      { status: 400 }
-    );
-  }
+  const link = cleanCalendarLink(meetingLink);
+  if (link === undefined) return NextResponse.json({ error: 'The calendar link has to be a web address (https://…).' }, { status: 400 });
 
+  // An empty draft is fine — the "New" button starts one and the editor fills it in.
   const isInPerson = isInPersonType(activityType);
   const noteNumber = await nextNoteNumber();
 
@@ -96,49 +93,17 @@ export async function POST(request) {
       meetingDate:  meetingDate ? new Date(meetingDate) : null,
       attendees:    typeof attendees === 'string' ? attendees : JSON.stringify(attendees),
       calendarRef:  calendarRef  || null,
+      meetingLink:  link,
       activityType: activityType || null,
       isInPerson,
       createdById:  user.id,
     },
   });
 
-  if (clientIds.length > 0) {
-    await prisma.noteClient.createMany({
-      data: clientIds.map(cid => ({ noteId: note.id, clientId: cid })),
-      skipDuplicates: true,
-    });
-  }
-  if (projectIds.length > 0) {
-    await prisma.noteProject.createMany({
-      data: projectIds.map(pid => ({ noteId: note.id, projectId: pid })),
-      skipDuplicates: true,
-    });
-  }
-  if (contactIds.length > 0) {
-    await prisma.noteContact.createMany({
-      data: contactIds.map(cid => ({ noteId: note.id, contactId: cid })),
-      skipDuplicates: true,
-    });
-
-    // If in-person, update lastInPersonAt + lastTouchpointAt for each linked contact
-    if (isInPerson && meetingDate) {
-      const noteDate = new Date(meetingDate);
-      await Promise.all(
-        contactIds.map(async (contactId) => {
-          const contact = await prisma.contact.findUnique({
-            where:  { id: contactId },
-            select: { id: true, lastInPersonAt: true, lastTouchpointAt: true },
-          });
-          if (!contact) return;
-
-          const data = {};
-          if (!contact.lastInPersonAt || noteDate > contact.lastInPersonAt) data.lastInPersonAt = noteDate;
-          if (!contact.lastTouchpointAt || noteDate > contact.lastTouchpointAt) data.lastTouchpointAt = noteDate;
-          if (Object.keys(data).length > 0) await prisma.contact.update({ where: { id: contactId }, data });
-        })
-      );
-    }
-  }
+  await addNoteLinks(prisma, 'client',  note.id, clientIds);
+  await addNoteLinks(prisma, 'project', note.id, projectIds);
+  await addNoteLinks(prisma, 'contact', note.id, contactIds);
+  // "Last met" dates move only when the note is published, never on a draft.
 
   const full = await prisma.note.findUnique({ where: { id: note.id }, include: NOTE_INCLUDE });
   return NextResponse.json(full, { status: 201 });

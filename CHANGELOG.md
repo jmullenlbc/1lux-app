@@ -5,6 +5,54 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Follow-up emails learn from your edits + "Coffee follow-up" subjects + sales team edits the Reminder Timeline] - September 25, 2026 (DEPLOYED @@HASH@@) — migration 0101
+
+Mike 9-25: "It should always say something like Coffee follow-up. We may not approve it for 2 days so if it says yesterday that doesn't work. The system needs to learn from the email edits too."
+- **Recap subject names the meeting, never the day:** "Coffee follow-up", "Golf follow-up", "Dinner follow-up" (meals read the title), else "Meeting follow-up". The email body is told never to say today / yesterday / this morning, because it may go out days later.
+- **Learns from edits.** Every recap and check-in email now keeps what the bot first wrote. When someone rewrites it and it is sent, that before/after pair is shown to the writer the next time it drafts the same kind of email (last 4 rewritten ones), so drafts drift toward how Mike actually writes. Before this, the app only counted edits.
+- **Reminder Timeline is editable by the whole sales team** (any admin, a Sales Admin, or anyone in Sales + marketing). Other step-type settings stay Sales Admin only.
+- Intro keeps its 7 / 14 / 30 ladder; reply / drawings / invite stay 14 / 30 / 60.
+- Migration **0101**: `BotDraft.aiSubject`, `aiBody`, `emailKind` (RECAP | CHECK_IN) + index. Additive only.
+- Tests: `followUp.test.mjs` now 16.
+
+## [Meeting follow-up: recap email, automatic next steps, email watch, Reminder Timeline] - September 25, 2026 (DEPLOYED @@HASH@@) — migration 0100
+
+Mike: "a drafted email needs to be built based on what's come from the notes… automatic next steps… do they reply, do they send drawings? Do they send that invite?… if not, have a reminder… 14 days or 30 days or 60 days… we can change that cadence".
+- **Publishing a note switches its next steps on.** The first publish reads the steps out of the words and confirms them (no extra click); one recap email per person goes to the Bot Queue. It thanks them for what *they* offered (drawings, intro, invite) and lists what *we* will do. `src/lib/notes/publishActions.js`, `src/lib/bot/composeOutreach.js`.
+- **Four "waiting on them" steps: reply, drawings/files, invite, intro.** Each incoming email (and each calendar invite they organize) is checked; the step closes itself and says why, e.g. "Lee sent Seattle drawings.pdf". Drawings = a PDF/CAD/ZIP attachment or a Dropbox/Box/Procore-type link; logos in signatures do not count. Email attachments' names are now saved. New `src/lib/followUp/watch.js` + `engine.js`; hooks in the email and calendar recorders.
+- **Reminder ladder, days after the meeting, default 14 / 30 / 60.** Nothing arrived → one friendly check-in draft per person (never the word "reminder"), a bell for the note's owner, then the next rung; after the last rung it stops and shows "No answer after 3 reminders". If they do it before the check-in is sent, the draft is withdrawn. A late sweep never puts two reminders on back-to-back days. **Nothing is ever sent automatically.**
+- **New screen: Sales → Reminder Timeline** (also a tab in Sales Automation). One row per waiting step, 1st/2nd/3rd reminder boxes, saves as you leave the box, blank = stop. Everyone can see it; Sales Admins edit it.
+- **Notes tab shows each waiting step live:** 👀 waiting (next reminder date), ✔ done (with the email), ⚠ gave up.
+- **Delete is gone again** — sales notes are archive-only, like everything else (Mike 9-25: "just make an archive to forget delete").
+- **Fixed (found by the demo):** only the first waiting step on a note ever got a reminder date, because the recap email marked the others as already handled.
+- Migration **0100**: reminder 2 / 3 days on step types; reminder count + "done by which email" on each step; seeds the three new step types.
+- Demo: `node --env-file=.env --import ./scripts/demo/alias.mjs scripts/demo/coffeeWithLee.mjs` runs the Lee coffee end to end on local test data (refuses anything but the local database). Tests: new `scripts/tests/followUp.test.mjs` (14 pass), added to verify.
+
+## [Sales Meetings screen: Prep + Notes tabs, calendar invites, archive] - September 25, 2026 (DEPLOYED @@HASH@@) — no migration
+
+Mike: "only an accepted invite triggers that. A declined one after accepted should remove it too" / "it should go to the ILC person on the invite that is tagged as a salesperson" / "it just looks like an email inbox… it really needs to have a prep tab and a notes tab" / "manually add a note. Connect it to a calendar link, archive a note, delete a note".
+- **Calendar invites:** only accepted invites make a draft note. Declined or cancelled after accepting archives the draft; accepting again restores it (a note a person archived stays archived; published notes are never touched). `src/lib/calendar/recorder.js`.
+- **Owner = the salesperson on the invite** (Sales + marketing department), even when a client or someone else sent it; otherwise the first ILC person. A draft with no owner gets one on the next sync. New `src/lib/calendar/salesOwner.js`; `src/lib/bot/intake.js`.
+- **Calendar link on a note.** Paste the Outlook event link on a hand-made note; when the calendar syncs, the note joins that meeting instead of a second note appearing (keeps its words, fills only blanks). Only http(s) links are saved. Notes routes accept `meetingLink`.
+- **Prep before the meeting.** New `/api/cron/meeting-prep` builds the brief for draft meetings in the next 48 hours with something linked (2 per run, 15s budget). Opening an upcoming meeting's Prep tab also builds it. **Needs an EventBridge rule (Sean) to run on its own.** `src/lib/meetingPrep/due.js`, `build.js`.
+- **Screen rebuilt.** Left side is an agenda: Coming up (soonest first) / Needs notes / Done (folded). Each meeting has a **Prep** tab and a **Notes** tab; it opens on Prep before the meeting and Notes after. Notes tab = what was said → **Next steps** (the AI's pulled-out follow-ups) → Mark complete, which says what it triggers. Meeting details fold under "Edit details". `NotesClient.jsx`, `MeetingPrep.jsx` (`autoRun`), new `src/lib/notes/agenda.js`.
+- **New note** opens a small form: title, date & time, type, company, calendar link.
+- **Archive for everyone** (was admin-only). Notes stay archive-only — the Delete built earlier the same day was taken back out (see the entry above).
+- Tests: new `scripts/tests/notesCalendar.test.mjs` (15 pass), added to verify. Trials: 5 sample notes run through the next-steps reader — all sensible.
+
+## [Sales notes + Meeting Prep fixes] - September 24, 2026 (DEPLOYED @@HASH@@) — no migration
+
+- **"New" sales note works again.** The create route refused an empty note (400), so the New button always failed. Empty drafts are allowed now. `src/app/api/crm/notes/route.js`.
+- **People on a note now show and save.** The editor read the wrong field, the list page never loaded people, and saving ignored the people list. All three fixed; GET/PATCH/create/list share one `NOTE_CONTACTS_INCLUDE`. New `src/lib/noteLinks.js` (links added without `skipDuplicates`, so it also works on local SQLite).
+- **"Last met in person" moves only on publish, and only forward.** Creating a note used to move it early. `stampLastMet()` runs after the people are saved.
+- **Calendar guests no longer turn into "[object Object]".** Guests show as names; saving keeps each guest's email while their name is still there. `src/lib/noteAttendees.js`.
+- **Meeting keeps its time.** The date box is now date + time in your own time zone. It used to drop the time and could shift the day.
+- **Opening a calendar draft no longer locks out the calendar sync.** The editor now saves only fields a person touched. It used to resend the activity type on every keystroke, which marked the note "set by hand".
+- **Mark Complete saves pending typing first**, so the bot reads the final words.
+- **Activity stats count finished notes only** (drafts, including every calendar draft, were counted). The "upcoming" box no longer claims calendar events arrive automatically.
+- **Meeting Prep:** the people on the note are always included (a 40-person cutoff could drop them); archived jobs/people on the note are left out; intel comes from finished notes only; work history (on hold) is no longer promised; an unreadable AI answer now says so instead of "Not enough on file"; a database hiccup gives a plain message instead of a crash; the panel is hidden from staff who can't use it. `src/lib/meetingPrep/gather.js`, `talkingPoints.js`, `brief.js`, `meeting-prep/route.js`, `MeetingPrep.jsx`.
+- Tests: new `scripts/tests/salesNotes.test.mjs`; it and `calendarInPerson.test.mjs` (52 pass) now run in verify.
+
 ## [Size-aware questionnaire alerts + test passwords out of the code] - September 24, 2026 (DEPLOYED 23ec391) — no migration
 
 - **Questionnaire alert now scales to each area's normal size** (Mike: "$5K for units is barely a change but that is a big change with exit signs"). The fixed $5,000 bar is gone. An area alerts when it moved more than 20% from the questionnaire AND the move is more than 30% of that area's normal size on this job (Mike set both). Normal size = our real jobs' median per unit × units once 5+ jobs of that type exist, otherwise the questionnaire's own figure. A $500 floor keeps tiny moves quiet. `src/lib/calibration/areaNorms.js`, `scripts/tests/areaNorms.test.mjs` (12 pass).
