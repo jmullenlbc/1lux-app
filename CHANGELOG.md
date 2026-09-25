@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Per-area budget alerts + STAGING stripe] - September 24, 2026 (DEPLOYED) — migration 0099
+## [Per-area budget alerts + STAGING stripe] - September 24, 2026 (DEPLOYED 3ee8c00) — migration 0099
 
 Mike: "do it by area of the building. Does that area of the building seem out of whack or totally off from the questionnaire they answered originally." / "you need something on top big and apparent that makes someone know they are in staging."
 - **Area alerts in the budget editor sidebar** (both wizards). Each area (Units, Corridors & Stairwells, BOH, Interior Amenities, Garage, Exterior & Site, Emergency, Exit Signs, Controls) is checked two ways:
@@ -18,7 +18,7 @@ Mike: "do it by area of the building. Does that area of the building seem out of
 - `.env*.local` now git-ignored.
 - Tests: `scripts/tests/areaNorms.test.mjs` (11), `appEnv.test.mjs` (3), both in verify.
 
-## [Learn only from real numbers + on-screen figure alerts] - September 24, 2026 (DEPLOYED) — migration 0098
+## [Learn only from real numbers + on-screen figure alerts] - September 24, 2026 (DEPLOYED 3ee8c00) — migration 0098
 
 Mike: "only learn from inputted real data … build that intelligence into everything with budgeting as alert notifications at a line level"; "We should learn from budgets we enter too … It's the conceptual tool where things can not be concrete"; "suggest, but let humans confirm"; "On screen or it will be overwhelming."
 - **Every figure now remembers where it came from** (migration 0098, new `ProjectFigureSource`): drawing read, staff typing, fixture counts, import, client-typed on the public form, or a tool guess. Written by the Project Data save, unit-matrix and site commits, the estimate save, the admin import and the web-request hand-off (`src/lib/figures/record.js`). Older figures with no tag count as staff-entered, except on projects made from a web request, where only fields staff later changed count.
