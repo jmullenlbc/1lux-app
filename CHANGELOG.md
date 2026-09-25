@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Size-aware questionnaire alerts + test passwords out of the code] - September 24, 2026 (DEPLOYED) — no migration
+## [Size-aware questionnaire alerts + test passwords out of the code] - September 24, 2026 (DEPLOYED 23ec391) — no migration
 
 - **Questionnaire alert now scales to each area's normal size** (Mike: "$5K for units is barely a change but that is a big change with exit signs"). The fixed $5,000 bar is gone. An area alerts when it moved more than 20% from the questionnaire AND the move is more than 30% of that area's normal size on this job (Mike set both). Normal size = our real jobs' median per unit × units once 5+ jobs of that type exist, otherwise the questionnaire's own figure. A $500 floor keeps tiny moves quiet. `src/lib/calibration/areaNorms.js`, `scripts/tests/areaNorms.test.mjs` (12 pass).
 - **Admin login no longer typed into test scripts.** `dn-leak`, `mcp` and `smoke` tests read `E2E_ADMIN_EMAIL` / `E2E_ADMIN_PASSWORD` from the private `.env` and stop with a clear message when they're missing; their npm scripts now load `.env`. The old value is still in git history, so the live admin password must be changed. `prisma/seed.js` still holds starting passwords for seeded accounts.
