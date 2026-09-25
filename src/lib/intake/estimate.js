@@ -55,13 +55,13 @@ export function intakeEstimateGate(answers, drawings) {
  * @returns {{ budget, projectData, quantities }} — budget/projectData null
  *   (and quantities empty) when the gate above says no.
  */
-export function computeIntakeEstimate({ answers, drawings, pricing = null }) {
+export function computeIntakeEstimate({ answers, drawings, pricing = null, adopted = null }) {
   const gate = intakeEstimateGate(answers, drawings);
   if (!gate.ready) return { budget: null, projectData: null, quantities: [] };
 
   // Drawings → quantities (null stays null: "the drawing did not say"). A
   // typed-in budget passes no drawings; its blanks get the stand-in guesses.
-  const rows = computeQuantities(gate.hasDrawings ? drawings : null, answers || null, pricing);
+  const rows = computeQuantities(gate.hasDrawings ? drawings : null, answers || null, pricing, adopted);
   const q = {};
   for (const r of rows) if (r && r.key) q[r.key] = r.value;
 

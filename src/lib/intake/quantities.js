@@ -233,9 +233,13 @@ function bedroomsFromMix(mix) {
  * @param {object|null} pricing  loadPricing() output — estimation factors come
  *                               from the master pricing sheet; falls back to
  *                               the static PRICING defaults when not passed.
+ * @param {object|null} adopted  loadAdoptedGuesses() output — stand-in
+ *                             figures a person adopted from what our real jobs
+ *                             say ({ vanitiesPerUnit: { garden: 1.45 } }).
+ *                             Anything not adopted uses NO_DRAWING_GUESSES.
  * @returns {Array} quantity rows, in the order the review panel shows them
  */
-export function computeQuantities(drawings, answers, pricing = null) {
+export function computeQuantities(drawings, answers, pricing = null, adopted = null) {
   const unitsToGross = Number(pricing?.estimation?.unitsToGross) > 0
     ? Number(pricing.estimation.unitsToGross)
     : UNITS_TO_GROSS;
@@ -249,14 +253,18 @@ export function computeQuantities(drawings, answers, pricing = null) {
   const manual = ans[NO_DRAWINGS_KEY] === 'yes'
     && !(Array.isArray(drawings?.sources) && drawings.sources.length > 0);
   const typeKey = answersToEngine(answers).buildingTypeKey ?? null;
-  const guess = table => (manual && typeKey && NO_DRAWING_GUESSES[table][typeKey] != null
-    ? NO_DRAWING_GUESSES[table][typeKey] : null);
+  // A stand-in figure: one a person adopted on the Pre-Con dashboard (Mike
+  // 2026-09-24: "suggest, but let humans confirm"), else the master guess.
+  const standIn = (table, t) => {
+    const a = Number(adopted?.[table]?.[t]);
+    return Number.isFinite(a) ? a : NO_DRAWING_GUESSES[table]?.[t] ?? null;
+  };
+  const guess = table => (manual && typeKey ? standIn(table, typeKey) : null);
   // The building type's typical share of gross, with or without drawings.
   // Unlike guess() this is not gated on the no-drawings form: corridors are
   // estimated as a share of gross on a drawing-read job too when no corridor
   // line was printed (Mike 2026-09-16).
-  const typeShare = table => (typeKey && NO_DRAWING_GUESSES[table]?.[typeKey] != null
-    ? NO_DRAWING_GUESSES[table][typeKey] : null);
+  const typeShare = table => (typeKey ? standIn(table, typeKey) : null);
   const GUESS_FLAG = 'ESTIMATED — no drawings were uploaded and this was left blank. Enter the real figure if you have it.';
   // A blank row on the no-drawings form should not talk about sheets that
   // were never uploaded (Mike 2026-09-16: blanks belong on the same grid,
@@ -409,7 +417,8 @@ export function computeQuantities(drawings, answers, pricing = null) {
 
   const baths = scaledToUnits(sumPerUnit(rows, 'bathrooms'), unitCount);
   // No bathroom column (Mike 2026-09-24): the drawings' count → the bedroom
-  // mix (studio/1BR/2BR = 1 bath, 3BR/4BR = 2 minimum) → 1 bath per unit.
+  // mix (studio/1BR/2BR = 1 bath, 3BR/4BR = 2 minimum) → vanities per unit
+  // learned from our jobs (1.4 to start).
   // Townhouse / single-family forms with no bedroom info keep their type
   // guess (2.5 per home) further down — a house is almost never one bath.
   let bathEst = null;
@@ -422,8 +431,17 @@ export function computeQuantities(drawings, answers, pricing = null) {
       const b3 = stated(site?.bedMix?.threeBed) ?? 0;
       const v = Math.round((mix.units + b3) * (unitCount / mix.units));
       bathEst = { value: v, how: 'Estimated from the site plan bed mix: 1 bath per unit, 2 for three-beds. No bathroom count was found on the drawings.' };
-    } else if (!(manual && (typeKey === 'townHouses' || typeKey === 'singleFamily'))) {
-      bathEst = { value: unitCount, how: `${fmt(unitCount)} units × 1 bath — no bathroom count or bedroom mix was found, so every unit is taken at one bath.` };
+    } else {
+      // Nothing to go on: the vanities-per-unit stand-in (Mike 2026-09-24:
+      // 1.4 per apartment). What our real jobs say is only a suggestion on
+      // the Pre-Con dashboard until a person adopts it. A townhouse form keeps
+      // its 2.5-per-home vanity guess further down.
+      const bt = typeKey ?? site?.buildingType ?? null;
+      const house = bt === 'townHouses' || bt === 'singleFamily';
+      if (!(manual && house)) {
+        const per = standIn('vanitiesPerUnit', bt) ?? 1.4;
+        bathEst = { value: Math.round(unitCount * per), how: `${fmt(unitCount)} units × ${per} vanities per unit — typical for this building type. No bathroom count or bedroom mix was found.` };
+      }
     }
   }
   const bathVal = baths ? baths.value : bathEst?.value ?? null;

@@ -56,6 +56,82 @@ function PlainTable({ table }) {
   );
 }
 
+/**
+ * "What Our Jobs Say — Stand-in Figures" (kind 'adopt'). What real jobs say a
+ * stand-in figure should be, by building type. Nothing changes until an admin
+ * clicks "Use this" (Mike 2026-09-24: "suggest, but let humans confirm").
+ * "Undo" puts the built-in figure back; the old row is archived, never deleted.
+ */
+function AdoptTable({ table, isAdmin, onApplied }) {
+  const [busy, setBusy] = useState(null);
+  const [err, setErr]   = useState(null);
+  const cols = table?.columns || [];
+  const id = (r) => `${r.guessKey}:${r.buildingType}`;
+
+  async function act(row, undo) {
+    const ask = undo
+      ? `Stop using ${row.current} for ${row.label}?
+
+The built-in stand-in goes back in.`
+      : `Use ${row.learned} for ${row.label}?
+
+Now: ${row.current ?? 'nothing'}. From ${row.jobs} real jobs. Budgets built without drawings will use it from now on.`;
+    if (!confirm(ask)) return;
+    setBusy(id(row)); setErr(null);
+    try {
+      const res = await fetch('/api/calibration/confirm-guess', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guessKey: row.guessKey, buildingType: row.buildingType, undo: !!undo }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || `HTTP ${res.status}`);
+      onApplied?.(row, j);
+    } catch (e) { setErr(e.message); }
+    finally { setBusy(null); }
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      {err && <p className="text-xs text-red-600 px-3 pb-2">{err}</p>}
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="text-[10px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
+            {cols.map(c => <th key={c.key} className="px-3 py-2 font-semibold text-left">{c.label}</th>)}
+            <th className="px-2 py-2"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {table.rows.map(r => (
+            <tr key={id(r)} className="border-b border-slate-50 hover:bg-slate-50/60">
+              {cols.map(c => (
+                <td key={c.key} className={`px-3 py-2 ${c.key === 'label' ? 'font-semibold text-slate-700' : 'text-slate-600'}`}>
+                  {r[c.key] == null || r[c.key] === '' ? '—' : String(r[c.key])}
+                  {c.key === 'current' && r.adopted && <span className="ml-1 text-[9px] font-bold uppercase text-emerald-600">adopted</span>}
+                </td>
+              ))}
+              <td className="px-2 py-2 text-right whitespace-nowrap">
+                {isAdmin && r.canAdopt && (
+                  <button disabled={busy === id(r)} onClick={() => act(r, false)}
+                    className="text-[10px] font-semibold px-2 py-1 rounded-md bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-40">
+                    {busy === id(r) ? 'Saving…' : 'Use this'}
+                  </button>
+                )}
+                {isAdmin && r.adopted && (
+                  <button disabled={busy === id(r)} onClick={() => act(r, true)}
+                    className="ml-1 text-[10px] font-semibold px-2 py-1 rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40">
+                    Undo
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="text-[10px] text-slate-400 px-3 pt-2">Learned only from real figures — drawing reads, staff-entered budgets, imports, and client-typed figures inside the normal range. Tool guesses never count. {isAdmin ? '' : 'An admin adopts a figure.'}</p>
+    </div>
+  );
+}
+
 export default function CalibrationTable({ table, isAdmin, onApplied }) {
   const [open, setOpen]       = useState({});
   const [busy, setBusy]       = useState(null);
@@ -68,6 +144,7 @@ export default function CalibrationTable({ table, isAdmin, onApplied }) {
   }
 
   // Anything that is not the rate-drift table renders off its own columns.
+  if (table?.kind === 'adopt') return <AdoptTable table={table} isAdmin={isAdmin} onApplied={onApplied} />;
   if (table?.kind && table.kind !== 'drift') return <PlainTable table={table} />;
 
   async function apply(row) {

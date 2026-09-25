@@ -7,6 +7,8 @@ import { PIPELINE_STAGES, STAGE_LABEL, STATUS_LABEL, PIPELINE_STATUS, inDesignPi
 import { PROJECT_TEAM_ROLES } from '@/lib/projectTeam';
 import { siteFeaturesToRows } from '@/lib/siteFeatures';
 import MissingInputsWarning from './MissingInputsWarning';
+import { useFigureAlerts, FigureAlertNote, FigureAlertSummary } from '@/components/figures/FigureAlerts';
+import { FIGURES } from '@/lib/calibration/figureNorms';
 
 const PROC_STAGE_OPTIONS   = PIPELINE_STAGES.PROCUREMENT.map(s => ({ value: s.key, label: s.label }));
 const DESIGN_STAGE_OPTIONS = PIPELINE_STAGES.DESIGN.map(s => ({ value: s.key, label: s.label }));
@@ -80,7 +82,7 @@ function Rule({ label }) {
 // displayValue: formatted string to show when not editing
 // rawValue: the raw number/string stored in DB (for the input)
 // onSave(rawValue) → called on blur with the new raw string
-function EditableStat({ label, displayValue, rawValue, onSave, wide, mono, type = 'text', select, options }) {
+function EditableStat({ label, displayValue, rawValue, onSave, wide, mono, type = 'text', select, options, note }) {
   const [editing, setEditing] = useState(false);
   const [draft,   setDraft]   = useState('');
   const [saving,  setSaving]  = useState(false);
@@ -152,6 +154,8 @@ function EditableStat({ label, displayValue, rawValue, onSave, wide, mono, type 
           </svg>
         </div>
       )}
+      {/* The figure alert under the value — its button must not open the editor. */}
+      {note && <div onClick={e => e.stopPropagation()}>{note}</div>}
     </div>
   );
 }
@@ -197,6 +201,7 @@ export default function ProjectDashboard({
   const [projectData, setProjectData] = useState(initialProject.projectData ?? {});
 
   const pd = projectData;
+  const figures = useFigureAlerts(initialProject.id);
   // Site features come as rows (`pd.siteFeatures`); the grid shows them flat.
   const feat = siteFeaturesToRows(pd?.siteFeatures);
 
@@ -303,7 +308,15 @@ export default function ProjectDashboard({
   }, [project, onProjectUpdate]);
 
   // Convenience: data field saver factory
-  const d = (field) => (val) => saveData(field, val);
+  const d = (field) => (val) => { figures.forget(field); return saveData(field, val); };
+  // A far-off figure gets an amber note under it (staff only; see FigureAlerts).
+  const figCtx = { buildingType: project.buildingType, units: pd.numUnits, grossSf: pd.grossSf };
+  const figAlerts = {};
+  for (const f of Object.keys(FIGURES)) {
+    const a = figures.alertFor(f, pd[f], figCtx);
+    if (a) figAlerts[f] = a;
+  }
+  const fig = (f) => figAlerts[f] ? <FigureAlertNote alert={figAlerts[f]} onRight={() => figures.markRight(f)} /> : null;
   // Convenience: project field saver factory
   const p = (field) => (val) => saveProject(field, val);
   const pMoney = (field) => (val) => saveProject(field, cleanMoney(val));
@@ -402,6 +415,7 @@ export default function ProjectDashboard({
           <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Project Details</p>
           <span className="text-[10px] text-slate-300 italic">Click any field to edit</span>
         </div>
+        {Object.keys(figAlerts).length > 0 && <div className="mb-4"><FigureAlertSummary count={Object.keys(figAlerts).length} /></div>}
 
         <div className="grid grid-cols-4 gap-x-6 gap-y-4">
 
@@ -431,13 +445,13 @@ export default function ProjectDashboard({
 
           {/* ── Square Footage ── */}
           <Rule label="Square Footage" />
-          <EditableStat label="Total Gross SF"        displayValue={fmtSf(pd.grossSf)}              rawValue={pd.grossSf}              onSave={d('grossSf')} />
-          <EditableStat label="Units Gross SF"        displayValue={fmtSf(pd.unitsSf)}              rawValue={pd.unitsSf}              onSave={d('unitsSf')} />
-          <EditableStat label="Garage SF"             displayValue={fmtSf(pd.garageSf)}             rawValue={pd.garageSf}             onSave={d('garageSf')} />
-          <EditableStat label="Corridor SF"           displayValue={fmtSf(pd.corridorSf)}           rawValue={pd.corridorSf}           onSave={d('corridorSf')} />
-          <EditableStat label="Interior Amenity SF"   displayValue={fmtSf(pd.interiorAmenitySf)}    rawValue={pd.interiorAmenitySf}    onSave={d('interiorAmenitySf')} />
-          <EditableStat label="Exterior Amenity SF"   displayValue={fmtSf(pd.exteriorAmenitySf)}    rawValue={pd.exteriorAmenitySf}    onSave={d('exteriorAmenitySf')} />
-          <EditableStat label="BOH SF"                displayValue={fmtSf(pd.bohSf)}                rawValue={pd.bohSf}                onSave={d('bohSf')} />
+          <EditableStat label="Total Gross SF"        displayValue={fmtSf(pd.grossSf)}              rawValue={pd.grossSf}              onSave={d('grossSf')}  note={fig('grossSf')} />
+          <EditableStat label="Units Gross SF"        displayValue={fmtSf(pd.unitsSf)}              rawValue={pd.unitsSf}              onSave={d('unitsSf')}  note={fig('unitsSf')} />
+          <EditableStat label="Garage SF"             displayValue={fmtSf(pd.garageSf)}             rawValue={pd.garageSf}             onSave={d('garageSf')}  note={fig('garageSf')} />
+          <EditableStat label="Corridor SF"           displayValue={fmtSf(pd.corridorSf)}           rawValue={pd.corridorSf}           onSave={d('corridorSf')}  note={fig('corridorSf')} />
+          <EditableStat label="Interior Amenity SF"   displayValue={fmtSf(pd.interiorAmenitySf)}    rawValue={pd.interiorAmenitySf}    onSave={d('interiorAmenitySf')}  note={fig('interiorAmenitySf')} />
+          <EditableStat label="Exterior Amenity SF"   displayValue={fmtSf(pd.exteriorAmenitySf)}    rawValue={pd.exteriorAmenitySf}    onSave={d('exteriorAmenitySf')}  note={fig('exteriorAmenitySf')} />
+          <EditableStat label="BOH SF"                displayValue={fmtSf(pd.bohSf)}                rawValue={pd.bohSf}                onSave={d('bohSf')}  note={fig('bohSf')} />
           <EditableStat label="Lot SF"                displayValue={fmtSf(pd.lotSf)}                rawValue={pd.lotSf}                onSave={d('lotSf')} />
           <EditableStat label="Building Footprint SF" displayValue={fmtSf(pd.buildingFootprintSf)}  rawValue={pd.buildingFootprintSf}  onSave={d('buildingFootprintSf')} />
 
@@ -445,15 +459,15 @@ export default function ProjectDashboard({
           <Rule label="Counts" />
           <EditableStat label="# Units / Rooms"     displayValue={fmtNum(pd.numUnits)}            rawValue={pd.numUnits}            onSave={d('numUnits')} />
           <EditableStat label="# Buildings"         displayValue={fmtNum(pd.numBuildings)}        rawValue={pd.numBuildings}        onSave={d('numBuildings')} />
-          <EditableStat label="# Bedrooms"          displayValue={fmtNum(pd.numBedrooms)}         rawValue={pd.numBedrooms}         onSave={d('numBedrooms')} />
-          <EditableStat label="# Bathrooms"         displayValue={fmtNum(pd.numBathrooms)}        rawValue={pd.numBathrooms}        onSave={d('numBathrooms')} />
-          <EditableStat label="# Vanities"          displayValue={fmtNum(pd.numVanities)}         rawValue={pd.numVanities}         onSave={d('numVanities')} />
-          <EditableStat label="# of Balconies"         displayValue={fmtNum(pd.numBalconies)}        rawValue={pd.numBalconies}        onSave={d('numBalconies')} />
-          <EditableStat label="# Egress Stairwell Landings" displayValue={fmtNum(pd.numEgressStairwells)} rawValue={pd.numEgressStairwells} onSave={d('numEgressStairwells')} />
-          <EditableStat label="# Ceiling Fans"      displayValue={fmtNum(pd.numFans)}             rawValue={pd.numFans}             onSave={d('numFans')} />
-          <EditableStat label="# Surface Parking"   displayValue={fmtNum(pd.numSurfaceParking)}   rawValue={pd.numSurfaceParking}   onSave={d('numSurfaceParking')} />
-          <EditableStat label="# Carports"          displayValue={fmtNum(pd.numCarports)}         rawValue={pd.numCarports}         onSave={d('numCarports')} />
-          <EditableStat label="# Exterior Doors"    displayValue={fmtNum(pd.numExteriorDoors)}    rawValue={pd.numExteriorDoors}    onSave={d('numExteriorDoors')} />
+          <EditableStat label="# Bedrooms"          displayValue={fmtNum(pd.numBedrooms)}         rawValue={pd.numBedrooms}         onSave={d('numBedrooms')}  note={fig('numBedrooms')} />
+          <EditableStat label="# Bathrooms"         displayValue={fmtNum(pd.numBathrooms)}        rawValue={pd.numBathrooms}        onSave={d('numBathrooms')}  note={fig('numBathrooms')} />
+          <EditableStat label="# Vanities"          displayValue={fmtNum(pd.numVanities)}         rawValue={pd.numVanities}         onSave={d('numVanities')}  note={fig('numVanities')} />
+          <EditableStat label="# of Balconies"         displayValue={fmtNum(pd.numBalconies)}        rawValue={pd.numBalconies}        onSave={d('numBalconies')}  note={fig('numBalconies')} />
+          <EditableStat label="# Egress Stairwell Landings" displayValue={fmtNum(pd.numEgressStairwells)} rawValue={pd.numEgressStairwells} onSave={d('numEgressStairwells')}  note={fig('numEgressStairwells')} />
+          <EditableStat label="# Ceiling Fans"      displayValue={fmtNum(pd.numFans)}             rawValue={pd.numFans}             onSave={d('numFans')}  note={fig('numFans')} />
+          <EditableStat label="# Surface Parking"   displayValue={fmtNum(pd.numSurfaceParking)}   rawValue={pd.numSurfaceParking}   onSave={d('numSurfaceParking')}  note={fig('numSurfaceParking')} />
+          <EditableStat label="# Carports"          displayValue={fmtNum(pd.numCarports)}         rawValue={pd.numCarports}         onSave={d('numCarports')}  note={fig('numCarports')} />
+          <EditableStat label="# Exterior Doors"    displayValue={fmtNum(pd.numExteriorDoors)}    rawValue={pd.numExteriorDoors}    onSave={d('numExteriorDoors')}  note={fig('numExteriorDoors')} />
           {/* Sporadic site features (Mike 2026-09-16) — one SiteFeature row per
               kind, read off the site plan or typed here. 0 = none. Each is
               priced as its own fixture package under Exterior & Site. */}
@@ -466,8 +480,8 @@ export default function ProjectDashboard({
           {/* Drawing-takeoff counts (Phase 1, 2026-08-12) — filled by the
               drawing parser later; editable here, deliberately not wizard
               questions. */}
-          <EditableStat label="# Elevator Shafts"   displayValue={fmtNum(pd.numElevatorShafts)}   rawValue={pd.numElevatorShafts}   onSave={d('numElevatorShafts')} />
-          <EditableStat label="# Floors"            displayValue={fmtNum(pd.numFloors)}           rawValue={pd.numFloors}           onSave={d('numFloors')} />
+          <EditableStat label="# Elevator Shafts"   displayValue={fmtNum(pd.numElevatorShafts)}   rawValue={pd.numElevatorShafts}   onSave={d('numElevatorShafts')}  note={fig('numElevatorShafts')} />
+          <EditableStat label="# Floors"            displayValue={fmtNum(pd.numFloors)}           rawValue={pd.numFloors}           onSave={d('numFloors')}  note={fig('numFloors')} />
 
           {/* ── Budget / Rates ── */}
           <Rule label="Budget &amp; Rates" />

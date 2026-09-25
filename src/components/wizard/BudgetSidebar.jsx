@@ -35,7 +35,9 @@ function PlainRow({ label, value, indent, highlight, bold }) {
 
 // `range` ({ low, high }) is passed only by the public no-drawings form, whose
 // server estimate carries a ±10% band; the internal wizard never passes it.
-export default function BudgetSidebar({ budget, projectData, currentStep, range = null }) {
+// `areaNotes` ({ [area]: node }) and `areaSummary` are the staff-only area
+// alerts, passed only by the internal wizards — never by the public form.
+export default function BudgetSidebar({ budget, projectData, currentStep, range = null, areaNotes = null, areaSummary = null }) {
   if (!budget) return null;
 
   const { sections, freight, warehousing, freightRate, warehousingRate, lightingProductSubtotal, subtotalLightingOnly, controls, controlsFreight, controlsWarehousing, totalWithControls, perSf, perUnit, energyCreditPct, energyCreditLighting, energyCreditControls } = budget;
@@ -76,6 +78,7 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
         {hasData && (
           <>
             <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Breakdown</div>
+            {areaSummary}
 
             {/* Units — with full tooltip */}
             <TooltipBudgetRow
@@ -91,6 +94,7 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
                 { label: 'Balcony fixtures', value: sections.units?.balcony?.product      || 0 },
               ]}
             />
+            {areaNotes?.units}
 
             <Divider />
 
@@ -108,14 +112,18 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
                 { label: 'Accent downlights',    value: sections.corridors?.accents?.product    || 0 },
               ]}
             />
+            {areaNotes?.corridors}
             <TooltipBudgetRow label="BOH / Core + Shell"   value={sections.boh?.product            || 0} details={[]} />
+            {areaNotes?.boh}
             <TooltipBudgetRow
               label="Interior Amenities"
               value={sections.interior?.product || 0}
               highlight={currentStep === 'amenities'}
               details={[{ label: 'Interior amenity SF', value: sections.interior?.product || 0 }]}
             />
+            {areaNotes?.interior}
             <TooltipBudgetRow label="Garage"               value={sections.garage?.product          || 0} details={[]} />
+            {areaNotes?.garage}
             <TooltipBudgetRow
               label="Exterior & Site"
               value={sections.exterior?.total?.product || 0}
@@ -144,13 +152,16 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
                 { label: '5% misc buffer',     value: sections.exterior?.misc?.product      || 0 },
               ]}
             />
+            {areaNotes?.exterior}
             <TooltipBudgetRow
               label="Emergency Lighting"
               value={sections.emergency?.product || 0}
               highlight={currentStep === 'emergency'}
               details={[{ label: 'Emergency egress', value: sections.emergency?.product || 0 }]}
             />
+            {areaNotes?.emergency}
             <TooltipBudgetRow label="Exit Signs" value={sections.exitSigns?.product || 0} details={[]} />
+            {areaNotes?.exitSigns}
 
             <Divider />
 
@@ -170,6 +181,7 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
               highlight={currentStep === 'controls'}
               details={[{ label: 'Controls product', value: controls || 0 }]}
             />
+            {areaNotes?.controls}
             {energyCreditControls > 0 && (
               <PlainRow label={`Energy Credit (${ecPctLabel}%)`} value={energyCreditControls} indent />
             )}

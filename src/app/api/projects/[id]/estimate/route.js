@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { runParametricEstimate, deriveWizardCounts } from '@/lib/parametricEstimate';
+import { recordFigureSources } from '@/lib/figures/record';
 
 // GET /api/projects/[id]/estimate?tierPrefs=<json>
 export async function GET(req, { params }) {
@@ -82,6 +83,8 @@ export async function POST(req, { params }) {
     where: { projectId: params.id },
     data: body,
   });
+  // Counted from placed fixtures = real numbers the tool may learn from.
+  await recordFigureSources(prisma, params.id, Object.keys(body || {}), 'fixtures', user.id);
 
   return NextResponse.json({ ok: true, updated });
 }

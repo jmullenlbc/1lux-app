@@ -12,6 +12,10 @@
  * { unitTypes, projectTotals, siteData, conflicts, sources, overallConfidence }
  */
 
+import { computeQuantities } from './quantities.js';
+import { answersToEngine } from './questionnaire.js';
+import { figureAlert, ROW_FIELD } from '../calibration/figureNorms.js';
+
 const LOW_CONFIDENCE = 0.7;
 
 export function computeReviewFlags(drawings) {
@@ -72,4 +76,32 @@ export function computeReviewFlags(drawings) {
   }
 
   return flags;
+}
+
+/**
+ * Every figure on a request that is far off what our real jobs of that
+ * building type run (Mike, 2026-09-24). Reviewer-only — the sentences name our
+ * ranges and job counts, which never go to the public page. `norms` is
+ * loadFigureNorms(), `adopted` loadAdoptedGuesses(); the page or route that
+ * has the database passes them in. A stand-in the tool worked out itself is
+ * never checked against its own guess.
+ */
+export function figureReviewFlags(drawings, answers, norms, adopted = null) {
+  let q;
+  try { q = computeQuantities(drawings, answers, null, adopted); } catch { return []; }
+  const rows = q || [];
+  const val = (k) => rows.find(r => r.key === k)?.value ?? null;
+  const site = (drawings?.siteData && typeof drawings.siteData === 'object') ? drawings.siteData : null;
+  const ctx = {
+    buildingType: answersToEngine(answers).buildingTypeKey ?? site?.buildingType ?? null,
+    units: val('totalUnits'), grossSf: val('grossSf'),
+  };
+  const out = [];
+  for (const r of rows) {
+    const field = ROW_FIELD[r.key];
+    if (!field || r.value == null || r.source === 'derived') continue;
+    const a = figureAlert(field, r.value, ctx, norms, adopted);
+    if (a) out.push(a.text);
+  }
+  return out;
 }

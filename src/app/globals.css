@@ -74,3 +74,17 @@
 ::-webkit-scrollbar-track { @apply bg-transparent; }
 ::-webkit-scrollbar-thumb { @apply bg-slate-300 rounded-full; }
 ::-webkit-scrollbar-thumb:hover { @apply bg-slate-400; }
+
+/* ── STAGING stripe (src/components/layout/EnvironmentBar.jsx) ──────────────
+   Hazard stripes on top, a yellow frame round the whole window, and every
+   full-height screen shortened so the stripe never covers anything. */
+html[data-app-env="staging"] { --env-bar: 2.25rem; }
+.env-bar {
+  height: 2.25rem;
+  background: repeating-linear-gradient(-45deg, #facc15 0 18px, #fde047 18px 36px);
+  border-bottom: 3px solid #000;
+}
+html[data-app-env="staging"] body { padding-top: var(--env-bar); box-shadow: inset 0 0 0 6px #facc15; min-height: 100vh; }
+html[data-app-env="staging"] .h-screen { height: calc(100vh - var(--env-bar)); }
+html[data-app-env="staging"] .min-h-screen { min-height: calc(100vh - var(--env-bar)); }
+@media print { html[data-app-env="staging"] body { padding-top: 0; box-shadow: none; } }

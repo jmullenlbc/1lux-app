@@ -1,4 +1,5 @@
 import './globals.css';
+import EnvironmentBar from '@/components/layout/EnvironmentBar';
 
 export const metadata = {
   title: 'ILC Studios | Quick Budget',
@@ -8,7 +9,10 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <EnvironmentBar />
+        {children}
+      </body>
     </html>
   );
 }

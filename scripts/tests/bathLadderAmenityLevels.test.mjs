@@ -1,6 +1,7 @@
 /**
  * Mike 2026-09-24: bathrooms come from the drawings → the typed count →
- * the bedroom rule (studio/1/2-bed = 1 bath, 3/4-bed = 2) → 1 per unit.
+ * the bedroom rule (studio/1/2-bed = 1 bath, 3/4-bed = 2) → vanities per
+ * unit: 1.4 until an admin adopts what our real jobs say (ConfirmedGuess).
  * And the amenity SF is summed from the area-by-level table when the
  * drawings print one (Modera Town Lake: interior 13,876, deck 8,918).
  */
@@ -41,10 +42,20 @@ test('no bath column → bedroom rule, flagged ESTIMATED', () => {
   assert.equal(q.vanities.value, 30);
 });
 
-test('no baths and no bedrooms → 1 bath per unit', () => {
+test('no baths and no bedrooms → 1.4 vanities per unit until a person adopts another figure', () => {
   const q = byKey(computeQuantities(drawings([{ code: 'X', qty: 40 }]), []));
-  assert.equal(q.bathrooms.value, 40);
-  assert.equal(q.vanities.value, 40);
+  assert.equal(q.bathrooms.value, 56);
+  assert.equal(q.vanities.value, 56);
+});
+
+test('an adopted vanities figure replaces 1.4 for that building type only', () => {
+  const adopted = { vanitiesPerUnit: { podium: 1.6 } };
+  const read = (type) => ({ ...drawings([{ code: 'X', qty: 40 }]), siteData: { buildingType: type } });
+  const q = byKey(computeQuantities(read('podium'), [], null, adopted));
+  assert.equal(q.vanities.value, 64);
+  assert.match(q.bathrooms.how, /1\.6 vanities per unit/);
+  const g = byKey(computeQuantities(read('garden'), [], null, adopted));
+  assert.equal(g.vanities.value, 56);
 });
 
 test('amenity SF sums the area-by-level table', () => {

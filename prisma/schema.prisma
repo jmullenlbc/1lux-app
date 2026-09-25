@@ -698,6 +698,8 @@ model Project {
   drawingSubmissions   DrawingSubmission[]
   fixtureShares        FixtureScheduleShare[]
   unitSelections       UnitSelectionSurvey[]       @relation("ProjectUnitSelections")
+  figureSources        ProjectFigureSource[]
+  areaChecks           ProjectAreaCheck[]
   changeOrders         ChangeOrder[]
   budgetQC             BudgetQCChecklist?          @relation("ProjectBudgetQC")
   priceHistory         ProductPriceHistory[]       @relation("PriceHistory")
@@ -865,6 +867,68 @@ model ProjectData {
   garageManualAdder    Float?
   exitSignsManualAdder Float?
   contingencyPct       Float?
+}
+
+// Where each ProjectData figure came from (Mike 2026-09-24, migration 0098):
+// "only learn from real numbers". One row per project per field, rewritten
+// whenever the figure is. drawing | staff | fixtures | import are real; client
+// (typed on the public form) counts only when it is inside our normal range;
+// guess (a stand-in the tool made up) never counts. A field with no row is a
+// figure saved before 0098 — see figureNormsLoad.js for how those are judged.
+// confirmedAt: somebody looked at an unusual-number alert and said "It's
+// right" — the alert stays quiet and the figure counts as staff-checked.
+model ProjectFigureSource {
+  id            String    @id @default(cuid())
+  projectId     String
+  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  field         String // ProjectData column, e.g. numVanities
+  source        String // drawing | staff | fixtures | import | client | guess
+  setById       String?
+  setAt         DateTime  @default(now())
+  confirmedAt   DateTime?
+  confirmedById String?
+
+  @@unique([projectId, field])
+  @@index([field, source])
+}
+
+// One row per building area of a budget (units, corridors, garage…), for the
+// staff-only area alerts (Mike 2026-09-24). baseAmount = that area's dollars
+// when the questionnaire was first finished (or when a web request became the
+// project) — kept so a later budget can be compared with the original answers.
+// okAmount = the dollars a person looked at and marked "It's right".
+model ProjectAreaCheck {
+  id          String    @id @default(cuid())
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  area        String // units | corridors | boh | interior | garage | exterior | emergency | exitSigns | controls
+  baseAmount  Float?
+  baseUnits   Int?
+  baseFrom    String? // web-request | questionnaire
+  baseTakenAt DateTime?
+  okAmount    Float?
+  okAt        DateTime?
+  okById      String?
+
+  @@unique([projectId, area])
+}
+
+// A stand-in guess a person adopted from what our real jobs say (Mike
+// 2026-09-24: "suggest, but let humans confirm"). The newest live row per
+// (guessKey, buildingType) replaces the NO_DRAWING_GUESSES figure; archive a
+// row to go back. guessKey is a NO_DRAWING_GUESSES table, e.g. vanitiesPerUnit.
+model ConfirmedGuess {
+  id            String    @id @default(cuid())
+  guessKey      String
+  buildingType  String
+  value         Float
+  previousValue Float?
+  jobs          Int // real jobs behind the figure when it was adopted
+  confirmedById String?
+  confirmedAt   DateTime  @default(now())
+  archivedAt    DateTime?
+
+  @@index([guessKey, buildingType])
 }
 
 // Sporadic exterior site features (Mike 2026-09-16, migration 0089): dog parks,

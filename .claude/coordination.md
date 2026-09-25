@@ -2,6 +2,13 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+### 2026-09-24 (late night) — Mike's Claude — 🚀 **DEPLOYED: migrations 0098 (figure sources + ConfirmedGuess) + 0099 (ProjectAreaCheck)** — learn only from real numbers, on-screen figure alerts, per-area budget alerts (staff only), STAGING stripe. Both migrations additive. `verify --full` passed (15 gates). **Next free migration is 0100.**
+- **@Sean:** staging stripe turns on with `NEXT_PUBLIC_APP_ENV=staging` on the staging app. Live shows nothing.
+
+### 2026-09-24 (night) — Mike's Claude — built, NOT deployed: per-area budget alerts (**migration 0099**, additive `ProjectAreaCheck`) + the STAGING stripe
+- **@Sean:** the STAGING stripe is built. It turns on from `NEXT_PUBLIC_APP_ENV=staging` on the staging branch (or any host containing "staging"). Nothing else needed from you for it; live shows nothing.
+- 0098 + 0099 both waiting on Mike's "Deploy". **Next free migration is 0100.**
+
 ### 2026-09-24 (evening) — Mike's Claude — 🚀 **DEPLOYED 53ec878 + 64ff93f: Mill Creek feedback (Modera Town Lake) + migration 0097** (data-only: master pricing sheet `controls.cap` 180000 → 190000, only if still 180000). **Next free migration is 0098.** Balconies 0/1 per unit (`src/lib/unitRules.js`), whole baths + bath ladder (drawings → typed → bedroom rule 1/1/1/2/2 → 1 per unit), controls $/SF math on the public page/PDF (the ONE approved math exception, `controlsWords.js`), design choices under the breakdown + on the PDF, per-level amenity SF from area-by-level tables (`amenityLevels`, prompt `unitMatrix-2026-09-24b`), exterior amenity SF required when not read, Download PDF at the top of the public summary. 0097 already applied to local SQLite.
 
 ### 2026-09-24 — Mike's Claude — 📋 **FOR SEAN: set up a staging copy of the app** (Mike approved 9-24)

@@ -6,6 +6,7 @@ import { runFieldWidget } from '@/lib/dashboards/engine';
 import { runWidget } from '@/lib/dashboardEngine';
 import { dimensionsFor, readField } from '@/lib/dashboards/fieldCatalog';
 import { loadSamplesWithContext } from '@/lib/calibration/capture';
+import { loadFigureNorms, loadAdoptedGuesses } from '@/lib/calibration/figureNormsLoad';
 import { runCalibrationWidget } from '@/lib/calibration/report';
 
 function parseSpec(ds) {
@@ -89,6 +90,12 @@ export async function POST(request) {
     try { samples = await loadSamplesWithContext(); }
     catch (e) { console.error('[dashboards/render] calibration load error:', e?.message ?? e); }
   }
+  // Both loaders are cached and never throw.
+  let figures = {};
+  if (widgets.some(w => ['learnedFigures', 'amenitySfByType'].includes(parseSpec(w.dataSpec).report))) {
+    const [figureNorms, adopted] = await Promise.all([loadFigureNorms(), loadAdoptedGuesses()]);
+    figures = { figureNorms, adopted };
+  }
 
   const results = {};
   for (const w of widgets) {
@@ -101,7 +108,7 @@ export async function POST(request) {
         // does not do. Nothing to render here; the card takes over on screen.
         results[w.id] = { chartType: 'VERIFICATION', series: [] };
       } else if (spec.kind === 'calibration') {
-        results[w.id] = runCalibrationWidget(spec, samples, filters);
+        results[w.id] = runCalibrationWidget(spec, samples, filters, figures);
       } else if (lw) {
         const data = await runWidget(lw, prisma);
         results[w.id] = { chartType: lw.chartType || w.chartType || 'BAR', series: flattenLegacy(data), legacy: true };

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { computeReviewFlags } from '@/lib/intake/reviewFlags';
+import { computeReviewFlags, figureReviewFlags } from '@/lib/intake/reviewFlags';
 import { computeQuantities } from '@/lib/intake/quantities';
 import { INTAKE_QUESTIONS } from '@/lib/intake/questionnaire';
 import { draftStage, reachedLabel } from '@/lib/intake/drafts';
@@ -156,8 +156,11 @@ function drawingsOf(submission) {
  * data rather than stored at submit time, so tightening a rule immediately
  * applies to old submissions too.
  */
-function ReviewFlags({ submission }) {
-  const flags = computeReviewFlags(drawingsOf(submission));
+function ReviewFlags({ submission, norms, adopted }) {
+  const flags = [
+    ...computeReviewFlags(drawingsOf(submission)),
+    ...figureReviewFlags(drawingsOf(submission), submission?.answers, norms, adopted),
+  ];
   if (!flags.length) return null;
   return (
     <div className="border-t border-slate-200 pt-4">
@@ -181,7 +184,7 @@ function ReviewFlags({ submission }) {
  * Recomputed on view (same reasoning as ReviewFlags): a rule fix in
  * quantities.js immediately applies to every past submission.
  */
-function QuantityTakeoff({ submission }) {
+function QuantityTakeoff({ submission, adopted }) {
   const drawings = drawingsOf(submission);
   // A no-drawings submission still has a full takeoff — typed figures plus
   // the stand-in guesses — so it gets the panel too.
@@ -189,7 +192,7 @@ function QuantityTakeoff({ submission }) {
   if (!drawings && !typedIn) return null;
   let quantities;
   try {
-    quantities = computeQuantities(drawings, submission?.answers);
+    quantities = computeQuantities(drawings, submission?.answers, null, adopted);
   } catch {
     return null;
   }
@@ -582,7 +585,7 @@ function JobLinkPanel({ submission, projects, onUpdated }) {
   );
 }
 
-export default function IntakeClient({ submissions: initialSubmissions, drafts = [], clients, projects, currentUser, canInvite = false, initialSelectedId = null }) {
+export default function IntakeClient({ submissions: initialSubmissions, drafts = [], clients, projects, currentUser, canInvite = false, initialSelectedId = null, figureNorms = {}, adoptedGuesses = {} }) {
   const router = useRouter();
   const [submissions, setSubmissions] = useState(initialSubmissions);
   const [draftList, setDraftList] = useState(drafts);
@@ -826,9 +829,9 @@ export default function IntakeClient({ submissions: initialSubmissions, drafts =
                   <p className="text-slate-600">{selected.buildingType || '—'}</p>
                 </div>
 
-                <ReviewFlags submission={selected} />
+                <ReviewFlags submission={selected} norms={figureNorms} adopted={adoptedGuesses} />
 
-                <QuantityTakeoff submission={selected} />
+                <QuantityTakeoff submission={selected} adopted={adoptedGuesses} />
 
                 <QuestionnaireAnswers submission={selected} />
 

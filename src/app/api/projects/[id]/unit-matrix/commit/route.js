@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { getRun, recordVerdict, VERDICT } from '@/lib/agent/reviewStore';
 import { describeUnitMatrixCorrection } from '@/lib/agent/unitMatrixDiff';
 import { looseNumberOrNull } from '@/lib/numberInput';
+import { recordFigureSources } from '@/lib/figures/record';
 
 async function canAccess(projectId, user) {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
@@ -23,6 +24,7 @@ export async function POST(request, { params }) {
   // confirmedFields: { numUnits, unitsSf, numBedrooms, numBathrooms, numBalconies, grossSf }
   //   — only keys present in confirmedFields are written to ProjectData
 
+  let drawingFields = [];
   await prisma.$transaction(async (tx) => {
     // Replace all existing unit types for this project
     await tx.projectUnitType.deleteMany({ where: { projectId: params.id } });
@@ -59,6 +61,7 @@ export async function POST(request, { params }) {
     if ('corridorSf'  in confirmedFields) dataUpdate.corridorSf  = confirmedFields.corridorSf  != null ? Number(confirmedFields.corridorSf)  : null;
 
     if (Object.keys(dataUpdate).length > 0) {
+      drawingFields = Object.keys(dataUpdate);
       await tx.projectData.upsert({
         where:  { projectId: params.id },
         update: dataUpdate,
@@ -74,6 +77,8 @@ export async function POST(request, { params }) {
       });
     }
   });
+  // Confirmed off the drawings = real numbers the tool may learn from.
+  await recordFigureSources(prisma, params.id, drawingFields, 'drawing', user.id);
 
   // ── Sign the extraction ────────────────────────────────────────────────────
   //

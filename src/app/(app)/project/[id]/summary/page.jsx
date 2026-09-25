@@ -17,6 +17,7 @@ import SalesTaxWidget from './SalesTaxWidget';
 import MissingInputsWarning from '@/components/MissingInputsWarning';
 import SendBudgetButton from './SendBudgetButton';
 import { SITE_FEATURE_INCLUDE, engineProjectData } from '@/lib/siteFeatureRows';
+import { takeAreaBaseline } from '@/lib/calibration/areaNormsLoad';
 
 function formatActivityTime(dateStr) {
   return new Date(dateStr).toLocaleString('en-US', {
@@ -57,6 +58,10 @@ export default async function SummaryPage({ params }) {
   const sections    = responsesToSections(project.responses);
   const projectData = engineProjectData(project);
   const budget      = calculateBudget(projectData, sections, pricing);
+  // First time the questionnaire reaches the summary: keep each area's dollars
+  // as "what the questionnaire said" for the staff-only area alerts. Once per
+  // project; after that it is one quick lookup. Never throws.
+  if (project.budgetType !== 'peer_review') await takeAreaBaseline(project.id, 'questionnaire');
   const pd       = projectData;
 
   // Sales tax is applied by the engine whenever a rate is on file, so the

@@ -4,6 +4,7 @@ import { requireIntakeReviewer, actsAsAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { cookies } from 'next/headers';
 import IntakeClient from './IntakeClient';
+import { loadFigureNorms, loadAdoptedGuesses } from '@/lib/calibration/figureNormsLoad';
 
 // Admins and the Sales team work this queue (2026-09-12). `?id=` opens one
 // request straight away — the link in the Sales alert, the pipeline card and
@@ -53,6 +54,10 @@ export default async function IntakePage({ searchParams }) {
     },
   });
 
+  // What our real jobs say each figure runs, by building type — the review
+  // flags warn when a request is far off it — plus adopted stand-ins. Never fatal.
+  const [norms, adopted] = await Promise.all([loadFigureNorms(), loadAdoptedGuesses()]);
+
   const openId = typeof searchParams?.id === 'string' ? searchParams.id : null;
 
   return (
@@ -63,6 +68,8 @@ export default async function IntakePage({ searchParams }) {
       projects={projects}
       currentUser={user}
       canInvite={actsAsAdmin(user)}
+      figureNorms={norms}
+      adoptedGuesses={adopted}
       initialSelectedId={submissions.some(s => s.id === openId) ? openId : null}
     />
   );

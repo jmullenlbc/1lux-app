@@ -11,6 +11,7 @@
  */
 import { LINE_LABELS, LINE_KEYS } from './lines.js';
 import { driverAnalysis, betterDriverSuggestions, describeSpread, describeSuggestion } from './drivers.js';
+import { guessSuggestions } from './figureNorms.js';
 
 /** |drift| beyond this, with at least MIN_SAMPLES actuals, flags the line. */
 export const DRIFT_REVIEW_PCT = 15;
@@ -156,13 +157,14 @@ export const CALIBRATION_REPORTS = {
   coverageByLine:          { label: 'Projects with an actual, per line', chartType: 'BAR',   unit: null },
   driverFit:               { label: 'What each line really tracks',      chartType: 'TABLE', unit: null },
   driverSuggestions:       { label: 'Lines priced off the wrong thing',  chartType: 'TABLE', unit: null },
+  amenitySfByType:         { label: 'Amenity SF and vanities per unit by building type', chartType: 'TABLE', unit: null },
 };
 
 /**
  * Run one calibration widget. `spec` is the widget's dataSpec
  * ({ kind:'calibration', report }). Returns the render-route result shape.
  */
-export function runCalibrationWidget(spec, samples, filters = []) {
+export function runCalibrationWidget(spec, samples, filters = [], extra = {}) {
   const report = spec?.report || 'rateDrift';
   const def = CALIBRATION_REPORTS[report];
   if (!def) return { chartType: 'BAR', series: [], error: `Unknown calibration report: ${report}` };
@@ -260,6 +262,31 @@ export function runCalibrationWidget(spec, samples, filters = []) {
         empty: analysis.length
           ? 'Nothing to report — every line with enough jobs behind it is already priced off the thing it actually follows.'
           : 'Not enough jobs with real figures yet. A line needs five before this will say anything about it.',
+      },
+    };
+  }
+
+  // Not a sample report: what our real jobs say each stand-in figure should
+  // be (figureNorms over ProjectFigureSource), which the render route passes
+  // in as extra.figureNorms + extra.adopted. A person adopts a row with
+  // "Use this" — nothing changes on its own (Mike 2026-09-24).
+  if (report === 'learnedFigures' || report === 'amenitySfByType') {
+    const rows = guessSuggestions(extra.figureNorms || {}, extra.adopted || {});
+    return {
+      chartType: 'TABLE',
+      series: rows.map(r => ({ label: r.label, value: r.jobs })),
+      table: {
+        kind: 'adopt',
+        columns: [
+          { key: 'label',   label: 'Figure' },
+          { key: 'jobs',    label: 'Real jobs' },
+          { key: 'current', label: 'Used today' },
+          { key: 'learned', label: 'Our jobs say' },
+          { key: 'range',   label: 'Usual range' },
+          { key: 'status',  label: 'Status' },
+        ],
+        rows,
+        empty: 'No real figures yet. Figures typed by staff, read off drawings, counted from fixtures or imported show up here.',
       },
     };
   }

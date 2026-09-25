@@ -7,6 +7,7 @@ import { writeSiteFeature, loadSiteFeatures, siteFeaturesForEngine } from '@/lib
 import { getRun, recordVerdict, VERDICT } from '@/lib/agent/reviewStore';
 import { describeSiteCorrection } from '@/lib/agent/siteDiff';
 import { parseLooseNumber } from '@/lib/numberInput';
+import { recordFigureSources } from '@/lib/figures/record';
 
 const WRITABLE      = new Set(writableSiteKeys());
 const PROJECT_LEVEL = new Set(projectLevelSiteKeys());
@@ -98,6 +99,8 @@ export async function POST(request, { params }) {
       });
     }
   });
+  // Confirmed off the drawings = real numbers the tool may learn from.
+  await recordFigureSources(prisma, params.id, Object.keys(write), 'drawing', user.id);
 
   // ── Sign the extraction ────────────────────────────────────────────────────
   //

@@ -6,6 +6,7 @@ import Card, { CardHeader, CardBody } from '@/components/ui/Card';
 import QuestionCard from './QuestionCard';
 import { allowsGarages, allowsCarports } from '@/lib/coveredParkingTypes';
 import { siteFeaturesToRows, SITE_FEATURE_ROW_KEYS } from '@/lib/siteFeatures';
+import { useFigureAlerts, FigureAlertNote, FigureAlertSummary } from '@/components/figures/FigureAlerts';
 
 const SITE_FEATURE_FORM_KEYS = new Set(Object.values(SITE_FEATURE_ROW_KEYS));
 
@@ -132,8 +133,18 @@ export default function ProjectDataSection({ projectId, projectData, responses =
   const [saving, setSaving] = useState(false);
   const [saved,  setSaved]  = useState(false);
 
+  // Line-level alerts: a figure far off our real jobs of this building type.
+  const figures = useFigureAlerts(projectId);
+  const figureCtx = { buildingType: projectData?.buildingTypeKey, units: form.numUnits, grossSf: form.grossSf };
+  const shownFields = FIELDS.flatMap(g => g.fields)
+    .filter(field => !FIELD_ALLOWED[field.key] || FIELD_ALLOWED[field.key](projectData?.buildingTypeKey));
+  const alerts = Object.fromEntries(shownFields
+    .map(field => [field.key, figures.alertFor(field.key, form[field.key], figureCtx)])
+    .filter(([, a]) => a));
+
   function update(key) {
     return e => {
+      figures.forget(key);
       setForm(f => ({ ...f, [key]: e.target.value }));
       setDirty(d => new Set(d).add(key));
       setSaved(false);
@@ -181,6 +192,8 @@ export default function ProjectDataSection({ projectId, projectData, responses =
         </p>
       </div>
 
+      <FigureAlertSummary count={Object.keys(alerts).length} />
+
       {FIELDS.map(group => (
         <Card key={group.group}>
           <CardHeader>
@@ -189,8 +202,8 @@ export default function ProjectDataSection({ projectId, projectData, responses =
           <CardBody>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {group.fields.filter(field => !FIELD_ALLOWED[field.key] || FIELD_ALLOWED[field.key](projectData?.buildingTypeKey)).map(field => (
+                <div key={field.key}>
                 <Input
-                  key={field.key}
                   label={field.label}
                   type={field.type}
                   placeholder={field.placeholder}
@@ -201,6 +214,8 @@ export default function ProjectDataSection({ projectId, projectData, responses =
                   onChange={update(field.key)}
                   min={0}
                 />
+                <FigureAlertNote alert={alerts[field.key]} saved={!dirty.has(field.key)} onRight={() => figures.markRight(field.key)} />
+                </div>
               ))}
             </div>
           </CardBody>

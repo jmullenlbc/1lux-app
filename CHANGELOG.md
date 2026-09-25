@@ -5,6 +5,29 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Per-area budget alerts + STAGING stripe] - September 24, 2026 (DEPLOYED) — migration 0099
+
+Mike: "do it by area of the building. Does that area of the building seem out of whack or totally off from the questionnaire they answered originally." / "you need something on top big and apparent that makes someone know they are in staging."
+- **Area alerts in the budget editor sidebar** (both wizards). Each area (Units, Corridors & Stairwells, BOH, Interior Amenities, Garage, Exterior & Site, Emergency, Exit Signs, Controls) is checked two ways:
+  - **Against our real jobs** of the same building type, in $ per unit (`src/lib/calibration/areaNorms.js`, loaded by `areaNormsLoad.js`). Same yardstick as the figure alerts: 5+ jobs, above 2× the top of the usual range, below half the bottom, or $0 when most jobs have some. A job counts only when every figure behind it is real; client-typed jobs only inside the range; tool-guess budgets never. Peer reviews left out.
+  - **Against the original questionnaire:** migration 0099 adds `ProjectAreaCheck` (one row per project × area). The area dollars are snapshotted once — when a web request becomes a project, or the first time the summary page opens. Alerts when an area moved by more than half AND by $5,000+ (compared per unit when the unit count changed), went to $0, or appeared from nothing.
+  - "It's right" on an area stays quiet until that area moves more than 5% ($500 min) off the checked figure.
+  - Count at the top of the breakdown. Staff only: `/api/projects/[id]/areas` 404s for contractors; the public form's sidebar never gets the props (tested). Sell dollars only — this engine has no buy price.
+  - Existing projects get their snapshot the next time someone opens their summary, so their questionnaire check starts from today's figures.
+- **STAGING stripe** (`src/components/layout/EnvironmentBar.jsx`, `src/lib/appEnv.js`): a yellow-and-black striped bar across the top of every page (public pages and login too), a yellow frame round the window, and "STAGING · " in front of the tab title. Turned on by `NEXT_PUBLIC_APP_ENV=staging` or a web address containing "staging"; "Go to live →" jumps to the same page on app.ilcstudios.com. Nothing shows on live. Hidden when printing.
+- `.env*.local` now git-ignored.
+- Tests: `scripts/tests/areaNorms.test.mjs` (11), `appEnv.test.mjs` (3), both in verify.
+
+## [Learn only from real numbers + on-screen figure alerts] - September 24, 2026 (DEPLOYED) — migration 0098
+
+Mike: "only learn from inputted real data … build that intelligence into everything with budgeting as alert notifications at a line level"; "We should learn from budgets we enter too … It's the conceptual tool where things can not be concrete"; "suggest, but let humans confirm"; "On screen or it will be overwhelming."
+- **Every figure now remembers where it came from** (migration 0098, new `ProjectFigureSource`): drawing read, staff typing, fixture counts, import, client-typed on the public form, or a tool guess. Written by the Project Data save, unit-matrix and site commits, the estimate save, the admin import and the web-request hand-off (`src/lib/figures/record.js`). Older figures with no tag count as staff-entered, except on projects made from a web request, where only fields staff later changed count.
+- **Learning uses real figures only** (`src/lib/calibration/figureNorms.js`, 20 figures: vanities, baths, bedrooms, balconies, parking, stories, amenity/garage/corridor/BOH SF and more, by building type). Client-typed figures count only inside the normal range. Tool guesses never count. A figure staff marked "It's right" counts as real.
+- **Nothing changes by itself.** New Pre-Con card "What Our Jobs Say — Stand-in Figures": what real jobs say each stand-in should be. An admin clicks **Use this** (5+ real jobs, and the figure differs by 5%+); **Undo** puts the built-in figure back. Adopted figures live in new `ConfirmedGuess` (archive-only) and feed the no-drawings budget math, public page included — the value only, never the range or job count. Vanities stay 1.4 per unit until someone adopts another figure.
+- **On-screen alerts, staff only**: an amber note under any figure far outside its type's usual range (above 2× the top or below half the bottom with 5+ real jobs; otherwise 4× off the standing guess), with a count at the top and an "It's right" button once saved. On the project Details panel, both wizards' Project Data step and the web-request review screen. Never on the public page, PDF, share links or portal (`/api/projects/[id]/figures` 404s for client viewers).
+- Replaces the two earlier undeployed drafts (auto-learned vanities, amenity-only norms); `amenityNorms.js`/`amenityNormsLoad.js` removed before ever shipping.
+- Tests: new `figureNorms.test.mjs` (11, in verify), `bathLadderAmenityLevels` (adopted 1.6 → 64 for 40 podium units; garden unaffected). verify --full passed (15 gates). Live-server DN-leak + MCP tests pass. `alerts.test.mjs` (not in verify, untouched code) fails 7 — flagged separately.
+
 ## [Mill Creek feedback: balconies 0 or 1, whole baths, controls math, design choices, amenity measuring] - September 24, 2026 (DEPLOYED 2026-09-24) — migration 0097
 
 Mill Creek (Slava Korobov) ran Modera Town Lake through the public budget: balconies came back **23,488** (a balcony square-footage column read as a count), exterior amenity SF read 0, controls showed a flat $180K with no math, and the PDF had no design choices.

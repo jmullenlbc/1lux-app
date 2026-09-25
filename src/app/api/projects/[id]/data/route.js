@@ -9,6 +9,8 @@ import {
   loadSiteFeatures, siteFeaturesForEngine, describeSiteFeatureChange,
 } from '@/lib/siteFeatureRows';
 import { parseLooseNumber, isUnreadableNumber, NUMBER_HELP } from '@/lib/numberInput';
+import { recordFigureSources } from '@/lib/figures/record';
+
 
 // Map projectData fields → questionnaire (section, questionKey) for bidirectional sync
 const QUESTIONNAIRE_SYNC = {
@@ -213,6 +215,8 @@ export async function PUT(request, { params }) {
   }
 
   await logActivity(params.id, user, 'project_data', description, { changed: changedFields });
+  // Typed by staff = a real number the tool may learn from (Mike 2026-09-24).
+  await recordFigureSources(prisma, params.id, changedFields, 'staff', user?.id ?? null);
   captureQuietly(params.id, { minIntervalMs: 0 });
 
   // The grids replace their working copy of Project Info with this object and

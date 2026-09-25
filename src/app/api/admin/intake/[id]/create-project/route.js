@@ -4,8 +4,10 @@ import { prisma } from '@/lib/db';
 import { createProject } from '@/lib/projects/createProject';
 import { BUILDING_TYPES } from '@/lib/utils';
 import { loadPricing } from '@/lib/pricingLoader';
+import { loadAdoptedGuesses } from '@/lib/calibration/figureNormsLoad';
 import { logActivity } from '@/lib/activity';
 import { captureQuietly } from '@/lib/calibration/capture';
+import { takeAreaBaseline } from '@/lib/calibration/areaNormsLoad';
 import { writeSiteFeature } from '@/lib/siteFeatureRows';
 import { planHandoff, applyHandoff, drawingsFromSubmission } from '@/lib/intake/handoff';
 
@@ -44,6 +46,7 @@ export async function POST(request, { params }) {
       answers: submission.answers,
       drawings: drawingsFromSubmission(submission),
       pricing: await loadPricing(),
+      adopted: await loadAdoptedGuesses(),
     });
   } catch (e) {
     console.error('[intake/create-project] could not read the request figures (non-fatal):', e?.message || e);
@@ -72,6 +75,9 @@ export async function POST(request, { params }) {
         `Carried over from the web budget request: ${carried.fields} building figures, ${carried.answers} questionnaire answers${carried.features ? `, ${carried.features} site features` : ''}`,
         { source: 'intake', submissionId: submission.id });
       captureQuietly(project.id, { minIntervalMs: 0 });
+      // What the visitor's answers came to, area by area — the budget's later
+      // areas are compared with it (staff-only alerts).
+      await takeAreaBaseline(project.id, 'web-request');
     }
   } catch (e) {
     console.error('[intake/create-project] hand-off failed (non-fatal):', e?.message || e);

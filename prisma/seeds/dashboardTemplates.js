@@ -63,6 +63,10 @@ const TEMPLATES_BY_SECTION = {
     // silent until a line has five jobs behind it — see drivers.js.
     { name: 'Lines Priced Off the Wrong Thing',   chartType: 'TABLE', width: 'FULL', dataSpec: { kind: 'calibration', report: 'driverSuggestions' } },
     { name: 'What Each Line Really Tracks',       chartType: 'TABLE', width: 'FULL', dataSpec: { kind: 'calibration', report: 'driverFit' } },
+    // Mike 2026-09-24: on the Pre-Con dashboard. What our REAL jobs say each
+    // stand-in figure should be (vanities, balconies, amenity SF, parking…)
+    // by building type. Suggestions only — an admin clicks "Use this".
+    { name: 'What Our Jobs Say — Stand-in Figures', chartType: 'TABLE', width: 'FULL', dataSpec: { kind: 'calibration', report: 'learnedFigures' } },
   ],
 };
 

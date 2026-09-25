@@ -3,7 +3,8 @@ import { prisma } from '@/lib/db';
 import { classifyIntakeEmail, resolveClientByDomain } from '@/lib/intake';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
 import { validateAnswers } from '@/lib/intake/questionnaire';
-import { computeReviewFlags } from '@/lib/intake/reviewFlags';
+import { computeReviewFlags, figureReviewFlags } from '@/lib/intake/reviewFlags';
+import { loadFigureNorms, loadAdoptedGuesses } from '@/lib/calibration/figureNormsLoad';
 import { notifyPrecon } from '@/lib/intake/notifyPrecon';
 import { checkLocation } from '@/lib/usStates';
 import { findLikelyProject } from '@/lib/intake/duplicateMatch';
@@ -135,6 +136,12 @@ export async function POST(req) {
   // Notify the precon inbox. A failed email must never fail the submission —
   // the row is already saved and the review queue is the source of truth.
   const flags = computeReviewFlags(drawingsData || null);
+  // Reviewer-only: figures far off what our real jobs of this type run.
+  try {
+    flags.push(...figureReviewFlags(drawingsData || null, answerRows, await loadFigureNorms(), await loadAdoptedGuesses()));
+  } catch (e) {
+    console.error('intake/submit figure check failed (non-fatal):', e);
+  }
   try {
     await notifyPrecon({ submission, answers: answerRows, flags, drawings: drawingsData || null });
   } catch (e) {

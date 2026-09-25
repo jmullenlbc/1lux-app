@@ -5,6 +5,7 @@ import { answersToMap } from '@/lib/intake/quantities';
 import { publicIntakeEstimate, intakeEstimateGate } from '@/lib/intake/estimate';
 import { buildIntakePdfHtml, intakePdfFilename } from '@/lib/intake/pdfHtml';
 import { loadPricing } from '@/lib/pricingLoader';
+import { loadAdoptedGuesses } from '@/lib/calibration/figureNormsLoad';
 import { htmlToPdf } from '@/lib/pdf';
 
 export const dynamic = 'force-dynamic';
@@ -74,7 +75,7 @@ export async function POST(req) {
     const pricing = await loadPricing();
     // The PUBLIC projection: the PDF goes to the same visitor the page does, so
     // it gets the same formula-free budget (no "priced at 2.3× conventional").
-    const { budget, projectData } = publicIntakeEstimate({ answers, drawings, pricing });
+    const { budget, projectData } = publicIntakeEstimate({ answers, drawings, pricing, adopted: await loadAdoptedGuesses() });
     // Same test the review step uses before it shows a budget at all.
     if (!budget || !((projectData?.grossSf || 0) > 0)) {
       return NextResponse.json({ error: 'We need a little more building information before we can make a PDF.' }, { status: 422 });

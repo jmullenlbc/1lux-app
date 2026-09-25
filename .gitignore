@@ -49,3 +49,4 @@ dev-server.log
 # Rooted so it can only ever match the folder at the repo root -- a bare
 # "uploads/" line once swallowed src/app/api/uploads and shipped a 404 to prod.
 /.intake-dev/
+.env*.local

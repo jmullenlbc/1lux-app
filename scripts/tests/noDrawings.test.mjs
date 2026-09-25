@@ -145,12 +145,13 @@ test('a typed back-of-house figure beats the estimate', () => {
 // ── Calibrated guesses (2026-09-12, ten real ILC budgets) ────────────────────
 const TOWN = 'Town Houses (2-3 Levels)';
 
-// Mike 2026-09-24: with no bath count and no bedroom mix, an apartment is one
-// bath (the old 1.4 calibration is gone); townhomes keep 2.5 per home.
-test('vanities with no bath count: 1 per apartment, 2.5 per townhome', () => {
+// Mike 2026-09-24: with no bath count and no bedroom mix, 1.4 vanities per
+// apartment (what our jobs average) until five jobs teach otherwise;
+// townhomes keep 2.5 per home.
+test('vanities with no bath count: 1.4 per apartment, 2.5 per townhome', () => {
   const g = rows({ projectType: GARDEN, figureTotalUnits: '200', figureGrossSf: '250000' });
-  assert.equal(g.bathrooms.value, 200);
-  assert.equal(g.vanities.value, 200);
+  assert.equal(g.bathrooms.value, 280);
+  assert.equal(g.vanities.value, 280);
   const t = rows({ projectType: TOWN, figureTotalUnits: '64', figureAvgUnitSf: '1800' });
   assert.equal(t.vanities.value, 160);
   assert.match(t.vanities.flag, /no drawings/);

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
 import { publicIntakeEstimate, intakeEstimateGate } from '@/lib/intake/estimate';
 import { loadPricing } from '@/lib/pricingLoader';
+import { loadAdoptedGuesses } from '@/lib/calibration/figureNormsLoad';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,5 +66,5 @@ export async function POST(req) {
   // (Mike 2026-09-16: "someone could steal all the math"). The public
   // projection keeps labels, the visitor's own quantities and the dollars;
   // counts × price-each, multipliers and "1 pole per 30 ft" stay internal.
-  return NextResponse.json(publicIntakeEstimate({ answers, drawings, pricing }));
+  return NextResponse.json(publicIntakeEstimate({ answers, drawings, pricing, adopted: await loadAdoptedGuesses() }));
 }

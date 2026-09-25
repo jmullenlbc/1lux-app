@@ -16,6 +16,7 @@
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 import { computeQuantities } from './quantities.js';
 import { loadPricing } from '../pricingLoader.js';
+import { loadAdoptedGuesses } from '../calibration/figureNormsLoad.js';
 
 const TO   = process.env.INTAKE_NOTIFY_TO   || 'precon@ilcstudios.com';
 const FROM = process.env.INTAKE_NOTIFY_FROM || 'noreply@ilcstudios.com';
@@ -75,7 +76,7 @@ export async function notifyPrecon({ submission, answers, flags, drawings }) {
   if (drawings || typedIn) {
     try {
       const pricing = await loadPricing().catch(() => null);
-      const quantities = computeQuantities(drawings, answers, pricing);
+      const quantities = computeQuantities(drawings, answers, pricing, await loadAdoptedGuesses());
       parts.push('', '── Quantity takeoff ──');
       for (const q of quantities) {
         const val = q.value == null ? 'not found' : fmt(q.value);

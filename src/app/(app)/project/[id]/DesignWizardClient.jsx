@@ -9,6 +9,7 @@ import ProjectDataSection              from '@/components/sections/ProjectDataSe
 import ExteriorSection                 from '@/components/sections/ExteriorSection';
 import ControlsSection                 from '@/components/sections/ControlsSection';
 import BudgetSidebar                   from '@/components/wizard/BudgetSidebar';
+import { useAreaAlerts }              from '@/components/figures/AreaAlerts';
 import SectionNav                      from '@/components/wizard/SectionNav';
 import QuestionnaireUploads            from '@/components/wizard/QuestionnaireUploads';
 import DesignUnitsSection              from '@/components/sections/design/DesignUnitsSection';
@@ -47,6 +48,9 @@ export default function DesignWizardClient({ project, projectData, initialSectio
     });
     if (res.ok) setProjectMeta(m => ({ ...m, ...fields }));
   }
+
+  // Staff-only per-area alerts (our past jobs + the original questionnaire).
+  const areas = useAreaAlerts(project.id, budget, { buildingType: project.buildingType, units: localPD?.numUnits });
 
   const recalculate = useCallback((newPD, newSections) => {
     const b = calculateBudget(newPD, newSections, pricing || null);
@@ -301,6 +305,8 @@ export default function DesignWizardClient({ project, projectData, initialSectio
         budget={budget}
         projectData={localPD}
         currentStep={currentStep}
+        areaNotes={areas.notes}
+        areaSummary={areas.summary}
       />
     </div>
   );

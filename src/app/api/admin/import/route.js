@@ -6,6 +6,7 @@ import { parseConceptualBudgetXlsx } from '@/lib/excelImportParser';
 import * as XLSX from 'xlsx';
 import { readUploadedFiles } from '@/lib/uploadIntake';
 import { recordProjectCreated } from '@/lib/statusEvents';
+import { recordFigureSources } from '@/lib/figures/record';
 
 // POST /api/admin/import
 // Accepts: multipart/form-data
@@ -56,6 +57,8 @@ export async function POST(request) {
           await prisma.projectData.create({
             data: { projectId: project.id, ...pdFiltered },
           });
+          // Imported from a finished budget sheet = real numbers.
+          await recordFigureSources(prisma, project.id, Object.keys(pdFiltered), 'import', user?.id ?? null);
         }
 
         // Create questionnaire responses

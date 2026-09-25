@@ -33,20 +33,39 @@ const EXTRA_INT_ROWS = { bedrooms: 'numBedrooms', stories: 'numFloors', exitDoor
 /** Columns the wizard's Project Data step mirrors as questionnaire rows. */
 const NOT_MIRRORED = new Set(['numFloors']);
 
+/** ProjectData column → the takeoff row it came from (estimate.js projectData). */
+const COLUMN_ROW = {
+  grossSf: 'grossSf', unitsSf: 'unitsSf', numUnits: 'totalUnits', numBalconies: 'balconies',
+  numVanities: 'vanities', numBathrooms: 'bathrooms', numFans: 'ceilingFans', corridorSf: 'corridorSf',
+  interiorAmenitySf: 'interiorAmenitySf', exteriorAmenitySf: 'exteriorAmenitySf', garageSf: 'garageSf',
+  bohSf: 'bohSf', numEgressStairwells: 'stairLandings', numBuildings: 'buildings',
+  numSurfaceParking: 'surfaceParking', numCarports: 'carports', numGarages: 'garages',
+  lotSf: 'lotSf', buildingFootprintSf: 'buildingFootprintSf',
+  numBedrooms: 'bedrooms', numFloors: 'stories', numExteriorDoors: 'exitDoors',
+};
+/**
+ * Where a figure came from, for ProjectFigureSource (Mike 2026-09-24: learn
+ * only from real numbers). Read off the drawings = drawing; typed by the
+ * visitor = client (learned from only when in the normal range); worked out
+ * by the tool = guess (never learned from).
+ */
+const ROW_SOURCE = { drawing: 'drawing', questionnaire: 'client', derived: 'guess' };
+
 const finite = v => { const n = parseLooseNumber(v); return Number.isFinite(n) ? n : null; };
 
 /**
  * What to write for one request.
- * @returns {{ready: boolean, data: object, features: Array, responses: Array, total: ?number}}
+ * @returns {{ready: boolean, data: object, sources: object, features: Array, responses: Array, total: ?number}}
  *   data      — ProjectData columns (only figures we actually have)
+ *   sources   — { column: 'drawing' | 'client' | 'guess' } for each of data
  *   features  — [{type, count, lengthFt, source: 'drawing'|'typed'}]
  *   responses — [{section, questionKey, answerValue}] for QuestionnaireResponse
  *   buildingTypeKey — the project's own building-type key ('garden', 'podium', …)
  *   total     — the budget the visitor was shown, for the activity line
  */
-export function planHandoff({ answers, drawings, pricing = null }) {
-  const est = computeIntakeEstimate({ answers, drawings, pricing });
-  if (!est.projectData) return { ready: false, data: {}, features: [], responses: [], buildingTypeKey: null, total: null };
+export function planHandoff({ answers, drawings, pricing = null, adopted = null }) {
+  const est = computeIntakeEstimate({ answers, drawings, pricing, adopted });
+  if (!est.projectData) return { ready: false, data: {}, sources: {}, features: [], responses: [], buildingTypeKey: null, total: null };
 
   const bySource = {};
   const byValue = {};
@@ -68,6 +87,9 @@ export function planHandoff({ answers, drawings, pricing = null }) {
   // 0 fans means "the engine decides from the fan answer", not "no fans".
   if (data.numFans === 0) delete data.numFans;
 
+  const sources = {};
+  for (const col of Object.keys(data)) sources[col] = ROW_SOURCE[bySource[COLUMN_ROW[col]]] || 'guess';
+
   const features = (est.projectData.siteFeatures || []).map(f => ({
     type: f.type, count: f.count ?? null, lengthFt: f.lengthFt ?? null,
     source: bySource[SITE_FEATURE_ROW_KEYS[f.type]] === 'drawing' ? 'drawing' : 'typed',
@@ -87,7 +109,7 @@ export function planHandoff({ answers, drawings, pricing = null }) {
     responses.push({ section: 'project-data', questionKey: col, answerValue: String(v) });
   }
 
-  return { ready: true, data, features, responses, buildingTypeKey: est.projectData.buildingTypeKey || null, total: finite(est.budget?.totalWithControls) };
+  return { ready: true, data, sources, features, responses, buildingTypeKey: est.projectData.buildingTypeKey || null, total: finite(est.budget?.totalWithControls) };
 }
 
 /** The drawings read stored on a submission, or null. Never throws. */
@@ -120,6 +142,13 @@ export async function applyHandoff(prisma, projectId, plan, { writeSiteFeature }
       });
     }
     for (const f of plan.features) await writeSiteFeature(tx, projectId, f);
+    for (const [field, source] of Object.entries(plan.sources || {})) {
+      await tx.projectFigureSource.upsert({
+        where: { projectId_field: { projectId, field } },
+        update: { source, setById: null, setAt: new Date(), confirmedAt: null, confirmedById: null },
+        create: { projectId, field, source },
+      });
+    }
   }, { timeout: 20_000 });
   return { fields: Object.keys(plan.data).length, features: plan.features.length, answers: plan.responses.filter(r => r.section !== 'project-data').length };
 }
