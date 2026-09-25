@@ -29,7 +29,8 @@ const TEMP_ACCOUNTS = [
   { label: 'USER',          email: 'smoke-user@ilcstudios.test',         role: 'USER' },
 ];
 
-const SEEDED = [{ label: 'ILC_ADMIN', email: 'admin@ilcstudios.com', password: 'ILCadmin2024!' }];
+// Admin login comes from the private .env, never typed here (this file is in git).
+const SEEDED = [{ label: 'ILC_ADMIN', email: process.env.E2E_ADMIN_EMAIL, password: process.env.E2E_ADMIN_PASSWORD }];
 
 const PAGES = ['/dashboard', '/crm', '/clients', '/pre-con',
   '/dashboards/main', '/dashboards/sales', '/dashboards/meeting'];
@@ -39,6 +40,7 @@ let sessions = [];
 
 before(async () => {
   assert.ok(await serverUp(), `no dev server at ${BASE} — run \`npm run dev:3000\` first`);
+  assert.ok(process.env.E2E_ADMIN_EMAIL && process.env.E2E_ADMIN_PASSWORD, 'set E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD in .env first');
 
   // Disposable non-super-admins — the role class that regressed, twice.
   const passwordHash = await bcrypt.hash(TEMP_PW, 10);

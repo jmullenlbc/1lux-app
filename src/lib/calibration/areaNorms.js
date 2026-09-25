@@ -30,9 +30,15 @@ export const AREAS = {
 };
 export const AREA_KEYS = Object.keys(AREAS);
 
-// Questionnaire check: the area moved by more than half AND by this much.
-export const BASE_MOVE = 0.5;
-export const BASE_MIN_DOLLARS = 5000;
+// Questionnaire check: the area moved by more than 20% from the questionnaire,
+// AND the move is more than 30% of that area's normal size on this job (Mike
+// 2026-09-24 set both) (Mike 2026-09-24: "$5K for
+// units is barely a change but that is a big change with exit signs"). Normal
+// size = our real jobs' median per unit × this job's units once 5+ jobs exist,
+// else the questionnaire's own figure. A tiny floor keeps pennies quiet.
+export const BASE_MOVE = 0.2;
+export const NORMAL_SHARE = 0.3;
+export const BASE_FLOOR = 500;
 // "It's right" holds while the area stays within 5% (or $500) of the checked figure.
 const OK_SLACK = 0.05;
 const OK_MIN = 500;
@@ -138,7 +144,7 @@ export function areaJobsAlert(area, amount, ctx, norms) {
 }
 
 /** Against this area's dollars when the questionnaire was first finished. */
-export function areaBaseAlert(area, amount, ctx, check) {
+export function areaBaseAlert(area, amount, ctx, check, norms) {
   const base = num(check?.baseAmount);
   const v = num(amount);
   if (!AREAS[area] || base == null || v == null) return null;
@@ -146,7 +152,11 @@ export function areaBaseAlert(area, amount, ctx, check) {
   const nowU = num(ctx?.units), thenU = num(check?.baseUnits);
   const scale = nowU > 0 && thenU > 0 && nowU !== thenU ? nowU / thenU : 1;
   const expected = base * scale;
-  if (Math.abs(v - expected) < BASE_MIN_DOLLARS) return null;
+  const moved = Math.abs(v - expected);
+  if (moved < BASE_FLOOR) return null;
+  const stats = norms?.[ctx?.buildingType]?.[area];
+  const normal = stats && stats.jobs >= MIN_DRIVER_PROJECTS && nowU > 0 ? stats.median * nowU : expected;
+  if (normal > 0 && moved <= normal * NORMAL_SHARE) return null;
   let way = null;
   if (expected === 0) way = 'new';
   else if (v === 0) way = 'gone';
@@ -173,7 +183,7 @@ export function areaAlerts(dollars, ctx, norms, checks = {}) {
   for (const a of AREA_KEYS) {
     const v = num(dollars?.[a]);
     if (v == null || checkedAlready(v, checks?.[a])) continue;
-    const list = [areaJobsAlert(a, v, ctx, norms), areaBaseAlert(a, v, ctx, checks?.[a])].filter(Boolean);
+    const list = [areaJobsAlert(a, v, ctx, norms), areaBaseAlert(a, v, ctx, checks?.[a], norms)].filter(Boolean);
     if (list.length) out[a] = list;
   }
   return out;

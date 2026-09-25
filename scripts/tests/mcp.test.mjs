@@ -24,7 +24,8 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-const ADMIN        = { email: 'admin@ilcstudios.com', password: 'ILCadmin2024!' };
+// Admin login comes from the private .env, never typed here (this file is in git).
+const ADMIN        = { email: process.env.E2E_ADMIN_EMAIL, password: process.env.E2E_ADMIN_PASSWORD };
 const VIEWER_EMAIL = 'mcp-clientviewer@ilcstudios.test';
 const VIEWER_PW    = 'McpTest2026!';
 
@@ -82,6 +83,7 @@ async function rpc(method, params, auth, id = 1) {
 
 before(async () => {
   assert.ok(await serverUp(), `no dev server at ${BASE} — run \`npm run dev:3000\` first`);
+  assert.ok(process.env.E2E_ADMIN_EMAIL && process.env.E2E_ADMIN_PASSWORD, 'set E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD in .env first');
 
   const admin = await prisma.user.findFirst({ where: { email: ADMIN.email } });
   assert.ok(admin, `seeded admin ${ADMIN.email} not found — run \`npm run db:seed\``);

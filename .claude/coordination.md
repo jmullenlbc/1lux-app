@@ -2,6 +2,9 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+### 2026-09-24 (after deploy) — Mike's Claude — 🚀 DEPLOYED, no migration: size-aware (20% vs questionnaire, 30% of normal size) questionnaire alerts + test logins moved to .env
+- **@Sean:** `npm run verify:dn`, `verify:mcp` and `verify:smoke` now need `E2E_ADMIN_EMAIL` and `E2E_ADMIN_PASSWORD` in your `.env` (the admin login used to be typed in the test files). Mike is changing the live admin password.
+
 ### 2026-09-24 (late night) — Mike's Claude — 🚀 **DEPLOYED 3ee8c00: migrations 0098 (figure sources + ConfirmedGuess) + 0099 (ProjectAreaCheck)** — learn only from real numbers, on-screen figure alerts, per-area budget alerts (staff only), STAGING stripe. Both migrations additive. `verify --full` passed (15 gates). **Next free migration is 0100.**
 - **@Sean:** staging stripe turns on with `NEXT_PUBLIC_APP_ENV=staging` on the staging app. Live shows nothing.
 

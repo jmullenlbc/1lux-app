@@ -58,8 +58,22 @@ test('totally off the original questionnaire: up, down, gone, new', () => {
   assert.match(areaBaseAlert('garage', 40000, ctx, { ...check, baseFrom: 'web-request', baseAmount: 0 }).text, /web request/);
 });
 
-test('small dollar moves never alert, even at big percentages', () => {
-  assert.equal(areaBaseAlert('exitSigns', 4000, ctx, { baseAmount: 1000, baseUnits: 200 }), null);
+test('a move is judged against the size of that area: small areas speak up, big ones need a big move', () => {
+  const was = (baseAmount) => ({ baseAmount, baseUnits: 200 });
+  assert.equal(areaBaseAlert('exitSigns', 4000, ctx, was(1000)).way, 'high');
+  assert.equal(areaBaseAlert('exitSigns', 1300, ctx, was(1000)), null);
+  assert.equal(areaBaseAlert('units', 305000, ctx, was(300000)), null);
+  assert.equal(areaBaseAlert('units', 380000, ctx, was(300000)), null);
+  assert.equal(areaBaseAlert('units', 700000, ctx, was(300000)).way, 'high');
+  // Pennies stay quiet whatever the percentage.
+  assert.equal(areaBaseAlert('exitSigns', 600, ctx, was(200)), null);
+});
+
+test('once 5+ real jobs exist, "normal size" is what our jobs spend on that area here', () => {
+  const n = areaNorms(five); // garage median $120/unit × 200 units = $24,000 normal
+  const was = { baseAmount: 4000, baseUnits: 200 };
+  assert.equal(areaBaseAlert('garage', 10000, ctx, was, n), null);          // +$6K, under 30% of $24K
+  assert.equal(areaBaseAlert('garage', 30000, ctx, was, n).way, 'high');   // +$26K
 });
 
 test('a bigger building is not a surprise: compared per unit when the unit count moved', () => {
