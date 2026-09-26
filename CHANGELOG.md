@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [My Desk: one place for reminders, emails to review and check-ins] - September 26, 2026 (NOT DEPLOYED) - migration 0105
+## [My Desk: one place for reminders, emails to review and check-ins] - September 26, 2026 (DEPLOYED 101d8ed) - migration 0105
 
 Mike 9-26: "we need them to really kind of have one place where they have information or need to review things like reminders in draft emails." And: "Make the snooze time manually overwritten with any number... pick a date as the manual override option."
 - **New page: My Desk** (`/sales/desk`, top of the Sales menu, with a count of late + today reminders + emails to review). Built for a phone: one column, big buttons.

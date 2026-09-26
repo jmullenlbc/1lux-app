@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-26 (latest) - Mike's Claude - **DEPLOYING**, **migration 0105**: My Desk (`/sales/desk`)
+### 2026-09-26 (latest) - Mike's Claude - **DEPLOYED 101d8ed**, **migration 0105**: My Desk (`/sales/desk`)
 - One place per salesperson: reminders (own published notes' CONFIRMED ACTION steps), PENDING_REVIEW BotDrafts (shared `src/components/sales/DraftCard.jsx`), check-ins due, notes to finish.
 - `NoteAction.snoozedUntil` / `pausedAt` (0105). Snooze sets remindAt = snoozedUntil, clears remindedAt. Pause: `sendDueWaitReminders` and `/api/cron/note-reminders` both filter `pausedAt: null`; an unshared PENDING_REVIEW nudge draft is cancelled.
 - Rules pure in `src/lib/desk/desk.js`; `actOnStep` = note owner or admin only. Bell links now go to `/sales/desk`.
