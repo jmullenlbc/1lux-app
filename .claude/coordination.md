@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-26 (newest) - Mike's Claude - no migration: Intel shows under each person ("Notes and personal" toggle, read-only "Noted in meetings" list via `/api/crm/intel?contactId=`). Intel stays notes only, never steps (Mike). `/api/crm/intel` now 403s client viewers. Next migration still 0105.
+### 2026-09-26 (newest) - Mike's Claude - **DEPLOYED 4bd2555**, no migration: Intel shows under each person ("Notes and personal" toggle, read-only "Noted in meetings" list via `/api/crm/intel?contactId=`). Intel stays notes only, never steps (Mike). `/api/crm/intel` now 403s client viewers. Next migration still 0105.
 
 ### 2026-09-26 (later) - Mike's Claude - **DEPLOYED 4246e70**, migrations 0102 + 0103 + 0104 in one push. Activity to-dos now also save the interest ("Likes to golf"). Next migration 0105. Mike must re-upload his Sent .mbox on Voice Training in prod.
 

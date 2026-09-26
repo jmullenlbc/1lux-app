@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Meeting notes under each person + Intel closed to client viewers] - September 26, 2026 (NOT DEPLOYED) - no migration
+## [Meeting notes under each person + Intel closed to client viewers] - September 26, 2026 (DEPLOYED 4bd2555) - no migration
 
 Mike 9-26, on facts like "Lee is touring a property on the 13th at 3pm": "Only as notes."
 - Facts from meetings (Intel) were already never steps, never in recaps and never reminders. Now they also show under each person: the People tab toggle is **"Notes and personal"**, with a read-only "Noted in meetings" list above the personal facts, each with its note title and date.
