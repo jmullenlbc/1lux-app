@@ -13,7 +13,8 @@
  * by hand while it was a draft are theirs and are left exactly as they are.
  */
 import { prisma } from '@/lib/db';
-import { extractNoteActions } from '@/lib/bot/extractNoteActions';
+import { readNote } from '@/lib/bot/extractNoteActions';
+import { savePersonalFacts } from '@/lib/contacts/savePersonalFacts';
 import { getActiveActionTypes } from '@/lib/noteActionTypesStore';
 
 export async function extractActionsOnPublish(noteId) {
@@ -34,12 +35,16 @@ export async function extractActionsOnPublish(noteId) {
   for (const cl of full.clients) for (const c of (cl.client?.contacts || [])) cand.set(c.id, c);
 
   const actionTypes = await getActiveActionTypes();
-  const extracted = await extractNoteActions(full, [...cand.values()], actionTypes);
-  if (!extracted.length) return { created: 0 };
+  const { actions: extracted, personal } = await readNote(full, [...cand.values()], actionTypes);
 
   // One person on the note: every step with nobody named is about them.
   const onNote = full.contacts.map(c => c.contact).filter(Boolean);
   const only = onNote.length === 1 ? onNote[0] : null;
+
+  // Kids, golf, cold brew: kept on the person, never turned into a step.
+  const facts = await savePersonalFacts(personal, { noteId, createdById: full.createdById || null, onlyContact: only })
+    .catch(e => { console.error('[publishActions] personal facts:', e?.message ?? e); return { created: 0 }; });
+  if (!extracted.length) return { created: 0, personal: facts.created };
   const now = new Date();
 
   await prisma.noteAction.createMany({
@@ -50,5 +55,5 @@ export async function extractActionsOnPublish(noteId) {
       return row;
     }),
   });
-  return { created: extracted.length };
+  return { created: extracted.length, personal: facts.created };
 }

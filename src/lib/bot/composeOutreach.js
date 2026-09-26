@@ -12,6 +12,9 @@ import { modelParams, textFrom } from '@/lib/aiModels';
 import { knowledgeContextBlock } from '@/lib/botKnowledge/retrieve';
 import { WAIT_EXECUTORS } from '@/lib/followUp/watch';
 import { EMAIL_KINDS, followUpSubject, editExamples, editExamplesSection } from '@/lib/bot/editLearning';
+import { stripDashes, hasBullets, firstName, withSignature, insertBeforeSignOff, toneSection, voiceExamplesSection, subjectRules, pickSubject, PLAIN_VOICE_RULES } from '@/lib/bot/emailStyle';
+import { senderVoice } from '@/lib/bot/voice';
+import { personalPromptFor } from '@/lib/contacts/savePersonalFacts';
 
 // Methods that belong in an outreach email to the contact.
 export const OUTREACH_EMAIL_METHODS = new Set(['EMAIL', 'SEND_MATERIALS', 'SCHEDULE']);
@@ -70,19 +73,32 @@ export async function getOutreachGroups(noteId, { includeDrafted = false } = {})
   return [...groups.values()];
 }
 
-function fallbackEmail(group) {
+// Who the email is from: the draft's owner (the salesperson), never assumed to
+// be Mike. Their signature, tone profile and real emails come with them.
+const senderFor = group => senderVoice(group.ownerUserId);
+
+function fallbackEmail(group, sender) {
   const first = (group.contact?.preferredName || group.contactName || '').split(' ')[0] || 'there';
+  const me = firstName(sender?.name) || 'Mike';
   const lines = group.actions.map(a => `• ${a.detail}`).join('\n');
   if (group.nudge) {
     return {
-      subject: 'Checking in',
-      body: `Hi ${first},\n\nHope all is well. Circling back on a couple of things from when we last met:\n\n${lines}\n\nNo rush — just let me know if I can help on my end.\n\nBest,\nMike`,
+      subject: followUpSubject(group.meetingType, group.meetingTitle),
+      body: `Hi ${first},\n\nHope all is well. Quick check-in on where things stand:\n\n${lines}\n\nNo rush. Let me know if I can help on my end.\n\nBest,\n${me}`,
     };
   }
   return {
     subject: followUpSubject(group.meetingType, group.meetingTitle),
-    body: `Hi ${first},\n\nGreat connecting. A couple of things on my end:\n\n${lines}\n\nBest,\nMike`,
+    body: `Hi ${first},\n\nGreat seeing you. Next steps:\n\n${lines}\n\nBest,\n${me}`,
   };
+}
+
+// Last step for every email this file writes: no dashes, bullets present,
+// the sender's signature underneath.
+function finish({ subject, body }, group, sender, emailKind) {
+  let clean = stripDashes(body);
+  if (!hasBullets(clean)) ({ body: clean } = fallbackEmail(group, sender));
+  return { subject: pickSubject(subject, followUpSubject(group.meetingType, group.meetingTitle)), body: withSignature(clean, sender), emailKind };
 }
 
 // The knowledge library, whole, ordered around this contact and these asks.
@@ -109,14 +125,14 @@ async function knowledgeFor(group) {
 
 function knowledgeSection(text) {
   return text
-    ? `\nILC's knowledge library — everything we have taught the bot, in full. Use whatever is
+    ? `\nILC's knowledge library: everything we have taught the bot, in full. Use whatever is
 genuinely relevant and ignore the rest. Never mention the library, and never force a fact
 in just because it is here:\n${text}\n`
     : '';
 }
 
-async function lessonsFor(emailKind) {
-  try { return editExamplesSection(await editExamples(prisma, emailKind)); }
+async function lessonsFor(emailKind, sender, userId) {
+  try { return editExamplesSection(await editExamples(prisma, emailKind, 4, userId), sender?.name); }
   catch (e) {
     console.error('[composeOutreach] edit examples failed, drafting without them:', e?.message ?? e);
     return '';
@@ -130,29 +146,38 @@ async function lessonsFor(emailKind) {
  */
 export async function composeContactEmail(group) {
   const emailKind = group.nudge ? EMAIL_KINDS.CHECK_IN : EMAIL_KINDS.RECAP;
-  const fixedSubject = group.nudge ? null : followUpSubject(group.meetingType, group.meetingTitle);
-  const meetingNoun = (fixedSubject || 'meeting').replace(/ follow-up$/, '').toLowerCase();
+  const meetingNoun = followUpSubject(group.meetingType, group.meetingTitle).replace(/ follow-up$/, '').toLowerCase();
   const line = a => `- ${a.label}: ${a.detail}${a.targetName ? ` (re ${a.targetName})` : ''}`;
   const ours = group.actions.filter(a => !a.waitingFor);
   const theirs = group.actions.filter(a => a.waitingFor);
+  const sender = await senderFor(group);
+  const me = firstName(sender?.name) || 'Mike';
   let key;
   try { key = getAnthropicKey()?.trim(); } catch { key = null; }
-  if (!key) return { ...fallbackEmail(group), emailKind };
+  if (!key) return finish(fallbackEmail(group, sender), group, sender, emailKind);
 
   const items = group.nudge
-    ? `This is a gentle check-in about things from our meeting that have not happened yet:
+    ? `This is a light check-in about things from our meeting that have not happened yet:
 ${theirs.concat(ours).map(line).join('\n')}
-Be light and helpful, never pushy or guilt-inducing. Do not say "reminder" or mention how long it has been.`
-    : `It is the recap after our meeting and must cover ALL of these items in a single email — one greeting, one sign-off, no repetition:
-${ours.length ? `Things Mike will do or is asking for:\n${ours.map(line).join('\n')}\n` : ''}${theirs.length ? `Things they offered to do — thank them and confirm warmly, never demand:\n${theirs.map(line).join('\n')}\n` : ''}`;
+Helpful, never pushy or guilt-inducing. Do not say "reminder" or mention how long it has been.`
+    : `It is the recap after our meeting and must cover ALL of these items in one email, with one greeting and one sign-off:
+${ours.length ? `Things ${me} will do or is asking for:\n${ours.map(line).join('\n')}\n` : ''}${theirs.length ? `Things they offered to do. Thank them and confirm, never demand:\n${theirs.map(line).join('\n')}\n` : ''}`;
 
-  const prompt = `Write ONE short, warm, professional email from Mike at ILC Studios (lighting) to ${group.contactName}${group.company ? ` (${group.company})` : ''}.
+  const prompt = `Write ONE short email from ${me} at ILC Studios (lighting) to ${group.contactName}${group.company ? ` (${group.company})` : ''}.
 
 ${items}
-${knowledgeSection(await knowledgeFor(group))}${await lessonsFor(emailKind)}
-It may be reviewed and sent days after the meeting, so never say when the meeting was —
+${await personalPromptFor(group.contactId, firstName(group.contactName))}${knowledgeSection(await knowledgeFor(group))}${toneSection(sender?.toneProfile, sender?.name)}${voiceExamplesSection(sender?.samples, sender?.name)}${await lessonsFor(emailKind, sender, group.ownerUserId)}
+Shape (Mike 9-26: bullets, not a long narrative):
+1. Greeting with their first name.
+2. One or two short sentences, no more.
+3. The next steps as bullet points starting with "• ", one short line each, saying who does what.
+4. One short closing line.
+5. A sign-off word on its own line, then "${me}" on the next line. Nothing after that: the signature is added for you.
+
+${PLAIN_VOICE_RULES}
+It may be reviewed and sent days after the meeting, so never say when the meeting was:
 no "today", "yesterday", "this morning" or "earlier this week". Say "our ${meetingNoun}" instead.
-${fixedSubject ? `The subject is exactly "${fixedSubject}".\n` : ''}Keep it concise and natural (not a bulleted list unless it reads well). Sign off as "Mike".
+${subjectRules(meetingNoun)}
 Return ONLY JSON: {"subject": "...", "body": "..."}`;
 
   try {
@@ -164,31 +189,34 @@ Return ONLY JSON: {"subject": "...", "body": "..."}`;
     const msg = await anthropic.messages.create({ ...modelParams('bot.outreach.compose'), max_tokens: 700, messages: [{ role: 'user', content: prompt }] });
     const raw = (textFrom(msg) || '').replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(raw);
-    if (parsed?.subject && parsed?.body) return { subject: fixedSubject || String(parsed.subject), body: String(parsed.body), emailKind };
+    if (parsed?.subject && parsed?.body) return finish({ subject: String(parsed.subject), body: String(parsed.body) }, group, sender, emailKind);
   } catch (e) {
     console.error('[composeContactEmail] AI compose failed, using fallback:', e?.message ?? e);
   }
-  return { ...fallbackEmail(group), emailKind };
+  return finish(fallbackEmail(group, sender), group, sender, emailKind);
 }
 
 /** Compose extra paragraph(s) to APPEND to an email the human already edited —
  * one short paragraph per new ask, in Mike's voice, no greeting/sign-off. */
 async function composeAppendParagraphs(group, newAsks) {
-  const fallback = () => newAsks.map(a => a.detail).filter(Boolean).join('\n\n');
+  const fallback = () => newAsks.map(a => a.detail).filter(Boolean).map(d => `• ${d}`).join('\n');
   let key;
   try { key = getAnthropicKey()?.trim(); } catch { key = null; }
   if (!key) return fallback();
 
   const askList = newAsks.map(a => `- ${a.label}: ${a.detail}${a.targetName ? ` (re ${a.targetName})` : ''}`).join('\n');
-  const prompt = `Write ${newAsks.length === 1 ? 'ONE short paragraph' : `${newAsks.length} short paragraphs (one per item)`} to ADD to an existing email to ${group.contactName} from Mike at ILC Studios. Cover:
+  const sender = await senderFor(group);
+  const me = firstName(sender?.name) || 'Mike';
+  const prompt = `Write a short lead-in line and then ${newAsks.length === 1 ? 'ONE bullet' : `${newAsks.length} bullets (one per item)`} starting with "• " to ADD to an existing email to ${group.contactName} from ${me} at ILC Studios. Cover:
 ${askList}
-${knowledgeSection(await knowledgeFor({ ...group, actions: newAsks }))}
-Rules: NO greeting, NO sign-off — these paragraphs are inserted into an email that already has them. Natural and concise, Mike's voice. Separate multiple paragraphs with a blank line. Return ONLY the paragraph text.`;
+${knowledgeSection(await knowledgeFor({ ...group, actions: newAsks }))}${toneSection(sender?.toneProfile, sender?.name)}${voiceExamplesSection(sender?.samples, sender?.name)}
+${PLAIN_VOICE_RULES}
+NO greeting and NO sign-off: this goes inside an email that already has them. Return ONLY the text.`;
   try {
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
     const anthropic = wrapClient(new Anthropic({ apiKey: key }), 'bot.outreach.appendParagraphs');
     const msg = await anthropic.messages.create({ ...modelParams('bot.outreach.subject'), max_tokens: 500, messages: [{ role: 'user', content: prompt }] });
-    const text = (textFrom(msg) || '').trim();
+    const text = stripDashes((textFrom(msg) || '').trim());
     return text || fallback();
   } catch (e) {
     console.error('[composeAppendParagraphs] failed, using fallback:', e?.message ?? e);
@@ -220,7 +248,7 @@ export async function draftContactOutreach(noteId, contactId, ownerUserId, revie
   const openAsks = group.actions.filter(a => !a.botDraftId || WORKING_DRAFT_STATUSES.has(dById.get(a.botDraftId)?.status));
   if (openAsks.length === 0) return { skipped: 'all already sent' };
 
-  const openGroup = { ...group, actions: openAsks };
+  const openGroup = { ...group, actions: openAsks, ownerUserId };
   const reason = `Consolidated outreach (${openAsks.length} item${openAsks.length !== 1 ? 's' : ''}) from a sales note`;
   // Reuse a working draft (live or paused); always reactivate it to PENDING_REVIEW.
   const pending = drafts.find(d => WORKING_DRAFT_STATUSES.has(d.status)) || null;
@@ -250,7 +278,7 @@ export async function draftContactOutreach(noteId, contactId, ownerUserId, revie
     // Human edited it → preserve their text; append only the NEW asks as paragraphs.
     const newAsks = openAsks.filter(a => a.botDraftId !== pending.id);
     const body = newAsks.length
-      ? `${pending.body.replace(/\s+$/, '')}\n\n${await composeAppendParagraphs(openGroup, newAsks)}`
+      ? insertBeforeSignOff(pending.body, await composeAppendParagraphs(openGroup, newAsks), await senderFor(openGroup))
       : pending.body;
     draft = await prisma.botDraft.update({
       where: { id: pending.id },

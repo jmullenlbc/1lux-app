@@ -2,6 +2,26 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+### 2026-09-26 (latest) - Mike's Claude - built, NOT deployed, **migration 0104**: personal facts, signature name/office line, Outlook uploads
+- `ContactPersonalFact` rows (archive-only, staff-only). Filled by `readNote()` in `extractNoteActions.js` (same AI call now returns `{actions, personal}`; `extractNoteActions()` still returns actions only) via `savePersonalFacts()` from publish + re-extract. Meeting Prep block `personal`; writers use `personalPromptFor()`.
+- User.signatureName / officePhone / officeExt; `{office}` in the default signature layout. A saved company layout without `{office}` never shows it.
+- `src/lib/tone/outlook.js`: browser-side .pst (Unicode only) / .olm / .msg readers. Sources PST/OLM/MSG (string column, no migration).
+- Next migration: 0105.
+
+### 2026-09-26 (later) - Mike's Claude - built, NOT deployed, **migration 0103**: Voice Training library + company signature layout
+- VoiceBatch / VoiceSample / EmailSignatureTemplate (0103). Samples are rows; dedupe by `sampleHash` before createMany (no skipDuplicates on SQLite). Not covered by the db.js archive filter: active = `{archivedAt:null, batch:{archivedAt:null}}`.
+- Relearn is parked: `/api/sales/voice/rebuild`, call with `postParked`. Upload/archive routes never call the model.
+- `senderVoice(userId)` (`src/lib/bot/voice.js`) = user + company signature layout + 4 real samples; used by composeOutreach, followUpDrafter, ruleEngine DRAFT_EMAIL.
+- `ownWords` now strips typed/picture signatures and two-line "On ... wrote:".
+- Next migration: 0104.
+
+### 2026-09-26 - Mike's Claude - built, NOT deployed, **migration 0102**: bot email style (no dashes, bullets, per-salesperson signature + tone)
+- `src/lib/bot/emailStyle.js` (pure): stripDashes, signatureBlock, toneSection, PLAIN_VOICE_RULES. Used by composeOutreach, followUpDrafter, ruleEngine.
+- Draft sender = `group.ownerUserId` (engine passes `note.createdById`). Edit lessons now filtered by that userId.
+- User.jobTitle / User.phone (0102). Signature is appended by code; the model is told to stop at the sign-off.
+- Tone .mbox parsed in the browser (`src/lib/tone/mbox.js`), POSTed as JSON. Route still accepts small legacy formData.
+- Next migration: 0103.
+
 ### 2026-09-25 (deploy) — Mike's Claude — DEPLOYED 59a6955: 9-24 + 9-25 sales notes / Meeting Prep / follow-up watch, **migrations 0100 + 0101**
 - Ships everything in the three entries below, plus: recap subject "Coffee follow-up" style (never "today/yesterday"); recap + check-in emails learn from human edits (`src/lib/bot/editLearning.js`, BotDraft.aiSubject/aiBody/emailKind, 0101); Reminder Timeline editable by the sales team (`isSalesTeam` in auth.js).
 - **@Sean (still open):** EventBridge for `/api/cron/note-reminders` (daily) and `/api/cron/meeting-prep` (every 30 min). Graph attachment expansion for filenames.

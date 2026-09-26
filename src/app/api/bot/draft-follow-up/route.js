@@ -31,7 +31,7 @@ export async function POST(req) {
   }) || { name: 'Manual', triggerConfig: '{}', actionConfig: '{"reviewWindowMinutes":-1}' };
 
   const daysSinceActivity = Math.floor((Date.now() - getLastActivityDate(project).getTime()) / 86400000);
-  const result = await generateFollowUpDraft(project, rule);
+  const result = await generateFollowUpDraft(project, rule, { senderUserId: user.id });
   if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
 
   let actionConfig = {};

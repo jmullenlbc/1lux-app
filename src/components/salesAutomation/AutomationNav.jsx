@@ -8,6 +8,8 @@ const TABS = [
   { href: '/sales/automation/templates', label: 'Templates' },
   { href: '/sales/automation/knowledge', label: 'Bot Knowledge' },
   { href: '/sales/automation/timeline',  label: 'Reminder Timeline' },
+  { href: '/sales/automation/voice',     label: 'Voice Training' },
+  { href: '/sales/automation/signature', label: 'Signature' },
 ];
 
 // Shown only to Sales Admins / Super Admins.

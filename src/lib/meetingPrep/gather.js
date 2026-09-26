@@ -216,6 +216,14 @@ export async function gatherMeetingFacts(prisma, noteId, now = new Date(), opts 
     })),
   ]);
 
+  // Kids, golf, cold brew: only for the people actually on this meeting.
+  const personal = noteContactIds.length ? await safe('personal', prisma.contactPersonalFact.findMany({
+    where: { contactId: { in: noteContactIds }, archivedAt: null },
+    select: { id: true, contactId: true, category: true, fact: true },
+    orderBy: { createdAt: 'desc' },
+    take: 24,
+  })) : [];
+
   const noteContactSet = new Set(noteContactIds);
   const flat = a => ({ ...a, noteTitle: a.note?.title || null, noteDate: a.note?.meetingDate || null, note: undefined });
 
@@ -230,5 +238,6 @@ export async function gatherMeetingFacts(prisma, noteId, now = new Date(), opts 
     news,
     standards: standards.map(s => ({ clientId: s.clientId, count: s._count?._all ?? 0, lastAnsweredAt: s._max?.answered_at ?? null })),
     history,
+    personal,
   };
 }

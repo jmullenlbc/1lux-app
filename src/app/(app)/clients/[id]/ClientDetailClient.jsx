@@ -21,6 +21,7 @@ import PipelineTab from './PipelineTab';
 import StandardFixtureScheduleTab from './StandardFixtureScheduleTab';
 import ProductOptionsTab from './ProductOptionsTab';
 import ShareStandardsButton from './ShareStandardsButton';
+import PersonalFactsPanel from '@/components/crm/PersonalFactsPanel';
 import WorkHistoryPanel from './WorkHistoryPanel';
 import { WORK_HISTORY_READY } from '@/lib/workHistory';
 
@@ -1055,6 +1056,7 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
   const [contacts,  setContacts]  = useState(initial);
   const [dealList,  setDealList]  = useState(null); // {contact, bucket, projects} | null
   const [historyFor, setHistoryFor] = useState(null); // contact id whose work history is open
+  const [personalFor, setPersonalFor] = useState(null); // contact id whose personal facts are open
 
   // Propagate any contact change up so the Overview count, tab badge, and
   // Playbook "primary national contact" dropdown stay in sync without a refresh.
@@ -1288,6 +1290,10 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
                   {historyFor === c.id ? '▾' : '▸'} Work history
                 </button>
               )}
+              <button type="button" onClick={() => setPersonalFor(p => (p === c.id ? null : c.id))}
+                className="text-slate-400 hover:text-amber-600" title="Kids, sports, hobbies, favorite coffee">
+                {personalFor === c.id ? '▾' : '▸'} Personal
+              </button>
               {(c.lastEmailReceivedAt || c.lastEmailSentAt) && (
                 <span className="text-slate-300">
                   Last email {c.lastEmailReceivedAt ? `in ${new Date(c.lastEmailReceivedAt).toLocaleDateString()}` : ''}
@@ -1296,6 +1302,7 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
                 </span>
               )}
             </div>
+            {personalFor === c.id && <PersonalFactsPanel contactId={c.id} name={c.name} />}
             {WORK_HISTORY_READY && historyFor === c.id && <WorkHistoryPanel clientId={clientId} contactId={c.id} name={c.name} />}
           </div>
         ))}

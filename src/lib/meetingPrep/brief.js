@@ -30,6 +30,7 @@ export const MAX_FACT_CHARS = 400;
 export const BLOCKS = [
   { key: 'client',       label: 'Company',            cap: 3 },
   { key: 'people',       label: 'People',             cap: 8 },
+  { key: 'personal',     label: 'Personal',           cap: 8 },
   { key: 'workHistory',  label: 'Work history',       cap: 8 },
   { key: 'jobs',         label: 'Jobs with them',     cap: 8 },
   { key: 'deals',        label: 'Deals',              cap: 10 },
@@ -159,7 +160,8 @@ export function describeJobsWith(name, links, projectById) {
  * @param {object} raw  what gather.js returns (every list optional):
  *   clients, contacts (each may carry projectLinks and employment), projects
  *   (each may carry budget {total, source}, contractValue, designContractValue),
- *   followUps, intel, changeOrders, rfis, news, standards, history
+ *   followUps, intel, changeOrders, rfis, news, standards, history,
+ *   personal [{ id, contactId, category, fact }]
  * @param {Date} now
  * @returns {Array<{ ref, block, position, text, sourceKind, sourceId }>}
  */
@@ -208,6 +210,13 @@ export function buildFactBlocks(raw = {}, now = new Date()) {
     ].filter(Boolean);
     if (mail.length) parts.push(`${mail.join('; ')}.`.replace(/^./, s => s.toUpperCase()));
     addFact('people', parts.join(' '), 'Contact', p.id);
+  }
+
+  // Personal — what they mentioned outside work (ContactPersonalFact).
+  const nameOf = Object.fromEntries(contacts.map(p => [p.id, p.name]));
+  for (const f of raw.personal || []) {
+    const who = nameOf[f.contactId];
+    if (who && f.fact) addFact('personal', `${who}: ${String(f.fact).replace(/[.\s]+$/, '')}.`, 'ContactPersonalFact', f.id);
   }
 
   // Work history — pasted off their LinkedIn or typed in (ContactEmployment).
@@ -349,6 +358,7 @@ Write up to ${MAX_POINTS} talking points for this meeting (three is a good numbe
 - Every point cites the facts it rests on by their refs.
 - One or two plain sentences each: something to ask, follow up on, congratulate them on, or be ready for. Overdue follow-ups and open items come first.
 - You may mention budgets, product sale totals and design fees when they help. Never mention DN, dealer net, buy price, net cost, margin, rebates or anything about what ILC pays.
+- Personal facts (kids, sports, hobbies, coffee) are for a warm opener or small talk. At most one point may lean on them, and only as they are written.
 - If the facts are too thin for three good points, give fewer. Never pad.
 
 Return ONLY JSON, with no other text: {"points":[{"text":"...","refs":["F1","F4"]}]}`;

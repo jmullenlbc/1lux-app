@@ -168,7 +168,7 @@ export async function sendDueWaitReminders(prisma, {
   const log = { due: 0, drafted: 0, notified: 0, finished: 0, skipped: 0 };
   const rows = await prisma.noteAction.findMany({
     where:   { kind: 'ACTION', status: 'CONFIRMED', fulfilledAt: null, remindAt: { lte: now } },
-    include: { note: { select: { id: true, title: true, meetingDate: true, isPublished: true, archivedAt: true, createdById: true, calendarRef: true } } },
+    include: { note: { select: { id: true, title: true, meetingDate: true, isPublished: true, archivedAt: true, createdById: true, calendarRef: true, activityType: true } } },
     orderBy: { remindAt: 'asc' },
     take:    500,
   });
@@ -198,7 +198,7 @@ export async function sendDueWaitReminders(prisma, {
     let draftId = null;
     if (c?.email) {
       const { subject, body, emailKind = 'CHECK_IN' } = await compose({
-        nudge: true, round, meetingType: note.activityType || null, meetingTitle: note.title || '',
+        nudge: true, round, ownerUserId: note.createdById, meetingType: note.activityType || null, meetingTitle: note.title || '',
         contactId: c.id, contactName: name, email: c.email, company: first.company || '', contact: c,
         actions: actions.map(a => ({
           id: a.id, label: types.get(a.type)?.label || a.type, detail: a.detail || a.rawText,
@@ -222,7 +222,7 @@ export async function sendDueWaitReminders(prisma, {
       userId:    note.createdById,
       type:      'NOTE_REMINDER',
       title:     `Still waiting on ${name} (reminder ${round})`,
-      message:   `${what}${draftId ? ' — a check-in email is in the Bot Queue for you to review.' : ' — no email on file, so no draft.'}`.slice(0, 400),
+      message:   `${what}${draftId ? '. A check-in email is in the Bot Queue for you to review.' : '. No email on file, so no draft.'}`.slice(0, 400),
       link:      `/crm/notes?note=${note.id}`,
       dedupeKey: `noteWait:${note.id}:${first.contactId || first.id}:${round}`,
     }).catch(() => ({ created: false }));

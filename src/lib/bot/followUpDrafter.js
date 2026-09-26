@@ -11,6 +11,9 @@ import { wrapClient } from '@/lib/agent/client';
 import { modelParams, textFrom } from '@/lib/aiModels';
 import { inDesignPipeline, STAGE_LABEL } from '@/lib/pipeline';
 import { knowledgeContextBlock } from '@/lib/botKnowledge/retrieve';
+import { stripDashes, withSignature, toneSection, voiceExamplesSection, subjectRules, pickSubject, firstName, PLAIN_VOICE_RULES } from '@/lib/bot/emailStyle';
+import { senderVoice } from '@/lib/bot/voice';
+import { personalPromptFor } from '@/lib/contacts/savePersonalFacts';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -93,12 +96,15 @@ function pickContact(project) {
 
 // ── Draft Generation ──────────────────────────────────────────────────────────
 
-export async function generateFollowUpDraft(project, rule) {
+export async function generateFollowUpDraft(project, rule, { senderUserId } = {}) {
   const lastActivityDate  = getLastActivityDate(project);
   const daysSinceActivity = daysSince(lastActivityDate);
 
   const contact = pickContact(project);
-  const owner   = project.salesOwner;
+  // Who it is from: the person who asked for it, else the project's salesperson.
+  const sender  = await senderVoice(senderUserId || project.salesOwner?.id);
+  const owner   = sender || project.salesOwner;
+  const me      = firstName(owner?.name) || 'ILC Studios';
   const toEmail = contact?.email || owner?.email || null;
   const toName  = contact?.preferredName || contact?.name?.split(' ')[0] || contact?.name || null;
 
@@ -106,7 +112,7 @@ export async function generateFollowUpDraft(project, rule) {
     return { error: 'No contact email found for project — skipping', project: project.name };
   }
 
-  const [template, knowledgeText] = await Promise.all([findTemplate(project), findKnowledge(project)]);
+  const [template, knowledgeText, personalText] = await Promise.all([findTemplate(project), findKnowledge(project), personalPromptFor(contact?.id, toName)]);
 
   const recentActivities = (project.activities || [])
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
@@ -115,7 +121,7 @@ export async function generateFollowUpDraft(project, rule) {
     .join('\n');
 
   const knowledgeBlock = knowledgeText
-    ? `\nILC's knowledge library — everything we have taught the bot, in full. Use whatever
+    ? `\nILC's knowledge library: everything we have taught the bot, in full. Use whatever
 is genuinely relevant to this project and ignore the rest. Never mention the library
 itself, and never force a fact in just because it is here:\n${knowledgeText}`
     : '';
@@ -132,14 +138,19 @@ Project context:
 - Recent activities:
 ${recentActivities || '  (no activity logged)'}
 - Key contact: ${toName || 'unknown'} (${toEmail})
-${knowledgeBlock}
-${templateBody ? `\nUse this template as a skeleton (fill in project-specific details, don't use it verbatim):\n${templateBody}` : ''}
+${personalText}${knowledgeBlock}
+${toneSection(sender?.toneProfile, sender?.name)}${voiceExamplesSection(sender?.samples, sender?.name)}${templateBody ? `\nUse this template as a skeleton (fill in project-specific details, don't use it verbatim):\n${templateBody}` : ''}
 
-Write a brief, natural follow-up email. Reference the actual project by name. Do not use generic filler. Match the tone of a trusted consultant checking in — not a salesperson chasing. Keep it under 5 sentences. Address it to ${toName || 'the contact'}.
+Write a brief, natural follow-up email. Reference the actual project by name. Do not use generic filler. Match the tone of a trusted consultant checking in, not a salesperson chasing. Keep it under 5 sentences. Address it to ${toName || 'the contact'}.
+End with a sign-off word on its own line, then "${me}". Nothing after that: the signature is added for you.
+
+${PLAIN_VOICE_RULES}
+${subjectRules('')}
 
 Respond with JSON only: { "subject": "...", "body": "..." }`;
 
-  let subject = `Following up — ${project.name}`;
+  const fallbackSubject = project.name;
+  let subject = fallbackSubject;
   let body = '';
   try {
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
@@ -159,10 +170,10 @@ Respond with JSON only: { "subject": "...", "body": "..." }`;
     body    = parsed.body   || raw;
   } catch (e) {
     console.error('[followUpDrafter] Claude call failed:', e.message);
-    body = `Hi ${toName || 'there'},\n\nJust checking in on ${project.name} — happy to connect whenever you have a moment.\n\nBest,\n${owner?.name || 'ILC Studios'}`;
+    body = `Hi ${toName || 'there'},\n\nJust checking in on ${project.name}. Happy to connect whenever you have a moment.\n\nBest,\n${me}`;
   }
 
-  return { toEmail, toName, subject, body, daysSinceActivity, projectId: project.id, projectName: project.name };
+  return { toEmail, toName, subject: pickSubject(subject, fallbackSubject), body: withSignature(stripDashes(body), sender), daysSinceActivity, projectId: project.id, projectName: project.name };
 }
 
 // ── Staleness Check ───────────────────────────────────────────────────────────

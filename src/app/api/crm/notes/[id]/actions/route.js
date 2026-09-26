@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { extractNoteActions } from '@/lib/bot/extractNoteActions';
+import { readNote } from '@/lib/bot/extractNoteActions';
+import { savePersonalFacts } from '@/lib/contacts/savePersonalFacts';
 import { getActiveActionTypes } from '@/lib/noteActionTypesStore';
 import { fireNoteActionConfirmed } from '@/lib/bot/noteActionRunner';
 import { isWaitExecutor, waitStatus, ladderOf } from '@/lib/followUp/watch';
@@ -53,7 +54,10 @@ export async function POST(request, { params }) {
   if (!note) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const actionTypes = await getActiveActionTypes();
-  const extracted = await extractNoteActions(note, candidates, actionTypes);
+  const { actions: extracted, personal } = await readNote(note, candidates, actionTypes);
+  const onNote = note.contacts.map(c => c.contact).filter(Boolean);
+  const facts = await savePersonalFacts(personal, { noteId: params.id, createdById: note.createdById || null, onlyContact: onNote.length === 1 ? onNote[0] : null })
+    .catch(() => ({ created: 0 }));
 
   await prisma.$transaction([
     prisma.noteAction.deleteMany({ where: { noteId: params.id, status: 'SUGGESTED', source: 'ai' } }),
@@ -61,7 +65,7 @@ export async function POST(request, { params }) {
   ]);
 
   const actions = await prisma.noteAction.findMany({ where: { noteId: params.id }, orderBy: [{ kind: 'asc' }, { createdAt: 'asc' }] });
-  return NextResponse.json({ actions, extractedCount: extracted.length });
+  return NextResponse.json({ actions, extractedCount: extracted.length, personalCount: facts.created });
 }
 
 // PATCH — update one action (confirm/dismiss/done, change type, set contact, due date)

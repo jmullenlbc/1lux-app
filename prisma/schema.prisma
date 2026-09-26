@@ -87,6 +87,20 @@ model User {
   toneProfile                String? // JSON: { summary, phrases[], openers[], closers[], formality, examples[] }
   toneProfileBuiltAt         DateTime? // when the profile was last generated
   toneProfileSource          String? // "gmail_mbox" | "outlook_mbox" | "manual"
+  // Email signature (Mike 9-26): one company layout, these two swapped in per
+  // person with their name and email. Added by migration 0102.
+  jobTitle                   String?
+  phone                      String?
+  // Migration 0104 (Mike 9-26): the name the signature prints ("Michael
+  // Kershner" while the account says Mike), and an optional office line.
+  signatureName              String?
+  officePhone                String?
+  officeExt                  String?
+  personalFactsAdded         ContactPersonalFact[]        @relation("PersonalFactCreator")
+  personalFactsArchived      ContactPersonalFact[]        @relation("PersonalFactArchiver")
+  voiceBatches               VoiceBatch[]                 @relation("VoiceBatchOwner")
+  voiceBatchesUploaded       VoiceBatch[]                 @relation("VoiceBatchUploader")
+  voiceSamples               VoiceSample[]                @relation("VoiceSampleOwner")
   botConfig                  BotConfig?
   botDrafts                  BotDraft[]                   @relation("BotDraftOwner")
   schedulingRules            SchedulingRule[]             @relation("SchedulingRuleCreator")
@@ -494,6 +508,7 @@ model Contact {
   emailLinks          EmailContactLink[]
   noteLinks           NoteContact[]
   employment          ContactEmployment[]
+  personalFacts       ContactPersonalFact[]
 
   @@index([clientId])
   @@map("ClientContact")
@@ -1271,6 +1286,7 @@ model Note {
   projects      NoteProject[]
   actions       NoteAction[]
   meetingBriefs MeetingBrief[]
+  personalFacts ContactPersonalFact[]
 
   // The calendar sync looks a note up by the event's own id on every pass, so
   // that lookup gets an index. Not unique: a manually typed calendarRef could
@@ -2528,6 +2544,55 @@ model SchedulingRule {
 }
 
 // Bot-generated draft waiting for review or auto-send
+// Voice training (Mike 9-26): a salesperson uploads a batch of emails they
+// wrote, each one is kept as a row, and the bot learns their tone, words,
+// phrases and subject lines from them. Archive-only: an archived batch stops
+// teaching but nothing is removed. Added by migration 0103.
+model VoiceBatch {
+  id           String        @id @default(cuid())
+  userId       String
+  user         User          @relation("VoiceBatchOwner", fields: [userId], references: [id], onDelete: Cascade)
+  uploadedById String?
+  uploadedBy   User?         @relation("VoiceBatchUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  fileName     String?
+  source       String // MBOX | EML | TEXT | PASTE | PST | OLM | MSG
+  emailsAdded  Int           @default(0)
+  archivedAt   DateTime?
+  archivedById String?
+  createdAt    DateTime      @default(now())
+  samples      VoiceSample[]
+
+  @@index([userId, archivedAt])
+}
+
+model VoiceSample {
+  id         String     @id @default(cuid())
+  userId     String
+  user       User       @relation("VoiceSampleOwner", fields: [userId], references: [id], onDelete: Cascade)
+  batchId    String
+  batch      VoiceBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  subject    String     @default("")
+  body       String
+  sentAt     DateTime?
+  hash       String // same email uploaded twice is kept once
+  archivedAt DateTime?
+  createdAt  DateTime   @default(now())
+
+  @@unique([userId, hash])
+  @@index([batchId])
+  @@index([userId, archivedAt, sentAt])
+}
+
+// The one company signature layout (Mike 9-26). Placeholders {name}, {first},
+// {title}, {email} and {phone} are filled per sender; a line whose
+// placeholders are all blank is dropped. Row id is always "company".
+model EmailSignatureTemplate {
+  id          String   @id @default("company")
+  template    String
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+}
+
 model BotDraft {
   id                   String    @id @default(cuid())
   userId               String
@@ -3431,4 +3496,28 @@ model UnitSelectionResult {
   updatedAt    DateTime            @updatedAt
 
   @@unique([surveyId, category])
+}
+
+// Personal things people mention (Mike 9-26: "2 kids who play soccer or they
+// like golf or hiking or cold brew"). Read out of published sales notes, or
+// typed on the person's record. Staff-only. Archived, never deleted.
+model ContactPersonalFact {
+  id           String    @id @default(cuid())
+  contactId    String
+  contact      Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  category     String // FAMILY | SPORTS | HOBBY | FOOD_DRINK | TRAVEL | PETS | OTHER
+  fact         String
+  source       String    @default("ai") // ai | manual
+  sourceNoteId String?
+  sourceNote   Note?     @relation(fields: [sourceNoteId], references: [id], onDelete: SetNull)
+  createdById  String?
+  createdBy    User?     @relation("PersonalFactCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  archivedAt   DateTime?
+  archivedById String?
+  archivedBy   User?     @relation("PersonalFactArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([contactId, archivedAt])
+  @@index([sourceNoteId])
 }

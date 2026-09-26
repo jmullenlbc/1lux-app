@@ -3,9 +3,31 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { NOTIFICATION_TYPES, NOTIFICATION_MODULES } from '@/lib/notificationTypes';
 import { ROLE_LABEL } from '@/lib/roles';
+import { signatureBlock } from '@/lib/bot/emailStyle';
+import MySignatureFields from '@/components/salesAutomation/MySignatureFields';
+import { extractSentEmails } from '@/lib/tone/mbox';
+import { postParked } from '@/lib/parkedFetch';
+
+// ── Email Signature Section ───────────────────────────────────────────────────
+// One company layout; your printed name, title, cell and optional office line
+// are typed here. Every email the bot drafts for you ends with it (Mike 9-26).
+function SignatureSection() {
+  const [f, setF] = useState(null);
+  const [template, setTemplate] = useState(undefined);
+  useEffect(() => { fetch('/api/sales/signature').then(r => r.json()).then(d => setTemplate(d.template)).catch(() => {}); }, []);
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 p-6 mt-5">
+      <h2 className="text-sm font-semibold text-slate-700 mb-1">Email Signature</h2>
+      <p className="text-xs text-slate-500 mb-4">Added under every email the bot drafts for you. Email comes from your account. The layout is the company one, set under Sales, Automation, Signature.</p>
+      <MySignatureFields onChange={setF} />
+      <div className="text-xs text-slate-500 mb-1 mt-4">Preview</div>
+      <pre className="text-sm text-slate-700 bg-slate-50 rounded-lg p-3 whitespace-pre-wrap font-sans">{(f && signatureBlock(f, template)) || 'Add your title and cell phone above.'}</pre>
+    </div>
+  );
+}
 
 // ── Tone Profile Section ──────────────────────────────────────────────────────
-function ToneProfileSection() {
+function ToneProfileSection({ email }) {
   const [profile,    setProfile]    = useState(null);
   const [loading,    setLoading]    = useState(true);
   const [uploading,  setUploading]  = useState(false);
@@ -25,26 +47,33 @@ function ToneProfileSection() {
     setUploading(true);
     setMsg(null);
     try {
-      const fd = new FormData();
-      fd.append('file', file);
-      const res = await fetch('/api/users/tone-profile', { method: 'POST', body: fd });
+      // Read here, send only the words: the file itself can be far too big to upload.
+      const emails = await extractSentEmails(file, email, { max: 500,
+        onProgress: (bytes, found) => setMsg({ type: 'info', text: `Reading your sent mail: ${Math.round(bytes / 1e6)} MB, ${found} emails so far` }),
+      });
+      if (emails.length < 5) throw new Error(`Only ${emails.length} sent emails found in that file. Export your Sent mail and try again.`);
+      setMsg({ type: 'info', text: `Learning your voice from ${emails.length} emails` });
+      let added = 0;
+      for (let i = 0; i < emails.length; i += 200) {
+        const res = await fetch('/api/sales/voice', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileName: file.name, source: 'MBOX', emails: emails.slice(i, i + 200) }),
+        });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(d.error || `Error ${res.status}`);
+        added += d.added || 0;
+      }
+      const res = await postParked('/api/sales/voice/rebuild', {});
       const d = await res.json();
-      if (!res.ok) throw new Error(d.error || `Error ${res.status}`);
+      if (!res.ok || d.rebuildError) throw new Error(d.rebuildError || d.message || d.error || `Error ${res.status}`);
       setProfile(d.profile);
-      setMsg({ type: 'success', text: `Tone profile built from ${d.emailsAnalyzed} emails.` });
+      setMsg({ type: 'success', text: `Added ${added} new emails. Your voice is now learned from ${d.count} emails.` });
     } catch (err) {
       setMsg({ type: 'error', text: err.message });
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
     }
-  }
-
-  async function handleDelete() {
-    if (!confirm('Delete your tone profile? Bot drafts will use a default voice until you upload again.')) return;
-    await fetch('/api/users/tone-profile', { method: 'DELETE' });
-    setProfile(null);
-    setMsg({ type: 'success', text: 'Tone profile deleted.' });
   }
 
   return (
@@ -54,15 +83,10 @@ function ToneProfileSection() {
           <h2 className="text-sm font-semibold text-slate-700">Email Tone Profile</h2>
           <p className="text-xs text-slate-400 mt-1">
             Upload your sent email export so the bot learns to write in your voice.
-            Each person has their own profile — your style stays yours.
+            Each person has their own profile, so your style stays yours. Only the words you wrote are sent; the file stays on your computer.
           </p>
         </div>
-        {profile && (
-          <button onClick={handleDelete}
-            className="text-xs text-slate-400 hover:text-red-500 transition-colors shrink-0">
-            Delete profile
-          </button>
-        )}
+        <a href="/sales/automation/voice" className="text-xs text-orange-600 hover:underline shrink-0">Open Voice Training</a>
       </div>
 
       {loading ? (
@@ -116,7 +140,7 @@ function ToneProfileSection() {
           </svg>
           <p className="text-sm font-medium text-slate-600 mb-1">No tone profile yet</p>
           <p className="text-xs text-slate-400 mb-4 max-w-xs mx-auto">
-            Download your Gmail Sent folder via Google Takeout → unzip → upload <strong>Sent.mbox</strong> here.
+            In Google Takeout pick Mail, then only the <strong>Sent</strong> label. Unzip and upload the .mbox here. Any size works.
             Claude Sonnet will analyze your writing style and build a personal voice profile.
           </p>
           <button
@@ -131,7 +155,7 @@ function ToneProfileSection() {
       )}
 
       {msg && (
-        <p className={`mt-3 text-xs rounded-lg px-3 py-2 ${msg.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-600 border border-red-200'}`}>
+        <p className={`mt-3 text-xs rounded-lg px-3 py-2 ${msg.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : msg.type === 'info' ? 'bg-slate-50 text-slate-600 border border-slate-200' : 'bg-red-50 text-red-600 border border-red-200'}`}>
           {msg.text}
         </p>
       )}
@@ -153,6 +177,7 @@ function InternalNotificationsSection() {
   const [prefs,   setPrefs]   = useState({});
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(null); // notificationType being saved
+  const [dismissedDryRun, setDismissedDryRun] = useState(false);
 
   useEffect(() => {
     fetch('/api/user/preferences')
@@ -275,7 +300,6 @@ export default function ProfileClient({ user }) {
   const [pw, setPw] = useState({ current: '', next: '', confirm: '' });
   const [savingPw, setSavingPw] = useState(false);
   const [pwMsg,    setPwMsg]    = useState(null);
-  const [dismissedDryRun, setDismissedDryRun] = useState(false);
 
   async function handleChangePw() {
     if (pw.next.length < 8) { setPwMsg({ type: 'error', text: 'Password must be at least 8 characters.' }); return; }
@@ -400,7 +424,8 @@ export default function ProfileClient({ user }) {
       </div>
 
       <InternalNotificationsSection />
-      <ToneProfileSection />
+      <SignatureSection />
+      <ToneProfileSection email={user?.email} />
     </div>
   );
 }

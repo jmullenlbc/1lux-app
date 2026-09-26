@@ -46,9 +46,10 @@ export function wasEdited(d) {
 }
 
 /** The most recent sent emails of this kind that a person rewrote first. */
-export async function editExamples(prisma, emailKind, limit = 4) {
+// With a userId, only that salesperson's own edits: each person teaches their own voice.
+export async function editExamples(prisma, emailKind, limit = 4, userId = null) {
   const rows = await prisma.botDraft.findMany({
-    where:   { emailKind, aiBody: { not: null }, status: { in: SENT } },
+    where:   { emailKind, aiBody: { not: null }, status: { in: SENT }, ...(userId ? { userId } : {}) },
     orderBy: { updatedAt: 'desc' },
     take:    40,
     select:  { subject: true, body: true, aiSubject: true, aiBody: true },
@@ -62,18 +63,19 @@ const clip = s => {
 };
 
 /** Prompt block: before/after pairs, or '' when there are none yet. */
-export function editExamplesSection(pairs) {
+export function editExamplesSection(pairs, senderName = 'Mike') {
   if (!pairs?.length) return '';
+  const who = String(senderName || 'Mike').trim().split(/\s+/)[0].toUpperCase();
   const shown = pairs.map((p, i) => `Example ${i + 1}
 WHAT THE BOT WROTE:
 Subject: ${p.aiSubject || p.subject}
 ${clip(p.aiBody)}
-WHAT MIKE ACTUALLY SENT:
+WHAT ${who} ACTUALLY SENT:
 Subject: ${p.subject}
 ${clip(p.body)}`).join('\n\n');
   return `
-Mike rewrote these earlier drafts before sending them. Study what he changed — length,
-tone, greeting, sign-off, what he cut and what he added — and write the way he sends,
+${who[0]}${who.slice(1).toLowerCase()} rewrote these earlier drafts before sending them. Study what changed: length,
+tone, greeting, sign-off, what was cut and what was added. Write the way they send,
 not the way the bot first wrote. Never copy their details into this email:
 ${shown}
 `;

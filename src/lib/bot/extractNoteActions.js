@@ -12,9 +12,10 @@ import { wrapClient } from '@/lib/agent/client';
 import { modelParams, textFrom } from '@/lib/aiModels';
 import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
 import { DEFAULT_ACTION_TYPES } from '@/lib/noteActions';
+import { cleanCategory, cleanFact, PERSONAL_CATEGORIES } from '@/lib/contacts/personalFacts';
 
 // Try to resolve a free-text person name to a CRM contact id.
-function resolveContact(name, candidates) {
+export function resolveContact(name, candidates) {
   if (!name) return null;
   const n = name.trim().toLowerCase();
   if (!n) return null;
@@ -31,8 +32,17 @@ function resolveContact(name, candidates) {
  * @returns {Array} NoteAction-shaped objects (no ids) ready to persist
  */
 export async function extractNoteActions(note, candidateContacts = [], actionTypes = null) {
+  return (await readNote(note, candidateContacts, actionTypes)).actions;
+}
+
+/**
+ * The same one AI call, returning the next steps AND the personal things said
+ * (kids, sports, hobbies, coffee order). Personal lines never become actions.
+ * @returns {{ actions: Array, personal: Array<{category, fact, contactName, contactId}> }}
+ */
+export async function readNote(note, candidateContacts = [], actionTypes = null) {
   const body = (note?.body || '').trim();
-  if (!body) return [];
+  if (!body) return { actions: [], personal: [] };
 
   const types = (Array.isArray(actionTypes) && actionTypes.length)
     ? actionTypes
@@ -55,10 +65,10 @@ Rules:
 - For EXPECT_INTRO: "contact" = the person who will make the intro; "target" = the third party being introduced.
 - Things the OTHER person said they would do are their own types, so the app can watch the inbox for them: they will send drawings / plans / a set / files, or send jobs for peer review → EXPECT_DRAWINGS; they will send a calendar invite or set up the next meeting themselves → EXPECT_INVITE; they will get back to me / check and reply / let me know → EXPECT_REPLY. Things MIKE will do stay EMAIL / SEND_MATERIALS / SCHEDULE.
 - Extract any person name (contact), third party (target), and company or project mentioned.
-- Skip purely personal/non-business lines.
+- PERSONAL: something about the person's life outside work that they mentioned (family, kids and their activities, sports they play or follow, hobbies, favorite food or drink, trips, pets). Return it as type "PERSONAL" with "category" one of ${PERSONAL_CATEGORIES.join(', ')} and "detail" a short plain fact about them, e.g. "Has two kids who play soccer", "Likes cold brew". Only what the note actually says; never guess or embellish. A to-do can also reveal a personal interest: "wants to golf in October, set it up" is a SCHEDULE step AND a PERSONAL fact "Likes golf"; "make a cold brew tasting sheet" is a to-do AND "Likes cold brew". Return both.
 
 Return ONLY a JSON array. Each element:
-{ "type": "<KEY>", "kind": "ACTION" | "INTEL", "rawText": "<original line>", "detail": "<short normalized phrasing>", "contact": <name or null>, "target": <name or null>, "company": <name or null> }`;
+{ "type": "<KEY>" | "PERSONAL", "kind": "ACTION" | "INTEL" | "PERSONAL", "category": <PERSONAL only, else null>, "rawText": "<original line>", "detail": "<short normalized phrasing>", "contact": <name or null>, "target": <name or null>, "company": <name or null> }`;
 
   let parsed = [];
   try {
@@ -82,7 +92,7 @@ Return ONLY a JSON array. Each element:
 
     const msg = await anthropic.messages.create({
       ...modelParams('bot.noteActions'),
-      max_tokens: 1500,
+      max_tokens: 2000,
       system:   sealed.system,
       messages: [{ role: 'user', content: sealed.content }],
     });
@@ -92,11 +102,21 @@ Return ONLY a JSON array. Each element:
     if (!Array.isArray(parsed)) parsed = [];
   } catch (e) {
     console.error('[extractNoteActions] Claude call failed:', e?.message ?? e);
-    return [];
+    return { actions: [], personal: [] };
   }
 
-  return parsed
-    .filter(it => it && it.rawText)
+  const isPersonal = it => it && (it.type === 'PERSONAL' || it.kind === 'PERSONAL');
+  const personal = parsed
+    .filter(it => isPersonal(it) && cleanFact(it.detail || it.rawText))
+    .map(it => ({
+      category:    cleanCategory(it.category),
+      fact:        cleanFact(it.detail || it.rawText),
+      contactName: it.contact || null,
+      contactId:   resolveContact(it.contact, candidateContacts),
+    }));
+
+  const actions = parsed
+    .filter(it => it && it.rawText && !isPersonal(it))
     .map(it => {
       const type = VALID.has(it.type) ? it.type : 'OTHER';
       const kind = typeByKey.get(type)?.kind || (it.kind === 'INTEL' ? 'INTEL' : 'ACTION');
@@ -114,4 +134,5 @@ Return ONLY a JSON array. Each element:
         source:      'ai',
       };
     });
+  return { actions, personal };
 }

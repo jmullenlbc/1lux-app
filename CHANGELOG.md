@@ -5,6 +5,53 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Personal facts on contacts + signature name and office line + Outlook uploads for Voice Training] - September 26, 2026 (NOT DEPLOYED) - migration 0104
+
+Mike 9-26: "we need to learn about the personal things sometimes talked about and record those somewhere. That person has 2 kids who play soccer or they like golf or hiking or cold brew." Also: change the printed signature name (Michael to Mike), an optional office line, and "upload the equivalent of Google takeout from Microsoft".
+- **Personal facts.** Publishing a sales note (or Re-read) now also picks out personal things said (family, sports, hobbies, food and drink, travel, pets) and saves each one on the person as its own row (`ContactPersonalFact`). Never turned into a next step. Skipped if the person can't be told apart; the same fact twice is kept once.
+- **People tab: "Personal" under each person.** See the facts by category, add your own, Put away / Restore. Nothing is deleted. Staff only (the API refuses client viewers).
+- **Meeting Prep: new "Personal" block** for the people on the meeting. At most one talking point may lean on it.
+- **Email writers** (recaps, check-ins, stale-project follow-ups) see up to 3 facts and MAY add one short warm line. Optional, never invented.
+- **Signature:** printed name override (`signatureName`, e.g. "Mike Kershner" on a "Michael" account) and an optional office line with extension (`o: 617.555.1234 ext 204`). Blank office means the line is left out. Set on Profile and on the Signature page. `{office}` added to the layout.
+- **Voice Training takes Outlook exports:** Windows .pst, Mac .olm and single .msg emails, read in the browser, never uploaded. Only the Sent folder is used (falls back to mail from the person's address). ANSI (Outlook 97-2002) and password-encrypted .pst files get a plain-words error.
+- **A to-do can also reveal an interest** (Mike 9-26: "that was a todo but it should note that he likes golf"). "Wants to golf in October, set it up" now gives a SCHEDULE step AND the fact "Likes to golf". Checked live on Mike's real Lee note: 8 steps, plus golf and cold brew saved as personal.
+- Fixed: Profile page crash (`dismissedDryRun`).
+- Migration **0104**: `User.signatureName/officePhone/officeExt`, `ContactPersonalFact`. Additive only.
+- New: `src/lib/tone/outlook.js`, `src/lib/contacts/personalFacts.js`, `src/lib/contacts/savePersonalFacts.js`, `/api/crm/contacts/[id]/personal`, `src/components/crm/PersonalFactsPanel.jsx`, `src/components/salesAutomation/MySignatureFields.jsx`. `extractNoteActions.js` gains `readNote()` (same single AI call).
+- Tests: `outlookExport.test.mjs` (10), `personalFacts.test.mjs` (5), both in verify.
+
+---
+
+## [Voice Training + company signature layout + subjects in the sender's voice] - September 26, 2026 (NOT DEPLOYED) - migration 0103
+
+Mike 9-26: "No B is so boring and obviously AI. The subject needs to be in the same tone. We need a place in the sales module for sales people to upload a batch of emails for the system to learn tone, vocabulary, phrases, etc." and "The signature should be a template we build that then dynamically takes a users name, email and phone number... it should autopopulate on any email."
+- **New screen: Sales → Voice Training** (`/sales/automation/voice`, also a Sales Automation tab). Drop in Google Takeout .mbox, .eml or .txt files, or paste emails. Files are read in the browser; only the words the person wrote are sent (quoted replies, typed and picture signatures and footers are stripped). Every email is kept as its own row, so the library grows with each upload and the same email is never stored twice. Shows what was learned: summary, tone, openers, closers, phrases, words used often, subject lines and how they are written, habits, never-does. Uploads list with Put away / Restore (nothing is deleted). A Sales Admin can work on anyone's voice.
+- **Subjects are written by the AI in the sender's voice**, taught by their real subject lines. Stock lines ("Checking in", "Following up"), day words and "Re:"/"Fwd:" on a new email are refused and fall back.
+- **Writers see real emails.** Recaps, check-ins, stale-project follow-ups and rule drafts all get 4 of the sender's real emails as examples, plus the learned profile.
+- **New screen: Sales → Email Signature** (`/sales/automation/signature`). One company layout with `{name} {first} {title} {email} {phone}`; a Sales Admin edits it, everyone sees their own preview. A line whose details are blank is left out. Added to every bot draft, including If-Then rule drafts (owner reminders stay unsigned).
+- **The voice is relearned in the background** (park-and-poll), so a big library never hits the 30-second wall. Re-uploading a file that was put away brings its emails back.
+- Profile page's tone upload now feeds the same library and links to Voice Training.
+- Mike's voice learned locally from 422 of his sent emails (pre-con Sent mailbox, Feb 2025 to June 2026). **Prod needs the file uploaded on the new screen after deploy.**
+- Migration **0103**: `VoiceBatch`, `VoiceSample` (unique per person + email hash), `EmailSignatureTemplate`. Additive only.
+- New: `src/lib/tone/library.js`, `src/lib/tone/voiceApi.js`, `src/lib/bot/voice.js`, `/api/sales/voice` (+ `/batches/[id]`, `/rebuild`), `/api/sales/signature`. Removed: POST `/api/users/tone-profile` (moved).
+- Tests: `emailStyle.test.mjs` now 13.
+
+---
+
+## [Bot emails sound like the salesperson: no dashes, bullet next steps, per-person signature and tone] - September 26, 2026 (NOT DEPLOYED) - migration 0102
+
+Mike 9-26: "Make a rule to never use the double dash ever in any writing. Your tone is so boring and robot like... sales notes follow ups should always include bullet points of next steps... build template email signature that just swaps out names, emails and phone numbers."
+- **No dashes, ever.** New `src/lib/bot/emailStyle.js` strips em dashes, en dashes and double dashes from every bot email (recaps, check-ins, stale-project follow-ups, rule-engine drafts), subjects included. Number ranges become "2-3".
+- **Next steps are bullets.** Recaps and check-ins are a short greeting, one or two sentences, then bullets saying who does what, then one closing line. A draft with no bullets falls back to the bullet template.
+- **Plainer voice.** Stock lines ("I hope this email finds you well", "Please don't hesitate") are banned in the prompt.
+- **The sender is the note's owner, not Mike by default.** Their tone profile, their own edit lessons and their signature are used.
+- **Signature template.** New User `jobTitle` + `phone` (migration 0102, fills Mike's). Name / title / email / "c: 857.998.0556" added by code under every recap and check-in. Each person sets title and cell on Profile with a live preview (`/api/users/signature`).
+- **Tone upload works at any size.** Profile reads the Google Takeout Sent .mbox in the browser and uploads only the words each person wrote (no quoted replies or signatures). Old path would have hit the 4.4 MB front-door cap. `src/lib/tone/mbox.js`.
+- Fixed: the follow-up sweep never loaded the note's meeting type, so check-ins didn't know it was a coffee.
+- Tests: `scripts/tests/emailStyle.test.mjs` (7), in verify.
+
+---
+
 ## [Follow-up emails learn from your edits + "Coffee follow-up" subjects + sales team edits the Reminder Timeline] - September 25, 2026 (DEPLOYED 59a6955) — migration 0101
 
 Mike 9-25: "It should always say something like Coffee follow-up. We may not approve it for 2 days so if it says yesterday that doesn't work. The system needs to learn from the email edits too."

@@ -16,6 +16,8 @@
 import { prisma } from '@/lib/db';
 import { executeNoteAction } from '@/lib/bot/executeNoteAction';
 import { fillTemplate } from '@/lib/bot/mergeTokens';
+import { stripDashes, withSignature } from '@/lib/bot/emailStyle';
+import { senderVoice } from '@/lib/bot/voice';
 
 // ── Trigger registry ─────────────────────────────────────────────────────────
 // `fields` drives both the condition builder UI and the evaluator. `live`
@@ -92,13 +94,15 @@ export function evaluateConditions(conditions, payload) {
 
 // ── Action primitive registry ────────────────────────────────────────────────
 // Each executor: async (payload, actionConfig, ctx) => { botDraftId?, detail }
-async function createFollowUpDraft({ ownerUserId, toEmail, toName, subject, body, reviewWindowMinutes }) {
+async function createFollowUpDraft({ ownerUserId, toEmail, toName, subject, body, reviewWindowMinutes, signed = false }) {
   if (!ownerUserId) return null;
+  // An email to a contact carries the sender's signature; a note to the owner does not.
+  if (signed) body = withSignature(stripDashes(body || ''), await senderVoice(ownerUserId, { samples: 0 }));
   return prisma.botDraft.create({
     data: {
       userId: ownerUserId, type: 'FOLLOW_UP', status: 'PENDING_REVIEW',
       toEmail: toEmail || '', toName: toName || null,
-      subject: subject || 'Follow-up', body: body || '',
+      subject: stripDashes(subject || 'Follow-up'), body: stripDashes(body || ''),
       reviewWindowMinutes: reviewWindowMinutes ?? 30,
     },
   });
@@ -116,8 +120,8 @@ export const ACTIONS = {
       }) || payload.detail || '';
       const d = await createFollowUpDraft({
         ownerUserId: ctx.ownerUserId, toEmail: ctx.contact?.email, toName: payload.contactName,
-        subject: cfg?.subject || `Follow-up — ${payload.contactName || ''}`.trim(), body,
-        reviewWindowMinutes: ctx.reviewWindowMinutes,
+        subject: cfg?.subject || `Follow-up: ${payload.contactName || ''}`.trim(), body,
+        reviewWindowMinutes: ctx.reviewWindowMinutes, signed: true,
       });
       return { botDraftId: d?.id, detail: 'email draft queued' };
     },
@@ -127,7 +131,7 @@ export const ACTIONS = {
     async run(payload, cfg, ctx) {
       const d = await createFollowUpDraft({
         ownerUserId: ctx.ownerUserId, toEmail: '', toName: payload.contactName,
-        subject: cfg?.subject || `Heads up: ${payload.typeLabel || 'action'} — ${payload.contactName || ''}`.trim(),
+        subject: cfg?.subject || `Heads up: ${payload.typeLabel || 'action'}: ${payload.contactName || ''}`.trim(),
         body: cfg?.message || payload.detail || payload.rawText || '',
         reviewWindowMinutes: ctx.reviewWindowMinutes,
       });
