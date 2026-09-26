@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Personal facts on contacts + signature name and office line + Outlook uploads for Voice Training] - September 26, 2026 (NOT DEPLOYED) - migration 0104
+## [Personal facts on contacts + signature name and office line + Outlook uploads for Voice Training] - September 26, 2026 (DEPLOYED 4246e70) - migration 0104
 
 Mike 9-26: "we need to learn about the personal things sometimes talked about and record those somewhere. That person has 2 kids who play soccer or they like golf or hiking or cold brew." Also: change the printed signature name (Michael to Mike), an optional office line, and "upload the equivalent of Google takeout from Microsoft".
 - **Personal facts.** Publishing a sales note (or Re-read) now also picks out personal things said (family, sports, hobbies, food and drink, travel, pets) and saves each one on the person as its own row (`ContactPersonalFact`). Never turned into a next step. Skipped if the person can't be told apart; the same fact twice is kept once.
@@ -22,7 +22,7 @@ Mike 9-26: "we need to learn about the personal things sometimes talked about an
 
 ---
 
-## [Voice Training + company signature layout + subjects in the sender's voice] - September 26, 2026 (NOT DEPLOYED) - migration 0103
+## [Voice Training + company signature layout + subjects in the sender's voice] - September 26, 2026 (DEPLOYED 4246e70) - migration 0103
 
 Mike 9-26: "No B is so boring and obviously AI. The subject needs to be in the same tone. We need a place in the sales module for sales people to upload a batch of emails for the system to learn tone, vocabulary, phrases, etc." and "The signature should be a template we build that then dynamically takes a users name, email and phone number... it should autopopulate on any email."
 - **New screen: Sales → Voice Training** (`/sales/automation/voice`, also a Sales Automation tab). Drop in Google Takeout .mbox, .eml or .txt files, or paste emails. Files are read in the browser; only the words the person wrote are sent (quoted replies, typed and picture signatures and footers are stripped). Every email is kept as its own row, so the library grows with each upload and the same email is never stored twice. Shows what was learned: summary, tone, openers, closers, phrases, words used often, subject lines and how they are written, habits, never-does. Uploads list with Put away / Restore (nothing is deleted). A Sales Admin can work on anyone's voice.
@@ -38,7 +38,7 @@ Mike 9-26: "No B is so boring and obviously AI. The subject needs to be in the s
 
 ---
 
-## [Bot emails sound like the salesperson: no dashes, bullet next steps, per-person signature and tone] - September 26, 2026 (NOT DEPLOYED) - migration 0102
+## [Bot emails sound like the salesperson: no dashes, bullet next steps, per-person signature and tone] - September 26, 2026 (DEPLOYED 4246e70) - migration 0102
 
 Mike 9-26: "Make a rule to never use the double dash ever in any writing. Your tone is so boring and robot like... sales notes follow ups should always include bullet points of next steps... build template email signature that just swaps out names, emails and phone numbers."
 - **No dashes, ever.** New `src/lib/bot/emailStyle.js` strips em dashes, en dashes and double dashes from every bot email (recaps, check-ins, stale-project follow-ups, rule-engine drafts), subjects included. Number ranges become "2-3".
