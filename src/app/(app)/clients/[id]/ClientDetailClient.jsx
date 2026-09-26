@@ -1292,7 +1292,7 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
               )}
               <button type="button" onClick={() => setPersonalFor(p => (p === c.id ? null : c.id))}
                 className="text-slate-400 hover:text-amber-600" title="Kids, sports, hobbies, favorite coffee">
-                {personalFor === c.id ? '▾' : '▸'} Personal
+                {personalFor === c.id ? '▾' : '▸'} Notes and personal
               </button>
               {(c.lastEmailReceivedAt || c.lastEmailSentAt) && (
                 <span className="text-slate-300">

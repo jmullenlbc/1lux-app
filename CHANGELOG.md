@@ -5,6 +5,14 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Meeting notes under each person + Intel closed to client viewers] - September 26, 2026 (NOT DEPLOYED) - no migration
+
+Mike 9-26, on facts like "Lee is touring a property on the 13th at 3pm": "Only as notes."
+- Facts from meetings (Intel) were already never steps, never in recaps and never reminders. Now they also show under each person: the People tab toggle is **"Notes and personal"**, with a read-only "Noted in meetings" list above the personal facts, each with its note title and date.
+- `/api/crm/intel` now refuses client viewers (403). It only checked login before.
+
+---
+
 ## [Personal facts on contacts + signature name and office line + Outlook uploads for Voice Training] - September 26, 2026 (DEPLOYED 4246e70) - migration 0104
 
 Mike 9-26: "we need to learn about the personal things sometimes talked about and record those somewhere. That person has 2 kids who play soccer or they like golf or hiking or cold brew." Also: change the printed signature name (Michael to Mike), an optional office line, and "upload the equivalent of Google takeout from Microsoft".

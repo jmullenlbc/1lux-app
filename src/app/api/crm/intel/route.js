@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, isClientViewer } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -7,8 +7,9 @@ export const dynamic = 'force-dynamic';
 // GET — all INTEL items across notes, searchable + filterable.
 // Query params: q (free text), contactId, company, status (default: not DISMISSED).
 export async function GET(request) {
-  const { error } = await requireAuth();
+  const { user, error } = await requireAuth();
   if (error) return error;
+  if (isClientViewer(user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const sp = new URL(request.url).searchParams;
   const q         = (sp.get('q') || '').trim();

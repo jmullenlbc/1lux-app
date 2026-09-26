@@ -12,11 +12,17 @@ export default function PersonalFactsPanel({ contactId, name }) {
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [showAway, setShowAway] = useState(false);
+  const [intel, setIntel] = useState([]);
   const url = `/api/crm/contacts/${contactId}/personal`;
 
   useEffect(() => {
     fetch(url).then(r => r.json()).then(d => setFacts(d.facts || [])).catch(() => setErr('Could not load.'));
   }, [url]);
+
+  // Facts from meetings ("touring a property on the 13th"): notes only, never steps.
+  useEffect(() => {
+    fetch(`/api/crm/intel?contactId=${contactId}`).then(r => r.json()).then(d => setIntel(d.items || [])).catch(() => {});
+  }, [contactId]);
 
   async function send(method, body) {
     setBusy(true); setErr('');
@@ -41,6 +47,19 @@ export default function PersonalFactsPanel({ contactId, name }) {
 
   return (
     <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
+      {intel.length > 0 && (
+        <div className="mb-3">
+          <p className="text-[11px] text-slate-500 mb-1">Noted in meetings</p>
+          <ul className="space-y-1">
+            {intel.map(i => (
+              <li key={i.id} className="text-xs text-slate-700">
+                {i.detail || i.rawText}
+                {i.note && <span className="text-slate-300"> · {i.note.title || 'note'}{i.note.meetingDate ? `, ${new Date(i.note.meetingDate).toLocaleDateString()}` : ''}</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <p className="text-[11px] text-slate-500 mb-2">
         Things {name?.split(' ')[0] || 'they'} mentioned outside work. Picked up from sales notes, or add your own. Only staff see these.
       </p>
