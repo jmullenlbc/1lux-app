@@ -2,7 +2,15 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-26 (newest) - Mike's Claude - **DEPLOYED 4bd2555**, no migration: Intel shows under each person ("Notes and personal" toggle, read-only "Noted in meetings" list via `/api/crm/intel?contactId=`). Intel stays notes only, never steps (Mike). `/api/crm/intel` now 403s client viewers. Next migration still 0105.
+### 2026-09-26 (latest) - Mike's Claude - **DEPLOYING**, **migration 0105**: My Desk (`/sales/desk`)
+- One place per salesperson: reminders (own published notes' CONFIRMED ACTION steps), PENDING_REVIEW BotDrafts (shared `src/components/sales/DraftCard.jsx`), check-ins due, notes to finish.
+- `NoteAction.snoozedUntil` / `pausedAt` (0105). Snooze sets remindAt = snoozedUntil, clears remindedAt. Pause: `sendDueWaitReminders` and `/api/cron/note-reminders` both filter `pausedAt: null`; an unshared PENDING_REVIEW nudge draft is cancelled.
+- Rules pure in `src/lib/desk/desk.js`; `actOnStep` = note owner or admin only. Bell links now go to `/sales/desk`.
+- Dashboard card `kind: 'desk'` (chartType DESK) on SALES; reaches existing dashboards via `appendMissingPrebuilt`.
+- Bot Queue removed from the sidebar (page still at /sales/bot-queue).
+- Next migration: 0106.
+
+### 2026-09-26 (newer) - Mike's Claude - **DEPLOYED 4bd2555**, no migration: Intel shows under each person ("Notes and personal" toggle, read-only "Noted in meetings" list via `/api/crm/intel?contactId=`). Intel stays notes only, never steps (Mike). `/api/crm/intel` now 403s client viewers. Next migration still 0105.
 
 ### 2026-09-26 (later) - Mike's Claude - **DEPLOYED 4246e70**, migrations 0102 + 0103 + 0104 in one push. Activity to-dos now also save the interest ("Likes to golf"). Next migration 0105. Mike must re-upload his Sent .mbox on Voice Training in prod.
 

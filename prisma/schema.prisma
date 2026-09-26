@@ -1320,6 +1320,12 @@ model NoteAction {
   //   stays in the past once it passes
   botDraftId   String? // loose ref to the BotDraft this action produced
 
+  // My Desk (0105, Mike 9-26). Snooze hides the step and moves its reminder to
+  // snoozedUntil; Pause stops every reminder and "still waiting" draft until
+  // someone turns it back on.
+  snoozedUntil DateTime?
+  pausedAt     DateTime?
+
   // Follow-up watch (0100, Mike 9-25). A waiting step (reply / drawings /
   // invite / intro) is DONE when a matching email or invite arrives; until
   // then reminders walk the type's ladder (reminderDays → reminder2Days →

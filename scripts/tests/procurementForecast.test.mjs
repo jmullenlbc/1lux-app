@@ -45,10 +45,13 @@ test('tpl cards arrive on an existing dashboard once, and stay off once removed'
   assert.equal(prebuiltKey({ tpl: 'procurement-on-hold', terms: [] }), 'tpl:procurement-on-hold');
   const tpls = SALES.filter(t => t.dataSpec.tpl);
   assert.equal(tpls.length, 5);
-  assert.equal(missingPrebuilt(SALES, []).length, 5);
+  // Five procurement cards plus My Desk (kind 'desk', Mike 9-26).
+  assert.equal(missingPrebuilt(SALES, []).length, 6);
+  assert.ok(missingPrebuilt(SALES, []).some(t => t.dataSpec.kind === 'desk'));
   const have = [{ name: 'renamed', dataSpec: JSON.stringify(tpls[0].dataSpec) }];
-  assert.equal(missingPrebuilt(SALES, have).length, 4);
-  assert.equal(missingPrebuilt(SALES, [], ['tpl:procurement-on-hold']).length, 4);
+  assert.equal(missingPrebuilt(SALES, have).length, 5);
+  assert.equal(missingPrebuilt(SALES, [], ['tpl:procurement-on-hold']).length, 5);
+  assert.equal(missingPrebuilt(SALES, [], ['desk']).length, 5);
 });
 
 test('probability picker: set steps, and an off-list saved value is kept', async () => {

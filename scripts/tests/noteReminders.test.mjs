@@ -130,7 +130,7 @@ test('a runaway note does not put a wall of text in the bell', () => {
 
 test('clicking the reminder lands on the note it came from', () => {
   const plan = planNoteReminder(action({}, { id: 'note42' }), { now: NOW });
-  assert.equal(plan.alert.link, '/sales/activity?note=note42');
+  assert.equal(plan.alert.link, '/sales/desk');
 });
 
 test('a junk row is refused rather than crashing the sweep', () => {

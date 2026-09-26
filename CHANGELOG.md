@@ -5,6 +5,23 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [My Desk: one place for reminders, emails to review and check-ins] - September 26, 2026 (NOT DEPLOYED) - migration 0105
+
+Mike 9-26: "we need them to really kind of have one place where they have information or need to review things like reminders in draft emails." And: "Make the snooze time manually overwritten with any number... pick a date as the manual override option."
+- **New page: My Desk** (`/sales/desk`, top of the Sales menu, with a count of late + today reminders + emails to review). Built for a phone: one column, big buttons.
+  - **Reminders** from your own published sales notes, grouped Overdue / Today / This week / Waiting on them / Later / Snoozed / Paused. Each has **Done**, **Snooze** and **Pause**; snoozed ones have **Wake up now**, paused ones **Turn back on**. Each links to the person and the note.
+  - **Snooze**: Tomorrow, 3 days, 1 week, any number of days (1 to 365), or pick a date.
+  - **Pause** stops every reminder for that step, including the bot's "still waiting" email draft (an unsent one is withdrawn).
+  - **Emails to review**: your bot drafts, reviewed right there (same card as the Bot Queue). Nothing sends on its own.
+  - **Check-ins due** (top 10, with the same snooze) and **meeting notes to finish**.
+- **My Desk card** on the Sales dashboard (arrives on existing dashboards by itself). The reminder bell now opens My Desk.
+- Sales Notes accepts `?note=<id>` so desk rows open the right note.
+- **Bot Queue is off the side menu** (Mike 9-26: "go in my desk"). Its drafts are reviewed on My Desk; the page itself still works at `/sales/bot-queue`.
+- Migration **0105**: `NoteAction.snoozedUntil`, `NoteAction.pausedAt`. The reminder sweep and the one-time reminder cron skip paused steps.
+- Files: `src/lib/desk/desk.js` (pure), `src/lib/desk/deskServer.js`, `src/app/api/sales/desk/route.js`, `src/app/api/sales/desk/[id]/route.js`, `src/app/(app)/sales/desk/page.jsx`, `src/components/sales/DraftCard.jsx` (moved out of the Bot Queue page), `src/components/sales/SnoozeBox.jsx`, `src/components/dashboards/DeskCard.jsx`, `src/components/layout/useDeskCount.js`, Sidebar, DashboardView, render route, dashboardTemplates, engine.js, note-reminders cron, noteReminders.js, NotesClient + notes page. Test: `scripts/tests/desk.test.mjs`.
+
+---
+
 ## [Meeting notes under each person + Intel closed to client viewers] - September 26, 2026 (DEPLOYED 4bd2555) - no migration
 
 Mike 9-26, on facts like "Lee is touring a property on the 13th at 3pm": "Only as notes."

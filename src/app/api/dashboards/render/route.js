@@ -107,6 +107,9 @@ export async function POST(request) {
         // to write (it stamps which items have been shown), which this route
         // does not do. Nothing to render here; the card takes over on screen.
         results[w.id] = { chartType: 'VERIFICATION', series: [] };
+      } else if (spec.kind === 'desk') {
+        // My Desk is per person; the card fetches /api/sales/desk itself.
+        results[w.id] = { chartType: 'DESK', series: [] };
       } else if (spec.kind === 'calibration') {
         results[w.id] = runCalibrationWidget(spec, samples, filters, figures);
       } else if (lw) {

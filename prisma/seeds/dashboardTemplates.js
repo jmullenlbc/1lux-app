@@ -6,6 +6,8 @@
 
 const TEMPLATES_BY_SECTION = {
   SALES: [
+    // My Desk (Mike 9-26): each person's reminders and drafts, linking to /sales/desk.
+    { name: 'My Desk',                     chartType: 'DESK', width: 'FULL', dataSpec: { kind: 'desk' } },
     { name: 'Combined Revenue Forecast',   chartType: 'BAR',  width: 'FULL', dataSpec: { groupBy: 'expectedOrderDate', timeBucket: 'month', terms: [{ field: 'productSaleTotal', agg: 'sum' }, { field: 'designFeeTotal', agg: 'sum' }], op: 'add' } },
     { name: 'Pipeline Value by Stage',     chartType: 'BAR',  width: 'HALF', dataSpec: { groupBy: 'procurementStage', terms: [{ field: 'productSaleTotal', agg: 'sum' }], op: 'single' } },
     { name: 'Open Projects by Organization', chartType: 'BAR',  width: 'HALF', dataSpec: { groupBy: 'client', terms: [{ field: 'projectCount', agg: 'count' }], op: 'single' } },

@@ -1063,9 +1063,11 @@ function firstInAgenda(notes) {
   return (g.upcoming[0] || g.needsNotes[0] || g.done[0])?.id || null;
 }
 
-export default function NotesClient({ initialNotes, clients, projects, currentUser, initialStatus = 'all' }) {
+export default function NotesClient({ initialNotes, clients, projects, currentUser, initialStatus = 'all', initialNoteId = null }) {
   const [notes,        setNotes]        = useState(initialNotes);
   const [selected,     setSelected]     = useState(() => {
+    // ?note=<id> comes from My Desk's "open the note" link.
+    if (initialNoteId && initialNotes.some(n => n.id === initialNoteId)) return initialNoteId;
     const mine = initialStatus === 'mine' ? initialNotes.find(n => isReminderDraft(n, currentUser?.id)) : null;
     return mine?.id || firstInAgenda(initialNotes);
   });
@@ -1082,6 +1084,9 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
       if (first) setSelected(first.id);
     }
   }, [initialStatus]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (initialNoteId && notes.some(n => n.id === initialNoteId)) setSelected(initialNoteId);
+  }, [initialNoteId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const activeNote = notes.find(n => n.id === selected) || null;
 

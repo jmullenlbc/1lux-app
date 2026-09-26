@@ -68,7 +68,7 @@ export function planNoteReminder(action, { now = new Date(), maxLateDays = MAX_L
       type:    'NOTE_REMINDER',
       title:   `Reminder: ${who}`,
       message: String(what).slice(0, 400),
-      link:    `/sales/activity?note=${action.note.id}`,
+      link:    '/sales/desk',
       // Keyed on the action, not on the day: the point of the key is that this
       // reminder can only ever be shown once, even if the stamp fails to save.
       dedupeKey: `noteAction:${action.id}:reminder`,

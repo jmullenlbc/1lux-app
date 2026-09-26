@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Chart from '@/components/dashboards/Chart';
 import CalibrationTable from '@/components/dashboards/CalibrationTable';
 import VerificationCard from '@/components/dashboards/VerificationCard';
+import DeskCard from '@/components/dashboards/DeskCard';
 import { CALIBRATION_REPORTS } from '@/lib/calibration/report';
 import { measuresFor, dimensionsFor, fieldByKey } from '@/lib/dashboards/fieldCatalog';
 import { AGG_OPS, MATH_OPS, AGG_LABEL, MATH_LABEL } from '@/lib/dashboards/formula';
@@ -261,6 +262,8 @@ export default function DashboardView({ section, sectionLabel }) {
                     ? <p className="text-xs text-red-500 px-2">{r.error}</p>
                     : r.chartType === 'VERIFICATION'
                       ? <VerificationCard />
+                    : r.chartType === 'DESK'
+                      ? <DeskCard />
                     : r.chartType === 'TABLE'
                       ? <CalibrationTable table={r.table} isAdmin={meta.isAdmin} onApplied={() => render(dash, filters)} />
                       : <Chart chartType={r.chartType} series={r.series} unit={unit} />}
@@ -324,6 +327,8 @@ function WidgetEditor({ section, measures, dimensions, init, onSave, onClose }) 
           <h3 className="text-sm font-bold text-slate-800 mb-1">Edit widget</h3>
           <p className="text-xs text-slate-500 mb-4">{spec.kind === 'verification'
             ? <>Prebuilt card — <b>Things Needing a Look</b>. It works out its own list every time it loads, so there is no field to pick; you can retitle or resize it.</>
+            : spec.kind === 'desk'
+            ? <>Prebuilt card: <b>My Desk</b>. It shows each person their own reminders and emails to review, so there is no field to pick; you can retitle or resize it.</>
             : <>Prebuilt pricing-calibration widget — <b>{report?.label || spec.report}</b>. It reads the engine&apos;s model-vs-actual samples, so there is no field to pick; you can retitle or resize it.</>}</p>
           <div className="space-y-3">
             <Field label="Title"><input value={spec.name} onChange={e => set('name', e.target.value)} className="inp" /></Field>

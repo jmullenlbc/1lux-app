@@ -49,6 +49,7 @@ export default async function NotesPage({ searchParams }) {
       clients={clients}
       projects={projects}
       initialStatus={initialStatus}
+      initialNoteId={typeof searchParams?.note === 'string' ? searchParams.note : null}
       currentUser={{ id: user.id, name: user.name, email: user.email, role: user.role, isAdmin: actsAsAdmin(user), canPrep: canSeeAllData(user) }}
     />
   );

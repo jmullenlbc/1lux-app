@@ -61,6 +61,7 @@ export async function GET(req) {
       where: {
         remindAt:   { lte: now },
         remindedAt: null,
+        pausedAt:   null,
         status:     { in: ['CONFIRMED', 'SUGGESTED'] },
         kind:       'ACTION',
         type:       { notIn: waitTypes.map(t => t.key) },
