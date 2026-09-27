@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { QUIET_AFTER_DAYS } from '@/lib/meeting/cards';
+import { cadenceDaysFor } from '@/lib/checkIns/checkIns';
 
 // GET /api/crm/contacts/check-ins-due
 // Query: ?status=overdue | due_soon
@@ -39,14 +39,8 @@ export async function GET(request) {
 
   for (const contact of contacts) {
     // Compute effectiveCadenceDays
-    const effectiveCadenceDays =
-      contact.cadenceDays ??
-      contact.client?.cadenceDays ??
-      (contact.cadenceTier ? ruleByTier[contact.cadenceTier] : null) ??
-      // Was a flat 90 by guess. Now the measured fallback, shared with the
-      // weekly meeting's "gone quiet" card so the two screens cannot disagree
-      // about the same person.
-      QUIET_AFTER_DAYS;
+    // Shared with the check-in emails (src/lib/checkIns) so the two agree on who is due.
+    const effectiveCadenceDays = cadenceDaysFor(contact, ruleByTier);
 
     // Reference date: lastInPersonAt preferred, else lastTouchpointAt
     const referenceDate = contact.lastInPersonAt ?? contact.lastTouchpointAt;
@@ -92,7 +86,7 @@ export async function GET(request) {
       effectiveCadenceDays,
       daysSinceLastInPerson,
       daysOverdue,
-      client:               contact.client ? { name: contact.client.name } : null,
+      client:               contact.client ? { id: contact.client.id, name: contact.client.name } : null,
     });
   }
 

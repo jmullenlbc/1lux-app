@@ -79,6 +79,7 @@ model User {
   deliveryEventsCreated      ManufacturerDeliveryEvent[]  @relation("DeliveryEventCreator")
   shipSchedulePushes         ShipSchedulePush[]           @relation("ShipPusher")
   ownedClients               Client[]                     @relation("ClientOwner")
+  ownedContacts              Contact[]                    @relation("ContactOwner")
   alerts                     UserAlert[]
   // Sales Bot
   homeBaseCity               String?
@@ -474,6 +475,10 @@ model Contact {
   // table only ever held employees of a client).
   clientId            String?
   client              Client?             @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  // Who looks after this person (0107). Beats the company's owner, so a person
+  // with no company still has someone whose desk their check-in email lands on.
+  ownerId             String?
+  owner               User?               @relation("ContactOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   name                String
   firstName           String? // parsed from name on save; editable
   lastName            String?
@@ -509,7 +514,9 @@ model Contact {
   noteLinks           NoteContact[]
   employment          ContactEmployment[]
   personalFacts       ContactPersonalFact[]
+  botDrafts           BotDraft[]          @relation("ContactBotDrafts")
 
+  @@index([ownerId])
   @@index([clientId])
   @@map("ClientContact")
 }
@@ -1251,6 +1258,9 @@ model Note {
   archivedAt   DateTime?
   archivedById String?
   archivedBy   User?     @relation("NoteArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
+  // "Nobody to add" on My Desk (0107): an in-person meeting whose guests are
+  // not in the CRM stops being flagged once someone says so.
+  peopleSkippedAt DateTime?
   noteType     String    @default("SALES") // SALES | PROJECT_MEETING
   title        String    @default("")
   body         String    @default("")
@@ -2628,6 +2638,10 @@ model BotDraft {
   aiSubject            String?
   aiBody               String?
   emailKind            String?
+  // Who a check-in email is to (migration 0106). One check-in draft per person
+  // per check-in, and My Desk matches it to the person's check-in row.
+  contactId            String?
+  contact              Contact?  @relation("ContactBotDrafts", fields: [contactId], references: [id], onDelete: SetNull)
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
@@ -2635,6 +2649,7 @@ model BotDraft {
   @@index([projectId])
   @@index([status])
   @@index([emailKind])
+  @@index([contactId])
 }
 
 // Automation rules: what triggers the bot and what it does

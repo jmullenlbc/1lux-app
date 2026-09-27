@@ -2,7 +2,14 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-26 (latest) - Mike's Claude - **DEPLOYED 101d8ed**, **migration 0105**: My Desk (`/sales/desk`)
+### 2026-09-26 (newest) - Mike's Claude - **DEPLOYED (pending hash)**, **migrations 0106 + 0107**: check-in emails + Quick Note + My Desk flags
+- 0106 `BotDraft.contactId`: check-in drafts (type CHECK_IN, emailKind KEEP_IN_TOUCH) written a DAY AHEAD by `/api/cron/note-reminders` (20s budget); desk "Write email" does one by hand; snooze withdraws unedited ones. Rules `src/lib/checkIns/`.
+- 0107 `ClientContact.ownerId` (FK User, SetNull) + `Note.peopleSkippedAt`. Owner order: person, company, last note writer, active users only (`pickOwner`).
+- Quick Note on My Desk (`src/components/desk/QuickNote.jsx`), kept in localStorage `ilc.quickNote.v1` until publish succeeds.
+- Desk flags: "Met someone not in the system" (own in-person SALES notes, last 7 days, `src/lib/desk/needsPerson.js` + `meetingPeople.js`) and "Nobody looks after these people" (company-wide, everyone sees it, Mike 9-26; `takeContact` 409s if already owned).
+- Nothing auto-sends. Next migration: 0108.
+
+### 2026-09-26 (later still) - Mike's Claude - **DEPLOYED 101d8ed**, **migration 0105**: My Desk (`/sales/desk`)
 - One place per salesperson: reminders (own published notes' CONFIRMED ACTION steps), PENDING_REVIEW BotDrafts (shared `src/components/sales/DraftCard.jsx`), check-ins due, notes to finish.
 - `NoteAction.snoozedUntil` / `pausedAt` (0105). Snooze sets remindAt = snoozedUntil, clears remindedAt. Pause: `sendDueWaitReminders` and `/api/cron/note-reminders` both filter `pausedAt: null`; an unshared PENDING_REVIEW nudge draft is cancelled.
 - Rules pure in `src/lib/desk/desk.js`; `actOnStep` = note owner or admin only. Bell links now go to `/sales/desk`.

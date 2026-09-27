@@ -9,7 +9,8 @@ export async function GET(request) {
   const { user, error } = await requireAuth();
   if (error) return error;
   if (isClientViewer(user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  const desk = await loadDesk(user.id);
-  if (new URL(request.url).searchParams.get('count')) return NextResponse.json({ attention: desk.attention });
+  const countOnly = Boolean(new URL(request.url).searchParams.get('count'));
+  const desk = await loadDesk(user.id, new Date(), { full: !countOnly });
+  if (countOnly) return NextResponse.json({ attention: desk.attention });
   return NextResponse.json(desk);
 }

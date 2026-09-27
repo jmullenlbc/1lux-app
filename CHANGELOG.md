@@ -5,6 +5,35 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Phone Quick Note + My Desk flags: met someone not in the system, people nobody owns] - September 26, 2026 (DEPLOYED) - migration 0107
+
+**Quick Note (top of My Desk).** One big "+ Quick note" button. Pick the people (or add a new one on the spot), tap what it was (Coffee, Meal, Site visit...), the date, then type or use the phone keyboard's mic. Publish runs the same steps as any note: next steps, last met, follow-up email draft. Everything is kept on the phone as it is typed; if the signal drops the note waits there and opens itself next time. "Finish later" saves it as a draft note.
+
+**"Met someone not in the system."** In-person meetings in the last 7 days whose outside guests are not in the CRM, or with nobody on the note at all. "Add them" (name and email filled from the invite), "They are in, under another email" (search), or "Nobody to add". Adding someone to a published meeting moves their last met date and writes the follow-up email draft that would have been written had they been on it. Their owner becomes whoever met them, when nobody owns them or their company.
+
+**"Nobody looks after these people."** Check-ins that are due where neither the person, their company nor the last note's writer is an active user. "Take them" makes you the owner and writes the check-in draft. A second person taking the same contact is refused.
+
+- Migration 0107: `ClientContact.ownerId` (a person's own owner, beats the company's) and `Note.peopleSkippedAt`.
+- Check-in owner is now: person's owner, then company owner, then last note's writer, skipping anyone inactive.
+- New: `src/lib/desk/needsPerson.js` (pure, tested), `src/lib/desk/meetingPeople.js`, `src/components/desk/QuickNote.jsx`, `PersonPicker.jsx`, routes `/api/sales/desk/meeting/[noteId]` and `/api/sales/desk/take/[contactId]`.
+- Nothing sends email. Every draft waits for review.
+
+## [Check-in emails, written a day ahead, on My Desk] - September 26, 2026 (DEPLOYED) - migration 0106
+
+Mike 9-26: "Check-ins come with pre-written emails right?" They did not. Now they do. "1. Yes 2. A day ahead."
+- **Every check-in gets a pre-written email** in the salesperson's own voice and signature, written the day before the person comes due, waiting under **Emails to review** on My Desk. Nothing sends on its own.
+  - A friendly keep-in-touch note with one easy next step (coffee, lunch or a call). Uses the personal details we have on them and what the last meeting was. Never says "reminder" or how long it has been.
+  - One email per person per check-in. A new one only after we have been in touch again, or after a snooze.
+  - Goes to the company's owner, else whoever last wrote a sales note with the person. No owner or no email on file: no email.
+  - The daily sweep writes the ones due tomorrow and today first, then the backlog, and stops after 20 seconds so it never hits the 30 second wall. The rest are written on the next run.
+- **My Desk check-in rows**: **Write email** writes one right now (works before the daily job is live); **Email ready** jumps to it. An email already waiting on a teammate's desk says whose instead of writing a second one. The **Open** button now actually shows (the check-ins list never sent the company id).
+- **Snoozing a check-in withdraws its email** unless someone already edited it. A fresh one is written the day before the snooze ends.
+- The bot learns from edits to these separately from the "still waiting" emails (email kind KEEP_IN_TOUCH).
+- Wording: "still waiting" bells and the notes screen now say My Desk, not Bot Queue.
+- **Migration 0106**: `BotDraft.contactId` (nullable, foreign key to the person). Additive only.
+- **Needs Sean**: rides the existing daily `/api/cron/note-reminders` job, so the same EventBridge rule covers it. Until then, **Write email** does it by hand.
+- Files: `src/lib/checkIns/checkIns.js` (rules), `src/lib/checkIns/checkInDrafts.js`, `src/app/api/sales/desk/check-in/[contactId]/route.js`, `src/app/api/cron/note-reminders/route.js`, `src/app/api/crm/contacts/check-ins-due/route.js`, `src/app/api/crm/contacts/[id]/cadence/route.js`, `src/app/(app)/sales/desk/page.jsx`, `src/lib/desk/deskServer.js`, `src/lib/bot/editLearning.js`, `src/lib/aiModels.js`, `src/lib/followUp/engine.js`, `src/app/(app)/crm/notes/NotesClient.jsx`, `prisma/schema.prisma`, `prisma/migrations/0106_bot_draft_contact`, `scripts/tests/checkIns.test.mjs`, `scripts/verify.mjs`.
+
 ## [My Desk: one place for reminders, emails to review and check-ins] - September 26, 2026 (DEPLOYED 101d8ed) - migration 0105
 
 Mike 9-26: "we need them to really kind of have one place where they have information or need to review things like reminders in draft emails." And: "Make the snooze time manually overwritten with any number... pick a date as the manual override option."

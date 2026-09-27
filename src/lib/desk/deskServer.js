@@ -5,15 +5,21 @@
 import { prisma } from '@/lib/db';
 import { isWaitExecutor } from '@/lib/followUp/watch';
 import { groupDesk, deskAttention, snoozeUntil } from '@/lib/desk/desk';
+import { meetingsNeedingPeople } from '@/lib/desk/meetingPeople';
+import { checkInsWithoutOwner } from '@/lib/checkIns/checkInDrafts';
 
 const DRAFT_SELECT = {
   id: true, type: true, status: true, toEmail: true, toName: true, subject: true, body: true,
-  reviewExpiresAt: true, classificationReason: true, emailKind: true, createdAt: true,
+  reviewExpiresAt: true, classificationReason: true, emailKind: true, contactId: true, createdAt: true,
   project: { select: { id: true, name: true, serviceType: true } },
 };
 
-export async function loadDesk(userId, now = new Date()) {
-  const [actions, types, drafts] = await Promise.all([
+/**
+ * `full` adds the list of people nobody looks after. It is company-wide, so it
+ * is shown on the page but never counted in anyone's sidebar number.
+ */
+export async function loadDesk(userId, now = new Date(), { full = true } = {}) {
+  const [actions, types, drafts, meetings, noOwner] = await Promise.all([
     prisma.noteAction.findMany({
       where: {
         kind: 'ACTION', status: 'CONFIRMED', fulfilledAt: null,
@@ -31,6 +37,8 @@ export async function loadDesk(userId, now = new Date()) {
     prisma.botDraft.findMany({
       where: { userId, status: 'PENDING_REVIEW' }, orderBy: { createdAt: 'desc' }, select: DRAFT_SELECT, take: 100,
     }),
+    meetingsNeedingPeople(userId, now),
+    full ? checkInsWithoutOwner({ now }) : [],
   ]);
   const typeBy = new Map(types.map(t => [t.key, t]));
   const ids = [...new Set(actions.map(a => a.contactId).filter(Boolean))];
@@ -46,7 +54,7 @@ export async function loadDesk(userId, now = new Date()) {
     clientId: cBy.get(a.contactId)?.clientId || null,
   }));
   const groups = groupDesk(items, { isWaiting: a => a.waiting, now });
-  return { groups, drafts, attention: deskAttention({ groups, drafts: drafts.length }) };
+  return { groups, drafts, meetings, noOwner, attention: deskAttention({ groups, drafts: drafts.length, meetings: meetings.length }) };
 }
 
 /** Cancel a "still waiting" draft once no live, unpaused step still needs it. */

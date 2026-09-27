@@ -117,6 +117,7 @@ export const JOB_TIERS = {
   'bot.activityClassify':     'QUICK',
   'bot.outreach.compose':     'QUICK',
   'bot.outreach.subject':     'QUICK',
+  'bot.checkin.compose':      'QUICK',
   'bot.noteActions':          'QUICK',
   'bot.meetingPrep':          'QUICK',
   'bot.workHistory':          'QUICK',

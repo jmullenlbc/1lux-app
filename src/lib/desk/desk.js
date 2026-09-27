@@ -77,9 +77,9 @@ export function groupDesk(items, { isWaiting = () => false, now = new Date() } =
 }
 
 /** The number on the sidebar and the dashboard card: things to act on now. */
-export function deskAttention({ groups = [], drafts = 0 } = {}) {
+export function deskAttention({ groups = [], drafts = 0, meetings = 0 } = {}) {
   const now = groups.filter(g => g.key === 'OVERDUE' || g.key === 'TODAY').reduce((n, g) => n + g.items.length, 0);
-  return now + drafts;
+  return now + drafts + meetings;
 }
 
 /** Browser event fired after a desk change, so the sidebar count refreshes. */

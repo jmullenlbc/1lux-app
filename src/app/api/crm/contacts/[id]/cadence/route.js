@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { withdrawCheckInDrafts } from '@/lib/checkIns/checkInDrafts';
 
 // PATCH /api/crm/contacts/[id]/cadence
 // Body: { cadenceTier?, cadenceDays?, lastInPersonAt?, lastTouchpointAt?, nextCheckInAt? }
@@ -61,6 +62,10 @@ export async function PATCH(request, { params }) {
       updatedAt:       true,
     },
   });
+
+  // Snoozed: the check-in email written for now is withdrawn, unless someone has
+  // already worked on it. A fresh one is written the day before the snooze ends.
+  if (data.nextCheckInAt && data.nextCheckInAt > new Date()) await withdrawCheckInDrafts(params.id);
 
   return NextResponse.json({ contact });
 }

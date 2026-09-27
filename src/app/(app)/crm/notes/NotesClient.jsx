@@ -340,7 +340,7 @@ function NoteActions({ noteId, noteBody, published }) {
             ))}
           </div>
           <p className="text-[10px] text-slate-400 mt-1.5">
-            {published ? 'Drafts land in the Bot Queue for your review.' : 'The bot drafts these once you publish the note.'}
+            {published ? 'Drafts land on My Desk for your review.' : 'The bot drafts these once you publish the note.'}
           </p>
         </div>
       )}

@@ -222,7 +222,7 @@ export async function sendDueWaitReminders(prisma, {
       userId:    note.createdById,
       type:      'NOTE_REMINDER',
       title:     `Still waiting on ${name} (reminder ${round})`,
-      message:   `${what}${draftId ? '. A check-in email is in the Bot Queue for you to review.' : '. No email on file, so no draft.'}`.slice(0, 400),
+      message:   `${what}${draftId ? '. A check-in email is on My Desk for you to review.' : '. No email on file, so no draft.'}`.slice(0, 400),
       link:      '/sales/desk',
       dedupeKey: `noteWait:${note.id}:${first.contactId || first.id}:${round}`,
     }).catch(() => ({ created: false }));

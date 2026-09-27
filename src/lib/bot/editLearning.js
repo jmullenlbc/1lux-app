@@ -12,7 +12,9 @@
  * Pure apart from editExamples(), which takes prisma as an argument.
  */
 
-export const EMAIL_KINDS = { RECAP: 'RECAP', CHECK_IN: 'CHECK_IN' };
+// KEEP_IN_TOUCH = the cadence check-in email (0106), learned separately from the
+// "still waiting" CHECK_IN nudge: one is about asks, the other about nothing at all.
+export const EMAIL_KINDS = { RECAP: 'RECAP', CHECK_IN: 'CHECK_IN', KEEP_IN_TOUCH: 'KEEP_IN_TOUCH' };
 
 const SENT = ['SENT', 'MANUALLY_SENT'];
 const MAX_CHARS = 1500;

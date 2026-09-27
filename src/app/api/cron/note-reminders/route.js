@@ -5,6 +5,7 @@ import { notifyUser } from '@/lib/alerts';
 import { planNoteReminder, MAX_LATE_DAYS } from '@/lib/noteReminders';
 import { sendDueWaitReminders } from '@/lib/followUp/engine';
 import { WAIT_EXECUTORS } from '@/lib/followUp/watch';
+import { writeDueCheckInDrafts } from '@/lib/checkIns/checkInDrafts';
 
 /**
  * GET /api/cron/note-reminders
@@ -42,7 +43,7 @@ export async function GET(req) {
   }
 
   const now = new Date();
-  const log = { due: 0, sent: 0, skipped: 0, stale: 0, errors: [], waiting: null };
+  const log = { due: 0, sent: 0, skipped: 0, stale: 0, errors: [], waiting: null, checkIns: null };
 
   try {
     // Waiting on them (reply, drawings, invite, intro): the reminder ladder —
@@ -101,6 +102,14 @@ export async function GET(req) {
       } catch (err) {
         log.errors.push(`${action.id}: ${err?.message ?? err}`);
       }
+    }
+
+    // Check-in emails, written a day ahead (Mike 9-26). Last, with whatever time
+    // is left, so a long backlog never crowds out the reminders above.
+    try {
+      log.checkIns = await writeDueCheckInDrafts({ now, budgetMs: Math.max(0, 20_000 - (Date.now() - now.getTime())) });
+    } catch (err) {
+      log.errors.push(`checkIns: ${err?.message ?? err}`);
     }
 
     return NextResponse.json({ ok: true, log });
