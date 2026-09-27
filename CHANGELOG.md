@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Phone Quick Note + My Desk flags: met someone not in the system, people nobody owns] - September 26, 2026 (DEPLOYED) - migration 0107
+## [Phone Quick Note + My Desk flags: met someone not in the system, people nobody owns] - September 26, 2026 (DEPLOYED fcd42f7) - migration 0107
 
 **Quick Note (top of My Desk).** One big "+ Quick note" button. Pick the people (or add a new one on the spot), tap what it was (Coffee, Meal, Site visit...), the date, then type or use the phone keyboard's mic. Publish runs the same steps as any note: next steps, last met, follow-up email draft. Everything is kept on the phone as it is typed; if the signal drops the note waits there and opens itself next time. "Finish later" saves it as a draft note.
 
@@ -18,7 +18,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 - New: `src/lib/desk/needsPerson.js` (pure, tested), `src/lib/desk/meetingPeople.js`, `src/components/desk/QuickNote.jsx`, `PersonPicker.jsx`, routes `/api/sales/desk/meeting/[noteId]` and `/api/sales/desk/take/[contactId]`.
 - Nothing sends email. Every draft waits for review.
 
-## [Check-in emails, written a day ahead, on My Desk] - September 26, 2026 (DEPLOYED) - migration 0106
+## [Check-in emails, written a day ahead, on My Desk] - September 26, 2026 (DEPLOYED fcd42f7) - migration 0106
 
 Mike 9-26: "Check-ins come with pre-written emails right?" They did not. Now they do. "1. Yes 2. A day ahead."
 - **Every check-in gets a pre-written email** in the salesperson's own voice and signature, written the day before the person comes due, waiting under **Emails to review** on My Desk. Nothing sends on its own.

@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-26 (newest) - Mike's Claude - **DEPLOYED (pending hash)**, **migrations 0106 + 0107**: check-in emails + Quick Note + My Desk flags
+### 2026-09-26 (newest) - Mike's Claude - **DEPLOYED fcd42f7**, **migrations 0106 + 0107**: check-in emails + Quick Note + My Desk flags
 - 0106 `BotDraft.contactId`: check-in drafts (type CHECK_IN, emailKind KEEP_IN_TOUCH) written a DAY AHEAD by `/api/cron/note-reminders` (20s budget); desk "Write email" does one by hand; snooze withdraws unedited ones. Rules `src/lib/checkIns/`.
 - 0107 `ClientContact.ownerId` (FK User, SetNull) + `Note.peopleSkippedAt`. Owner order: person, company, last note writer, active users only (`pickOwner`).
 - Quick Note on My Desk (`src/components/desk/QuickNote.jsx`), kept in localStorage `ilc.quickNote.v1` until publish succeeds.
