@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-26 (newest) - Mike's Claude - **DEPLOYED (hash below)**, no migration: company page on phones
+### 2026-09-26 (newest) - Mike's Claude - **DEPLOYED 01a0a4b**, no migration: company page on phones
 - `/clients/[id]`: tabs scroll sideways, header chips/Export hidden on phones, Info grids stack, Call/Email buttons per person on phones, hover-only buttons (`md:opacity-0 md:group-hover:opacity-100`) now visible on touch.
 - Project pages ON HOLD (Mike). Next migration still 0108.
 

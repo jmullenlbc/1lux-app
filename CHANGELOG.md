@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Company page on phones] - September 26, 2026 (NOT DEPLOYED) - no migration
+## [Company page on phones] - September 26, 2026 (DEPLOYED 01a0a4b) - no migration
 
 - `/clients/[id]`: tabs scroll sideways; tighter padding; header chips and Export Excel hidden on phones (they are on the Info tab).
 - Info tab: Tier/Payment terms and Phone/Website stack on phones.
