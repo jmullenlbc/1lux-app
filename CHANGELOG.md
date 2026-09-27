@@ -5,6 +5,15 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Company page on phones] - September 26, 2026 (NOT DEPLOYED) - no migration
+
+- `/clients/[id]`: tabs scroll sideways; tighter padding; header chips and Export Excel hidden on phones (they are on the Info tab).
+- Info tab: Tier/Payment terms and Phone/Website stack on phones.
+- People tab: Call cell, Call work and Email buttons under each person on phones.
+- Archive, Open and Unlink buttons no longer hover-only on touch screens (also Work history).
+- Project rows and the Project Data table fit phone width.
+- Project pages on hold (Mike 9-26).
+
 ## [Phone layout: bottom bar, slide-out menu, Search, home screen icon] - September 26, 2026 (DEPLOYED 1fcc9d1) - no migration
 
 - **Bottom bar on phones** (`src/components/layout/MobileTabBar.jsx`): Desk (with count), Notes, People, Search, Menu. Hidden at tablet width and up.

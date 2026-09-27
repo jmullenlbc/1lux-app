@@ -85,7 +85,7 @@ export default function WorkHistoryPanel({ clientId, contactId, name }) {
               <span>{describeJob(j)}</span>
               {j.source === 'linkedin_paste' && <span className="text-[10px] text-slate-400">from LinkedIn paste</span>}
               <button type="button" onClick={() => send('PATCH', { id: j.id, archived: true }, j.id)} disabled={busy === j.id}
-                className="text-[11px] text-slate-300 hover:text-amber-600 opacity-0 group-hover/job:opacity-100 disabled:opacity-50"
+                className="text-[11px] text-slate-300 hover:text-amber-600 md:opacity-0 md:group-hover/job:opacity-100 disabled:opacity-50"
                 title="Archive this job. It can be restored later.">
                 {busy === j.id ? 'Archiving…' : 'Archive'}
               </button>

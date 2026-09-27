@@ -579,7 +579,7 @@ function OverviewTab({ client, onPatch }) {
     <div className="space-y-6">
       {/* ── One full-width client info window. Everything here edits in place:
              click it, change it, click away. Nothing to save. ── */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6">
+      <div className="bg-white rounded-xl border border-slate-200 p-4 md:p-6">
         {/* Top bar: Client ID + how this screen works */}
         <div className="flex items-center justify-between mb-5">
           <span className="font-mono text-xs font-semibold text-slate-400 tracking-wide">
@@ -664,7 +664,7 @@ function OverviewTab({ client, onPatch }) {
               />
             </InfoRow>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <InfoRow label="Tier">
                 <ChoiceChips
                   value={client.tier || ''}
@@ -738,7 +738,7 @@ function OverviewTab({ client, onPatch }) {
               </InfoRow>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <InfoRow label="Phone">
                 <PersonField value={client.phone} type="tel" width="w-full"
                   className="text-sm text-slate-600" placeholder="Phone"
@@ -1233,7 +1233,7 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
               <div className="flex items-center gap-2 shrink-0">
                 <DealChips contact={c} onOpenList={setDealList} />
                 <button onClick={() => setArchiveTarget({ id: c.id, name: c.name })} disabled={deletingId === c.id}
-                  className="p-1 rounded text-slate-300 hover:text-amber-600 hover:bg-amber-50 opacity-0 group-hover:opacity-100 transition-all" title="Archive this person">
+                  className="p-1 rounded text-slate-300 hover:text-amber-600 hover:bg-amber-50 md:opacity-0 md:group-hover:opacity-100 transition-all" title="Archive this person">
                   {deletingId === c.id ? <Spinner className="w-3.5 h-3.5" /> : (
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" /></svg>
                   )}
@@ -1302,6 +1302,14 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
                 </span>
               )}
             </div>
+            {/* On a phone the fields above edit; these call and email. */}
+            {(c.cellPhone || c.workPhone || c.phone || c.email) && (
+              <div className="md:hidden mt-2 flex flex-wrap gap-2">
+                {c.cellPhone && <a href={`tel:${c.cellPhone}`} className="min-h-[40px] px-3 inline-flex items-center rounded-lg border border-slate-200 text-sm text-slate-700">Call cell</a>}
+                {(c.workPhone || c.phone) && <a href={`tel:${c.workPhone || c.phone}`} className="min-h-[40px] px-3 inline-flex items-center rounded-lg border border-slate-200 text-sm text-slate-700">Call work</a>}
+                {c.email && <a href={`mailto:${c.email}`} className="min-h-[40px] px-3 inline-flex items-center rounded-lg border border-slate-200 text-sm text-slate-700">Email</a>}
+              </div>
+            )}
             {personalFor === c.id && <PersonalFactsPanel contactId={c.id} name={c.name} />}
             {WORK_HISTORY_READY && historyFor === c.id && <WorkHistoryPanel clientId={clientId} contactId={c.id} name={c.name} />}
           </div>
@@ -1396,7 +1404,7 @@ function ProjectsTab({ client, available, related = [], onRefresh }) {
         ) : (
           <div className="divide-y divide-slate-50">
             {client.projects.map(p => (
-              <div key={p.id} className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors group">
+              <div key={p.id} className="flex items-center gap-3 md:gap-4 px-4 md:px-6 py-4 hover:bg-slate-50 transition-colors group">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     {p.projectNumber && (
@@ -1417,11 +1425,11 @@ function ProjectsTab({ client, available, related = [], onRefresh }) {
                     p.status === 'COMPLETE' ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-500'
                   }`}>{p.status}</span>
                   <Link href={`/project/${p.id}`}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity px-2.5 py-1 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:bg-slate-100">
+                    className="md:opacity-0 md:group-hover:opacity-100 transition-opacity px-2.5 py-1 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:bg-slate-100">
                     Open
                   </Link>
                   <button onClick={() => unlinkProject(p.id, p.name)} title="Unlink"
-                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg text-slate-300 hover:text-red-400 hover:bg-red-50 transition-colors">
+                    className="md:opacity-0 md:group-hover:opacity-100 transition-opacity p-1.5 rounded-lg text-slate-300 hover:text-red-400 hover:bg-red-50 transition-colors">
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                   </button>
                 </div>
@@ -1451,7 +1459,7 @@ function ProjectsTab({ client, available, related = [], onRefresh }) {
             {related.map(p => {
               const roles = rolesHeldBy(p, client.id);
               return (
-                <div key={p.id} className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors group">
+                <div key={p.id} className="flex items-center gap-3 md:gap-4 px-4 md:px-6 py-4 hover:bg-slate-50 transition-colors group">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       {p.projectNumber && (
@@ -1475,7 +1483,7 @@ function ProjectsTab({ client, available, related = [], onRefresh }) {
                       <span>{[[p.city, p.state].filter(Boolean).join(', '), p.phase?.toUpperCase()].filter(Boolean).join(' · ')}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex flex-wrap justify-end items-center gap-2 shrink-0 max-w-[45%] md:max-w-none">
                     {/* Which hat they wore here. A company can wear more than one. */}
                     {roles.map(r => (
                       <span key={r.key} className="text-[10px] font-semibold text-slate-600 bg-slate-100 rounded-full px-2 py-0.5">
@@ -1483,7 +1491,7 @@ function ProjectsTab({ client, available, related = [], onRefresh }) {
                       </span>
                     ))}
                     <Link href={`/project/${p.id}`}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity px-2.5 py-1 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:bg-slate-100">
+                      className="md:opacity-0 md:group-hover:opacity-100 transition-opacity px-2.5 py-1 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:bg-slate-100">
                       Open
                     </Link>
                   </div>
@@ -2146,7 +2154,7 @@ function ProjectDataTab({ clientId }) {
         <StatCard label="Avg $/SF"    value={totalSf ? '$' + (grandTotal / totalSf).toFixed(2) : '—'} />
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">
         <div className="px-5 py-3 border-b border-slate-100"><h3 className="text-sm font-semibold text-slate-800">By building type</h3></div>
         <table className="w-full text-sm">
           <thead>
@@ -2263,21 +2271,21 @@ export default function ClientDetailClient({ client: initial, availableProjects,
 
       {/* ── Top bar ── */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-6">
+        <div className="max-w-6xl mx-auto px-4 md:px-6">
           {/* Breadcrumb + title */}
           <div className="flex items-center gap-3 py-4 border-b border-slate-100">
             <Link href="/clients" className="text-slate-400 hover:text-slate-600 transition-colors">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
             </Link>
-            <div className="flex items-center gap-2 text-sm text-slate-400">
+            <div className="flex items-center gap-2 text-sm text-slate-400 min-w-0">
               <Link href="/clients" className="hover:text-slate-600 transition-colors">Clients</Link>
               <span>/</span>
-              <span className="text-slate-800 font-semibold">{client.name}</span>
+              <span className="text-slate-800 font-semibold truncate">{client.name}</span>
               {clientIdLabel && (
                 <span className="font-mono text-[11px] px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded">{clientIdLabel}</span>
               )}
             </div>
-            <div className="ml-auto flex items-center gap-2">
+            <div className="ml-auto hidden md:flex items-center gap-2">
               {client.owner && (
                 <span className="flex items-center gap-1.5 text-xs text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
                   <svg className="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
@@ -2300,10 +2308,10 @@ export default function ClientDetailClient({ client: initial, availableProjects,
           </div>
 
           {/* Tab bar */}
-          <div className="flex gap-0">
+          <div className="flex gap-0 overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
             {TABS.map(t => (
               <button key={t.id} onClick={() => setActiveTab(t.id)}
-                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                className={`shrink-0 whitespace-nowrap px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === t.id
                     ? 'border-amber-500 text-amber-600'
                     : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
@@ -2325,7 +2333,7 @@ export default function ClientDetailClient({ client: initial, availableProjects,
       </div>
 
       {/* ── Tab content ── */}
-      <div className="max-w-6xl mx-auto px-6 py-6">
+      <div className="max-w-6xl mx-auto px-4 md:px-6 py-4 md:py-6">
         {saveError && (
           <div className="mb-4 rounded-lg bg-red-50 border border-red-100 px-3 py-2 text-sm text-red-600">{saveError}</div>
         )}
