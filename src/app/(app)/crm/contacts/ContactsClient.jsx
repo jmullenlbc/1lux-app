@@ -96,7 +96,7 @@ export default function ContactsClient({ contacts }) {
   }, [contacts, search, onlyMissingCompany, department]);
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
+    <div className="min-h-screen bg-slate-50 p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <Link href="/crm" className="text-sm text-slate-500 hover:text-slate-700 mb-2 block">
@@ -151,10 +151,10 @@ export default function ContactsClient({ contacts }) {
                 <tr>
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Name</th>
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Company / Client</th>
-                  <th className="px-4 py-3 text-left font-semibold text-slate-700">Title</th>
-                  <th className="px-4 py-3 text-left font-semibold text-slate-700">Department</th>
-                  <th className="px-4 py-3 text-left font-semibold text-slate-700">Email</th>
-                  <th className="px-4 py-3 text-left font-semibold text-slate-700">Last Contact</th>
+                  <th className="hidden md:table-cell px-4 py-3 text-left font-semibold text-slate-700">Title</th>
+                  <th className="hidden md:table-cell px-4 py-3 text-left font-semibold text-slate-700">Department</th>
+                  <th className="hidden md:table-cell px-4 py-3 text-left font-semibold text-slate-700">Email</th>
+                  <th className="hidden md:table-cell px-4 py-3 text-left font-semibold text-slate-700">Last Contact</th>
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Check-in</th>
                 </tr>
               </thead>
@@ -181,10 +181,10 @@ export default function ContactsClient({ contacts }) {
                       <td className="px-4 py-3 text-slate-600">
                         <CompanyCell contact={contact} />
                       </td>
-                      <td className="px-4 py-3 text-slate-600">{contact.title || '—'}</td>
-                      <td className="px-4 py-3 text-slate-600">{contactDepartmentLabel(contact.department) || '—'}</td>
-                      <td className="px-4 py-3 text-slate-600">{contact.email || '—'}</td>
-                      <td className="px-4 py-3 text-slate-600">
+                      <td className="hidden md:table-cell px-4 py-3 text-slate-600">{contact.title || '—'}</td>
+                      <td className="hidden md:table-cell px-4 py-3 text-slate-600">{contactDepartmentLabel(contact.department) || '—'}</td>
+                      <td className="hidden md:table-cell px-4 py-3 text-slate-600">{contact.email || '—'}</td>
+                      <td className="hidden md:table-cell px-4 py-3 text-slate-600">
                         {fmtDate(contact.lastInPersonAt ?? contact.lastTouchpointAt) || '—'}
                       </td>
                       <td className={`px-4 py-3 ${status ? STATUS[status].cls : ''}`}>

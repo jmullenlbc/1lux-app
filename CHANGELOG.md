@@ -5,6 +5,17 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Phone layout: bottom bar, slide-out menu, Search, home screen icon] - September 26, 2026 (NOT DEPLOYED) - no migration
+
+- **Bottom bar on phones** (`src/components/layout/MobileTabBar.jsx`): Desk (with count), Notes, People, Search, Menu. Hidden at tablet width and up.
+- **Slide-out menu**: Menu fires `ilc:open-menu`; `Sidebar.jsx` opens full height over a dark backdrop and closes on any page change.
+- **Search** (`/search` + `GET /api/search?q=`): people, companies, projects in one box; Call and Email buttons on each person. Staff only (client viewers get 403). Case-insensitive on both databases.
+- **Notes stack on phones**: list first, tap a meeting to open it, "All meetings" to go back. New-note date/time fields stack.
+- **People table** drops Title, Department, Email and Last Contact columns on phones.
+- Floating AI and bug buttons lifted above the bottom bar; breadcrumb and app height fit phone screens (`100dvh`).
+- **Home screen icon**: `public/manifest.webmanifest` + `public/icons/` (amber bulb). Linked from the signed-in layout only, so public intake and portal visitors never get it. Opens straight to My Desk.
+- Not yet phone-friendly: company detail and project pages.
+
 ## [Phone Quick Note + My Desk flags: met someone not in the system, people nobody owns] - September 26, 2026 (DEPLOYED fcd42f7) - migration 0107
 
 **Quick Note (top of My Desk).** One big "+ Quick note" button. Pick the people (or add a new one on the spot), tap what it was (Coffee, Meal, Site visit...), the date, then type or use the phone keyboard's mic. Publish runs the same steps as any note: next steps, last met, follow-up email draft. Everything is kept on the phone as it is typed; if the signal drops the note waits there and opens itself next time. "Finish later" saves it as a draft note.

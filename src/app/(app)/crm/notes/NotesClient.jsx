@@ -588,7 +588,7 @@ function NewNoteModal({ open, clients, onClose, onCreated }) {
           <label className="block text-xs font-medium text-slate-500 mb-1">Meeting</label>
           <input autoFocus value={f.title} onChange={e => setF({ ...f, title: e.target.value })} placeholder="Coffee with Jane — Hilltop Apartments" className={input} />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-medium text-slate-500 mb-1">Date &amp; time</label>
             <input type="datetime-local" value={f.meetingDate} onChange={e => setF({ ...f, meetingDate: e.target.value })} className={input} />
@@ -1107,9 +1107,13 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
   });
   const groups = groupNotesForAgenda(filtered);
 
+  // Phones show one side at a time: the agenda, or the meeting picked from it.
+  const [phoneNote, setPhoneNote] = useState(false);
+
   function handleCreated(note) {
     setNotes(prev => [note, ...prev]);
     setSelected(note.id);
+    setPhoneNote(true);
     setNewOpen(false);
     setStatusFilter('all');
   }
@@ -1127,7 +1131,7 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
   return (
     <div className="flex h-screen bg-slate-50 text-slate-800">
       {/* ── Left: the agenda ── */}
-      <div className="w-80 shrink-0 flex flex-col border-r border-slate-200 bg-slate-100/60">
+      <div className={`${phoneNote ? 'hidden md:flex' : 'flex'} w-full md:w-80 shrink-0 flex-col border-r border-slate-200 bg-slate-100/60`}>
         <div className="px-4 pt-4 pb-3 shrink-0 border-b border-slate-200">
           <div className="flex items-center justify-between mb-3">
             <div>
@@ -1188,7 +1192,7 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
                 </button>
                 {hint && !folded && <p className="px-2 pb-1 text-[11px] text-slate-400">{hint}</p>}
                 {!folded && rows.map(n => (
-                  <NoteRow key={n.id} note={n} tone={key} active={n.id === selected} onClick={() => setSelected(n.id)} />
+                  <NoteRow key={n.id} note={n} tone={key} active={n.id === selected} onClick={() => { setSelected(n.id); setPhoneNote(true); }} />
                 ))}
               </section>
             );
@@ -1197,7 +1201,10 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
       </div>
 
       {/* ── Right: the meeting ── */}
-      <div className="flex-1 min-w-0 overflow-hidden">
+      <div className={`${phoneNote ? 'flex' : 'hidden md:flex'} flex-1 min-w-0 flex-col overflow-hidden`}>
+        <button type="button" onClick={() => setPhoneNote(false)}
+          className="md:hidden shrink-0 min-h-[44px] px-4 text-left text-sm font-medium text-amber-700 border-b border-slate-200 bg-white">‹ All meetings</button>
+        <div className="flex-1 min-h-0 overflow-hidden">
         {activeNote ? (
           <NoteDetail
             key={activeNote.id}
@@ -1214,6 +1221,7 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
             <p className="text-sm">Pick a meeting, or start a new note</p>
           </div>
         )}
+        </div>
       </div>
 
       <NewNoteModal open={newOpen} clients={clients} onClose={() => setNewOpen(false)} onCreated={handleCreated} />

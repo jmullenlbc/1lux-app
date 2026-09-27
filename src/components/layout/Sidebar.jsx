@@ -7,6 +7,7 @@ import { actsAsAdmin, can } from '@/lib/permissions';
 import { openSectionsFor } from '@/lib/deptScreens';
 import { useDraftReminder } from './useDraftReminder';
 import { useDeskCount } from './useDeskCount';
+import { OPEN_MENU } from './MobileTabBar';
 
 // ── Alert Bell ────────────────────────────────────────────────────────────────
 
@@ -448,7 +449,17 @@ export default function Sidebar({ user }) {
     if (!next) setHovered(false);
   }
 
-  const expanded = locked || hovered;
+  // Phones: the sidebar is hidden and slides in over the page from the bottom
+  // bar's Menu button (MobileTabBar). It closes on any page change.
+  const [mobileOpen, setMobileOpen] = useState(false);
+  useEffect(() => {
+    const open = () => setMobileOpen(true);
+    window.addEventListener(OPEN_MENU, open);
+    return () => window.removeEventListener(OPEN_MENU, open);
+  }, []);
+  useEffect(() => { setMobileOpen(false); }, [pathname]);
+
+  const expanded = locked || hovered || mobileOpen;
 
   const at         = (path) => pathname === path;
   const startsWith = (path) => pathname.startsWith(path);
@@ -503,10 +514,12 @@ export default function Sidebar({ user }) {
   const sidebarW = expanded ? 'w-60' : 'w-16';
 
   return (
+    <>
+    {mobileOpen && <div className="md:hidden fixed inset-0 z-40 bg-black/40" onClick={() => setMobileOpen(false)} aria-hidden="true" />}
     <aside
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`${sidebarW} shrink-0 flex flex-col h-screen overflow-hidden transition-all duration-200 ease-in-out print:hidden z-30`}
+      className={`${mobileOpen ? 'fixed inset-y-0 left-0 w-72 z-50 flex shadow-2xl' : `hidden md:flex ${sidebarW} z-30`} shrink-0 flex-col h-[100dvh] md:h-screen overflow-hidden transition-all duration-200 ease-in-out print:hidden`}
       style={{ backgroundColor: '#0a1929' }}
     >
       {/* ── Logo + pin ── */}
@@ -687,5 +700,6 @@ export default function Sidebar({ user }) {
         </button>
       </div>
     </aside>
+    </>
   );
 }

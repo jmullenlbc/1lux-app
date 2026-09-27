@@ -2,7 +2,14 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-26 (newest) - Mike's Claude - **DEPLOYED fcd42f7**, **migrations 0106 + 0107**: check-in emails + Quick Note + My Desk flags
+### 2026-09-26 (newest) - Mike's Claude - **DEPLOYED (hash below)**, no migration: phone layout
+- Bottom bar on phones (`MobileTabBar.jsx`: Desk / Notes / People / Search / Menu); Menu fires `ilc:open-menu` and `Sidebar.jsx` slides out.
+- New `/search` page + `GET /api/search?q=` (people, companies, projects; 403 for client viewers).
+- Notes list/detail stack on phones; People table hides 4 columns on phones; floating buttons lifted.
+- Home screen icon: `public/manifest.webmanifest` + `public/icons/`, linked from `src/app/(app)/layout.jsx` metadata ONLY (public intake/portal never get it).
+- Next: company page (`/clients/[id]`) phone pass. Project pages on hold (Mike). Next migration still 0108.
+
+### 2026-09-26 (later, fcd42f7) - Mike's Claude - **DEPLOYED fcd42f7**, **migrations 0106 + 0107**: check-in emails + Quick Note + My Desk flags
 - 0106 `BotDraft.contactId`: check-in drafts (type CHECK_IN, emailKind KEEP_IN_TOUCH) written a DAY AHEAD by `/api/cron/note-reminders` (20s budget); desk "Write email" does one by hand; snooze withdraws unedited ones. Rules `src/lib/checkIns/`.
 - 0107 `ClientContact.ownerId` (FK User, SetNull) + `Note.peopleSkippedAt`. Owner order: person, company, last note writer, active users only (`pickOwner`).
 - Quick Note on My Desk (`src/components/desk/QuickNote.jsx`), kept in localStorage `ilc.quickNote.v1` until publish succeeds.
