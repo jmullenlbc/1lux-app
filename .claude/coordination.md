@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-26 (newest) - Mike's Claude - **DEPLOYED (hash below)**, no migration: phone layout
+### 2026-09-26 (newest) - Mike's Claude - **DEPLOYED 1fcc9d1**, no migration: phone layout
 - Bottom bar on phones (`MobileTabBar.jsx`: Desk / Notes / People / Search / Menu); Menu fires `ilc:open-menu` and `Sidebar.jsx` slides out.
 - New `/search` page + `GET /api/search?q=` (people, companies, projects; 403 for client viewers).
 - Notes list/detail stack on phones; People table hides 4 columns on phones; floating buttons lifted.

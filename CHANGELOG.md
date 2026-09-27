@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Phone layout: bottom bar, slide-out menu, Search, home screen icon] - September 26, 2026 (NOT DEPLOYED) - no migration
+## [Phone layout: bottom bar, slide-out menu, Search, home screen icon] - September 26, 2026 (DEPLOYED 1fcc9d1) - no migration
 
 - **Bottom bar on phones** (`src/components/layout/MobileTabBar.jsx`): Desk (with count), Notes, People, Search, Menu. Hidden at tablet width and up.
 - **Slide-out menu**: Menu fires `ilc:open-menu`; `Sidebar.jsx` opens full height over a dark backdrop and closes on any page change.
