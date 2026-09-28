@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Voice: newer emails count more, how the writing changed, top 10 phrases, template suggestions] - September 27, 2026 (NOT DEPLOYED) - migration 0109
+## [Voice: newer emails count more, how the writing changed, top 10 phrases, template suggestions] - September 27, 2026 (DEPLOYED 9889c52) - migration 0109
 
 - **Newer emails count more** (`src/lib/tone/voiceAge.js`, pure): one table of periods. Last 3 months 8x, 3 to 12 months 4x, 1 to 2 years 2x, 2 to 3 years 1x, 3 to 5 years half, over 5 years a quarter. It drives three things:
   - which emails a big mailbox keeps when read: a spread over every year, up to 1250 per mailbox, instead of only the newest 500;
@@ -20,7 +20,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 - Voice screen: "Today:" line under the voice description, and three new cards: Top 10 phrases, How the writing has changed, Emails written over and over.
 - Tests: `scripts/tests/voiceInsights.test.mjs`.
 
-## [Voice Training takes Google Takeout .zip parts] - September 27, 2026 (NOT DEPLOYED) - no migration
+## [Voice Training takes Google Takeout .zip parts] - September 27, 2026 (DEPLOYED 9889c52) - no migration
 
 - `/sales/automation/voice`: drop every Takeout `.zip` part at once; each `.mbox` inside is streamed straight out of the zip in the browser (zip64 ok, nothing unzipped, nothing uploaded but the person's own words).
 - Each file is saved as soon as it is read ("File 2 of 4"), so one bad part never loses the others; unreadable parts are named at the end. The voice is relearned once, after the last file.
