@@ -107,6 +107,7 @@ export const JOB_TIERS = {
   'code.check':               'READ',
   'code.search':              'READ',
   'user.toneProfile':         'READ',     // reads a stack of the user's real emails
+  'user.voiceTemplates':      'READ',     // writes templates from emails they send over and over
 
   // ── Live chat: someone is sitting there watching it type ─────────────────
   'chat.project':             'CHAT',

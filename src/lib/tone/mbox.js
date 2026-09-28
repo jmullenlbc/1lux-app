@@ -8,8 +8,9 @@
  * (their own sent mail, quoted replies and signatures cut off), and upload
  * that small list. Also used by the server for small legacy uploads.
  *
- * Pure: no imports.
+ * Pure: its only import is the age table, also pure.
  */
+import { keepByAge, KEEP_PER_MAILBOX } from './voiceAge.js';
 
 export const MAX_BODY = 800;
 const SKIP_SUBJECTS = ['unsubscribe', 'auto-reply', 'automatic reply', 'out of office', 'no-reply', 'noreply',
@@ -168,8 +169,10 @@ export function parseMboxText(text, myEmail = '', max = 200) {
 /**
  * Browser: stream a File of any size, record by record, keeping only the
  * parsed emails. `onProgress(bytesRead, found)` is called as it goes.
+ * A big mailbox keeps a spread across every year, tilted to the newest
+ * (voiceAge.js), not just the newest few hundred (Mike 9-27).
  */
-export async function extractSentEmails(file, myEmail = '', { max = 200, onProgress } = {}) {
+export async function extractSentEmails(file, myEmail = '', { max = KEEP_PER_MAILBOX, onProgress } = {}) {
   const reader = file.stream().pipeThrough(new TextDecoderStream()).getReader();
   const out = [];
   let buf = '', scanFrom = 1, read = 0;
@@ -188,7 +191,7 @@ export async function extractSentEmails(file, myEmail = '', { max = 200, onProgr
     if (done) break;
   }
   if (buf.trim()) { const e = parseMessage(buf, myEmail); if (e) out.push(e); }
-  return newest(out, max);
+  return keepByAge(out, { max });
 }
 
 /** Stable short fingerprint of one email, so the same one uploaded twice is kept once. */

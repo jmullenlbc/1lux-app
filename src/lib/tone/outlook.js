@@ -204,18 +204,21 @@ export async function parseMsgFile(file) {
 
 // ─── .olm (Outlook for Mac: a zip of XML files) ──────────────────────────────
 
-export async function zipEntries(file) {
+export async function zipEntries(file, kind = '.olm') {
+  const damaged = kind === '.zip'
+    ? `${file.name || 'That .zip file'} looks damaged or only partly downloaded. Download that part again.`
+    : 'That .olm file looks damaged. Export it again from Outlook.';
   const tailLen = Math.min(file.size, 65557);
   const tail = await bytesAt(file, file.size - tailLen, tailLen);
   let e = -1;
   for (let i = tail.length - 22; i >= 0; i--) if (u32(tail, i) === 0x06054b50) { e = i; break; }
-  if (e < 0) throw new Error('That .olm file looks damaged. Export it again from Outlook.');
+  if (e < 0) throw new Error(damaged);
   let cdSize = u32(tail, e + 12), cdOff = u32(tail, e + 16);
   if (u16(tail, e + 10) === 0xFFFF || cdSize === 0xFFFFFFFF || cdOff === 0xFFFFFFFF) {
     const loc = e - 20;
-    if (loc < 0 || u32(tail, loc) !== 0x07064b50) throw new Error('That .olm file looks damaged. Export it again from Outlook.');
+    if (loc < 0 || u32(tail, loc) !== 0x07064b50) throw new Error(damaged);
     const z = await bytesAt(file, u64(tail, loc + 8), 56);
-    if (u32(z, 0) !== 0x06064b50) throw new Error('That .olm file looks damaged. Export it again from Outlook.');
+    if (u32(z, 0) !== 0x06064b50) throw new Error(damaged);
     cdSize = u64(z, 40); cdOff = u64(z, 48);
   }
   const cd = await bytesAt(file, cdOff, cdSize);
@@ -253,6 +256,19 @@ export async function zipRead(file, e) {
   if (e.method === 0) return raw;
   if (e.method === 8) return inflateRaw(raw);
   return null;
+}
+
+/**
+ * One zip entry as something with a .stream(), read piece by piece so a
+ * many-GB mailbox inside a Google Takeout .zip never sits in memory whole.
+ */
+export async function zipEntryStream(file, e) {
+  const lh = await bytesAt(file, e.off, 30);
+  if (u32(lh, 0) !== 0x04034b50 || (e.method !== 0 && e.method !== 8)) return null;
+  const start = e.off + 30 + u16(lh, 26) + u16(lh, 28);
+  const blob = file.slice(start, start + e.comp);
+  return { name: e.name, size: e.size,
+    stream: () => (e.method === 8 ? blob.stream().pipeThrough(new DecompressionStream('deflate-raw')) : blob.stream()) };
 }
 
 const xmlUnescape = s => String(s)

@@ -24,5 +24,5 @@ async function relearn({ userId }) {
   let rebuildError = null;
   try { rebuildError = (await rebuildToneProfile(userId))?.error || null; }
   catch (e) { console.error('[sales/voice] rebuild failed:', e?.message ?? e); rebuildError = 'Learning the voice failed. Try again in a minute.'; }
-  return { rebuildError, ...(await libraryState(userId)) };
+  return { rebuildError, ...(await libraryState(userId, { full: true })) };
 }

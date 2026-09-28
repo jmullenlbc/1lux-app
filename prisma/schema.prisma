@@ -104,6 +104,7 @@ model User {
   voiceBatches               VoiceBatch[]                 @relation("VoiceBatchOwner")
   voiceBatchesUploaded       VoiceBatch[]                 @relation("VoiceBatchUploader")
   voiceSamples               VoiceSample[]                @relation("VoiceSampleOwner")
+  voiceTemplates             VoiceTemplateSuggestion[]    @relation("VoiceTemplateOwner")
   botConfig                  BotConfig?
   botDrafts                  BotDraft[]                   @relation("BotDraftOwner")
   schedulingRules            SchedulingRule[]             @relation("SchedulingRuleCreator")
@@ -2643,6 +2644,31 @@ model VoiceSample {
   @@index([userId, archivedAt, sentAt])
 }
 
+// An email a salesperson writes over and over, found in their voice library
+// and written up as a template (Mike 9-27). Suggestions are never deleted:
+// a relearn marks the old ones REPLACED; "Not useful" is DISMISSED; saving
+// copies it into MessageTemplate and marks it SAVED.
+model VoiceTemplateSuggestion {
+  id                String           @id @default(cuid())
+  userId            String
+  user              User             @relation("VoiceTemplateOwner", fields: [userId], references: [id], onDelete: Cascade)
+  name              String
+  whenToUse         String           @default("")
+  subject           String           @default("")
+  body              String
+  basedOn           Int              @default(0) // similar emails found in the library
+  recentCount       Int              @default(0) // of those, sent in the last 12 months
+  lastSentAt        DateTime?
+  status            String           @default("SUGGESTED") // SUGGESTED | SAVED | DISMISSED | REPLACED
+  messageTemplateId String?
+  messageTemplate   MessageTemplate? @relation(fields: [messageTemplateId], references: [id], onDelete: SetNull)
+  decidedById       String?
+  decidedAt         DateTime?
+  createdAt         DateTime         @default(now())
+
+  @@index([userId, status])
+}
+
 // The one company signature layout (Mike 9-26). Placeholders {name}, {first},
 // {title}, {email} and {phone} are filled per sender; a line whose
 // placeholders are all blank is dropped. Row id is always "company".
@@ -2764,6 +2790,7 @@ model MessageTemplate {
   createdBy   User     @relation("TemplateCreator", fields: [createdById], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  voiceSuggestions VoiceTemplateSuggestion[]
 
   @@index([channel])
   @@index([scenario])

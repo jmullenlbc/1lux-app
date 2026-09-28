@@ -2,7 +2,12 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-27 (newest) - Mike's Claude - **DEPLOYED 4dffcc9**, migration 0108: shared notes
+### 2026-09-27 (newest) - Mike's Claude - **DEPLOYED (pending hash)**, migration 0109: voice weighting, insights, template suggestions
+- 0109 (additive, schema-guard PASS): table `VoiceTemplateSuggestion` (FK User cascade, FK MessageTemplate set null). Next migration 0110.
+- Voice library: newer emails weighted (8x last 3 months down to a quarter over 5 years); mailbox read keeps up to 1250 spread over every year, not the newest 500. Takeout .zip parts read in the browser.
+- Voice screen: top 10 phrases, how the writing changed by period, repeated emails written up as templates (save copies into MessageTemplate). One extra AI call per relearn (`user.voiceTemplates`).
+
+### 2026-09-27 (later, 4dffcc9) - Mike's Claude - **DEPLOYED 4dffcc9**, migration 0108: shared notes
 - 0108 (additive, schema-guard clean): tables `NoteOwner` + `NoteChange`, columns `NoteAction.leadUserId` (nullable) + `BotDraft.senderPending` (default false). Backfills each note's creator as first owner.
 - Owners multi-select on a note; step lead (none = every owner); History box; shared-note follow-up waits for a sender pick (409 on /send until picked). `AlertMark.jsx` is the one alert symbol.
 - Calendar sync: every salesperson on the invite owns the note (`pickSalesOwners`).

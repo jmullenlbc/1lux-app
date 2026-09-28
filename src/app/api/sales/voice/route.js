@@ -18,7 +18,7 @@ export async function GET(request) {
   const people = admin
     ? await prisma.user.findMany({ where: { isActive: true }, orderBy: { name: 'asc' }, select: { id: true, name: true, email: true } })
     : [];
-  return NextResponse.json({ me: user.id, canPickAnyone: admin, people, ...(await libraryState(who.userId)) });
+  return NextResponse.json({ me: user.id, canPickAnyone: admin, people, ...(await libraryState(who.userId, { full: true })) });
 }
 
 // POST /api/sales/voice  { userId?, fileName, source, emails: [{subject, body, date}] }
