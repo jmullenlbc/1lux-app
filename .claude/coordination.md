@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-27 (newest) - Mike's Claude - **NOT DEPLOYED**, migration 0108: shared notes
+### 2026-09-27 (newest) - Mike's Claude - **DEPLOYED 4dffcc9**, migration 0108: shared notes
 - 0108 (additive, schema-guard clean): tables `NoteOwner` + `NoteChange`, columns `NoteAction.leadUserId` (nullable) + `BotDraft.senderPending` (default false). Backfills each note's creator as first owner.
 - Owners multi-select on a note; step lead (none = every owner); History box; shared-note follow-up waits for a sender pick (409 on /send until picked). `AlertMark.jsx` is the one alert symbol.
 - Calendar sync: every salesperson on the invite owns the note (`pickSalesOwners`).
