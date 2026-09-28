@@ -26,6 +26,7 @@ export async function extractActionsOnPublish(noteId) {
     include: {
       contacts: { include: { contact: { select: { id: true, name: true } } } },
       clients:  { include: { client: { include: { contacts: { select: { id: true, name: true } } } } } },
+      owners:   { select: { user: { select: { id: true, name: true } } }, orderBy: { createdAt: 'asc' } },
     },
   });
   if (!full) return { created: 0 };
@@ -35,7 +36,7 @@ export async function extractActionsOnPublish(noteId) {
   for (const cl of full.clients) for (const c of (cl.client?.contacts || [])) cand.set(c.id, c);
 
   const actionTypes = await getActiveActionTypes();
-  const { actions: extracted, personal } = await readNote(full, [...cand.values()], actionTypes);
+  const { actions: extracted, personal } = await readNote(full, [...cand.values()], actionTypes, { owners: full.owners.map(o => o.user).filter(Boolean) });
 
   // One person on the note: every step with nobody named is about them.
   const onNote = full.contacts.map(c => c.contact).filter(Boolean);

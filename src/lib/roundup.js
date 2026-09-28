@@ -145,12 +145,12 @@ export function buildRoundup({ userId, projects = [], noteActions = [], signals 
     }));
   push('nextActions', 'Your next actions', actions);
 
-  // ── Reminders I set on my own notes ──────────────────────────────────────
+  // ── Reminders on notes I own (0108: the step's lead, else every owner) ────
   // Only unsent ones. A reminder that already rang the bell on its own day
   // must not ring again inside the roundup — that is the same nag wearing a
   // different hat, and it is exactly what the remindedAt stamp exists to stop.
   const reminders = (noteActions || [])
-    .filter(a => a?.id && a.note?.isPublished && a.note.createdById === userId && !a.remindedAt)
+    .filter(a => a?.id && a.note?.isPublished && stepIsMine(a, userId) && !a.remindedAt)
     .map(a => ({ action: a, at: asDate(a.remindAt) }))
     .filter(r => r.at && r.at <= horizon)
     .sort((a, b) => a.at - b.at)
@@ -233,4 +233,11 @@ export function buildRoundup({ userId, projects = [], noteActions = [], signals 
       dedupeKey: `roundup:${weekKey(now)}`,
     },
   };
+}
+
+/** Same rule as notes/owners.js stepIsMine, kept here so this file stays import-free. */
+function stepIsMine(a, userId) {
+  if (a.leadUserId) return a.leadUserId === userId;
+  const owners = a.note?.owners?.length ? a.note.owners.map(o => o.userId) : [a.note?.createdById];
+  return owners.includes(userId);
 }

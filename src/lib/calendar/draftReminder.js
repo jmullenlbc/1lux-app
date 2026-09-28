@@ -10,7 +10,7 @@
  * away is to publish (or archive) the note.
  *
  * What counts, for one person:
- *   - a note the calendar made (calendarRef set) that they own,
+ *   - a note the calendar made (calendarRef set) that they own (any owner, 0108),
  *   - still a draft, not archived,
  *   - for a meeting that has already started. A meeting next week has nothing
  *     to write up yet, so it is not nagged about until it happens.
@@ -22,7 +22,7 @@
 /** Prisma `where` for one person's waiting calendar drafts. */
 export function draftReminderWhere(userId, now = new Date()) {
   return {
-    createdById: userId,
+    owners:      { some: { userId } },
     calendarRef: { not: null },
     isPublished: false,
     archivedAt:  null,
@@ -33,7 +33,8 @@ export function draftReminderWhere(userId, now = new Date()) {
 /** The same rule for one note already on screen (the notes list filter). */
 export function isReminderDraft(note, userId, now = new Date()) {
   if (!note || !userId) return false;
-  if (note.createdById !== userId) return false;
+  const owners = note.owners?.length ? note.owners.map(o => o.userId) : [note.createdById];
+  if (!owners.includes(userId)) return false;
   if (!note.calendarRef || note.isPublished || note.archivedAt) return false;
   if (note.meetingDate == null) return true;
   const d = new Date(note.meetingDate);

@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import AlertMark from '@/components/ui/AlertMark';
 
 // One email draft for review (recap, check-in, "still waiting"). Shared by the
 // Bot Queue and My Desk so a draft looks and works the same in both.
@@ -56,7 +57,42 @@ function CountdownTimer({ expiresAt }) {
   );
 }
 
-export default function DraftCard({ draft, onCancel, onUpdate }) {
+// A shared note's email with no sender yet (0108): pick one before anything
+// else. The card stays locked (no edit, no copy) until somebody does.
+function SenderPicker({ draft, onPicked }) {
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+  async function pick(userId) {
+    if (!userId) return;
+    setSaving(true); setErr('');
+    const res = await fetch(`/api/bot/drafts/${draft.id}/sender`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }),
+    }).catch(() => null);
+    setSaving(false);
+    const d = await res?.json().catch(() => ({}));
+    if (!res?.ok) { setErr(d?.error || 'Could not save that. Try again.'); return; }
+    onPicked(d.draft);
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-3">
+      <AlertMark label="Pick who sends this before it can go out" />
+      <span className="text-[11px] font-semibold text-red-700">Sender:</span>
+      {draft.senders?.length ? (
+        <select defaultValue="" disabled={saving} onChange={e => pick(e.target.value)}
+          className="text-[11px] border border-red-200 rounded-md px-2 py-1 bg-white text-slate-700">
+          <option value="" disabled>Pick who sends it</option>
+          {draft.senders.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+      ) : (
+        <span className="text-[11px] text-red-700">Pick who sends it on My Desk.</span>
+      )}
+      <span className="text-[10px] text-red-600">This note has more than one owner. It can not go out until someone is picked.</span>
+      {err && <span className="text-[10px] text-red-700 font-semibold">{err}</span>}
+    </div>
+  );
+}
+
+export default function DraftCard({ draft, onCancel, onUpdate, currentUserId }) {
   const [cancelling,  setCancelling]  = useState(false);
   const [expanded,    setExpanded]    = useState(false);
   const [editSubject, setEditSubject] = useState(draft.subject);
@@ -65,6 +101,14 @@ export default function DraftCard({ draft, onCancel, onUpdate }) {
   const [copied,      setCopied]      = useState(false);
 
   const isPending = draft.status === 'PENDING_REVIEW';
+  const needsSender = isPending && draft.senderPending;
+
+  function handlePicked(nd) {
+    // Picked somebody else: it is their email now and leaves this desk.
+    if (currentUserId && nd.userId !== currentUserId) { onCancel(nd.id); return; }
+    setEditBody(nd.body);
+    onUpdate({ ...nd, senders: undefined });
+  }
 
   async function handleCancel() {
     if (!confirm('Cancel this draft?')) return;
@@ -122,6 +166,8 @@ export default function DraftCard({ draft, onCancel, onUpdate }) {
           </div>
         </div>
 
+        {needsSender && <SenderPicker draft={draft} onPicked={handlePicked} />}
+
         <div className="bg-slate-50 rounded-lg px-3 py-2 mb-3">
           <p className="text-[11px] font-semibold text-slate-700 mb-0.5">{draft.subject}</p>
           <p className={`text-[11px] text-slate-500 ${expanded ? '' : 'line-clamp-2'}`}>{draft.body}</p>
@@ -133,7 +179,9 @@ export default function DraftCard({ draft, onCancel, onUpdate }) {
             <div className="flex gap-2">
               <button
                 onClick={() => { setEditSubject(draft.subject); setEditBody(draft.body); setExpanded(v => !v); }}
-                className="px-3 py-1 text-[11px] font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                disabled={needsSender}
+                title={needsSender ? 'Pick who sends it first' : undefined}
+                className="px-3 py-1 text-[11px] font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 {expanded ? 'Close' : 'Edit & Review'}
               </button>

@@ -19,7 +19,7 @@ const base = {
 
 test('the database rule: mine, from the calendar, unpublished, not archived, already happened', () => {
   assert.deepEqual(draftReminderWhere('u1', NOW), {
-    createdById: 'u1',
+    owners:      { some: { userId: 'u1' } },
     calendarRef: { not: null },
     isPublished: false,
     archivedAt:  null,

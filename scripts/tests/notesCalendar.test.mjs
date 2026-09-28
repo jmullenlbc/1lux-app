@@ -8,7 +8,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { pickSalesOwner, eventIdFromLink, linkMatchesEvent, cleanCalendarLink } from '../../src/lib/calendar/salesOwner.js';
+import { pickSalesOwner, pickSalesOwners, eventIdFromLink, linkMatchesEvent, cleanCalendarLink } from '../../src/lib/calendar/salesOwner.js';
 import { recordCalendarEvent } from '../../src/lib/calendar/recorder.js';
 import { groupNotesForAgenda, agendaGroup, defaultNoteTab } from '../../src/lib/notes/agenda.js';
 import { prepDueWhere, shouldAutoPrep, PREP_AHEAD_HOURS } from '../../src/lib/meetingPrep/due.js';
@@ -32,6 +32,15 @@ test('the salesperson on the invite owns the note, even when someone else sent i
 test('no salesperson on the invite: the first ILC person owns it; nobody from ILC: no owner', () => {
   assert.equal(pickSalesOwner({ organizerEmail: 'ops@ilcstudios.com' }, USERS), 'ops');
   assert.equal(pickSalesOwner({ organizerEmail: 'client@x.com', attendees: [{ email: 'b@y.com' }] }, USERS), null);
+});
+
+test('every salesperson on the invite owns the note (0108); else the first ILC person', () => {
+  const two = [...USERS, { id: 'sales2', email: 'sam@ilcstudios.com', departments: [{ department: SALES_MARKETING }] }];
+  const event = { organizerEmail: 'ops@ilcstudios.com', attendees: [{ email: 'sam@ilcstudios.com' }, { email: 'sales@ilcstudios.com' }] };
+  assert.deepEqual(pickSalesOwners(event, two), ['sales2', 'sales']);
+  assert.deepEqual(pickSalesOwners(event, two, { mailbox: 'sales@ilcstudios.com' }), ['sales', 'sales2']);
+  assert.deepEqual(pickSalesOwners({ organizerEmail: 'ops@ilcstudios.com' }, USERS), ['ops']);
+  assert.deepEqual(pickSalesOwners({ organizerEmail: 'client@x.com' }, USERS), []);
 });
 
 // ── Calendar link ───────────────────────────────────────────────────────────
@@ -59,6 +68,7 @@ test('only web addresses are saved as a calendar link', () => {
 
 function fakeDb(notes = []) {
   const contactLinks = [];
+  const owners = [];
   let n = 0;
   const match = (row, where) => Object.entries(where).every(([k, v]) => {
     if (v === null) return row[k] == null;
@@ -66,7 +76,12 @@ function fakeDb(notes = []) {
     return row[k] === v;
   });
   return {
-    notes, contactLinks,
+    notes, contactLinks, owners,
+    noteOwner: {
+      findMany: async ({ where }) => owners.filter(o => o.noteId === where.noteId && where.userId.in.includes(o.userId)),
+      create:   async ({ data }) => { owners.push(data); return data; },
+      count:    async ({ where }) => owners.filter(o => o.noteId === where.noteId).length,
+    },
     note: {
       findFirst:  async ({ where }) => notes.find(r => match(r, where)) ?? null,
       findMany:   async ({ where }) => notes.filter(r => match(r, where)),
@@ -89,6 +104,7 @@ const EVENT = { externalId: 'ev1', title: 'Site walk', startAt: hours(24), respo
 test('an accepted invite makes one draft, owned and linked, and a re-sync does not make a second', async () => {
   const db = fakeDb();
   const a = await recordCalendarEvent(db, EVENT, { ownerUserId: 'sales', classification: VERDICT });
+  assert.deepEqual(db.owners.map(o => [o.noteId, o.userId, o.source]), [[a.noteId, 'sales', 'calendar']]);
   assert.equal(a.status, 'created');
   assert.equal(db.notes[0].createdById, 'sales');
   assert.equal(db.notes[0].isPublished, false);

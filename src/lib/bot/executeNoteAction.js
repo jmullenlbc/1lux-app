@@ -14,6 +14,7 @@ import { prisma } from '@/lib/db';
 import { OUTREACH_EMAIL_METHODS } from '@/lib/bot/composeOutreach';
 import { isWaitExecutor } from '@/lib/followUp/watch';
 import { firstRemindAt, sendDueWaitReminders } from '@/lib/followUp/engine';
+import { remindMeAt } from '@/lib/notes/stepFixes';
 
 /**
  * @param {object} action  a NoteAction row
@@ -45,11 +46,21 @@ export async function executeNoteAction(action, type, opts = {}) {
     return { remindAt, executed: false };
   }
 
+  // "Remind me" (Mike 9-27): the bell goes off on the due date, else a week
+  // after the meeting. The step stays open until someone marks it done.
+  if (executor === 'REMINDER') {
+    const note = await prisma.note.findUnique({ where: { id: action.noteId }, select: { meetingDate: true } });
+    const remindAt = action.remindAt || remindMeAt(action.dueDate, note?.meetingDate, now);
+    await prisma.noteAction.update({ where: { id: action.id }, data: { confirmedAt: action.confirmedAt || now, remindAt } });
+    return { remindAt, executed: false };
+  }
+
   // Text / Call / Add-to-list / Internal task / Other → confirmed to-do, no draft
-  // (the bot can't text or call yet — those stay manual tasks for now).
+  // (the bot can't text or call yet — those stay manual tasks for now). A step
+  // with a deadline ("by Friday") rings the bell on that day.
   await prisma.noteAction.update({
     where: { id: action.id },
-    data: { confirmedAt: now, executedAt: now },
+    data: { confirmedAt: now, executedAt: now, ...(action.dueDate && !action.remindAt ? { remindAt: action.dueDate } : {}) },
   });
   return { executed: true };
 }

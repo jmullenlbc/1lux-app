@@ -15,6 +15,7 @@ import { EMAIL_KINDS, followUpSubject, editExamples, editExamplesSection } from 
 import { stripDashes, hasBullets, firstName, withSignature, insertBeforeSignOff, toneSection, voiceExamplesSection, subjectRules, pickSubject, PLAIN_VOICE_RULES } from '@/lib/bot/emailStyle';
 import { senderVoice } from '@/lib/bot/voice';
 import { personalPromptFor } from '@/lib/contacts/savePersonalFacts';
+import { ownerIdsOf, senderFor as pickSender } from '@/lib/notes/owners';
 
 // Methods that belong in an outreach email to the contact.
 export const OUTREACH_EMAIL_METHODS = new Set(['EMAIL', 'SEND_MATERIALS', 'SCHEDULE']);
@@ -248,10 +249,19 @@ export async function draftContactOutreach(noteId, contactId, ownerUserId, revie
   const openAsks = group.actions.filter(a => !a.botDraftId || WORKING_DRAFT_STATUSES.has(dById.get(a.botDraftId)?.status));
   if (openAsks.length === 0) return { skipped: 'all already sent' };
 
-  const openGroup = { ...group, actions: openAsks, ownerUserId };
+  // Shared notes (0108): the steps' lead sends; unsure, somebody picks on My Desk.
+  const [steps, note] = await Promise.all([
+    prisma.noteAction.findMany({ where: { id: { in: openAsks.map(a => a.id) } }, select: { leadUserId: true } }),
+    prisma.note.findUnique({ where: { id: noteId }, select: { createdById: true, owners: { select: { userId: true } } } }),
+  ]);
+  const pick = note ? pickSender(steps, ownerIdsOf(note), note.createdById) : { userId: ownerUserId, pending: false };
+  const pending = drafts.find(d => WORKING_DRAFT_STATUSES.has(d.status)) || null;
+  // A sender somebody already picked on My Desk stays picked.
+  const keepSender = pending && !pending.senderPending;
+  const sender = keepSender ? { userId: pending.userId, pending: false } : { userId: pick.userId || ownerUserId, pending: pick.pending };
+  const openGroup = { ...group, actions: openAsks, ownerUserId: sender.userId };
   const reason = `Consolidated outreach (${openAsks.length} item${openAsks.length !== 1 ? 's' : ''}) from a sales note`;
   // Reuse a working draft (live or paused); always reactivate it to PENDING_REVIEW.
-  const pending = drafts.find(d => WORKING_DRAFT_STATUSES.has(d.status)) || null;
 
   let draft, mode;
   if (!pending) {
@@ -259,7 +269,7 @@ export async function draftContactOutreach(noteId, contactId, ownerUserId, revie
     const { subject, body, emailKind } = await composeContactEmail(openGroup);
     draft = await prisma.botDraft.create({
       data: {
-        userId: ownerUserId, type: 'FOLLOW_UP', status: 'PENDING_REVIEW',
+        userId: sender.userId, senderPending: sender.pending, type: 'FOLLOW_UP', status: 'PENDING_REVIEW',
         toEmail: group.email || '', toName: group.contactName,
         subject, body, aiSubject: subject, aiBody: body, emailKind,
         reviewWindowMinutes, classificationReason: reason,
@@ -271,7 +281,7 @@ export async function draftContactOutreach(noteId, contactId, ownerUserId, revie
     const { subject, body, emailKind } = await composeContactEmail(openGroup);
     draft = await prisma.botDraft.update({
       where: { id: pending.id },
-      data: { subject, body, aiSubject: subject, aiBody: body, emailKind, status: 'PENDING_REVIEW', toEmail: group.email || '', toName: group.contactName, classificationReason: reason },
+      data: { userId: sender.userId, senderPending: sender.pending, subject, body, aiSubject: subject, aiBody: body, emailKind, status: 'PENDING_REVIEW', toEmail: group.email || '', toName: group.contactName, classificationReason: reason },
     });
     mode = 'recomposed';
   } else {

@@ -122,7 +122,7 @@ function ContactLinkPicker({ initialQuery, defaultCompany, linked, onPick, onUnl
 }
 
 // ── AI action items (extracted from the note prose) ──────────────────────────
-function ActionRow({ a, onPatch, intel, types }) {
+function ActionRow({ a, onPatch, intel, types, owners = [] }) {
   const confirmed = a.status === 'CONFIRMED' || a.status === 'DONE';
   const [editing, setEditing] = useState(false);
   const [linking, setLinking] = useState(false);
@@ -167,6 +167,15 @@ function ActionRow({ a, onPatch, intel, types }) {
                 )}
               </span>
             )}
+            {!intel && owners.length > 1 && (
+              <select value={a.leadUserId || ''} onChange={e => onPatch(a.id, { leadUserId: e.target.value || null })}
+                title="Who does this step. Everyone means every owner of the note gets it."
+                className="text-[11px] bg-white border border-slate-200 rounded px-1.5 py-0.5 text-slate-600 outline-none">
+                <option value="">Lead: everyone</option>
+                {owners.map(o => <option key={o.id} value={o.id}>Lead: {o.name}</option>)}
+              </select>
+            )}
+            {!editing && !intel && a.dueDate && <span className="text-[11px] text-slate-500">due {fmtDue(a.dueDate)}</span>}
             {!editing && a.targetName && <span className="text-[11px] text-slate-500">→ {a.targetName}</span>}
             {!editing && a.company && <span className="text-[11px] text-slate-500">· {a.company}</span>}
             {!editing && isIntro && !a.watch && (
@@ -192,6 +201,14 @@ function ActionRow({ a, onPatch, intel, types }) {
                 <input value={f.targetName} onChange={e => setF({ ...f, targetName: e.target.value })} placeholder="Target" className={inputCls} />
                 <input value={f.company} onChange={e => setF({ ...f, company: e.target.value })} placeholder="Company" className={inputCls} />
               </div>
+              {!intel && (
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-slate-500 whitespace-nowrap">Due</span>
+                  <input type="date" defaultValue={a.dueDate ? String(a.dueDate).slice(0, 10) : ''}
+                    onBlur={e => onPatch(a.id, { dueDate: e.target.value || null })}
+                    className={inputCls + ' w-36'} />
+                </div>
+              )}
               {isIntro && (
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] text-slate-500 whitespace-nowrap">First reminder after</span>
@@ -226,7 +243,11 @@ function ActionRow({ a, onPatch, intel, types }) {
 const WAIT_EXECUTOR_SET = new Set(['EXPECT_INTRO', 'EXPECT_REPLY', 'EXPECT_FILES', 'EXPECT_INVITE']);
 const OUTREACH_METHODS = new Set(['EMAIL', 'SEND_MATERIALS', 'SCHEDULE', ...WAIT_EXECUTOR_SET]);
 
-function NoteActions({ noteId, noteBody, published }) {
+function fmtDue(d) {
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+}
+
+function NoteActions({ noteId, noteBody, published, owners = [], onChanged }) {
   const [actions, setActions] = useState(null);
   const [types, setTypes] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -249,11 +270,12 @@ function NoteActions({ noteId, noteBody, published }) {
     setBusy(true);
     lastExtractedRef.current = (bodyRef.current || '').trim();
     try { const r = await fetch(`/api/crm/notes/${noteId}/actions`, { method: 'POST' }); const d = await r.json(); setActions(d.actions || []); }
-    catch {} finally { setBusy(false); }
+    catch {} finally { setBusy(false); onChanged?.(); }
   }
   async function patch(actionId, fields) {
     await fetch(`/api/crm/notes/${noteId}/actions`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actionId, ...fields }) }).catch(() => {});
     setActions(await fetchActions());
+    onChanged?.();
   }
 
   // Initial load; auto-extract if the note has prose but no actions yet.
@@ -312,7 +334,7 @@ function NoteActions({ noteId, noteBody, published }) {
         <p className="text-xs text-slate-600">{busy ? 'Reading your note…' : 'Next steps show up here a few seconds after you write them — "send Jane the cut sheets", "call back Tuesday".'}</p>
       ) : (
         <div className="space-y-2">
-          {acts.map(a => <ActionRow key={a.id} a={a} onPatch={patch} types={types} />)}
+          {acts.map(a => <ActionRow key={a.id} a={a} onPatch={patch} types={types} owners={owners} />)}
           {intel.length > 0 && <div className="text-[10px] uppercase tracking-wide text-slate-500 pt-1">Intel</div>}
           {intel.map(a => <ActionRow key={a.id} a={a} onPatch={patch} intel types={types} />)}
         </div>
@@ -627,6 +649,112 @@ function NewNoteModal({ open, clients, onClose, onCreated }) {
 
 // ── NoteDetail ────────────────────────────────────────────────────────────────
 
+// ── Owners and history (0108) ────────────────────────────────────────────────
+
+/** A note's owners, oldest first; a note from before 0108 is owned by its writer. */
+function ownersOf(note) {
+  const list = (note.owners || []).map(o => o.user).filter(Boolean);
+  return list.length ? list : note.createdBy ? [note.createdBy] : [];
+}
+
+// Every owner sees the note and its steps on their own My Desk (Mike 9-27).
+function NoteOwners({ note, onUpdate, onChanged }) {
+  const [users, setUsers]   = useState([]);
+  const [adding, setAdding] = useState(false);
+  const [err, setErr]       = useState('');
+  const owners = ownersOf(note);
+  const ids = owners.map(o => o.id);
+
+  useEffect(() => {
+    if (!adding || users.length) return;
+    fetch('/api/users').then(r => r.json()).then(d => setUsers((d.users || []).filter(u => u.role !== 'CLIENT_VIEWER'))).catch(() => {});
+  }, [adding, users.length]);
+
+  async function save(next) {
+    setErr('');
+    const res = await fetch(`/api/crm/notes/${note.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ownerIds: next }),
+    }).catch(() => null);
+    if (res?.ok) { onUpdate(await res.json()); onChanged?.(); }
+    else setErr((await res?.json().catch(() => null))?.error || 'Could not save that.');
+  }
+
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1">
+      <span>{owners.length > 1 ? 'Owners:' : 'Owner:'}</span>
+      {owners.map(o => (
+        <span key={o.id} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-700">
+          {o.name}
+          {owners.length > 1 && (
+            <button type="button" onClick={() => save(ids.filter(x => x !== o.id))} title={`Take ${o.name} off this note`}
+              className="text-slate-400 hover:text-rose-500">×</button>
+          )}
+        </span>
+      ))}
+      {adding ? (
+        <select autoFocus defaultValue="" onBlur={() => setAdding(false)}
+          onChange={e => { const v = e.target.value; setAdding(false); if (v) save([...ids, v]); }}
+          className="text-[11px] bg-white border border-slate-200 rounded px-1 py-0.5 text-slate-700">
+          <option value="">Add an owner</option>
+          {users.filter(u => !ids.includes(u.id)).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+        </select>
+      ) : (
+        <button type="button" onClick={() => setAdding(true)} className="text-amber-700 hover:underline">+ owner</button>
+      )}
+      {err && <span className="text-rose-600">{err}</span>}
+    </span>
+  );
+}
+
+const HISTORY_WORD = {
+  title: 'the title', body: 'the notes', meetingDate: 'the date', activityType: 'the meeting type',
+  meetingLink: 'the calendar link', person: 'person', company: 'company', project: 'project', owner: 'owner',
+  step: 'next step', 'step type': 'step type', 'step lead': 'step lead', 'step due': 'step due date',
+  'email sender': 'email sender', published: 'status', archived: 'archive',
+};
+
+function historyLine(c) {
+  const short = s => { const t = String(s ?? '').replace(/\s+/g, ' ').trim(); return t.length > 80 ? `${t.slice(0, 80)}…` : t; };
+  const what = HISTORY_WORD[c.field] || c.field;
+  if (c.field === 'body') return 'edited the notes';
+  if (c.before && c.after) return `changed ${what} from "${short(c.before)}" to "${short(c.after)}"`;
+  if (c.after) return `added ${what}: ${short(c.after)}`;
+  if (c.before) return `removed ${what}: ${short(c.before)}`;
+  return `changed ${what}`;
+}
+
+// Who changed what and when, like a project's History tab (Mike 9-27).
+function NoteHistory({ noteId, version }) {
+  const [rows, setRows] = useState(null);
+  const [all, setAll]   = useState(false);
+  useEffect(() => {
+    let alive = true;
+    fetch(`/api/crm/notes/${noteId}/history`).then(r => (r.ok ? r.json() : { changes: [] }))
+      .then(d => { if (alive) setRows(d.changes || []); }).catch(() => { if (alive) setRows([]); });
+    return () => { alive = false; };
+  }, [noteId, version]);
+  if (!rows?.length) return null;
+  const shown = all ? rows : rows.slice(0, 6);
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-4">
+      <label className="text-sm font-semibold text-slate-800">History <span className="text-xs font-normal text-slate-400">who changed what, newest first</span></label>
+      <ul className="mt-2 space-y-1.5">
+        {shown.map(c => (
+          <li key={c.id} className="text-xs text-slate-600">
+            <span className="font-medium text-slate-800">{c.userName || 'The bot'}</span> {historyLine(c)}
+            <span className="text-slate-400"> · {new Date(c.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
+          </li>
+        ))}
+      </ul>
+      {rows.length > 6 && (
+        <button type="button" onClick={() => setAll(v => !v)} className="mt-2 text-[11px] text-amber-700 hover:underline">
+          {all ? 'Show less' : `Show all ${rows.length}`}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }) {
   const canPrep = currentUser?.canPrep === true;
   const [tab, setTab] = useState(() => defaultNoteTab(note, { canPrep }));
@@ -636,6 +764,8 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [archiving,   setArchiving]   = useState(false);
   const [publishing,  setPublishing]  = useState(false);
+  const [histVersion, setHistVersion] = useState(0);
+  const owners = ownersOf(note);
 
   const [form, setForm] = useState(() => formFromNote(note));
   // Only fields a person actually touched are saved — so opening a calendar
@@ -858,7 +988,7 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
           {note.meetingDate ? <span>{fmtWhen(note.meetingDate)}</span> : <span className="italic">No date yet</span>}
           {meta && <><span>·</span><span>{meta.emoji} {meta.label}</span></>}
           {note.isInPerson && <><span>·</span><span className="text-amber-700">In person</span></>}
-          {note.createdBy?.name && <><span>·</span><span>Owner: {note.createdBy.name}</span></>}
+          <span>·</span><NoteOwners note={note} onUpdate={onUpdate} onChanged={() => setHistVersion(v => v + 1)} />
           <button onClick={() => setDetailsOpen(v => !v)} className="ml-1 text-amber-700 hover:underline">
             {detailsOpen ? 'Hide details' : 'Edit details'}
           </button>
@@ -1021,7 +1151,8 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
             </div>
 
             <div className="rounded-lg border border-slate-200 bg-white p-4">
-              <NoteActions noteId={note.id} noteBody={form.noteBody} published={note.isPublished} />
+              <NoteActions noteId={note.id} noteBody={form.noteBody} published={note.isPublished}
+                owners={owners} onChanged={() => setHistVersion(v => v + 1)} />
             </div>
 
             <div className={`rounded-lg border p-4 flex flex-wrap items-center gap-3 ${note.isPublished ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'}`}>
@@ -1039,6 +1170,8 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
                 {publishing ? '…' : note.isPublished ? 'Back to draft' : 'Mark complete ✓'}
               </button>
             </div>
+
+            <NoteHistory noteId={note.id} version={`${note.updatedAt}|${histVersion}`} />
           </div>
         )}
       </div>

@@ -10,13 +10,14 @@ import { prisma } from '@/lib/db';
 import { addNoteLinks, stampLastMet } from '@/lib/noteLinks';
 import { fireNoteActionConfirmed } from '@/lib/bot/noteActionRunner';
 import { needsPerson, stepIsFor, nameFromEmail, NEEDS_PERSON_DAYS } from '@/lib/desk/needsPerson';
+import { ownedBy, ownerIdsOf } from '@/lib/notes/owners';
 
 const DAY = 86_400_000;
 
 export async function meetingsNeedingPeople(userId, now = new Date()) {
   const notes = await prisma.note.findMany({
     where: {
-      createdById: userId, noteType: 'SALES', isInPerson: true, peopleSkippedAt: null,
+      ...ownedBy(userId), noteType: 'SALES', isInPerson: true, peopleSkippedAt: null,
       meetingDate: { gte: new Date(now.getTime() - NEEDS_PERSON_DAYS * DAY), lte: now },
     },
     select: {
@@ -43,10 +44,10 @@ export async function meetingsNeedingPeople(userId, now = new Date()) {
 async function ownNote(user, noteId, isAdmin) {
   const note = await prisma.note.findUnique({
     where: { id: noteId },
-    select: { id: true, createdById: true, isPublished: true, isInPerson: true, meetingDate: true },
+    select: { id: true, createdById: true, isPublished: true, isInPerson: true, meetingDate: true, owners: { select: { userId: true } } },
   });
   if (!note) return { error: 'Meeting not found', status: 404 };
-  if (note.createdById !== user.id && !isAdmin) return { error: 'This meeting is not on your desk.', status: 403 };
+  if (!ownerIdsOf(note).includes(user.id) && !isAdmin) return { error: 'This meeting is not on your desk.', status: 403 };
   return { note };
 }
 

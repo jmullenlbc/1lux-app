@@ -289,7 +289,7 @@ export default function MyDeskPage() {
           <div className="space-y-2">
             {desk.drafts.map(d => (
               <div key={d.id} id={`draft-${d.id}`} className="scroll-mt-4">
-              <DraftCard draft={d}
+              <DraftCard draft={d} currentUserId={desk.userId}
                 onCancel={id => setDesk(s => ({ ...s, drafts: s.drafts.filter(x => x.id !== id) }))}
                 onUpdate={nd => setDesk(s => ({ ...s, drafts: s.drafts.map(x => (x.id === nd.id ? { ...x, ...nd } : x)) }))} />
               </div>

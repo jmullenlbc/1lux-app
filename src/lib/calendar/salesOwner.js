@@ -30,6 +30,18 @@ export function pickSalesOwner(event, users = [], { mailbox = '' } = {}) {
   return (onInvite.find(isSales) || onInvite[0])?.id ?? null;
 }
 
+/**
+ * Every owner of a synced meeting (0108, Mike 9-27): each salesperson on the
+ * invite, mailbox first. No salesperson: the first ILC user, as above.
+ */
+export function pickSalesOwners(event, users = [], { mailbox = '' } = {}) {
+  const byEmail = new Map(users.filter(u => u?.email).map(u => [lower(u.email), u]));
+  const onInvite = inviteEmails(event, mailbox).map(e => byEmail.get(e)).filter(Boolean);
+  const isSales = u => (u.departments || []).some(d => d.department === SALES_MARKETING);
+  const sales = onInvite.filter(isSales).map(u => u.id);
+  return [...new Set(sales.length ? sales : onInvite.slice(0, 1).map(u => u.id))];
+}
+
 /** The event id inside an Outlook link (?itemid=… or …/item/<id>), or null. */
 export function eventIdFromLink(link) {
   let url;

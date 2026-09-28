@@ -70,7 +70,7 @@ export async function GET(req) {
       orderBy: { remindAt: 'asc' },
       take: 500,
       include: {
-        note: { select: { id: true, title: true, createdById: true, isPublished: true } },
+        note: { select: { id: true, title: true, createdById: true, isPublished: true, owners: { select: { userId: true } } } },
       },
     });
 
@@ -91,14 +91,16 @@ export async function GET(req) {
           continue;
         }
 
-        const res = await notifyUser(plan.alert);
+        // Every owner, or just the step's lead (0108).
+        let created = false;
+        for (const alert of plan.alerts) created = (await notifyUser(alert)).created || created;
 
         // Stamp whether or not the bell accepted it. A duplicate means the
         // person has already been told; leaving it unstamped would make this
         // row reappear in tomorrow's sweep for no reason.
         await prisma.noteAction.update({ where: { id: action.id }, data: { remindedAt: now } });
 
-        if (res.created) log.sent++; else log.skipped++;
+        if (created) log.sent++; else log.skipped++;
       } catch (err) {
         log.errors.push(`${action.id}: ${err?.message ?? err}`);
       }

@@ -138,10 +138,11 @@ export async function loadCommitments(filters = {}) {
         // An unpublished note is a draft nobody has stood behind yet.
         // A note reaches a job two ways — its own projectId, or the NoteProject
         // join — and reaches a company three, so both paths are spelled out.
-        // NoteAction has no owner column of its own; the note's author owns it.
+        // A step belongs to its lead, else to every owner of the note (0108).
+        ...(ownerId ? { OR: [{ leadUserId: null }, { leadUserId: ownerId }] } : {}),
         note: {
           isPublished: true,
-          ...(ownerId ? { createdById: ownerId } : {}),
+          ...(ownerId ? { owners: { some: { userId: ownerId } } } : {}),
           ...(projectId ? { OR: [{ projectId }, { projects: { some: { projectId } } }] } : {}),
           ...(clientId && !projectId
             ? { OR: [
@@ -154,7 +155,7 @@ export async function loadCommitments(filters = {}) {
       },
       select: {
         id: true, type: true, detail: true, rawText: true, status: true,
-        contactName: true, company: true, dueDate: true, remindAt: true,
+        contactName: true, company: true, dueDate: true, remindAt: true, leadUserId: true,
         note: {
           select: {
             id: true, title: true, createdById: true, projectId: true,
@@ -222,7 +223,7 @@ export async function loadCommitments(filters = {}) {
       who: a.contactName, company: a.company,
       // EXPECT_INTRO carries its clock on remindAt, not dueDate.
       dueDate: a.dueDate || a.remindAt,
-      ownerId: a.note?.createdById,
+      ownerId: a.leadUserId || a.note?.createdById,
       projectId: p?.id, projectName: p?.name,
       clientId: p?.client?.id, clientName: p?.client?.name,
       status: a.status,

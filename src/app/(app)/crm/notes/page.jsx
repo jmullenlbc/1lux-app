@@ -24,6 +24,7 @@ export default async function NotesPage({ searchParams }) {
       orderBy: [{ meetingDate: 'desc' }, { updatedAt: 'desc' }],
       include: {
         createdBy: { select: { id: true, name: true } },
+        owners:   { select: { userId: true, user: { select: { id: true, name: true } } }, orderBy: { createdAt: 'asc' } },
         clients:  { include: { client:  { select: { id: true, clientNumber: true, name: true, type: true } } } },
         projects: { include: { project: { select: { id: true, projectNumber: true, name: true, serviceType: true, procurementStage: true, designStage: true } } } },
         contacts: NOTE_CONTACTS_INCLUDE,

@@ -16,6 +16,7 @@ export const DEFAULT_ACTION_TYPES = [
   { key: 'SEND_MATERIALS', label: 'Send materials',           executor: 'SEND_MATERIALS', kind: 'ACTION', sortOrder: 60, reminderDays: null, description: 'Send a deck / DocSend link / pricing to the contact.' },
   { key: 'ADD_TO_LIST',    label: 'Add to list',              executor: 'ADD_TO_LIST',    kind: 'ACTION', sortOrder: 70, reminderDays: null, description: 'Add the contact to a distribution list (e.g. golf league).' },
   { key: 'INTERNAL_TASK',  label: 'Internal task',            executor: 'INTERNAL_TASK',  kind: 'ACTION', sortOrder: 80, reminderDays: null, description: 'A to-do for the ILC team (not outbound to the contact).' },
+  { key: 'REMIND_ME',      label: 'Remind me',                executor: 'REMINDER',       kind: 'ACTION', sortOrder: 85, reminderDays: null, description: 'A reminder for me to do something later.' },
   { key: 'INTEL',          label: 'Intel (fact)',             executor: 'INTEL',          kind: 'INTEL',  sortOrder: 90, reminderDays: null, description: 'A fact about a person or company — NOT a to-do.' },
   { key: 'OTHER',          label: 'Other',                    executor: 'OTHER',          kind: 'ACTION', sortOrder: 99, reminderDays: null, description: 'Anything that doesn’t fit another type.' },
 ];
@@ -25,5 +26,5 @@ export const TEMPLATE_EXECUTORS = new Set(['EMAIL', 'TEXT', 'SEND_MATERIALS']);
 
 export const EXECUTORS = [
   'EMAIL', 'TEXT', 'CALL', 'SCHEDULE', 'EXPECT_INTRO', 'EXPECT_REPLY', 'EXPECT_FILES', 'EXPECT_INVITE',
-  'SEND_MATERIALS', 'ADD_TO_LIST', 'INTERNAL_TASK', 'INTEL', 'OTHER',
+  'SEND_MATERIALS', 'ADD_TO_LIST', 'INTERNAL_TASK', 'REMINDER', 'INTEL', 'OTHER',
 ];

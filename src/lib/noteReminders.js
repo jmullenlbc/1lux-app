@@ -18,6 +18,20 @@
 export const MAX_LATE_DAYS = 30;
 
 /**
+ * Who hears about a step (0108, Mike 9-27): its lead, else every owner of the
+ * note. A note from before 0108 with no owner rows falls back to its author.
+ * Copied from src/lib/notes/owners.js so this file keeps no imports.
+ */
+function recipientsOf(action) {
+  const note = action.note || {};
+  let owners = [...new Set((note.owners || []).map(o => o.userId).filter(Boolean))];
+  if (!owners.length && note.createdById) owners = [note.createdById];
+  const lead = action.leadUserId;
+  if (lead && (!owners.length || owners.includes(lead))) return [lead];
+  return owners;
+}
+
+/**
  * Decide what to do with one note-action that the sweep found due.
  *
  * Pure. Returns one of three shapes, and never throws:
@@ -40,8 +54,8 @@ export function planNoteReminder(action, { now = new Date(), maxLateDays = MAX_L
 
   // Skip rather than stamp: the note has an author in every normal case, and a
   // missing one is a data problem worth still being visible tomorrow.
-  const userId = action.note.createdById;
-  if (!userId) return { do: 'skip', reason: 'note has no author' };
+  const recipients = recipientsOf(action);
+  if (!recipients.length) return { do: 'skip', reason: 'note has no author' };
 
   // Guard the raw value before constructing: `new Date(null)` is the epoch — a
   // perfectly valid date that is due, and 56 years stale, so a row with no
@@ -59,19 +73,24 @@ export function planNoteReminder(action, { now = new Date(), maxLateDays = MAX_L
   // with nothing after it reads as a bug.
   const who  = action.contactName || action.targetName || action.company || 'a contact';
   const what = action.detail || action.rawText || 'a follow-up you set';
+  // A "Remind me" step is about the thing to do, not a person.
+  const title = action.type === 'REMIND_ME' && !action.contactName
+    ? `Reminder: ${String(what).slice(0, 80)}`
+    : `Reminder: ${who}`;
 
-  return {
-    do: 'send',
-    reason: 'due',
-    alert: {
-      userId,
-      type:    'NOTE_REMINDER',
-      title:   `Reminder: ${who}`,
-      message: String(what).slice(0, 400),
-      link:    '/sales/desk',
-      // Keyed on the action, not on the day: the point of the key is that this
-      // reminder can only ever be shown once, even if the stamp fails to save.
-      dedupeKey: `noteAction:${action.id}:reminder`,
-    },
-  };
+  // One bell per person. Keyed on the action, not on the day: the point of the
+  // key is that this reminder can only ever be shown once, even if the stamp
+  // fails to save. The author keeps the old key so nothing already shown repeats.
+  const alerts = recipients.map(userId => ({
+    userId,
+    type:    'NOTE_REMINDER',
+    title,
+    message: String(what).slice(0, 400),
+    link:    '/sales/desk',
+    dedupeKey: userId === action.note.createdById
+      ? `noteAction:${action.id}:reminder`
+      : `noteAction:${action.id}:reminder:${userId}`,
+  }));
+
+  return { do: 'send', reason: 'due', alert: alerts[0], alerts };
 }

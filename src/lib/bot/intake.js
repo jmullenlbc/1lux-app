@@ -13,16 +13,17 @@ import { normalizeEvent } from '@/lib/calendar/normalize';
 import { classifyEvent } from '@/lib/bot/activityClassifier';
 import { recordCalendarEvent } from '@/lib/calendar/recorder';
 import { notAcceptedReason } from '@/lib/calendar/worthANote';
-import { pickSalesOwner } from '@/lib/calendar/salesOwner';
+import { pickSalesOwners } from '@/lib/calendar/salesOwner';
 
-// The owner of a synced meeting is the salesperson on the invite (Mike 9-25).
+// The owners of a synced meeting are the salespeople on the invite (Mike 9-25,
+// every one of them since 0108). The first is the note's creator.
 // Emails are compared in JS: Prisma's case-insensitive match is Postgres-only.
-async function resolveCalendarOwner(event, opts) {
-  if (opts.ownerUserId) return opts.ownerUserId;
+async function resolveCalendarOwners(event, opts) {
+  if (opts.ownerUserId) return [opts.ownerUserId];
   const users = await prisma.user.findMany({
     select: { id: true, email: true, departments: { select: { department: true } } },
   }).catch(() => []);
-  return pickSalesOwner(event, users, { mailbox: opts.mailboxAddress || opts.ownerEmail || '' });
+  return pickSalesOwners(event, users, { mailbox: opts.mailboxAddress || opts.ownerEmail || '' });
 }
 
 // Resolve the ILC owner of an inbound item (the mailbox/organizer), by email.
@@ -119,16 +120,18 @@ export async function ingestCalendarEvent(raw, opts = {}) {
     mailboxAddress: opts.mailboxAddress || opts.ownerEmail || '',
   });
 
-  const [ownerUserId, classification] = await Promise.all([
-    resolveCalendarOwner(event, opts),
+  const [ownerUserIds, classification] = await Promise.all([
+    resolveCalendarOwners(event, opts),
     classifyEvent(event),
   ]);
+  const ownerUserId = ownerUserIds[0] || null;
 
   let note = { noteId: null, status: 'skipped', reason: 'dry run — no note written' };
   if (!opts.dryRun && opts.createNote !== false) {
     try {
       note = await recordCalendarEvent(prisma, event, {
         ownerUserId,
+        ownerUserIds,
         classification,
         projectId: opts.projectId ?? null,
       });

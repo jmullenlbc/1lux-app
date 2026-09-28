@@ -5,6 +5,16 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Shared notes: owners, step leads, change history, sender pick] - September 27, 2026 (NOT DEPLOYED) - migration 0108
+
+- **Multi-owner notes** (`NoteOwner`): owners are chips on the note with "+ owner" and remove; every owner sees the note, its steps and reminders on their own My Desk. Calendar sync makes every salesperson on the invite an owner (`pickSalesOwners`), only on first create, so a removed owner is never re-added. Backfill: each note's creator is its first owner.
+- **Step lead** (`NoteAction.leadUserId`): per-step "Lead: everyone / name" picker. With a lead only the lead gets the step and reminders; with none every owner does. Wired through desk, reminders cron, weekly roundup, MCP commitments, trigger runner.
+- **Change history** (`NoteChange`): History box at the bottom of each note; who changed title, notes, date, people, companies, projects, owners, steps, lead, due date, sender, status, archive. `GET /api/crm/notes/[id]/history`.
+- **Sender must be picked** (`BotDraft.senderPending`): a shared note's follow-up with no single lead waits on My Desk with a red alert and a Sender picker; Edit and Copy stay locked and `/send` returns 409 until someone picks. `POST /api/bot/drafts/[id]/sender` swaps the sign-off and logs the change.
+- **Universal alert symbol**: `src/components/ui/AlertMark.jsx`, red circle with a white "!". Use it for anything that must be dealt with before going ahead.
+- **Next-step fixes** (`src/lib/notes/stepFixes.js`): "by Friday" becomes a due date (editable on the step), new "Remind me" step type, "email Jane the specs" files as Email not Send materials.
+- Doc for Sean: Outlook email and calendar hookup, marked wait until the 1Lux move.
+
 ## [Company page on phones] - September 26, 2026 (DEPLOYED 01a0a4b) - no migration
 
 - `/clients/[id]`: tabs scroll sideways; tighter padding; header chips and Export Excel hidden on phones (they are on the Info tab).

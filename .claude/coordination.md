@@ -2,7 +2,13 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-26 (newest) - Mike's Claude - **DEPLOYED 01a0a4b**, no migration: company page on phones
+### 2026-09-27 (newest) - Mike's Claude - **NOT DEPLOYED**, migration 0108: shared notes
+- 0108 (additive, schema-guard clean): tables `NoteOwner` + `NoteChange`, columns `NoteAction.leadUserId` (nullable) + `BotDraft.senderPending` (default false). Backfills each note's creator as first owner.
+- Owners multi-select on a note; step lead (none = every owner); History box; shared-note follow-up waits for a sender pick (409 on /send until picked). `AlertMark.jsx` is the one alert symbol.
+- Calendar sync: every salesperson on the invite owns the note (`pickSalesOwners`).
+- FOR SEAN: Outlook hookup doc in the shared drive, WAIT until the 1Lux move. Next migration 0109.
+
+### 2026-09-26 (later, 01a0a4b) - Mike's Claude - **DEPLOYED 01a0a4b**, no migration: company page on phones
 - `/clients/[id]`: tabs scroll sideways, header chips/Export hidden on phones, Info grids stack, Call/Email buttons per person on phones, hover-only buttons (`md:opacity-0 md:group-hover:opacity-100`) now visible on touch.
 - Project pages ON HOLD (Mike). Next migration still 0108.
 

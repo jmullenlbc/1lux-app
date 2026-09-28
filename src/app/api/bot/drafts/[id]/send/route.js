@@ -21,6 +21,11 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: 'Draft is not in PENDING_REVIEW status' }, { status: 400 });
   }
 
+  // A shared note's email waits until somebody picks who sends it (0108).
+  if (draft.senderPending) {
+    return NextResponse.json({ error: 'Pick who sends this email first.' }, { status: 409 });
+  }
+
   return NextResponse.json(
     { error: 'Email sending not yet available — Phase B', code: 'PHASE_B' },
     { status: 501 }

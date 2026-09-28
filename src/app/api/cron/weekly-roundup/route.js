@@ -78,8 +78,8 @@ export async function GET(req) {
         select: {
           id: true, remindAt: true, remindedAt: true,
           contactName: true, targetName: true, company: true,
-          detail: true, rawText: true,
-          note: { select: { id: true, createdById: true, isPublished: true } },
+          detail: true, rawText: true, leadUserId: true,
+          note: { select: { id: true, createdById: true, isPublished: true, owners: { select: { userId: true } } } },
         },
       }),
       prisma.marketSignal.findMany({

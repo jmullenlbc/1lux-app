@@ -13,6 +13,8 @@ import { modelParams, textFrom } from '@/lib/aiModels';
 import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
 import { DEFAULT_ACTION_TYPES } from '@/lib/noteActions';
 import { cleanCategory, cleanFact, PERSONAL_CATEGORIES } from '@/lib/contacts/personalFacts';
+import { fixStepType, stepDue } from '@/lib/notes/stepFixes';
+import { leadFromText } from '@/lib/notes/owners';
 
 // Try to resolve a free-text person name to a CRM contact id.
 export function resolveContact(name, candidates) {
@@ -40,9 +42,13 @@ export async function extractNoteActions(note, candidateContacts = [], actionTyp
  * (kids, sports, hobbies, coffee order). Personal lines never become actions.
  * @returns {{ actions: Array, personal: Array<{category, fact, contactName, contactId}> }}
  */
-export async function readNote(note, candidateContacts = [], actionTypes = null) {
+export async function readNote(note, candidateContacts = [], actionTypes = null, { owners = [] } = {}) {
   const body = (note?.body || '').trim();
   if (!body) return { actions: [], personal: [] };
+  // Deadlines are read against the meeting day (Mike 9-27: "by Friday" is a due date).
+  const meetingDate = new Date(note?.meetingDate || note?.createdAt || Date.now());
+  const meetingDay = `${meetingDate.toISOString().slice(0, 10)} (${meetingDate.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' })})`;
+  const ownerNames = owners.map(o => String(o?.name || '').trim()).filter(Boolean);
 
   const types = (Array.isArray(actionTypes) && actionTypes.length)
     ? actionTypes
@@ -64,11 +70,15 @@ Rules:
 - Pick the type that matches HOW the follow-up should happen: emailing → EMAIL, texting → TEXT, calling → CALL, setting up a meeting/coffee/golf → SCHEDULE, waiting for someone to introduce me → EXPECT_INTRO, sending a deck/DocSend/pricing → SEND_MATERIALS, adding someone to a list (e.g. golf league) → ADD_TO_LIST, an internal ILC to-do → INTERNAL_TASK.
 - For EXPECT_INTRO: "contact" = the person who will make the intro; "target" = the third party being introduced.
 - Things the OTHER person said they would do are their own types, so the app can watch the inbox for them: they will send drawings / plans / a set / files, or send jobs for peer review → EXPECT_DRAWINGS; they will send a calendar invite or set up the next meeting themselves → EXPECT_INVITE; they will get back to me / check and reply / let me know → EXPECT_REPLY. Things MIKE will do stay EMAIL / SEND_MATERIALS / SCHEDULE.
+- If the line says to email someone, the type is EMAIL, even when the email carries materials ("email Jane the specs" is EMAIL). SEND_MATERIALS is for sending a deck, DocSend or pricing some other way.${typeByKey.has('REMIND_ME') ? `
+- "Remind me to…" is REMIND_ME: a reminder for us to do something later. The detail is the thing to do, without "remind me".` : ''}
+- The meeting was on ${meetingDay}. If the line gives a deadline or a time ("by Friday", "next week", "in 2 weeks", "end of month", "10/15"), put it in "due" as YYYY-MM-DD, counted from the meeting day. No deadline in the line: "due" is null. Never guess one.${ownerNames.length ? `
+- These people are from our side (ILC) and own this note: ${ownerNames.join(', ')}. A line starting with one of their names ("${ownerNames[0].split(/\s+/)[0]} to call Jane") says who does the step; they are never the "contact".` : ''}
 - Extract any person name (contact), third party (target), and company or project mentioned.
 - PERSONAL: something about the person's life outside work that they mentioned (family, kids and their activities, sports they play or follow, hobbies, favorite food or drink, trips, pets). Return it as type "PERSONAL" with "category" one of ${PERSONAL_CATEGORIES.join(', ')} and "detail" a short plain fact about them, e.g. "Has two kids who play soccer", "Likes cold brew". Only what the note actually says; never guess or embellish. A to-do can also reveal a personal interest: "wants to golf in October, set it up" is a SCHEDULE step AND a PERSONAL fact "Likes golf"; "make a cold brew tasting sheet" is a to-do AND "Likes cold brew". Return both.
 
 Return ONLY a JSON array. Each element:
-{ "type": "<KEY>" | "PERSONAL", "kind": "ACTION" | "INTEL" | "PERSONAL", "category": <PERSONAL only, else null>, "rawText": "<original line>", "detail": "<short normalized phrasing>", "contact": <name or null>, "target": <name or null>, "company": <name or null> }`;
+{ "type": "<KEY>" | "PERSONAL", "kind": "ACTION" | "INTEL" | "PERSONAL", "category": <PERSONAL only, else null>, "rawText": "<original line>", "detail": "<short normalized phrasing>", "contact": <name or null>, "target": <name or null>, "company": <name or null>, "due": "<YYYY-MM-DD>" | null }`;
 
   let parsed = [];
   try {
@@ -118,12 +128,16 @@ Return ONLY a JSON array. Each element:
   const actions = parsed
     .filter(it => it && it.rawText && !isPersonal(it))
     .map(it => {
-      const type = VALID.has(it.type) ? it.type : 'OTHER';
+      const type = fixStepType(VALID.has(it.type) ? it.type : 'OTHER', it.rawText, VALID, ownerNames);
       const kind = typeByKey.get(type)?.kind || (it.kind === 'INTEL' ? 'INTEL' : 'ACTION');
-      const contactName = it.contact || null;
+      const ours = n => n && ownerNames.some(o => o.toLowerCase() === String(n).trim().toLowerCase() || o.split(/\s+/)[0].toLowerCase() === String(n).trim().toLowerCase());
+      const contactName = ours(it.contact) ? null : (it.contact || null);
+      const step = kind === 'ACTION';
       return {
         kind,
         type,
+        dueDate:     step ? stepDue(it.due, it.rawText, meetingDate) : null,
+        leadUserId:  step ? leadFromText(it.rawText, owners) : null,
         rawText:     String(it.rawText).slice(0, 500),
         detail:      it.detail ? String(it.detail).slice(0, 300) : null,
         contactId:   resolveContact(contactName, candidateContacts),

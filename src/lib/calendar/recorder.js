@@ -28,6 +28,7 @@
 // tests can run this file with a fake database.
 import { notAcceptedReason } from './worthANote.js';
 import { linkMatchesEvent } from './salesOwner.js';
+import { addNoteOwners } from '../notes/owners.js';
 import { addNoteLinks } from '../noteLinks.js';
 
 /** The note body the sync writes, so an empty draft still says something. */
@@ -84,7 +85,7 @@ export async function matchAttendeesToContacts(prisma, event) {
  * a calendar link"). The note keeps its title, body and type; the sync adds the
  * event id, and the date, guests and owner only where they are blank.
  */
-async function adoptLinkedNote(prisma, event, calendarRef, ownerUserId) {
+async function adoptLinkedNote(prisma, event, calendarRef, ownerUserId, ownerUserIds) {
   const candidates = await prisma.note.findMany({
     where:  { noteType: 'SALES', calendarRef: null, meetingLink: { not: null } },
     select: { id: true, meetingLink: true, meetingDate: true, attendees: true, createdById: true, activityType: true, isInPerson: true },
@@ -97,6 +98,8 @@ async function adoptLinkedNote(prisma, event, calendarRef, ownerUserId) {
   if ((!note.attendees || note.attendees === '[]') && event.attendees?.length) data.attendees = JSON.stringify(event.attendees);
   if (!note.createdById && ownerUserId) data.createdById = ownerUserId;
   await prisma.note.update({ where: { id: note.id }, data });
+  // The salespeople on the invite join whoever wrote it as owners (0108).
+  await addNoteOwners(prisma, note.id, [note.createdById || ownerUserId, ...ownerUserIds].filter(Boolean), { source: 'calendar' });
 
   const linkedContactIds = await matchAttendeesToContacts(prisma, event);
   await addNoteLinks(prisma, 'contact', note.id, linkedContactIds);
@@ -119,8 +122,10 @@ async function adoptLinkedNote(prisma, event, calendarRef, ownerUserId) {
 export async function recordCalendarEvent(
   prisma,
   event,
-  { ownerUserId = null, classification = null, projectId = null } = {},
+  { ownerUserId = null, ownerUserIds = null, classification = null, projectId = null } = {},
 ) {
+  // Every salesperson on the invite owns the note (0108); the first is its creator.
+  const owners = [...new Set([ownerUserId, ...(ownerUserIds || [])].filter(Boolean))];
   const calendarRef = event?.externalId || event?.iCalUid || null;
   if (!calendarRef) {
     return { noteId: null, status: 'skipped', reason: 'the event had no id to key a note on',
@@ -150,7 +155,7 @@ export async function recordCalendarEvent(
   // A note someone typed by hand with this event's calendar link: join it to the
   // event, fill only what is blank, never touch the words.
   if (!existing && !gone) {
-    const adopted = await adoptLinkedNote(prisma, event, calendarRef, ownerUserId);
+    const adopted = await adoptLinkedNote(prisma, event, calendarRef, ownerUserId, owners);
     if (adopted) return adopted;
   }
 
@@ -188,6 +193,11 @@ export async function recordCalendarEvent(
   // The owner is the salesperson on the invite; fill it on a draft that had none.
   if (existing && !existing.createdById && ownerUserId) {
     await prisma.note.update({ where: { id: existing.id }, data: { createdById: ownerUserId } });
+  }
+  // Owners only where there are none yet: a later sync never re-adds somebody
+  // a person took off the note.
+  if (existing && owners.length && !(await prisma.noteOwner.count({ where: { noteId: existing.id } }))) {
+    await addNoteOwners(prisma, existing.id, owners, { source: 'calendar' });
   }
 
   if (existing?.classificationSource === 'manual') {
@@ -239,6 +249,7 @@ export async function recordCalendarEvent(
     });
     noteId = created.id;
     status = 'created';
+    await addNoteOwners(prisma, noteId, owners, { source: 'calendar' });
   }
 
   // Put the people who were in the room on the note.

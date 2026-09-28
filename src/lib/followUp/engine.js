@@ -15,6 +15,7 @@
  * passed in (defaults load the real ones on first use).
  */
 import { WAIT_EXECUTORS, isWaitExecutor, emailFulfills, eventFulfills, ladderOf, waitStart, nextRemindAt } from './watch.js';
+import { ownerIdsOf, stepRecipients, senderFor } from '../notes/owners.js';
 
 const lower = s => String(s || '').trim().toLowerCase();
 const DAY_MS = 86_400_000;
@@ -50,7 +51,7 @@ async function openWaits(prisma, contactIds) {
   if (!contactIds.length) return [];
   const rows = await prisma.noteAction.findMany({
     where:   { kind: 'ACTION', status: 'CONFIRMED', fulfilledAt: null, contactId: { in: contactIds } },
-    include: { note: { select: { id: true, title: true, meetingDate: true, isPublished: true, archivedAt: true, createdById: true, calendarRef: true, activityType: true } } },
+    include: { note: { select: { id: true, title: true, meetingDate: true, isPublished: true, archivedAt: true, createdById: true, calendarRef: true, activityType: true, owners: { select: { userId: true } } } } },
   });
   // Includes are not covered by the archive filter — check by hand.
   const live = rows.filter(a => a.note?.isPublished && !a.note?.archivedAt);
@@ -85,14 +86,15 @@ async function closeSteps(prisma, hits, { via, emailId = null, at, notify }) {
         fulfilledNote: match.note.slice(0, 300), remindAt: null,
       },
     });
-    if (a.note?.createdById) {
+    // The step's lead, else every owner of the note (0108).
+    for (const userId of stepRecipients(a, ownerIdsOf(a.note))) {
       await notify({
-        userId:    a.note.createdById,
+        userId,
         type:      'NOTE_REMINDER',
         title:     match.note.slice(0, 120),
         message:   `Next step from "${a.note.title || 'a sales note'}" is done: ${a.detail || a.rawText || ''}`.slice(0, 400),
         link:      `/crm/notes?note=${a.note.id}`,
-        dedupeKey: `noteAction:${a.id}:fulfilled`,
+        dedupeKey: userId === a.note.createdById ? `noteAction:${a.id}:fulfilled` : `noteAction:${a.id}:fulfilled:${userId}`,
       }).catch(() => {});
     }
   }
@@ -168,7 +170,7 @@ export async function sendDueWaitReminders(prisma, {
   const log = { due: 0, drafted: 0, notified: 0, finished: 0, skipped: 0 };
   const rows = await prisma.noteAction.findMany({
     where:   { kind: 'ACTION', status: 'CONFIRMED', fulfilledAt: null, pausedAt: null, remindAt: { lte: now } },
-    include: { note: { select: { id: true, title: true, meetingDate: true, isPublished: true, archivedAt: true, createdById: true, calendarRef: true, activityType: true } } },
+    include: { note: { select: { id: true, title: true, meetingDate: true, isPublished: true, archivedAt: true, createdById: true, calendarRef: true, activityType: true, owners: { select: { userId: true } } } } },
     orderBy: { remindAt: 'asc' },
     take:    500,
   });
@@ -177,7 +179,7 @@ export async function sendDueWaitReminders(prisma, {
   log.due = due.length;
 
   // A draft note or one with no owner: leave it — tomorrow may be different.
-  const ready = due.filter(a => a.note?.isPublished && !a.note?.archivedAt && a.note?.createdById);
+  const ready = due.filter(a => a.note?.isPublished && !a.note?.archivedAt && ownerIdsOf(a.note).length);
   log.skipped = due.length - ready.length;
 
   const contacts = await contactsById(prisma, ready.map(a => a.contactId).filter(Boolean));
@@ -194,11 +196,15 @@ export async function sendDueWaitReminders(prisma, {
     const c = first.contactId ? contacts.get(first.contactId) : null;
     const name = c?.name || first.contactName || 'your contact';
     const round = Math.max(...actions.map(a => a.reminderCount || 0)) + 1;
+    // Shared notes (0108): the steps' lead sends; unsure, somebody picks on My Desk.
+    const ownerIds = ownerIdsOf(note);
+    const sender = senderFor(actions, ownerIds, note.createdById);
+    const tell = [...new Set(actions.flatMap(a => stepRecipients(a, ownerIds)))];
 
     let draftId = null;
     if (c?.email) {
       const { subject, body, emailKind = 'CHECK_IN' } = await compose({
-        nudge: true, round, ownerUserId: note.createdById, meetingType: note.activityType || null, meetingTitle: note.title || '',
+        nudge: true, round, ownerUserId: sender.userId, meetingType: note.activityType || null, meetingTitle: note.title || '',
         contactId: c.id, contactName: name, email: c.email, company: first.company || '', contact: c,
         actions: actions.map(a => ({
           id: a.id, label: types.get(a.type)?.label || a.type, detail: a.detail || a.rawText,
@@ -207,7 +213,7 @@ export async function sendDueWaitReminders(prisma, {
       });
       const draft = await prisma.botDraft.create({
         data: {
-          userId: note.createdById, type: 'FOLLOW_UP', status: 'PENDING_REVIEW',
+          userId: sender.userId, senderPending: sender.pending, type: 'FOLLOW_UP', status: 'PENDING_REVIEW',
           toEmail: c.email, toName: name, subject, body, aiSubject: subject, aiBody: body, emailKind, reviewWindowMinutes,
           classificationReason: `Still waiting (reminder ${round}) from a sales note`,
         },
@@ -218,15 +224,17 @@ export async function sendDueWaitReminders(prisma, {
     }
 
     const what = actions.map(a => a.detail || a.rawText).filter(Boolean).join('; ');
-    const res = await notify({
-      userId:    note.createdById,
-      type:      'NOTE_REMINDER',
-      title:     `Still waiting on ${name} (reminder ${round})`,
-      message:   `${what}${draftId ? '. A check-in email is on My Desk for you to review.' : '. No email on file, so no draft.'}`.slice(0, 400),
-      link:      '/sales/desk',
-      dedupeKey: `noteWait:${note.id}:${first.contactId || first.id}:${round}`,
-    }).catch(() => ({ created: false }));
-    if (res?.created) log.notified++;
+    for (const userId of tell) {
+      const res = await notify({
+        userId,
+        type:      'NOTE_REMINDER',
+        title:     `Still waiting on ${name} (reminder ${round})`,
+        message:   `${what}${draftId ? '. A check-in email is on My Desk for you to review.' : '. No email on file, so no draft.'}`.slice(0, 400),
+        link:      '/sales/desk',
+        dedupeKey: `noteWait:${note.id}:${first.contactId || first.id}:${round}${userId === note.createdById ? '' : `:${userId}`}`,
+      }).catch(() => ({ created: false }));
+      if (res?.created) log.notified++;
+    }
 
     for (const a of actions) {
       const count = (a.reminderCount || 0) + 1;

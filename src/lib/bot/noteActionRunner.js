@@ -55,7 +55,7 @@ export async function fireNoteActionConfirmed(noteId, actionId, opts = {}) {
       noteTitle:   note?.title || '',
     };
     await runTrigger('NOTE_ACTION_CONFIRMED', payload, {
-      ownerUserId: note?.createdById, contact, reviewWindowMinutes: rw,
+      ownerUserId: action.leadUserId || note?.createdById, contact, reviewWindowMinutes: rw,
       action, type, noteActionId: action.id, eventRef: action.id,
     });
   } else if (waiting && !action.remindAt && !action.fulfilledAt) {

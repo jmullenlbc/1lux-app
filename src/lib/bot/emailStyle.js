@@ -95,6 +95,21 @@ export function insertBeforeSignOff(body, paragraphs, user) {
   return `${text}\n\n${add}${tail}`;
 }
 
+/**
+ * A shared note's email changes hands (0108): the old sender's signature and
+ * sign-off name come off, the new sender's go on. Everything else is kept.
+ */
+export function swapSender(body, from, to) {
+  let text = String(body || '').replace(/\s+$/, '');
+  const oldSig = signatureBlock(from);
+  if (oldSig && text.endsWith(oldSig)) text = text.slice(0, -oldSig.length).replace(/\s+$/, '');
+  const olds = [from?.name, from?.signatureName].map(n => firstName(n).toLowerCase()).filter(Boolean);
+  const next = firstName(String(to?.signatureName || '').trim() || to?.name);
+  const m = text.match(/\n\n([^\n]{1,30},)\n([^\n]{1,40})$/);
+  if (m && next && olds.includes(m[2].trim().toLowerCase())) text = `${text.slice(0, m.index)}\n\n${m[1]}\n${next}`;
+  return withSignature(text, to);
+}
+
 function parseProfile(p) {
   if (!p) return null;
   if (typeof p === 'object') return p;

@@ -6,6 +6,7 @@ import { addNoteLinks, NOTE_CONTACTS_INCLUDE } from '@/lib/noteLinks';
 // the note PATCH route and the calendar sync can never drift apart.
 import { isInPersonType } from '@/lib/calendar/inPerson';
 import { cleanCalendarLink } from '@/lib/calendar/salesOwner';
+import { addNoteOwners } from '@/lib/notes/owners';
 
 async function nextNoteNumber() {
   const max = await prisma.note.aggregate({ where: { noteType: 'SALES' }, _max: { noteNumber: true } });
@@ -14,6 +15,7 @@ async function nextNoteNumber() {
 
 const NOTE_INCLUDE = {
   createdBy: { select: { id: true, name: true } },
+  owners: { select: { userId: true, user: { select: { id: true, name: true } } }, orderBy: { createdAt: 'asc' } },
   clients: {
     include: { client: { select: { id: true, clientNumber: true, name: true, type: true } } },
     orderBy: { createdAt: 'asc' },
@@ -75,6 +77,7 @@ export async function POST(request) {
     projectIds   = [],
     activityType,
     contactIds   = [],
+    ownerIds     = [],
   } = body;
 
   const link = cleanCalendarLink(meetingLink);
@@ -100,6 +103,9 @@ export async function POST(request) {
     },
   });
 
+  // The person writing it owns it; anyone else picked shares it (0108).
+  await addNoteOwners(prisma, note.id, [user.id], { source: 'creator', addedById: user.id });
+  await addNoteOwners(prisma, note.id, ownerIds, { source: 'manual', addedById: user.id });
   await addNoteLinks(prisma, 'client',  note.id, clientIds);
   await addNoteLinks(prisma, 'project', note.id, projectIds);
   await addNoteLinks(prisma, 'contact', note.id, contactIds);

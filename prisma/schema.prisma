@@ -44,6 +44,8 @@ model User {
   standardsUpdated           DesignStandard[]             @relation("KBUpdater")
   salesOwnedProjects         Project[]                    @relation("ProjectSalesOwner")
   notesCreated               Note[]                       @relation("NoteCreator")
+  notesOwned                 NoteOwner[]                  @relation("NoteOwnerUser")
+  noteStepsLed               NoteAction[]                 @relation("NoteActionLead")
   publishedSchedules         FixtureSchedule[]            @relation("SchedulePublisher")
   pushedBidMatrices          DesignBidMatrix[]            @relation("BidPusher")
   tasksCreated               Task[]                       @relation("TaskCreator")
@@ -1297,6 +1299,10 @@ model Note {
   actions       NoteAction[]
   meetingBriefs MeetingBrief[]
   personalFacts ContactPersonalFact[]
+  // Every salesperson on the meeting owns the note (0108, Mike 9-27). The
+  // creator above is always one of them; see src/lib/notes/owners.js.
+  owners        NoteOwner[]
+  changes       NoteChange[]
 
   // The calendar sync looks a note up by the event's own id on every pass, so
   // that lookup gets an index. Not unique: a manually typed calendarRef could
@@ -1348,11 +1354,49 @@ model NoteAction {
   fulfilledByEmail   EmailMessage? @relation("NoteActionFulfilledBy", fields: [fulfilledByEmailId], references: [id], onDelete: SetNull)
   fulfilledNote      String? // plain words: "Lee sent Seattle drawings.pdf"
 
+  // Who does this step (0108). One of the note's owners. Null = every owner
+  // gets it and its reminders (Mike 9-27: "Both if no one chosen as lead").
+  leadUserId         String?
+  lead               User?         @relation("NoteActionLead", fields: [leadUserId], references: [id], onDelete: SetNull)
+
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
   @@index([fulfilledByEmailId])
   @@index([contactId, status])
+  @@index([leadUserId])
+}
+
+// The salespeople who own a sales note (0108). Each one sees it on My Desk.
+model NoteOwner {
+  id        String   @id @default(cuid())
+  noteId    String
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation("NoteOwnerUser", fields: [userId], references: [id], onDelete: Cascade)
+  source    String   @default("manual") // creator | calendar | manual
+  addedById String? // soft link to the User who added them
+  createdAt DateTime @default(now())
+
+  @@unique([noteId, userId])
+  @@index([userId])
+}
+
+// A note's change history (0108), one row per field changed, shown at the
+// bottom of the note like a project's History tab. Never deleted; one person's
+// run of typing in the same field within ten minutes stays one row.
+model NoteChange {
+  id        String   @id @default(cuid())
+  noteId    String
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  userId    String? // soft link; userName keeps the words if the user goes
+  userName  String?
+  field     String // title | body | meetingDate | activityType | meetingLink | person | company | project | owner | step | lead | published | archived
+  before    String?
+  after     String?
+  createdAt DateTime @default(now())
+
+  @@index([noteId, createdAt])
 }
 
 // Meeting Prep (migration 0082). A brief built for one sales note, ahead of the
@@ -2642,6 +2686,9 @@ model BotDraft {
   // per check-in, and My Desk matches it to the person's check-in row.
   contactId            String?
   contact              Contact?  @relation("ContactBotDrafts", fields: [contactId], references: [id], onDelete: SetNull)
+  // A note with more than one owner: somebody must pick who sends this before
+  // it can go (0108, Mike 9-27). Shown on every owner's desk until then.
+  senderPending        Boolean   @default(false)
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 

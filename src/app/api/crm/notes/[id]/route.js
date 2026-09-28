@@ -9,9 +9,11 @@ import { executeNotePublished, pauseNoteOnUnpublish } from '@/lib/bot/noteAction
 // the note-create route and the calendar sync.
 import { isInPersonType } from '@/lib/calendar/inPerson';
 import { cleanCalendarLink } from '@/lib/calendar/salesOwner';
+import { addNoteOwners, logNoteChanges, ownerIdsOf } from '@/lib/notes/owners';
 
 const NOTE_INCLUDE = {
   createdBy: { select: { id: true, name: true } },
+  owners: { select: { userId: true, user: { select: { id: true, name: true } } }, orderBy: { createdAt: 'asc' } },
   clients: {
     include: { client: { select: { id: true, clientNumber: true, name: true, type: true } } },
     orderBy: { createdAt: 'asc' },
@@ -42,7 +44,10 @@ export async function PATCH(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
-  const note = await prisma.note.findUnique({ where: { id: params.id } });
+  const note = await prisma.note.findUnique({
+    where: { id: params.id },
+    include: { contacts: { select: { contactId: true } }, owners: { select: { userId: true } } },
+  });
   if (!note) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const body = await request.json();
@@ -55,7 +60,17 @@ export async function PATCH(request, { params }) {
     addProjectIds   = [],
     removeProjectIds = [],
     contactIds,       // the note's full list of people, when the editor changed it
+    ownerIds,         // the note's full list of owners (0108), when someone changed it
   } = body;
+
+  // Owners: at least one, and only real staff accounts.
+  let owners = null;
+  if (Array.isArray(ownerIds)) {
+    const ids = [...new Set(ownerIds.filter(x => typeof x === 'string'))];
+    const real = await prisma.user.findMany({ where: { id: { in: ids }, role: { not: 'CLIENT_VIEWER' } }, select: { id: true } });
+    owners = ids.filter(id => real.some(u => u.id === id));
+    if (!owners.length) return NextResponse.json({ error: 'A note needs at least one owner.' }, { status: 400 });
+  }
 
   const data = {};
   if (title        !== undefined) data.title       = title.trim();
@@ -106,6 +121,23 @@ export async function PATCH(request, { params }) {
     return NextResponse.json({ error: err?.message || 'Database error' }, { status: 500 });
   }
 
+  // Owners (0108). A step led by someone taken off the note goes back to everyone.
+  const hadOwners = ownerIdsOf(note);
+  let ownersAdded = [], ownersRemoved = [];
+  if (owners) {
+    ownersAdded = await addNoteOwners(prisma, params.id, owners, { source: 'manual', addedById: user.id });
+    ownersRemoved = hadOwners.filter(id => !owners.includes(id));
+    if (ownersRemoved.length) {
+      await prisma.noteOwner.deleteMany({ where: { noteId: params.id, userId: { in: ownersRemoved } } });
+      await prisma.noteAction.updateMany({ where: { noteId: params.id, leadUserId: { in: ownersRemoved } }, data: { leadUserId: null } });
+    }
+  }
+
+  // History (0108): who changed what.
+  await logNoteChanges(prisma, params.id, user, await changesFor(note, data, {
+    addClientIds, removeClientIds, addProjectIds, removeProjectIds, contactIds, ownersAdded, ownersRemoved,
+  }));
+
   // Published and in person → the people on it were met on the meeting date.
   if (publish === true && !note.isPublished) {
     const inPerson = data.isInPerson ?? note.isInPerson;
@@ -137,6 +169,36 @@ export async function PATCH(request, { params }) {
   return NextResponse.json(updated);
 }
 
+const day = d => (d ? new Date(d).toISOString().slice(0, 10) : null);
+async function namesOf(model, ids) {
+  if (!ids?.length) return [];
+  return (await prisma[model].findMany({ where: { id: { in: ids } }, select: { name: true } })).map(r => r.name);
+}
+
+/** The history lines for one PATCH: plain before/after words, one per change. */
+async function changesFor(note, data, links) {
+  const out = [];
+  const same = (a, b) => String(a ?? '') === String(b ?? '');
+  if ('title' in data && !same(data.title, note.title)) out.push({ field: 'title', before: note.title, after: data.title });
+  if ('body' in data && !same(data.body, note.body)) out.push({ field: 'body', before: note.body, after: data.body });
+  if ('meetingDate' in data && !same(day(data.meetingDate), day(note.meetingDate))) out.push({ field: 'meetingDate', before: day(note.meetingDate), after: day(data.meetingDate) });
+  if ('activityType' in data && !same(data.activityType, note.activityType)) out.push({ field: 'activityType', before: note.activityType, after: data.activityType });
+  if ('meetingLink' in data && !same(data.meetingLink, note.meetingLink)) out.push({ field: 'meetingLink', before: note.meetingLink, after: data.meetingLink });
+  if ('isPublished' in data) out.push({ field: 'published', before: note.isPublished ? 'Published' : 'Draft', after: data.isPublished ? 'Published' : 'Draft' });
+  for (const n of await namesOf('client', links.addClientIds)) out.push({ field: 'company', after: n });
+  for (const n of await namesOf('client', links.removeClientIds)) out.push({ field: 'company', before: n });
+  for (const n of await namesOf('project', links.addProjectIds)) out.push({ field: 'project', after: n });
+  for (const n of await namesOf('project', links.removeProjectIds)) out.push({ field: 'project', before: n });
+  if (Array.isArray(links.contactIds)) {
+    const had = note.contacts.map(c => c.contactId);
+    for (const n of await namesOf('contact', links.contactIds.filter(id => !had.includes(id)))) out.push({ field: 'person', after: n });
+    for (const n of await namesOf('contact', had.filter(id => !links.contactIds.includes(id)))) out.push({ field: 'person', before: n });
+  }
+  for (const n of await namesOf('user', links.ownersAdded)) out.push({ field: 'owner', after: n });
+  for (const n of await namesOf('user', links.ownersRemoved)) out.push({ field: 'owner', before: n });
+  return out;
+}
+
 // DELETE /api/crm/notes/[id] — refused. Notes are archived, never deleted
 // (Mike, 2026-09-11; reconfirmed 9-25: "just make an archive to forget delete").
 export async function DELETE() {
@@ -163,6 +225,7 @@ export async function POST(request, { params }) {
     include: NOTE_INCLUDE,
   });
   if (archived) await pauseNoteOnUnpublish(params.id).catch(() => {});
+  await logNoteChanges(prisma, params.id, user, [{ field: 'archived', before: archived ? 'Kept' : 'Archived', after: archived ? 'Archived' : 'Kept' }]);
 
   return NextResponse.json(updated);
 }
