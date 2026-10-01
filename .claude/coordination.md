@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-01 (newest) - Mike's Claude - **DEPLOYED (pending hash)**, no migration: away rules widened (out sick, office closed, hand-off lines)
+### 2026-10-01 (newest) - Mike's Claude - **DEPLOYED 64478ba**, no migration: away rules widened (out sick, office closed, hand-off lines)
 
 - `autoMail.js`: OOO_LEAD now catches any "I will be out / away / unavailable" line, out sick, out of town, team away lines; new OFFICE_CLOSED and AWAY_REDIRECT (names under a hand-off line go too); `isAwayTemplate` (name, subject, body) guards template suggestions when written and when retired.
 - Mike presses Relearn once in prod.
