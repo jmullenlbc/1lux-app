@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-30 (newest) - Mike's Claude - **DEPLOYED (hash pending)**, migration 0110: Market Intel ask box
+### 2026-09-30 (newest) - Mike's Claude - **DEPLOYED 7c77722**, migration 0110: Market Intel ask box
 - 0110 (additive, schema-guard PASS 9-27): tables MarketQuestion, MarketAnswerRow (FK Client), MarketAnswerYear, MarketAnswerSource. Next migration 0111.
 - Market Intel page: ask any market question (any US metro, open web only). `src/lib/market-intel/ask.js` (job `marketIntel.ask`, web search), park-and-poll `/api/market-intel/ask`; year totals and order computed in `ranking.js`, never by the model. Add to CRM is a button, never automatic. Questions archive-only.
 

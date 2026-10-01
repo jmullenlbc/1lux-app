@@ -19,7 +19,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 - **Saving retries.** Each batch of 200 emails gets 3 more tries on a dropped connection or a 502/503/504. Repeating is safe because the library skips duplicates.
 - **Leaving the page mid-read now asks first.**
 
-## [Market Intel: ask any market question] - September 27, 2026 (DEPLOYED (hash pending)) - migration 0110
+## [Market Intel: ask any market question] - September 27, 2026 (DEPLOYED 7c77722) - migration 0110
 
 - **Ask box at the top of Market Intel** (`src/app/(app)/market-intel/AskPanel.jsx`). Type any market question ("top 50 affordable housing developers", "top multifamily GCs in Tampa Bay"); the answer comes back as a ranked table with sources. Staff only.
 - **Open web only, no paid data.** New AI job `marketIntel.ask` (READ tier) with the web search tool, up to 15 searches, `pause_turn` carried on up to 5 times (`src/lib/market-intel/ask.js`). Runs park-and-poll (`POST /api/market-intel/ask`, 5 min per run) so it never hits the 30s front door.
