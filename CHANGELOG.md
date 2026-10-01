@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Voice Training: away sentences removed everywhere, templates come back] - October 1, 2026 (DEPLOYED) - no migration
+## [Voice Training: away sentences removed everywhere, templates come back] - October 1, 2026 (DEPLOYED eae3c50) - no migration
 
 - **Away and focus-time sentences are taken out of every email** (Mike 10-1: "Remove all from the system retroactively"). New `stripAwayLines` / `isAwaySentence` in `autoMail.js` remove out-of-office, vacation, limited access, "when I return", urgent-contact and "focus time ... as we are able ... thank you for your understanding" sentences, even inside real emails. Applied on save (`cleanEmails`; the hash stays of the email as sent, so a re-upload is still found) and retroactively on Relearn (`putAsideAutoMail` rewrites the saved bodies; an email that was little more than that is set aside as out of office). Top sentences skip them too.
 - Template suggestions with away content are retired; one already saved is switched off in Email Templates (reversible, not deleted).

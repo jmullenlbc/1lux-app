@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-01 (newest) - Mike's Claude - **DEPLOYED (pending hash)**, no migration: Voice Training away sentences removed, templates per group
+### 2026-10-01 (newest) - Mike's Claude - **DEPLOYED eae3c50**, no migration: Voice Training away sentences removed, templates per group
 
 - `stripAwayLines`/`isAwaySentence` in `src/lib/tone/autoMail.js` cut out-of-office and focus-time sentences from every email, on save and retroactively on Relearn (`putAsideAutoMail` rewrites VoiceSample.body; under 40 chars left is archived OUT_OF_OFFICE). Away template suggestions go REPLACED; saved ones get MessageTemplate.isActive=false.
 - Template suggestions now one model call per topic group (they came back empty when all 8 were asked for in one answer). Same-topic groups merge.
