@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-30 (newest) - Mike's Claude - **DEPLOYED (hash pending)**, no migration: Voice Training progress bar and read failures
+### 2026-09-30 (newest) - Mike's Claude - **DEPLOYED e54bf43**, no migration: Voice Training progress bar and read failures
 - Voice Training drop area: one progress bar across all files (GB read, emails found, time left), plus saving and relearn. Leaving mid-read asks first.
 - Chrome's "network error" on Mike's single 38 GB Takeout = the browser lost read access to the local file (still downloading, moved, or a streaming Drive/OneDrive folder). A failed read now SAVES what it read (`partialEmails` on the error, `src/lib/tone/mbox.js`), tries once more, then says how far it got. Save POSTs retry 3x; duplicates skipped.
 - NOT in this push (Mike: not yet): Market Intel ask box + migration 0110, still in the working tree. Also left out: another session's `scripts/tests/alerts.test.mjs` + its CHANGELOG entry. Next migration 0111.

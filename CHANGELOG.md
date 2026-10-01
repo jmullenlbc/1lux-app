@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Voice Training: progress bar and the "network error"] - September 30, 2026 (NOT DEPLOYED) - no migration
+## [Voice Training: progress bar and the "network error"] - September 30, 2026 (DEPLOYED e54bf43) - no migration
 
 - **Progress bar under the drop area** (`src/app/(app)/sales/automation/voice/VoiceTrainingClient.jsx`). One bar across every file dropped: percent, GB read of GB total, emails found, and time left once 15 seconds have passed. It also covers saving and the final relearn, which shows a pulsing bar because its end is unknown. Inside a Takeout .zip, progress is now a share of the whole part, not of one mailbox. Redraws are capped at 4 a second.
 - **The "network error" Mike hit on a 38 GB Takeout.** Chrome says only "network error" when it can no longer read a file on the computer: the file is still downloading, it was moved, or it sits in a streaming Google Drive or OneDrive folder. A failed read now gets one more try, then a plain message saying to move the file to Downloads and drop it again.
