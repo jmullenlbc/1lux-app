@@ -12,7 +12,7 @@ import { modelParams, textFrom, answerBudget } from '@/lib/aiModels';
 import { MAX_BODY, sampleHash } from '@/lib/tone/mbox';
 import { pickWeighted, AGE_BANDS, UNDATED } from '@/lib/tone/voiceAge';
 import { periodStats, topSentences, personalLines, recurringEmails } from '@/lib/tone/voiceInsights';
-import { autoMailReason, findAutoMail, stripAwayLines, isAwaySentence } from '@/lib/tone/autoMail';
+import { autoMailReason, findAutoMail, stripAwayLines, isAwaySentence, isAwayTemplate } from '@/lib/tone/autoMail';
 import { INTERVIEW_SOURCE } from '@/lib/tone/interview';
 
 const ACTIVE = { archivedAt: null, batch: { archivedAt: null } };
@@ -117,7 +117,7 @@ export async function putAsideAutoMail(userId) {
     where: { userId, status: { in: ['SUGGESTED', 'SAVED', 'DISMISSED'] } },
     select: { id: true, subject: true, body: true, messageTemplateId: true },
   });
-  const away = tpl.filter(t => autoMailReason({ subject: t.subject, body: t.body }) || isAwaySentence(t.body));
+  const away = tpl.filter(t => isAwayTemplate(t));
   if (away.length) {
     await prisma.voiceTemplateSuggestion.updateMany({ where: { id: { in: away.map(t => t.id) } }, data: { status: 'REPLACED' } });
     const saved = away.map(t => t.messageTemplateId).filter(Boolean);
@@ -339,12 +339,12 @@ ${handled}Write ONE reusable template for this kind of email in THEIR words as t
 Build it around what sets this group apart (${g.topic.join(', ')}), and name it for that, not a general name like "Budget update".
 Use these placeholders where the examples change from email to email: ${PLACEHOLDERS.map(p => `{${p}}`).join(', ')}.
 Use [square brackets] for anything else a person must fill in, e.g. [date], [number of units].
-Never put an out-of-office, away, focus-time or calendar line in it. No signature block at the end; it is added to every email anyway.
-Only when these are automatic mail (out-of-office or away replies, calendar invites, accepts or declines) or one of the already handled ones, return { "skip": true }.
+Never put an out-of-office, away, out sick, office closed, focus-time or calendar line in it. No signature block at the end; it is added to every email anyway.
+Only when these are notices rather than real emails (out-of-office or away replies, out sick or office closed notices, calendar invites, accepts or declines) or one of the already handled ones, return { "skip": true }.
 
 Return ONE JSON object: { "name": "short name, e.g. Proposal follow-up", "whenToUse": "one sentence", "subject": "subject line", "body": "the email" }
 Never use an em dash, en dash or double dash. Return ONLY the JSON object.`, user.id)
-    .then(t => (t && !t.skip && String(t.body || '').trim() && !isAwaySentence(t.body) ? { ...t, group: i + 1 } : null))
+    .then(t => (t && !t.skip && String(t.body || '').trim() && !isAwayTemplate(t) ? { ...t, group: i + 1 } : null))
     .catch(e => { console.error(`[voice] template for group ${i + 1} failed:`, e?.message ?? e); return null; });
   const names = new Set();
   const written = (await Promise.all(groups.map(one))).filter(Boolean)

@@ -68,3 +68,16 @@ test('away and focus-time sentences come out of a real email (Mike 10-1)', async
   assert.ok(isAwaySentence("I'll be on vacation next week."));
   assert.ok(!isAwaySentence('Excited to talk soon!'));
 });
+
+test('out sick, office closed and hand-off lines are away too (Mike 10-1, second pass)', async () => {
+  const { stripAwayLines, isAwaySentence, autoMailReason, isAwayTemplate } = await import('../../src/lib/tone/autoMail.js');
+  for (const s of ['I will be out sick on 2/23.', 'I will be out all day on 9/18 at a work event.', 'Please email the following people for help.',
+    'Our office will be closed Friday for the holiday.', "I'm out of town through Thursday.", 'I will be unavailable until 3pm.', 'The Design Team at ILC Studios will be away from the office 6/16/25 - 6/20/25.']) assert.ok(isAwaySentence(s), s);
+  for (const s of ['We are out of ideas on the garage.', 'The budget is out of scope for this phase.', 'Reach out with any questions.']) assert.ok(!isAwaySentence(s), s);
+  const note = 'Hi all,\n\nI will be out sick on 2/23. Please email the following people for help.\nSean Ryan sean@ilcstudios.com\nJohn Doe john@ilcstudios.com\n\nThe Mason budget is attached and came in under target.';
+  assert.equal(stripAwayLines(note), 'Hi all,\n\nThe Mason budget is attached and came in under target.');
+  assert.equal(autoMailReason({ subject: 'ILC office closed notice', body: 'Hi all, our office will be closed Monday for Labor Day. Have a great weekend!' }), 'OUT_OF_OFFICE');
+  assert.equal(autoMailReason({ subject: 'Out sick today', body: 'I will be out sick on 2/23. Please email the following people for help.' }), 'OUT_OF_OFFICE');
+  assert.ok(isAwayTemplate({ name: 'ILC office closed notice', subject: 'Office hours', body: 'Thanks for reaching out, we will get back to you.' }));
+  assert.ok(!isAwayTemplate({ name: 'Peer review budget delivery', subject: 'Budget', body: 'Attached is the budget for {Project Name}.' }));
+});

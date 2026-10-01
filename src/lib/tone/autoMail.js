@@ -17,7 +17,7 @@ export const AUTO_REASONS = { OUT_OF_OFFICE: 'Out of office', CALENDAR: 'Calenda
 
 const hdr = (head, name) => (String(head || '').match(new RegExp(`^${name}:[ \\t]*(.*)$`, 'im'))?.[1] || '').trim().toLowerCase();
 
-const OOO_SUBJECT = /^(?:re:\s*)?(?:automatic reply|auto[- ]?reply|auto[- ]?response|autoreply|out of (?:the )?office|ooo\b|away from (?:the |my )?office|on vacation|vacation (?:reply|response|notice)|annual leave)|\bout of (?:the )?office\b|\(ooo\)|\bauto[- ]?reply\b|\bautomatic reply\b/i;
+const OOO_SUBJECT = /^(?:re:\s*)?(?:automatic reply|auto[- ]?reply|auto[- ]?response|autoreply|out of (?:the )?office|ooo\b|away from (?:the |my )?office|on vacation|vacation (?:reply|response|notice)|annual leave)|\bout of (?:the )?office\b|\(ooo\)|\bauto[- ]?reply\b|\bautomatic reply\b|\boffice (?:is )?(?:closed|closure|closing)\b|\bclosed (?:for|on|in observance of)\b|\bholiday (?:hours|closure|schedule)\b|\bout sick\b|\bout (?:today|tomorrow|all day|of town|of pocket)\b/i;
 
 // Google: "Invitation: Site walk @ Mon Oct 3, 2026 10am - 11am (EDT) (lee@x.com)".
 // Outlook: "Accepted: Site walk", "Canceled: Site walk", "New Time Proposed: ...".
@@ -45,7 +45,13 @@ const OOO_STRONG = /\b(?:this is an auto(?:mated|matic)[- ](?:reply|response|mes
 // Softer: an away line near the top AND a return date, limited access or an
 // urgent-contact line, in a short email. Losing a real "I'm out until Monday"
 // email costs one sample; keeping a template teaches the bot a template.
-const OOO_LEAD = /\b(?:i am|i'm|i will be|i'll be)\s+(?:currently\s+)?(?:out of (?:the )?office|away from (?:the |my )?(?:office|desk|e-?mail)|on (?:vacation|holiday|pto|leave|annual leave|paternity leave|maternity leave))\b|\bout of (?:the )?office\b/i;
+const OOO_LEAD = /\b(?:i am|i'm|i will be|i'll be|i(?:'m| am) going to be|i was)\s+(?:currently\s+)?(?:out of (?:the )?office|away from (?:the |my )?(?:office|desk|e-?mail)|on (?:vacation|holiday|pto|leave|annual leave|paternity leave|maternity leave)|out(?! of (?:ideas|luck|line|the loop|stock|date|scope|budget|pocket for|our hands))\b|away\b|unavailable\b|offline\b|out sick\b)|\bout of (?:the )?office\b|\baway from (?:the |my |our )?office\b|\b(?:will be|is|are|am) (?:away|out|unavailable)\b[^.\n]{0,40}\b(?:office|studio|\d{1,2}\/\d{1,2})|\bout sick\b/i;
+// "Our office will be closed Friday", "ILC is closed for Thanksgiving": a notice,
+// never a sample of how Mike writes (Mike 10-1: "ILC office closed notice").
+const OFFICE_CLOSED = /\b(?:office|offices|we|ilc(?: studios)?|the studio)\s+(?:is|are|will be|will remain|was|were)\s+closed\b|\boffice (?:is )?(?:closed|closure|closing)\b|\bclosed (?:for|in observance of) (?:the )?(?:holiday|holidays|thanksgiving|christmas|new year|labor day|memorial day|independence day|juneteenth|good friday|the day|the week)\b|\bholiday (?:hours|closure|schedule)\b/i;
+// "Please email the following people for help": a hand-off line in an away
+// note; the names under it go too (see stripAwayLines).
+const AWAY_REDIRECT = /\b(?:please )?(?:e-?mail|contact|reach out to|call|text|see) (?:the|one of the|any of the|these|those) (?:following|below|people|folks|team members)\b|\b(?:contact|e-?mail|reach out to|call) [^.\n]{0,60}\bfor (?:help|assistance|anything (?:urgent|you need))\b|\bwhile i(?:'m| am) (?:out|away|gone)\b|\bduring my (?:absence|time (?:out|away))\b/i;
 const OOO_TAIL = /\b(?:limited (?:access|ability)[^.\n]{0,30}(?:e-?mail|phone)|(?:until|through|thru|returning|return(?:ing)? (?:to the office )?on|back (?:in the office )?on|back on)\s+(?:mon|tue|wed|thu|fri|sat|sun|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d)|upon (?:my )?return|when i return|on my return|(?:respond|reply|get back to you)[^.\n]{0,40}(?:as soon as (?:possible|i can|i am back|i'm back)|when i(?:'m| am) back)|(?:for|if (?:this is|you have an?)) (?:urgent|immediate|time[- ]sensitive)[^.\n]{0,80}(?:contact|reach|call|e-?mail)|in my absence|delayed (?:response|reply)|checking (?:e-?mail|email) (?:periodically|intermittently|sporadically))/i;
 
 export function isCalendarMail({ subject = '', body = '', full = '', head = '', raw = '' } = {}) {
@@ -70,8 +76,8 @@ export function isOutOfOffice({ subject = '', body = '', head = '' } = {}) {
   if (OOO_SUBJECT.test(String(subject || ''))) return true;
   const b = String(body || '');
   const lead = b.slice(0, 400);
-  if (OOO_STRONG.test(lead)) return true;
-  return b.length <= 700 && OOO_LEAD.test(lead) && OOO_TAIL.test(b);
+  if (OOO_STRONG.test(lead) || OFFICE_CLOSED.test(lead)) return true;
+  return b.length <= 700 && OOO_LEAD.test(lead) && (OOO_TAIL.test(b) || AWAY_REDIRECT.test(b));
 }
 
 export function autoMailReason(e = {}) {
@@ -107,7 +113,7 @@ export function findAutoMail(rows) {
 // "there are still out of office sentences and statements everywhere. Remove
 // all from the system"). Dates alone never count: "not until Friday" is real.
 const AWAY_SENTENCE = new RegExp([
-  OOO_STRONG.source, OOO_LEAD.source,
+  OOO_STRONG.source, OOO_LEAD.source, OFFICE_CLOSED.source, AWAY_REDIRECT.source,
   String.raw`\bfocus time\b|\bobserves company[- ]wide\b|\bas (?:we|i) (?:are|am) able\b`,
   String.raw`\blimited (?:access|ability)\b[^.\n]{0,30}(?:e-?mail|phone)|\bin my absence\b|\bupon (?:my )?return\b|\bwhen i return\b|\bon my return\b`,
   String.raw`\b(?:for|if (?:this is|you have an?)) (?:urgent|immediate|time[- ]sensitive)\b[^.\n]{0,80}(?:contact|reach|call|e-?mail)`,
@@ -118,6 +124,14 @@ const AWAY_SENTENCE = new RegExp([
 const AWAY_FOLLOW = /^(?:thank you|thanks)(?: so much)? for (?:your|you're) (?:understanding|patience)[.!]?$/i;
 
 export const isAwaySentence = s => AWAY_SENTENCE.test(String(s || ''));
+
+// A template is away mail if its name, subject or body says so (Mike 10-1:
+// an "ILC office closed notice" template got through on the body alone).
+const AWAY_NAME = /out of (?:the )?office|\booo\b|away|out sick|office closed|closed notice|closure|holiday hours|auto[- ]?reply|vacation|focus time/i;
+export function isAwayTemplate(t) {
+  return AWAY_NAME.test(String(t?.name || '')) || isAwaySentence(t?.subject)
+    || !!autoMailReason({ subject: t?.subject, body: t?.body }) || isAwaySentence(t?.body);
+}
 
 /**
  * The email with every away and focus-time sentence taken out. Wrapped lines
@@ -136,12 +150,16 @@ export function stripAwayLines(body) {
   }
   // carry: an away sentence ran off the end of its line unfinished, so the
   // start of the next line is the rest of it.
-  let after = false, carry = false;
+  // listing: a "please contact the following" line was taken out, so the
+  // names and emails under it, up to the next blank line, go too.
+  let after = false, carry = false, listing = false;
   const kept = lines.map(line => {
-    if (!line.trim()) { after = false; carry = false; return line; }
+    if (!line.trim()) { after = false; carry = false; listing = false; return line; }
+    if (listing) return null;
     const parts = line.split(/(?<=[.!?])\s+/).filter((p, i, all) => {
       const t = p.replace(/\s+/g, ' ').trim();
       const away = (i === 0 && carry) || AWAY_SENTENCE.test(t) || (after && AWAY_FOLLOW.test(t));
+      if (away && AWAY_REDIRECT.test(t)) listing = true;
       if (i === all.length - 1) carry = away && !/[.!?]$/.test(t);
       after = away;
       return !away;

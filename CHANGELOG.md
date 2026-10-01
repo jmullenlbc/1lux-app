@@ -5,6 +5,14 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Voice Training: out sick, office closed and hand-off lines are away too] - October 1, 2026 (DEPLOYED) - no migration
+
+- Mike still saw "I will be out sick on 2/23", "I will be out all day on 9/18 at a work event", "Please email the following people for help" and an "ILC office closed notice" template after eae3c50. The away rules in `autoMail.js` now cover: any "I will be out / away / unavailable / offline" line; "out sick", "out of town", "out all day"; "our office will be closed", "closed for the holiday", "holiday hours"; "the team will be away from the office 6/16"; and hand-off lines ("please email the following people for help"), with the names and emails listed under one taken out too. Subjects like "Out sick today" or "Office closed" set the whole email aside.
+- `isAwayTemplate` (name, subject or body) guards template suggestions both when they are written and when old ones are retired on Relearn, so a notice can never be offered as a template again.
+- Relearn applies all of this retroactively to every saved email. Test: 1 new test in `voiceAutoMail.test.mjs` (40/40).
+
+---
+
 ## [Voice Training: away sentences removed everywhere, templates come back] - October 1, 2026 (DEPLOYED eae3c50) - no migration
 
 - **Away and focus-time sentences are taken out of every email** (Mike 10-1: "Remove all from the system retroactively"). New `stripAwayLines` / `isAwaySentence` in `autoMail.js` remove out-of-office, vacation, limited access, "when I return", urgent-contact and "focus time ... as we are able ... thank you for your understanding" sentences, even inside real emails. Applied on save (`cleanEmails`; the hash stays of the email as sent, so a re-upload is still found) and retroactively on Relearn (`putAsideAutoMail` rewrites the saved bodies; an email that was little more than that is set aside as out of office). Top sentences skip them too.
