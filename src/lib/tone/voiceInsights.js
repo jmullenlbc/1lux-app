@@ -8,7 +8,7 @@
  * Pure: no imports beyond voiceAge and autoMail. Rows are { subject, body, date }.
  */
 import { AGE_BANDS, UNDATED, bandOf, groupByAge, ts } from './voiceAge.js';
-import { autoMailReason } from './autoMail.js';
+import { autoMailReason, isAwaySentence } from './autoMail.js';
 
 const DAY = 86_400_000;
 const words = s => String(s || '').toLowerCase().match(/[a-z][a-z']*/g) || [];
@@ -134,7 +134,7 @@ function sentencesOf(body) {
     .map(x => x.replace(/\s+/g, ' ').trim())
     .filter(x => {
       const n = words(x).length;
-      return n >= 3 && n <= 35 && /[.!?]$/.test(x) && !GREETING.test(x) && !QUOTED.test(x) && !LABELLED.test(x) && !FOOTER.test(x);
+      return n >= 3 && n <= 35 && /[.!?]$/.test(x) && !GREETING.test(x) && !QUOTED.test(x) && !LABELLED.test(x) && !FOOTER.test(x) && !isAwaySentence(x);
     });
 }
 const normSentence = x => x.toLowerCase().replace(/\d+(?:[.,:/-]\d+)*/g, '#').replace(/[^a-z#' ]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -259,7 +259,7 @@ const topicWords = (r, names) => [
  * template should sound like them now.
  * Returns [{ size, recent, lastSentAt, topic: [words], examples: [{subject, body}] }] best first.
  */
-export function recurringEmails(rows, { now = Date.now(), minSize = 3, max = 8, similarity = 0.3 } = {}) {
+export function recurringEmails(rows, { now = Date.now(), minSize = 3, max = 8, similarity = 0.3, mergeAt = 0.5 } = {}) {
   const sorted = [...rows].filter(r => !autoMailReason(r) && !PLACEHOLDER.test(`${r.subject || ''} ${r.body || ''}`))
     .sort((a, b) => ts(b.date) - ts(a.date));
   const twoYears = sorted.filter(r => ts(r.date) && now - ts(r.date) < 730 * DAY);
@@ -306,7 +306,24 @@ export function recurringEmails(rows, { now = Date.now(), minSize = 3, max = 8, 
     }
     cl.norm = Math.hypot(...cl.sum.values());
   }
-  return clusters.filter(c => c.members.length >= minSize)
+  // Groups that ended up on the same topic join (Mike 10-1: one "budget sent"
+  // group, not six split by drawing stage). Biggest first, small ones fold in.
+  const merged = [];
+  for (const c of [...clusters].sort((x, y) => y.members.length - x.members.length)) {
+    let into = null, best = mergeAt;
+    for (const k of merged) {
+      let dot = 0;
+      for (const [w, v] of c.sum) dot += v * (k.sum.get(w) || 0);
+      const cos = dot / (c.norm * k.norm);
+      if (cos >= best) { best = cos; into = k; }
+    }
+    if (!into) { merged.push(c); continue; }
+    into.members.push(...c.members);
+    for (const [w, v] of c.sum) into.sum.set(w, (into.sum.get(w) || 0) + v);
+    into.norm = Math.hypot(...into.sum.values());
+  }
+  for (const c of merged) c.members.sort((x, y) => ts(y.date) - ts(x.date));
+  return merged.filter(c => c.members.length >= minSize)
     .map(c => ({
       size: c.members.length,
       recent: c.members.filter(r => ts(r.date) && now - ts(r.date) < 365 * DAY).length,

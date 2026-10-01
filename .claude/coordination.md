@@ -2,7 +2,13 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-01 (newest) - Mike's Claude - **DEPLOYED 88ff4ec**, migration 0111: Voice Training auto mail, resume, Q&A, topics
+### 2026-10-01 (newest) - Mike's Claude - **DEPLOYED (pending hash)**, no migration: Voice Training away sentences removed, templates per group
+
+- `stripAwayLines`/`isAwaySentence` in `src/lib/tone/autoMail.js` cut out-of-office and focus-time sentences from every email, on save and retroactively on Relearn (`putAsideAutoMail` rewrites VoiceSample.body; under 40 chars left is archived OUT_OF_OFFICE). Away template suggestions go REPLACED; saved ones get MessageTemplate.isActive=false.
+- Template suggestions now one model call per topic group (they came back empty when all 8 were asked for in one answer). Same-topic groups merge.
+- Mike presses Relearn once in prod to clean his 1241 emails.
+
+### 2026-10-01 (later, 88ff4ec) - Mike's Claude - **DEPLOYED 88ff4ec**, migration 0111: Voice Training auto mail, resume, Q&A, topics
 - 0111_voice_auto_mail: adds a nullable column `archiveReason` to `VoiceSample` (OUT_OF_OFFICE | CALENDAR | KEPT). VoiceBatch.source comment now lists INTERVIEW. Additive only (schema-guard PASS). Next migration 0112.
 - Out-of-office and calendar mail left out at read, save and paste (`src/lib/tone/autoMail.js`); Relearn archives saved ones, "Set aside" card with Put back. Big .mbox files resume where they stopped. Q&A starter (`src/lib/tone/interview.js`, 12 situations, source INTERVIEW).
 - `voiceInsights.js`: Top 20 sentences, "over and over" grouped by topic (one per thread, names left out), "How you get personal" kinds passed to the bot with a never-invent guard.

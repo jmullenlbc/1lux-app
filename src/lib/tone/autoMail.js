@@ -102,3 +102,51 @@ export function findAutoMail(rows) {
   }
   return out;
 }
+
+// One away or focus-time sentence inside an otherwise real email (Mike 10-1:
+// "there are still out of office sentences and statements everywhere. Remove
+// all from the system"). Dates alone never count: "not until Friday" is real.
+const AWAY_SENTENCE = new RegExp([
+  OOO_STRONG.source, OOO_LEAD.source,
+  String.raw`\bfocus time\b|\bobserves company[- ]wide\b|\bas (?:we|i) (?:are|am) able\b`,
+  String.raw`\blimited (?:access|ability)\b[^.\n]{0,30}(?:e-?mail|phone)|\bin my absence\b|\bupon (?:my )?return\b|\bwhen i return\b|\bon my return\b`,
+  String.raw`\b(?:for|if (?:this is|you have an?)) (?:urgent|immediate|time[- ]sensitive)\b[^.\n]{0,80}(?:contact|reach|call|e-?mail)`,
+  String.raw`\bdelayed (?:response|reply)\b|\bchecking (?:e-?mail|email) (?:periodically|intermittently|sporadically)\b`,
+  String.raw`\bi(?:'m| am| will be|'ll be) (?:currently )?(?:traveling|travelling|on pto|on leave|offline)\b`,
+].join('|'), 'i');
+// Said right after an away line: "Thank you for your understanding."
+const AWAY_FOLLOW = /^(?:thank you|thanks)(?: so much)? for (?:your|you're) (?:understanding|patience)[.!]?$/i;
+
+export const isAwaySentence = s => AWAY_SENTENCE.test(String(s || ''));
+
+/**
+ * The email with every away and focus-time sentence taken out. Wrapped lines
+ * are joined first so a sentence is never cut in two. Returns the body
+ * unchanged when there is nothing to take out.
+ */
+export function stripAwayLines(body) {
+  const text = String(body || '');
+  if (!AWAY_SENTENCE.test(text)) return text;
+  const lines = [];
+  for (const line of text.split(/\r?\n/)) {
+    const prev = lines[lines.length - 1];
+    if (prev && line.trim() && prev.length >= 55 && !/[.!?:]\s*$/.test(prev) && !/^\s*(?:[-*•]|\d+[.)])\s/.test(line)) {
+      lines[lines.length - 1] = `${prev} ${line.trim()}`;
+    } else lines.push(line);
+  }
+  // carry: an away sentence ran off the end of its line unfinished, so the
+  // start of the next line is the rest of it.
+  let after = false, carry = false;
+  const kept = lines.map(line => {
+    if (!line.trim()) { after = false; carry = false; return line; }
+    const parts = line.split(/(?<=[.!?])\s+/).filter((p, i, all) => {
+      const t = p.replace(/\s+/g, ' ').trim();
+      const away = (i === 0 && carry) || AWAY_SENTENCE.test(t) || (after && AWAY_FOLLOW.test(t));
+      if (i === all.length - 1) carry = away && !/[.!?]$/.test(t);
+      after = away;
+      return !away;
+    });
+    return parts.length ? parts.join(' ') : null;
+  }).filter(l => l !== null);
+  return kept.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}

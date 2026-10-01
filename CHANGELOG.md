@@ -5,6 +5,16 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Voice Training: away sentences removed everywhere, templates come back] - October 1, 2026 (DEPLOYED) - no migration
+
+- **Away and focus-time sentences are taken out of every email** (Mike 10-1: "Remove all from the system retroactively"). New `stripAwayLines` / `isAwaySentence` in `autoMail.js` remove out-of-office, vacation, limited access, "when I return", urgent-contact and "focus time ... as we are able ... thank you for your understanding" sentences, even inside real emails. Applied on save (`cleanEmails`; the hash stays of the email as sent, so a re-upload is still found) and retroactively on Relearn (`putAsideAutoMail` rewrites the saved bodies; an email that was little more than that is set aside as out of office). Top sentences skip them too.
+- Template suggestions with away content are retired; one already saved is switched off in Email Templates (reversible, not deleted).
+- **Template suggestions came back empty:** all 8 were asked for in one answer and ran out of room. Now one small call per group, in parallel; one failure never stops the rest, and a log line names it. Each template is built around and named for what sets its group apart. Groups on the same topic merge.
+- Relearn message says how many emails had away sentences taken out.
+- Test: 1 new test in `voiceAutoMail.test.mjs`. Local relearn: 179 of 422 emails cleaned, 8 distinct templates, nothing away left in the voice profile.
+
+---
+
 ## [Voice Training: leave out out-of-office and calendar mail, resume big mailboxes, Q&A starter] - October 1, 2026 (DEPLOYED 88ff4ec) - migration 0111
 
 - **Out-of-office and calendar mail left out of every voice library** (new `src/lib/tone/autoMail.js`, pure). The checks are, in order: auto-reply headers, calendar headers and parts, subject lines (OOO, Invitation:, Accepted:, Declined:, Google "@ Mon Oct 5" style), and body markers. A template rule catches the same short away message sent 3+ times. Applied when the mailbox is read (`mbox.js`), when saving (`cleanEmails`), and when pasting.

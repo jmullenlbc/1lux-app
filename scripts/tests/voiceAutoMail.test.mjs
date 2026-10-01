@@ -57,3 +57,14 @@ let last = 0;
 await extractSentEmails(blob, '', { startAt: half, onProgress: b => { last = b; } });
 t('progress from file start', last, text.length);
 
+
+test('away and focus-time sentences come out of a real email (Mike 10-1)', async () => {
+  const { stripAwayLines, isAwaySentence } = await import('../../src/lib/tone/autoMail.js');
+  const body = 'Hi Lee,\n\nAttached is the budget. Let me know if you have any questions.\n\nILC Studios observes company-wide focus time the first week of each month. We will respond to outside meetings and emails as we are able. Thank you for your understanding.\n\nMike';
+  assert.equal(stripAwayLines(body), 'Hi Lee,\n\nAttached is the budget. Let me know if you have any questions.\n\nMike');
+  assert.equal(stripAwayLines('I am out of the office until Monday with limited\naccess to email. The budget is attached and came in under target.'), 'The budget is attached and came in under target.');
+  const real = 'Thanks for your understanding. We will not have pricing until Friday.';
+  assert.equal(stripAwayLines(real), real);
+  assert.ok(isAwaySentence("I'll be on vacation next week."));
+  assert.ok(!isAwaySentence('Excited to talk soon!'));
+});

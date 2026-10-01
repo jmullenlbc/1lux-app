@@ -714,7 +714,8 @@ function leftOutLine(stats = {}, swept = null) {
   const say = (o, c) => [o && `${o.toLocaleString()} out-of-office ${o === 1 ? 'reply' : 'replies'}`, c && `${c.toLocaleString()} calendar ${c === 1 ? 'email' : 'emails'}`].filter(Boolean).join(' and ');
   const read = say(stats.OUT_OF_OFFICE || 0, stats.CALENDAR || 0);
   const lib = swept ? say(swept.OUT_OF_OFFICE || 0, swept.CALENDAR || 0) : '';
-  return `${read ? ` Left out ${read}.` : ''}${lib ? ` Set aside ${lib} already in the library.` : ''}`;
+  const cut = swept?.STRIPPED ? ` Took out-of-office and focus-time sentences out of ${swept.STRIPPED.toLocaleString()} more.` : '';
+  return `${read ? ` Left out ${read}.` : ''}${lib ? ` Set aside ${lib} already in the library.` : ''}${cut}`;
 }
 
 function SetAside({ data, busy, onPutBack }) {
