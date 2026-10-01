@@ -32,11 +32,18 @@ import {
  * schema declares it. Anything that relies on per-user uniqueness fails here
  * the same way it would in production.
  */
-function fakeDb({ projects = {}, failWith = null } = {}) {
+function fakeDb({ projects = {}, failWith = null, mutes = [] } = {}) {
   const rows = [];
   const keys = new Set();
   return {
     rows,
+    // "Don't need this kind" (migration 0093). `mutes` holds `userId:alertType`.
+    alertMute: {
+      findUnique: async ({ where }) => {
+        const { userId, alertType } = where.userId_alertType;
+        return mutes.includes(`${userId}:${alertType}`) ? { id: `mute:${userId}:${alertType}` } : null;
+      },
+    },
     userAlert: {
       create: async ({ data }) => {
         if (failWith) throw failWith;
@@ -142,6 +149,32 @@ test('an alert with nobody to send to, or nothing to say, is refused quietly', a
   assert.equal((await notifyUser({ userId: null, title: 'x' }, { db })).created, false);
   assert.equal((await notifyUser({ userId: 'u1', title: '' }, { db })).created, false);
   assert.equal(db.rows.length, 0, 'a blank alert must never reach the bell');
+});
+
+// ── Muted alert types (migration 0093) ──────────────────────────────────────
+
+test('a person who muted this kind of alert is not told; others still are', async () => {
+  const db = fakeDb({ mutes: ['u1:NOTE_REMINDER'] });
+  const res = await notifyUsers(['u1', 'u2'], NOTE, { db });
+  assert.equal(res.sent, 1);
+  assert.equal(res.skipped, 1);
+  assert.deepEqual(db.rows.map(r => r.userId), ['u2']);
+  assert.deepEqual(await notifyUser({ userId: 'u1', ...NOTE }, { db }), { created: false, reason: 'muted' });
+});
+
+test('muting one kind does not mute the others', async () => {
+  const db = fakeDb({ mutes: ['u1:NOTE_REMINDER'] });
+  const res = await notifyUser({ userId: 'u1', title: 'Budget sent' }, { db });
+  assert.equal(res.created, true, 'a GENERAL alert still lands');
+});
+
+test('a mute lookup that fails does not block the alert', async () => {
+  // Better to ring a bell someone muted than to silence one they did not.
+  const base = fakeDb();
+  const db = { ...base, alertMute: { findUnique: async () => { throw new Error('relation "AlertMute" does not exist'); } } };
+  const res = await notifyUser({ userId: 'u1', ...NOTE }, { db });
+  assert.equal(res.created, true);
+  assert.equal(base.rows.length, 1);
 });
 
 // ── Project owners ──────────────────────────────────────────────────────────

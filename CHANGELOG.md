@@ -5,6 +5,12 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Alerts test brought up to date and added to the gate] - September 30, 2026 (DEPLOYED) - no migration
+
+- **No production bug.** `scripts/tests/alerts.test.mjs` failed 7 of 13 because its fake database had no `alertMute`. The "don't need this kind" check (0093, commit c8d8393) calls `alertMute.findUnique` before writing every alert; the fake threw there, so every alert in the test came back as an error. The real Prisma client has `alertMute`, so the bell is unaffected. `src/lib/alerts.js` is unchanged.
+- **Test fixed and extended**: the fake now supports mutes, plus 3 new tests (a muted person is skipped while others are told; muting one kind leaves the rest; a failed mute lookup still sends the alert).
+- **Gate**: `alerts.test.mjs` added to the unit tests in `scripts/verify.mjs`, so it can no longer go stale unnoticed.
+
 ## [Voice Training: progress bar and the "network error"] - September 30, 2026 (DEPLOYED e54bf43) - no migration
 
 - **Progress bar under the drop area** (`src/app/(app)/sales/automation/voice/VoiceTrainingClient.jsx`). One bar across every file dropped: percent, GB read of GB total, emails found, and time left once 15 seconds have passed. It also covers saving and the final relearn, which shows a pulsing bar because its end is unknown. Inside a Takeout .zip, progress is now a share of the whole part, not of one mailbox. Redraws are capped at 4 a second.
