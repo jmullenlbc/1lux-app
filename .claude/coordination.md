@@ -2,7 +2,13 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-30 (newest) - Mike's Claude - **DEPLOYED 7c77722**, migration 0110: Market Intel ask box
+### 2026-10-01 (newest) - Mike's Claude - **DEPLOYED (hash pending)**, migration 0111: Voice Training auto mail, resume, Q&A, topics
+- 0111_voice_auto_mail: adds a nullable column `archiveReason` to `VoiceSample` (OUT_OF_OFFICE | CALENDAR | KEPT). VoiceBatch.source comment now lists INTERVIEW. Additive only (schema-guard PASS). Next migration 0112.
+- Out-of-office and calendar mail left out at read, save and paste (`src/lib/tone/autoMail.js`); Relearn archives saved ones, "Set aside" card with Put back. Big .mbox files resume where they stopped. Q&A starter (`src/lib/tone/interview.js`, 12 situations, source INTERVIEW).
+- `voiceInsights.js`: Top 20 sentences, "over and over" grouped by topic (one per thread, names left out), "How you get personal" kinds passed to the bot with a never-invent guard.
+- After deploy: each person presses Relearn once.
+
+### 2026-09-30 (later, 7c77722) - Mike's Claude - **DEPLOYED 7c77722**, migration 0110: Market Intel ask box
 - 0110 (additive, schema-guard PASS 9-27): tables MarketQuestion, MarketAnswerRow (FK Client), MarketAnswerYear, MarketAnswerSource. Next migration 0111.
 - Market Intel page: ask any market question (any US metro, open web only). `src/lib/market-intel/ask.js` (job `marketIntel.ask`, web search), park-and-poll `/api/market-intel/ask`; year totals and order computed in `ranking.js`, never by the model. Add to CRM is a button, never automatic. Questions archive-only.
 

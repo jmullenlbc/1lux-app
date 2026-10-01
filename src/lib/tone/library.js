@@ -11,17 +11,22 @@ import { wrapClient } from '@/lib/agent/client';
 import { modelParams, textFrom, answerBudget } from '@/lib/aiModels';
 import { MAX_BODY, sampleHash } from '@/lib/tone/mbox';
 import { pickWeighted, AGE_BANDS, UNDATED } from '@/lib/tone/voiceAge';
-import { periodStats, topPhrases, recurringEmails } from '@/lib/tone/voiceInsights';
+import { periodStats, topSentences, personalLines, recurringEmails } from '@/lib/tone/voiceInsights';
+import { autoMailReason, findAutoMail } from '@/lib/tone/autoMail';
+import { INTERVIEW_SOURCE } from '@/lib/tone/interview';
 
 const ACTIVE = { archivedAt: null, batch: { archivedAt: null } };
 
-/** Clean what the browser sent: subject, body, optional date. */
+/**
+ * Clean what the browser sent: subject, body, optional date. Out-of-office
+ * replies and calendar mail never get in, whatever the browser sent (Mike 9-30).
+ */
 export function cleanEmails(list, max = 500) {
   return (Array.isArray(list) ? list : []).slice(0, max).map(e => ({
     subject: String(e?.subject || '').slice(0, 200),
     body:    String(e?.body || '').slice(0, MAX_BODY + 1).trim(),
     sentAt:  Number(e?.date) > 0 ? new Date(Number(e.date)) : null,
-  })).filter(e => e.body.length >= 40);
+  })).filter(e => e.body.length >= 40 && !autoMailReason(e));
 }
 
 /**
@@ -33,12 +38,14 @@ export async function addVoiceBatch({ userId, uploadedById, fileName, source, em
   const unique = [...new Map(rows.map(r => [r.hash, r])).values()];
   const found = await prisma.voiceSample.findMany({
     where: { userId, hash: { in: unique.map(r => r.hash) } },
-    select: { id: true, hash: true, archivedAt: true, batch: { select: { archivedAt: true } } },
+    select: { id: true, hash: true, archivedAt: true, archiveReason: true, batch: { select: { archivedAt: true } } },
   });
   const existing = new Set(found.map(r => r.hash));
   // An email already here but put away (its upload archived) comes back into
-  // this upload, so re-adding a file that was put away teaches again.
-  const revive = found.filter(r => r.archivedAt || r.batch?.archivedAt).map(r => r.id);
+  // this upload, so re-adding a file that was put away teaches again. One set
+  // aside as automatic mail stays aside; only "Put back" returns it.
+  const autoAside = r => r.archivedAt && ['OUT_OF_OFFICE', 'CALENDAR'].includes(r.archiveReason);
+  const revive = found.filter(r => (r.archivedAt || r.batch?.archivedAt) && !autoAside(r)).map(r => r.id);
   const fresh = unique.filter(r => !existing.has(r.hash));
   const added = fresh.length + revive.length;
   // No skipDuplicates: it throws on SQLite. Duplicates were filtered above.
@@ -54,6 +61,48 @@ export async function addVoiceBatch({ userId, uploadedById, fileName, source, em
     await prisma.voiceSample.updateMany({ where: { id: { in: revive } }, data: { batchId: batch.id, archivedAt: null } });
   }
   return { batch, added, skipped: rows.length - added };
+}
+
+/**
+ * Re-reads the saved library and sets aside every out-of-office reply and
+ * calendar email (Mike 9-30: "reanalyze all those emails and pull out all the
+ * auto-generated out of office replies ... any send or response for calendar
+ * invites"). Archive-only: archiveReason says why, "Put back" undoes it, and
+ * one put back (KEPT) is never set aside again. Runs before every relearn.
+ * Returns { OUT_OF_OFFICE: n, CALENDAR: n }.
+ */
+export async function putAsideAutoMail(userId) {
+  const done = { OUT_OF_OFFICE: 0, CALENDAR: 0 };
+  const rows = await prisma.voiceSample.findMany({
+    where: { userId, archivedAt: null, archiveReason: null },
+    select: { id: true, subject: true, body: true },
+  });
+  const found = findAutoMail(rows);
+  const now = new Date();
+  for (const reason of Object.keys(done)) {
+    const ids = [...found].filter(([, r]) => r === reason).map(([id]) => id);
+    for (let i = 0; i < ids.length; i += 500) {
+      await prisma.voiceSample.updateMany({ where: { id: { in: ids.slice(i, i + 500) } }, data: { archivedAt: now, archiveReason: reason } });
+    }
+    done[reason] = ids.length;
+  }
+  return done;
+}
+
+/** The automatic mail set aside, newest first, for the Voice screen. */
+export async function autoSetAside(userId, take = 100) {
+  const where = { userId, archivedAt: { not: null }, archiveReason: { in: ['OUT_OF_OFFICE', 'CALENDAR'] } };
+  const [counts, rows] = await Promise.all([
+    prisma.voiceSample.groupBy({ by: ['archiveReason'], where, _count: { _all: true } }),
+    prisma.voiceSample.findMany({
+      where, orderBy: [{ sentAt: 'desc' }, { createdAt: 'desc' }], take,
+      select: { id: true, subject: true, body: true, sentAt: true, archiveReason: true },
+    }),
+  ]);
+  return {
+    counts: Object.fromEntries(counts.map(c => [c.archiveReason, c._count._all])),
+    items: rows.map(r => ({ id: r.id, subject: r.subject, reason: r.archiveReason, sentAt: r.sentAt, snippet: r.body.slice(0, 160) })),
+  };
 }
 
 export async function activeSampleCount(userId) {
@@ -93,14 +142,16 @@ async function libraryRows(userId) {
     where: { userId, ...ACTIVE },
     orderBy: [{ sentAt: 'desc' }, { createdAt: 'desc' }],
     take: LIBRARY_READ,
-    select: { subject: true, body: true, sentAt: true, createdAt: true },
+    select: { subject: true, body: true, sentAt: true, createdAt: true, batch: { select: { source: true } } },
   });
-  return rows.map(r => ({ subject: r.subject, body: r.body, date: new Date(r.sentAt || r.createdAt).getTime() || 0 }));
+  return rows.map(r => ({ subject: r.subject, body: r.body, date: new Date(r.sentAt || r.createdAt).getTime() || 0,
+    asked: r.batch?.source === INTERVIEW_SOURCE }));
 }
 
 /**
  * Everything the Voice screen counts (Mike 9-27): how much each period counts,
- * how the writing changed period by period, the top 10 phrases.
+ * how the writing changed period by period, the top 20 sentences (Mike 10-1:
+ * "the top phrases should be top 20 sentences").
  */
 export async function voiceInsights(userId) {
   try {
@@ -109,7 +160,7 @@ export async function voiceInsights(userId) {
     return {
       plan: pickWeighted(rows, STUDY, { now }).plan,
       periods: periodStats(rows, { now }),
-      phrases: topPhrases(rows, { now, n: 10 }),
+      sentences: topSentences(rows, { now, n: 20 }),
     };
   } catch (e) {
     console.error('[voice] insights failed:', e?.message ?? e);
@@ -144,19 +195,27 @@ async function askJson(job, budget, prompt, userId) {
 export async function rebuildToneProfile(userId) {
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true } });
   if (!user) return { error: 'No such person' };
+  const setAside = await putAsideAutoMail(userId);
   const rows = await libraryRows(userId);
   if (rows.length < 5) {
     await prisma.user.update({ where: { id: userId }, data: { toneProfile: null, toneProfileBuiltAt: null, toneProfileSource: null } });
-    return { error: `Only ${rows.length} emails in the library. Need at least 5 to learn a voice.`, emailsAnalyzed: rows.length };
+    return { error: `Only ${rows.length} emails in the library. Need at least 5 to learn a voice.`, emailsAnalyzed: rows.length, setAside };
   }
   const now = Date.now();
-  const { picks, plan } = pickWeighted(rows, STUDY, { now });
+  // Q&A answers (interview.js) are always read, ahead of the mailbox: the
+  // person wrote them to show the bot exactly how they want to sound.
+  const asked = rows.filter(r => r.asked).slice(0, 20);
+  const { picks, plan } = pickWeighted(rows.filter(r => !r.asked), STUDY - asked.length, { now });
   const periods = periodStats(rows, { now });
   const older = periods.filter(p => !['M3', 'M12', 'NONE'].includes(p.key)).reduce((n, p) => n + p.emails, 0);
   const hasHistory = older >= 5;
 
   let k = 0;
-  const groups = plan.map(b => {
+  const askedGroup = asked.length
+    ? `=== Written just now for this training, answering everyday sales situations. Weigh these MOST: they show how they want to sound today ===\n`
+      + asked.map(e => `Email ${++k}\nSubject: ${e.subject}\n${e.body}`).join('\n\n') + '\n\n'
+    : '';
+  const groups = askedGroup + plan.map(b => {
     const list = picks.filter(p => p.band === b.key);
     return `=== ${LABEL[b.key].label} (each email counts ${b.weight}x) ===\n`
       + list.map(e => `Email ${++k} (${month(e.date)})\nSubject: ${e.subject}\n${e.body}`).join('\n\n');
@@ -164,8 +223,11 @@ export async function rebuildToneProfile(userId) {
   const table = periods.map(p => `${p.label}: ${p.emails} emails, ${p.avgWords} words on average, ${p.wordsPerSentence} words per sentence, `
     + `${p.questionPct}% ask a question, ${p.listPct}% use a list, ${p.softPerEmail} softening words per email`).join('\n');
   const ifHistory = (yes, no) => (hasHistory ? yes : no);
+  // Mike 10-1: "Pull out what kind of things I say in a personal way". Found
+  // across the WHOLE library by counting, then sorted into kinds by the model.
+  const personal = personalLines(rows, { now, max: 80 });
 
-  const prompt = `You are studying how ${user.name || 'a salesperson'} writes email, from ${picks.length} emails they sent, grouped newest first.
+  const prompt = `You are studying how ${user.name || 'a salesperson'} writes email, from ${picks.length + asked.length} emails they wrote, grouped newest first.
 They are getting better at wording things, so the newest emails show the voice to copy. Newer groups count more, as marked.
 When older and newer emails differ, describe the NEWER way everywhere except in "then" and "evolution".
 
@@ -173,6 +235,9 @@ ${groups}
 
 Counted over their whole library (${rows.length} emails), by period:
 ${table}
+
+Personal lines found across their whole library (family, weekends, trips, sports, congratulations, catching up), most used first:
+${personal.length ? personal.map(x => `- ${x.sentence}${x.emails > 1 ? ` (in ${x.emails} emails)` : ''}`).join('\n') : '(none found)'}
 
 Return a JSON object with exactly these keys:
 {
@@ -192,8 +257,10 @@ Return a JSON object with exactly these keys:
   "subjects": ["6-8 of their real recent subject lines that best show their style, copied as written"],
   "subjectStyle": "one sentence on how they title emails: length, capitals, names, punctuation",
   "avoids": ["3-5 things they never do"],
-  "patterns": ["3-5 habits of structure: bullets, questions, one-liners, how they ask for things"]
+  "patterns": ["3-5 habits of structure: bullets, questions, one-liners, how they ask for things"],
+  "personal": [{ "kind": "short plain label for one kind of personal thing they say, e.g. Asks about family, Weekend wishes, Congratulates", "examples": ["2-3 of their real lines of this kind, copied as written"] }]
 }
+For "personal" give 3-8 kinds from the personal lines and the emails, most used first, or [] when they never get personal.
 Copy their words exactly where asked. Write plainly for a salesperson, not a linguist.
 Never use an em dash, en dash or double dash in your answer.
 Return ONLY the JSON object.`;
@@ -206,7 +273,7 @@ Return ONLY the JSON object.`;
     where: { id: userId },
     data: { toneProfile: JSON.stringify(profile), toneProfileBuiltAt: new Date(), toneProfileSource: 'voice_library' },
   });
-  return { profile, emailsAnalyzed: picks.length, libraryCount: rows.length };
+  return { profile, emailsAnalyzed: picks.length + asked.length, libraryCount: rows.length, setAside };
 }
 
 const PLACEHOLDERS = ['contactFirstName', 'companyName', 'projectName', 'senderName'];
@@ -225,15 +292,15 @@ async function refreshTemplateSuggestions(user, rows, now) {
   });
   let written = [];
   if (groups.length) {
-    const prompt = `${user.name || 'A salesperson'} sends these kinds of emails over and over. Each group below holds their newest examples of one kind.
+    const prompt = `${user.name || 'A salesperson'} sends these kinds of emails over and over. Each group below holds their newest emails on one topic; the wording may differ from email to email.
 
-${groups.map((g, i) => `### Group ${i + 1}: sent ${g.size} times, ${g.recent} in the last year\n`
+${groups.map((g, i) => `### Group ${i + 1}: ${g.size} emails on this topic (${g.topic.join(', ')}), ${g.recent} in the last year\n`
     + g.examples.map((e, j) => `Example ${j + 1}\nSubject: ${e.subject}\n${e.body}`).join('\n\n')).join('\n\n')}
 
 ${decided.length ? `Already handled, do not suggest these again:\n${decided.map(d => `- ${d.name}`).join('\n')}\n\n` : ''}For each group worth a reusable template, write one in THEIR words as they write now (the examples are newest first).
 Use these placeholders where the examples change from email to email: ${PLACEHOLDERS.map(p => `{${p}}`).join(', ')}.
 Use [square brackets] for anything else a person must fill in, e.g. [date], [number of units].
-Skip a group that is automatic mail, a one-off, or too personal to reuse.
+Skip a group that is automatic mail (out-of-office or away replies, calendar invites, accepts or declines), a one-off, or too personal to reuse.
 No signature block at the end; it is added to every email anyway.
 
 Return a JSON array, best first:

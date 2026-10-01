@@ -125,7 +125,7 @@ export function toneSection(profile, name) {
   const who = firstName(name) || 'the sender';
   return `
 Write the way ${who} actually writes. This is drawn from ${who}'s own sent email:
-${p.summary ? `Voice: ${p.summary}\n` : ''}${p.formality ? `Formality: ${p.formality}\n` : ''}${p.sentenceLength ? `Sentence length: ${p.sentenceLength}\n` : ''}${list('Tone', p.tone)}${list('Openers they use', p.openers)}${list('Closers they use', p.closers)}${list('Phrases they use', p.phrases)}${list('Words they reach for', p.vocabulary)}${list('Subject lines they have written', p.subjects)}${p.subjectStyle ? `Their subject lines: ${p.subjectStyle}\n` : ''}${list('They avoid', p.avoids)}${list('Habits', p.patterns)}Borrow their rhythm and word choice. Never copy a phrase that does not fit this email.
+${p.summary ? `Voice: ${p.summary}\n` : ''}${p.formality ? `Formality: ${p.formality}\n` : ''}${p.sentenceLength ? `Sentence length: ${p.sentenceLength}\n` : ''}${list('Tone', p.tone)}${list('Openers they use', p.openers)}${list('Closers they use', p.closers)}${list('Phrases they use', p.phrases)}${list('Words they reach for', p.vocabulary)}${list('Subject lines they have written', p.subjects)}${p.subjectStyle ? `Their subject lines: ${p.subjectStyle}\n` : ''}${list('They avoid', p.avoids)}${list('Habits', p.patterns)}${list('Kinds of personal things they say (only when a real fact about this person is known; never invent one)', (p.personal || []).map(x => x?.kind).filter(Boolean))}Borrow their rhythm and word choice. Never copy a phrase that does not fit this email.
 `;
 }
 

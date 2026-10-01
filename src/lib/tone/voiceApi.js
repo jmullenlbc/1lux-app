@@ -4,9 +4,9 @@
 import { NextResponse } from 'next/server';
 import { isSalesAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { activeSampleCount, voiceInsights, templateSuggestions } from '@/lib/tone/library';
+import { activeSampleCount, voiceInsights, templateSuggestions, autoSetAside } from '@/lib/tone/library';
 
-export const SOURCES = new Set(['MBOX', 'EML', 'TEXT', 'PASTE', 'PST', 'OLM', 'MSG']);
+export const SOURCES = new Set(['MBOX', 'EML', 'TEXT', 'PASTE', 'PST', 'OLM', 'MSG', 'INTERVIEW']);
 
 
 /** Everyone works on their own library; a Sales Admin can pick anyone's. */
@@ -29,7 +29,9 @@ export async function libraryState(userId, { full = false } = {}) {
   ]);
   let profile = null;
   try { profile = person?.toneProfile ? JSON.parse(person.toneProfile) : null; } catch {}
-  const extra = full ? { insights: await voiceInsights(userId), templates: await templateSuggestions(userId) } : {};
+  const extra = full
+    ? { insights: await voiceInsights(userId), templates: await templateSuggestions(userId), autoSetAside: await autoSetAside(userId) }
+    : {};
   return {
     person: person ? { id: person.id, name: person.name, email: person.email } : null,
     count, batches, profile, builtAt: person?.toneProfileBuiltAt || null, source: person?.toneProfileSource || null,

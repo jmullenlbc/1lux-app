@@ -5,9 +5,10 @@
  * the emails themselves, not guessed by the model; newer emails count more
  * (see voiceAge.js).
  *
- * Pure: no imports beyond voiceAge. Rows are { subject, body, date }.
+ * Pure: no imports beyond voiceAge and autoMail. Rows are { subject, body, date }.
  */
 import { AGE_BANDS, UNDATED, bandOf, groupByAge, ts } from './voiceAge.js';
+import { autoMailReason } from './autoMail.js';
 
 const DAY = 86_400_000;
 const words = s => String(s || '').toLowerCase().match(/[a-z][a-z']*/g) || [];
@@ -105,6 +106,99 @@ export function topPhrases(rows, { now = Date.now(), n = 10, minEmails = 3 } = {
   return out.map(({ phrase, emails, recent }) => ({ phrase, emails, recent }));
 }
 
+// Whole sentences, for "Top 20 sentences" (Mike 10-1) and the personal lines.
+const GREETING = /^(?:hi|hello|hey|dear|good (?:morning|afternoon|evening)|morning|afternoon)\b/i;
+const QUOTED = /^(?:on .+ wrote|from:|sent:|to:|cc:|subject:|>)|https?:|www\.|\[image|@|\(?\d{3}\)?[ .-]?\d{3}[ .-]\d{4}/i;
+// Pasted scope or bid notes: "Pricing Expiration: This pricing is valid ...".
+const LABELLED = /^[A-Z][\w/&' -]{2,40}:\s/;
+// Footers and notices the mail program adds, never the person's own words.
+const FOOTER = /focus time|observes company|as (?:we|i) (?:are|am) able|thank you for your understanding|confidential|intended (?:only )?for the (?:named )?(?:recipient|addressee)|please consider the environment/i;
+// Template placeholders such as {Project Name:} are a blank form, not an email.
+const PLACEHOLDER = /\{[^}]{2,40}\}/;
+
+// Mail is often wrapped at about 76 characters: join a wrapped line back onto
+// the one before it, so a sentence is never cut in two.
+function unwrap(body) {
+  const out = [];
+  for (const line of String(body || '').split(/\r?\n/)) {
+    const prev = out[out.length - 1];
+    if (prev && line.trim() && prev.length >= 55 && !/[.!?:]\s*$/.test(prev) && !/^\s*(?:[-*•]|\d+[.)])\s/.test(line)) {
+      out[out.length - 1] = `${prev} ${line.trim()}`;
+    } else out.push(line);
+  }
+  return out.join('\n');
+}
+
+function sentencesOf(body) {
+  return unwrap(body).split(/(?<=[.!?])\s+|\n+/)
+    .map(x => x.replace(/\s+/g, ' ').trim())
+    .filter(x => {
+      const n = words(x).length;
+      return n >= 3 && n <= 35 && /[.!?]$/.test(x) && !GREETING.test(x) && !QUOTED.test(x) && !LABELLED.test(x) && !FOOTER.test(x);
+    });
+}
+const normSentence = x => x.toLowerCase().replace(/\d+(?:[.,:/-]\d+)*/g, '#').replace(/[^a-z#' ]+/g, ' ').replace(/\s+/g, ' ').trim();
+
+function tallySentences(rows, now, keep = () => true) {
+  const tally = new Map();
+  for (const r of rows) {
+    const weight = bandOf(r.date, now).weight;
+    const recent = ts(r.date) && now - ts(r.date) < 365 * DAY;
+    const seen = new Set();
+    for (const x of sentencesOf(r.body)) {
+      if (!keep(x)) continue;
+      const k = normSentence(x);
+      if (!k || seen.has(k)) continue;
+      seen.add(k);
+      const t = tally.get(k) || { sentence: x, emails: 0, recent: 0, score: 0, last: -1 };
+      t.emails++; t.score += weight; if (recent) t.recent++;
+      if (ts(r.date) > t.last) { t.last = ts(r.date); t.sentence = x; }   // show the newest wording
+      tally.set(k, t);
+    }
+  }
+  return [...tally.values()];
+}
+
+/**
+ * The sentences a person writes most, word for word (numbers aside), counted
+ * once per email and scored by age weight. Greetings ("Hi Lee,") and quoted
+ * reply lines are left out. Returns [{ sentence, emails, recent }] best first.
+ */
+export function topSentences(rows, { now = Date.now(), n = 20, minEmails = 3 } = {}) {
+  // A long sentence in over 12% of all emails is a footer the mail program
+  // adds ("ILC Studios observes company-wide focus time..."), not the voice.
+  const footer = t => rows.length >= 20 && t.emails > rows.length * 0.12 && words(t.sentence).length >= 10;
+  // A sentence naming a job, person or dollar amount is about one job, not the
+  // voice ("We have also provided Brinkmann a copy of this budget").
+  const names = namesIn(rows);
+  for (const w of ['i', 'ilc']) names.delete(w);
+  const aboutOneJob = x => /\$|\d{3,}/.test(x) || PLACEHOLDER.test(x)
+    || (x.match(/[A-Za-z][A-Za-z']*/g) || []).slice(1).some(w => /^[A-Z]/.test(w) && !/^I(?:'|$)/.test(w) && names.has(w.toLowerCase()));
+  return tallySentences(rows, now)
+    .filter(t => t.emails >= minEmails && !footer(t) && !aboutOneJob(t.sentence))
+    .sort((a, b) => b.score - a.score || b.emails - a.emails)
+    .slice(0, n)
+    .map(({ sentence, emails, recent }) => ({ sentence, emails, recent }));
+}
+
+// Lines where a person steps outside the job: family, weekends, trips, sports,
+// congratulations, health, catching up (Mike 10-1: "what kind of things I say
+// in a personal way").
+const PERSONAL_LINE = new RegExp('\\b(?:family|kids?|wife|husband|son|daughter|baby|grandkids?|wedding|birthday|anniversary|'
+  + 'holidays?|thanksgiving|christmas|easter|new year|vacation|weekend|golf|fishing|hunting|skiing|beach|lake house|'
+  + 'football|baseball|basketball|hockey|game last night|dinner|beers?|drinks|congrat\\w*|feel better|get well|'
+  + 'condolences|sorry to hear|safe travels|travels|hope (?:you|all|everyone|things|the family|your)|'
+  + 'how (?:are|was|have) (?:you|things|the|your)|(?:great|good|nice) (?:to see|seeing|catching up|meeting)|catch up|'
+  + 'dog|puppy|retire\\w*|proud|blessed)\\b', 'i');
+
+/** Personal lines across the whole library, most used then newest first: [{ sentence, emails }]. */
+export function personalLines(rows, { now = Date.now(), max = 80 } = {}) {
+  return tallySentences(rows, now, x => PERSONAL_LINE.test(x))
+    .sort((a, b) => b.emails - a.emails || b.last - a.last)
+    .slice(0, max)
+    .map(({ sentence, emails }) => ({ sentence, emails }));
+}
+
 // One phrase inside the other, or one runs on into the other by 3+ words
 // ("let me know if you have" / "me know if you have questions").
 function overlaps(a, b) {
@@ -116,47 +210,110 @@ function overlaps(a, b) {
   return false;
 }
 
-function shingles(body) {
-  const w = words(String(body || '').replace(/\d+/g, ' 0 '));
-  const out = new Set();
-  for (let i = 0; i + 3 <= w.length; i++) out.add(`${w[i]} ${w[i + 1]} ${w[i + 2]}`);
-  return out;
+// Words that say nothing about what an email is about.
+const STOP = new Set([...FILLER, ...PERSONAL, 'hi', 'hello', 'hey', 'dear', 'thanks', 'regards', 'best', 'cheers', 'sincerely',
+  'please', 'know', 'see', 'get', 'got', 'just', 'also', 'here', 'what', 'when', 'where', 'which', 'who', 'how', 'why',
+  'one', 'two', 'out', 'up', 'about', 'into', 'over', 'more', 'some', 'than', 'then', 'only', 'very', 'well', 'good',
+  'great', 'today', 'tomorrow', 'week', 'next', 'last', 'time', 'back', 'want', 'need', 'make', 'take', 'look', 'send',
+  'sent', 'attached', 'attach', 'email', 'mail', 'call', 'questions', 'question', 'like', 'thing', 'things',
+  'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'were', 'does', 'doing', 'going', 'yes', 'sure', 'okay', 'ok',
+  're', 'fw', 'fwd', 'sounds', 'think', 'still', 'already', 'any', 'each', 'other', 'these', 'those', 'him', 'her', 'his',
+  'she', 'he', 'their', 'them', 'own', 'same', 'again', 'once', 'much', 'many', 'such', 'too', 'did', 'done', 'way']);
+// Short trade words that are written in capitals but say what an email is about.
+const TRADE = new Set(['gmp', 'ifc', 'rfi', 'rfp', 'dd', 'cd', 'sd', 'led', 've', 'po']);
+const threadOf = s => String(s || '').toLowerCase().replace(/\[[^\]]*\]|^\s*|\b(?:re|fw|fwd)\s*:/g, '').replace(/\s+/g, ' ').trim();
+
+// Names (projects, people, companies) are written with a capital letter even
+// mid-sentence. They say WHICH job, not what KIND of email, so they are left
+// out of the topic (Mike 10-1: "similar ones on the same topic").
+function namesIn(pool) {
+  const seen = new Map();
+  for (const r of pool) {
+    for (const part of `${r.subject || ''}\n${unwrap(r.body)}`.split(/(?<=[.!?:])\s+|\n+/)) {
+      const toks = part.match(/[A-Za-z][A-Za-z']*/g) || [];
+      for (let i = 1; i < toks.length; i++) {
+        const w = toks[i].toLowerCase();
+        const t = seen.get(w) || [0, 0];
+        t[0]++; if (/^[A-Z]/.test(toks[i])) t[1]++;
+        seen.set(w, t);
+      }
+    }
+  }
+  return new Set([...seen].filter(([w, [n, cap]]) => cap >= n * 0.6 && !TRADE.has(w)).map(([w]) => w));
 }
 
+// Signature images, links and addresses say nothing about the topic.
+const plainBody = b => unwrap(String(b || '').replace(/\[image:[^\]]*\]|<[^>\s]+>|\S+@\S+|https?:\/\/\S+|www\.\S+/gi, ' '))
+  .split(/(?<=[.!?])\s+|\n+/).filter(x => !FOOTER.test(x)).join('\n');
+const topicWords = (r, names) => [
+  ...words(threadOf(r.subject)).flatMap(w => [w, w]),  // subject counts double
+  ...words(plainBody(r.body)),
+].filter(w => w.length > 2 && !STOP.has(w) && !names.has(w));
+
 /**
- * Emails a person writes again and again: groups of near-identical emails
- * (3-word overlap), newest first. Looks at the last two years when there is
- * enough there, since a template should sound like them now.
- * Returns [{ size, recent, lastSentAt, examples: [{subject, body}] }] best first.
+ * Emails a person writes again and again, grouped by TOPIC (Mike 10-1: "similar
+ * ones on the same topic"), not only near-identical wording: emails whose
+ * subject and body share the same telling words (weighted by how rare each word
+ * is in the library) land together. Out-of-office and calendar mail never
+ * counts. Looks at the last two years when there is enough there, since a
+ * template should sound like them now.
+ * Returns [{ size, recent, lastSentAt, topic: [words], examples: [{subject, body}] }] best first.
  */
-export function recurringEmails(rows, { now = Date.now(), minSize = 3, max = 8, similarity = 0.28 } = {}) {
-  const sorted = [...rows].sort((a, b) => ts(b.date) - ts(a.date));
+export function recurringEmails(rows, { now = Date.now(), minSize = 3, max = 8, similarity = 0.3 } = {}) {
+  const sorted = [...rows].filter(r => !autoMailReason(r) && !PLACEHOLDER.test(`${r.subject || ''} ${r.body || ''}`))
+    .sort((a, b) => ts(b.date) - ts(a.date));
   const twoYears = sorted.filter(r => ts(r.date) && now - ts(r.date) < 730 * DAY);
-  const pool = (twoYears.length >= 30 ? twoYears : sorted).slice(0, 1500);
+  // One email per thread (the newest), so a long back-and-forth on one job
+  // is not mistaken for a kind of email written over and over.
+  const threads = new Set();
+  const pool = (twoYears.length >= 30 ? twoYears : sorted).filter(r => {
+    const t = threadOf(r.subject);
+    if (!t) return true;
+    if (threads.has(t)) return false;
+    threads.add(t);
+    return true;
+  }).slice(0, 1500);
+  const names = namesIn(pool);
+  const docs = pool.map(r => ({ r, tf: topicWords(r, names).reduce((m, w) => m.set(w, (m.get(w) || 0) + 1), new Map()) }));
+  const df = new Map();
+  for (const d of docs) for (const w of d.tf.keys()) df.set(w, (df.get(w) || 0) + 1);
+  const N = docs.length, common = N >= 40 ? N * 0.4 : N;
   const clusters = [];
   const index = new Map();
-  for (const r of pool) {
-    const sh = shingles(r.body);
-    if (sh.size < 6) continue;
-    const hits = new Map();
-    for (const s of sh) for (const c of index.get(s) || []) hits.set(c, (hits.get(c) || 0) + 1);
-    let best = -1, bestJ = 0;
-    for (const [c, inter] of hits) {
-      const j = inter / (sh.size + clusters[c].rep.size - inter);
-      if (j > bestJ) { bestJ = j; best = c; }
+  for (const d of docs) {
+    // tf-idf over the 25 most telling words; a word in only this email, or in
+    // most of the library, says nothing about a shared topic.
+    let vec = [...d.tf].filter(([w]) => df.get(w) >= 2 && df.get(w) <= common)
+      .map(([w, n]) => [w, (1 + Math.log(n)) * Math.log(N / df.get(w))])
+      .sort((a, b) => b[1] - a[1]).slice(0, 25);
+    if (vec.length < 4) continue;
+    const len = Math.hypot(...vec.map(x => x[1]));
+    vec = vec.map(([w, v]) => [w, v / len]);
+    let best = -1, bestCos = 0;
+    for (const c of new Set(vec.flatMap(([w]) => [...(index.get(w) || [])]))) {
+      const cl = clusters[c];
+      let dot = 0;
+      for (const [w, v] of vec) dot += v * (cl.sum.get(w) || 0);
+      if (dot / cl.norm > bestCos) { bestCos = dot / cl.norm; best = c; }
     }
-    if (best >= 0 && bestJ >= similarity) { clusters[best].members.push(r); continue; }
-    const c = clusters.length;
-    clusters.push({ rep: sh, members: [r] });
-    for (const s of sh) { if (!index.has(s)) index.set(s, []); index.get(s).push(c); }
+    if (best < 0 || bestCos < similarity) { best = clusters.length; clusters.push({ sum: new Map(), norm: 1, members: [] }); }
+    const cl = clusters[best];
+    cl.members.push(d.r);
+    for (const [w, v] of vec) {
+      cl.sum.set(w, (cl.sum.get(w) || 0) + v);
+      if (!index.has(w)) index.set(w, new Set());
+      index.get(w).add(best);
+    }
+    cl.norm = Math.hypot(...cl.sum.values());
   }
   return clusters.filter(c => c.members.length >= minSize)
     .map(c => ({
       size: c.members.length,
       recent: c.members.filter(r => ts(r.date) && now - ts(r.date) < 365 * DAY).length,
       lastSentAt: ts(c.members[0].date) || null,
+      topic: [...c.sum].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([w]) => w),
       score: c.members.reduce((s, r) => s + bandOf(r.date, now).weight, 0),
-      examples: c.members.slice(0, 3).map(({ subject, body }) => ({ subject, body })),
+      examples: c.members.slice(0, 4).map(({ subject, body }) => ({ subject, body })),
     }))
     .sort((a, b) => b.score - a.score)
     .slice(0, max)

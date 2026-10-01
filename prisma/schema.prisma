@@ -2686,7 +2686,7 @@ model VoiceBatch {
   uploadedById String?
   uploadedBy   User?         @relation("VoiceBatchUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
   fileName     String?
-  source       String // MBOX | EML | TEXT | PASTE | PST | OLM | MSG
+  source       String // MBOX | EML | TEXT | PASTE | PST | OLM | MSG | INTERVIEW
   emailsAdded  Int           @default(0)
   archivedAt   DateTime?
   archivedById String?
@@ -2707,6 +2707,9 @@ model VoiceSample {
   sentAt     DateTime?
   hash       String // same email uploaded twice is kept once
   archivedAt DateTime?
+  // Why it was set aside on its own (0111): OUT_OF_OFFICE | CALENDAR, or KEPT
+  // when the person put it back (never set aside again).
+  archiveReason String?
   createdAt  DateTime   @default(now())
 
   @@unique([userId, hash])

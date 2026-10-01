@@ -8,13 +8,16 @@
  * (their own sent mail, quoted replies and signatures cut off), and upload
  * that small list. Also used by the server for small legacy uploads.
  *
- * Pure: its only import is the age table, also pure.
+ * Pure: its only imports are the age table and the automatic-mail check, also pure.
  */
 import { keepByAge, KEEP_PER_MAILBOX } from './voiceAge.js';
+import { autoMailReason } from './autoMail.js';
 
 export const MAX_BODY = 800;
-const SKIP_SUBJECTS = ['unsubscribe', 'auto-reply', 'automatic reply', 'out of office', 'no-reply', 'noreply',
-  'notification', 'invoice', 'receipt', 'password', 'verification', 'accepted:', 'declined:', 'invitation:', 'updated invitation'];
+// Out-of-office replies and calendar mail are caught by autoMail.js (Mike 9-30).
+const SKIP_SUBJECTS = ['unsubscribe', 'no-reply', 'noreply', 'notification', 'invoice', 'receipt', 'password', 'verification'];
+// stats: optional counter of what was left out as automatic, by reason.
+const leftOut = (stats, reason) => { if (stats && reason) stats[reason] = (stats[reason] || 0) + 1; return null; };
 
 function utf8(bytes) {
   if (typeof Buffer !== 'undefined') return Buffer.from(bytes).toString('utf8');
@@ -118,9 +121,10 @@ function cutSignature(lines) {
 
 /**
  * One mbox record → { subject, date, body } when it is an email this person
- * wrote, else null. `myEmail` narrows to their own sent mail.
+ * wrote, else null. `myEmail` narrows to their own sent mail. Out-of-office
+ * replies and calendar invites and replies are never kept (autoMail.js).
  */
-export function parseMessage(raw, myEmail = '') {
+export function parseMessage(raw, myEmail = '', stats = null) {
   const parts = splitHead(String(raw).replace(/^From [^\n]*\n/, ''));
   if (!parts) return null;
   const { head, body } = parts;
@@ -131,7 +135,10 @@ export function parseMessage(raw, myEmail = '') {
   if (/\bChat\b/i.test(labels)) return null;
   const subject = decodeHeader(header(head, 'Subject'));
   if (SKIP_SUBJECTS.some(s => subject.toLowerCase().includes(s))) return null;
-  let text = ownWords(textOf(head, body));
+  const full = textOf(head, body);
+  let text = ownWords(full);
+  const auto = autoMailReason({ subject, body: text, full, head, raw: body });
+  if (auto) return leftOut(stats, auto);
   if (text.length < 40) return null;
   if (text.length > MAX_BODY) text = `${text.slice(0, MAX_BODY)}…`;
   const date = Date.parse(header(head, 'Date')) || 0;
@@ -142,10 +149,12 @@ export function parseMessage(raw, myEmail = '') {
  * The last step for an email read from any other export (Outlook .pst, .olm,
  * .msg): drop automatic mail, keep only the person's own words, cap the length.
  */
-export function finishEmail(subject, text, date = 0) {
+export function finishEmail(subject, text, date = 0, stats = null) {
   const s = String(subject || '').replace(/^\u0001./, '').replace(/\s+/g, ' ').trim();
   if (SKIP_SUBJECTS.some(k => s.toLowerCase().includes(k))) return null;
   let body = ownWords(text);
+  const auto = autoMailReason({ subject: s, body, full: text });
+  if (auto) return leftOut(stats, auto);
   if (body.length < 40) return null;
   if (body.length > MAX_BODY) body = `${body.slice(0, MAX_BODY)}…`;
   return { subject: s.slice(0, 200), date: date || 0, body };
@@ -171,37 +180,50 @@ export function parseMboxText(text, myEmail = '', max = 200) {
  * parsed emails. `onProgress(bytesRead, found)` is called as it goes.
  * A big mailbox keeps a spread across every year, tilted to the newest
  * (voiceAge.js), not just the newest few hundred (Mike 9-27).
+ *
+ * startAt: a byte to start from, so a 41 GB mailbox that stopped at 33 GB
+ * picks up there instead of at the start (Mike 9-30). Text before the first
+ * email that starts after it is skipped. Progress and `bytesRead` count bytes
+ * from the start of the file. `stats` counts what was left out as automatic.
  */
-export async function extractSentEmails(file, myEmail = '', { max = KEEP_PER_MAILBOX, onProgress } = {}) {
-  const reader = file.stream().pipeThrough(new TextDecoderStream()).getReader();
+export async function extractSentEmails(file, myEmail = '', { max = KEEP_PER_MAILBOX, onProgress, startAt = 0, stats = null } = {}) {
+  let raw = 0;
+  const count = new TransformStream({ transform(c, ctl) { raw += c.byteLength; ctl.enqueue(c); } });
+  const src = startAt > 0 && file.slice ? file.slice(startAt) : file;
+  const reader = src.stream().pipeThrough(count).pipeThrough(new TextDecoderStream()).getReader();
   const out = [];
-  let buf = '', scanFrom = 1, read = 0;
+  let buf = '', scanFrom = 1, lookingForStart = startAt > 0;
   for (;;) {
     let chunk;
     try { chunk = await reader.read(); }
     catch (e) {
       // The read stopped part way (Chrome says only "network error"). The
-      // emails already read ride along on the error, so a 38 GB mailbox that
-      // dies at 30 GB keeps its first 30 GB (Mike 9-30). The half-read last
-      // email is left out.
+      // emails already read ride along on the error, so a 41 GB mailbox that
+      // dies at 33 GB keeps its first 33 GB (Mike 9-30). bytesRead points a
+      // little before the half-read last email, so a resume reads it whole.
       e.partialEmails = keepByAge(out, { max });
-      e.bytesRead = read;
+      e.bytesRead = Math.max(startAt, startAt + raw - new TextEncoder().encode(buf).length - 8);
       throw e;
     }
     const { value, done } = chunk;
-    if (value) { buf += value; read += value.length; }
+    if (value) buf += value;
+    if (lookingForStart) {
+      const at = buf.indexOf('\nFrom ');
+      if (at === -1) { buf = buf.slice(-6); if (!done) { onProgress?.(startAt + raw, out.length); continue; } buf = ''; }
+      else { buf = buf.slice(at + 1); lookingForStart = false; }
+    }
     let idx;
     while ((idx = buf.indexOf('\nFrom ', scanFrom)) !== -1) {
-      const e = parseMessage(buf.slice(0, idx), myEmail);
+      const e = parseMessage(buf.slice(0, idx), myEmail, stats);
       if (e) out.push(e);
       buf = buf.slice(idx + 1);
       scanFrom = 1;
     }
     scanFrom = Math.max(1, buf.length - 6);
-    onProgress?.(read, out.length);
+    onProgress?.(startAt + raw, out.length);
     if (done) break;
   }
-  if (buf.trim()) { const e = parseMessage(buf, myEmail); if (e) out.push(e); }
+  if (buf.trim()) { const e = parseMessage(buf, myEmail, stats); if (e) out.push(e); }
   return keepByAge(out, { max });
 }
 
@@ -224,6 +246,7 @@ export function parsePastedEmail(text, fallbackSubject = '') {
   const m = t.match(/^subject:[ \t]*(.*)\n/i);
   if (m) { subject = m[1].trim(); t = t.slice(m[0].length); }
   const body = ownWords(t);
+  if (autoMailReason({ subject, body, full: t })) return null;
   if (body.length < 40) return null;
   return { subject: subject.slice(0, 200), date: 0, body: body.length > MAX_BODY ? `${body.slice(0, MAX_BODY)}…` : body };
 }

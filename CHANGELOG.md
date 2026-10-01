@@ -5,6 +5,20 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Voice Training: leave out out-of-office and calendar mail, resume big mailboxes, Q&A starter] - October 1, 2026 (DEPLOYED) - migration 0111
+
+- **Out-of-office and calendar mail left out of every voice library** (new `src/lib/tone/autoMail.js`, pure). The checks are, in order: auto-reply headers, calendar headers and parts, subject lines (OOO, Invitation:, Accepted:, Declined:, Google "@ Mon Oct 5" style), and body markers. A template rule catches the same short away message sent 3+ times. Applied when the mailbox is read (`mbox.js`), when saving (`cleanEmails`), and when pasting.
+- **Already saved emails are swept on Relearn** (`putAsideAutoMail`): they are archived with `archiveReason` OUT_OF_OFFICE or CALENDAR. A new "Set aside" card lists them, and "Put back" (PATCH `/api/sales/voice/samples/[id]`) marks one KEPT, which is never swept again. A set-aside row is never revived when the same email is uploaded again.
+- **Big .mbox files resume where they stopped.** The stop point is remembered on that computer by person, file name and size. Dropping the same file again reads from there, starting at the email that was cut off. A spot that won't read is stepped over (1 MB, 16 MB, 256 MB). Saving still dedupes, so nothing is doubled. The red error now explains this instead of saying "reads from the start again".
+- **Q&A starter** (new `src/lib/tone/interview.js`, 12 everyday sales situations): the person writes the email they would send. Answers are saved as source INTERVIEW, and the relearn reads up to 20 of them first, marked "Weigh these MOST".
+- Migration `0111_voice_auto_mail`: adds nullable `VoiceSample.archiveReason`. Additive only (schema-guard PASS).
+- Test: `scripts/tests/voiceAutoMail.test.mjs` (26 tests) added to the verify gate.
+- **Top 20 sentences** replace the top 10 phrases (`topSentences` in `voiceInsights.js`). Whole sentences said word for word in 3+ emails, numbers aside. Greetings, quoted reply lines, signatures, phone numbers, mail footers ("focus time ... as we are able"), pasted "Label:" notes and sentences naming a job, person or dollar amount are left out. Wrapped lines are joined back first.
+- **"Emails written over and over" groups by topic** (Mike 10-1: "similar ones on the same topic"), not near-identical wording. Out-of-office, calendar and {Project Name:} placeholder mail never counts. One email per thread, and names, signatures and links are left out of the topic words. The template writer is told each group is one topic and that away and calendar mail must be skipped.
+- **"How you get personal"** card: personal lines (family, weekends, trips, congrats, catching up) are found across the whole library and the relearn sorts them into 3 to 8 kinds with real examples. The email bot gets the kinds only, with "only when a real fact about this person is known; never invent one".
+- Test: `scripts/tests/voiceInsights.test.mjs` now 12 tests (topic grouping, out-of-office never grouped, sentences, job details left out, personal lines).
+- **After deploy:** press Relearn once per person to sweep their library.
+
 ## [Alerts test brought up to date and added to the gate] - September 30, 2026 (DEPLOYED 6fe0161) - no migration
 
 - **No production bug.** `scripts/tests/alerts.test.mjs` failed 7 of 13 because its fake database had no `alertMute`. The "don't need this kind" check (0093, commit c8d8393) calls `alertMute.findUnique` before writing every alert; the fake threw there, so every alert in the test came back as an error. The real Prisma client has `alertMute`, so the bell is unaffected. `src/lib/alerts.js` is unchanged.
