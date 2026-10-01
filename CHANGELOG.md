@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Alerts test brought up to date and added to the gate] - September 30, 2026 (DEPLOYED) - no migration
+## [Alerts test brought up to date and added to the gate] - September 30, 2026 (DEPLOYED 6fe0161) - no migration
 
 - **No production bug.** `scripts/tests/alerts.test.mjs` failed 7 of 13 because its fake database had no `alertMute`. The "don't need this kind" check (0093, commit c8d8393) calls `alertMute.findUnique` before writing every alert; the fake threw there, so every alert in the test came back as an error. The real Prisma client has `alertMute`, so the bell is unaffected. `src/lib/alerts.js` is unchanged.
 - **Test fixed and extended**: the fake now supports mutes, plus 3 new tests (a muted person is skipped while others are told; muting one kind leaves the rest; a failed mute lookup still sends the alert).
