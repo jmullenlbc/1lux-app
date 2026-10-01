@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Voice Training: leave out out-of-office and calendar mail, resume big mailboxes, Q&A starter] - October 1, 2026 (DEPLOYED) - migration 0111
+## [Voice Training: leave out out-of-office and calendar mail, resume big mailboxes, Q&A starter] - October 1, 2026 (DEPLOYED 88ff4ec) - migration 0111
 
 - **Out-of-office and calendar mail left out of every voice library** (new `src/lib/tone/autoMail.js`, pure). The checks are, in order: auto-reply headers, calendar headers and parts, subject lines (OOO, Invitation:, Accepted:, Declined:, Google "@ Mon Oct 5" style), and body markers. A template rule catches the same short away message sent 3+ times. Applied when the mailbox is read (`mbox.js`), when saving (`cleanEmails`), and when pasting.
 - **Already saved emails are swept on Relearn** (`putAsideAutoMail`): they are archived with `archiveReason` OUT_OF_OFFICE or CALENDAR. A new "Set aside" card lists them, and "Put back" (PATCH `/api/sales/voice/samples/[id]`) marks one KEPT, which is never swept again. A set-aside row is never revived when the same email is uploaded again.
