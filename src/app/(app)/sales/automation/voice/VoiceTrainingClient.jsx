@@ -21,14 +21,40 @@ async function readTakeoutZip(file, personEmail, onProgress) {
   const boxes = (await zipEntries(file, '.zip')).filter(e => /\.mbox$/i.test(e.name) && e.size > 0);
   if (!boxes.length) throw new Error(`There is no mailbox (.mbox) inside ${file.name}. In Google Takeout, export Mail and download every part.`);
   const out = [];
+  let compDone = 0;   // bytes of the .zip already read, so progress is a share of the whole part
   for (const e of boxes) {
     const inner = await zipEntryStream(file, e);
-    if (!inner) continue;
+    if (!inner) { compDone += e.comp; continue; }
     const short = e.name.split('/').pop();
-    const emails = await extractSentEmails(inner, personEmail, { max: MAX_PER_FILE, onProgress: (b, f) => onProgress(b, f, short) });
+    const at = b => compDone + Math.round(e.comp * Math.min(1, b / (e.size || 1)));
+    let emails;
+    try {
+      emails = await extractSentEmails(inner, personEmail, { max: MAX_PER_FILE, onProgress: (b, f) => onProgress(at(b), f, short) });
+    } catch (err) {
+      // Keep every mailbox already read plus what this one got to.
+      if (err?.partialEmails?.length) out.push({ fileName: `${file.name} / ${short}`, source: 'MBOX', emails: err.partialEmails });
+      err.partialItems = out;
+      err.bytesRead = at(err.bytesRead || 0);
+      throw err;
+    }
+    compDone += e.comp;
     if (emails.length) out.push({ fileName: `${file.name} / ${short}`, source: 'MBOX', emails });
   }
   return out;
+}
+
+const gb = n => (n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : `${Math.round(n / 1e6)} MB`);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const unreadable = e => /network error|NotReadable|could not be read/i.test(`${e?.name} ${e?.message}`);
+
+// Chrome says only "network error" when it can no longer read a file on this
+// computer: still downloading, moved, or in a Google Drive or OneDrive folder
+// that streams files (Mike 9-30, 38 GB Takeout). Say that in plain words.
+function plainReadError(file, e, { kept = 0, reached = 0 } = {}) {
+  if (!unreadable(e)) return e;
+  const where = reached ? ` after ${gb(reached)} of ${gb(file.size)}` : '';
+  const keptLine = kept ? ` The ${kept.toLocaleString()} emails found up to there are saved.` : '';
+  return new Error(`This computer stopped letting the browser read ${file.name}${where}.${keptLine} That usually means it is still downloading, or it sits in a Google Drive or OneDrive folder that streams files. Move it to a normal folder like Downloads and drop it again for the rest. It reads from the start again, but nothing saved is lost or doubled.`);
 }
 
 // Every file comes back as a list, because one .zip part can hold several mailboxes.
@@ -36,7 +62,10 @@ async function readFile(file, personEmail, onProgress) {
   const name = file.name.toLowerCase();
   const one = (source, emails) => [{ fileName: file.name, source, emails }];
   if (name.endsWith('.zip')) return readTakeoutZip(file, personEmail, onProgress);
-  if (name.endsWith('.mbox')) return one('MBOX', await extractSentEmails(file, personEmail, { max: MAX_PER_FILE, onProgress }));
+  if (name.endsWith('.mbox')) {
+    try { return one('MBOX', await extractSentEmails(file, personEmail, { max: MAX_PER_FILE, onProgress })); }
+    catch (err) { if (err?.partialEmails?.length) err.partialItems = one('MBOX', err.partialEmails); throw err; }
+  }
   if (name.endsWith('.pst')) return one('PST', await extractPstEmails(file, personEmail, { max: MAX_PER_FILE, onProgress }));
   if (name.endsWith('.olm')) return one('OLM', await extractOlmEmails(file, personEmail, { max: MAX_PER_FILE, onProgress }));
   if (name.endsWith('.msg')) { const e = await parseMsgFile(file); return one('MSG', e ? [e] : []); }
@@ -230,7 +259,17 @@ export default function VoiceTrainingClient() {
   const [msg, setMsg] = useState(null);           // { type: 'info'|'success'|'error', text }
   const [paste, setPaste] = useState('');
   const [drag, setDrag] = useState(false);
+  const [prog, setProg] = useState(null);         // { title, frac (0..1, null = no end known), detail }
   const fileRef = useRef(null);
+  const lastTick = useRef(0);
+
+  // Leaving the page mid-read loses the part being read.
+  useEffect(() => {
+    if (!busy) return undefined;
+    const stay = e => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', stay);
+    return () => window.removeEventListener('beforeunload', stay);
+  }, [busy]);
 
   async function load(id) {
     const res = await fetch(`/api/sales/voice${id ? `?userId=${encodeURIComponent(id)}` : ''}`);
@@ -246,10 +285,9 @@ export default function VoiceTrainingClient() {
   const who = isMe ? 'your' : `${person?.name || 'their'}'s`;
 
   async function relearn() {
-    setMsg({ type: 'info', text: 'Learning the voice from the whole library. This takes about a minute.' });
-    const res = await postParked('/api/sales/voice/rebuild', { userId }, {
-      onWait: ({ seconds }) => setMsg({ type: 'info', text: `Still learning the voice (${seconds}s)` }),
-    });
+    const learning = s => setProg({ title: 'Learning the voice from the whole library', frac: null, detail: `${s}s so far, usually about a minute` });
+    learning(0);
+    const res = await postParked('/api/sales/voice/rebuild', { userId }, { onWait: ({ seconds }) => learning(seconds) });
     const d = await res.json();
     if (!res.ok) throw new Error(d.message || d.error || `Error ${res.status}`);
     setData(prev => ({ ...prev, ...d }));
@@ -260,12 +298,22 @@ export default function VoiceTrainingClient() {
   async function save(it, tag = '') {
     let added = 0, skipped = 0;
     for (let i = 0; i < it.emails.length; i += CHUNK) {
-      setMsg({ type: 'info', text: `${tag}Saving ${it.fileName || 'emails'}: ${Math.min(i + CHUNK, it.emails.length)} of ${it.emails.length}` });
-      const res = await fetch('/api/sales/voice', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, fileName: it.fileName, source: it.source,
-          emails: it.emails.slice(i, i + CHUNK).map(({ subject, body, date }) => ({ subject, body, date })) }),
-      });
+      const upTo = Math.min(i + CHUNK, it.emails.length);
+      setProg({ title: `${tag}Saving ${it.fileName || 'emails'}`, frac: upTo / it.emails.length, detail: `${upTo.toLocaleString()} of ${it.emails.length.toLocaleString()} emails` });
+      const body = JSON.stringify({ userId, fileName: it.fileName, source: it.source,
+        emails: it.emails.slice(i, i + CHUNK).map(({ subject, body, date }) => ({ subject, body, date })) });
+      // A dropped connection or a busy server gets three more tries. Safe to
+      // repeat: an email already in the library is skipped, never doubled.
+      let res;
+      for (let t = 0; ; t++) {
+        try {
+          res = await fetch('/api/sales/voice', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+          if (![502, 503, 504].includes(res.status) || t >= 3) break;
+        } catch (e) {
+          if (t >= 3) throw new Error('Lost the connection to the app while saving. Check the internet and drop the file again. Emails already saved stay saved and are never doubled.');
+        }
+        await sleep(2000 * (t + 1));
+      }
       const d = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(d.error || `Error ${res.status}`);
       added += d.added || 0; skipped += d.skipped || 0;
@@ -283,9 +331,9 @@ export default function VoiceTrainingClient() {
 
   async function run(fn) {
     if (busy) return;
-    setBusy(true); setMsg(null);
+    setBusy(true); setMsg(null); setProg(null);
     try { await fn(); } catch (e) { setMsg({ type: 'error', text: e.message }); }
-    finally { setBusy(false); if (fileRef.current) fileRef.current.value = ''; }
+    finally { setBusy(false); setProg(null); if (fileRef.current) fileRef.current.value = ''; }
   }
 
   // Several files (e.g. every Google Takeout part) in one go. Each file is saved
@@ -295,17 +343,54 @@ export default function VoiceTrainingClient() {
     const list = [...files];
     let added = 0, skipped = 0, found = 0;
     const failed = [];
+    // One bar across every part: bytes read out of all the files dropped.
+    const total = list.reduce((n, f) => n + f.size, 0);
+    let before = 0, readMs = 0;
     for (const [n, file] of list.entries()) {
       const tag = list.length > 1 ? `File ${n + 1} of ${list.length}. ` : '';
-      let items;
+      const t0 = Date.now();
+      const onProgress = (bytes, got, inner) => {
+        const now = Date.now();
+        if (now - lastTick.current < 250) return;   // millions of pieces in a big part; redraw 4 times a second
+        lastTick.current = now;
+        const done = before + Math.min(bytes, file.size);
+        const ms = readMs + (now - t0);
+        const left = ms > 15_000 && done > 0 ? Math.round((ms * (total - done)) / done / 60_000) : null;
+        setProg({
+          title: `${tag}Reading ${inner ? `${file.name} / ${inner}` : file.name}`,
+          frac: total ? done / total : null,
+          detail: `${gb(done)} of ${gb(total)}, ${(found + got).toLocaleString()} emails found${left == null ? '' : left < 1 ? ', under a minute left' : `, about ${left} min left`}. Keep this tab open.`,
+        });
+      };
+      // A read that stops part way saves what it found before trying again,
+      // so a failure at 30 GB never throws away the first 30 GB (Mike 9-30).
+      let items, kept = 0, reached = 0;
+      const keepPartial = async e => {
+        reached = Math.max(reached, e?.bytesRead || 0);
+        for (const it of (e?.partialItems || []).filter(x => x.emails.length)) {
+          const r = await save(it, `${tag}Keeping what was read. `);
+          found += it.emails.length; kept = Math.max(kept, r.added + r.skipped);
+          added += r.added; skipped += r.skipped;
+        }
+      };
       try {
-        items = await readFile(file, person?.email || '', (bytes, got, inner) =>
-          setMsg({ type: 'info', text: `${tag}Reading ${inner ? `${file.name} / ${inner}` : file.name}: ${Math.round(bytes / 1e6)} MB, ${got} emails so far` }));
+        try { items = await readFile(file, person?.email || '', onProgress); }
+        catch (e) {
+          // A file on a streaming drive can hiccup once; one more try from the top.
+          if (!unreadable(e)) throw e;
+          await keepPartial(e);
+          await sleep(3000);
+          items = await readFile(file, person?.email || '', onProgress);
+        }
       } catch (e) {
-        if (list.length === 1) throw e;
-        failed.push(`${file.name}: ${e.message}`);
+        if (unreadable(e)) await keepPartial(e);
+        const err = plainReadError(file, e, { kept, reached });
+        if (list.length === 1 && !kept) throw err;
+        failed.push(`${file.name}: ${err.message}`);
+        before += file.size; readMs += Date.now() - t0;
         continue;
       }
+      before += file.size; readMs += Date.now() - t0;
       for (const it of items) {
         found += it.emails.length;
         if (!it.emails.length) continue;
@@ -392,6 +477,21 @@ export default function VoiceTrainingClient() {
           <div className="text-sm font-medium text-slate-700">Drop Takeout .zip parts, or .mbox, .pst, .olm, .eml, .msg or .txt files here</div>
           <div className="text-xs text-slate-400 mt-1">or click to choose. Drop every part at once.</div>
         </label>
+
+        {prog && (
+          <div className="mt-3" role="status" aria-live="polite">
+            <div className="flex justify-between gap-3 text-xs text-slate-700 mb-1">
+              <span className="truncate font-medium">{prog.title}</span>
+              {prog.frac != null && <span className="shrink-0 font-semibold">{Math.floor(prog.frac * 100)}%</span>}
+            </div>
+            <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+              {prog.frac != null
+                ? <div className="h-full bg-orange-500 rounded-full transition-[width] duration-300" style={{ width: `${Math.max(1, prog.frac * 100)}%` }} />
+                : <div className="h-full w-full bg-orange-300 rounded-full animate-pulse" />}
+            </div>
+            {prog.detail && <p className="text-[11px] text-slate-500 mt-1">{prog.detail}</p>}
+          </div>
+        )}
 
         <div className="mt-4">
           <textarea value={paste} onChange={e => setPaste(e.target.value)} rows={5} disabled={busy}

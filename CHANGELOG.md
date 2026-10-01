@@ -5,6 +5,14 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Voice Training: progress bar and the "network error"] - September 30, 2026 (NOT DEPLOYED) - no migration
+
+- **Progress bar under the drop area** (`src/app/(app)/sales/automation/voice/VoiceTrainingClient.jsx`). One bar across every file dropped: percent, GB read of GB total, emails found, and time left once 15 seconds have passed. It also covers saving and the final relearn, which shows a pulsing bar because its end is unknown. Inside a Takeout .zip, progress is now a share of the whole part, not of one mailbox. Redraws are capped at 4 a second.
+- **The "network error" Mike hit on a 38 GB Takeout.** Chrome says only "network error" when it can no longer read a file on the computer: the file is still downloading, it was moved, or it sits in a streaming Google Drive or OneDrive folder. A failed read now gets one more try, then a plain message saying to move the file to Downloads and drop it again.
+- **A failed read keeps what it read** (`src/lib/tone/mbox.js`). The emails already read ride along on the error (`partialEmails`, `bytesRead`) and are saved before the one retry, so a 38 GB file that dies at 30 GB keeps its first 30 GB. The message then says how far it got and how many emails were kept. The half-read last email is left out. Another try reads from the start again; duplicates are skipped.
+- **Saving retries.** Each batch of 200 emails gets 3 more tries on a dropped connection or a 502/503/504. Repeating is safe because the library skips duplicates.
+- **Leaving the page mid-read now asks first.**
+
 ## [Voice: newer emails count more, how the writing changed, top 10 phrases, template suggestions] - September 27, 2026 (DEPLOYED 9889c52) - migration 0109
 
 - **Newer emails count more** (`src/lib/tone/voiceAge.js`, pure): one table of periods. Last 3 months 8x, 3 to 12 months 4x, 1 to 2 years 2x, 2 to 3 years 1x, 3 to 5 years half, over 5 years a quarter. It drives three things:

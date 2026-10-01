@@ -177,7 +177,18 @@ export async function extractSentEmails(file, myEmail = '', { max = KEEP_PER_MAI
   const out = [];
   let buf = '', scanFrom = 1, read = 0;
   for (;;) {
-    const { value, done } = await reader.read();
+    let chunk;
+    try { chunk = await reader.read(); }
+    catch (e) {
+      // The read stopped part way (Chrome says only "network error"). The
+      // emails already read ride along on the error, so a 38 GB mailbox that
+      // dies at 30 GB keeps its first 30 GB (Mike 9-30). The half-read last
+      // email is left out.
+      e.partialEmails = keepByAge(out, { max });
+      e.bytesRead = read;
+      throw e;
+    }
+    const { value, done } = chunk;
     if (value) { buf += value; read += value.length; }
     let idx;
     while ((idx = buf.indexOf('\nFrom ', scanFrom)) !== -1) {
