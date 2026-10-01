@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import AskPanel from './AskPanel';
 
 const PROJECT_TYPE_LABELS = {
   MARKET_RATE:    'Market Rate',
@@ -133,6 +134,8 @@ export default function MarketIntelPage() {
           </div>
         </div>
       </div>
+
+      <AskPanel />
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2 mb-5">

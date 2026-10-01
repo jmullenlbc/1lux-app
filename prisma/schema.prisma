@@ -105,6 +105,7 @@ model User {
   voiceBatchesUploaded       VoiceBatch[]                 @relation("VoiceBatchUploader")
   voiceSamples               VoiceSample[]                @relation("VoiceSampleOwner")
   voiceTemplates             VoiceTemplateSuggestion[]    @relation("VoiceTemplateOwner")
+  marketQuestions            MarketQuestion[]             @relation("MarketQuestionAsker")
   botConfig                  BotConfig?
   botDrafts                  BotDraft[]                   @relation("BotDraftOwner")
   schedulingRules            SchedulingRule[]             @relation("SchedulingRuleCreator")
@@ -319,6 +320,7 @@ model Client {
   pipelineUploads      PipelineUpload[]
   pipelineProjects     PipelineProject[]
   signals              MarketSignal[]
+  marketAnswers        MarketAnswerRow[]
   aliases              ClientAlias[]
   cadenceDays          Int? // company-level cadence override; null = use individual tier defaults
   intakeSubmissions    ConceptualSubmission[]
@@ -2143,6 +2145,74 @@ model MarketSignal {
   reviewStatus       String       @default("UNREVIEWED") // UNREVIEWED | REVIEWED | CONVERTED | DISMISSED
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
+}
+
+// Market Intel "ask any market question" (Mike 9-27, migration 0110). The
+// answer is rows, not a blob: one row per company, units by year as child
+// rows, sources as rows, and a link to the CRM company when it is one.
+model MarketQuestion {
+  id         String               @id @default(cuid())
+  askedById  String
+  askedBy    User                 @relation("MarketQuestionAsker", fields: [askedById], references: [id])
+  question   String
+  status     String               @default("RUNNING") // RUNNING | DONE | FAILED
+  answerKind String? // RANKING | LIST | FACT
+  metro      String?
+  summary    String?
+  error      String?
+  archivedAt DateTime?
+  createdAt  DateTime             @default(now())
+  finishedAt DateTime?
+  rows       MarketAnswerRow[]
+  sources    MarketAnswerSource[]
+
+  @@index([createdAt])
+}
+
+model MarketAnswerRow {
+  id          String               @id @default(cuid())
+  questionId  String
+  question    MarketQuestion       @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  rank        Int
+  companyName String
+  role        String? // developer | general contractor | architect | owner | other
+  city        String?
+  state       String?
+  unitsTotal  Int? // units in the last 3 years, when the question is about units
+  yearNote    String? // written in code from the years below (ranking.js)
+  detail      String?
+  clientId    String?
+  client      Client?              @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  matchStatus String? // AUTO_LINKED | SUGGESTED | ADDED (null = not in the CRM)
+  status      String               @default("NEW") // NEW | ADDED | DISMISSED
+  createdAt   DateTime             @default(now())
+  years       MarketAnswerYear[]
+  sources     MarketAnswerSource[]
+
+  @@index([questionId, rank])
+  @@index([clientId])
+}
+
+model MarketAnswerYear {
+  id    String          @id @default(cuid())
+  rowId String
+  row   MarketAnswerRow @relation(fields: [rowId], references: [id], onDelete: Cascade)
+  year  Int
+  units Int
+
+  @@unique([rowId, year])
+}
+
+model MarketAnswerSource {
+  id         String           @id @default(cuid())
+  questionId String
+  question   MarketQuestion   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  rowId      String?
+  row        MarketAnswerRow? @relation(fields: [rowId], references: [id], onDelete: Cascade)
+  url        String
+  title      String?
+
+  @@index([questionId])
 }
 
 model ClientAlias {

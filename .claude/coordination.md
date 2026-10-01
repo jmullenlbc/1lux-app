@@ -2,7 +2,11 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-09-30 (newest) - Mike's Claude - **DEPLOYED 6fe0161**, no migration: alerts test fixed and gated
+### 2026-09-30 (newest) - Mike's Claude - **DEPLOYED (hash pending)**, migration 0110: Market Intel ask box
+- 0110 (additive, schema-guard PASS 9-27): tables MarketQuestion, MarketAnswerRow (FK Client), MarketAnswerYear, MarketAnswerSource. Next migration 0111.
+- Market Intel page: ask any market question (any US metro, open web only). `src/lib/market-intel/ask.js` (job `marketIntel.ask`, web search), park-and-poll `/api/market-intel/ask`; year totals and order computed in `ranking.js`, never by the model. Add to CRM is a button, never automatic. Questions archive-only.
+
+### 2026-09-30 (later, 6fe0161) - Mike's Claude - **DEPLOYED 6fe0161**, no migration: alerts test fixed and gated
 - `scripts/tests/alerts.test.mjs` failed 7/13: its fake Prisma had no `alertMute`, which `notifyUser` checks before every write since 0093 (c8d8393). Real client has it, so prod alerts were never affected; `src/lib/alerts.js` unchanged. Fake now supports mutes, +3 mute tests, file added to the verify.mjs unit-test list.
 - Pushed ONLY those 3 files (verify.mjs and CHANGELOG staged hunk by hunk). Still NOT deployed, left in the working tree: Market Intel ask box + migration 0110 (incl. its `marketAsk.test.mjs` entry in verify.mjs). Next migration 0111.
 - Tip: two sessions running `next build` in this folder at once clobber `.next` (ENOENT on rename). Run one at a time.

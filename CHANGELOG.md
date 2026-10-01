@@ -19,6 +19,15 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 - **Saving retries.** Each batch of 200 emails gets 3 more tries on a dropped connection or a 502/503/504. Repeating is safe because the library skips duplicates.
 - **Leaving the page mid-read now asks first.**
 
+## [Market Intel: ask any market question] - September 27, 2026 (DEPLOYED (hash pending)) - migration 0110
+
+- **Ask box at the top of Market Intel** (`src/app/(app)/market-intel/AskPanel.jsx`). Type any market question ("top 50 affordable housing developers", "top multifamily GCs in Tampa Bay"); the answer comes back as a ranked table with sources. Staff only.
+- **Open web only, no paid data.** New AI job `marketIntel.ask` (READ tier) with the web search tool, up to 15 searches, `pause_turn` carried on up to 5 times (`src/lib/market-intel/ask.js`). Runs park-and-poll (`POST /api/market-intel/ask`, 5 min per run) so it never hits the 30s front door.
+- **"Top" = units built in the last 3 full years** (2023 to 2025 today), plus the year so far shown but not counted. The model only reports numbers it found; the total, the order and the note ("Most in 2024 (900), fewest in 2023 (120)") are worked out in code (`src/lib/market-intel/ranking.js`). A year with no figure is left blank, never read as zero.
+- **CRM check on every row** (the existing fuzzy matcher): "In CRM", "Maybe X? That's them", or "Add to CRM" (a person presses it; nothing is added on its own). "Not useful" greys a row; Bring back restores it.
+- **Saved as rows, not a blob** (migration 0110, additive): `MarketQuestion`, `MarketAnswerRow` (FK Client), `MarketAnswerYear`, `MarketAnswerSource`. Past questions list under the box; "Put away" archives (archive-only, `PATCH /api/market-intel/ask/[id]`). Row actions `PATCH /api/market-intel/ask/rows/[id]`.
+- Tests: `scripts/tests/marketAsk.test.mjs`.
+
 ## [Voice: newer emails count more, how the writing changed, top 10 phrases, template suggestions] - September 27, 2026 (DEPLOYED 9889c52) - migration 0109
 
 - **Newer emails count more** (`src/lib/tone/voiceAge.js`, pure): one table of periods. Last 3 months 8x, 3 to 12 months 4x, 1 to 2 years 2x, 2 to 3 years 1x, 3 to 5 years half, over 5 years a quarter. It drives three things:
