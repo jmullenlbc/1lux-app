@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Voice Training: 250 emails, ever-refilling templates, big Relearn, templates feed the email writers] - October 1, 2026 (DEPLOYED HASH) - migration 0112_voice_template_topic (additive)
+## [Voice Training: 250 emails, ever-refilling templates, big Relearn, templates feed the email writers] - October 1, 2026 (DEPLOYED 99042af) - migration 0112_voice_template_topic (additive)
 
 - Relearn now studies 250 emails instead of 60 (`STUDY` in `src/lib/tone/library.js`; Mike: "60 is too limited"). Still one parked model call; the progress line says "a minute or two".
 - Template suggestions refill themselves (Mike: "If you use a template or say it's not useful, a new one should take its place"). Each suggestion stores the `topic` words of the email group it came from (new column, 0112). After Save or Not useful the screen calls `POST /api/sales/voice/templates/refill` (park-and-poll) which writes templates only for groups no saved, put-away or on-screen suggestion covers (topic overlap >= 0.5, or two shared name words for rows from before 0112), up to 8 on screen. Relearn uses the same rule, so a saved or put-away template never comes back as a near-twin.
