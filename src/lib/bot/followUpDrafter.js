@@ -14,6 +14,7 @@ import { knowledgeContextBlock } from '@/lib/botKnowledge/retrieve';
 import { stripDashes, withSignature, toneSection, voiceExamplesSection, subjectRules, pickSubject, firstName, PLAIN_VOICE_RULES } from '@/lib/bot/emailStyle';
 import { senderVoice } from '@/lib/bot/voice';
 import { personalPromptFor } from '@/lib/contacts/savePersonalFacts';
+import { pickTemplate, templateSection } from '@/lib/bot/templatePick';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -52,15 +53,15 @@ export async function hasDraftNote(contactIds) {
 
 // ── Template + Knowledge ──────────────────────────────────────────────────────
 
+// Mike 10-1: the closest template on file is the skeleton, adapted to this
+// email (templateMatch.js): a follow-up filed for this stage first, then the
+// template whose topic is closest, then any follow-up with no stage.
 async function findTemplate(project) {
-  const candidates = await prisma.messageTemplate.findMany({
-    where: { channel: 'EMAIL', isActive: true, scenario: 'follow_up' },
-    orderBy: { createdAt: 'asc' },
-  });
   const stage = primaryStage(project);
-  return candidates.find(t => t.dealStage === stage)
-      || candidates.find(t => !t.dealStage)
-      || await prisma.messageTemplate.findFirst({ where: { channel: 'EMAIL', isActive: true } });
+  return pickTemplate({
+    scenario: 'follow_up', stage, clientType: project.client?.clientType || null,
+    text: [project.name, project.client?.name, project.serviceType, STAGE_LABEL[stage] || stage, 'follow up'].filter(Boolean).join(' '),
+  });
 }
 
 // What the bot is handed out of the knowledge library: ALL of it.
@@ -125,7 +126,7 @@ export async function generateFollowUpDraft(project, rule, { senderUserId } = {}
 is genuinely relevant to this project and ignore the rest. Never mention the library
 itself, and never force a fact in just because it is here:\n${knowledgeText}`
     : '';
-  const templateBody = template?.body || '';
+  const templateText = templateSection(template);
 
   const prompt = `You are drafting a follow-up email on behalf of ${owner?.name || 'ILC Studios'} at ILC Studios, a professional lighting design firm.
 
@@ -139,7 +140,7 @@ Project context:
 ${recentActivities || '  (no activity logged)'}
 - Key contact: ${toName || 'unknown'} (${toEmail})
 ${personalText}${knowledgeBlock}
-${toneSection(sender?.toneProfile, sender?.name)}${voiceExamplesSection(sender?.samples, sender?.name)}${templateBody ? `\nUse this template as a skeleton (fill in project-specific details, don't use it verbatim):\n${templateBody}` : ''}
+${toneSection(sender?.toneProfile, sender?.name)}${voiceExamplesSection(sender?.samples, sender?.name)}${templateText}
 
 Write a brief, natural follow-up email. Reference the actual project by name. Do not use generic filler. Match the tone of a trusted consultant checking in, not a salesperson chasing. Keep it under 5 sentences. Address it to ${toName || 'the contact'}.
 End with a sign-off word on its own line, then "${me}". Nothing after that: the signature is added for you.

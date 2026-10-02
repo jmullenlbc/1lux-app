@@ -23,6 +23,8 @@ const ROUTES = [
   'src/app/api/projects/[id]/tracker/import-toc/route.js',
   'src/app/api/projects/[id]/code-check/route.js',
   'src/app/api/automation/knowledge/docs/route.js',
+  'src/app/api/sales/voice/rebuild/route.js',
+  'src/app/api/sales/voice/templates/refill/route.js',
 ];
 
 const CALLERS = [

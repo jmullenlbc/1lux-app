@@ -5,6 +5,14 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Voice Training: 250 emails, ever-refilling templates, big Relearn, templates feed the email writers] - October 1, 2026 (DEPLOYED HASH) - migration 0112_voice_template_topic (additive)
+
+- Relearn now studies 250 emails instead of 60 (`STUDY` in `src/lib/tone/library.js`; Mike: "60 is too limited"). Still one parked model call; the progress line says "a minute or two".
+- Template suggestions refill themselves (Mike: "If you use a template or say it's not useful, a new one should take its place"). Each suggestion stores the `topic` words of the email group it came from (new column, 0112). After Save or Not useful the screen calls `POST /api/sales/voice/templates/refill` (park-and-poll) which writes templates only for groups no saved, put-away or on-screen suggestion covers (topic overlap >= 0.5, or two shared name words for rows from before 0112), up to 8 on screen. Relearn uses the same rule, so a saved or put-away template never comes back as a near-twin.
+- One big orange Relearn button at the top of Voice Training, styled like the app's other buttons; the small link in "What the bot learned" is gone.
+- Email writers use the closest template as a skeleton: new `src/lib/bot/templateMatch.js` (pure) + `templatePick.js`. Order: a template filed for the scenario AND deal stage, then the template whose words best match what the email is about (so the Voice screen's "custom" templates finally get used), then the scenario's no-stage template, else none. A template filed for one client type is never used for another. Prompt rule: "keep its shape and the lines that fit, fill in the specifics, drop what does not apply, never send it word for word". Wired into `followUpDrafter.js` (replaces `findTemplate`, which used to fall back to ANY active template), `composeOutreach.js` (recaps and nudges) and `checkInDrafts.js` (keep-in-touch).
+- Tests: `scripts/tests/templateMatch.test.mjs` (4 new); `rebuild` and `refill` routes added to the parked-route gate. `verify --full` green (15 gates).
+
 ## [Voice Training: out sick, office closed and hand-off lines are away too] - October 1, 2026 (DEPLOYED 64478ba) - no migration
 
 - Mike still saw "I will be out sick on 2/23", "I will be out all day on 9/18 at a work event", "Please email the following people for help" and an "ILC office closed notice" template after eae3c50. The away rules in `autoMail.js` now cover: any "I will be out / away / unavailable / offline" line; "out sick", "out of town", "out all day"; "our office will be closed", "closed for the holiday", "holiday hours"; "the team will be away from the office 6/16"; and hand-off lines ("please email the following people for help"), with the names and emails listed under one taken out too. Subjects like "Out sick today" or "Office closed" set the whole email aside.

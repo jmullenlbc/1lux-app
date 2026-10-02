@@ -16,6 +16,7 @@ import { stripDashes, hasBullets, firstName, withSignature, insertBeforeSignOff,
 import { senderVoice } from '@/lib/bot/voice';
 import { personalPromptFor } from '@/lib/contacts/savePersonalFacts';
 import { ownerIdsOf, senderFor as pickSender } from '@/lib/notes/owners';
+import { pickTemplate, templateSection } from '@/lib/bot/templatePick';
 
 // Methods that belong in an outreach email to the contact.
 export const OUTREACH_EMAIL_METHODS = new Set(['EMAIL', 'SEND_MATERIALS', 'SCHEDULE']);
@@ -124,6 +125,13 @@ async function knowledgeFor(group) {
   }
 }
 
+// What this email is about, for picking the closest template (Mike 10-1). The
+// items, not the names: a name in a template body says nothing about its topic.
+async function templateFor(group) {
+  const text = [group.nudge ? 'check in' : 'meeting recap next steps', ...group.actions.map(a => `${a.label} ${a.detail || ''} ${a.targetName || ''}`)].join(' ');
+  return templateSection(await pickTemplate({ scenario: group.nudge ? 'follow_up' : 'meeting_recap', text }));
+}
+
 function knowledgeSection(text) {
   return text
     ? `\nILC's knowledge library: everything we have taught the bot, in full. Use whatever is
@@ -167,7 +175,7 @@ ${ours.length ? `Things ${me} will do or is asking for:\n${ours.map(line).join('
   const prompt = `Write ONE short email from ${me} at ILC Studios (lighting) to ${group.contactName}${group.company ? ` (${group.company})` : ''}.
 
 ${items}
-${await personalPromptFor(group.contactId, firstName(group.contactName))}${knowledgeSection(await knowledgeFor(group))}${toneSection(sender?.toneProfile, sender?.name)}${voiceExamplesSection(sender?.samples, sender?.name)}${await lessonsFor(emailKind, sender, group.ownerUserId)}
+${await personalPromptFor(group.contactId, firstName(group.contactName))}${knowledgeSection(await knowledgeFor(group))}${await templateFor(group)}${toneSection(sender?.toneProfile, sender?.name)}${voiceExamplesSection(sender?.samples, sender?.name)}${await lessonsFor(emailKind, sender, group.ownerUserId)}
 Shape (Mike 9-26: bullets, not a long narrative):
 1. Greeting with their first name.
 2. One or two short sentences, no more.

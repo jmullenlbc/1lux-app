@@ -2729,6 +2729,7 @@ model VoiceTemplateSuggestion {
   whenToUse         String           @default("")
   subject           String           @default("")
   body              String
+  topic             String           @default("") // words the group of emails shares, e.g. "peer review budget"; blank on rows before 0112
   basedOn           Int              @default(0) // similar emails found in the library
   recentCount       Int              @default(0) // of those, sent in the last 12 months
   lastSentAt        DateTime?

@@ -14,6 +14,7 @@ import { pickWeighted, AGE_BANDS, UNDATED } from '@/lib/tone/voiceAge';
 import { periodStats, topSentences, personalLines, recurringEmails } from '@/lib/tone/voiceInsights';
 import { autoMailReason, findAutoMail, stripAwayLines, isAwaySentence, isAwayTemplate } from '@/lib/tone/autoMail';
 import { INTERVIEW_SOURCE } from '@/lib/tone/interview';
+import { topicOverlap, sharedWords } from '@/lib/bot/templateMatch';
 
 const ACTIVE = { archivedAt: null, batch: { archivedAt: null } };
 
@@ -167,7 +168,7 @@ export async function voiceSamplesFor(userId, n = 4) {
   }
 }
 
-const STUDY = 60;           // emails the model reads to learn the voice
+const STUDY = 250;          // emails the model reads to learn the voice (Mike 10-1: 60 was too limited)
 const LIBRARY_READ = 6000;  // newest emails counted for phrases, stats and templates
 
 /**
@@ -321,12 +322,28 @@ const PLACEHOLDERS = ['contactFirstName', 'companyName', 'projectName', 'senderN
  * writes each one up in their own current words. Old suggestions are marked
  * REPLACED, never deleted; saved and "not useful" ones are not suggested again.
  */
-async function refreshTemplateSuggestions(user, rows, now) {
-  const groups = recurringEmails(rows, { now });
+// A group is covered when a suggestion on the same topic already exists: the
+// topic words match, or (rows from before 0112, no topic) the name shares two
+// words with it. A covered group never comes back as a near-twin, so the open
+// slots go to new kinds of email (Mike 10-1: "ever learning and ever refilling").
+const SLOTS = 8;
+function openGroups(found, decided) {
+  return found.filter(g => !decided.some(d => (d.topic ? topicOverlap(g.topic, d.topic) >= 0.5 : sharedWords(g.topic, d.name) >= 2)));
+}
+
+/**
+ * On Relearn: every suggestion still on screen is replaced by fresh ones. On a
+ * refill (after a save or "not useful"): what is on screen stays and only the
+ * empty slots are written, for groups no suggestion covers yet.
+ */
+async function refreshTemplateSuggestions(user, rows, now, { refill = false } = {}) {
   const decided = await prisma.voiceTemplateSuggestion.findMany({
-    where: { userId: user.id, status: { in: ['SAVED', 'DISMISSED'] } },
-    select: { name: true }, take: 100,
+    where: { userId: user.id, status: { in: refill ? ['SUGGESTED', 'SAVED', 'DISMISSED'] : ['SAVED', 'DISMISSED'] } },
+    select: { name: true, topic: true, status: true }, take: 200,
   });
+  const room = refill ? Math.max(0, SLOTS - decided.filter(d => d.status === 'SUGGESTED').length) : SLOTS;
+  if (!room) return;
+  const groups = openGroups(recurringEmails(rows, { now, max: SLOTS * 2 }), decided).slice(0, room);
   const handled = decided.length ? `Already handled, do not write one of these again:\n${decided.map(d => `- ${d.name}`).join('\n')}\n\n` : '';
   // One small call per group (Mike 10-1: none came back when all 8 were asked
   // for in one answer). A group that fails or is skipped never stops the rest.
@@ -350,12 +367,13 @@ Never use an em dash, en dash or double dash. Return ONLY the JSON object.`, use
   const written = (await Promise.all(groups.map(one))).filter(Boolean)
     .filter(t => { const k = String(t.name || '').toLowerCase().trim(); if (names.has(k)) return false; names.add(k); return true; });
   if (groups.length && !written.length) console.error(`[voice] ${groups.length} groups but no templates written for user ${user.id}`);
-  await prisma.voiceTemplateSuggestion.updateMany({ where: { userId: user.id, status: 'SUGGESTED' }, data: { status: 'REPLACED' } });
-  for (const t of written.slice(0, 8)) {
+  if (!refill) await prisma.voiceTemplateSuggestion.updateMany({ where: { userId: user.id, status: 'SUGGESTED' }, data: { status: 'REPLACED' } });
+  for (const t of written.slice(0, room)) {
     const g = groups[Number(t.group) - 1];
     await prisma.voiceTemplateSuggestion.create({
       data: {
         userId: user.id,
+        topic: g.topic.join(' ').slice(0, 200),
         name: String(t.name || 'Template').slice(0, 120),
         whenToUse: String(t.whenToUse || '').slice(0, 500),
         subject: String(t.subject || '').slice(0, 200),
@@ -369,12 +387,25 @@ Never use an em dash, en dash or double dash. Return ONLY the JSON object.`, use
 }
 
 /** A person's template suggestions (live, saved and "not useful"), most used first. */
+/**
+ * After a suggestion is saved or put away (Mike 10-1: "a new one should take
+ * its place"): writes templates for the next kinds of email not yet covered,
+ * up to 8 on screen. Nothing on screen is replaced. Returns the list.
+ */
+export async function refillTemplateSuggestions(userId) {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true } });
+  if (!user) return [];
+  const rows = await libraryRows(userId);
+  if (rows.length >= 5) await refreshTemplateSuggestions(user, rows, Date.now(), { refill: true });
+  return templateSuggestions(userId);
+}
+
 export async function templateSuggestions(userId) {
   return prisma.voiceTemplateSuggestion.findMany({
     where: { userId, status: { in: ['SUGGESTED', 'SAVED', 'DISMISSED'] } },
     orderBy: [{ basedOn: 'desc' }, { createdAt: 'desc' }],
     take: 60,
-    select: { id: true, name: true, whenToUse: true, subject: true, body: true, basedOn: true, recentCount: true,
+    select: { id: true, name: true, whenToUse: true, subject: true, body: true, topic: true, basedOn: true, recentCount: true,
       lastSentAt: true, status: true, messageTemplateId: true, decidedAt: true },
   });
 }

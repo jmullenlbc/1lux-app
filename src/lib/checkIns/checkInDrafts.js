@@ -17,6 +17,7 @@ import { EMAIL_KINDS, meetingWord, editExamples, editExamplesSection } from '@/l
 import { stripDashes, firstName, withSignature, toneSection, voiceExamplesSection, subjectRules, pickSubject, PLAIN_VOICE_RULES } from '@/lib/bot/emailStyle';
 import { senderVoice } from '@/lib/bot/voice';
 import { personalPromptFor } from '@/lib/contacts/savePersonalFacts';
+import { pickTemplate, templateSection } from '@/lib/bot/templatePick';
 import { cadenceDaysFor, checkInDueDay, wantsCheckInDraft, checkInOrder, isCheckInDue, pickOwner } from '@/lib/checkIns/checkIns';
 
 export const CHECK_IN_DRAFT_TYPE = 'CHECK_IN';
@@ -85,7 +86,7 @@ export async function composeCheckInEmail(contact, ownerUserId, lastNote = null)
 Nothing is wrong and nothing is owed. It is a friendly keep-in-touch note because we have not talked in a while.${last}
 Offer one easy next step, like coffee, lunch or a quick call. Warm, never pushy.
 Never say "reminder", "check-in", "circling back" or "touching base", and never mention how long it has been.
-${await personalPromptFor(contact.id, firstName(contact.preferredName || contact.name))}${toneSection(sender?.toneProfile, sender?.name)}${voiceExamplesSection(sender?.samples, sender?.name)}${lessons}
+${await personalPromptFor(contact.id, firstName(contact.preferredName || contact.name))}${templateSection(await pickTemplate({ text: 'keep in touch catch up coffee lunch quick call been a while' }))}${toneSection(sender?.toneProfile, sender?.name)}${voiceExamplesSection(sender?.samples, sender?.name)}${lessons}
 Shape:
 1. Greeting with their first name.
 2. One or two short sentences, no more.

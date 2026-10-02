@@ -345,7 +345,7 @@ export default function VoiceTrainingClient() {
   const who = isMe ? 'your' : `${person?.name || 'their'}'s`;
 
   async function relearn() {
-    const learning = s => setProg({ title: 'Learning the voice from the whole library', frac: null, detail: `${s}s so far, usually about a minute` });
+    const learning = s => setProg({ title: 'Learning the voice from the whole library', frac: null, detail: `${s}s so far, usually a minute or two` });
     learning(0);
     const res = await postParked('/api/sales/voice/rebuild', { userId }, { onWait: ({ seconds }) => learning(seconds) });
     const d = await res.json();
@@ -498,6 +498,21 @@ export default function VoiceTrainingClient() {
     const d = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(d.error || `Error ${res.status}`);
     setData(prev => ({ ...prev, templates: d.templates }));
+    if (action === 'restore') return;
+    // Mike 10-1: a saved or put-away template frees a slot; a new kind of email takes it.
+    const tick = s => setProg({ title: 'Writing a new template to take its place', frac: null, detail: `${s}s so far, usually under a minute` });
+    tick(0);
+    const r = await postParked('/api/sales/voice/templates/refill', { userId }, { onWait: ({ seconds }) => tick(seconds) });
+    const f = await r.json().catch(() => ({}));
+    if (r.ok && f.templates) setData(prev => ({ ...prev, templates: f.templates }));
+    if (f.error) setMsg({ type: 'error', text: f.error });
+  });
+
+  // Mike 10-1: one big Relearn at the top, styled like every other button.
+  const relearnNow = () => run(async () => {
+    const r = await relearn();
+    setMsg(r.rebuildError ? { type: 'error', text: `${leftOutLine({}, r.setAside)} ${r.rebuildError}`.trim() }
+      : { type: 'success', text: `Relearned from ${r.count} emails.${leftOutLine({}, r.setAside)}` });
   });
 
   const putBack = s => run(async () => {
@@ -526,6 +541,16 @@ export default function VoiceTrainingClient() {
 
   return (
     <div className="space-y-5">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <p className="text-sm text-slate-600 max-w-2xl">
+          Relearn reads the whole library again: sets aside away mail, studies the newest 250 emails and
+          rewrites the templates below. Press it after adding or putting back emails.
+        </p>
+        <button onClick={relearnNow} disabled={busy || data.count < 5}
+          className="text-sm font-semibold px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-40 shrink-0">
+          Relearn
+        </button>
+      </div>
       {data.canPickAnyone && (
         <div className="flex items-center gap-2 text-sm">
           <span className="text-slate-500">Working on the voice of</span>
@@ -605,13 +630,6 @@ export default function VoiceTrainingClient() {
             <h2 className="text-sm font-semibold text-slate-700">What the bot learned</h2>
             {data.builtAt && <p className="text-xs text-slate-400 mt-1">Learned {new Date(data.builtAt).toLocaleString()}</p>}
           </div>
-          {data.count >= 5 && (
-            <button onClick={() => run(async () => {
-              const r = await relearn();
-              setMsg(r.rebuildError ? { type: 'error', text: `${leftOutLine({}, r.setAside)} ${r.rebuildError}`.trim() }
-                : { type: 'success', text: `Relearned from ${r.count} emails.${leftOutLine({}, r.setAside)}` });
-            })} disabled={busy} className="text-xs text-orange-600 hover:underline disabled:opacity-40">Relearn</button>
-          )}
         </div>
         {!p ? (
           <p className="text-sm text-slate-500">Nothing yet. Add at least 5 emails and the bot learns {who} voice.</p>
