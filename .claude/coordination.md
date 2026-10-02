@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-01 (newest) - Mike's Claude - migration 0113 (additive): courtyards count 2 poles each, Email Template rules
+### 2026-10-01 (newest) - Mike's Claude - **DEPLOYED a97e404**, migration 0113 (additive): courtyards count 2 poles each, Email Template rules
 
 - Unmeasured courtyard = 60 ft each (2 poles); public intake asks a courtyard count (`figureCourtyards`). `COURTYARD_FT_EACH` in `siteFeatureWords.js`.
 - `MessageTemplate` gains `serviceType`, `pipeline`, `contactRole`, `topicWords` (all nullable); `templateMatch.js` filters and tie-breaks on them; `followUpDrafter.js` passes the context.

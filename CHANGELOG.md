@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Courtyards count 2 poles each + more rules on Email Templates] - October 1, 2026 (NOT DEPLOYED) - migration 0113_template_rules (additive)
+## [Courtyards count 2 poles each + more rules on Email Templates] - October 1, 2026 (DEPLOYED a97e404) - migration 0113_template_rules (additive)
 
 - **Courtyards:** a courtyard spotted on drawings with no length now counts as `COURTYARD_FT_EACH` = 60 ft (2 poles at 30 ft per pole), flagged `lengthAssumed`; a measured length always wins (`normalizeSiteFeatures` in `siteFeatureWords.js`). Mike 10-1: "2 poles per courtyard until we learn more".
 - Public conceptual budget asks "# Courtyards" (`figureCourtyards`, a count) instead of "courtyard length"; old `figureCourtyardFt` still read for older drafts. Wording never mentions poles. Staff Project Data hint explains 60 ft per courtyard when the length is unknown.
