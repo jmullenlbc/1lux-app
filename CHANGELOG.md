@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Conceptual budget grid fixes: stairwells, footprint, garages, exterior, emergency, cost deltas] - October 2, 2026 (DEPLOYED) - no migration
+## [Conceptual budget grid fixes: stairwells, footprint, garages, exterior, emergency, cost deltas] - October 2, 2026 (DEPLOYED 3d73cdf) - no migration
 
 - Project name shows above the budget total on the public grid and both wizards (`BudgetSidebar.jsx`).
 - Caution triangles replaced by the one red "!" (`AlertMark`) with the reason on hover.
@@ -17,7 +17,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 - Cost box shows the change from the last choice: red "+$X" (adder) or green "-$X" (savings) for labor and for labor + materials (`QuestionCard.jsx`).
 - Tests updated for the stairwell rule and the footprint fallback.
 
-## [Template contact-role rule reaches recap and keep-in-touch emails] - October 1, 2026 (DEPLOYED) - no migration
+## [Template contact-role rule reaches recap and keep-in-touch emails] - October 1, 2026 (DEPLOYED 3d73cdf) - no migration
 
 - `composeOutreach.js` (recaps, nudges) and `checkInDrafts.js` (keep-in-touch) now pass the contact's job title to the template picker, so a Contact Role rule on an Email Template applies there too (Mike 10-1). Service type and pipeline still apply to follow-ups only, since those emails are not tied to one project.
 
