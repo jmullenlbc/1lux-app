@@ -344,6 +344,9 @@ export const PRICING = {
         highRise:      35,
       },
     },
+    // "Upgraded landscape and/or path lighting" (Mike 10-2): multiplies the
+    // landscape and path lighting lines. Placeholder until Mike sets it.
+    upgradedMultiplier: 1.25,
     landscape: {
       // NET lot: (lotSf − buildingFootprintSf) × $0.02 PER SQUARE FOOT. Wired
       // to the net figure 2026-09-04 (Mike: "net lot") — before that the
@@ -363,7 +366,9 @@ export const PRICING = {
       laborPerDisk:    0,
     },
     detachedGarage: {
-      sconcePerDoor: 80,
+      sconcePerDoor: 80,   // retired 10-2; kept so a saved sheet still loads
+      // Mike 10-2: "1 strip fixture should be in each and that should be the math."
+      stripPerGarage: 65,  // one LED strip inside each attached or detached garage (Mike 10-2)
     },
     // ── SITE FEATURES (Mike 2026-09-16) ──────────────────────────────────────
     // Sporadic outdoor amenities found by their printed words on the site or
@@ -435,10 +440,10 @@ export const PRICING = {
   },
 
   emergency: {
-    // Mike 2026-09-12: "garage fixtures should get integrated batteries when
-    // there are garages and no generator". Every strategy except generator backs
-    // the garage up with batteryGarage below, so no strategy charges a garage
-    // $/SF any more. The math lives in src/lib/emergencyCost.js and keys off
+    // Mike 10-2: every choice needs its own cost. Only the two "Integrated
+    // batteries in garage" strategies back the garage up with batteryGarage
+    // below; the others light the garage with their own corridor device at the
+    // corridor $/SF. The math lives in src/lib/emergencyCost.js and keys off
     // the strategy NAME (frozen project snapshots still carry the old flags).
     strategies: {
       generator: {

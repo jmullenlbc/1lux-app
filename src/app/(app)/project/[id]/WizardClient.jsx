@@ -309,6 +309,7 @@ export default function WizardClient({ project, projectData, initialSections, in
       {/* Right: Live budget sidebar */}
       <BudgetSidebar
         budget={budget}
+        projectName={projectMeta?.name || project.name || ''}
         projectData={localPD}
         currentStep={currentStep}
         areaNotes={areas.notes}

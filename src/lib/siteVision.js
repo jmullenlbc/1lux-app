@@ -248,6 +248,7 @@ Return ONLY valid JSON — no markdown, no commentary:
   "exitDoors": number or null,
   "exitDoorsCounted": number or null,
   "buildingFootprintSf": number or null,
+  "buildingFootprintSfMeasured": number or null,
   "lotCoveragePct": number or null,
   "buildingType": one of "singleFamily" | "townHouses" | "stackedFlats" | "garden" | "gurban" | "wrap" | "podium" | "midRise" | "highRise", or null,
   "driveLengthFtMeasured": number or null,
@@ -262,7 +263,7 @@ Return ONLY valid JSON — no markdown, no commentary:
 CRITICAL RULES:
 - Report ONLY numbers that are WRITTEN on the drawing. Look hardest at any "SITE DATA", "PROJECT DATA", "ZONING", "UNIT MIX" or "PARKING" summary block, and at title-block callouts. These are often hand-lettered or marked up — read them anyway.
 - If a number is not written down, return null. NEVER estimate, infer, or count objects in the drawing to produce a number. A null is correct and useful; a guessed number is harmful because it becomes a budget.
-- In particular: do NOT count light fixtures or building footprints by eye. If a parking total is not stated in text, parkingProvided and surfaceParking must be null — a counted stall number goes ONLY in surfaceParkingCounted (see COUNTED FIGURES below), never in these.
+- In particular: do NOT count light fixtures, and do NOT put a measured footprint in buildingFootprintSf (it goes ONLY in buildingFootprintSfMeasured, see MEASURED FIGURES). If a parking total is not stated in text, parkingProvided and surfaceParking must be null — a counted stall number goes ONLY in surfaceParkingCounted (see COUNTED FIGURES below), never in these.
 - lotAcres/lotSf: use the site area if stated. If only acres are given, still fill lotAcres and leave lotSf null — do not convert.
 - parkingProvided is what the drawing says is PROVIDED; parkingRequired is what code REQUIRES. They differ, and both may appear in a parking table.
 - parkingRatioRequired: the required parking RATE per dwelling unit, only if WRITTEN ("1.5 SPACES/UNIT", "PARKING REQUIRED: 1.75 PER D.U.", "2 STALLS PER UNIT"). Report the per-unit number exactly as written (1.5, not a total). If the rate is split by bedroom count (e.g. "1 PER 1BR, 2 PER 2BR"), return null and mention the rates in notes. Do NOT compute a total from it — code does that.
@@ -285,12 +286,13 @@ COUNTED FIGURES — the one deliberate exception to the no-counting rule. These 
 - surfaceParkingCounted: ONLY from a SITE PLAN view (the whole property seen from above, with drive aisles and striped parking). Count the individual striped open-air surface stalls. Do NOT count stalls inside garages, under carports, in a parking structure, or on a podium level. Count it even when a total is stated elsewhere, so the two can be compared. If the stalls are too small or crowded to count one by one, or the image is not a site plan, null.
 - When a counted figure and a stated figure are both available, report BOTH — never overwrite a stated number with your count.
 
-MEASURED FIGURES — driveLengthFtMeasured, exteriorAmenitySfMeasured and a site feature's lengthFt are the only fields you may MEASURE rather than read or count. Every measurement needs a scale, and you find one by going down this ladder and STOPPING at the first rung that exists on the sheet:
+MEASURED FIGURES — driveLengthFtMeasured, exteriorAmenitySfMeasured, buildingFootprintSfMeasured and a site feature's lengthFt are the only fields you may MEASURE rather than read or count. Every measurement needs a scale, and you find one by going down this ladder and STOPPING at the first rung that exists on the sheet:
   1. "scale" — a written scale ("1\\" = 40'-0\\"", "SCALE: 1:50") or a graphic scale bar.
   2. "dimension" — a printed dimension string on the plan (a building side labelled 220'-0\\", a property line labelled 412.5'). Use the longest legible one as the ruler.
   3. "stall" — a standard striped parking stall is 9 ft wide and 18 ft deep, and a two-way drive aisle between stall rows is 24 ft. Use a few plain mid-row stalls, not an end or accessible stall, and average them.
   4. "door" — an exterior door leaf is 3 ft wide. Last resort, only when nothing above exists.
 - Report the rung you used in scaleBasis; null when you measured nothing. Never mix rungs on one sheet, and never assume a scale that is not drawn.
+- buildingFootprintSfMeasured: ONLY from a SITE PLAN that shows the building outlines. Using the scale from the ladder above, measure the ground-floor outline (outside face of the exterior walls) of every RESIDENTIAL building and add them up: one floor, all buildings together. Rectangles are fine: break an L, U or courtyard-wrap outline into rectangles, length × width each, and do not count an open courtyard inside the outline. EXCLUDE the clubhouse / leasing building, detached garages, carport canopies, maintenance sheds, pool, decks and paving. Round to the nearest 100 SF. Measure it even when a footprint is written, so the two can be compared. No building outlines, or no scale → null.
 - driveLengthFtMeasured: ONLY from a SITE PLAN. The total centerline length, in feet, of the PRIVATE drives / private streets the homes front onto — the community's own internal road, typical of townhome and single-family layouts. Add up every branch. Do NOT include drive aisles between striped parking stalls (those are lit by the stall count) and do NOT include public streets outside the property line. No private drive, or you cannot follow it end to end → null. Round to the nearest 10 ft.
 - exteriorAmenitySfMeasured: the outdoor amenity area that gets lit. A LANDSCAPE, HARDSCAPE or SITE FURNISHINGS plan is the best source — it labels these areas and often prints their square footage; a printed area figure beats a measurement, so if one is printed put it in amenitySf instead and leave this null. Otherwise measure, from a site, landscape or amenity-deck plan, the POOL ENCLOSURE (everything inside the pool fence line, pool included) PLUS every COURTYARD PLUS every contiguous hardscape area that touches the clubhouse or leasing building — pool deck, plaza, patio, outdoor kitchen, grill area, fire-pit court. On a podium or high-rise building the amenities sit UP on the building: a podium-level pool/amenity deck or a rooftop terrace counts exactly like a ground-level pool court — measure the outdoor deck area on that level's plan, planters inside it included. EXCLUDE drive aisles, parking, the public sidewalk, lawn outside courtyards, and street-level planting. Rectangles are fine: length × width of each piece, added up, rounded to the nearest 100 SF. Only when the sheet shows no pool, no courtyard and no amenity deck → null.
 
@@ -389,7 +391,7 @@ BUILDING TYPE — the one classification you may make, and only from evidence th
  * turf) with a count and, for the linear ones, a length. Each is priced as
  * its own fixture package, never folded into the amenity SF.
  */
-export const SITE_VISION_PROMPT_VERSION = `siteVision-2026-09-24-${MAX_EDGE}px`;
+export const SITE_VISION_PROMPT_VERSION = `siteVision-2026-10-02-${MAX_EDGE}px`;
 
 // The site-feature vocabulary and cleaner live in the canvas-free
 // `siteFeatures.js` (the engine, takeoff and unit tests import them; this
@@ -515,7 +517,7 @@ const SITE_FIELDS = [
   'buildingCount', 'buildingsCounted', 'clubhouseSf',
   'amenitySf', 'grossSf', 'stories', 'storiesCounted', 'egressStairwells',
   'egressStairwellsCounted', 'exitDoors', 'exitDoorsCounted',
-  'buildingFootprintSf', 'lotCoveragePct', 'buildingType', 'driveLengthFtMeasured',
+  'buildingFootprintSf', 'buildingFootprintSfMeasured', 'lotCoveragePct', 'buildingType', 'driveLengthFtMeasured',
   'exteriorAmenitySfMeasured', 'scaleBasis',
 ];
 const BED_FIELDS = ['studio', 'oneBed', 'twoBed', 'threeBed'];
@@ -685,6 +687,7 @@ export function validateSiteData(data) {
   // measured, means the model skipped the ladder. Not rewritten — flagged.
   const measuredAny = typeof data.driveLengthFtMeasured === 'number'
     || typeof data.exteriorAmenitySfMeasured === 'number'
+    || typeof data.buildingFootprintSfMeasured === 'number'
     || (Array.isArray(data.siteFeatures) && data.siteFeatures.some(f => typeof f?.lengthFt === 'number'));
   const basisOk = ['scale', 'dimension', 'stall', 'door'].includes(data.scaleBasis);
   if (measuredAny && !basisOk) {
@@ -699,6 +702,15 @@ export function validateSiteData(data) {
     warnings.push({
       field: 'scaleBasis',
       message: 'Measured off the sheet using a 3 ft door as the only scale reference — the weakest rung. Confirm.',
+    });
+  }
+
+  // A measured footprint larger than the lot is a scale slip too (Mike 10-2).
+  if (typeof data.buildingFootprintSfMeasured === 'number' && typeof data.lotSf === 'number'
+      && data.lotSf > 0 && data.buildingFootprintSfMeasured > data.lotSf) {
+    warnings.push({
+      field: 'buildingFootprintSfMeasured',
+      message: `The measured building footprint (${data.buildingFootprintSfMeasured.toLocaleString()} SF) is larger than the lot. The scale was misread, confirm.`,
     });
   }
 

@@ -1,4 +1,5 @@
 'use client';
+import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -92,7 +93,29 @@ const moneyEach = v => {
  * entry of budget.questionCosts: { lines:[{label,count,countLabel,each,product,
  * laborEach,labor}], product, labor }. Labor is an estimate, never in a total.
  */
+// Change since the last choice (Mike 10-2): "+$10,000" adder in red,
+// "-$10,000" savings in green.
+function Delta({ v, what }) {
+  if (!v) return null;
+  return (
+    <span className={cn('ml-2 font-mono text-[11px] font-semibold', v > 0 ? 'text-red-600' : 'text-emerald-700')}>
+      {v > 0 ? '+' : '-'}{money(Math.abs(v))} {what}
+    </span>
+  );
+}
+
 export function CostImpact({ impact }) {
+  // Remember the last totals so a new choice shows how far it moved them.
+  const labor = Math.round(Number(impact?.labor) || 0);
+  const total = Math.round((Number(impact?.product) || 0) + labor);
+  const prev = useRef(null);
+  const [delta, setDelta] = useState(null);
+  useEffect(() => {
+    const p = prev.current;
+    if (p && (p.labor !== labor || p.total !== total)) setDelta({ labor: labor - p.labor, total: total - p.total });
+    prev.current = { labor, total };
+  }, [labor, total]);
+
   if (!impact || !impact.lines?.length || !(impact.product > 0 || impact.labor > 0)) return null;
   return (
     <div className="mt-2 rounded-md bg-white/70 border border-amber-200 px-3 py-2 text-xs text-slate-600 space-y-0.5">
@@ -120,6 +143,11 @@ export function CostImpact({ impact }) {
       {impact.labor > 0 && (
         <div className="pt-1 mt-1 border-t border-amber-100 font-medium text-slate-800">
           Estimated labor + materials: <span className="font-mono">{money(impact.product + impact.labor)}</span>
+          {delta && (delta.labor || delta.total) ? (
+            <div className="text-[11px] font-normal text-slate-500">
+              Change from last choice:<Delta v={delta.labor} what="labor" /><Delta v={delta.total} what="labor + materials" />
+            </div>
+          ) : null}
         </div>
       )}
     </div>

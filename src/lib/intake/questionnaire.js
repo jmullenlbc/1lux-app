@@ -158,7 +158,8 @@ export const INTAKE_QUESTIONS = [
     key: 'egressLighting',
     section: 'Emergency',
     question: 'How do you want to approach emergency egress lighting? (i.e. If you have a building generator that can be used for lighting then you do not need any other emergency lighting.)',
-    hint: 'Code still requires backup lighting on every egress path; the strategy decides where the backup power lives.',
+    hint: 'Code still requires backup lighting on every egress path; the strategy decides where the backup power lives. Only the "Integrated batteries in garage" choices put batteries in the garage fixtures; the others cover the garage with frogeyes or inverters.',
+    // Mike 10-2: keep all six choices, each with its own cost (emergencyCost.js).
     options: [
       'Building generator',
       'Inverters everywhere',
@@ -233,8 +234,8 @@ export const INTAKE_QUESTIONS = [
     default: 'Base design',
     // Wired 2026-09-04 (Fulshear review): 'solar' multiplies the area-lighting
     // (surface parking) line by exterior.solarMultiplier in calculations.js.
-    // 'upgraded' is still recorded for the reviewer only — pathway lighting has
-    // no formula yet.
+    // 'upgraded' (10-2) multiplies the landscape and path lighting lines by
+    // exterior.upgradedMultiplier.
     engine: { section: 'exterior', field: 'siteDesignLevel', map: {
         'Base design': 'base',
         'Upgraded landscape and/or path lighting': 'upgraded',
@@ -365,7 +366,7 @@ export const FIGURE_KEYS = [
   { key: 'figureDriveLengthFt',      section: 'Project figures', question: 'Private drive length, feet (entered by the submitter)' },
   // Garages and carports (Mike, 2026-09-13). 0 is a real answer for both — it
   // overrides the townhome "1 garage per home" estimate.
-  { key: 'figureGarages',            section: 'Project figures', question: '# Garages (entered by the submitter)' },
+  { key: 'figureGarages',            section: 'Project figures', question: '# Detached/Attached Garages (entered by the submitter)' },
   { key: 'figureCarports',           section: 'Project figures', question: '# Carport bays (entered by the submitter)' },
   // Sporadic site features (Mike, 2026-09-16). Counts for the per-feature
   // kinds, feet (longest dimension) for courtyards and turf play areas. 0 is

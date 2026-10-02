@@ -25,19 +25,29 @@ const budget = (responses = {}, pd = PD) => calculateBudget(pd, responses);
 
 // ── 1. garage batteries ─────────────────────────────────────────────────────
 
-test('every strategy except generator buys garage batteries: 50,000 SF → 40 × $120', () => {
+test('only the integrated strategies buy garage batteries: 50,000 SF → 40 × $120 (Mike 10-2)', () => {
   for (const key of Object.keys(PRICING.emergency.strategies)) {
     const c = emergencyStrategyCost(PRICING, key, { garageSf: 50000 });
-    if (key === 'generator') {
-      assert.equal(c.garageBattery, false, 'generator covers the garage itself');
-      assert.equal(c.batteryCost, 0);
-    } else {
+    if (key.startsWith('integrated_')) {
       assert.equal(c.garageBattery, true, `${key} should buy garage batteries`);
       assert.equal(c.batteryCount, 40);
       assert.equal(c.batteryCost, 4800);
       assert.equal(c.garage, 0, `${key} must not also charge a garage $/SF`);
+    } else {
+      assert.equal(c.garageBattery, false);
+      assert.equal(c.batteryCost, 0);
     }
   }
+  assert.equal(emergencyStrategyCost(PRICING, 'generator', { garageSf: 50000 }).garage, 0);
+  assert.equal(emergencyStrategyCost(PRICING, 'frogeyes', { garageSf: 50000 }).garage, 50000 * 0.17);
+  assert.equal(emergencyStrategyCost(PRICING, 'frogeyes_inv', { garageSf: 50000 }).garage, 50000 * 0.15);
+  assert.equal(emergencyStrategyCost(PRICING, 'inverters', { garageSf: 50000 }).garage, 50000 * 0.50);
+});
+
+test('with a garage, all six emergency choices price differently (Mike 10-2)', () => {
+  const totals = Object.keys(PRICING.emergency.strategies)
+    .map(k => emergencyStrategyCost(PRICING, k, { corridorSf: 20000, intAmenitySf: 5000, garageSf: 50000 }).total);
+  assert.equal(new Set(totals).size, totals.length, totals.join(', '));
 });
 
 test('an unanswered emergency question prices as Frogeyes (Mike 2026-09-12)', () => {
@@ -56,7 +66,7 @@ test('no garage, no batteries', () => {
 });
 
 test('the budget reports the garage battery count on the emergency line', () => {
-  const e = budget({ emergency: { strategy: 'frogeyes' } }).sections.emergency;
+  const e = budget({ emergency: { strategy: 'integrated_inverters' } }).sections.emergency;
   assert.deepEqual(e.garageBatteries, { count: 40, cost: 4800 });
   assert.equal(budget({ emergency: { strategy: 'generator' } }).sections.emergency.garageBatteries, null);
 });

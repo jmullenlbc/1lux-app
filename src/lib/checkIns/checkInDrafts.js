@@ -27,7 +27,7 @@ const FALLBACK_SUBJECT = 'Coffee soon?';
 const SWEEP_BUDGET_MS = 20_000;
 
 const CONTACT_SELECT = {
-  id: true, name: true, preferredName: true, email: true, company: true, ownerId: true,
+  id: true, name: true, preferredName: true, email: true, company: true, title: true, ownerId: true,
   cadenceTier: true, cadenceDays: true, lastInPersonAt: true, lastTouchpointAt: true, nextCheckInAt: true,
   client: { select: { id: true, name: true, cadenceDays: true, ownerId: true } },
 };
@@ -86,7 +86,7 @@ export async function composeCheckInEmail(contact, ownerUserId, lastNote = null)
 Nothing is wrong and nothing is owed. It is a friendly keep-in-touch note because we have not talked in a while.${last}
 Offer one easy next step, like coffee, lunch or a quick call. Warm, never pushy.
 Never say "reminder", "check-in", "circling back" or "touching base", and never mention how long it has been.
-${await personalPromptFor(contact.id, firstName(contact.preferredName || contact.name))}${templateSection(await pickTemplate({ text: 'keep in touch catch up coffee lunch quick call been a while' }))}${toneSection(sender?.toneProfile, sender?.name)}${voiceExamplesSection(sender?.samples, sender?.name)}${lessons}
+${await personalPromptFor(contact.id, firstName(contact.preferredName || contact.name))}${templateSection(await pickTemplate({ text: 'keep in touch catch up coffee lunch quick call been a while', contactTitle: contact.title || null }))}${toneSection(sender?.toneProfile, sender?.name)}${voiceExamplesSection(sender?.samples, sender?.name)}${lessons}
 Shape:
 1. Greeting with their first name.
 2. One or two short sentences, no more.

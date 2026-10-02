@@ -86,15 +86,15 @@ test('drawings: the townhome guess never fills a drawing-read budget', () => {
   assert.equal(r.garages.value, null);
 });
 
-test('the budget prices the townhome guess at one sconce per garage door', () => {
+test('the budget prices the townhome guess at one strip per garage', () => {
   const { budget } = computeIntakeEstimate({ answers: { noDrawings: 'yes', ...TOWN_BASE } });
-  assert.equal(budget.sections.exterior.garages.product, 64 * PRICING.exterior.detachedGarage.sconcePerDoor);
+  assert.equal(budget.sections.exterior.garages.product, 64 * PRICING.exterior.detachedGarage.stripPerGarage);
 });
 
 test('internal budgets: garages/carports only count on the types that have them', () => {
   const pd = t => ({ numUnits: 100, grossSf: 120000, numGarages: 20, numCarports: 40, ...(t ? { buildingTypeKey: t } : {}) });
   const ext = t => calculateBudget(pd(t), {}).sections.exterior;
-  const door = PRICING.exterior.detachedGarage.sconcePerDoor;
+  const door = PRICING.exterior.detachedGarage.stripPerGarage;
   const disk = PRICING.exterior.carport.diskEveryOther;
   assert.equal(ext('garden').garages.product, 20 * door);
   assert.equal(ext('garden').carports.product, 20 * disk);

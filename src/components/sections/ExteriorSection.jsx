@@ -88,7 +88,10 @@ export default function ExteriorSection({ responses, projectData, allSections, p
   const landscapeCap = LS.maxTotal ?? 3000;
   const netLotSf     = footprintSf > 0 ? Math.max(lotSf - footprintSf, 0) : lotSf;
   const landscapeRaw = netLotSf > 0 ? netLotSf * landscapePct : 0;
-  const autoLandscape = Math.min(landscapeRaw, landscapeCap);
+  // "Upgraded landscape and/or path lighting" multiplies landscape + path lines (mirrors calculations.js, Mike 10-2).
+  const upgradedMultCfg = P.exterior?.upgradedMultiplier ?? 1.25;
+  const upgradedMult  = answers.siteDesignLevel === 'upgraded' ? upgradedMultCfg : 1;
+  const autoLandscape = Math.min(landscapeRaw, landscapeCap) * upgradedMult;
   const landscapeCapped = landscapeRaw > landscapeCap;
   const netLotMath = footprintSf > 0
     ? `${lotSf.toLocaleString()} − ${footprintSf.toLocaleString()} footprint = ${netLotSf.toLocaleString()} SF net lot`
@@ -128,7 +131,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
   const parkingProduct  = parkingFixtures * (sp.perFixture ?? 1325) * solarMult;
   const solarExtra      = parkingFixtures * (sp.perFixture ?? 1325) * ((P.exterior?.solarMultiplier ?? 2.3) - 1);
   const carportProduct  = Math.floor(carports / 2) * (P.exterior?.carport?.diskEveryOther ?? 30);
-  const garageProduct   = numGarages * (P.exterior?.detachedGarage?.sconcePerDoor ?? 80);
+  const garageProduct   = numGarages * (P.exterior?.detachedGarage?.stripPerGarage ?? 65);
   // The old "exterior door sconces" line (doors × $212.50 avg) was deleted
   // 2026-08-12 — Mike: same fixture as the building wallpacks below, so it was
   // being counted twice. The door count itself still shows in the scope grid.
@@ -182,7 +185,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
   // line. Mirrors the engine (calculations.js, pathwayBollardsDeclined).
   const pathwayAsksBollards = wpType === 'townHouses' || wpType === 'singleFamily';
   const pathwayDeclined     = pathwayAsksBollards && answers.pathwayBollards !== 'yes';
-  const pathwayAuto    = pathwayDeclined ? 0 : pathwayBase * pathwaySolarMult;
+  const pathwayAuto    = pathwayDeclined ? 0 : pathwayBase * pathwaySolarMult * upgradedMult;
   const pathwayProduct = pathwayManual > 0 ? 0 : pathwayAuto;
   const pathwayFloored = pathwayProduct > 0 && numUnitsPD * pathwayRate < pathwayFloor;
   const pathwaySolarSuffix = solarSite ? ` × ${pathwaySolarMult} solar` : '';
@@ -217,7 +220,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
         ? `${parkingFixtures} area light${parkingFixtures === 1 ? '' : 's'} (manual)`
         : `${parking} stalls ÷ ${sp.stallsPerFixture ?? 9} = ${stallFixtures}${driveLane ? ` + ${driveLane} drive-lane = ${parkingFixtures}` : ''} fixture${parkingFixtures === 1 ? '' : 's'}`} × $${(sp.perFixture ?? 1325).toLocaleString()}${solarSite ? ` × ${solarMult} solar` : ''}`, value: parkingProduct },
     { label: 'Carports',              math: `${carports} ÷ 2 = ${Math.floor(carports / 2)} disk${Math.floor(carports / 2) === 1 ? '' : 's'} × $${P.exterior?.carport?.diskEveryOther ?? 30}`, value: carportProduct },
-    { label: 'Detached garages',      math: `${numGarages} × $${P.exterior?.detachedGarage?.sconcePerDoor ?? 80}/door`, value: garageProduct },
+    { label: 'Detached/attached garages', math: `${numGarages} × 1 strip × $${P.exterior?.detachedGarage?.stripPerGarage ?? 65}`, value: garageProduct },
     { label: 'Building wallpacks',    math: wpMath, value: wallpackProduct },
     { label: solarSite && pathwayManual <= 0 ? 'Pathway lighting (solar)' : 'Pathway lighting', math: pathwayMath, value: pathwayProduct },
     // Show the cap when it binds, otherwise the label reads as the uncapped
@@ -323,7 +326,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
         costSuffix=" total"
         options={[
           { value: 'base',     label: 'Base design',                                sub: 'Code-required site and parking lighting', cost: 0 },
-          { value: 'upgraded', label: 'Upgraded landscape and/or path lighting',    sub: 'Recorded for the designer — add dollars via the manual adder below', cost: 0 },
+          { value: 'upgraded', label: `Upgraded landscape and/or path lighting: ${upgradedMultCfg}× landscape and path lighting`, sub: 'Richer landscape and path lighting than the base design', cost: (upgradedMultCfg - 1) * (Math.min(landscapeRaw, landscapeCap) + (pathwayManual > 0 || pathwayDeclined ? 0 : pathwayBase)) },
           { value: 'solar',    label: `Solar lighting — ${P.exterior?.solarMultiplier ?? 2.3}× area lighting, ${PW.solarMultiplier ?? 1.6}× pathway`, sub: 'Self-contained solar fixtures; labor drops dramatically (no trenching, conduit, or wire runs)', cost: solarExtra + (pathwayManual > 0 || pathwayDeclined ? 0 : pathwayBase * ((PW.solarMultiplier ?? 1.6) - 1)) },
         ]}
         value={answers.siteDesignLevel} impact={qc['exterior.siteDesignLevel']}

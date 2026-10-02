@@ -11,6 +11,7 @@ import { INTAKE_QUESTIONS, noDrawingsReady, BOLLARD_PROJECT_TYPES, designChoices
 import { controlsMathWords } from '@/lib/intake/controlsWords';
 import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import AlertMark from '@/components/ui/AlertMark';
 
 /**
  * Public conceptual-budget intake — the SAME experience as the internal
@@ -174,7 +175,7 @@ const DRIVE_LENGTH_FIELD = {
   hint: 'The private road the homes face, end to end.', types: DRIVE_PROJECT_TYPES,
 };
 const GARAGE_FIELD = {
-  key: 'figureGarages', qKey: 'garages', label: '# Garages', placeholder: 'e.g. 64',
+  key: 'figureGarages', qKey: 'garages', label: '# Detached/Attached Garages', placeholder: 'e.g. 64',
   hint: 'Attached or detached. Enter 0 if none.', types: GARAGE_PROJECT_TYPES,
 };
 const CARPORT_FIELD = {
@@ -202,10 +203,9 @@ const FIGURE_FIELDS = [
   { key: 'figureTotalUnits',     qKey: 'totalUnits',       label: 'Total units',              placeholder: 'e.g. 234' },
   { key: 'figureStories',        qKey: 'stories',          label: '# Stories',                placeholder: 'e.g. 4' },
   DRIVE_LENGTH_FIELD,
-  // Landings, not shafts (Mike, 2026-09-04): the internal Project Data field
-  // asks for landings, and the engine prices $200 per LANDING — so the visitor
-  // types the same figure. A switchback stair serving N floors has 2N−1.
-  { key: 'figureStairLandings',  qKey: 'stairLandings',    label: '# Egress stairwell landings', placeholder: 'e.g. 15' },
+  // Stairs are the one input (Mike 10-2: "It should be 1 or the other and the
+  // math comes from there"). The server works out landings: stairs × (2 × stories − 1).
+  { key: 'figureStairwells',     qKey: 'egressStairwells', label: '# Egress stairwells', placeholder: 'e.g. 6', hint: 'Every exit stair in every building. We work out the landings.' },
   { key: 'figureExitDoors',      qKey: 'exitDoors',        label: '# Exit doors',             placeholder: 'e.g. 8' },
   { key: 'figureSurfaceParking', qKey: 'surfaceParking',   label: '# Surface parking stalls', placeholder: 'e.g. 120' },
   GARAGE_FIELD,
@@ -242,7 +242,7 @@ const MANUAL_FIELDS = [
   { key: 'figureStories',           qKey: 'stories',           label: '# Stories',                 placeholder: 'e.g. 4',       need: 'required', hint: 'The tallest building.' },
   // `estNote` replaces the engine's long working-out under the estimate — the
   // landings one ran seven lines (Mike, 2026-09-12). Reviewers still see it all.
-  { key: 'figureStairLandings',     qKey: 'stairLandings',     label: '# Egress stairwell landings', placeholder: 'e.g. 15', estNote: 'based on your building type, size and number of stories.' },
+  { key: 'figureStairwells',        qKey: 'egressStairwells',  label: '# Egress stairwells',       placeholder: 'e.g. 6', hint: 'Every exit stair in every building. We work out the landings.', estNote: 'based on your building type, size and number of stories.' },
   { key: 'figureExitDoors',         qKey: 'exitDoors',         label: '# Exit doors',              placeholder: 'e.g. 8' },
   { key: 'figureSurfaceParking',    qKey: 'surfaceParking',    label: '# Surface parking stalls',  placeholder: 'e.g. 120',     need: 'required', hint: 'Open-air stalls only. Enter 0 if all parking is in a garage.' },
   GARAGE_FIELD,
@@ -1022,6 +1022,8 @@ export default function IntakeClient() {
         why: r.how || '',
         flag: r.flag || '',
         estimated: r.source === 'derived',
+        // Landings follow the stair count (Mike 10-2); correct the stairs instead.
+        locked: r.key === 'stairLandings' && r.source === 'derived',
         display: r.value == null ? '' : Number(r.value).toLocaleString('en-US'),
         was: r.wasValue == null ? '' : Number(r.wasValue).toLocaleString('en-US'),
       }));
@@ -1071,10 +1073,14 @@ export default function IntakeClient() {
                   <span className="text-slate-400" title={row.how || undefined}>(est.)</span>
                 )}
                 {!needed && !edited && row.flag && (
-                  <span className="text-amber-500" title={row.flag}>⚠</span>
+                  <AlertMark label={row.flag} size={13} />
                 )}
               </div>
-              <input
+              {row.locked && !edited ? (
+                <div className="py-0.5 text-sm font-semibold tabular-nums text-slate-900 border-b border-dashed border-slate-200" title={`${row.how || ''} Change the stairwell count to change this.`}>
+                  {row.display}
+                </div>
+              ) : <input
                 className={cn(
                   'w-full bg-transparent px-0 py-0.5 text-sm font-semibold tabular-nums border-0 border-b border-dashed focus:outline-none focus:ring-0 focus:border-solid focus:border-amber-400',
                   edited ? 'text-amber-700 border-amber-300 border-solid'
@@ -1088,7 +1094,7 @@ export default function IntakeClient() {
                 onChange={e => setCorrections(x => ({ ...x, [row.key]: e.target.value }))}
                 placeholder={needed ? (row.unit === 'sf' ? 'enter SF' : 'enter a count') : undefined}
                 title={row.how || undefined}
-              />
+              />}
               {edited && (
                 <button
                   type="button"
@@ -1427,8 +1433,8 @@ export default function IntakeClient() {
                         {projectDataGrid({
                           heading: 'Project Data — what we read from your drawings, and what we still need',
                           intro: neededRows.length > 0
-                            ? `Every figure here feeds your budget. The amber boxes are the ${neededRows.length} we could not find on any sheet — type them in if you know them, and type over any read figure that looks wrong. “(est.)” means our arithmetic, not a number off a sheet; hover any figure to see where it came from.`
-                            : 'Every figure here came off your drawings or our arithmetic and feeds your budget. Type over any that looks wrong — the budget updates straight away and we keep what we read on file. “(est.)” means our arithmetic; hover any figure to see where it came from.',
+                            ? `Every figure here feeds your budget. The amber boxes are the ${neededRows.length} we could not find on any sheet — type them in if you know them, and type over any read figure that looks wrong. “(est.)” means our arithmetic, not a number off a sheet; hover any figure to see where it came from. A red ! means the figure looks unusual and is worth a second look; hover the ! to see why.`
+                            : 'Every figure here came off your drawings or our arithmetic and feeds your budget. Type over any that looks wrong — the budget updates straight away and we keep what we read on file. “(est.)” means our arithmetic; hover any figure to see where it came from. A red ! means the figure looks unusual and is worth a second look; hover the ! to see why.',
                         })}
                       </div>
                     )}
@@ -1780,11 +1786,12 @@ export default function IntakeClient() {
         {!submitted && (
           hasEstimate ? (
             <div className="hidden lg:flex shrink-0">
-              <BudgetSidebar budget={budget} projectData={estimatePd} currentStep={step.budgetStep || null} range={range} />
+              <BudgetSidebar budget={budget} projectData={estimatePd} currentStep={step.budgetStep || null} range={range} projectName={project} />
             </div>
           ) : (
             <aside className="hidden lg:flex w-64 bg-white border-l border-slate-100 flex-col shrink-0">
               <div className="px-4 py-4 bg-navy-950 border-b border-navy-800">
+                {project && <div className="text-sm font-semibold text-white truncate mb-2" title={project}>{project}</div>}
                 <div className="text-xs font-semibold text-navy-400 uppercase tracking-widest mb-1">Live Budget</div>
                 <div className="text-2xl font-bold text-white tabular-nums">—</div>
               </div>

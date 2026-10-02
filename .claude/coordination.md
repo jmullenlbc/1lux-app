@@ -2,7 +2,14 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-01 (newest) - Mike's Claude - **DEPLOYED a97e404**, migration 0113 (additive): courtyards count 2 poles each, Email Template rules
+### 2026-10-02 (newest) - Mike's Claude - **DEPLOYED (hash in follow-up)**, no migration: conceptual budget grid fixes
+
+- Public grid: project name above the total, red "!" alerts, stairwells OR landings (landings derived), footprint measured off the scaled site plan (new vision field `buildingFootprintSfMeasured`, prompt version bump) then gross ÷ stories fallback.
+- Pricing: garage strip $65 per detached/attached garage; Upgraded site = 1.25× landscape + path; cost box shows change from last choice (red + adder, green - savings).
+- Emergency: all 6 choices kept, each priced differently. Only the two Integrated options buy garage batteries; others light the garage with their corridor device at the corridor $/SF. Changes budgets on projects with garages.
+- Template contact-role rule reaches recap and keep-in-touch emails.
+
+### 2026-10-01 - Mike's Claude - **DEPLOYED a97e404**, migration 0113 (additive): courtyards count 2 poles each, Email Template rules
 
 - Unmeasured courtyard = 60 ft each (2 poles); public intake asks a courtyard count (`figureCourtyards`). `COURTYARD_FT_EACH` in `siteFeatureWords.js`.
 - `MessageTemplate` gains `serviceType`, `pipeline`, `contactRole`, `topicWords` (all nullable); `templateMatch.js` filters and tie-breaks on them; `followUpDrafter.js` passes the context.

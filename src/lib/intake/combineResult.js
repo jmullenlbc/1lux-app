@@ -35,7 +35,7 @@ export const SITE_NUMBER_KEYS = [
   'lotAcres', 'lotSf', 'totalUnits', 'parkingProvided', 'parkingRequired', 'parkingRatioRequired',
   'surfaceParking', 'surfaceParkingCounted', 'garages', 'carports', 'buildingCount', 'clubhouseSf', 'amenitySf',
   'grossSf', 'stories', 'storiesCounted', 'egressStairwells', 'egressStairwellsCounted',
-  'exitDoors', 'exitDoorsCounted', 'buildingFootprintSf', 'lotCoveragePct', 'driveLengthFtMeasured',
+  'exitDoors', 'exitDoorsCounted', 'buildingFootprintSf', 'buildingFootprintSfMeasured', 'lotCoveragePct', 'driveLengthFtMeasured',
   'exteriorAmenitySfMeasured',
 ];
 

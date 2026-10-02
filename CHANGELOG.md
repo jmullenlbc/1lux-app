@@ -5,6 +5,22 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Conceptual budget grid fixes: stairwells, footprint, garages, exterior, emergency, cost deltas] - October 2, 2026 (DEPLOYED) - no migration
+
+- Project name shows above the budget total on the public grid and both wizards (`BudgetSidebar.jsx`).
+- Caution triangles replaced by the one red "!" (`AlertMark`) with the reason on hover.
+- Stairwells OR landings: the public form asks for egress stairwells and works out the landings; the landings row is locked when derived. An old typed landings count only prices when no stair count is known (`quantities.js`, `IntakeClient.jsx`).
+- Footprint: the drawing read now MEASURES the ground floor of every residential building off the scaled site plan (`buildingFootprintSfMeasured`, prompt version siteVision-2026-10-02). Order: written footprint, then lot coverage × lot, then measured, then gross ÷ stories. A measured footprint larger than the lot is flagged. Applies to drawings read from now on.
+- "# Garages" is now "# Detached/Attached Garages", priced at 1 strip per garage at $65 (`exterior.detachedGarage.stripPerGarage`).
+- "Upgraded landscape and/or path lighting" now multiplies landscape and path lighting by `exterior.upgradedMultiplier` (1.25, editable on Master Pricing). The cost box shows path and landscape lines for every choice.
+- Emergency: all six choices stay and each has its own cost. Only the two "Integrated batteries in garage" choices put batteries in the garage; the others light the garage with frogeyes or inverters at the corridor $/SF (`emergencyCost.js`). Generator stays $0. BOH not added; breezeway landings keep their built-in EM package.
+- Cost box shows the change from the last choice: red "+$X" (adder) or green "-$X" (savings) for labor and for labor + materials (`QuestionCard.jsx`).
+- Tests updated for the stairwell rule and the footprint fallback.
+
+## [Template contact-role rule reaches recap and keep-in-touch emails] - October 1, 2026 (DEPLOYED) - no migration
+
+- `composeOutreach.js` (recaps, nudges) and `checkInDrafts.js` (keep-in-touch) now pass the contact's job title to the template picker, so a Contact Role rule on an Email Template applies there too (Mike 10-1). Service type and pipeline still apply to follow-ups only, since those emails are not tied to one project.
+
 ## [Courtyards count 2 poles each + more rules on Email Templates] - October 1, 2026 (DEPLOYED a97e404) - migration 0113_template_rules (additive)
 
 - **Courtyards:** a courtyard spotted on drawings with no length now counts as `COURTYARD_FT_EACH` = 60 ft (2 poles at 30 ft per pole), flagged `lengthAssumed`; a measured length always wins (`normalizeSiteFeatures` in `siteFeatureWords.js`). Mike 10-1: "2 poles per courtyard until we learn more".

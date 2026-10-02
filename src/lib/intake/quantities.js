@@ -881,7 +881,11 @@ export function computeQuantities(drawings, answers, pricing = null, adopted = n
   // 2N−1 arithmetic and adds Mike's 10% contingency. When the drawings never
   // stated the stair count, the building-code fallback is patched in at the
   // END of this function, once the footprint and gross rows it needs exist.
-  const landingsTyped = statedAnswer(ans.figureStairLandings);
+  // Mike 10-2: "It should be 1 or the other and the math comes from there."
+  // The stair count is the one input; landings always follow it. A typed
+  // landings figure (older drafts asked for it) only counts when there is no
+  // stair count at all.
+  const landingsTyped = stairs == null ? statedAnswer(ans.figureStairLandings) : null;
   if (landingsTyped != null) {
     add('stairLandings', '# Stair Landings', 'count', landingsTyped, 'questionnaire',
       'Entered on the questionnaire — count every landing, including the half-landing between floors.');
@@ -1038,7 +1042,7 @@ export function computeQuantities(drawings, answers, pricing = null, adopted = n
   };
   coveredRow('carports', '# Carports', 'carport', CARPORT_TYPE_KEYS, site?.carports, site?.carportsCounted,
     ans.figureCarports, 'Stated on the site plan (a carport / covered-parking line in the parking table).');
-  coveredRow('garages', '# Garages', 'garage', GARAGE_TYPE_KEYS, site?.garages, null, ans.figureGarages,
+  coveredRow('garages', '# Detached/Attached Garages', 'garage', GARAGE_TYPE_KEYS, site?.garages, null, ans.figureGarages,
     'Stated on the site plan. Drawings rarely split attached from detached — confirm the mix.');
 
   // ── SITE ───────────────────────────────────────────────────────────────────
@@ -1056,9 +1060,19 @@ export function computeQuantities(drawings, answers, pricing = null, adopted = n
   // print coverage either way ("28%" or "0.28"), so >1 means percent.
   const footprintStated = stated(site?.buildingFootprintSf);
   const coverage = stated(site?.lotCoveragePct);
+  // Mike 10-2 ("scale the page, measure 1 floor"): the reader measures the
+  // residential outlines off the scaled site plan. Ranks after the written
+  // figures and ahead of the gross ÷ stories guess.
+  const footprintMeasured = stated(site?.buildingFootprintSfMeasured);
+  const coverageUsable = coverage != null && coverage > 0 && lot?.sf && (coverage > 1 ? coverage / 100 : coverage) <= 1;
   if (footprintStated != null) {
     add('buildingFootprintSf', 'Building Footprint SF', 'sf', footprintStated, 'drawing',
       'Stated on the drawings.');
+  } else if (footprintMeasured != null && !coverageUsable) {
+    const basis = { scale: 'the drawing scale', dimension: 'a printed dimension', stall: '9 ft parking stalls', door: '3 ft doors' }[site?.scaleBasis] || 'the sheet';
+    add('buildingFootprintSf', 'Building Footprint SF', 'sf', footprintMeasured, 'derived',
+      `Measured off the site plan using ${basis}: ground floor of every residential building, added together = ${fmt(footprintMeasured)} SF.`,
+      `MEASURED off the site plan (scale from ${basis}), not written on the drawings. Confirm it.`);
   } else if (coverage != null && coverage > 0 && lot?.sf) {
     const fraction = coverage > 1 ? coverage / 100 : coverage;
     if (fraction <= 1) {
@@ -1106,6 +1120,21 @@ export function computeQuantities(drawings, answers, pricing = null, adopted = n
       grossRow.how = `${fmt(unitCount)} units × ${fmt(avgUnitTyped)} SF average = ${fmt(unitsTotal)} SF of units, × ${unitsToGross} for corridors, walls and back of house = ${fmt(est)} SF.`;
       grossRow.flag = `ESTIMATED from the average unit size (×${unitsToGross}). Enter the real building SF if you have it.`;
     }
+  }
+
+  // ── FOOTPRINT, ESTIMATED (Mike 10-2) ──────────────────────────────────────
+  // No footprint and no lot coverage, but a real gross SF and a story count:
+  // footprint ≈ gross ÷ stories (all buildings together). Only from a gross
+  // that was read or typed, never one we derived from the footprint itself.
+  const fpRowEst = out.find(r => r.key === 'buildingFootprintSf');
+  if (fpRowEst && fpRowEst.value == null && grossRow?.value != null && grossRow.source !== 'derived'
+      && stories != null && stories >= 1) {
+    const est = Math.round(grossRow.value / Math.round(stories));
+    fpRowEst.value  = est;
+    fpRowEst.source = 'derived';
+    fpRowEst.how    = `Gross ${fmt(grossRow.value)} SF ÷ ${fmt(Math.round(stories))} stories = ${fmt(est)} SF, all buildings together. Not stated on the drawings, so this is estimated.`;
+    // Keep any earlier alert (e.g. a misread coverage over 100%) in front.
+    fpRowEst.flag   = `${fpRowEst.flag ? fpRowEst.flag + ' ' : ''}ESTIMATED from gross ÷ stories. Buildings that step back on upper floors make the real footprint larger; enter it if you have it.`;
   }
 
   // ── NO-DRAWINGS AREA GUESSES ───────────────────────────────────────────────

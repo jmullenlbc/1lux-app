@@ -329,9 +329,14 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // master pricing (exterior.solarMultiplier); the note ships in sections.exterior.solar.
   const solarSite       = exterior.siteDesignLevel === 'solar';
   const solarMultiplier = solarSite ? n(PRICING.exterior.solarMultiplier, 2.3) : 1;
+  // Mike 10-2: "Upgraded landscape and/or path lighting" priced the same as
+  // Base. It now multiplies the landscape and path lighting lines by
+  // exterior.upgradedMultiplier on the master pricing sheet.
+  const upgradedSite       = exterior.siteDesignLevel === 'upgraded';
+  const upgradedMultiplier = upgradedSite ? n(PRICING.exterior.upgradedMultiplier, 1.25) : 1;
   const parkingProduct   = parkingFixtures * (PRICING.exterior.surfaceParking.perFixture ?? PRICING.exterior.surfaceParking.perStall ?? 1325) * solarMultiplier;
   const carportProduct   = Math.floor(numCarports / 2) * PRICING.exterior.carport.diskEveryOther;
-  const garageExtProduct = numGarages * PRICING.exterior.detachedGarage.sconcePerDoor;
+  const garageExtProduct = numGarages * n(PRICING.exterior.detachedGarage.stripPerGarage, 65); // 1 strip per garage (Mike 10-2)
 
   // Building wallpacks — per-BUILDING model, wired per Mike 2026-08-12: "Wire it
   // but give us a manual override of quantity and unit price."
@@ -390,7 +395,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const landscapeCap  = PRICING.exterior.landscape?.maxTotal ?? 3000;
   const netLotSf      = footprintSf > 0 ? Math.max(lotSf - footprintSf, 0) : lotSf;
   const landscapeRaw  = netLotSf > 0 ? netLotSf * landscapePct : 0;
-  const landscapeFlat = Math.min(landscapeRaw, landscapeCap);
+  const landscapeFlat = Math.min(landscapeRaw, landscapeCap) * upgradedMultiplier;
 
   // Manual override: site/exterior is frequently hand-calculated outside the
   // formula (manually built in the spreadsheet). A positive exteriorOverride
@@ -440,7 +445,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // budgets on file show — is $0; Yes is the model line above.
   const pathwayAsksBollards = wpBuildingType === 'townHouses' || wpBuildingType === 'singleFamily';
   const pathwayBollardsDeclined = pathwayAsksBollards && exterior.pathwayBollards !== 'yes';
-  const pathwayAuto    = pathwayBollardsDeclined ? 0 : pathwayBase * pathwaySolarMultiplier;
+  const pathwayAuto    = pathwayBollardsDeclined ? 0 : pathwayBase * pathwaySolarMultiplier * upgradedMultiplier;
   const pathwayProduct = pathwayManual > 0 ? 0 : pathwayAuto;
 
   // Misc buffer = 5% of formula-line subtotal + manual adder. Both contribute.
@@ -728,6 +733,9 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   addQ('exterior.siteDesignLevel', [
     parkingFixtures > 0 && line(solarSite ? 'Solar area lights' : 'Area lights', parkingFixtures, 'poles', poleEach, poleLabor),
     parkingFixtures > 0 && solarSite && poleLabor * solarCreditPct > 0 && line(`Solar credit (${Math.round(solarCreditPct * 100)}% of pole labor)`, parkingFixtures, 'poles', 0, -poleLabor * solarCreditPct),
+    // The other two lines this choice moves, so the box changes with every option.
+    pathwayProduct > 0 && line(solarSite ? 'Solar path lighting' : upgradedSite ? 'Upgraded path lighting' : 'Path lighting', 1, 'site', pathwayProduct, 0),
+    landscapeFlat > 0 && line(upgradedSite ? 'Upgraded landscape lighting' : 'Landscape lighting', 1, 'site', landscapeFlat, 0),
   ]);
 
   // Wallpacks.
@@ -830,6 +838,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
           netLotSf,
           pct:      landscapePct,
           capped:   landscapeRaw > landscapeCap,
+          upgradedMultiplier,
         },
         // Pathway lighting — model line wired 2026-09-04. `suppressedByManual`
         // means a hand-entered exteriorManualItems.pathwayLighting figure is

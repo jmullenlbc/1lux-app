@@ -46,7 +46,7 @@ const FIELDS = [
     fields: [
       { key: 'numSurfaceParking',   label: '# of Surface Parking Stalls', type: 'number', placeholder: '80',  hint: 'Not in a structured garage' },
       { key: 'numCarports',         label: '# of Carports',               type: 'number', placeholder: '0',   hint: 'Individual covered bays' },
-      { key: 'numGarages',          label: '# of Attached/Detached Garages', type: 'number', placeholder: '0' },
+      { key: 'numGarages',          label: '# Detached/Attached Garages', type: 'number', placeholder: '0' },
       { key: 'numExteriorDoors',        label: '# of Exterior Doors',            type: 'number', placeholder: '20',  hint: 'Building entry/exit doors (not unit doors)' },
       // Sporadic site features (Mike 2026-09-16). Each is priced as its own
       // fixture package: area lights at the dog park entrance and around courts,

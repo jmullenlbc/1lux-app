@@ -303,6 +303,7 @@ export default function DesignWizardClient({ project, projectData, initialSectio
       {/* Right: Live budget sidebar */}
       <BudgetSidebar
         budget={budget}
+        projectName={projectMeta?.name || project.name || ''}
         projectData={localPD}
         currentStep={currentStep}
         areaNotes={areas.notes}

@@ -3,13 +3,13 @@
 // Design Emergency screen all call this, so the number on a screen cannot
 // drift from the number in the budget. Client-safe: only reads master pricing.
 //
-// Garage batteries (Mike, 2026-09-12: "garage fixtures should get integrated
-// batteries when there are garages and no generator"): every strategy except
-// 'generator' backs the garage up with a battery in every other garage
-// fixture — 1 fixture per 625 SF, half of them get a $120 battery. The rule is
-// keyed off the strategy name, NOT the strategy's batteryGarage flag, because
-// projects keep a frozen pricing snapshot whose flags predate this rule. When
-// the batteries apply, the strategy's garage $/SF is not charged on top.
+// Garage (Mike 10-2: every choice needs its own cost). Only the two
+// "Integrated batteries in garage" strategies put a battery in every other
+// garage fixture: 1 fixture per 625 SF, half of them get a $120 battery. Every
+// other strategy except 'generator' lights the garage with its own corridor
+// device (frogeyes or inverters) at the corridor $/SF, unless the strategy
+// carries its own garage $/SF. Keyed off the strategy NAME, NOT the
+// batteryGarage flag, because projects keep frozen pricing snapshots.
 
 const num = (v, d = 0) => {
   const x = parseFloat(v);
@@ -25,10 +25,10 @@ export function emergencyStrategyCost(P, strategyKey, { corridorSf = 0, intAmeni
   const flat = strategyKey === 'frogeyes' ? num(E.frogeyesPerSf, 0.17) : null;
   const cRate = flat ?? num(strat.corridorPerSf);
   const aRate = flat ?? num(strat.amenityPerSf);
-  const gRate = flat ?? num(strat.garagePerSf);
 
   const gSf = Math.max(0, num(garageSf));
-  const garageBattery = strategyKey !== 'generator' && gSf > 0;
+  const garageBattery = strategyKey.startsWith('integrated_') && gSf > 0;
+  const garageRate = strategyKey === 'generator' ? 0 : (num(strat.garagePerSf) > 0 && flat == null ? num(strat.garagePerSf) : cRate);
 
   const b = E.batteryGarage || {};
   const sfPerFixture   = num(b.sfPerFixture, 625) || 625;
@@ -39,7 +39,7 @@ export function emergencyStrategyCost(P, strategyKey, { corridorSf = 0, intAmeni
 
   const corridor = Math.max(0, num(corridorSf)) * cRate;
   const amenity  = Math.max(0, num(intAmenitySf)) * aRate;
-  const garage   = garageBattery ? 0 : gSf * gRate;
+  const garage   = garageBattery ? 0 : gSf * garageRate;
 
   return {
     corridor, amenity, garage,

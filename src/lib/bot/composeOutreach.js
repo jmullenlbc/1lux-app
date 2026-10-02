@@ -52,7 +52,7 @@ export async function getOutreachGroups(noteId, { includeDrafted = false } = {})
   const contactIds = [...new Set(eligible.map(a => a.contactId))];
   const contacts = await prisma.contact.findMany({
     where: { id: { in: contactIds } },
-    select: { id: true, name: true, preferredName: true, email: true, company: true },
+    select: { id: true, name: true, preferredName: true, email: true, company: true, title: true },
   });
   const cById = new Map(contacts.map(c => [c.id, c]));
   const note = await prisma.note.findUnique({ where: { id: noteId }, select: { activityType: true, title: true } });
@@ -129,7 +129,7 @@ async function knowledgeFor(group) {
 // items, not the names: a name in a template body says nothing about its topic.
 async function templateFor(group) {
   const text = [group.nudge ? 'check in' : 'meeting recap next steps', ...group.actions.map(a => `${a.label} ${a.detail || ''} ${a.targetName || ''}`)].join(' ');
-  return templateSection(await pickTemplate({ scenario: group.nudge ? 'follow_up' : 'meeting_recap', text }));
+  return templateSection(await pickTemplate({ scenario: group.nudge ? 'follow_up' : 'meeting_recap', text, contactTitle: group.contact?.title || null }));
 }
 
 function knowledgeSection(text) {

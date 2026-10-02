@@ -408,17 +408,36 @@ test('an impossible coverage figure (>100%) is an alert, not a footprint', () =>
   d.siteData.buildingFootprintSf = null;
   d.siteData.lotCoveragePct = 280;       // misread — no lot is 280% covered
   const q = byKey(computeQuantities(d, {}));
-  assert.equal(q.buildingFootprintSf.value, null);
+  assert.equal(q.buildingFootprintSf.value, 65000);   // gross ÷ stories instead (Mike 10-2), alert kept
   assert.match(q.buildingFootprintSf.flag, /over 100%/);
 });
 
-test('coverage without a lot size cannot derive a footprint', () => {
+test('a footprint measured off the scaled site plan beats the gross ÷ stories guess (Mike 10-2)', () => {
+  const d = cleanDrawings();
+  d.siteData.buildingFootprintSf = null;
+  d.siteData.lotCoveragePct = null;
+  d.siteData.buildingFootprintSfMeasured = 58000;
+  d.siteData.scaleBasis = 'scale';
+  const q = byKey(computeQuantities(d, {}));
+  assert.equal(q.buildingFootprintSf.value, 58000);
+  assert.match(q.buildingFootprintSf.flag, /MEASURED/);
+  assert.match(q.buildingFootprintSf.how, /drawing scale/);
+});
+
+test('a written footprint still beats a measured one', () => {
+  const d = cleanDrawings();
+  d.siteData.buildingFootprintSfMeasured = 58000;
+  assert.equal(byKey(computeQuantities(d, {})).buildingFootprintSf.value, 60000);
+});
+
+test('coverage without a lot size falls back to gross ÷ stories (Mike 10-2)', () => {
   const d = cleanDrawings();
   d.siteData.buildingFootprintSf = null;
   d.siteData.lotSf = null;
   d.siteData.lotCoveragePct = 28;
   const q = byKey(computeQuantities(d, {}));
-  assert.equal(q.buildingFootprintSf.value, null);
+  assert.equal(q.buildingFootprintSf.value, 65000);           // 260,000 ÷ 4 stories
+  assert.equal(q.buildingFootprintSf.source, 'derived');
 });
 
 // ─── THE GROSS-SF LADDER (typed figures + derived last resorts) ─────────────
@@ -530,9 +549,16 @@ test('drawing-stated stories/stairs always beat typed figures', () => {
   assert.equal(q.stairLandings.value, 15);                    // 14 + 10%
 });
 
-test('a typed landings count overrides the 2N−1 derivation (Mike 2026-09-04: the wizard asks for landings directly)', () => {
+test('stairwells OR landings, never both (Mike 10-2): a known stair count wins over typed landings', () => {
   const q = byKey(computeQuantities(cleanDrawings(), { figureStairLandings: '18' }));
-  assert.equal(q.stairLandings.value, 18);                   // not 2 × (2×4−1) = 14, and NO 10% added to a typed count
+  assert.equal(q.stairLandings.value, 15);                   // 2 stairs × (2×4−1) = 14 + 10%; the typed 18 is ignored
+});
+
+test('an old typed landings count still prices when no stair count is known', () => {
+  const d = cleanDrawings();
+  d.siteData.egressStairwells = null;
+  const q = byKey(computeQuantities(d, { figureStairLandings: '18' }));
+  assert.equal(q.stairLandings.value, 18);                   // NO 10% added to a typed count
   assert.equal(q.stairLandings.source, 'questionnaire');
 });
 

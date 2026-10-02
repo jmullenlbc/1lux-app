@@ -172,7 +172,7 @@ export async function POST(request, { params }) {
   if (pd.numEgressStairwells)  buildingLines.push(`# Egress Stairwell Landings: ${pd.numEgressStairwells}`);
   if (pd.numSurfaceParking)    buildingLines.push(`Surface Parking Stalls: ${pd.numSurfaceParking}`);
   if (pd.numCarports)          buildingLines.push(`Carports: ${pd.numCarports}`);
-  if (pd.numGarages)           buildingLines.push(`Detached Garages: ${pd.numGarages}`);
+  if (pd.numGarages)           buildingLines.push(`Detached/Attached Garages: ${pd.numGarages}`);
   if (pd.numExteriorDoors)     buildingLines.push(`Exterior Doors: ${pd.numExteriorDoors}`);
   // Sporadic site features — one row per kind, read off the site plan or typed.
   for (const f of Array.isArray(pd.siteFeatures) ? pd.siteFeatures : []) {

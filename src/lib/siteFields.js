@@ -243,7 +243,7 @@ export const SITE_FIELD_DEFS = [
   },
   {
     key:   'numGarages',
-    label: '# Garages',
+    label: '# Detached/Attached Garages',
     unit:  'count',
     read: (v) => num(v?.garages),
   },
@@ -287,7 +287,7 @@ export const SITE_FIELD_DEFS = [
         stories:           v?.stories ?? v?.storiesCounted,
         stairsPerBuilding: v?.egressStairwells ?? v?.egressStairwellsCounted,
         buildings:         v?.buildingCount ?? v?.buildingsCounted,
-        footprintSf:     v?.buildingFootprintSf,
+        footprintSf:     v?.buildingFootprintSf ?? v?.buildingFootprintSfMeasured,
         grossSf:         v?.grossSf,
         buildingTypeKey: buildingTypeKeyFromText(v?.buildingType),
       });

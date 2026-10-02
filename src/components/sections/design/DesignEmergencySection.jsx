@@ -41,6 +41,7 @@ export default function DesignEmergencySection({
   const rate = (k, f) => `$${(S[k]?.[f] ?? 0).toFixed(2)}/SF`;
   const fe   = `$${Number(P.emergency?.frogeyesPerSf ?? 0.17).toFixed(2)}/SF`;
   const batt = garageSf > 0 ? ' + garage battery in every other fixture' : '';
+  const gar  = garageSf > 0 ? ' (garage at the corridor rate)' : '';
 
   async function handleNext() {
     setSaving(true);
@@ -98,14 +99,14 @@ export default function DesignEmergencySection({
             },
             {
               key:   'frogeyes',
-              label: 'Frogeyes in corridors + amenity, batteries in garage',
-              sub:   `Corridors + amenity ${fe}${batt}${hasSf ? ` — est. $${calcCost('frogeyes').toLocaleString()}` : ''}`,
+              label: 'Frogeyes everywhere (corridors, amenity and garage)',
+              sub:   `Corridors + amenity + garage ${fe}${hasSf ? ` — est. $${calcCost('frogeyes').toLocaleString()}` : ''}`,
               tag:   null,
             },
             {
               key:   'frogeyes_inv',
-              label: 'Frogeyes in corridors + inverters in amenity spaces, batteries in garage',
-              sub:   `Corridors ${rate('frogeyes_inv', 'corridorPerSf')} + amenity ${rate('frogeyes_inv', 'amenityPerSf')}${batt}${hasSf ? ` — est. $${calcCost('frogeyes_inv').toLocaleString()}` : ''}`,
+              label: 'Frogeyes in corridors + garage, inverters in amenity spaces',
+              sub:   `Corridors ${rate('frogeyes_inv', 'corridorPerSf')} + amenity ${rate('frogeyes_inv', 'amenityPerSf')}${gar}${hasSf ? ` — est. $${calcCost('frogeyes_inv').toLocaleString()}` : ''}`,
               tag:   null,
             },
             {
@@ -122,8 +123,8 @@ export default function DesignEmergencySection({
             },
             {
               key:   'inverters',
-              label: 'Inverters in corridors + amenity, batteries in garage',
-              sub:   `Corridors ${rate('inverters', 'corridorPerSf')} + amenity ${rate('inverters', 'amenityPerSf')}${batt}${hasSf ? ` — est. $${calcCost('inverters').toLocaleString()}` : ''}`,
+              label: 'Inverters everywhere (corridors, amenity and garage)',
+              sub:   `Corridors ${rate('inverters', 'corridorPerSf')} + amenity ${rate('inverters', 'amenityPerSf')}${gar}${hasSf ? ` — est. $${calcCost('inverters').toLocaleString()}` : ''}`,
               tag:   'Best optics',
             },
           ].map(opt => (

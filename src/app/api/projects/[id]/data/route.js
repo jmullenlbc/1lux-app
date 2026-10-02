@@ -60,7 +60,7 @@ const FIELD_LABELS = {
   numVanities: '# Vanities', numEgressStairwells: '# Stairwell Landings',
   numFans: '# of Fans', numAccentDownlights: '# Accent Downlights',
   numSurfaceParking: '# Surface Parking',
-  numCarports: '# Carports', numGarages: '# Garages', numExteriorDoors: '# Exterior Doors',
+  numCarports: '# Carports', numGarages: '# Detached/Attached Garages', numExteriorDoors: '# Exterior Doors',
   numElevatorShafts: '# Elevator Shafts', numFloors: '# Floors',
   corridorSf: 'Corridor SF', garageSf: 'Garage SF', interiorAmenitySf: 'Interior Amenity SF',
   exteriorAmenitySf: 'Exterior Amenity SF', bohSf: 'BOH SF', lotSf: 'Lot SF',

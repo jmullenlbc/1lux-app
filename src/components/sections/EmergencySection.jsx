@@ -28,13 +28,13 @@ function strategyOptions(P) {
     },
     {
       value: 'frogeyes',
-      label: 'Frogeyes in corridors + amenity, batteries in garage',
-      sub:   `Emergency combo units in corridors and amenity spaces at a flat $${Number(fe).toFixed(2)}/SF. ${batt}.`,
+      label: 'Frogeyes everywhere (corridors, amenity and garage)',
+      sub:   `Emergency combo units in corridors, amenity spaces and the garage at a flat $${Number(fe).toFixed(2)}/SF.`,
     },
     {
       value: 'frogeyes_inv',
-      label: 'Frogeyes in corridors + inverters in amenities, batteries in garage',
-      sub:   `Frogeyes ${r('frogeyes_inv', 'corridorPerSf')} in corridors. Central inverter ${r('frogeyes_inv', 'amenityPerSf')} in interior amenity spaces. ${batt}.`,
+      label: 'Frogeyes in corridors + garage, inverters in amenities',
+      sub:   `Frogeyes ${r('frogeyes_inv', 'corridorPerSf')} in corridors and the garage. Central inverter ${r('frogeyes_inv', 'amenityPerSf')} in interior amenity spaces.`,
     },
     {
       value: 'integrated_frogeyes',
@@ -48,8 +48,8 @@ function strategyOptions(P) {
     },
     {
       value: 'inverters',
-      label: 'Inverters in corridors + amenity, batteries in garage',
-      sub:   `Inverter units power existing fixtures. Corridors ${r('inverters', 'corridorPerSf')} · Amenity ${r('inverters', 'amenityPerSf')}. ${batt}.`,
+      label: 'Inverters everywhere (corridors, amenity and garage)',
+      sub:   `Inverter units power existing fixtures. Corridors and garage ${r('inverters', 'corridorPerSf')} · Amenity ${r('inverters', 'amenityPerSf')}.`,
     },
   ];
 }
@@ -181,7 +181,7 @@ export default function EmergencySection({ responses, projectData, allSections, 
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
         <strong>Note:</strong> Stairwell integrated battery backup is required by code regardless of strategy selected. This cost is included in the Corridors & Stairwells line item.
         {garageSf > 0 && (
-          <> Garage fixtures get an integrated battery (every other fixture) under every strategy except the building generator — that cost is in the prices above.</>
+          <> Garage: the two Integrated batteries choices put a battery in every other garage fixture; the other choices cover the garage with frogeyes or inverters at the corridor rate. That cost is in the prices above.</>
         )}
       </div>
 

@@ -37,7 +37,7 @@ function PlainRow({ label, value, indent, highlight, bold }) {
 // server estimate carries a ±10% band; the internal wizard never passes it.
 // `areaNotes` ({ [area]: node }) and `areaSummary` are the staff-only area
 // alerts, passed only by the internal wizards — never by the public form.
-export default function BudgetSidebar({ budget, projectData, currentStep, range = null, areaNotes = null, areaSummary = null }) {
+export default function BudgetSidebar({ budget, projectData, currentStep, range = null, areaNotes = null, areaSummary = null, projectName = '' }) {
   if (!budget) return null;
 
   const { sections, freight, warehousing, freightRate, warehousingRate, lightingProductSubtotal, subtotalLightingOnly, controls, controlsFreight, controlsWarehousing, totalWithControls, perSf, perUnit, energyCreditPct, energyCreditLighting, energyCreditControls } = budget;
@@ -50,6 +50,8 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
     <aside className="w-64 bg-white border-l border-slate-100 flex flex-col shrink-0 overflow-y-auto">
       {/* Header */}
       <div className="px-4 py-4 bg-navy-950 border-b border-navy-800">
+        {/* Mike 10-2: the project's name sits above the total at all times once it is typed. */}
+        {projectName && <div className="text-sm font-semibold text-white truncate mb-2" title={projectName}>{projectName}</div>}
         <div className="text-xs font-semibold text-navy-400 uppercase tracking-widest mb-1">Live Budget</div>
         <div className="text-2xl font-bold text-white tabular-nums">
           {hasData ? formatCurrency(totalWithControls) : '—'}
