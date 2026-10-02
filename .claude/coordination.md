@@ -2,7 +2,12 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-01 (newest) - Mike's Claude - **DEPLOYED 99042af**, migration 0112: Voice Training 250 emails, refilling templates, templates feed the email writers
+### 2026-10-01 (newest) - Mike's Claude - migration 0113 (additive): courtyards count 2 poles each, Email Template rules
+
+- Unmeasured courtyard = 60 ft each (2 poles); public intake asks a courtyard count (`figureCourtyards`). `COURTYARD_FT_EACH` in `siteFeatureWords.js`.
+- `MessageTemplate` gains `serviceType`, `pipeline`, `contactRole`, `topicWords` (all nullable); `templateMatch.js` filters and tie-breaks on them; `followUpDrafter.js` passes the context.
+
+### 2026-10-01 (later, 99042af) - Mike's Claude - **DEPLOYED 99042af**, migration 0112: Voice Training 250 emails, refilling templates, templates feed the email writers
 
 - Relearn studies 250 emails; Save or Not useful on a template suggestion triggers a parked refill (`/api/sales/voice/templates/refill`) so 8 stay on screen. `VoiceTemplateSuggestion.topic` (0112, additive) stops near twins.
 - New `templateMatch.js` / `templatePick.js`: follow-up, recap/nudge and keep-in-touch writers hand the closest MessageTemplate in as a skeleton (stage match, then topic words, then scenario default).

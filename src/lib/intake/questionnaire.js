@@ -371,7 +371,8 @@ export const FIGURE_KEYS = [
   // kinds, feet (longest dimension) for courtyards and turf play areas. 0 is
   // a real answer — "there is no dog park" — and nothing is ever guessed.
   { key: 'figureDogParks',           section: 'Project figures', question: '# Dog parks (entered by the submitter)' },
-  { key: 'figureCourtyardFt',        section: 'Project figures', question: 'Courtyard length, feet (entered by the submitter)' },
+  { key: 'figureCourtyards',         section: 'Project figures', question: '# Courtyards (entered by the submitter)' },
+  { key: 'figureCourtyardFt',        section: 'Project figures', question: 'Courtyard length, feet (entered by the submitter; older drafts)' },
   { key: 'figurePlaygrounds',        section: 'Project figures', question: '# Playgrounds (entered by the submitter)' },
   { key: 'figureTennisCourts',       section: 'Project figures', question: '# Tennis courts (entered by the submitter)' },
   { key: 'figurePickleballCourts',   section: 'Project figures', question: '# Pickleball courts (entered by the submitter)' },
@@ -381,7 +382,7 @@ export const FIGURE_KEYS = [
 // Figures where a typed 0 is a real answer rather than a blank.
 const ZERO_OK_FIGURES = new Set([
   'figureSurfaceParking', 'figureGarages', 'figureCarports',
-  'figureDogParks', 'figureCourtyardFt', 'figurePlaygrounds', 'figureTennisCourts', 'figurePickleballCourts', 'figureTurfPlayFt',
+  'figureDogParks', 'figureCourtyards', 'figureCourtyardFt', 'figurePlaygrounds', 'figureTennisCourts', 'figurePickleballCourts', 'figureTurfPlayFt',
 ]);
 
 // Which building types get detached-garage and carport lights — one shared

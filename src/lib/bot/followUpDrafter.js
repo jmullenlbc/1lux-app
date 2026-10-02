@@ -56,10 +56,12 @@ export async function hasDraftNote(contactIds) {
 // Mike 10-1: the closest template on file is the skeleton, adapted to this
 // email (templateMatch.js): a follow-up filed for this stage first, then the
 // template whose topic is closest, then any follow-up with no stage.
-async function findTemplate(project) {
+async function findTemplate(project, contact) {
   const stage = primaryStage(project);
   return pickTemplate({
     scenario: 'follow_up', stage, clientType: project.client?.clientType || null,
+    serviceType: project.serviceType || null, pipeline: inDesignPipeline(project) ? 'DESIGN' : 'PROCUREMENT',
+    contactTitle: contact?.title || null,
     text: [project.name, project.client?.name, project.serviceType, STAGE_LABEL[stage] || stage, 'follow up'].filter(Boolean).join(' '),
   });
 }
@@ -113,7 +115,7 @@ export async function generateFollowUpDraft(project, rule, { senderUserId } = {}
     return { error: 'No contact email found for project — skipping', project: project.name };
   }
 
-  const [template, knowledgeText, personalText] = await Promise.all([findTemplate(project), findKnowledge(project), personalPromptFor(contact?.id, toName)]);
+  const [template, knowledgeText, personalText] = await Promise.all([findTemplate(project, contact), findKnowledge(project), personalPromptFor(contact?.id, toName)]);
 
   const recentActivities = (project.activities || [])
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))

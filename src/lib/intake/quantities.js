@@ -47,7 +47,7 @@ import { PRICING } from '../pricing.js';
 import { estimateStairLandings } from '../stairLandings.js';
 import { answersToEngine, NO_DRAWINGS_KEY, CLUBHOUSE_KEY, GARAGE_TYPE_KEYS, CARPORT_TYPE_KEYS } from './questionnaire.js';
 import { NO_DRAWING_GUESSES } from './noDrawingGuesses.js';
-import { SITE_FEATURE_TYPES, SITE_FEATURE_LABELS, SITE_FEATURE_ROW_KEYS, LINEAR_SITE_FEATURES, normalizeSiteFeatures } from '../siteFeatures.js';
+import { SITE_FEATURE_TYPES, SITE_FEATURE_LABELS, SITE_FEATURE_ROW_KEYS, LINEAR_SITE_FEATURES, COURTYARD_FT_EACH, normalizeSiteFeatures } from '../siteFeatureWords.js';
 
 /** A stated, usable number — or null. Number(null) is 0, hence the dance. */
 function stated(v) {
@@ -1296,15 +1296,20 @@ export function computeQuantities(drawings, answers, pricing = null, adopted = n
     const label = linear ? `${name} length` : `# ${name}s`;
     const unit = linear ? 'ft' : 'count';
     const f = found.get(type);
-    const typed = statedCount(ans[figureKey]);
+    // Courtyards are asked as a COUNT (Mike 10-1: nobody knows the length);
+    // each counts as COURTYARD_FT_EACH feet. The old feet answer still reads.
+    const typedCourtyards = type === 'courtyard' ? statedCount(ans.figureCourtyards) : null;
+    const typed = typedCourtyards != null ? typedCourtyards * COURTYARD_FT_EACH : statedCount(ans[figureKey]);
     const drawn = f ? (linear ? f.lengthFt : f.count) : null;
     const where = f?.sheet ? ` (sheet ${f.sheet})` : '';
     if (drawn != null && drawn > 0) {
       add(rowKey, label, unit, drawn, 'drawing',
         linear
-          ? `${f.count} ${name.toLowerCase()}${f.count === 1 ? '' : 's'} labelled on the drawing${where}; longest dimension measured off the sheet.`
+          ? (f.lengthAssumed
+              ? `${f.count} ${name.toLowerCase()}${f.count === 1 ? '' : 's'} labelled on the drawing${where}; no length is printed, so each is counted at a standard length.`
+              : `${f.count} ${name.toLowerCase()}${f.count === 1 ? '' : 's'} labelled on the drawing${where}; longest dimension measured off the sheet.`)
           : `Labelled on the drawing${where}${f.label ? ` as "${f.label}"` : ''}.`,
-        linear ? 'Length measured off the drawing, not printed on it — confirm.' : null);
+        linear ? (f.lengthAssumed ? 'Standard length, not measured — confirm the number of courtyards.' : 'Length measured off the drawing, not printed on it — confirm.') : null);
     } else if (f && linear) {
       // Named but not measurable: the row exists so the grid asks for a length.
       add(rowKey, label, unit, typed, typed != null ? 'questionnaire' : null,

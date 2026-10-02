@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { ruleFields } from '@/lib/bot/templateRules';
 
 export async function GET(req) {
   const { user, error } = await requireAuth();
@@ -40,6 +41,7 @@ export async function POST(req) {
       scenario,
       dealStage: dealStage ?? null,
       clientType: clientType ?? null,
+      ...ruleFields(body),
       subject: subject ?? null,
       body:      templateBody,
       direction: direction || null,

@@ -28,6 +28,15 @@ export const SITE_FEATURE_LABELS = {
 export const LINEAR_SITE_FEATURES = new Set(['courtyard', 'turfPlay']);
 
 /**
+ * A courtyard no one measured counts as this many feet each: 2 pedestrian
+ * poles at the default 1 pole per 30 ft (Mike 10-1: "2 poles per courtyard
+ * until we learn more"). Drawings rarely dimension a courtyard, so a courtyard
+ * seen on the landscape sheet with no length, or a count typed by a visitor,
+ * becomes count x this many feet. A real measured length always wins.
+ */
+export const COURTYARD_FT_EACH = 60;
+
+/**
  * Clean one sheet's `siteFeatures` array: known types only, whole counts,
  * non-negative lengths, and one entry per type (two "COURTYARD" entries on a
  * sheet are added together). Anything else is dropped — this shape arrives
@@ -43,15 +52,21 @@ export function normalizeSiteFeatures(list, page = null) {
     if (!Number.isFinite(count) || count <= 0) continue;
     const len = Number(raw?.lengthFt);
     const lengthFt = LINEAR_SITE_FEATURES.has(type) && Number.isFinite(len) && len > 0 ? Math.round(len) : null;
+    const assumed = type === 'courtyard' && (lengthFt == null || raw?.lengthAssumed === true);
     const label = String(raw?.label ?? '').trim().slice(0, 80) || null;
     const prev = byType.get(type);
     if (prev) {
       prev.count += count;
       if (lengthFt != null) prev.lengthFt = (prev.lengthFt ?? 0) + lengthFt;
+      if (!assumed) prev.lengthAssumed = false;
       if (!prev.label && label) prev.label = label;
     } else {
-      byType.set(type, { type, count, lengthFt, label, sheet: raw?.sheet ?? page ?? null });
+      byType.set(type, { type, count, lengthFt, label, sheet: raw?.sheet ?? page ?? null, ...(assumed ? { lengthAssumed: true } : {}) });
     }
+  }
+  // A courtyard seen but not measured is priced at a standard length each.
+  for (const f of byType.values()) {
+    if (f.type === 'courtyard' && f.lengthFt == null) { f.lengthFt = f.count * COURTYARD_FT_EACH; f.lengthAssumed = true; }
   }
   return SITE_FEATURE_TYPES.filter(t => byType.has(t)).map(t => byType.get(t));
 }
@@ -138,7 +153,7 @@ export function describeSiteFeatureFinding(f) {
   const name = SITE_FEATURE_LABELS[type].toLowerCase();
   const where = f?.sheet ? ` (sheet ${f.sheet})` : '';
   if (LINEAR_SITE_FEATURES.has(type)) {
-    const len = Math.max(0, Math.round(Number(f?.lengthFt) || 0));
+    const len = f?.lengthAssumed ? 0 : Math.max(0, Math.round(Number(f?.lengthFt) || 0));
     const head = count > 1 ? plural(count, name) : name;
     return len > 0
       ? `${head}, ${len.toLocaleString('en-US')} ft long${where}`

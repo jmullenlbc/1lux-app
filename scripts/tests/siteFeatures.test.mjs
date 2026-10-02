@@ -24,7 +24,7 @@ import {
   siteFeaturesFromRows, siteFeaturesToRows, siteFeatureCostLine,
 } from '../../src/lib/siteFeatures.js';
 import {
-  describeSiteFeatureFinding, siteFeatureFindings, siteFeatureLineLabel,
+  describeSiteFeatureFinding, siteFeatureFindings, siteFeatureLineLabel, COURTYARD_FT_EACH,
 } from '../../src/lib/siteFeatureWords.js';
 import {
   siteFeatureFromFlat, isSiteFeatureRowKey, engineProjectData, describeSiteFeatureChange,
@@ -101,7 +101,8 @@ test('normalize: dedupes by type, drops junk, keeps display order', () => {
   assert.equal(list.find(f => f.type === 'tennisCourt').count, 2);
   assert.equal(list.find(f => f.type === 'tennisCourt').sheet, 3);
   assert.equal(list.find(f => f.type === 'dogPark').sheet, 7);
-  assert.equal(list.find(f => f.type === 'courtyard').lengthFt, null);
+  // an unmeasured courtyard counts at the standard length (Mike 10-1: 2 poles each)
+  assert.equal(list.find(f => f.type === 'courtyard').lengthFt, COURTYARD_FT_EACH);
 });
 
 test('priceSiteFeatures totals fixtures by kind', () => {
@@ -260,4 +261,14 @@ test('all six kinds have a row key, a label and a rule', () => {
     assert.ok(SITE_FEATURE_ROW_LABELS[SITE_FEATURE_ROW_KEYS[t]], t);
     assert.ok(siteFeatureFixtures({ type: t, count: 1, lengthFt: 10 }, RATES), t);
   }
+});
+
+test('courtyards with no printed length count 60 ft each; a measured length wins', () => {
+  const [a] = normalizeSiteFeatures([{ type: 'courtyard', count: 3 }], 4);
+  assert.equal(a.lengthFt, 3 * COURTYARD_FT_EACH);
+  assert.equal(a.lengthAssumed, true);
+  const [b] = normalizeSiteFeatures([{ type: 'courtyard', count: 2, lengthFt: 90 }], 4);
+  assert.equal(b.lengthFt, 90);
+  assert.ok(!b.lengthAssumed);
+  assert.equal(COURTYARD_FT_EACH, 60);
 });

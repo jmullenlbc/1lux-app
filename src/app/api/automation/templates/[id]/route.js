@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { ruleFields } from '@/lib/bot/templateRules';
 
 export async function PATCH(req, { params }) {
   const { user, error } = await requireAuth();
@@ -24,6 +25,7 @@ export async function PATCH(req, { params }) {
       ...(scenario !== undefined && { scenario }),
       ...(dealStage !== undefined && { dealStage }),
       ...(clientType !== undefined && { clientType }),
+      ...ruleFields(body, true),
       ...(subject !== undefined && { subject }),
       ...(templateBody !== undefined && { body: templateBody }),
       ...(direction !== undefined && { direction: direction || null }),

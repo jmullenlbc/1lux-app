@@ -5,6 +5,13 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Courtyards count 2 poles each + more rules on Email Templates] - October 1, 2026 (NOT DEPLOYED) - migration 0113_template_rules (additive)
+
+- **Courtyards:** a courtyard spotted on drawings with no length now counts as `COURTYARD_FT_EACH` = 60 ft (2 poles at 30 ft per pole), flagged `lengthAssumed`; a measured length always wins (`normalizeSiteFeatures` in `siteFeatureWords.js`). Mike 10-1: "2 poles per courtyard until we learn more".
+- Public conceptual budget asks "# Courtyards" (`figureCourtyards`, a count) instead of "courtyard length"; old `figureCourtyardFt` still read for older drafts. Wording never mentions poles. Staff Project Data hint explains 60 ft per courtyard when the length is unknown.
+- **Email Templates get more rules** (Mike 10-1): Service Type, Pipeline (Design / Procurement), Contact Role (words from the contact's job title) and Topic Words, all optional (new nullable columns, 0113). A set rule rules the template out only when the email's own value is known; the template matching more rules wins ties. `templateMatch.js` + `templateRules.js`; both API routes accept the fields; the Email Templates drawer and table show them; `followUpDrafter.js` passes service type, pipeline and the contact's title.
+- Tests: courtyard assumption (siteFeatures.test.mjs), rule matching (templateMatch.test.mjs). `verify --full` green (15 gates).
+
 ## [Voice Training: 250 emails, ever-refilling templates, big Relearn, templates feed the email writers] - October 1, 2026 (DEPLOYED 99042af) - migration 0112_voice_template_topic (additive)
 
 - Relearn now studies 250 emails instead of 60 (`STUDY` in `src/lib/tone/library.js`; Mike: "60 is too limited"). Still one parked model call; the progress line says "a minute or two".

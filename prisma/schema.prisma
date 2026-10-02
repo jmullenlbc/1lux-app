@@ -2854,6 +2854,10 @@ model MessageTemplate {
   scenario    String // new_intro | proposal_sent | follow_up | peer_review_sent | golf_invite | linkedin_connect | linkedin_move_to_email | meeting_recap | kick_off_agenda | custom
   dealStage   String? // null = all stages
   clientType  String? // null = all; DEVELOPER | ARCHITECT | GC | EC
+  serviceType String? // null = all; a project service type key (fullDesign | designAssist | peerReview | bidOnly)
+  pipeline    String? // null = both; PROCUREMENT | DESIGN
+  contactRole String? // null = anyone; words from the contact's job title ("owner", "project manager")
+  topicWords  String? // extra words that steer the topic match for the email writers
   subject     String? // email only
   body        String
   direction   String? // AI instructions: rules, tone guidance, activity references, personalization hints

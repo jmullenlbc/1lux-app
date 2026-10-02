@@ -6,8 +6,11 @@
  * Order: a template filed under this scenario AND deal stage wins; then the
  * template whose words best match what this email is about; then a template
  * filed under the scenario with no stage; else none. A template filed for one
- * client type is never used for another. The same word counting decides when
- * two template suggestions are on the same topic (tone/library.js).
+ * client type, service type, pipeline or contact role is never used for a
+ * different one (a rule only rules a template out when the email's own value is
+ * known). Among equals the template with more matching rules wins. The same
+ * word counting decides when two template suggestions are on the same topic
+ * (tone/library.js).
  */
 const STOP = new Set(('the a an and or of to in on for with at by from is are was were be been being this that these those it its '
   + 'as we you your our they their them i my me will would can could should shall have has had do does did not no yes if then than '
@@ -42,17 +45,41 @@ export function topicOverlap(a, b) {
   return sharedWords(A, B) / Math.min(A.size, B.size);
 }
 
-export const templateText = t => [t?.name, t?.direction, t?.subject, t?.body].filter(Boolean).join(' ');
+export const templateText = t => [t?.name, t?.topicWords, t?.direction, t?.subject, t?.body].filter(Boolean).join(' ');
+
+// Does any word of the template's contact role appear as a word in the contact's job title?
+const roleWords = s => String(s || '').toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length >= 2);
+function roleMatches(rule, title) {
+  const have = new Set(roleWords(title));
+  return roleWords(rule).some(w => have.has(w));
+}
+
+/** Does this template's own rules allow it for this email? An unknown email value never rules one out. */
+function allowed(t, { clientType, serviceType, pipeline, contactTitle }) {
+  if (t.clientType && clientType && t.clientType !== clientType) return false;
+  if (t.serviceType && serviceType && t.serviceType !== serviceType) return false;
+  if (t.pipeline && pipeline && String(t.pipeline).toUpperCase() !== String(pipeline).toUpperCase()) return false;
+  if (t.contactRole && contactTitle && !roleMatches(t.contactRole, contactTitle)) return false;
+  return true;
+}
+
+/** How many of the template's own rules this email positively matches. */
+function specificity(t, { clientType, serviceType, pipeline, contactTitle }) {
+  return (t.clientType && clientType ? 1 : 0) + (t.serviceType && serviceType ? 1 : 0)
+    + (t.pipeline && pipeline ? 1 : 0) + (t.contactRole && contactTitle ? 1 : 0);
+}
 
 /**
  * The best template for an email. `text` is what the email is about (project,
  * service type, stage, the items in it). Returns { template, how, score } or null.
  */
-export function bestTemplate(list, { text = '', stage = null, scenario = null, clientType = null, minScore = 0.2 } = {}) {
-  const ok = (list || []).filter(t => t && t.isActive !== false && String(t.body || '').trim()
-    && (!t.clientType || !clientType || t.clientType === clientType));
+export function bestTemplate(list, opts = {}) {
+  const { text = '', stage = null, scenario = null, minScore = 0.2 } = opts;
+  const ok = (list || []).filter(t => t && t.isActive !== false && String(t.body || '').trim() && allowed(t, opts));
+  const spec = t => specificity(t, opts);
+  const mostSpecific = arr => arr.reduce((b, t) => (!b || spec(t) > spec(b) ? t : b), null);
   const filed = scenario ? ok.filter(t => t.scenario === scenario) : [];
-  const byStage = stage ? filed.find(t => t.dealStage === stage) : null;
+  const byStage = stage ? mostSpecific(filed.filter(t => t.dealStage === stage)) : null;
   if (byStage) return { template: byStage, how: 'stage', score: 1 };
 
   const words = topicWords(text);
@@ -60,10 +87,10 @@ export function bestTemplate(list, { text = '', stage = null, scenario = null, c
   for (const t of ok) {
     const shared = sharedWords(words, templateText(t));
     const score = words.size ? shared / words.size : 0;
-    if (shared >= 2 && score >= minScore && (!best || score > best.score)) best = { template: t, how: 'topic', score };
+    if (shared >= 2 && score >= minScore && (!best || score > best.score || (score === best.score && spec(t) > spec(best.template)))) best = { template: t, how: 'topic', score };
   }
   if (best) return best;
-  const general = filed.find(t => !t.dealStage);
+  const general = mostSpecific(filed.filter(t => !t.dealStage));
   return general ? { template: general, how: 'scenario', score: 0 } : null;
 }
 

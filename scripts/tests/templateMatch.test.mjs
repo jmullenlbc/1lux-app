@@ -43,3 +43,21 @@ test('the prompt hands the template in as a skeleton, never as the answer', () =
   assert.match(s, /Subject: Peer review budget\nAttached is the peer review budget/);
   assert.equal(templateSection(null), '');
 });
+
+test('service type, pipeline and contact role rules (Mike 10-1)', () => {
+  const R = [
+    { id: 'p', name: 'Peer review follow-up', scenario: 'follow_up', serviceType: 'peerReview', body: 'Peer review check in.' },
+    { id: 'o', name: 'Owner follow-up', scenario: 'follow_up', contactRole: 'owner principal', body: 'Owner check in.' },
+    { id: 'd', name: 'Design pipeline follow-up', scenario: 'follow_up', pipeline: 'DESIGN', body: 'Design check in.' },
+    { id: 'g', name: 'General', scenario: 'follow_up', body: 'Check in.' },
+  ];
+  assert.equal(bestTemplate(R, { scenario: 'follow_up', serviceType: 'fullDesign', pipeline: 'PROCUREMENT', contactTitle: 'Project Manager' }).template.id, 'g');
+  assert.equal(bestTemplate(R, { scenario: 'follow_up', serviceType: 'peerReview' }).template.id, 'p');
+  assert.equal(bestTemplate(R, { scenario: 'follow_up', contactTitle: 'Managing Owner' }).template.id, 'o');
+  assert.equal(bestTemplate(R, { scenario: 'follow_up', pipeline: 'DESIGN', contactTitle: 'Project Manager' }).template.id, 'd');
+  // unknown email values never rule a template out
+  assert.ok(bestTemplate([R[0]], { scenario: 'follow_up' }));
+  // topic words steer the topic match
+  const tw = { id: 't', name: 'x', scenario: 'custom', topicWords: 'punch list closeout warranty', body: 'Thanks.' };
+  assert.equal(bestTemplate([tw], { text: 'closeout warranty punch list walk' }).template.id, 't');
+});

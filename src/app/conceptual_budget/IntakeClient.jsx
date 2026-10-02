@@ -190,7 +190,7 @@ const fieldsFor = (list, projectType) => list.filter(f => !f.types || f.types.in
 // form; the server does the fixture math.
 const SITE_FEATURE_FIELDS = [
   { key: 'figureDogParks',         qKey: 'dogParks',         label: '# Dog parks',          placeholder: 'e.g. 1', hint: 'Enter 0 if none.' },
-  { key: 'figureCourtyardFt',      qKey: 'courtyardFt',      label: 'Courtyard length (ft)', placeholder: 'e.g. 120', hint: 'Longest dimension, all courtyards added up. 0 if none.' },
+  { key: 'figureCourtyards',                                label: '# Courtyards',         placeholder: 'e.g. 2', hint: 'Open courtyards with walkways or seating. 0 if none.' },
   { key: 'figurePlaygrounds',      qKey: 'playgrounds',      label: '# Playgrounds',        placeholder: 'e.g. 1', hint: 'Tot lots and play areas. 0 if none.' },
   { key: 'figureTennisCourts',     qKey: 'tennisCourts',     label: '# Tennis courts',      placeholder: 'e.g. 2', hint: 'Enter 0 if none.' },
   { key: 'figurePickleballCourts', qKey: 'pickleballCourts', label: '# Pickleball courts',  placeholder: 'e.g. 2', hint: 'Sport / multi-use courts count here. 0 if none.' },
