@@ -7,6 +7,7 @@ import { PRICING } from '@/lib/pricing';
 import { priceOverride, calculateBudget } from '@/lib/calculations';
 import { breezewayStairPackage, BREEZEWAY_STYLES } from '@/lib/stairLandings';
 import StairTypeQuestions from '@/components/sections/StairTypeQuestions';
+import BackBalconyQuestion from '@/components/sections/BackBalconyQuestion';
 
 // Static fallbacks — live values come from the master pricing prop (see P below).
 const DISK_RATES     = { 6: 0.40, 7: 0.35, 8: 0.30, 9: 0.28, 10: 0.25, 11: 0.23, 12: 0.23 };
@@ -21,6 +22,8 @@ export default function DesignCorridorsSection({
   onNext,
   onPrev,
   hasDrawings = false,
+  homeType = false,
+  onSaveUnits,
 }) {
   const P = pricing || PRICING;
   const DISK_RATE_TABLE     = P.designCorridors?.diskSpacingRates     || DISK_RATES;
@@ -129,7 +132,7 @@ export default function DesignCorridorsSection({
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-xl font-bold text-slate-900">Corridors &amp; Stairwells</h2>
+        <h2 className="text-xl font-bold text-slate-900">{homeType ? 'Front Door & Back Balcony' : 'Corridors & Stairwells'}</h2>
         <p className="text-slate-500 text-sm mt-1">
           Interior corridors, egress stairwells, elevator lobbies, and unit-entry sconces.
         </p>
@@ -252,7 +255,7 @@ export default function DesignCorridorsSection({
 
       {/* Unit entry sconce */}
       <QuestionCard
-        question="Unit-entry sconce?"
+        question={homeType ? 'Front door sconce?' : 'Unit-entry sconce?'}
         note={`A sconce at each unit front door creates a residential feel and helps tenants identify their unit. ${numUnits > 0 ? `(${numUnits} units)` : ''}`}
         costSuffix="/unit"
         options={[
@@ -271,6 +274,11 @@ export default function DesignCorridorsSection({
           disabled:    ans.unitSconce === 'none',
         }}
       />
+
+      {/* Homes: the back balcony is asked here, not on Units (Mike 10-2). */}
+      {homeType && (
+        <BackBalconyQuestion projectData={projectData} allSections={allSections} pricing={pricing} onSaveUnits={onSaveUnits} />
+      )}
 
       {/* Recessed accents — manual quantity entered right here */}
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">

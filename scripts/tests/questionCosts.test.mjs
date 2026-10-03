@@ -78,7 +78,7 @@ test('frogeyes: one per 25 ft of corridor (SF ÷ 6 ft wide) + one per 300 SF of 
 });
 
 test('walking-path lights: count = line ÷ $800, labor $500 each', () => {
-  const found = ['garden', 'podium', 'wrap', 'townHouses']
+  const found = ['garden', 'podium', 'wrap']
     .map(t => calculateBudget({ ...PD, buildingTypeKey: t }, { ...RESP, exterior: { ...RESP.exterior, pathwayBollards: 'yes' } }).questionCosts['exterior.pathwayBollards'])
     .filter(e => e && e.product > 0);
   assert.ok(found.length > 0, 'some building type should price pathway');
@@ -88,6 +88,12 @@ test('walking-path lights: count = line ÷ $800, labor $500 each', () => {
     assert.equal(l.laborEach, 500);
     close(e.labor, l.count * 500, 'pathway labor');
   }
+  // Homes (Mike 2026-10-02): the count IS the poles, $1,000 each.
+  const home = calculateBudget({ ...PD, buildingTypeKey: 'townHouses' }, { ...RESP, exterior: { ...RESP.exterior, pathwayBollards: 'yes', walkwayLengthFt: 400 } }).questionCosts['exterior.pathwayBollards'];
+  assert.equal(home.lines[0].label, 'Bollards / pedestrian poles');
+  assert.equal(home.lines[0].count, 10);
+  assert.equal(home.lines[0].each, 1000);
+  assert.equal(home.lines[0].laborEach, 500);
 });
 
 test('solar site: 70% of wired-pole labor credited back as a saving', () => {
@@ -97,7 +103,7 @@ test('solar site: 70% of wired-pole labor credited back as a saving', () => {
   const poleLabor = PRICING.labor.areaPole + PRICING.labor.trenchingPerFt * PRICING.labor.trenchFtPerPole;
   assert.equal(PRICING.labor.trenchingPerFt * PRICING.labor.trenchFtPerPole, 900, '$15/ft × 60 ft = $900 trenching + conduit per pole');
   assert.equal(PRICING.labor.solarPoleCreditPct, 0.7);
-  assert.ok(wired.lines.length === 1 && wired.lines[0].count > 0, 'wired site has poles');
+  assert.ok(wired.lines[0].label === 'Area lights' && wired.lines[0].count > 0, 'wired site has poles');
   close(wired.labor, wired.lines[0].count * poleLabor, 'wired pole labor');
   const saved = solar.lines.find(l => l.labor < 0);
   assert.ok(saved, 'solar shows a credit line');

@@ -7,7 +7,7 @@ import SummaryBudgetBreakdown from '@/app/(app)/project/[id]/summary/SummaryBudg
 import QuestionCard from '@/components/sections/QuestionCard';
 import InteriorTierPicker from '@/components/sections/InteriorTierPicker';
 import { classifyIntakeEmail } from '@/lib/intake';
-import { INTAKE_QUESTIONS, noDrawingsReady, BOLLARD_PROJECT_TYPES, designChoices } from '@/lib/intake/questionnaire';
+import { INTAKE_QUESTIONS, noDrawingsReady, BOLLARD_PROJECT_TYPES, designChoices, isHomeProjectType, questionFor, optionLabelFor } from '@/lib/intake/questionnaire';
 import { controlsMathWords } from '@/lib/intake/controlsWords';
 import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -147,6 +147,17 @@ const STEPS = [
   { id: 'review',    short: 'Review & Send', label: 'Review & Send',
     hint: 'Check your budget and download a PDF copy. When you’re ready, send it to our team to review.' },
 ];
+
+// Mike 10-2: townhomes and single-family homes have no corridors; the same
+// page asks about the light by each front door and on the back balcony (the
+// balcony question moves here from the Units page). `extraKeys` adds questions
+// to a page, `omitKeys` takes them off.
+const HOME_CORRIDORS_STEP = { short: 'Front Door', label: 'Front Door & Back Balcony',
+  hint: 'Choose the light by each home’s front door and on its back balcony.', extraKeys: ['balconyLighting'] };
+const stepsFor = projectType => isHomeProjectType(projectType)
+  ? STEPS.map(s => (s.id === 'corridors' ? { ...s, ...HOME_CORRIDORS_STEP }
+    : s.id === 'units' ? { ...s, omitKeys: ['balconyLighting'] } : s))
+  : STEPS;
 
 /** "How this works" on the About step — four short steps, plain words. */
 const HOW_IT_WORKS = [
@@ -331,7 +342,7 @@ function guessProjectType(buildingType) {
 
 /** Render an option for display — the $/SF questions store bare numbers. */
 function optionLabel(q, opt) {
-  return q.format === 'perSf' ? `$${opt}/SF` : opt;
+  return optionLabelFor(q, opt);
 }
 
 /**
@@ -340,7 +351,7 @@ function optionLabel(q, opt) {
  * carries ILC branding (and the project name once entered) where the
  * internal one shows the editable project block.
  */
-function PublicSectionNav({ currentStep, completedSteps, canNavigate, onJump, projectName }) {
+function PublicSectionNav({ steps = STEPS, currentStep, completedSteps, canNavigate, onJump, projectName }) {
   return (
     <aside className="hidden lg:flex w-56 bg-white border-r border-slate-100 flex-col shrink-0 overflow-y-auto">
       <div className="px-4 py-4 border-b border-slate-100">
@@ -361,7 +372,7 @@ function PublicSectionNav({ currentStep, completedSteps, canNavigate, onJump, pr
       </div>
 
       <nav className="flex-1 px-2 py-3 space-y-0.5">
-        {STEPS.map((step, i) => {
+        {steps.map((step, i) => {
           const isActive    = step.id === currentStep;
           const isCompleted = completedSteps.includes(step.id);
           const enabled     = canNavigate(step.id);
@@ -563,7 +574,9 @@ export default function IntakeClient() {
   useEffect(() => { if (draftToken) pingVisit({ stepId }); }, [draftToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const stepIndex = STEPS.findIndex(s => s.id === stepId);
-  const step      = STEPS[stepIndex];
+  const steps     = stepsFor(answers.projectType);
+  const step      = steps[stepIndex];
+  const homeType  = isHomeProjectType(answers.projectType);
 
   const emailCheck = email ? classifyIntakeEmail(email) : null;
   const emailError = touchedEmail && emailCheck && !emailCheck.ok ? emailCheck.message : null;
@@ -1152,6 +1165,7 @@ export default function IntakeClient() {
       <div className="flex-1 flex lg:overflow-hidden">
         {!submitted && (
           <PublicSectionNav
+            steps={steps}
             currentStep={stepId}
             completedSteps={completedSteps}
             canNavigate={canNavigate}
@@ -1166,7 +1180,7 @@ export default function IntakeClient() {
             {/* Mobile step chips — the left rail is desktop-only */}
             {!submitted && (
               <div className="lg:hidden flex items-center gap-1.5 flex-wrap mb-6">
-                {STEPS.map((s, i) => (
+                {steps.map((s, i) => (
                   <button
                     key={s.id}
                     onClick={() => canNavigate(s.id) && goTo(s.id)}
@@ -1555,9 +1569,12 @@ export default function IntakeClient() {
                         the Drawings page itself now — amber boxes in the one
                         Project Data grid — not here. */}
                     <div className="space-y-4">
-                      {step.sections.flatMap(name => questionsBySection.get(name) || [])
+                      {[...step.sections.flatMap(name => questionsBySection.get(name) || []),
+                        ...INTAKE_QUESTIONS.filter(q => step.extraKeys?.includes(q.key))]
+                        .filter(q => !step.omitKeys?.includes(q.key))
                         // Walking-path bollards: townhomes and single-family only (Mike, 2026-09-12).
                         .filter(q => q.key !== 'pathwayBollards' || BOLLARD_PROJECT_TYPES.includes(answers.projectType))
+                        .map(q => questionFor(q, answers.projectType))
                         .map(q => (
                         <div key={q.key}>
                           {q.key === 'interiorAmenityFinish' ? (
@@ -1786,7 +1803,7 @@ export default function IntakeClient() {
         {!submitted && (
           hasEstimate ? (
             <div className="hidden lg:flex shrink-0">
-              <BudgetSidebar budget={budget} projectData={estimatePd} currentStep={step.budgetStep || null} range={range} projectName={project} />
+              <BudgetSidebar budget={budget} projectData={estimatePd} currentStep={step.budgetStep || null} range={range} projectName={project} homeType={homeType} />
             </div>
           ) : (
             <aside className="hidden lg:flex w-64 bg-white border-l border-slate-100 flex-col shrink-0">

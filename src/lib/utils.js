@@ -175,6 +175,18 @@ export const WIZARD_STEPS = [
   { id: 'summary',      label: 'Summary & Budget',       short: 'Summary',    icon: 'BarChart3',   designOnly: false },
 ];
 
+// Mike 10-2: townhomes and single-family homes have no corridors. Their
+// Corridors page is "Front Door & Back Balcony" (the balcony question moves
+// there from Units; same stored answer, same price).
+export const HOME_BUILDING_KEYS = ['townHouses', 'singleFamily'];
+export const isHomeBuildingKey = k => HOME_BUILDING_KEYS.includes(k);
+export const HOME_DOOR_LABEL = 'Front Door & Back Balcony';
+export function stepsForHome(steps, home) {
+  return home
+    ? steps.map(s => (s.id === 'corridors' || s.id === 'design-corridors' ? { ...s, label: HOME_DOOR_LABEL, short: 'Front Door' } : s))
+    : steps;
+}
+
 /** Returns the steps active for the current mode */
 export function getActiveSteps(isDesign = false) {
   return isDesign ? WIZARD_STEPS : WIZARD_STEPS.filter(s => !s.designOnly);

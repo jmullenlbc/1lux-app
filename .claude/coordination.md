@@ -2,7 +2,10 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-02 (newest) - Mike's Claude - **DEPLOYED 3d73cdf**, no migration: conceptual budget grid fixes
+### 2026-10-02 (newest) - Mike's Claude - **DEPLOYED**, no migration: homes Front Door & Back Balcony page, bollards / pedestrian poles, drive lights
+Town Houses / Single Family: Corridors page becomes "Front Door & Back Balcony" on the public and both internal wizards, balcony question moved there (same stored answer). Walking paths for homes only: "bollards / pedestrian poles", 1 per 40 ft at $1,000 (`exterior.pedestrianPole`), 0.4/home with no walkway length, new `exterior.walkwayLengthFt`. Drive lights stay 1 per 81 ft; with no drive length the stalls stand in, nothing added on top. Site read measures all drive aisles (siteVision-2026-10-02b). Fixed "Change from last choice" on page load. verify --full passed.
+
+### 2026-10-02 - Mike's Claude - **DEPLOYED 3d73cdf**, no migration: conceptual budget grid fixes
 
 - Public grid: project name above the total, red "!" alerts, stairwells OR landings (landings derived), footprint measured off the scaled site plan (new vision field `buildingFootprintSfMeasured`, prompt version bump) then gross ÷ stories fallback.
 - Pricing: garage strip $65 per detached/attached garage; Upgraded site = 1.25× landscape + path; cost box shows change from last choice (red + adder, green - savings).

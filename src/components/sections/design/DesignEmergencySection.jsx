@@ -1,7 +1,7 @@
 'use client';
 import { useState, useMemo } from 'react';
 import Button from '@/components/ui/Button';
-import QuestionCard, { CostImpact } from '@/components/sections/QuestionCard';
+import QuestionCard, { CostImpact, useChoiceDelta } from '@/components/sections/QuestionCard';
 import { calculateBudget } from '@/lib/calculations';
 import { PRICING } from '@/lib/pricing';
 import { emergencyStrategyCost } from '@/lib/emergencyCost';
@@ -27,6 +27,7 @@ export default function DesignEmergencySection({
     () => calculateBudget(projectData, { ...(allSections || {}), emergency: { ...(allSections?.emergency || {}), ...ans } }, pricing || null).questionCosts || {},
     [projectData, allSections, ans, pricing],
   );
+  const strategyDelta = useChoiceDelta(qc['emergency.strategy'], ans.strategy);
 
   const corridorSf    = Number(projectData?.corridorSf)          || 0;
   const intAmenitySf  = Number(projectData?.interiorAmenitySf)   || 0;
@@ -157,7 +158,7 @@ export default function DesignEmergencySection({
                 {opt.sub && (
                   <div className="text-xs text-slate-400 mt-0.5">{opt.sub}</div>
                 )}
-                {ans.strategy === opt.key && <CostImpact impact={qc['emergency.strategy']} />}
+                {ans.strategy === opt.key && <CostImpact impact={qc['emergency.strategy']} delta={strategyDelta} />}
               </div>
             </label>
           ))}

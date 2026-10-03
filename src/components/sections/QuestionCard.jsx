@@ -104,18 +104,30 @@ function Delta({ v, what }) {
   );
 }
 
-export function CostImpact({ impact }) {
-  // Remember the last totals so a new choice shows how far it moved them.
+/**
+ * How far the last CHOICE moved this question's labor and labor + materials.
+ * Lives at the question level (the cost box remounts under each option), and
+ * counts only a change of choice: the first load and a change of building
+ * figures are not choices. On the public page the new price arrives from the
+ * server a beat after the click, so a new choice waits until its totals move.
+ */
+export function useChoiceDelta(impact, choice) {
   const labor = Math.round(Number(impact?.labor) || 0);
   const total = Math.round((Number(impact?.product) || 0) + labor);
-  const prev = useRef(null);
+  const last = useRef(null);
   const [delta, setDelta] = useState(null);
   useEffect(() => {
-    const p = prev.current;
-    if (p && (p.labor !== labor || p.total !== total)) setDelta({ labor: labor - p.labor, total: total - p.total });
-    prev.current = { labor, total };
-  }, [labor, total]);
+    if (!impact) return; // price not loaded yet
+    const l = last.current;
+    if (!l || l.choice === choice) { last.current = { choice, labor, total }; return; }
+    if (l.labor === labor && l.total === total) return; // new choice, price not back yet
+    setDelta({ labor: labor - l.labor, total: total - l.total });
+    last.current = { choice, labor, total };
+  }, [impact, choice, labor, total]);
+  return delta;
+}
 
+export function CostImpact({ impact, delta = null }) {
   if (!impact || !impact.lines?.length || !(impact.product > 0 || impact.labor > 0)) return null;
   return (
     <div className="mt-2 rounded-md bg-white/70 border border-amber-200 px-3 py-2 text-xs text-slate-600 space-y-0.5">
@@ -155,6 +167,7 @@ export function CostImpact({ impact }) {
 }
 
 export default function QuestionCard({ question, note, options, value, onChange, highlight, costSuffix = '/unit', override, impact }) {
+  const delta = useChoiceDelta(impact, value);
   return (
     <div className={cn(
       'bg-white rounded-xl border p-5 transition-all',
@@ -191,7 +204,7 @@ export default function QuestionCard({ question, note, options, value, onChange,
               {opt.sub && (
                 <div className="text-xs text-slate-400 mt-0.5">{opt.sub}</div>
               )}
-              {value === opt.value && <CostImpact impact={impact} />}
+              {value === opt.value && <CostImpact impact={impact} delta={delta} />}
             </div>
             {opt.cost != null && (
               <div className={cn(

@@ -4,7 +4,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { PRICING } from '@/lib/pricing';
 import { formatCurrency, calculateBudget } from '@/lib/calculations';
-import { CostImpact } from './QuestionCard';
+import { CostImpact, useChoiceDelta } from './QuestionCard';
 import { cn } from '@/lib/utils';
 import { emergencyStrategyCost } from '@/lib/emergencyCost';
 
@@ -68,6 +68,7 @@ export default function EmergencySection({ responses, projectData, allSections, 
     () => calculateBudget(projectData, { ...(allSections || {}), emergency: { ...(allSections?.emergency || {}), ...answers } }, pricing || null).questionCosts || {},
     [projectData, allSections, answers, pricing],
   );
+  const strategyDelta = useChoiceDelta(qc['emergency.strategy'], answers.strategy);
 
   const corridorSf = Number(projectData?.corridorSf)       || 0;
   const intSf      = Number(projectData?.interiorAmenitySf) || 0;
@@ -162,7 +163,7 @@ export default function EmergencySection({ responses, projectData, allSections, 
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-slate-800">{opt.label}</div>
                   <div className="text-xs text-slate-400 mt-0.5 leading-relaxed">{opt.sub}</div>
-                  {isSelected && <CostImpact impact={qc['emergency.strategy']} />}
+                  {isSelected && <CostImpact impact={qc['emergency.strategy']} delta={strategyDelta} />}
                 </div>
                 {totalEmSf > 0 && (
                   <div className={cn(

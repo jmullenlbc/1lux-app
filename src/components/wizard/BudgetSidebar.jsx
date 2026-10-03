@@ -37,7 +37,7 @@ function PlainRow({ label, value, indent, highlight, bold }) {
 // server estimate carries a ±10% band; the internal wizard never passes it.
 // `areaNotes` ({ [area]: node }) and `areaSummary` are the staff-only area
 // alerts, passed only by the internal wizards — never by the public form.
-export default function BudgetSidebar({ budget, projectData, currentStep, range = null, areaNotes = null, areaSummary = null, projectName = '' }) {
+export default function BudgetSidebar({ budget, projectData, currentStep, range = null, areaNotes = null, areaSummary = null, projectName = '', homeType = false }) {
   if (!budget) return null;
 
   const { sections, freight, warehousing, freightRate, warehousingRate, lightingProductSubtotal, subtotalLightingOnly, controls, controlsFreight, controlsWarehousing, totalWithControls, perSf, perUnit, energyCreditPct, energyCreditLighting, energyCreditControls } = budget;
@@ -93,7 +93,7 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
                 { label: 'Kitchen pendants', value: sections.units?.pendants?.product     || 0 },
                 { label: 'Ceiling fans',     value: sections.units?.fans?.product         || 0 },
                 { label: 'Vanity lighting',  value: sections.units?.vanity?.product       || 0 },
-                { label: 'Balcony fixtures', value: sections.units?.balcony?.product      || 0 },
+                { label: homeType ? 'Back balcony fixtures' : 'Balcony fixtures', value: sections.units?.balcony?.product || 0 },
               ]}
             />
             {areaNotes?.units}
@@ -101,12 +101,13 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
             <Divider />
 
             <TooltipBudgetRow
-              label="Corridors & Stairwells"
+              // Mike 10-2: townhomes and single-family homes have a front door, not corridors.
+              label={homeType ? 'Front Door' : 'Corridors & Stairwells'}
               value={sections.corridors?.total?.product || 0}
               highlight={currentStep === 'corridors'}
               details={[
                 { label: 'Corridor disks',       value: sections.corridors?.disks?.product      || 0 },
-                { label: 'Unit entry sconces',   value: sections.corridors?.sconces?.product    || 0 },
+                { label: homeType ? 'Front door sconces' : 'Unit entry sconces', value: sections.corridors?.sconces?.product || 0 },
                 { label: sections.corridors?.stairwells?.breezeway
                            ? `Breezeway stairs (${sections.corridors.stairwells.breezeway.landings} landings)`
                            : 'Stairwell fixtures',

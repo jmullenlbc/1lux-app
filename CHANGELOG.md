@@ -5,6 +5,16 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Homes: Front Door & Back Balcony page, bollards / pedestrian poles, drive lights at 81 ft] - October 2, 2026 (DEPLOYED) - no migration
+
+- **Home wording (Mike 10-2):** on the public wizard, Town Houses and Single Family read "Exterior Front Door" instead of "Corridors" (rail, page title, sidebar, cost lines), the sconce question asks about a sconce at every front door, and balcony options read "Back balcony sconce". Wording only: stored answers and prices are unchanged. `questionFor` / `optionLabelFor` in `src/lib/intake/questionnaire.js`; also `IntakeClient.jsx`, `BudgetSidebar.jsx`, `calculations.js`.
+- **Bug fix (from 3d73cdf):** "Change from last choice" showed on first page load. Now tracked per question by `useChoiceDelta` (`QuestionCard.jsx`), counting only a real change of choice; Emergency screens use it too.
+- **Drive lights (Mike 10-2, 890 Fremont):** "Drive lanes with or without parking inside the private property need lights." The site read now measures EVERY private drive aisle, parking along it or not (prompt version siteVision-2026-10-02b). A drive length's poles now REPLACE the stall-count poles (larger of the two wins) instead of stacking on them (`calculations.js`, `ExteriorSection.jsx`, `quantities.js`). Field renamed "All drive aisles (ft)".
+- **Drive lights, no drive length (Mike 10-2):** spacing stays one pole per 81 ft. With no drive length the stalls stand in for it (stalls / 9 = poles, one per 81 ft) and nothing is added on top; with no stalls either, half a light per home (`quantities.js`).
+- **Front Door & Back Balcony (Mike 10-2):** for Town Houses and Single Family the Corridors page is now "Front Door & Back Balcony" on the public wizard AND both internal wizards, and the balcony question moves there from the Units page (same stored `units.balcony` answer and price). New `BackBalconyQuestion.jsx`; `HOME_BUILDING_KEYS`, `isHomeBuildingKey`, `stepsForHome` in `utils.js`; `HOME_DOOR_SECTION` in `questionnaire.js`; IntakeClient `extraKeys` / `omitKeys` per step. Sidebar label "Front Door"; balcony dollars stay in the Units total.
+- **Bollards / pedestrian poles (Mike 10-2):** the homes-only walking-path question is renamed "bollards / pedestrian poles": one every 40 ft of walkway (so each sits mid-run) at $1,000 each (the average of the two), no $4,000 floor. No walkway length: 0.4 per home. New `exterior.pedestrianPole` {each, ftPerPole, perHome} on Master Pricing; new "Walkway length (ft)" box under the question on the internal Exterior page (`exterior.walkwayLengthFt`). Every other building type keeps the $/unit pathway model and is never asked.
+- Tests: `scripts/tests/homeWording.test.mjs` (4); `driveLength.test.mjs`, `pathwayLighting.test.mjs`, `questionCosts.test.mjs`, `noDrawings.test.mjs` updated (the solar labor test now finds the area line by label since the cost box gained a path line in 3d73cdf). `verify --full` green (15 gates).
+
 ## [Conceptual budget grid fixes: stairwells, footprint, garages, exterior, emergency, cost deltas] - October 2, 2026 (DEPLOYED 3d73cdf) - no migration
 
 - Project name shows above the budget total on the public grid and both wizards (`BudgetSidebar.jsx`).

@@ -317,9 +317,13 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const stallFixtures    = Math.ceil(surfaceParking / stallsPerFixture);
   // One editable area-light count (Mike, 2026-09-12): a typed total on the
   // Exterior screen replaces lot poles + drive-lane lights together.
+  // Mike 2026-10-02 (890 Fremont): a drive LENGTH is every private drive aisle,
+  // parking along it or not, so its poles already light those stalls. The
+  // larger of the two counts wins; they never stack.
   const areaLightsOverride = priceOverride(exterior.areaLightsQty);
   const parkingFixtures  = areaLightsOverride != null
     ? Math.max(0, Math.round(areaLightsOverride))
+    : driveLaneFt > 0 ? Math.max(stallFixtures, driveLaneLights)
     : stallFixtures + driveLaneLights;
   // Solar site design multiplies the area-lighting (surface parking) line —
   // each fixture carries its own panel, battery and controller. Mike 2026-09-04
@@ -437,13 +441,23 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const pathwayFloor   = n(PRICING.exterior.pathway?.minTotal);
   const pathwayManual  = n(exteriorManualItems.pathwayLighting);
   const pathwaySolarMultiplier = solarSite ? n(PRICING.exterior.pathway?.solarMultiplier, 1.6) : 1;
-  const pathwayBase    = numUnits > 0 && pathwayRate > 0
-    ? Math.max(numUnits * pathwayRate, pathwayFloor)
-    : 0;
   // Townhomes and single-family are asked "Light the walking paths with
-  // bollards?" (Mike, 2026-09-12). No — the default, and what the real townhome
-  // budgets on file show — is $0; Yes is the model line above.
+  // bollards / pedestrian poles?" (Mike, 2026-09-12). No, the default, is $0.
+  // Yes (Mike 2026-10-02): one pole every 40 ft of walkway at $1,000 each, no
+  // floor; with no walkway length, 0.4 per home.
   const pathwayAsksBollards = wpBuildingType === 'townHouses' || wpBuildingType === 'singleFamily';
+  const pedPole        = PRICING.exterior.pedestrianPole || {};
+  const pedPoleEach    = n(pedPole.each, 1000);
+  const pedPoleFt      = n(pedPole.ftPerPole, 40) > 0 ? n(pedPole.ftPerPole, 40) : 40;
+  const walkwayFt      = Math.max(0, n(exterior.walkwayLengthFt, 0));
+  const pedPoles       = !pathwayAsksBollards ? 0
+    : walkwayFt > 0 ? Math.ceil(walkwayFt / pedPoleFt)
+    : Math.ceil(numUnits * n(pedPole.perHome, 0.4));
+  const pathwayBase    = pathwayAsksBollards
+    ? pedPoles * pedPoleEach
+    : numUnits > 0 && pathwayRate > 0
+      ? Math.max(numUnits * pathwayRate, pathwayFloor)
+      : 0;
   const pathwayBollardsDeclined = pathwayAsksBollards && exterior.pathwayBollards !== 'yes';
   const pathwayAuto    = pathwayBollardsDeclined ? 0 : pathwayBase * pathwaySolarMultiplier * upgradedMultiplier;
   const pathwayProduct = pathwayManual > 0 ? 0 : pathwayAuto;
@@ -698,14 +712,15 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
 
   // Balcony: 5" disk or a sconce, one per balcony.
   const bKey = units.balcony || 'none';
-  addQ('units.balcony', [balconyChosen && line('Balcony fixture', numBalconies, 'balconies', balconyUnit, bKey === 'disk5inch' ? lab('surfaceDisk') : lab('sconce'))]);
+  // Townhomes / single-family (pathwayAsksBollards): back balcony, front door (Mike 10-2).
+  addQ('units.balcony', [balconyChosen && line(pathwayAsksBollards ? 'Back balcony fixture' : 'Balcony fixture', numBalconies, 'balconies', balconyUnit, bKey === 'disk5inch' ? lab('surfaceDisk') : lab('sconce'))]);
 
   // Design-screen unit adders.
   addQ('units.boilerRoom', [units.boilerRoom === 'yes' && line('Boiler room disk', numUnits, 'units', n(PRICING.designUpgrades?.boilerRoomDisk, 15), lab('surfaceDisk'))]);
   addQ('units.livingRoomDisks', [units.livingRoomDisks === '4small' && line('Living room (4) small disks', numUnits, 'units', n(PRICING.designUpgrades?.livingRoom4Disks, 34), 3 * lab('surfaceDisk'))]);
 
   // Corridors: one unit-entry sconce per unit.
-  addQ('corridors.unitSconce', [sconceChosen && line('Unit entry sconce', numUnits, 'units', sconceUnit, lab('sconce'))]);
+  addQ('corridors.unitSconce', [sconceChosen && line(pathwayAsksBollards ? 'Front door sconce' : 'Unit entry sconce', numUnits, 'units', sconceUnit, lab('sconce'))]);
 
   // Stairs: one 4 ft strip per landing (a breezeway landing carries the
   // breezeway multiplier's worth of fixtures), plus the elevated adder.
@@ -744,8 +759,11 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // Pathway: the per-unit rates were built as bollards × $800, so the line
   // divides back into a light count; $500 labor per light (Mike 2026-09-13).
   const pathwayEach  = n(PRICING.exterior.bollard?.perUnit, 800) * pathwaySolarMultiplier || 800;
-  const pathwayCount = pathwayProduct > 0 ? Math.max(1, Math.round(pathwayProduct / pathwayEach)) : 0;
-  addQ('exterior.pathwayBollards', [pathwayCount > 0 && { label: 'Walking-path lights', count: pathwayCount, countLabel: 'lights', each: pathwayProduct / pathwayCount, product: pathwayProduct, laborEach: lab('pathwayFixture'), labor: pathwayCount * lab('pathwayFixture') }]);
+  // Homes count the bollards / pedestrian poles directly.
+  const pathwayCount = pathwayProduct <= 0 ? 0
+    : pathwayAsksBollards ? Math.max(1, pedPoles)
+    : Math.max(1, Math.round(pathwayProduct / pathwayEach));
+  addQ('exterior.pathwayBollards', [pathwayCount > 0 && { label: pathwayAsksBollards ? 'Bollards / pedestrian poles' : 'Walking-path lights', count: pathwayCount, countLabel: pathwayAsksBollards ? 'poles' : 'lights', each: pathwayProduct / pathwayCount, product: pathwayProduct, laborEach: lab('pathwayFixture'), labor: pathwayCount * lab('pathwayFixture') }]);
 
   // Site features: one line per feature kind found. Both fixture kinds are
   // pole-set and trenched to, so they carry the area-pole labor.
@@ -849,7 +867,9 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
           product:            pathwayProduct,
           rate:               pathwayRate,
           buildingType:       wpBuildingType,
-          floorApplied:       pathwayProduct > 0 && numUnits * pathwayRate < pathwayFloor,
+          floorApplied:       !pathwayAsksBollards && pathwayProduct > 0 && numUnits * pathwayRate < pathwayFloor,
+          poles:              pedPoles,
+          walkwayFt,
           suppressedByManual: pathwayManual > 0,
           solarMultiplier:    pathwaySolarMultiplier,
           asksBollards:       pathwayAsksBollards,

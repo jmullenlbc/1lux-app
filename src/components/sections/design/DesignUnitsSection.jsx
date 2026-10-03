@@ -12,7 +12,7 @@ const FAN_ROOMS = {
   masterSecondaryTertiary: 2.5, masterSecondaryTertiaryLiving: 2.75,
 };
 
-export default function DesignUnitsSection({ responses, projectData, allSections, pricing, onSaveResponses, onNext, onPrev }) {
+export default function DesignUnitsSection({ responses, projectData, allSections, pricing, onSaveResponses, onNext, onPrev, homeType = false }) {
   const P = pricing || PRICING;
   // Vanity: master holds GROSS; net adder = gross − bath-bar credit (base includes a bath bar).
   const vanCredit = P.vanityBathBarCredit ?? 45;
@@ -402,8 +402,9 @@ export default function DesignUnitsSection({ responses, projectData, allSections
         </div>
       </div>
 
-      {/* ── BALCONIES (always shown; cost = answer × # of balconies in Project Data) ── */}
-      <div>
+      {/* ── BALCONIES (cost = answer × # of balconies in Project Data). Homes
+          answer this on the Front Door & Back Balcony page instead. ── */}
+      {!homeType && <div>
         <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Balconies</div>
         <div className="space-y-4">
           <QuestionCard
@@ -427,7 +428,7 @@ export default function DesignUnitsSection({ responses, projectData, allSections
             }}
           />
         </div>
-      </div>
+      </div>}
 
       <div className="flex gap-3 pt-2">
         <Button variant="secondary" onClick={onPrev}>Back</Button>

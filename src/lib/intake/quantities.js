@@ -1292,19 +1292,24 @@ export function computeQuantities(drawings, answers, pricing = null, adopted = n
           'Entered by the submitter.', odd);
       } else {
         add('driveLengthFt', 'Private drive length', 'ft', ft, 'drawing',
-          'Measured along the private drive centerline on the scaled site plan.',
+          'Measured along the centerline of every private drive aisle on the scaled site plan, parking along it or not.',
           ['Measured off the site plan, not written on it — confirm.', odd].filter(Boolean).join(' '));
       }
       add('driveLaneLights', '# Drive-Lane Area Lights', 'count', Math.ceil(ft / ftPer), 'derived',
-        `${fmt(ft)} ft of private drive ÷ ${fmt(ftPer)} ft per light (the width of 9 parking stalls).`, null);
+        `${fmt(ft)} ft of private drive aisles (parking along them or not) ÷ ${fmt(ftPer)} ft per light. These poles light the stalls along the drives too, so they replace the stall count rather than add to it.`, null);
     } else if (unitCount > 0) {
       const perFixture = Number(pricing?.exterior?.surfaceParking?.stallsPerFixture)
         || PRICING.exterior.surfaceParking.stallsPerFixture || 9;
       const stalls = Number(out.find(r => r.key === 'surfaceParking')?.value) || 0;
       const lotPoles = Math.ceil(stalls / perFixture);
-      const lane = Math.max(0, Math.ceil(unitCount * lanePer) - lotPoles);
+      // Mike 2026-10-02: with no drive length, the stall count stands in for it
+      // at the same one pole per 81 ft (9 stalls × 9 ft). Those lot poles are
+      // the drive lights, so nothing is added on top. No stalls either → ½ per home.
+      const lane = lotPoles > 0 ? 0 : Math.ceil(unitCount * lanePer);
       add('driveLaneLights', '# Drive-Lane Area Lights', 'count', lane, 'derived',
-        `${fmt(unitCount)} units × ${lanePer} area lights per unit along the private drive${lotPoles ? `, less the ${fmt(lotPoles)} the parking lot already carries` : ''}.`,
+        lotPoles > 0
+          ? `No drive length, so the ${fmt(stalls)} stalls stand in for it: ${fmt(stalls)} ÷ ${fmt(perFixture)} = ${fmt(lotPoles)} poles, one per ${fmt(ftPer)} ft. Those are the drive lights; none are added on top.`
+          : `${fmt(unitCount)} units × ${lanePer} area lights per unit along the private drive (no drive length and no stalls).`,
         manual ? GUESS_FLAG : 'ESTIMATED — the drawings gave no private drive length. Enter it if you know it.');
     }
   }

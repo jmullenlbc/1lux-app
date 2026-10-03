@@ -192,12 +192,14 @@ test('validateAnswers keeps only yes/no for the clubhouse question', () => {
   assert.equal(keyed({}), undefined);
 });
 
-test('townhome drive-lane lights: half a light per home, less the parking lot\'s own poles', () => {
+// Mike 2026-10-02: with no drive length the stalls stand in for it (one pole
+// per 81 ft); nothing is added on top. No stalls: half a light per home.
+test('townhome drive-lane lights: the stalls carry the drive, else half a light per home', () => {
   const base = { projectType: TOWN, figureTotalUnits: '64', figureAvgUnitSf: '1800' };
   const none = rows({ ...base, figureSurfaceParking: '0' }).driveLaneLights;
   assert.equal(none.value, 32);
   assert.match(none.flag, /no drawings/);
-  assert.equal(rows({ ...base, figureSurfaceParking: '90' }).driveLaneLights.value, 22, '32 − 90 ÷ 9');
+  assert.equal(rows({ ...base, figureSurfaceParking: '90' }).driveLaneLights.value, 0, 'the 10 lot poles are the drive lights');
   assert.equal(rows({ ...base, figureSurfaceParking: '400' }).driveLaneLights.value, 0, 'never below zero');
   assert.equal(rows({ projectType: GARDEN, figureTotalUnits: '200', figureGrossSf: '250000' }).driveLaneLights, undefined);
 });

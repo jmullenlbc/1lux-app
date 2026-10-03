@@ -31,10 +31,13 @@ test('master pricing: one light per 81 ft of drive', () => {
   assert.equal(PRICING.exterior.surfaceParking.driveLaneFtPerLight, 81);
 });
 
-test('engine: a drive length becomes ceil(ft ÷ 81) lights on top of the lot poles', () => {
+// Mike 2026-10-02 (890 Fremont): the length is every drive aisle, parking or
+// not, so its poles already light the stalls along it. Larger count wins.
+test('engine: a drive length becomes ceil(ft ÷ 81) lights and replaces the lot poles', () => {
   const p = calculateBudget(PD, { exterior: { driveLaneFt: 2430 } }).sections.exterior.parking;
   assert.equal(p.driveLaneLights, 30, '2,430 ÷ 81');
-  assert.equal(p.fixtures, 40, '10 lot poles + 30');
+  assert.equal(p.fixtures, 30, '30 drive poles beat 10 lot poles; they do not stack');
+  assert.equal(calculateBudget(PD, { exterior: { driveLaneFt: 405 } }).sections.exterior.parking.fixtures, 10, 'a short drive never drops below the stall count');
   assert.equal(calculateBudget(PD, { exterior: { driveLaneFt: 2431 } }).sections.exterior.parking.driveLaneLights, 31, 'rounds up');
 });
 
@@ -61,11 +64,16 @@ test('takeoff (no drawings): a typed length wins and the lot poles are NOT subtr
   assert.equal(r.driveLaneLights.flag, null);
 });
 
-test('takeoff (no drawings): no length keeps the ½-per-home guess', () => {
+// Mike 2026-10-02: no length → the stalls stand in at one pole per 81 ft
+// (90 ÷ 9 = 10 lot poles), nothing added on top. No stalls → ½ per home.
+test('takeoff (no drawings): no length lets the stalls carry the drive at 1 per 81 ft', () => {
   const r = manualRows({ projectType: TOWN, figureTotalUnits: '64', figureAvgUnitSf: '1800', figureSurfaceParking: '90' });
   assert.equal(r.driveLengthFt, undefined);
-  assert.equal(r.driveLaneLights.value, 22);
+  assert.equal(r.driveLaneLights.value, 0);
+  assert.match(r.driveLaneLights.how, /90 stalls/);
   assert.match(r.driveLaneLights.flag, /no drawings/);
+  const none = manualRows({ projectType: TOWN, figureTotalUnits: '64', figureAvgUnitSf: '1800', figureSurfaceParking: '0' });
+  assert.equal(none.driveLaneLights.value, 32, 'no stalls either: ½ per home');
 });
 
 test('takeoff (drawings): a length measured off the site plan is used and flagged to confirm', () => {
@@ -111,7 +119,7 @@ test('the estimate hands the engine feet, so the budget carries the ÷ 81 lights
   };
   const { budget } = computeIntakeEstimate({ answers });
   assert.equal(budget.sections.exterior.parking.driveLaneLights, 30);
-  assert.equal(budget.sections.exterior.parking.fixtures, 40);
+  assert.equal(budget.sections.exterior.parking.fixtures, 30);
 });
 
 test('the public form keeps a typed drive length', () => {

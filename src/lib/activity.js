@@ -51,7 +51,7 @@ export const QUESTION_LABELS = {
   // Exterior
   amenityLevel:        'Exterior Amenity Level',
   amenityHours:        'Amenity Hours',
-  pathwayBollards:     'Walking-Path Bollards',
+  pathwayBollards:     'Bollards / Pedestrian Poles',
   landscapeBudget:     'Landscape Budget',
   exteriorEmergency:   'Exterior Emergency Fixtures',
   exteriorPoleControl: 'Pole Lighting Control',

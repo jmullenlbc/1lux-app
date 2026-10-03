@@ -85,6 +85,9 @@ const PRICING_FIELDS = [
   { group: 'Exterior Site', key: 'exterior.exteriorDoor.primarySconce',  label: 'Exterior Door — Primary (retired)',   desc: 'No longer drives any budget. The door-sconce line was deleted 2026-08-12 — same fixture as Building Wallpacks below, which is now the only exterior-door line', unit: '$/door' },
   { group: 'Exterior Site', key: 'exterior.exteriorDoor.secondarySconce', label: 'Exterior Door — Secondary (retired)', desc: 'No longer drives any budget — see Building Wallpacks', unit: '$/door' },
   { group: 'Exterior Site', key: 'exterior.exteriorDoor.wallpackWithBattery', label: 'Wallpack + Battery',   desc: 'Egress wallpack w/ battery backup — $350 per Mike 2026-08-12, same figure as the Building Wallpack price. Reference only; the drawing-takeoff door count will refine the wallpack quantity, not add a separate line', unit: '$/door' },
+  { group: 'Exterior Site', key: 'exterior.pedestrianPole.each',          label: 'Bollard / Pedestrian Pole $ Each', desc: 'Townhome and single-family walking paths only. Average of a bollard and a pedestrian pole (Mike 2026-10-02)', unit: '$' },
+  { group: 'Exterior Site', key: 'exterior.pedestrianPole.ftPerPole',     label: 'Walkway Ft per Pole',       desc: 'One bollard / pedestrian pole every this many feet of walkway (Mike 2026-10-02: 40)', unit: 'ft' },
+  { group: 'Exterior Site', key: 'exterior.pedestrianPole.perHome',       label: 'Poles per Home (no walkway length)', desc: 'Used only when no walkway length is entered', unit: '/home' },
   { group: 'Exterior Site', key: 'exterior.pathway.minTotal',            label: 'Pathway Lighting Floor',    desc: 'Minimum pathway lighting for sites with a minimal walkway network', unit: '$' },
 
   // ── BUILDING WALLPACKS ────────────────────────────────────────────────

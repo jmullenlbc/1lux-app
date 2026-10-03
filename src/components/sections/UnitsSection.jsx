@@ -13,7 +13,7 @@ const FAN_ROOMS = {
   masterSecondaryTertiary: 2.5, masterSecondaryTertiaryLiving: 2.75,
 };
 
-export default function UnitsSection({ responses, projectData, allSections, pricing, onSaveResponses, onNext, onPrev, isDesign = false }) {
+export default function UnitsSection({ responses, projectData, allSections, pricing, onSaveResponses, onNext, onPrev, isDesign = false, homeType = false }) {
   // Single source of truth: read costs from the live master pricing (same object
   // the engine uses), falling back to static defaults. Prevents UI/engine drift.
   const P = pricing || PRICING;
@@ -462,8 +462,9 @@ export default function UnitsSection({ responses, projectData, allSections, pric
         </div>
       )}
 
-      {/* ── BALCONIES (always shown; cost = answer × # of balconies in Project Data) ── */}
-      {true && (
+      {/* ── BALCONIES (cost = answer × # of balconies in Project Data). Homes
+          answer this on the Front Door & Back Balcony page instead. ── */}
+      {!homeType && (
         <div>
           <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Balconies</div>
           <div className="space-y-4">

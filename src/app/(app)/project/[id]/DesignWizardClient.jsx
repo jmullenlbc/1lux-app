@@ -1,7 +1,7 @@
 'use client';
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { DESIGN_WIZARD_STEPS, getDesignNextStep, getDesignPrevStep } from '@/lib/utils';
+import { DESIGN_WIZARD_STEPS, getDesignNextStep, getDesignPrevStep, isHomeBuildingKey, stepsForHome } from '@/lib/utils';
 import { calculateBudget, formatCurrency } from '@/lib/calculations';
 
 // Section components
@@ -153,6 +153,7 @@ export default function DesignWizardClient({ project, projectData, initialSectio
   const stepIndex  = DESIGN_WIZARD_STEPS.findIndex(s => s.id === currentStep);
   const totalSteps = DESIGN_WIZARD_STEPS.length - 1;
 
+  const homeType = isHomeBuildingKey(localPD?.buildingTypeKey || project.buildingType);
   const sharedProps = {
     projectId:   project.id,
     projectData: localPD,
@@ -161,6 +162,7 @@ export default function DesignWizardClient({ project, projectData, initialSectio
     pricing,
     hasDrawings,
     isDesign: true,
+    homeType,
     onNext: goToNext,
     onPrev: goToPrev,
     isFirst: stepIndex === 0,
@@ -171,7 +173,7 @@ export default function DesignWizardClient({ project, projectData, initialSectio
     <div className="flex h-[calc(100vh-0px)] overflow-hidden">
       {/* Left nav */}
       <SectionNav
-        steps={DESIGN_WIZARD_STEPS}
+        steps={stepsForHome(DESIGN_WIZARD_STEPS, homeType)}
         currentStep={currentStep}
         completedSteps={completedSteps}
         onJump={jumpToStep}
@@ -246,6 +248,7 @@ export default function DesignWizardClient({ project, projectData, initialSectio
               {...sharedProps}
               responses={sections['corridors'] || {}}
               onSaveResponses={(r) => saveResponses('corridors', r)}
+              onSaveUnits={(r) => saveResponses('units', r)}
             />
           )}
 
@@ -306,6 +309,7 @@ export default function DesignWizardClient({ project, projectData, initialSectio
         projectName={projectMeta?.name || project.name || ''}
         projectData={localPD}
         currentStep={currentStep}
+        homeType={homeType}
         areaNotes={areas.notes}
         areaSummary={areas.summary}
       />

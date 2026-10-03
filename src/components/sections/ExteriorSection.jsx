@@ -40,6 +40,9 @@ export default function ExteriorSection({ responses, projectData, allSections, p
     // Private drive length in feet (townhouse / single-family) — one area light
     // per 81 ft (Mike 2026-09-13). Same 'auto' cleared state.
     driveLaneFt:       responses.driveLaneFt       ?? '',
+    // Walkway length (townhouse / single-family): one bollard / pedestrian
+    // pole per 40 ft (Mike 2026-10-02).
+    walkwayLengthFt:   responses.walkwayLengthFt   ?? '',
     // Design-only
     exteriorEmergency: responses.exteriorEmergency || 'wallpack',
     exteriorPoleControl: responses.exteriorPoleControl || 'photocell',
@@ -121,7 +124,8 @@ export default function ExteriorSection({ responses, projectData, allSections, p
     ? Math.ceil(driveFt / driveFtPer)
     : Math.max(0, Math.round(Number(responses.driveLaneLightsQty) || 0));
   const stallFixtures   = Math.ceil(parking / (sp.stallsPerFixture ?? 9));
-  const areaAutoQty     = stallFixtures + driveLane;
+  // A drive length covers every drive aisle, parking or not: the larger count wins.
+  const areaAutoQty     = driveFt > 0 ? Math.max(stallFixtures, driveLane) : stallFixtures + driveLane;
   const areaQtyOv       = priceOverride(answers.areaLightsQty);
   const parkingFixtures = areaQtyOv != null ? Math.max(0, Math.round(areaQtyOv)) : areaAutoQty;
   // Solar site design multiplies the area-lighting line (fixture carries its
@@ -177,22 +181,38 @@ export default function ExteriorSection({ responses, projectData, allSections, p
   // Solar sites bump the model pathway line by pathway.solarMultiplier (1.6),
   // applied after the floor — mirrors the engine. Manual entries are taken as-is.
   const pathwaySolarMult = solarSite ? (PW.solarMultiplier ?? 1.6) : 1;
-  const pathwayBase    = numUnitsPD > 0 && pathwayRate > 0
-    ? Math.max(numUnitsPD * pathwayRate, pathwayFloor)
-    : 0;
   // Townhomes and single-family are asked "Light the walking paths with
-  // bollards?" (Mike 2026-09-12). No — the default — is $0; Yes is the model
-  // line. Mirrors the engine (calculations.js, pathwayBollardsDeclined).
+  // bollards / pedestrian poles?" (Mike 2026-09-12). No, the default, is $0.
+  // Yes: one pole per 40 ft of walkway at $1,000 (Mike 2026-10-02), or 0.4 per
+  // home with no walkway length. Mirrors the engine (calculations.js).
   const pathwayAsksBollards = wpType === 'townHouses' || wpType === 'singleFamily';
+  const PED            = P.exterior?.pedestrianPole || {};
+  const pedEach        = Number(PED.each) || 1000;
+  const pedFt          = Number(PED.ftPerPole) > 0 ? Number(PED.ftPerPole) : 40;
+  const pedPerHome     = PED.perHome != null && Number.isFinite(Number(PED.perHome)) ? Number(PED.perHome) : 0.4;
+  const walkwayFt      = Math.max(0, Number(answers.walkwayLengthFt) || 0);
+  const pedPoles       = !pathwayAsksBollards ? 0
+    : walkwayFt > 0 ? Math.ceil(walkwayFt / pedFt)
+    : Math.ceil(numUnitsPD * pedPerHome);
+  const pedMath        = walkwayFt > 0
+    ? `${walkwayFt.toLocaleString()} ft of walkway ÷ ${pedFt} = ${pedPoles} poles × $${pedEach.toLocaleString()}`
+    : `${numUnitsPD.toLocaleString()} homes × ${pedPerHome} = ${pedPoles} poles × $${pedEach.toLocaleString()} (no walkway length)`;
+  const pathwayBase    = pathwayAsksBollards
+    ? pedPoles * pedEach
+    : numUnitsPD > 0 && pathwayRate > 0
+      ? Math.max(numUnitsPD * pathwayRate, pathwayFloor)
+      : 0;
   const pathwayDeclined     = pathwayAsksBollards && answers.pathwayBollards !== 'yes';
   const pathwayAuto    = pathwayDeclined ? 0 : pathwayBase * pathwaySolarMult * upgradedMult;
   const pathwayProduct = pathwayManual > 0 ? 0 : pathwayAuto;
-  const pathwayFloored = pathwayProduct > 0 && numUnitsPD * pathwayRate < pathwayFloor;
+  const pathwayFloored = !pathwayAsksBollards && pathwayProduct > 0 && numUnitsPD * pathwayRate < pathwayFloor;
   const pathwaySolarSuffix = solarSite ? ` × ${pathwaySolarMult} solar` : '';
   const pathwayMath = pathwayManual > 0
     ? 'manual pathway entry below carries this scope'
     : pathwayDeclined
-      ? 'walking-path bollards: No — $0'
+      ? 'bollards / pedestrian poles: No, $0'
+      : pathwayAsksBollards
+      ? `${pedMath}${pathwaySolarSuffix}`
       : numUnitsPD <= 0 || pathwayRate <= 0
       ? 'no units yet — $0'
       : pathwayFloored
@@ -218,7 +238,9 @@ export default function ExteriorSection({ responses, projectData, allSections, p
     { label: solarSite ? 'Surface parking (solar)' : 'Surface parking',
       math: `${areaQtyOv != null
         ? `${parkingFixtures} area light${parkingFixtures === 1 ? '' : 's'} (manual)`
-        : `${parking} stalls ÷ ${sp.stallsPerFixture ?? 9} = ${stallFixtures}${driveLane ? ` + ${driveLane} drive-lane = ${parkingFixtures}` : ''} fixture${parkingFixtures === 1 ? '' : 's'}`} × $${(sp.perFixture ?? 1325).toLocaleString()}${solarSite ? ` × ${solarMult} solar` : ''}`, value: parkingProduct },
+        : driveFt > 0
+          ? `${driveFt.toLocaleString()} ft of drive ÷ ${driveFtPer} = ${driveLane}${stallFixtures > driveLane ? `, raised to ${stallFixtures} by the ${parking} stalls` : ''} = ${parkingFixtures} fixture${parkingFixtures === 1 ? '' : 's'}`
+          : `${parking} stalls ÷ ${sp.stallsPerFixture ?? 9} = ${stallFixtures}${driveLane ? ` + ${driveLane} drive-lane = ${parkingFixtures}` : ''} fixture${parkingFixtures === 1 ? '' : 's'}`} × $${(sp.perFixture ?? 1325).toLocaleString()}${solarSite ? ` × ${solarMult} solar` : ''}`, value: parkingProduct },
     { label: 'Carports',              math: `${carports} ÷ 2 = ${Math.floor(carports / 2)} disk${Math.floor(carports / 2) === 1 ? '' : 's'} × $${P.exterior?.carport?.diskEveryOther ?? 30}`, value: carportProduct },
     { label: 'Detached/attached garages', math: `${numGarages} × 1 strip × $${P.exterior?.detachedGarage?.stripPerGarage ?? 65}`, value: garageProduct },
     { label: 'Building wallpacks',    math: wpMath, value: wallpackProduct },
@@ -313,7 +335,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
           <div>• Surface parking: 1 fixture per ~{sp.stallsPerFixture ?? 9} stalls × ${(sp.perFixture ?? 1325).toLocaleString()}/fixture (area light + 30ft pole)</div>
           <div>• Carports: 1 × 7" disk per every other bay (${P.exterior?.carport?.diskEveryOther ?? 30} ea)</div>
           <div>• Building wallpacks: per-building rate by building type × ${WPC.perFixture ?? 350} each — covers exterior doors too</div>
-          <div>• Pathway lighting: $/unit by building type (${pathwayRate || 0}/unit here), floored at ${pathwayFloor.toLocaleString()}; solar sites × {PW.solarMultiplier ?? 1.6} — a manual pathway entry replaces the model line</div>
+          <div>• Pathway lighting: {pathwayAsksBollards ? `bollards / pedestrian poles, 1 per ${pedFt} ft of walkway × $${pedEach.toLocaleString()} (${pedPerHome} per home with no walkway length)` : `$/unit by building type ($${pathwayRate || 0}/unit here), floored at $${pathwayFloor.toLocaleString()}`}; solar sites × {PW.solarMultiplier ?? 1.6}; a manual pathway entry replaces the model line</div>
           <div>• Landscape: ${landscapePct.toFixed(2)} per SF of the net lot (lot − building footprint), capped at ${landscapeCap.toLocaleString()}</div>
           <div>• Site features: dog park 1 area light at the entrance; tennis / pickleball 4 area lights per court; playground 2 pedestrian poles; courtyard 1 pole per 30 ft; turf play 1 pole per 50 ft — counted off the site plan or typed in Project Data</div>
         </div>
@@ -345,12 +367,12 @@ export default function ExteriorSection({ responses, projectData, allSections, p
       {/* Townhomes + single-family only — walking-path bollards yes/no (Mike 2026-09-12) */}
       {pathwayAsksBollards && (
         <QuestionCard
-          question="Light the walking paths with bollards?"
-          note={`Townhome and single-family communities often skip pathway lighting. No is $0. Yes prices bollards by the home ($${pathwayRate}/home, $${pathwayFloor.toLocaleString()} minimum${solarSite ? `, × ${pathwaySolarMult} solar` : ''}).${pathwayManual > 0 ? ' A manual pathway figure is entered below, so that figure is used either way.' : ''}`}
+          question="Light the walking paths with bollards / pedestrian poles?"
+          note={`Townhome and single-family communities often skip pathway lighting. No is $0. Yes puts one pole every ${pedFt} ft of walkway, so each sits mid-run, at $${pedEach.toLocaleString()} each (the average of a bollard and a pedestrian pole${solarSite ? `, × ${pathwaySolarMult} solar` : ''}). With no walkway length it uses ${pedPerHome} per home.${pathwayManual > 0 ? ' A manual pathway figure is entered below, so that figure is used either way.' : ''}`}
           costSuffix=" total"
           options={[
-            { value: 'no',  label: 'No',                                   sub: 'No walking-path bollards', cost: 0 },
-            { value: 'yes', label: 'Yes — bollards along the walking paths', sub: numUnitsPD > 0 ? `${numUnitsPD.toLocaleString()} homes × $${pathwayRate}/home${pathwayBase > numUnitsPD * pathwayRate ? `, floored at $${pathwayFloor.toLocaleString()}` : ''}${pathwaySolarSuffix}` : 'Enter the number of units to see a price', cost: pathwayBase * pathwaySolarMult },
+            { value: 'no',  label: 'No',                                   sub: 'No bollards or pedestrian poles', cost: 0 },
+            { value: 'yes', label: 'Yes: bollards / pedestrian poles along the walking paths', sub: pedPoles > 0 ? `${pedMath}${pathwaySolarSuffix}` : 'Enter the walkway length or the number of homes to see a price', cost: pathwayBase * pathwaySolarMult },
           ]}
           value={answers.pathwayBollards} impact={qc['exterior.pathwayBollards']}
           onChange={val => {
@@ -358,6 +380,22 @@ export default function ExteriorSection({ responses, projectData, allSections, p
             setDirtyAnswers(d => new Set(d).add('pathwayBollards'));
           }}
         />
+      )}
+      {pathwayAsksBollards && answers.pathwayBollards === 'yes' && (
+        <div className="w-48">
+          <Input
+            label="Walkway length (ft)"
+            type="number"
+            placeholder={`blank = ${pedPerHome} per home`}
+            value={walkwayFt > 0 ? answers.walkwayLengthFt : ''}
+            onChange={e => {
+              const v = e.target.value === '' ? 'auto' : e.target.value;
+              setAnswers(a => ({ ...a, walkwayLengthFt: v }));
+              setDirtyAnswers(d => new Set(d).add('walkwayLengthFt'));
+            }}
+            min={0}
+          />
+        </div>
       )}
 
       {/* Exterior amenity level */}
@@ -456,8 +494,9 @@ export default function ExteriorSection({ responses, projectData, allSections, p
           <div>
             <p className="font-semibold text-slate-900">Area Lights (parking lot + drives)</p>
             <p className="text-[11px] text-slate-400">
-              Auto-counted: {parking} stalls ÷ {sp.stallsPerFixture ?? 9} = {stallFixtures}
-              {driveLane ? ` + ${driveLane} along the drives${driveFt > 0 ? ` (${driveFt.toLocaleString()} ft ÷ ${driveFtPer})` : ''}` : ''} = {areaAutoQty} — override below if the site says otherwise.
+              {driveFt > 0
+                ? `Auto-counted: ${driveFt.toLocaleString()} ft of drive ÷ ${driveFtPer} = ${driveLane}${stallFixtures > driveLane ? `, raised to ${stallFixtures} by the ${parking} stalls` : ''}. Override below if the site says otherwise.`
+                : `Auto-counted: ${parking} stalls ÷ ${sp.stallsPerFixture ?? 9} = ${stallFixtures}${driveLane ? ` + ${driveLane} along the drives` : ''} = ${areaAutoQty}. Override below if the site says otherwise.`}
             </p>
           </div>
           <div className="text-right shrink-0">
@@ -473,7 +512,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
         <div className="flex flex-wrap gap-4">
           <div className="w-40">
             <Input
-              label="Private drive length (ft)"
+              label="All drive aisles (ft)"
               type="number"
               placeholder="e.g. 2400"
               value={driveFt > 0 ? answers.driveLaneFt : ''}

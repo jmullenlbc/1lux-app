@@ -275,8 +275,8 @@ export const INTAKE_QUESTIONS = [
     // it for every other type.
     key: 'pathwayBollards',
     section: 'Exterior',
-    question: 'Light the walking paths with bollards?',
-    hint: 'Townhome and single-family communities only. No is $0; Yes adds pathway bollards priced by the home.',
+    question: 'Light the walking paths with bollards / pedestrian poles?',
+    hint: 'Townhome and single-family communities only. No is $0. Yes adds one bollard or pedestrian pole about every 40 ft of walkway.',
     options: ['No', 'Yes'],
     default: 'No',
     engine: { section: 'exterior', field: 'pathwayBollards', map: { 'No': 'no', 'Yes': 'yes' } },
@@ -542,6 +542,45 @@ export function answersToEngine(answers) {
 /** Project types that are asked the walking-path bollard question. */
 export const BOLLARD_PROJECT_TYPES = ['Town Houses (2-3 Levels)', 'Single Family (1-2 Levels)'];
 
+/** Townhomes and single-family homes: no corridors, a front door instead. */
+export const isHomeProjectType = t => BOLLARD_PROJECT_TYPES.includes(t);
+
+// Mike 10-2: homes have no corridors, so the Corridors page becomes "Front
+// Door & Back Balcony": a sconce by each front door (like a unit entry sconce)
+// and the back balcony light, moved off the Units page. Wording only: the
+// stored answers and the prices are the same as every other type.
+export const HOME_DOOR_SECTION = 'Front door & back balcony';
+const HOME_WORDING = {
+  unitEntrySconce: {
+    section: HOME_DOOR_SECTION,
+    question: 'Would you like a sconce at every front door?',
+    hint: 'One sconce on the front of each home. Options run from a simple builder-grade sconce up to an integrated house-number light.',
+    optionLabels: { '1 Integrated unit number/light': '1 Integrated house number/light' },
+  },
+  balconyLighting: {
+    section: HOME_DOOR_SECTION,
+    question: 'How do you want to light the back balconies?',
+    hint: 'A small surface-mount disk is the budget option; a back balcony sconce ranges from builder-grade to decorative.',
+    optionLabels: {
+      'Exterior balcony sconce (Low finish)': 'Back balcony sconce (Low finish)',
+      'Exterior balcony sconce (Medium finish)': 'Back balcony sconce (Medium finish)',
+      'Exterior balcony sconce (High finish)': 'Back balcony sconce (High finish)',
+    },
+  },
+};
+
+/** The question as a visitor with this project type should read it. */
+export function questionFor(q, projectType) {
+  const w = isHomeProjectType(projectType) && HOME_WORDING[q.key];
+  return w ? { ...q, ...w } : q;
+}
+
+/** The words shown for one stored option (perSf numbers get "$/SF"). */
+export function optionLabelFor(q, opt) {
+  if (q.format === 'perSf') return `$${opt}/SF`;
+  return q.optionLabels?.[opt] ?? opt;
+}
+
 /**
  * "Your design choices" — every design question the visitor was asked, with
  * the answer they picked (or the default they left), in questionnaire order.
@@ -555,10 +594,11 @@ export function designChoices(answers) {
   return INTAKE_QUESTIONS
     .filter(q => q.key !== 'projectType')
     .filter(q => q.key !== 'pathwayBollards' || BOLLARD_PROJECT_TYPES.includes(a.projectType))
+    .map(q => questionFor(q, a.projectType))
     .map(q => {
       const raw = a[q.key] || q.default || '';
       if (!raw) return null;
-      return { section: q.section, question: q.question, answer: q.format === 'perSf' ? `$${raw}/SF` : raw };
+      return { section: q.section, question: q.question, answer: optionLabelFor(q, raw) };
     })
     .filter(Boolean);
 }

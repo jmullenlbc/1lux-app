@@ -1,7 +1,7 @@
 'use client';
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getActiveSteps, getNextStep, getPrevStep, getStepIndex } from '@/lib/utils';
+import { getActiveSteps, getNextStep, getPrevStep, getStepIndex, isHomeBuildingKey, stepsForHome } from '@/lib/utils';
 import { calculateBudget, formatCurrency } from '@/lib/calculations';
 
 // Section components (unified — each accepts isDesign prop)
@@ -54,6 +54,8 @@ export default function WizardClient({ project, projectData, initialSections, in
 
   // Staff-only per-area alerts (our past jobs + the original questionnaire).
   const areas = useAreaAlerts(project.id, budget, { buildingType: project.buildingType, units: localPD?.numUnits });
+
+  const homeType = isHomeBuildingKey(localPD?.buildingTypeKey || project.buildingType);
 
   const recalculate = useCallback((newPD, newSections) => {
     const b = calculateBudget(newPD, newSections, pricing || null);
@@ -164,6 +166,7 @@ export default function WizardClient({ project, projectData, initialSections, in
     pricing,
     hasDrawings,
     isDesign,
+    homeType,
     onSaveData:       saveProjectData,
     onNext:           goToNext,
     onPrev:           goToPrev,
@@ -189,7 +192,7 @@ export default function WizardClient({ project, projectData, initialSections, in
     <div className="flex h-screen overflow-hidden">
       {/* Left nav */}
       <SectionNav
-        steps={activeSteps}
+        steps={stepsForHome(activeSteps, homeType)}
         currentStep={currentStep}
         completedSteps={completedSteps}
         onJump={jumpToStep}
@@ -260,6 +263,7 @@ export default function WizardClient({ project, projectData, initialSections, in
               {...sharedSectionProps}
               responses={sections['corridors'] || {}}
               onSaveResponses={saveCorridors}
+              onSaveUnits={r => saveResponses('units', r)}
             />
           )}
 
@@ -312,6 +316,7 @@ export default function WizardClient({ project, projectData, initialSections, in
         projectName={projectMeta?.name || project.name || ''}
         projectData={localPD}
         currentStep={currentStep}
+        homeType={homeType}
         areaNotes={areas.notes}
         areaSummary={areas.summary}
       />

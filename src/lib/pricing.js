@@ -171,6 +171,16 @@ export const PRICING = {
       perUnit: 800,
     },
 
+    // Townhome / single-family walking paths (Mike 2026-10-02): "bollards /
+    // pedestrian poles", one every 40 ft so each light sits mid-run, $1,000
+    // each (the average of a bollard and a pedestrian pole). No walkway length
+    // gives 0.4 per home (the old $320/home / $800).
+    pedestrianPole: {
+      each: 1000,
+      ftPerPole: 40,
+      perHome: 0.4,
+    },
+
     // ─── BUILDING WALLPACKS ─────────────────────────────────────────────────
     // WIRED into calculations.js 2026-08-12 (Mike: "Wire it but give us a manual
     // override of quantity and unit price"). Overrides live on the wizard's
