@@ -1,7 +1,7 @@
 'use client';
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getActiveSteps, getNextStep, getPrevStep, getStepIndex, isHomeBuildingKey, stepsForHome } from '@/lib/utils';
+import { getActiveSteps, getNextStep, isHomeBuildingKey, stepsForHome, stepBeside, HOME_SKIPPED_STEPS } from '@/lib/utils';
 import { calculateBudget, formatCurrency } from '@/lib/calculations';
 
 // Section components (unified — each accepts isDesign prop)
@@ -56,6 +56,7 @@ export default function WizardClient({ project, projectData, initialSections, in
   const areas = useAreaAlerts(project.id, budget, { buildingType: project.buildingType, units: localPD?.numUnits });
 
   const homeType = isHomeBuildingKey(localPD?.buildingTypeKey || project.buildingType);
+  const navSteps = stepsForHome(activeSteps, homeType);
 
   const recalculate = useCallback((newPD, newSections) => {
     const b = calculateBudget(newPD, newSections, pricing || null);
@@ -111,7 +112,7 @@ export default function WizardClient({ project, projectData, initialSections, in
   }
 
   async function goToNext() {
-    const next = getNextStep(currentStep, isDesign);
+    const next = stepBeside(navSteps, currentStep, 1);
 
     const newCompleted = completedSteps.includes(currentStep)
       ? completedSteps
@@ -135,7 +136,7 @@ export default function WizardClient({ project, projectData, initialSections, in
   }
 
   async function goToPrev() {
-    const prev = getPrevStep(currentStep, isDesign);
+    const prev = stepBeside(navSteps, currentStep, -1);
     if (prev) setCurrentStep(prev);
   }
 
@@ -154,8 +155,13 @@ export default function WizardClient({ project, projectData, initialSections, in
     }
   }, [currentStep, project.id, router]);
 
-  const stepIndex  = getStepIndex(currentStep, isDesign);
-  const totalSteps = activeSteps.length - 1; // exclude summary
+  // Homes skip the Corridors page (Mike 10-2); a saved spot there moves on.
+  useEffect(() => {
+    if (homeType && HOME_SKIPPED_STEPS.includes(currentStep)) setCurrentStep(getNextStep(currentStep, isDesign));
+  }, [homeType, currentStep, isDesign]);
+
+  const stepIndex  = navSteps.findIndex(s => s.id === currentStep);
+  const totalSteps = navSteps.length - 1; // exclude summary
 
   // Shared props passed to every section
   const sharedSectionProps = {
@@ -192,7 +198,7 @@ export default function WizardClient({ project, projectData, initialSections, in
     <div className="flex h-screen overflow-hidden">
       {/* Left nav */}
       <SectionNav
-        steps={stepsForHome(activeSteps, homeType)}
+        steps={navSteps}
         currentStep={currentStep}
         completedSteps={completedSteps}
         onJump={jumpToStep}
@@ -255,6 +261,7 @@ export default function WizardClient({ project, projectData, initialSections, in
               {...sharedSectionProps}
               responses={sections['units'] || {}}
               onSaveResponses={r => saveResponses('units', r)}
+              onSaveCorridors={saveCorridors}
             />
           )}
 
@@ -263,7 +270,6 @@ export default function WizardClient({ project, projectData, initialSections, in
               {...sharedSectionProps}
               responses={sections['corridors'] || {}}
               onSaveResponses={saveCorridors}
-              onSaveUnits={r => saveResponses('units', r)}
             />
           )}
 

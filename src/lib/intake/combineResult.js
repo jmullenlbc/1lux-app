@@ -36,7 +36,7 @@ export const SITE_NUMBER_KEYS = [
   'surfaceParking', 'surfaceParkingCounted', 'garages', 'carports', 'buildingCount', 'clubhouseSf', 'amenitySf',
   'grossSf', 'stories', 'storiesCounted', 'egressStairwells', 'egressStairwellsCounted',
   'exitDoors', 'exitDoorsCounted', 'buildingFootprintSf', 'buildingFootprintSfMeasured', 'lotCoveragePct', 'driveLengthFtMeasured',
-  'exteriorAmenitySfMeasured',
+  'walkwayLengthFtMeasured', 'exteriorAmenitySfMeasured',
 ];
 
 /** True when a vision read actually found a site number worth keeping. */

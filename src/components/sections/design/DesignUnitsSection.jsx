@@ -12,7 +12,7 @@ const FAN_ROOMS = {
   masterSecondaryTertiary: 2.5, masterSecondaryTertiaryLiving: 2.75,
 };
 
-export default function DesignUnitsSection({ responses, projectData, allSections, pricing, onSaveResponses, onNext, onPrev, homeType = false }) {
+export default function DesignUnitsSection({ responses, projectData, allSections, pricing, onSaveResponses, onNext, onPrev, homeType = false, onSaveCorridors }) {
   const P = pricing || PRICING;
   // Vanity: master holds GROSS; net adder = gross − bath-bar credit (base includes a bath bar).
   const vanCredit = P.vanityBathBarCredit ?? 45;
@@ -402,13 +402,21 @@ export default function DesignUnitsSection({ responses, projectData, allSections
         </div>
       </div>
 
-      {/* ── BALCONIES (cost = answer × # of balconies in Project Data). Homes
-          answer this on the Front Door & Back Balcony page instead. ── */}
-      {!homeType && <div>
+      {/* ── FRONT DOOR (homes only, Mike 10-2): no Corridors page, so the
+          front door sconce is asked here. Saves to the corridors section. ── */}
+      {homeType && (
+        <div>
+          <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Front Door</div>
+          <FrontDoorQuestion projectData={projectData} allSections={allSections} pricing={pricing} onSaveCorridors={onSaveCorridors} />
+        </div>
+      )}
+
+      {/* ── BALCONIES (cost = answer × # of balconies in Project Data) ── */}
+      <div>
         <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Balconies</div>
         <div className="space-y-4">
           <QuestionCard
-            question="Balcony fixture? If sconce, what is the priority vs. overall budget?"
+            question={homeType ? 'Back balcony fixture? If sconce, what is the priority vs. overall budget?' : 'Balcony fixture? If sconce, what is the priority vs. overall budget?'}
             note={`${numBalconies > 0 ? `${numBalconies} balconies in project data` : 'Enter the # of balconies in Project Data'}. Cost is the net adder per balcony.`}
             options={[
               { value: 'none',         label: 'None',                     cost: P.balcony.none.product },
@@ -428,7 +436,7 @@ export default function DesignUnitsSection({ responses, projectData, allSections
             }}
           />
         </div>
-      </div>}
+      </div>
 
       <div className="flex gap-3 pt-2">
         <Button variant="secondary" onClick={onPrev}>Back</Button>

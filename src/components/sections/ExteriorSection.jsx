@@ -118,7 +118,8 @@ export default function ExteriorSection({ responses, projectData, allSections, p
   // typed-in townhouse/single-family estimate sets them (driveLaneLightsQty).
   // A typed "Area lights" total replaces lot poles + drive lanes together.
   // A typed drive length wins: one light per the width of 9 stalls (81 ft).
-  const driveFt         = Math.max(0, Number(answers.driveLaneFt) || 0);
+  const homeSite        = ['townHouses', 'singleFamily'].includes(projectData?.buildingTypeKey);
+  const driveFt         = Math.max(0, Number(answers.driveLaneFt) || (homeSite ? Number(projectData?.driveLengthFt) || 0 : 0));
   const driveFtPer      = Number(sp.driveLaneFtPerLight) > 0 ? Number(sp.driveLaneFtPerLight) : 81;
   const driveLane       = driveFt > 0
     ? Math.ceil(driveFt / driveFtPer)
@@ -183,14 +184,15 @@ export default function ExteriorSection({ responses, projectData, allSections, p
   const pathwaySolarMult = solarSite ? (PW.solarMultiplier ?? 1.6) : 1;
   // Townhomes and single-family are asked "Light the walking paths with
   // bollards / pedestrian poles?" (Mike 2026-09-12). No, the default, is $0.
-  // Yes: one pole per 40 ft of walkway at $1,000 (Mike 2026-10-02), or 0.4 per
-  // home with no walkway length. Mirrors the engine (calculations.js).
+  // Yes: one pole per 40 ft of walkway at $1,000 (Mike 2026-10-02), or 1 per 8
+  // homes with no walkway length. The length is read off the site plan, never
+  // asked ("record and estimate in the background"). Mirrors calculations.js.
   const pathwayAsksBollards = wpType === 'townHouses' || wpType === 'singleFamily';
   const PED            = P.exterior?.pedestrianPole || {};
   const pedEach        = Number(PED.each) || 1000;
   const pedFt          = Number(PED.ftPerPole) > 0 ? Number(PED.ftPerPole) : 40;
-  const pedPerHome     = PED.perHome != null && Number.isFinite(Number(PED.perHome)) ? Number(PED.perHome) : 0.4;
-  const walkwayFt      = Math.max(0, Number(answers.walkwayLengthFt) || 0);
+  const pedPerHome     = PED.perHome != null && Number.isFinite(Number(PED.perHome)) ? Number(PED.perHome) : 0.125;
+  const walkwayFt      = Math.max(0, Number(answers.walkwayLengthFt) || Number(projectData?.walkwayLengthFt) || 0);
   const pedPoles       = !pathwayAsksBollards ? 0
     : walkwayFt > 0 ? Math.ceil(walkwayFt / pedFt)
     : Math.ceil(numUnitsPD * pedPerHome);
@@ -368,11 +370,11 @@ export default function ExteriorSection({ responses, projectData, allSections, p
       {pathwayAsksBollards && (
         <QuestionCard
           question="Light the walking paths with bollards / pedestrian poles?"
-          note={`Townhome and single-family communities often skip pathway lighting. No is $0. Yes puts one pole every ${pedFt} ft of walkway, so each sits mid-run, at $${pedEach.toLocaleString()} each (the average of a bollard and a pedestrian pole${solarSite ? `, × ${pathwaySolarMult} solar` : ''}). With no walkway length it uses ${pedPerHome} per home.${pathwayManual > 0 ? ' A manual pathway figure is entered below, so that figure is used either way.' : ''}`}
+          note={`Townhome and single-family communities often skip pathway lighting. No is $0. Yes puts one pole every ${pedFt} ft of walkway, so each sits mid-run, at $${pedEach.toLocaleString()} each (the average of a bollard and a pedestrian pole${solarSite ? `, × ${pathwaySolarMult} solar` : ''}). The walkway length is read off the site plan; with none read it uses ${pedPerHome} per home.${pathwayManual > 0 ? ' A manual pathway figure is entered below, so that figure is used either way.' : ''}`}
           costSuffix=" total"
           options={[
             { value: 'no',  label: 'No',                                   sub: 'No bollards or pedestrian poles', cost: 0 },
-            { value: 'yes', label: 'Yes: bollards / pedestrian poles along the walking paths', sub: pedPoles > 0 ? `${pedMath}${pathwaySolarSuffix}` : 'Enter the walkway length or the number of homes to see a price', cost: pathwayBase * pathwaySolarMult },
+            { value: 'yes', label: 'Yes: bollards / pedestrian poles along the walking paths', sub: pedPoles > 0 ? `${pedMath}${pathwaySolarSuffix}` : 'Enter the number of homes to see a price', cost: pathwayBase * pathwaySolarMult },
           ]}
           value={answers.pathwayBollards} impact={qc['exterior.pathwayBollards']}
           onChange={val => {
@@ -380,22 +382,6 @@ export default function ExteriorSection({ responses, projectData, allSections, p
             setDirtyAnswers(d => new Set(d).add('pathwayBollards'));
           }}
         />
-      )}
-      {pathwayAsksBollards && answers.pathwayBollards === 'yes' && (
-        <div className="w-48">
-          <Input
-            label="Walkway length (ft)"
-            type="number"
-            placeholder={`blank = ${pedPerHome} per home`}
-            value={walkwayFt > 0 ? answers.walkwayLengthFt : ''}
-            onChange={e => {
-              const v = e.target.value === '' ? 'auto' : e.target.value;
-              setAnswers(a => ({ ...a, walkwayLengthFt: v }));
-              setDirtyAnswers(d => new Set(d).add('walkwayLengthFt'));
-            }}
-            min={0}
-          />
-        </div>
       )}
 
       {/* Exterior amenity level */}

@@ -175,16 +175,22 @@ export const WIZARD_STEPS = [
   { id: 'summary',      label: 'Summary & Budget',       short: 'Summary',    icon: 'BarChart3',   designOnly: false },
 ];
 
-// Mike 10-2: townhomes and single-family homes have no corridors. Their
-// Corridors page is "Front Door & Back Balcony" (the balcony question moves
-// there from Units; same stored answer, same price).
+// Mike 10-2: townhomes and single-family homes have no corridors, so their
+// wizards skip the Corridors page. The front door sconce is asked on Units
+// (still stored as corridors.unitSconce, same price) and the back balcony
+// stays there too.
 export const HOME_BUILDING_KEYS = ['townHouses', 'singleFamily'];
 export const isHomeBuildingKey = k => HOME_BUILDING_KEYS.includes(k);
-export const HOME_DOOR_LABEL = 'Front Door & Back Balcony';
+export const HOME_SKIPPED_STEPS = ['corridors', 'design-corridors'];
 export function stepsForHome(steps, home) {
-  return home
-    ? steps.map(s => (s.id === 'corridors' || s.id === 'design-corridors' ? { ...s, label: HOME_DOOR_LABEL, short: 'Front Door' } : s))
-    : steps;
+  return home ? steps.filter(s => !HOME_SKIPPED_STEPS.includes(s.id)) : steps;
+}
+
+/** The step id beside `stepId` in `steps` (dir 1 = next, -1 = back), or null. */
+export function stepBeside(steps, stepId, dir) {
+  const i = steps.findIndex(s => s.id === stepId);
+  const j = i + dir;
+  return i >= 0 && j >= 0 && j < steps.length ? steps[j].id : null;
 }
 
 /** Returns the steps active for the current mode */

@@ -49,7 +49,7 @@ const SITE_DATA_KEYS = [
   'buildingCount', 'buildingsCounted', 'clubhouseSf',
   'amenitySf', 'grossSf', 'stories', 'storiesCounted', 'egressStairwells',
   'egressStairwellsCounted', 'exitDoors', 'exitDoorsCounted',
-  'buildingFootprintSf', 'buildingFootprintSfMeasured', 'lotCoveragePct', 'buildingType', 'driveLengthFtMeasured',
+  'buildingFootprintSf', 'buildingFootprintSfMeasured', 'lotCoveragePct', 'buildingType', 'driveLengthFtMeasured', 'walkwayLengthFtMeasured',
   'exteriorAmenitySfMeasured', 'scaleBasis',
 ];
 

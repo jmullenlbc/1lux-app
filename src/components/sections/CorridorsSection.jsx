@@ -8,13 +8,12 @@ import { PRICING } from '@/lib/pricing';
 import { breezewayStairPackage, BREEZEWAY_STYLES } from '@/lib/stairLandings';
 import StandardsHint from '@/components/wizard/StandardsHint';
 import StairTypeQuestions from './StairTypeQuestions';
-import BackBalconyQuestion from './BackBalconyQuestion';
 
 // Static fallbacks — live values come from the master pricing prop (see P below).
 const DISK_RATES     = { 6: 0.40, 7: 0.35, 8: 0.30, 9: 0.28, 10: 0.25, 11: 0.23, 12: 0.23 };
 const RECESSED_RATES = { 6: 3.00, 7: 2.625, 8: 2.25, 9: 2.10, 10: 1.875, 11: 1.725, 12: 1.725 };
 
-export default function CorridorsSection({ responses, projectData, allSections, pricing, onSaveResponses, onNext, onPrev, hasDrawings = false, isDesign = false, homeType = false, onSaveUnits }) {
+export default function CorridorsSection({ responses, projectData, allSections, pricing, onSaveResponses, onNext, onPrev, hasDrawings = false, isDesign = false }) {
   // Single source of truth: read rates/costs from the live master pricing.
   const P = pricing || PRICING;
   const DISK_RATE_TABLE     = P.designCorridors?.diskSpacingRates     || DISK_RATES;
@@ -147,7 +146,7 @@ export default function CorridorsSection({ responses, projectData, allSections, 
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-xl font-bold text-slate-900">{homeType ? 'Front Door & Back Balcony' : 'Corridors & Stairwells'}</h2>
+        <h2 className="text-xl font-bold text-slate-900">Corridors & Stairwells</h2>
         <p className="text-slate-500 text-sm mt-1">
           {isDesign
             ? 'Interior corridors, egress stairwells, elevator lobbies, unit-entry sconces, and garage lighting.'
@@ -344,7 +343,7 @@ export default function CorridorsSection({ responses, projectData, allSections, 
 
       {/* ── Unit entry sconce (both modes) ───────────────────────────────── */}
       <QuestionCard
-        question={homeType ? 'Would you like a sconce at every front door?' : 'Would you like a sconce at every unit entry?'}
+        question="Would you like a sconce at every unit entry?"
         note={`One sconce per unit, mounted at the unit door in the corridor. The integrated option includes the unit number plate. ${numUnits > 0 ? `(${numUnits} units)` : ''}`}
         costSuffix="/unit"
         options={[
@@ -364,11 +363,6 @@ export default function CorridorsSection({ responses, projectData, allSections, 
           disabled:    ans.unitSconce === 'none',
         }}
       />
-
-      {/* Homes: the back balcony is asked here, not on Units (Mike 10-2). */}
-      {homeType && (
-        <BackBalconyQuestion projectData={projectData} allSections={allSections} pricing={pricing} onSaveUnits={onSaveUnits} />
-      )}
 
       {/* ── DESIGN-ONLY: Recessed accents info ──────────────────────────── */}
       {isDesign && numAccents > 0 && (

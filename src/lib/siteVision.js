@@ -252,6 +252,7 @@ Return ONLY valid JSON — no markdown, no commentary:
   "lotCoveragePct": number or null,
   "buildingType": one of "singleFamily" | "townHouses" | "stackedFlats" | "garden" | "gurban" | "wrap" | "podium" | "midRise" | "highRise", or null,
   "driveLengthFtMeasured": number or null,
+  "walkwayLengthFtMeasured": number or null,
   "exteriorAmenitySfMeasured": number or null,
   "scaleBasis": one of "scale" | "dimension" | "stall" | "door", or null,
   "siteFeatures": [ { "type": one of "dogPark" | "courtyard" | "playground" | "tennisCourt" | "pickleballCourt" | "turfPlay", "count": number, "lengthFt": number or null, "label": "the words printed on the sheet" } ],
@@ -286,7 +287,7 @@ COUNTED FIGURES — the one deliberate exception to the no-counting rule. These 
 - surfaceParkingCounted: ONLY from a SITE PLAN view (the whole property seen from above, with drive aisles and striped parking). Count the individual striped open-air surface stalls. Do NOT count stalls inside garages, under carports, in a parking structure, or on a podium level. Count it even when a total is stated elsewhere, so the two can be compared. If the stalls are too small or crowded to count one by one, or the image is not a site plan, null.
 - When a counted figure and a stated figure are both available, report BOTH — never overwrite a stated number with your count.
 
-MEASURED FIGURES — driveLengthFtMeasured, exteriorAmenitySfMeasured, buildingFootprintSfMeasured and a site feature's lengthFt are the only fields you may MEASURE rather than read or count. Every measurement needs a scale, and you find one by going down this ladder and STOPPING at the first rung that exists on the sheet:
+MEASURED FIGURES — driveLengthFtMeasured, walkwayLengthFtMeasured, exteriorAmenitySfMeasured, buildingFootprintSfMeasured and a site feature's lengthFt are the only fields you may MEASURE rather than read or count. Every measurement needs a scale, and you find one by going down this ladder and STOPPING at the first rung that exists on the sheet:
   1. "scale" — a written scale ("1\\" = 40'-0\\"", "SCALE: 1:50") or a graphic scale bar.
   2. "dimension" — a printed dimension string on the plan (a building side labelled 220'-0\\", a property line labelled 412.5'). Use the longest legible one as the ruler.
   3. "stall" — a standard striped parking stall is 9 ft wide and 18 ft deep, and a two-way drive aisle between stall rows is 24 ft. Use a few plain mid-row stalls, not an end or accessible stall, and average them.
@@ -294,6 +295,7 @@ MEASURED FIGURES — driveLengthFtMeasured, exteriorAmenitySfMeasured, buildingF
 - Report the rung you used in scaleBasis; null when you measured nothing. Never mix rungs on one sheet, and never assume a scale that is not drawn.
 - buildingFootprintSfMeasured: ONLY from a SITE PLAN that shows the building outlines. Using the scale from the ladder above, measure the ground-floor outline (outside face of the exterior walls) of every RESIDENTIAL building and add them up: one floor, all buildings together. Rectangles are fine: break an L, U or courtyard-wrap outline into rectangles, length × width each, and do not count an open courtyard inside the outline. EXCLUDE the clubhouse / leasing building, detached garages, carport canopies, maintenance sheds, pool, decks and paving. Round to the nearest 100 SF. Measure it even when a footprint is written, so the two can be compared. No building outlines, or no scale → null.
 - driveLengthFtMeasured: ONLY from a SITE PLAN. The total centerline length, in feet, of EVERY private drive aisle inside the property line: the community's internal roads AND the drive aisles that run between or beside striped parking stalls. Every one of them gets pole lights, parking or not. Add up every branch and loop once (a loop around a block counts all four sides). Do NOT include public streets outside the property line, and do NOT count an aisle twice where two drives meet. No private drive, or you cannot follow the drives end to end → null. Round to the nearest 10 ft.
+- walkwayLengthFtMeasured: ONLY for a TOWNHOME or SINGLE-FAMILY community, and ONLY from a SITE PLAN or LANDSCAPE PLAN. The total centerline length, in feet, of every shared walking path and sidewalk inside the property line: the walks between buildings, to the amenities and mailboxes, and along the private drives. Add up every branch once and do NOT count a walk twice where two meet. Skip the short stoop from a walk to a single front door, drive aisles, and public sidewalks along streets outside the property line. An apartment building, or you cannot follow the walks end to end → null. Round to the nearest 10 ft.
 - exteriorAmenitySfMeasured: the outdoor amenity area that gets lit. A LANDSCAPE, HARDSCAPE or SITE FURNISHINGS plan is the best source — it labels these areas and often prints their square footage; a printed area figure beats a measurement, so if one is printed put it in amenitySf instead and leave this null. Otherwise measure, from a site, landscape or amenity-deck plan, the POOL ENCLOSURE (everything inside the pool fence line, pool included) PLUS every COURTYARD PLUS every contiguous hardscape area that touches the clubhouse or leasing building — pool deck, plaza, patio, outdoor kitchen, grill area, fire-pit court. On a podium or high-rise building the amenities sit UP on the building: a podium-level pool/amenity deck or a rooftop terrace counts exactly like a ground-level pool court — measure the outdoor deck area on that level's plan, planters inside it included. EXCLUDE drive aisles, parking, the public sidewalk, lawn outside courtyards, and street-level planting. Rectangles are fine: length × width of each piece, added up, rounded to the nearest 100 SF. Only when the sheet shows no pool, no courtyard and no amenity deck → null.
 
 SITE FEATURES — sporadic outdoor amenities, found by their WORDS on a site plan or landscape plan and listed one entry per kind. Look for these labels, on the plan or in its legend: "DOG PARK" / "DOG RUN" / "BARK PARK" / "PET AREA" → "dogPark"; "COURTYARD" → "courtyard"; "PLAYGROUND" / "TOT LOT" / "PLAY AREA" → "playground"; "TENNIS" → "tennisCourt"; "PICKLEBALL" → "pickleballCourt"; "SPORT COURT" or "MULTI-USE COURT" → "pickleballCourt"; "TURF" / "LAWN GAMES" / "GREAT LAWN" / "EVENT LAWN" → "turfPlay".
@@ -390,8 +392,12 @@ BUILDING TYPE — the one classification you may make, and only from evidence th
  * their printed words (dog park, courtyard, playground, tennis, pickleball,
  * turf) with a count and, for the linear ones, a length. Each is priced as
  * its own fixture package, never folded into the amenity SF.
+ *
+ * 2026-10-02c adds walkwayLengthFtMeasured (townhome / single-family only).
+ * Mike: "It should read it or estimate but not ask." The takeoff records it
+ * and the engine puts one bollard / pedestrian pole every 40 ft of walkway.
  */
-export const SITE_VISION_PROMPT_VERSION = `siteVision-2026-10-02b-${MAX_EDGE}px`;
+export const SITE_VISION_PROMPT_VERSION = `siteVision-2026-10-02c-${MAX_EDGE}px`;
 
 // The site-feature vocabulary and cleaner live in the canvas-free
 // `siteFeatures.js` (the engine, takeoff and unit tests import them; this
@@ -517,7 +523,7 @@ const SITE_FIELDS = [
   'buildingCount', 'buildingsCounted', 'clubhouseSf',
   'amenitySf', 'grossSf', 'stories', 'storiesCounted', 'egressStairwells',
   'egressStairwellsCounted', 'exitDoors', 'exitDoorsCounted',
-  'buildingFootprintSf', 'buildingFootprintSfMeasured', 'lotCoveragePct', 'buildingType', 'driveLengthFtMeasured',
+  'buildingFootprintSf', 'buildingFootprintSfMeasured', 'lotCoveragePct', 'buildingType', 'driveLengthFtMeasured', 'walkwayLengthFtMeasured',
   'exteriorAmenitySfMeasured', 'scaleBasis',
 ];
 const BED_FIELDS = ['studio', 'oneBed', 'twoBed', 'threeBed'];
@@ -686,6 +692,7 @@ export function validateSiteData(data) {
   // A measured figure without a scale basis, or a scale basis with nothing
   // measured, means the model skipped the ladder. Not rewritten — flagged.
   const measuredAny = typeof data.driveLengthFtMeasured === 'number'
+    || typeof data.walkwayLengthFtMeasured === 'number'
     || typeof data.exteriorAmenitySfMeasured === 'number'
     || typeof data.buildingFootprintSfMeasured === 'number'
     || (Array.isArray(data.siteFeatures) && data.siteFeatures.some(f => typeof f?.lengthFt === 'number'));

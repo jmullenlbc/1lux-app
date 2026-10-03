@@ -9,7 +9,7 @@ const q = key => INTAKE_QUESTIONS.find(x => x.key === key);
 test('homes get the front door and back balcony wording', () => {
   for (const type of ['Town Houses (2-3 Levels)', 'Single Family (1-2 Levels)']) {
     const door = questionFor(q('unitEntrySconce'), type);
-    assert.equal(door.section, 'Front door & back balcony');
+    assert.equal(door.section, 'Residential units', 'no Corridors page for homes; asked on Units');
     assert.match(door.question, /front door/);
     const bal = questionFor(q('balconyLighting'), type);
     assert.match(bal.question, /back balconies/);
@@ -34,6 +34,6 @@ test('design choices summary uses the home wording', () => {
   const rows = designChoices({ projectType: 'Single Family (1-2 Levels)', balconyLighting: 'Exterior balcony sconce (Medium finish)' });
   const bal = rows.find(r => /balcon/.test(r.question));
   assert.equal(bal.answer, 'Back balcony sconce (Medium finish)');
-  assert.ok(rows.some(r => r.section === 'Front door & back balcony'));
-  assert.equal(bal.section, 'Front door & back balcony', 'the balcony moves to the front door page');
+  assert.ok(!rows.some(r => r.section === 'Front door & back balcony'));
+  assert.equal(bal.section, 'Residential units', 'the back balcony stays on Units');
 });

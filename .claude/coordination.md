@@ -2,7 +2,10 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-02 (newest) - Mike's Claude - **DEPLOYED 8b42d03**, no migration: homes Front Door & Back Balcony page, bollards / pedestrian poles, drive lights
+### 2026-10-02 (newest) - Mike's Claude - **DEPLOYED**, migration 0114 (additive: ProjectData.driveLengthFt, walkwayLengthFt): homes skip Corridors, walkway read not asked, 1 pole per 8 homes
+Town Houses / Single Family: no Corridors page (public + both internal wizards); front door sconce asked on Units (`FrontDoorQuestion.jsx`, stored as corridors.unitSconce), back balcony back on Units. Walkway length input removed; site read measures `walkwayLengthFtMeasured` (siteVision-2026-10-02c) into a `walkwayLengthFt` quantities row. Pole fallback 0.4 to 0.125 per home (1 per 8, Fremont = 37). Internal site read now proposes + saves drive and walkway length (0114); engine uses them for homes only, typed drive wins. verify --full passed.
+
+### 2026-10-02 - Mike's Claude - **DEPLOYED 8b42d03**, no migration: homes Front Door & Back Balcony page, bollards / pedestrian poles, drive lights
 Town Houses / Single Family: Corridors page becomes "Front Door & Back Balcony" on the public and both internal wizards, balcony question moved there (same stored answer). Walking paths for homes only: "bollards / pedestrian poles", 1 per 40 ft at $1,000 (`exterior.pedestrianPole`), 0.4/home with no walkway length, new `exterior.walkwayLengthFt`. Drive lights stay 1 per 81 ft; with no drive length the stalls stand in, nothing added on top. Site read measures all drive aisles (siteVision-2026-10-02b). Fixed "Change from last choice" on page load. verify --full passed.
 
 ### 2026-10-02 - Mike's Claude - **DEPLOYED 3d73cdf**, no migration: conceptual budget grid fixes

@@ -879,6 +879,9 @@ model ProjectData {
   exteriorAmenitySf   Float?
   lotSf               Float?
   buildingFootprintSf Float?
+  // Homes site plan lengths, measured by the site read (0114). Null = not read.
+  driveLengthFt       Float?
+  walkwayLengthFt     Float?
   corridorSf          Float?
   interiorAmenitySf   Float?
   garageSf            Float?

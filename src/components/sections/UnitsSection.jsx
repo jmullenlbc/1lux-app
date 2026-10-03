@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import QuestionCard from './QuestionCard';
+import FrontDoorQuestion from './FrontDoorQuestion';
 import { formatCurrency, calculateBudget } from '@/lib/calculations';
 import { PRICING } from '@/lib/pricing';
 import StandardsHint from '@/components/wizard/StandardsHint';
@@ -13,7 +14,7 @@ const FAN_ROOMS = {
   masterSecondaryTertiary: 2.5, masterSecondaryTertiaryLiving: 2.75,
 };
 
-export default function UnitsSection({ responses, projectData, allSections, pricing, onSaveResponses, onNext, onPrev, isDesign = false, homeType = false }) {
+export default function UnitsSection({ responses, projectData, allSections, pricing, onSaveResponses, onNext, onPrev, isDesign = false, homeType = false, onSaveCorridors }) {
   // Single source of truth: read costs from the live master pricing (same object
   // the engine uses), falling back to static defaults. Prevents UI/engine drift.
   const P = pricing || PRICING;
@@ -462,9 +463,17 @@ export default function UnitsSection({ responses, projectData, allSections, pric
         </div>
       )}
 
-      {/* ── BALCONIES (cost = answer × # of balconies in Project Data). Homes
-          answer this on the Front Door & Back Balcony page instead. ── */}
-      {!homeType && (
+      {/* ── FRONT DOOR (homes only, Mike 10-2): no Corridors page, so the
+          front door sconce is asked here. Saves to the corridors section. ── */}
+      {homeType && (
+        <div>
+          <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Front Door</div>
+          <FrontDoorQuestion projectData={projectData} allSections={allSections} pricing={pricing} onSaveCorridors={onSaveCorridors} />
+        </div>
+      )}
+
+      {/* ── BALCONIES (cost = answer × # of balconies in Project Data) ── */}
+      <>
         <div>
           <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Balconies</div>
           <div className="space-y-4">
@@ -474,7 +483,7 @@ export default function UnitsSection({ responses, projectData, allSections, pric
               </div>
             )}
             <QuestionCard
-              question="Would you like a wall sconce, ceiling surface disk, or nothing on the balconies?"
+              question={homeType ? 'How do you want to light the back balconies?' : 'Would you like a wall sconce, ceiling surface disk, or nothing on the balconies?'}
               note={
                 numBalconies > 0
                   ? `${numBalconies} balconies. If a sconce, consider its priority relative to the overall budget — sconces add meaningful cost per door. Cost shown is the net adder per balcony.`
@@ -500,7 +509,7 @@ export default function UnitsSection({ responses, projectData, allSections, pric
             />
           </div>
         </div>
-      )}
+      </>
 
       {/* Manual adder */}
       <div>

@@ -1314,6 +1314,20 @@ export function computeQuantities(drawings, answers, pricing = null, adopted = n
     }
   }
 
+  // ── WALKWAY LENGTH (townhouse / single-family) ───────────────────────────
+  // Mike 2026-10-02: "It should read it or estimate but not ask. Just record
+  // and estimate in the background." The site read measures the shared walks;
+  // the engine puts one bollard / pedestrian pole every 40 ft. Nothing read →
+  // no row, and the engine uses its per-home estimate. Never a question.
+  if (laneType === 'townHouses' || laneType === 'singleFamily') {
+    const walkFt = stated(site?.walkwayLengthFtMeasured);
+    if (walkFt > 0) {
+      add('walkwayLengthFt', 'Walkway length', 'ft', walkFt, 'drawing',
+        'Measured along every shared walking path and sidewalk inside the property line on the scaled site plan.',
+        'Measured off the site plan, not written on it. Confirm.');
+    }
+  }
+
   // ── SITE FEATURES (Mike 2026-09-16) ───────────────────────────────────────
   // Dog parks, courtyards, playgrounds, tennis / pickleball courts, turf play
   // areas — found by their printed words on the site or landscape plan, each

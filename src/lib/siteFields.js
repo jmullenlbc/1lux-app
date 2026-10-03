@@ -332,6 +332,28 @@ export const SITE_FIELD_DEFS = [
       return { ...r, note: 'From the clubhouse figure on the drawing.' };
     },
   },
+  // Townhomes and single family (Mike 10-2): "read it or estimate but not ask".
+  // Measured off the site plan; the engine uses them for homes only.
+  {
+    key:   'driveLengthFt',
+    label: 'Private Drive Length (ft)',
+    unit:  'ft',
+    read: (v) => {
+      const m = num(v?.driveLengthFtMeasured);
+      if (!m || !m.value) return null;
+      return { ...m, note: `Measured off the site plan (scale basis: ${SCALE_BASIS_LABELS[v?.scaleBasis] || 'not stated'}): every private drive aisle. Townhomes and single family get 1 pole light per 81 ft. Confirm before accepting.` };
+    },
+  },
+  {
+    key:   'walkwayLengthFt',
+    label: 'Walkway Length (ft)',
+    unit:  'ft',
+    read: (v) => {
+      const m = num(v?.walkwayLengthFtMeasured);
+      if (!m || !m.value) return null;
+      return { ...m, note: `Measured off the site plan (scale basis: ${SCALE_BASIS_LABELS[v?.scaleBasis] || 'not stated'}). Townhomes and single family get 1 bollard / pedestrian pole per 40 ft. Confirm before accepting.` };
+    },
+  },
 ];
 
 function num(v) {

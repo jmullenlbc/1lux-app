@@ -1,7 +1,7 @@
 'use client';
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { DESIGN_WIZARD_STEPS, getDesignNextStep, getDesignPrevStep, isHomeBuildingKey, stepsForHome } from '@/lib/utils';
+import { DESIGN_WIZARD_STEPS, getDesignNextStep, isHomeBuildingKey, stepsForHome, stepBeside, HOME_SKIPPED_STEPS } from '@/lib/utils';
 import { calculateBudget, formatCurrency } from '@/lib/calculations';
 
 // Section components
@@ -111,7 +111,7 @@ export default function DesignWizardClient({ project, projectData, initialSectio
   }
 
   async function goToNext() {
-    const next = getDesignNextStep(currentStep);
+    const next = stepBeside(navSteps, currentStep, 1);
     const newCompleted = completedSteps.includes(currentStep)
       ? completedSteps
       : [...completedSteps, currentStep];
@@ -126,7 +126,7 @@ export default function DesignWizardClient({ project, projectData, initialSectio
   }
 
   async function goToPrev() {
-    const prev = getDesignPrevStep(currentStep);
+    const prev = stepBeside(navSteps, currentStep, -1);
     if (prev) setCurrentStep(prev);
   }
 
@@ -150,10 +150,15 @@ export default function DesignWizardClient({ project, projectData, initialSectio
     }
   }, [currentStep, project.id, router]);
 
-  const stepIndex  = DESIGN_WIZARD_STEPS.findIndex(s => s.id === currentStep);
-  const totalSteps = DESIGN_WIZARD_STEPS.length - 1;
-
   const homeType = isHomeBuildingKey(localPD?.buildingTypeKey || project.buildingType);
+  const navSteps = stepsForHome(DESIGN_WIZARD_STEPS, homeType);
+  // Homes skip the Corridors page (Mike 10-2); a saved spot there moves on.
+  useEffect(() => {
+    if (homeType && HOME_SKIPPED_STEPS.includes(currentStep)) setCurrentStep(getDesignNextStep(currentStep));
+  }, [homeType, currentStep]);
+
+  const stepIndex  = navSteps.findIndex(s => s.id === currentStep);
+  const totalSteps = navSteps.length - 1;
   const sharedProps = {
     projectId:   project.id,
     projectData: localPD,
@@ -173,7 +178,7 @@ export default function DesignWizardClient({ project, projectData, initialSectio
     <div className="flex h-[calc(100vh-0px)] overflow-hidden">
       {/* Left nav */}
       <SectionNav
-        steps={stepsForHome(DESIGN_WIZARD_STEPS, homeType)}
+        steps={navSteps}
         currentStep={currentStep}
         completedSteps={completedSteps}
         onJump={jumpToStep}
@@ -231,6 +236,7 @@ export default function DesignWizardClient({ project, projectData, initialSectio
               {...sharedProps}
               responses={sections['units'] || {}}
               onSaveResponses={(r) => saveResponses('units', r)}
+              onSaveCorridors={(r) => saveResponses('corridors', r)}
             />
           )}
 
@@ -248,7 +254,6 @@ export default function DesignWizardClient({ project, projectData, initialSectio
               {...sharedProps}
               responses={sections['corridors'] || {}}
               onSaveResponses={(r) => saveResponses('corridors', r)}
-              onSaveUnits={(r) => saveResponses('units', r)}
             />
           )}
 

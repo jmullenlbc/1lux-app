@@ -87,7 +87,7 @@ const PRICING_FIELDS = [
   { group: 'Exterior Site', key: 'exterior.exteriorDoor.wallpackWithBattery', label: 'Wallpack + Battery',   desc: 'Egress wallpack w/ battery backup — $350 per Mike 2026-08-12, same figure as the Building Wallpack price. Reference only; the drawing-takeoff door count will refine the wallpack quantity, not add a separate line', unit: '$/door' },
   { group: 'Exterior Site', key: 'exterior.pedestrianPole.each',          label: 'Bollard / Pedestrian Pole $ Each', desc: 'Townhome and single-family walking paths only. Average of a bollard and a pedestrian pole (Mike 2026-10-02)', unit: '$' },
   { group: 'Exterior Site', key: 'exterior.pedestrianPole.ftPerPole',     label: 'Walkway Ft per Pole',       desc: 'One bollard / pedestrian pole every this many feet of walkway (Mike 2026-10-02: 40)', unit: 'ft' },
-  { group: 'Exterior Site', key: 'exterior.pedestrianPole.perHome',       label: 'Poles per Home (no walkway length)', desc: 'Used only when no walkway length is entered', unit: '/home' },
+  { group: 'Exterior Site', key: 'exterior.pedestrianPole.perHome',       label: 'Poles per Home (no walkway length)', desc: 'Used only when the site plan gives no walkway length. 1 per 8 homes = 0.125 (Mike 2026-10-02; 890 Fremont had 25 bollards on 293 homes)', unit: '/home' },
   { group: 'Exterior Site', key: 'exterior.pathway.minTotal',            label: 'Pathway Lighting Floor',    desc: 'Minimum pathway lighting for sites with a minimal walkway network', unit: '$' },
 
   // ── BUILDING WALLPACKS ────────────────────────────────────────────────

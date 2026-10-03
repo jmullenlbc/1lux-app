@@ -83,6 +83,11 @@ export function computeIntakeEstimate({ answers, drawings, pricing = null, adopt
   } else if (num(q.driveLaneLights) > 0) {
     sections.exterior = { ...(sections.exterior || {}), driveLaneLightsQty: num(q.driveLaneLights) };
   }
+  // Homes: a walkway length read off the site plan prices the bollards /
+  // pedestrian poles at one per 40 ft (Mike 2026-10-02). Never asked.
+  if (num(q.walkwayLengthFt) > 0) {
+    sections.exterior = { ...(sections.exterior || {}), walkwayLengthFt: num(q.walkwayLengthFt) };
+  }
 
   const projectData = {
     grossSf:             num(q.grossSf),

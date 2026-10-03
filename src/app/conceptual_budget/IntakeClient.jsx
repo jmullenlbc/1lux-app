@@ -148,15 +148,14 @@ const STEPS = [
     hint: 'Check your budget and download a PDF copy. When you’re ready, send it to our team to review.' },
 ];
 
-// Mike 10-2: townhomes and single-family homes have no corridors; the same
-// page asks about the light by each front door and on the back balcony (the
-// balcony question moves here from the Units page). `extraKeys` adds questions
-// to a page, `omitKeys` takes them off.
-const HOME_CORRIDORS_STEP = { short: 'Front Door', label: 'Front Door & Back Balcony',
-  hint: 'Choose the light by each home’s front door and on its back balcony.', extraKeys: ['balconyLighting'] };
+// Mike 10-2: townhomes and single-family homes have no corridors, so the
+// Corridors page is skipped and the front door sconce is asked on the Units
+// page (stored and priced like a unit entry sconce). The back balcony stays
+// on Units. `extraKeys` adds questions to a page.
+const HOME_UNITS_STEP = { extraKeys: ['unitEntrySconce'],
+  hint: 'Choose the lighting inside each home, by its front door and on its back balcony. Each choice updates your budget.' };
 const stepsFor = projectType => isHomeProjectType(projectType)
-  ? STEPS.map(s => (s.id === 'corridors' ? { ...s, ...HOME_CORRIDORS_STEP }
-    : s.id === 'units' ? { ...s, omitKeys: ['balconyLighting'] } : s))
+  ? STEPS.filter(s => s.id !== 'corridors').map(s => (s.id === 'units' ? { ...s, ...HOME_UNITS_STEP } : s))
   : STEPS;
 
 /** "How this works" on the About step — four short steps, plain words. */
@@ -573,8 +572,10 @@ export default function IntakeClient() {
   // The moment a server draft exists, the visit has a name behind it.
   useEffect(() => { if (draftToken) pingVisit({ stepId }); }, [draftToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const stepIndex = STEPS.findIndex(s => s.id === stepId);
   const steps     = stepsFor(answers.projectType);
+  // A home visitor whose draft sat on the skipped Corridors page sees the next page.
+  const stepIndex = Math.max(0, steps.findIndex(s => s.id === stepId) >= 0
+    ? steps.findIndex(s => s.id === stepId) : steps.findIndex(s => s.id === 'amenities'));
   const step      = steps[stepIndex];
   const homeType  = isHomeProjectType(answers.projectType);
 
@@ -755,12 +756,12 @@ export default function IntakeClient() {
   }
 
   function goNext() {
-    const next = STEPS[stepIndex + 1];
+    const next = steps[stepIndex + 1];
     if (next) markDoneAndGo(next.id);
   }
 
   function goPrev() {
-    const prev = STEPS[stepIndex - 1];
+    const prev = steps[stepIndex - 1];
     if (prev) goTo(prev.id);
   }
 
@@ -1206,7 +1207,7 @@ export default function IntakeClient() {
             {!submitted && (
               <div className="mb-6">
                 <div className="flex items-center gap-2 text-xs text-slate-400 mb-2">
-                  <span>Step {stepIndex + 1} of {STEPS.length}</span>
+                  <span>Step {stepIndex + 1} of {steps.length}</span>
                   {/* So a visitor knows closing the tab is safe. Browser-only:
                       the words say so, or they'd expect it on their phone too. */}
                   {savedAt && (
@@ -1217,7 +1218,7 @@ export default function IntakeClient() {
                   <div className="flex-1 max-w-32 bg-slate-100 rounded-full h-1">
                     <div
                       className="bg-amber-500 h-1 rounded-full transition-all"
-                      style={{ width: `${(stepIndex / (STEPS.length - 1)) * 100}%` }}
+                      style={{ width: `${(stepIndex / (steps.length - 1)) * 100}%` }}
                     />
                   </div>
                 </div>
@@ -1571,7 +1572,6 @@ export default function IntakeClient() {
                     <div className="space-y-4">
                       {[...step.sections.flatMap(name => questionsBySection.get(name) || []),
                         ...INTAKE_QUESTIONS.filter(q => step.extraKeys?.includes(q.key))]
-                        .filter(q => !step.omitKeys?.includes(q.key))
                         // Walking-path bollards: townhomes and single-family only (Mike, 2026-09-12).
                         .filter(q => q.key !== 'pathwayBollards' || BOLLARD_PROJECT_TYPES.includes(answers.projectType))
                         .map(q => questionFor(q, answers.projectType))
@@ -1606,7 +1606,7 @@ export default function IntakeClient() {
                     <div className="flex items-center justify-between mt-6">
                       <button onClick={goPrev} className={backBtn}>← Back</button>
                       <button onClick={goNext} className={navBtn(true)}>
-                        {stepIndex === STEPS.length - 2 ? 'Review & send →' : 'Continue →'}
+                        {stepIndex === steps.length - 2 ? 'Review & send →' : 'Continue →'}
                       </button>
                     </div>
                   </>

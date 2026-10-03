@@ -57,6 +57,8 @@ const FIELDS = [
       { key: 'tennisCourts',     label: '# of Tennis Courts',        type: 'number', placeholder: '0', hint: '4 area lights per court. 0 = none.' },
       { key: 'pickleballCourts', label: '# of Pickleball Courts',    type: 'number', placeholder: '0', hint: '4 area lights per court. 0 = none.' },
       { key: 'turfPlayFt',       label: 'Turf Play Area Length (ft)', type: 'number', placeholder: '0', hint: 'Longest dimension of the turf play area(s), in feet. 1 pedestrian pole per 50 ft. 0 = none.' },
+      { key: 'driveLengthFt',    label: 'Private Drive Length (ft)', type: 'number', placeholder: '', hint: 'Townhomes and single family. Usually read off the site plan. 1 pole light per 81 ft.' },
+      { key: 'walkwayLengthFt',  label: 'Walkway Length (ft)',       type: 'number', placeholder: '', hint: 'Townhomes and single family. Usually read off the site plan. 1 bollard / pedestrian pole per 40 ft; blank = 1 per 8 homes.' },
     ],
   },
   { group: 'Area Breakdowns (SF)',

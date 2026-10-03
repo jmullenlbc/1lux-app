@@ -173,12 +173,13 @@ export const PRICING = {
 
     // Townhome / single-family walking paths (Mike 2026-10-02): "bollards /
     // pedestrian poles", one every 40 ft so each light sits mid-run, $1,000
-    // each (the average of a bollard and a pedestrian pole). No walkway length
-    // gives 0.4 per home (the old $320/home / $800).
+    // each (the average of a bollard and a pedestrian pole). The walkway length
+    // is read off the site plan, never asked. None read: 1 per 8 homes (Mike
+    // 10-2; 890 Fremont, his sheet: 25 bollards on 293 homes = 0.085).
     pedestrianPole: {
       each: 1000,
       ftPerPole: 40,
-      perHome: 0.4,
+      perHome: 0.125,
     },
 
     // ─── BUILDING WALLPACKS ─────────────────────────────────────────────────

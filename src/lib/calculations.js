@@ -308,7 +308,10 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // Two ways in: a drive LENGTH (feet) — one light per the width of 9 stalls,
   // 81 ft (Mike 2026-09-13) — or a straight COUNT from the estimate
   // (quantities.js driveLaneLights). A length wins; 0 unless something passed one.
-  const driveLaneFt      = Math.max(0, n(exterior.driveLaneFt, 0));
+  // A typed drive length wins. Homes only: a site read (0114) fills in when
+  // nothing is typed.
+  const driveHomeSite    = buildingTypeKey === 'townHouses' || buildingTypeKey === 'singleFamily';
+  const driveLaneFt      = Math.max(0, n(exterior.driveLaneFt, 0) || (driveHomeSite ? n(pd.driveLengthFt, 0) : 0));
   const driveLaneFtPer   = n(PRICING.exterior.surfaceParking.driveLaneFtPerLight, 81) > 0
     ? n(PRICING.exterior.surfaceParking.driveLaneFtPerLight, 81) : 81;
   const driveLaneLights  = driveLaneFt > 0
@@ -444,15 +447,16 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // Townhomes and single-family are asked "Light the walking paths with
   // bollards / pedestrian poles?" (Mike, 2026-09-12). No, the default, is $0.
   // Yes (Mike 2026-10-02): one pole every 40 ft of walkway at $1,000 each, no
-  // floor; with no walkway length, 0.4 per home.
+  // floor; with no walkway length, 1 per 8 homes. The length comes from the
+  // public takeoff (exterior.walkwayLengthFt) or an internal site read (0114).
   const pathwayAsksBollards = wpBuildingType === 'townHouses' || wpBuildingType === 'singleFamily';
   const pedPole        = PRICING.exterior.pedestrianPole || {};
   const pedPoleEach    = n(pedPole.each, 1000);
   const pedPoleFt      = n(pedPole.ftPerPole, 40) > 0 ? n(pedPole.ftPerPole, 40) : 40;
-  const walkwayFt      = Math.max(0, n(exterior.walkwayLengthFt, 0));
+  const walkwayFt      = Math.max(0, n(exterior.walkwayLengthFt, 0) || n(pd.walkwayLengthFt, 0));
   const pedPoles       = !pathwayAsksBollards ? 0
     : walkwayFt > 0 ? Math.ceil(walkwayFt / pedPoleFt)
-    : Math.ceil(numUnits * n(pedPole.perHome, 0.4));
+    : Math.ceil(numUnits * n(pedPole.perHome, 0.125));
   const pathwayBase    = pathwayAsksBollards
     ? pedPoles * pedPoleEach
     : numUnits > 0 && pathwayRate > 0

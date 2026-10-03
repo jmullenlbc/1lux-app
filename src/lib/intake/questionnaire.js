@@ -545,20 +545,18 @@ export const BOLLARD_PROJECT_TYPES = ['Town Houses (2-3 Levels)', 'Single Family
 /** Townhomes and single-family homes: no corridors, a front door instead. */
 export const isHomeProjectType = t => BOLLARD_PROJECT_TYPES.includes(t);
 
-// Mike 10-2: homes have no corridors, so the Corridors page becomes "Front
-// Door & Back Balcony": a sconce by each front door (like a unit entry sconce)
-// and the back balcony light, moved off the Units page. Wording only: the
-// stored answers and the prices are the same as every other type.
-export const HOME_DOOR_SECTION = 'Front door & back balcony';
+// Mike 10-2: homes have no corridors, so the Corridors page is skipped and
+// the front door sconce (like a unit entry sconce) is asked on Units, next to
+// the back balcony. Wording only: the stored answers and the prices are the
+// same as every other type.
 const HOME_WORDING = {
   unitEntrySconce: {
-    section: HOME_DOOR_SECTION,
+    section: 'Residential units',
     question: 'Would you like a sconce at every front door?',
     hint: 'One sconce on the front of each home. Options run from a simple builder-grade sconce up to an integrated house-number light.',
     optionLabels: { '1 Integrated unit number/light': '1 Integrated house number/light' },
   },
   balconyLighting: {
-    section: HOME_DOOR_SECTION,
     question: 'How do you want to light the back balconies?',
     hint: 'A small surface-mount disk is the budget option; a back balcony sconce ranges from builder-grade to decorative.',
     optionLabels: {

@@ -48,7 +48,8 @@ test('every building type prices at its own master-pricing rate', () => {
 });
 
 // Mike 2026-10-02: homes get "bollards / pedestrian poles", one every 40 ft of
-// walkway at $1,000 each, no floor. No walkway length: 0.4 per home.
+// walkway at $1,000 each, no floor. No walkway length: 1 per 8 homes (890
+// Fremont: 25 bollards on 293 homes).
 test('townhomes Yes: one bollard / pedestrian pole per 40 ft of walkway at $1,000', () => {
   assert.equal(PRICING.exterior.pedestrianPole.each, 1000);
   assert.equal(PRICING.exterior.pedestrianPole.ftPerPole, 40);
@@ -58,12 +59,12 @@ test('townhomes Yes: one bollard / pedestrian pole per 40 ft of walkway at $1,00
   assert.equal(p.floorApplied, false);
 });
 
-test('townhomes Yes with no walkway length: 0.4 per home', () => {
+test('townhomes Yes with no walkway length: 1 per 8 homes', () => {
   const p = pathway({ numUnits: 100, buildingTypeKey: 'townHouses' }, { exterior: { pathwayBollards: 'yes' } });
-  assert.equal(p.poles, 40);
-  assert.equal(p.product, 40000);
+  assert.equal(p.poles, 13, '100 / 8 = 12.5, rounded up');
+  assert.equal(p.product, 13000);
   const small = pathway({ numUnits: 5, buildingTypeKey: 'townHouses' }, { exterior: { pathwayBollards: 'yes' } });
-  assert.equal(small.product, 2000, 'no $4,000 floor for homes');
+  assert.equal(small.product, 1000, 'no $4,000 floor for homes');
 });
 
 test('the walkway length is ignored for every other building type', () => {
@@ -105,7 +106,7 @@ test('the bollard question is townhome/single-family only — other types ignore
 test('townhomes Yes on a solar site gets the 1.6× bump', () => {
   const p = pathway({ numUnits: 100, buildingTypeKey: 'townHouses' },
     { exterior: { pathwayBollards: 'yes', siteDesignLevel: 'solar' } });
-  assert.ok(Math.abs(p.product - 40000 * 1.6) < 0.01, `got ${p.product}`);
+  assert.ok(Math.abs(p.product - 13000 * 1.6) < 0.01, `got ${p.product}`);
 });
 
 test("Mike's 2026-09-04 corrections landed: garden/wrap $60, podium tier $35", () => {

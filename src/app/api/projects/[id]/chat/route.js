@@ -167,6 +167,8 @@ export async function POST(request, { params }) {
   if (pd.corridorSf)           buildingLines.push(`Corridor SF: ${Number(pd.corridorSf).toLocaleString()}`);
   if (pd.interiorAmenitySf)    buildingLines.push(`Interior Amenity SF: ${Number(pd.interiorAmenitySf).toLocaleString()}`);
   if (pd.exteriorAmenitySf)    buildingLines.push(`Exterior Amenity SF: ${Number(pd.exteriorAmenitySf).toLocaleString()}`);
+  if (pd.driveLengthFt)        buildingLines.push(`Private Drive Length: ${Number(pd.driveLengthFt).toLocaleString()} ft`);
+  if (pd.walkwayLengthFt)      buildingLines.push(`Walkway Length: ${Number(pd.walkwayLengthFt).toLocaleString()} ft`);
   if (pd.garageSf)             buildingLines.push(`Garage SF: ${Number(pd.garageSf).toLocaleString()}`);
   if (pd.bohSf)                buildingLines.push(`BOH/Core+Shell SF: ${Number(pd.bohSf).toLocaleString()}`);
   if (pd.numEgressStairwells)  buildingLines.push(`# Egress Stairwell Landings: ${pd.numEgressStairwells}`);
