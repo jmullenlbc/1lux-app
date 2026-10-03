@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Homes: Front Door & Back Balcony page, bollards / pedestrian poles, drive lights at 81 ft] - October 2, 2026 (DEPLOYED) - no migration
+## [Homes: Front Door & Back Balcony page, bollards / pedestrian poles, drive lights at 81 ft] - October 2, 2026 (DEPLOYED 8b42d03) - no migration
 
 - **Home wording (Mike 10-2):** on the public wizard, Town Houses and Single Family read "Exterior Front Door" instead of "Corridors" (rail, page title, sidebar, cost lines), the sconce question asks about a sconce at every front door, and balcony options read "Back balcony sconce". Wording only: stored answers and prices are unchanged. `questionFor` / `optionLabelFor` in `src/lib/intake/questionnaire.js`; also `IntakeClient.jsx`, `BudgetSidebar.jsx`, `calculations.js`.
 - **Bug fix (from 3d73cdf):** "Change from last choice" showed on first page load. Now tracked per question by `useChoiceDelta` (`QuestionCard.jsx`), counting only a real change of choice; Emergency screens use it too.
