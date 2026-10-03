@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Homes: no Corridors page, walkway read not asked, 1 pole per 8 homes, site lengths] - October 2, 2026 (DEPLOYED) - migration 0114
+## [Homes: no Corridors page, walkway read not asked, 1 pole per 8 homes, site lengths] - October 2, 2026 (DEPLOYED 69b6c9d) - migration 0114
 
 - **Bollards / pedestrian poles fallback 0.4 to 0.125 per home, 1 per 8 homes (Mike 10-2):** 0.4 would have priced 890 Fremont (293 homes) at 118 poles / $118,000; Mike's sheet had 25 bollards / $50,000 (0.085 per home). 1 per 8 gives 37 poles / $37,000. `pricing.js`, `calculations.js`, `ExteriorSection.jsx`, Master Pricing note.
 - **Internal drawing reads now record drive and walkway length (migration 0114):** new `ProjectData.driveLengthFt` / `walkwayLengthFt` (additive). The site read review panel offers both (`siteFields.js`, "Measured off the site plan ... Confirm"), the commit route saves them, Project Info shows them. Engine, homes only: a typed drive length wins, else the read one (1 pole light per 81 ft); walkway read length prices 1 bollard per 40 ft, else 1 per 8 homes. Chat context lists both. New `siteLengths.test.mjs` (3).
