@@ -13,7 +13,8 @@ import { inDepartment, SALES_MARKETING } from '@/lib/departments';
 import { hashToken } from '@/lib/intake/draftTokens';
 import { looseNumberOrNull } from '@/lib/numberInput';
 import { drawingsFromSubmission } from '@/lib/intake/handoff';
-import { automaticOwner, planFromWeb, makeConceptualProject, carryWebFigures } from '@/lib/intake/conceptualProjects';
+import { automaticOwner, planFromWeb, makeConceptualProject, carryWebFigures, settleQuietly, linkPeopleQuietly } from '@/lib/intake/conceptualProjects';
+import { askOnce, tellSalesAboutReviews } from '@/lib/intake/webPeople';
 
 export const dynamic = 'force-dynamic';
 
@@ -124,13 +125,15 @@ export async function POST(req) {
   // link it so it drops off the staff "unfinished budgets" list and the two
   // rows stay tied together. Never fatal — the submission is already saved.
   let draftProjectId = null;
+  let draftPeople = null;
   try {
     const tokenHash = hashToken(body.draftToken);
     if (tokenHash) {
       // An unfinished budget that was already turned into a project (0116):
       // the finished one lands on that same project, not a second one.
-      const draft = await prisma.conceptualDraft.findUnique({ where: { tokenHash }, select: { projectId: true } });
+      const draft = await prisma.conceptualDraft.findUnique({ where: { tokenHash }, select: { id: true, projectId: true, clientId: true, contactId: true } });
       draftProjectId = draft?.projectId || null;
+      draftPeople = draft;
       await prisma.conceptualDraft.updateMany({
         where: { tokenHash, submissionId: null },
         data: { submissionId: submission.id },
@@ -138,6 +141,33 @@ export async function POST(req) {
     }
   } catch (e) {
     console.error('intake/submit draft link failed (non-fatal):', e);
+  }
+
+  // The company and person (0117): the ones the draft already found, or found
+  // now. A look alike waits on My Desk as "Same person?". Never fatal.
+  const people = { clientId: submission.clientId, contactId: null };
+  try {
+    if (draftPeople) {
+      people.clientId = people.clientId || draftPeople.clientId;
+      people.contactId = draftPeople.contactId;
+      await prisma.duplicateReview.updateMany({ where: { draftId: draftPeople.id, submissionId: null }, data: { submissionId: submission.id } });
+    } else {
+      const words = String(contactName).trim().split(/\s+/);
+      const owner = await automaticOwner(prisma);
+      const found = await settleQuietly(prisma, {
+        firstName: words.length > 1 ? words.slice(0, -1).join(' ') : words[0],
+        lastName: words.length > 1 ? words[words.length - 1] : null,
+        email: submission.submitterEmail, companyName: companyName || null, emailDomain: emailCheck.domain,
+        projectName: submission.proposedName, submissionId: submission.id,
+      }, { creatorId: owner?.id, clientId: submission.clientId });
+      people.clientId = found.clientId; people.contactId = found.contactId;
+    }
+    if (people.clientId !== submission.clientId || people.contactId) {
+      await prisma.conceptualSubmission.update({ where: { id: submission.id }, data: { clientId: people.clientId, contactId: people.contactId } });
+      submission.clientId = people.clientId;
+    }
+  } catch (e) {
+    console.error('intake/submit people failed (non-fatal):', e);
   }
 
   // Notify the precon inbox. A failed email must never fail the submission —
@@ -170,6 +200,17 @@ export async function POST(req) {
         where: { id: submission.id },
         data: { suggestedProjectId: match.projectId, suggestedMatchReason: match.reason },
       });
+      // "Same job?" on My Desk (0117), next to the review queue's own guess.
+      const job = projects.find(p => p.id === match.projectId);
+      const [first, ...rest] = String(contactName).trim().split(/\s+/);
+      const asked = await askOnce(prisma, {
+        kind: 'project', existingProjectId: match.projectId,
+        reason: `Looks like ${job?.name || 'a job we already have'}: ${match.reason}.`,
+        firstName: first || null, lastName: rest.join(' ') || null, email: submission.submitterEmail,
+        companyName: companyName || null, emailDomain: emailCheck.domain, projectName: submission.proposedName,
+        submissionId: submission.id,
+      });
+      await tellSalesAboutReviews(prisma, [asked], submission.submitterName);
     }
   } catch (e) {
     console.error('intake/submit duplicate check failed (non-fatal):', e);
@@ -211,6 +252,8 @@ export async function POST(req) {
           data: { duplicateMatchId: project.id, reviewNote: line },
         });
         projectMade = project;
+        await linkPeopleQuietly(prisma, project.id, people);
+        projectMade.salesOwnerId = (await prisma.project.findUnique({ where: { id: project.id }, select: { salesOwnerId: true } }))?.salesOwnerId || null;
       }
     } catch (e) {
       console.error('intake/submit project create failed (non-fatal):', e);
@@ -227,8 +270,8 @@ export async function POST(req) {
     await notifyUsers(sales.map(u => u.id), {
       type:    'NEW_WEB_REQUEST',
       title:   `New web budget request: ${submission.proposedName}`,
-      message: `${where ? where + ' — ' : ''}from ${submission.submitterName} (${submission.submitterEmail})`
-        + (projectMade ? `. Project ${projectMade.name} was made.` : ''),
+      message: `${where ? where + ', ' : ''}from ${submission.submitterName} (${submission.submitterEmail})`
+        + (projectMade ? `. Project ${projectMade.name} was made` + (projectMade.salesOwnerId ? '.' : ' and is in the pool on My Desk.') : ''),
       link:    `/admin/intake?id=${submission.id}`,
       dedupeKey: `intake:${submission.id}`,
     });

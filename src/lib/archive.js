@@ -53,6 +53,8 @@ export const NEVER_DELETED = [
   // A project's number ladder (0116): a newer number archives the older one.
   // Not auto-hidden; readers filter archivedAt by hand (budgetAmounts.js).
   'projectBudgetAmount',
+  // "Same person?" questions (0117): answered ones stay as the record of who decided.
+  'duplicateReview',
 ];
 
 export class DeleteRefusedError extends Error {

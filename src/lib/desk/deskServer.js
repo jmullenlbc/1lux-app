@@ -10,6 +10,9 @@ import { groupDesk, deskAttention, snoozeUntil } from '@/lib/desk/desk';
 import { meetingsNeedingPeople } from '@/lib/desk/meetingPeople';
 import { checkInsWithoutOwner } from '@/lib/checkIns/checkInDrafts';
 import { ownedBy, ownerIdsOf, logNoteChanges } from '@/lib/notes/owners';
+import { pendingReviews } from '@/lib/intake/webReviews';
+import { CONCEPTUAL_SERVICE_TYPE } from '@/lib/intake/conceptualProjects';
+import { inDepartment, SALES_MARKETING } from '@/lib/departments';
 
 const DRAFT_SELECT = {
   id: true, type: true, status: true, toEmail: true, toName: true, subject: true, body: true,
@@ -19,11 +22,12 @@ const DRAFT_SELECT = {
 };
 
 /**
- * `full` adds the list of people nobody looks after. It is company-wide, so it
- * is shown on the page but never counted in anyone's sidebar number.
+ * `full` adds the company-wide lists: people nobody looks after, web budgets
+ * with no salesperson (the pool) and "Same person?" questions (0117). They are
+ * shown on the page but never counted in anyone's sidebar number.
  */
 export async function loadDesk(userId, now = new Date(), { full = true } = {}) {
-  const [actions, types, ownDrafts, pending, meetings, noOwner] = await Promise.all([
+  const [actions, types, ownDrafts, pending, meetings, noOwner, pool, reviews, salesPeople] = await Promise.all([
     prisma.noteAction.findMany({
       where: {
         kind: 'ACTION', status: 'CONFIRMED', fulfilledAt: null,
@@ -45,6 +49,9 @@ export async function loadDesk(userId, now = new Date(), { full = true } = {}) {
     pendingSenderDrafts(userId),
     meetingsNeedingPeople(userId, now),
     full ? checkInsWithoutOwner({ now }) : [],
+    full ? webBudgetPool() : [],
+    full ? pendingReviews(prisma).catch(e => { console.error('[desk] look alikes failed (non-fatal):', e?.message || e); return []; }) : [],
+    full ? prisma.user.findMany({ where: { isActive: true, ...inDepartment(SALES_MARKETING) }, select: { id: true, name: true }, orderBy: { name: 'asc' } }) : [],
   ]);
   const seen = new Set(pending.map(d => d.id));
   const drafts = [...pending, ...ownDrafts.filter(d => !seen.has(d.id))];
@@ -62,7 +69,20 @@ export async function loadDesk(userId, now = new Date(), { full = true } = {}) {
     clientId: cBy.get(a.contactId)?.clientId || null,
   }));
   const groups = groupDesk(items, { isWaiting: a => a.waiting, now });
-  return { userId, groups, drafts, meetings, noOwner, attention: deskAttention({ groups, drafts: drafts.length, meetings: meetings.length }) };
+  return { userId, groups, drafts, meetings, noOwner, pool, reviews, salesPeople, attention: deskAttention({ groups, drafts: drafts.length, meetings: meetings.length }) };
+}
+
+/** Web budget projects nobody in Sales has taken yet (Mike, 10-4: "a pool where we assign that person to a sales person"). */
+function webBudgetPool() {
+  return prisma.project.findMany({
+    where: { serviceType: CONCEPTUAL_SERVICE_TYPE, salesOwnerId: null, procurementStatus: 'OPEN' },
+    orderBy: { createdAt: 'desc' },
+    take: 25,
+    select: {
+      id: true, name: true, budgetNumber: true, city: true, state: true, createdAt: true, contactName: true, contactEmail: true,
+      client: { select: { name: true } },
+    },
+  });
 }
 
 /**

@@ -7,6 +7,7 @@ import { newToken, hashToken } from '@/lib/intake/draftTokens';
 import { computeQuantities } from '@/lib/intake/quantities';
 import { answersToEngine } from '@/lib/intake/questionnaire';
 import { parseLooseNumber } from '@/lib/numberInput';
+import { automaticOwner, settleQuietly } from '@/lib/intake/conceptualProjects';
 
 export const dynamic = 'force-dynamic';
 
@@ -117,13 +118,26 @@ export async function POST(req) {
 
   // ── First save: a new row and a fresh token ──────────────────────────────
   const token = newToken();
-  await prisma.conceptualDraft.create({
+  const draft = await prisma.conceptualDraft.create({
     data: {
       ...data,
       tokenHash: hashToken(token),
       fields: packed.fields.length ? { create: packed.fields } : undefined,
     },
+    select: { id: true },
   });
+  // The company and person become CRM records the moment a budget is started
+  // (Mike, 10-4). A look alike waits on My Desk instead. Never blocks the save.
+  const owner = await automaticOwner(prisma).catch(() => null);
+  const who = await settleQuietly(prisma, {
+    firstName: packed.row.firstName, lastName: packed.row.lastName, email: packed.row.email,
+    companyName: packed.row.company, emailDomain: emailCheck.domain || packed.row.emailDomain,
+    projectName: packed.row.projectName, draftId: draft.id,
+  }, { creatorId: owner?.id });
+  if (who.clientId || who.contactId) {
+    await prisma.conceptualDraft.update({ where: { id: draft.id }, data: { clientId: who.clientId, contactId: who.contactId } })
+      .catch(e => console.error('[intake/draft] people not saved on the draft (non-fatal):', e?.message || e));
+  }
   return NextResponse.json({ token, savedAt: now.toISOString(), drawingsDropped: packed.drawingsDropped });
 }
 

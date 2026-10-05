@@ -131,6 +131,7 @@ model User {
   accessEvents               UserAccessEvent[]            @relation("UserAccessEventSubject")
   accessChangesMade          UserAccessEvent[]            @relation("UserAccessEventActor")
   archivedDrafts             ConceptualDraft[]            @relation("DraftArchiver")
+  decidedDuplicateReviews    DuplicateReview[]            @relation("ReviewDecider")
   mcpApiKeys                 McpApiKey[]
 }
 
@@ -325,6 +326,8 @@ model Client {
   aliases              ClientAlias[]
   cadenceDays          Int? // company-level cadence override; null = use individual tier defaults
   intakeSubmissions    ConceptualSubmission[]
+  intakeDrafts         ConceptualDraft[]       @relation("DraftClient")
+  duplicateReviews     DuplicateReview[]       @relation("ReviewExistingClient")
   tagLinks             ClientTagLink[]
 
   // Projects where this company holds a seat on the team but is not the client
@@ -516,6 +519,9 @@ model Contact {
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
   projectLinks        ProjectContact[]
+  intakeDrafts        ConceptualDraft[]       @relation("DraftContact")
+  intakeSubmissions   ConceptualSubmission[]  @relation("SubmissionContact")
+  duplicateReviews    DuplicateReview[]       @relation("ReviewExistingContact")
   emailLinks          EmailContactLink[]
   noteLinks           NoteContact[]
   employment          ContactEmployment[]
@@ -746,6 +752,7 @@ model Project {
   budgetAmounts        ProjectBudgetAmount[]
   // The unfinished public budget this project was made from (0116), if any.
   conceptualDraft      ConceptualDraft?            @relation("DraftProject")
+  duplicateReviews     DuplicateReview[]           @relation("ReviewExistingProject")
 
   // A company's Related Projects reads all six of these at once.
   @@index([developerId])
@@ -3207,11 +3214,14 @@ model ConceptualSubmission {
   status           String   @default("PENDING") // PENDING | APPROVED | REJECTED
   reviewNote       String?
   clientId         String?
+  contactId        String? // 0117: the person who sent it
   reviewedById     String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
   client         Client?                      @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  contact        Contact?                     @relation("SubmissionContact", fields: [contactId], references: [id], onDelete: SetNull)
+  reviews        DuplicateReview[]
   reviewedBy     User?                        @relation("SubmissionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
   duplicateMatch Project?                     @relation("SubmissionDuplicateMatch", fields: [duplicateMatchId], references: [id], onDelete: SetNull)
   answers        ConceptualSubmissionAnswer[]
@@ -3294,17 +3304,63 @@ model ConceptualDraft {
   // told. abandonedAlertedAt is the sweep's claim stamp (once per draft).
   projectId          String?   @unique
   abandonedAlertedAt DateTime?
+  // 0117: the company and person this budget was tied to on its first save.
+  clientId           String?
+  contactId          String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
   submission ConceptualSubmission?  @relation(fields: [submissionId], references: [id], onDelete: SetNull)
   project    Project?               @relation("DraftProject", fields: [projectId], references: [id], onDelete: SetNull)
+  client     Client?                @relation("DraftClient", fields: [clientId], references: [id], onDelete: SetNull)
+  contact    Contact?               @relation("DraftContact", fields: [contactId], references: [id], onDelete: SetNull)
+  reviews    DuplicateReview[]
   archivedBy User?                  @relation("DraftArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
   fields     ConceptualDraftField[]
   visits     ConceptualVisit[]
 
   @@index([lastSavedAt])
   @@index([email])
+  @@index([clientId])
+  @@index([contactId])
+}
+
+/// "Same person? Same company? Same job?" (Mike, 2026-10-04: "Joe Smith just
+/// filled out a budget and you have a Joseph Smith. Same person?"). A web
+/// budget's person, company or job looks like one we already have, so nothing
+/// is made or linked until somebody answers on My Desk. Archive-only.
+model DuplicateReview {
+  id                String    @id @default(cuid())
+  kind              String // contact | client | project
+  status            String    @default("PENDING") // PENDING | SAME | DIFFERENT
+  reason            String // plain English: "Joe is short for Joseph, same last name"
+  existingContactId String?
+  existingClientId  String?
+  existingProjectId String?
+  // What the web budget told us, kept as it was typed.
+  firstName         String?
+  lastName          String?
+  email             String?
+  companyName       String?
+  emailDomain       String?
+  projectName       String?
+  draftId           String?
+  submissionId      String?
+  decidedById       String?
+  decidedAt         DateTime?
+  createdAt         DateTime  @default(now())
+  archivedAt        DateTime?
+
+  existingContact Contact?              @relation("ReviewExistingContact", fields: [existingContactId], references: [id], onDelete: SetNull)
+  existingClient  Client?               @relation("ReviewExistingClient", fields: [existingClientId], references: [id], onDelete: SetNull)
+  existingProject Project?              @relation("ReviewExistingProject", fields: [existingProjectId], references: [id], onDelete: SetNull)
+  draft           ConceptualDraft?      @relation(fields: [draftId], references: [id], onDelete: SetNull)
+  submission      ConceptualSubmission? @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+  decidedBy       User?                 @relation("ReviewDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([status, kind])
+  @@index([draftId])
+  @@index([submissionId])
 }
 
 // One row per typed figure, questionnaire answer or hand correction on an

@@ -194,9 +194,87 @@ function NoOwnerRow({ c, onDone }) {
   );
 }
 
-function Section({ title, count, children, right }) {
+// A web budget project no salesperson has yet (0117): take it or give it to someone in Sales.
+function PoolRow({ p, salesPeople, myId, onDone }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  async function give(userId) {
+    setBusy(true); setErr('');
+    try {
+      await post(`/api/sales/desk/pool/${p.id}`, userId ? { userId } : {});
+      const name = salesPeople.find(u => u.id === userId)?.name;
+      await onDone(userId && userId !== myId ? `${p.name} went to ${name || 'them'}.` : `${p.name} is yours.`);
+    } catch (e) { setErr(e.message); }
+    setBusy(false);
+  }
   return (
-    <section className="mb-6">
+    <li className="rounded-xl border border-slate-200 bg-white p-3 flex flex-wrap items-center gap-2">
+      <div className="min-w-0 flex-1">
+        <Link href={`/project/${p.id}`} className="text-sm font-medium text-slate-800 hover:underline">{p.name}</Link>
+        <div className="text-xs text-slate-400">
+          {[p.budgetNumber, [p.city, p.state].filter(Boolean).join(', '), p.client?.name, p.contactName, `made ${new Date(p.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`].filter(Boolean).join(' · ')}
+        </div>
+        {err && <p className="text-sm text-rose-600">{err}</p>}
+      </div>
+      <Btn tone="go" disabled={busy} onClick={() => give(null)}>Take it</Btn>
+      {salesPeople.length > 0 && (
+        <select disabled={busy} value="" onChange={e => e.target.value && give(e.target.value)}
+          className="min-h-[40px] rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-600">
+          <option value="">Give to...</option>
+          {salesPeople.filter(u => u.id !== myId).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+        </select>
+      )}
+    </li>
+  );
+}
+
+const REVIEW_WORDS = {
+  contact: { ask: 'Same person?', same: 'Same person', different: 'Different person' },
+  client:  { ask: 'Same company?', same: 'Same company', different: 'Different company' },
+  project: { ask: 'Same job?', same: 'Same job', different: 'Different job' },
+};
+
+// "Same person? Same company? Same job?" from a web budget (0117). Nothing is joined or made until somebody answers.
+function ReviewRow({ r, onDone }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const words = REVIEW_WORDS[r.kind] || REVIEW_WORDS.contact;
+  const typed = [[r.firstName, r.lastName].filter(Boolean).join(' '), r.email, r.companyName].filter(Boolean).join(' · ');
+  const have = r.kind === 'contact' && r.existingContact
+    ? { text: [r.existingContact.name, r.existingContact.email, r.existingContact.client?.name || r.existingContact.company].filter(Boolean).join(' · ') }
+    : r.kind === 'client' && r.existingClient
+      ? { text: [r.existingClient.name, r.existingClient.website].filter(Boolean).join(' · '), href: `/clients/${r.existingClient.id}` }
+      : r.existingProject
+        ? { text: [r.existingProject.name, r.existingProject.budgetNumber, [r.existingProject.city, r.existingProject.state].filter(Boolean).join(', ')].filter(Boolean).join(' · '), href: `/project/${r.existingProject.id}` }
+        : { text: 'A record we already have' };
+  async function answer(a) {
+    setBusy(true); setErr('');
+    try { await post(`/api/sales/desk/review/${r.id}`, { answer: a }); await onDone(a === 'same' ? 'Joined to the one we already have.' : 'Kept apart. A new one was made.'); }
+    catch (e) { setErr(e.message); }
+    setBusy(false);
+  }
+  return (
+    <li className="rounded-xl border border-amber-200 bg-white p-3">
+      <div className="text-sm font-medium text-slate-800">{words.ask}</div>
+      <p className="text-xs text-slate-500 mb-2">{r.reason}</p>
+      <dl className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 text-sm mb-2">
+        <dt className="text-slate-400">Web budget</dt>
+        <dd className="text-slate-700 min-w-0 break-words">{typed}{r.projectName ? <span className="text-slate-400"> · {r.projectName}</span> : null}</dd>
+        <dt className="text-slate-400">We have</dt>
+        <dd className="text-slate-700 min-w-0 break-words">{have.href ? <Link href={have.href} className="hover:underline">{have.text}</Link> : have.text}</dd>
+      </dl>
+      {err && <p className="text-sm text-rose-600">{err}</p>}
+      <div className="flex flex-wrap gap-2">
+        <Btn tone="go" disabled={busy} onClick={() => answer('same')}>{words.same}</Btn>
+        <Btn disabled={busy} onClick={() => answer('different')}>{words.different}</Btn>
+      </div>
+    </li>
+  );
+}
+
+function Section({ title, count, children, right, id }) {
+  return (
+    <section id={id} className="mb-6 scroll-mt-4">
       <div className="flex items-baseline gap-2 mb-2">
         <h2 className="text-sm font-semibold text-slate-700">{title}</h2>
         {count != null && <span className="text-xs text-slate-400">{count}</span>}
@@ -246,7 +324,8 @@ export default function MyDeskPage() {
 
   if (!desk) return <div className="p-4 text-sm text-slate-400">{err || 'Loading your desk…'}</div>;
   const steps = desk.groups.reduce((n, g) => n + (g.key === 'SNOOZED' || g.key === 'PAUSED' ? 0 : g.items.length), 0);
-  const quiet = steps === 0 && desk.drafts.length === 0 && checkIns.length === 0 && !notesToFinish && !desk.meetings?.length && !desk.noOwner?.length;
+  const quiet = steps === 0 && desk.drafts.length === 0 && checkIns.length === 0 && !notesToFinish && !desk.meetings?.length && !desk.noOwner?.length
+    && !desk.reviews?.length && !desk.pool?.length;
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-5">
@@ -306,6 +385,20 @@ export default function MyDeskPage() {
               onSnoozed={id => { setCheckIns(l => l.filter(x => x.id !== id)); load(); }}
               onWritten={async id => { await load(); window.dispatchEvent(new Event(DESK_CHANGED)); setTimeout(() => document.getElementById(`draft-${id}`)?.scrollIntoView({ behavior: 'smooth' }), 100); }} />)}
           </ul>
+        </Section>
+      )}
+
+      {desk.reviews?.length > 0 && (
+        <Section id="look-alikes" title="Same person? Same company? Same job?" count={desk.reviews.length}>
+          <p className="text-xs text-slate-400 mb-2">A web budget looks like one we already have. Nothing is joined or made until somebody answers.</p>
+          <ul className="space-y-2">{desk.reviews.map(r => <ReviewRow key={r.id} r={r} onDone={changed} />)}</ul>
+        </Section>
+      )}
+
+      {desk.pool?.length > 0 && (
+        <Section id="pool" title="Web budgets with no salesperson" count={desk.pool.length}>
+          <p className="text-xs text-slate-400 mb-2">Made from the website. Take one, or give it to someone in Sales.</p>
+          <ul className="space-y-2">{desk.pool.map(p => <PoolRow key={p.id} p={p} salesPeople={desk.salesPeople || []} myId={desk.userId} onDone={changed} />)}</ul>
         </Section>
       )}
 

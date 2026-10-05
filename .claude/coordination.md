@@ -2,7 +2,10 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-03 (newest) - Mike's Claude - **DEPLOYED d343763** (10-4), migrations 0115 (SiteFeature.lengthAssumed) + 0116 (ConceptualDraft.projectId/abandonedAlertedAt, new ProjectBudgetAmount), both additive: conceptual budgets become projects, number ladder, guess accuracy card
+### 2026-10-04 (newest) - Mike's Claude - **DEPLOYED**, migration 0117 (additive: ConceptualDraft.clientId/contactId, ConceptualSubmission.contactId, new DuplicateReview): web budget pool, company/person on first save, look-alike questions
+Public intake first save finds or makes the CRM company and person (`webPeople.js`, matching in `sameWho.js`). Look alikes (Joe vs Joseph, close company names, look-alike jobs) become `DuplicateReview` rows answered Same/Different on My Desk (`#look-alikes`); nothing joined on a guess. Projects with no salesOwnerId sit in the My Desk pool (Take it / Give to). verify --full passed.
+
+### 2026-10-03 - Mike's Claude - **DEPLOYED d343763** (10-4), migrations 0115 (SiteFeature.lengthAssumed) + 0116 (ConceptualDraft.projectId/abandonedAlertedAt, new ProjectBudgetAmount), both additive: conceptual budgets become projects, number ladder, guess accuracy card
 New service type `conceptual`. Public intake send makes a project (unless it matches an existing job); unfinished drafts (24h to 30d old) become projects with an UNFINISHED_WEB_BUDGET alert to Sales. Number ladder Conceptual > Budget > Signed PO (uploads + typed). Pre-Con guess accuracy card, read only. **Sean: please schedule `GET /api/cron/unfinished-drafts` hourly (x-cron-secret), same as the other crons.** Until then it runs when someone opens the intake page. verify --full passed.
 
 ### 2026-10-02 - Mike's Claude - **DEPLOYED 69b6c9d**, migration 0114 (additive: ProjectData.driveLengthFt, walkwayLengthFt): homes skip Corridors, walkway read not asked, 1 pole per 8 homes

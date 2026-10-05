@@ -5,6 +5,14 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Web budget pool, company and person made on first save, "Same person? Same company? Same job?" on My Desk] - October 4, 2026 (DEPLOYED) - migration 0117
+
+- **Company and person made when a web budget is started (Mike 10-4):** the first save of the public form finds or makes the CRM company (by email domain or name) and person (by email or name) and stores them on the draft (`ConceptualDraft.clientId` / `contactId`). Sending the form reuses them (`ConceptualSubmission.contactId`). New `src/lib/intake/webPeople.js`; pure matching in `src/lib/intake/sameWho.js` (nicknames like Joe/Joseph, initials, close company names, website domains).
+- **Look alikes are asked, never guessed (0117):** new table `DuplicateReview` (archive only). "Joe Smith" when we have "Joseph Smith" (or a close company name, or a job that looks like one we have) waits on My Desk under "Same person? Same company? Same job?" with Same / Different buttons; Sales gets one alert. Same joins the web budget to the existing record; Different makes a new one (for a job, makes the project). An answer claims the question first so two people cannot both act (`src/lib/intake/webReviews.js`, `api/sales/desk/review/[id]`).
+- **Web budget pool on My Desk:** a web budget project goes to whoever already looks after that person or company; nobody yet means it sits under "Web budgets with no salesperson" with "Take it" and "Give to..." (`api/sales/desk/pool/[projectId]`). The new web request alert says when it is in the pool.
+- Shared project making moved into `projectFromSubmission` / `projectFromDraft` (`conceptualProjects.js`); the staff "This is a new job" route uses it.
+- Tests: new `sameWho.test.mjs` (9); `intakeHandoff.test.mjs` updated. `verify --full` green (15 gates).
+
 ## [Conceptual budgets become projects, number ladder, guess accuracy card, Courtyard "assumed" tag] - October 3, 2026 (DEPLOYED d343763) - migrations 0115, 0116
 
 - **New service type "Conceptual Budget" (Mike 10-3):** `conceptual` in `SERVICE_TYPES` (`utils.js`), template rules, automation template labels, CRM labels, dashboard colour. It sits on the Procurement pipeline in the Qualified stage by default (not in the design pipeline).

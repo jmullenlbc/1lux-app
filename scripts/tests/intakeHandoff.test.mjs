@@ -127,10 +127,12 @@ test('a request with nothing to price hands over nothing, and never throws', () 
 test('the route: hand-off can never block making the project, and uses no public projection', () => {
   const src = readFileSync(new URL('../../src/app/api/admin/intake/[id]/create-project/route.js', import.meta.url), 'utf8');
   assert.ok(src.includes('requireIntakeReviewer'), 'staff only');
-  // 0116: the hand-off lives in conceptualProjects.js, shared with the public form and the unfinished sweep.
-  assert.ok(src.includes('planFromWeb(') && src.includes('carryWebFigures('));
-  assert.ok(src.indexOf('makeConceptualProject(') < src.indexOf('carryWebFigures('), 'project first, figures second');
+  // 0117: the route calls projectFromSubmission, shared with "Different job" on My Desk.
+  assert.ok(src.includes('projectFromSubmission('));
   const lib = readFileSync(new URL('../../src/lib/intake/conceptualProjects.js', import.meta.url), 'utf8');
+  const fn = lib.slice(lib.indexOf('export async function projectFromSubmission'));
+  assert.ok(fn.includes('planFromWeb(') && fn.includes('carryWebFigures('));
+  assert.ok(fn.indexOf('makeConceptualProject(') < fn.indexOf('carryWebFigures('), 'project first, figures second');
   assert.ok(lib.includes('applyHandoff(') && lib.includes('planHandoff('));
   assert.ok(/catch \(e\) \{[^}]*non-fatal/.test(lib), 'a failed hand-off is swallowed');
 });
