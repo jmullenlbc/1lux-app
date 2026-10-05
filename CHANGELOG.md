@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Conceptual budgets become projects, number ladder, guess accuracy card, Courtyard "assumed" tag] - October 3, 2026 (DEPLOYED) - migrations 0115, 0116
+## [Conceptual budgets become projects, number ladder, guess accuracy card, Courtyard "assumed" tag] - October 3, 2026 (DEPLOYED d343763) - migrations 0115, 0116
 
 - **New service type "Conceptual Budget" (Mike 10-3):** `conceptual` in `SERVICE_TYPES` (`utils.js`), template rules, automation template labels, CRM labels, dashboard colour. It sits on the Procurement pipeline in the Qualified stage by default (not in the design pipeline).
 - **Every conceptual budget makes a project (0116):** the public form now makes the project on send (owner: oldest active admin, service type Conceptual Budget) unless it looks like a job we already have, in which case staff decide as before. The request still waits in the intake queue. Staff "This is a new job" uses the same path. Shared code in new `src/lib/intake/conceptualProjects.js`.
