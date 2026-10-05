@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-04 (newest) - Mike's Claude - **DEPLOYED**, migration 0117 (additive: ConceptualDraft.clientId/contactId, ConceptualSubmission.contactId, new DuplicateReview): web budget pool, company/person on first save, look-alike questions
+### 2026-10-04 (newest) - Mike's Claude - **DEPLOYED 4302748**, migration 0117 (additive: ConceptualDraft.clientId/contactId, ConceptualSubmission.contactId, new DuplicateReview): web budget pool, company/person on first save, look-alike questions
 Public intake first save finds or makes the CRM company and person (`webPeople.js`, matching in `sameWho.js`). Look alikes (Joe vs Joseph, close company names, look-alike jobs) become `DuplicateReview` rows answered Same/Different on My Desk (`#look-alikes`); nothing joined on a guess. Projects with no salesOwnerId sit in the My Desk pool (Take it / Give to). verify --full passed.
 
 ### 2026-10-03 - Mike's Claude - **DEPLOYED d343763** (10-4), migrations 0115 (SiteFeature.lengthAssumed) + 0116 (ConceptualDraft.projectId/abandonedAlertedAt, new ProjectBudgetAmount), both additive: conceptual budgets become projects, number ladder, guess accuracy card
