@@ -30,9 +30,10 @@ import {
 import { DEPARTMENTS as STAFF_DEPARTMENTS } from '../../src/lib/departments.js';
 
 // ── 1. Service types ─────────────────────────────────────────────────────────
-test('the service-type picker offers four choices and not Other', () => {
+test('the service-type picker offers five choices and not Other', () => {
   assert.deepEqual(SERVICE_TYPES.map(t => t.value),
-    ['fullDesign', 'designAssist', 'peerReview', 'bidOnly']);
+    ['fullDesign', 'designAssist', 'peerReview', 'bidOnly', 'conceptual']);
+  assert.equal(serviceTypeLabel('conceptual'), 'Conceptual Budget');
   assert.equal(SERVICE_TYPES.some(t => t.value === 'other'), false);
   assert.equal(serviceTypeLabel('fullDesign'), 'Full Design');
 });
@@ -48,7 +49,7 @@ test('opening the dropdown on an Other project cannot silently move it', () => {
   // and the next save writes fullDesign over a real answer.
   assert.equal(serviceTypeOptions('other').some(t => t.value === 'other'), true);
   assert.equal(serviceTypeOptions('fullDesign').some(t => t.value === 'other'), false);
-  assert.equal(serviceTypeOptions(null).length, 4);
+  assert.equal(serviceTypeOptions(null).length, 5);
 });
 
 test('an unknown service type prints itself rather than a blank', () => {

@@ -137,6 +137,16 @@ export default function ProjectDataSection({ projectId, projectData, responses =
 
   // Line-level alerts: a figure far off our real jobs of this building type.
   const figures = useFigureAlerts(projectId);
+  // A courtyard priced at the standard 60 ft each, not measured (0115).
+  const [courtyardConfirmed, setCourtyardConfirmed] = useState(false);
+  const courtyardAssumed = !courtyardConfirmed && (projectData?.siteFeatures || []).some(f => f?.type === 'courtyard' && f.lengthAssumed);
+  async function confirmCourtyard() {
+    const r = await fetch(`/api/projects/${projectId}/data`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirmSiteFeatures: ['courtyard'] }),
+    }).catch(() => null);
+    if (r?.ok) setCourtyardConfirmed(true);
+  }
   const figureCtx = { buildingType: projectData?.buildingTypeKey, units: form.numUnits, grossSf: form.grossSf };
   const shownFields = FIELDS.flatMap(g => g.fields)
     .filter(field => !FIELD_ALLOWED[field.key] || FIELD_ALLOWED[field.key](projectData?.buildingTypeKey));
@@ -217,6 +227,12 @@ export default function ProjectDataSection({ projectId, projectData, responses =
                   min={0}
                 />
                 <FigureAlertNote alert={alerts[field.key]} saved={!dirty.has(field.key)} onRight={() => figures.markRight(field.key)} />
+                {field.key === 'courtyardFt' && courtyardAssumed && !dirty.has('courtyardFt') && (
+                  <div className="mt-1 flex items-center gap-2 text-xs text-amber-700">
+                    <span>Assumed, not measured: 60 ft per courtyard (2 poles each). Type the real length or confirm.</span>
+                    <button type="button" onClick={confirmCourtyard} className="px-2 py-0.5 rounded border border-amber-300 hover:bg-amber-50">Confirm</button>
+                  </div>
+                )}
                 </div>
               ))}
             </div>

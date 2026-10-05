@@ -6,6 +6,8 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import Link from 'next/link';
 import PreConBudgetsTable from './PreConBudgetsTable';
+import GuessAccuracyCard from './GuessAccuracyCard';
+import { conceptualAccuracy } from '@/lib/budgetAmounts';
 
 export default async function PreConPage() {
   const { error, user } = await requireAuth();
@@ -28,6 +30,22 @@ export default async function PreConPage() {
     ]);
   } catch (err) {
     console.error('[/pre-con] DB query failed:', err?.message ?? err);
+  }
+
+  // Conceptual number vs the real one, per building type (0116). Read only:
+  // a person decides what, if anything, to change.
+  let accuracy = { jobs: [], types: [] };
+  try {
+    const withNumbers = await prisma.project.findMany({
+      where: { ...projectScopeWhere(user), budgetAmounts: { some: { tier: 'conceptual', archivedAt: null } } },
+      select: {
+        id: true, name: true, buildingType: true,
+        budgetAmounts: { where: { archivedAt: null }, select: { tier: true, amount: true, createdAt: true, archivedAt: true } },
+      },
+    });
+    accuracy = conceptualAccuracy(withNumbers.map(p => ({ ...p, amounts: p.budgetAmounts })));
+  } catch (err) {
+    console.error('[/pre-con] accuracy query failed:', err?.message ?? err);
   }
 
   // Compute grand total for each project from peer review items
@@ -113,6 +131,8 @@ export default async function PreConPage() {
           </Link>
 
         </div>
+
+        <GuessAccuracyCard accuracy={accuracy} />
 
         {/* ── Budgets table ── */}
         <PreConBudgetsTable projects={projectsWithTotals} />

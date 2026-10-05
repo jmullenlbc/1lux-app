@@ -68,6 +68,7 @@ export async function POST(request, { params }) {
         type:      f.type,
         count:     f.count,
         lengthFt:  f.lengthFt,
+        lengthAssumed: f.lengthAssumed === true,
         source:    f.source,
         sheet:     f.sheet,
         label:     f.label,

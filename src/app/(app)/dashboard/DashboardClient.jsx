@@ -20,6 +20,7 @@ const SERVICE_COLORS = {
   designAssist: 'bg-teal-50 text-teal-700',
   peerReview:   'bg-purple-50 text-purple-700',
   bidOnly:      'bg-orange-50 text-orange-700',
+  conceptual:   'bg-amber-50 text-amber-700',
   other:        'bg-slate-100 text-slate-500',
 };
 

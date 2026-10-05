@@ -1051,6 +1051,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
               project={project}
               budget={budget}
               contractValue={contractValue}
+              onContractValue={setContractValue}
               files={allFiles}
               onProjectUpdate={() => router.refresh()}
               onProjectDataUpdate={() => router.refresh()}

@@ -3,7 +3,7 @@ import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { logActivity } from '@/lib/activity';
 import { captureQuietly } from '@/lib/calibration/capture';
-import { SITE_FEATURE_ROW_LABELS } from '@/lib/siteFeatures';
+import { SITE_FEATURE_ROW_LABELS, SITE_FEATURE_ROW_KEYS as SITE_FEATURE_ROW_KEYS_LOCAL } from '@/lib/siteFeatures';
 import {
   isSiteFeatureRowKey, siteFeatureFromFlat, writeSiteFeature,
   loadSiteFeatures, siteFeaturesForEngine, describeSiteFeatureChange,
@@ -215,6 +215,22 @@ export async function PUT(request, { params }) {
         await writeSiteFeature(tx, params.id, { ...f, source: 'typed' });
       }
     });
+  }
+
+  // "Confirm" on an assumed length (courtyard 60 ft each, 0115): same figure,
+  // now a person's. Rewritten as a fresh typed row, archive-only like the rest.
+  if (Array.isArray(body.confirmSiteFeatures) && body.confirmSiteFeatures.length) {
+    const live = await loadSiteFeatures(prisma, params.id);
+    const confirm = live.filter(r => r.lengthAssumed && body.confirmSiteFeatures.includes(r.type));
+    if (confirm.length) {
+      await prisma.$transaction(async (tx) => {
+        for (const r of confirm) {
+          await writeSiteFeature(tx, params.id, { type: r.type, count: r.count, lengthFt: r.lengthFt, sheet: r.sheet, label: r.label, source: 'typed' });
+        }
+      });
+      for (const r of confirm) changedFields.push(SITE_FEATURE_ROW_KEYS_LOCAL[r.type] || r.type);
+      description = `Confirmed ${confirm.map(r => `${SITE_FEATURE_ROW_LABELS[SITE_FEATURE_ROW_KEYS_LOCAL[r.type]] || r.type} ${r.lengthFt} ft`).join(', ')} · Project Data`;
+    }
   }
 
   await logActivity(params.id, user, 'project_data', description, { changed: changedFields });

@@ -15,7 +15,7 @@ import { ALL_SERVICE_TYPES } from '@/lib/utils';
 export { PIPELINE_STAGES };
 export const SERVICE_TYPE_LABELS = {
   fullDesign: 'Full Design', designAssist: 'Design Assist',
-  peerReview: 'Peer Review', bidOnly: 'Bid Only', other: 'Other',
+  peerReview: 'Peer Review', bidOnly: 'Bid Only', conceptual: 'Conceptual Budget', other: 'Other',
 };
 export const PROJECT_TYPE_LABELS = {};
 

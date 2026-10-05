@@ -24,7 +24,7 @@ export async function POST(request, { params }) {
   if (error) return error;
   if (!await canAccess(params.id, user)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const { fileId = null, fields = {}, runId = null, sheets = {} } = await request.json();
+  const { fileId = null, fields = {}, runId = null, sheets = {}, assumed = {} } = await request.json();
 
   // ── The allowlist is the boundary, not the UI ──────────────────────────────
   //
@@ -50,6 +50,8 @@ export async function POST(request, { params }) {
         ...(LINEAR_SITE_FEATURES.has(featureType) ? { lengthFt: n, count: 1 } : { count: n, lengthFt: null }),
         source: 'drawing',
         sheet: Number.isFinite(sheet) && sheet > 0 ? sheet : null,
+        // Standard length, not measured (courtyard 60 ft each, 0115).
+        lengthAssumed: LINEAR_SITE_FEATURES.has(featureType) && assumed?.[key] === true,
       };
       continue;
     }

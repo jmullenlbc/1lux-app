@@ -12,6 +12,8 @@ import { notifyUsers } from '@/lib/alerts';
 import { inDepartment, SALES_MARKETING } from '@/lib/departments';
 import { hashToken } from '@/lib/intake/draftTokens';
 import { looseNumberOrNull } from '@/lib/numberInput';
+import { drawingsFromSubmission } from '@/lib/intake/handoff';
+import { automaticOwner, planFromWeb, makeConceptualProject, carryWebFigures } from '@/lib/intake/conceptualProjects';
 
 export const dynamic = 'force-dynamic';
 
@@ -121,9 +123,14 @@ export async function POST(req) {
   // The unfinished draft this grew out of (migration 0087) is now finished:
   // link it so it drops off the staff "unfinished budgets" list and the two
   // rows stay tied together. Never fatal — the submission is already saved.
+  let draftProjectId = null;
   try {
     const tokenHash = hashToken(body.draftToken);
     if (tokenHash) {
+      // An unfinished budget that was already turned into a project (0116):
+      // the finished one lands on that same project, not a second one.
+      const draft = await prisma.conceptualDraft.findUnique({ where: { tokenHash }, select: { projectId: true } });
+      draftProjectId = draft?.projectId || null;
       await prisma.conceptualDraft.updateMany({
         where: { tokenHash, submissionId: null },
         data: { submissionId: submission.id },
@@ -151,12 +158,14 @@ export async function POST(req) {
   // "Looks like [Project X]" — a guess for the reviewer, never shown to the
   // visitor and never acted on by itself. A failure here must not fail the
   // submission either.
+  let looksLikeJob = false;
   try {
     const projects = await prisma.project.findMany({
       select: { id: true, name: true, city: true, state: true, clientId: true, contactEmail: true },
     });
-    const match = findLikelyProject(submission, projects);
+    const match = draftProjectId ? null : findLikelyProject(submission, projects);
     if (match) {
+      looksLikeJob = true;
       await prisma.conceptualSubmission.update({
         where: { id: submission.id },
         data: { suggestedProjectId: match.projectId, suggestedMatchReason: match.reason },
@@ -164,6 +173,48 @@ export async function POST(req) {
     }
   } catch (e) {
     console.error('intake/submit duplicate check failed (non-fatal):', e);
+  }
+
+  // Every conceptual budget becomes a project (Mike, 2026-10-03), Conceptual
+  // Budget service type, Qualified stage. Not when it looks like a job we
+  // already have: staff decide that one in the review queue, as before. The
+  // request stays in the queue (PENDING) so somebody still reviews it.
+  let projectMade = null;
+  if (!looksLikeJob) {
+    try {
+      const owner = await automaticOwner(prisma);
+      const existing = draftProjectId
+        ? await prisma.project.findUnique({ where: { id: draftProjectId }, select: { id: true, name: true, budgetNumber: true } })
+        : null;
+      if (owner || existing) {
+        const plan = await planFromWeb({ answers: answerRows, drawings: drawingsFromSubmission(submission) });
+        const project = existing || await makeConceptualProject(prisma, {
+          ownerId: owner.id, plan,
+          fields: {
+            name: submission.proposedName, buildingType: submission.buildingType,
+            city: submission.city, state: submission.state, zip: submission.zip,
+            contactName: submission.submitterName, contactEmail: submission.submitterEmail,
+            clientId: submission.clientId,
+          },
+        });
+        const actor = owner || { id: null, name: 'Automatic (web budget)', email: null };
+        const carried = await carryWebFigures(prisma, project, plan, {
+          actor, source: 'web-request', submissionId: submission.id,
+          note: existing ? 'The visitor came back and sent the web budget' : 'Carried over from the web budget request',
+        });
+        const line = existing
+          ? `Sent after it was first saved as unfinished; landed on ${project.name} (${project.budgetNumber}).`
+          : `Project ${project.name} (${project.budgetNumber}) made automatically.`
+            + (carried === false ? ' The building figures did not carry over; please enter them on the project.' : '');
+        await prisma.conceptualSubmission.update({
+          where: { id: submission.id },
+          data: { duplicateMatchId: project.id, reviewNote: line },
+        });
+        projectMade = project;
+      }
+    } catch (e) {
+      console.error('intake/submit project create failed (non-fatal):', e);
+    }
   }
 
   // Everyone in Sales + marketing hears about it in the app so somebody follows up.
@@ -176,7 +227,8 @@ export async function POST(req) {
     await notifyUsers(sales.map(u => u.id), {
       type:    'NEW_WEB_REQUEST',
       title:   `New web budget request: ${submission.proposedName}`,
-      message: `${where ? where + ' — ' : ''}from ${submission.submitterName} (${submission.submitterEmail})`,
+      message: `${where ? where + ' — ' : ''}from ${submission.submitterName} (${submission.submitterEmail})`
+        + (projectMade ? `. Project ${projectMade.name} was made.` : ''),
       link:    `/admin/intake?id=${submission.id}`,
       dedupeKey: `intake:${submission.id}`,
     });

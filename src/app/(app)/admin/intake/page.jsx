@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db';
 import { cookies } from 'next/headers';
 import IntakeClient from './IntakeClient';
 import { loadFigureNorms, loadAdoptedGuesses } from '@/lib/calibration/figureNormsLoad';
+import { sweepUnfinishedDraftsQuietly } from '@/lib/intake/conceptualProjects';
 
 // Admins and the Sales team work this queue (2026-09-12). `?id=` opens one
 // request straight away — the link in the Sales alert, the pipeline card and
@@ -18,6 +19,10 @@ export default async function IntakePage({ searchParams }) {
       </div>
     );
   }
+
+  // Unfinished budgets left for a day become projects (0116). Throttled; the
+  // cron route does the same on a schedule once Sean adds it.
+  await sweepUnfinishedDraftsQuietly(prisma);
 
   const submissions = await prisma.conceptualSubmission.findMany({
     orderBy: { createdAt: 'desc' },
@@ -51,6 +56,7 @@ export default async function IntakePage({ searchParams }) {
       id: true, firstName: true, lastName: true, email: true, company: true, projectName: true,
       city: true, state: true, stepId: true, completedSteps: true, buildingType: true,
       unitCount: true, grossSf: true, haveDrawings: true, saveCount: true, lastSavedAt: true, createdAt: true,
+      project: { select: { id: true, name: true } },
     },
   });
 

@@ -113,7 +113,7 @@ const SCENARIO_OPTIONS = [
 ];
 
 const CLIENT_TYPE_OPTIONS     = ['Any', 'Developer', 'Architect', 'GC', 'EC'];
-const SERVICE_LABELS = { fullDesign: 'Full Design', designAssist: 'Design Assist', peerReview: 'Peer Review', bidOnly: 'Bid Only' };
+const SERVICE_LABELS = { fullDesign: 'Full Design', designAssist: 'Design Assist', peerReview: 'Peer Review', bidOnly: 'Bid Only', conceptual: 'Conceptual Budget' };
 // Flat lists for CreatableSelect defaults
 const DEFAULT_CHANNELS        = ['EMAIL', 'LINKEDIN', 'MEETING_AGENDA'];
 const DEFAULT_SCENARIOS_LIST  = SCENARIO_OPTIONS.map(o => o.value);
@@ -303,6 +303,7 @@ function TemplateDrawer({ open, onClose, template, onSaved, onArchive, onRestore
                 <option value="designAssist">Design Assist</option>
                 <option value="peerReview">Peer Review</option>
                 <option value="bidOnly">Bid Only</option>
+                <option value="conceptual">Conceptual Budget</option>
               </select>
             </div>
             <div>

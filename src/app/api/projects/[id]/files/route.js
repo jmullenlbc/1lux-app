@@ -137,6 +137,7 @@ export async function POST(request, { params }) {
 
   // ── Contracts: tag-aware value/date extraction + COI expiry ──────────────
   let contractUpdate = null;
+  let poAmount = null; // a signed supply contract is the "Signed PO" step (0116)
   if (tab === 'contracts' && textContent) {
     try {
       const { parseContractFields, parseCOIFields } = await import('@/lib/parseContract.js');
@@ -163,6 +164,7 @@ export async function POST(request, { params }) {
         } else if (isSupplyExec || isAnyExec) {
           if (fields.contractValue      != null) update.contractValue      = fields.contractValue;
           if (fields.contractSignedDate != null) update.contractSignedDate = fields.contractSignedDate;
+          if (fields.contractValue      != null) poAmount = fields.contractValue;
         } else if (isSOV) {
           if (fields.contractValue != null) update.contractValue = fields.contractValue;
         }
@@ -219,6 +221,20 @@ export async function POST(request, { params }) {
     },
     include: { uploadedBy: { select: { name: true, email: true } } },
   });
+
+  // The number ladder (0116): a budget PDF's total is the Budget step, a
+  // signed supply contract's value is the Signed PO step. Never fatal.
+  try {
+    const { recordBudgetAmount } = await import('@/lib/budgetAmounts.js');
+    if (tab === 'budgets' && parsedAmount != null) {
+      await recordBudgetAmount(prisma, { projectId: params.id, tier: 'budget', amount: parsedAmount, source: 'budget-file', fileId: record.id, recordedById: user.id });
+    }
+    if (poAmount != null) {
+      await recordBudgetAmount(prisma, { projectId: params.id, tier: 'po', amount: poAmount, source: 'po-file', fileId: record.id, recordedById: user.id });
+    }
+  } catch (e) {
+    console.error('[files] budget number not saved (non-fatal):', e?.message || e);
+  }
 
   const tabLabel = TAB_LABELS[tab] || tab;
   await logActivity(

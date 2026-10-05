@@ -127,7 +127,10 @@ test('a request with nothing to price hands over nothing, and never throws', () 
 test('the route: hand-off can never block making the project, and uses no public projection', () => {
   const src = readFileSync(new URL('../../src/app/api/admin/intake/[id]/create-project/route.js', import.meta.url), 'utf8');
   assert.ok(src.includes('requireIntakeReviewer'), 'staff only');
-  assert.ok(src.includes('applyHandoff(') && src.includes('planHandoff('));
-  assert.ok(src.indexOf('createProject(prisma') < src.indexOf('applyHandoff('), 'project first, figures second');
-  assert.ok(/catch \(e\) \{[^}]*non-fatal/.test(src), 'a failed hand-off is swallowed');
+  // 0116: the hand-off lives in conceptualProjects.js, shared with the public form and the unfinished sweep.
+  assert.ok(src.includes('planFromWeb(') && src.includes('carryWebFigures('));
+  assert.ok(src.indexOf('makeConceptualProject(') < src.indexOf('carryWebFigures('), 'project first, figures second');
+  const lib = readFileSync(new URL('../../src/lib/intake/conceptualProjects.js', import.meta.url), 'utf8');
+  assert.ok(lib.includes('applyHandoff(') && lib.includes('planHandoff('));
+  assert.ok(/catch \(e\) \{[^}]*non-fatal/.test(lib), 'a failed hand-off is swallowed');
 });

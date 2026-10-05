@@ -25,7 +25,7 @@ const LIVE = { where: { archivedAt: null }, orderBy: { createdAt: 'asc' } };
 
 export const SITE_FEATURE_INCLUDE = { siteFeatures: LIVE };
 export const SITE_FEATURE_SELECT  = {
-  siteFeatures: { ...LIVE, select: { type: true, count: true, lengthFt: true, sheet: true, source: true, label: true } },
+  siteFeatures: { ...LIVE, select: { type: true, count: true, lengthFt: true, lengthAssumed: true, sheet: true, source: true, label: true } },
 };
 
 /** Live SiteFeature rows → the engine array. Tolerates a project loaded without the include. */
@@ -40,6 +40,7 @@ export function siteFeaturesForEngine(rows) {
       sheet: r.sheet ?? null,
       source: r.source ?? null,
       label: r.label ?? null,
+      ...(r.lengthAssumed === true ? { lengthAssumed: true } : {}),
     }));
 }
 
@@ -82,7 +83,7 @@ export function isSiteFeatureRowKey(key) {
  * `client` may be a transaction. Returns the created row, or null when the
  * value was 0 (archived only — "none").
  */
-export async function writeSiteFeature(client, projectId, { type, count = null, lengthFt = null, source, sheet = null, label = null }) {
+export async function writeSiteFeature(client, projectId, { type, count = null, lengthFt = null, source, sheet = null, label = null, lengthAssumed = false }) {
   if (!SITE_FEATURE_TYPES.includes(type)) throw new Error(`Unknown site feature type: ${type}`);
   await client.siteFeature.updateMany({
     where: { projectId, type, archivedAt: null },
@@ -96,6 +97,7 @@ export async function writeSiteFeature(client, projectId, { type, count = null, 
       projectId, type, source,
       count:    linear ? 1 : Math.round(Number(count)),
       lengthFt: linear ? Math.round(Number(lengthFt)) : null,
+      lengthAssumed: linear && lengthAssumed === true,
       sheet:    Number.isFinite(Number(sheet)) && sheet !== null ? Math.round(Number(sheet)) : null,
       label:    label ? String(label).slice(0, 200) : SITE_FEATURE_LABELS[type],
     },

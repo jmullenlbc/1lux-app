@@ -50,6 +50,9 @@ export const NEVER_DELETED = [
   // Site features (0089): a re-read or a typed value archives the old row.
   // Not auto-hidden; every reader filters archivedAt by hand (siteFeatureRows.js).
   'siteFeature',
+  // A project's number ladder (0116): a newer number archives the older one.
+  // Not auto-hidden; readers filter archivedAt by hand (budgetAmounts.js).
+  'projectBudgetAmount',
 ];
 
 export class DeleteRefusedError extends Error {

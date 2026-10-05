@@ -7,6 +7,8 @@ import { PIPELINE_STAGES, STAGE_LABEL, STATUS_LABEL, PIPELINE_STATUS, inDesignPi
 import { PROJECT_TEAM_ROLES } from '@/lib/projectTeam';
 import { siteFeaturesToRows } from '@/lib/siteFeatures';
 import MissingInputsWarning from './MissingInputsWarning';
+import BudgetLadderCard from './BudgetLadderCard';
+import { currentBudgetAmount, BUDGET_TIER_LABELS, BUDGET_SOURCE_LABELS } from '@/lib/budgetAmounts';
 import { useFigureAlerts, FigureAlertNote, FigureAlertSummary } from '@/components/figures/FigureAlerts';
 import { FIGURES } from '@/lib/calibration/figureNorms';
 
@@ -193,6 +195,7 @@ export default function ProjectDashboard({
   files,
   onProjectUpdate,    // (updatedProject) => void — called after project-level saves
   onProjectDataUpdate,// (updatedProjectData) => void — called after data saves
+  onContractValue,    // (number) => void: a typed Signed PO also sets the supply contract total
   designInfo = {},
   saveDesignInfo,     // (key, value) => void — saves to design-info responses
   clients = [],       // every company, for the six Project Team pickers
@@ -242,15 +245,32 @@ export default function ProjectDashboard({
   // ── Budget numbers ────────────────────────────────────────────────────────
   const clientInitialBudget = pd.clientInitialBudget ?? null;
 
+  // The number ladder (0116): Conceptual, then Budget, then Signed PO.
+  const [ladderRows, setLadderRows] = useState([]);
+  useEffect(() => {
+    let alive = true;
+    fetch(`/api/projects/${project.id}/budget-amounts`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (alive && d?.amounts) setLadderRows(d.amounts); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [project.id]);
+  const ladderNow = currentBudgetAmount(ladderRows);
+
   const budgetFiles = files
     .filter(f => f.tab === 'budgets' && f.parsedAmount != null)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   const latestBudgetFile   = budgetFiles[0] ?? null;
   const wizardTotal        = budget?.totalWithControls ?? null;
-  const currentBudget      = latestBudgetFile?.parsedAmount ?? null;
-  const currentBudgetSub   = latestBudgetFile
-    ? `From ${latestBudgetFile.originalName.replace(/\.[^.]+$/, '')} · ${fmtDate(latestBudgetFile.createdAt)}`
-    : wizardTotal != null ? 'From budget tool estimate' : null;
+  // A Signed PO or Budget on the ladder wins; then the newest budget file;
+  // then the conceptual number; then the budget tool's own estimate.
+  const ladderWins         = ladderNow && (ladderNow.tier !== 'conceptual' || !latestBudgetFile);
+  const currentBudget      = ladderWins ? ladderNow.amount : latestBudgetFile?.parsedAmount ?? null;
+  const currentBudgetSub   = ladderWins
+    ? `${BUDGET_TIER_LABELS[ladderNow.tier]} · ${BUDGET_SOURCE_LABELS[ladderNow.row.source] || ladderNow.row.source} · ${fmtDate(ladderNow.row.createdAt)}`
+    : latestBudgetFile
+      ? `From ${latestBudgetFile.originalName.replace(/\.[^.]+$/, '')} · ${fmtDate(latestBudgetFile.createdAt)}`
+      : wizardTotal != null ? 'From budget tool estimate' : null;
   const currentBudgetVal   = currentBudget ?? wizardTotal;
 
   // ── Change order total ────────────────────────────────────────────────────
@@ -391,6 +411,14 @@ export default function ProjectDashboard({
           )}
         </Widget>
       </div>
+
+      <BudgetLadderCard
+        projectId={project.id}
+        amounts={ladderRows}
+        onChange={setLadderRows}
+        onContractValue={v => { setProject(p => ({ ...p, contractValue: v })); onContractValue?.(v); }}
+        contractFiles={files.filter(f => f.tab === 'contracts')}
+      />
 
       {/* ── Contract row ──────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-4">

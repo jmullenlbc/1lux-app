@@ -103,7 +103,14 @@ function UnfinishedBudgets({ drafts, onArchived }) {
                         {[where, d.buildingType].filter(Boolean).join(' · ') || '—'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-slate-600">{reachedLabel(d)}</td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {reachedLabel(d)}
+                      {d.project && (
+                        <a href={`/project/${d.project.id}`} className="block text-xs text-blue-600 hover:underline">
+                          Project made: {d.project.name}
+                        </a>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-right text-slate-600 whitespace-nowrap">
                       {d.unitCount ? d.unitCount.toLocaleString() : '—'} / {d.grossSf ? d.grossSf.toLocaleString() : '—'}
                     </td>

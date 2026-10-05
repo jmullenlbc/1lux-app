@@ -1350,6 +1350,9 @@ export function computeQuantities(drawings, answers, pricing = null, adopted = n
     const typed = typedCourtyards != null ? typedCourtyards * COURTYARD_FT_EACH : statedCount(ans[figureKey]);
     const drawn = f ? (linear ? f.lengthFt : f.count) : null;
     const where = f?.sheet ? ` (sheet ${f.sheet})` : '';
+    // Courtyard at the standard 60 ft each, not measured (0115): the row says
+    // so and the hand-off tags the SiteFeature. A correction is a real figure.
+    const markAssumed = () => { const r = out[out.length - 1]; if (r?.key === rowKey && !r.corrected) r.assumed = true; };
     if (drawn != null && drawn > 0) {
       add(rowKey, label, unit, drawn, 'drawing',
         linear
@@ -1357,14 +1360,20 @@ export function computeQuantities(drawings, answers, pricing = null, adopted = n
               ? `${f.count} ${name.toLowerCase()}${f.count === 1 ? '' : 's'} labelled on the drawing${where}; no length is printed, so each is counted at a standard length.`
               : `${f.count} ${name.toLowerCase()}${f.count === 1 ? '' : 's'} labelled on the drawing${where}; longest dimension measured off the sheet.`)
           : `Labelled on the drawing${where}${f.label ? ` as "${f.label}"` : ''}.`,
-        linear ? (f.lengthAssumed ? 'Standard length, not measured — confirm the number of courtyards.' : 'Length measured off the drawing, not printed on it — confirm.') : null);
+        linear ? (f.lengthAssumed ? 'Standard length, not measured. Confirm the number of courtyards.' : 'Length measured off the drawing, not printed on it. Confirm.') : null);
+      if (linear && f.lengthAssumed) markAssumed();
     } else if (f && linear) {
       // Named but not measurable: the row exists so the grid asks for a length.
       add(rowKey, label, unit, typed, typed != null ? 'questionnaire' : null,
         typed != null ? 'Entered by the submitter.' : `A ${name.toLowerCase()} is labelled on the drawing${where} but no length could be measured.`,
-        typed != null ? null : `${name} found on the drawing but its length is unknown — enter the longest dimension in feet or it prices at $0.`);
+        typed != null ? null : `${name} found on the drawing but its length is unknown. Enter the longest dimension in feet or it prices at $0.`);
+      if (typedCourtyards != null) markAssumed();
     } else if (typed != null) {
-      add(rowKey, label, unit, typed, 'questionnaire', 'Entered by the submitter.', null);
+      add(rowKey, label, unit, typed, 'questionnaire',
+        typedCourtyards != null
+          ? `${typedCourtyards} courtyard${typedCourtyards === 1 ? '' : 's'} entered by the submitter, counted at ${COURTYARD_FT_EACH} ft each (not measured).`
+          : 'Entered by the submitter.', null);
+      if (typedCourtyards != null) markAssumed();
     }
     // Absent on the drawings and not typed: no row. Nothing is guessed, and a
     // blank row here would read as "we could not find it" when the honest

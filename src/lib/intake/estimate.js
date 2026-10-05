@@ -146,6 +146,7 @@ export function computeIntakeEstimate({ answers, drawings, pricing = null, adopt
     key: r.key, label: r.label, unit: r.unit,
     value: r.value, source: r.source, how: r.how, flag: r.flag,
     corrected: r.corrected ?? false, wasValue: r.wasValue ?? null,
+    assumed: r.assumed === true,
   }));
 
   // `sections` is for the staff hand-off (src/lib/intake/handoff.js) only — the
@@ -284,6 +285,7 @@ export function publicQuantity(r) {
     key: r.key, label: r.label, unit: r.unit,
     value: r.value, source: r.source, how, flag,
     corrected: r.corrected ?? false, wasValue: r.wasValue ?? null,
+    assumed: r.assumed === true,
   };
 }
 

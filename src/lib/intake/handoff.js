@@ -29,6 +29,8 @@ const INT_COLUMNS = [
 ];
 /** Takeoff rows that have a ProjectData column but are not engine inputs. */
 const EXTRA_INT_ROWS = { bedrooms: 'numBedrooms', stories: 'numFloors', exitDoors: 'numExteriorDoors' };
+/** Homes site lengths (0114): read or typed only, never a guess. */
+const EXTRA_FLOAT_ROWS = { driveLengthFt: 'driveLengthFt', walkwayLengthFt: 'walkwayLengthFt' };
 
 /** Columns the wizard's Project Data step mirrors as questionnaire rows. */
 const NOT_MIRRORED = new Set(['numFloors']);
@@ -42,6 +44,7 @@ const COLUMN_ROW = {
   numSurfaceParking: 'surfaceParking', numCarports: 'carports', numGarages: 'garages',
   lotSf: 'lotSf', buildingFootprintSf: 'buildingFootprintSf',
   numBedrooms: 'bedrooms', numFloors: 'stories', numExteriorDoors: 'exitDoors',
+  driveLengthFt: 'driveLengthFt', walkwayLengthFt: 'walkwayLengthFt',
 };
 /**
  * Where a figure came from, for ProjectFigureSource (Mike 2026-09-24: learn
@@ -69,7 +72,8 @@ export function planHandoff({ answers, drawings, pricing = null, adopted = null 
 
   const bySource = {};
   const byValue = {};
-  for (const r of est.quantities) { bySource[r.key] = r.source; byValue[r.key] = r.value; }
+  const byAssumed = {};
+  for (const r of est.quantities) { bySource[r.key] = r.source; byValue[r.key] = r.value; byAssumed[r.key] = r.assumed === true; }
 
   const data = {};
   for (const col of FLOAT_COLUMNS) {
@@ -84,6 +88,10 @@ export function planHandoff({ answers, drawings, pricing = null, adopted = null 
     const v = finite(byValue[rowKey]);
     if (v !== null && v > 0) data[col] = Math.round(v);
   }
+  for (const [rowKey, col] of Object.entries(EXTRA_FLOAT_ROWS)) {
+    const v = finite(byValue[rowKey]);
+    if (v !== null && v > 0 && (bySource[rowKey] === 'drawing' || bySource[rowKey] === 'questionnaire')) data[col] = v;
+  }
   // 0 fans means "the engine decides from the fan answer", not "no fans".
   if (data.numFans === 0) delete data.numFans;
 
@@ -93,6 +101,7 @@ export function planHandoff({ answers, drawings, pricing = null, adopted = null 
   const features = (est.projectData.siteFeatures || []).map(f => ({
     type: f.type, count: f.count ?? null, lengthFt: f.lengthFt ?? null,
     source: bySource[SITE_FEATURE_ROW_KEYS[f.type]] === 'drawing' ? 'drawing' : 'typed',
+    ...(byAssumed[SITE_FEATURE_ROW_KEYS[f.type]] ? { lengthAssumed: true } : {}),
   }));
 
   // The questionnaire answers, in the wizard's own (section, key, value) rows,

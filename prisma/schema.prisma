@@ -56,6 +56,7 @@ model User {
   hiddenDashboardWidgets     DashboardHiddenWidget[]      @relation("DashboardWidgetHider")
   archivedClients            Client[]                     @relation("ClientArchiver")
   archivedProjects           Project[]                    @relation("ProjectArchiver")
+  recordedBudgetAmounts      ProjectBudgetAmount[]        @relation("BudgetAmountRecorder")
   archivedContacts           Contact[]                    @relation("ContactArchiver")
   archivedNotes              Note[]                       @relation("NoteArchiver")
   archivedProjectFiles       ProjectFile[]                @relation("ProjectFileArchiver")
@@ -742,6 +743,9 @@ model Project {
   calibrationSamples   CalibrationSample[]
   contactLinks         ProjectContact[]
   statusEvents         ProjectStatusEvent[]
+  budgetAmounts        ProjectBudgetAmount[]
+  // The unfinished public budget this project was made from (0116), if any.
+  conceptualDraft      ConceptualDraft?            @relation("DraftProject")
 
   // A company's Related Projects reads all six of these at once.
   @@index([developerId])
@@ -763,6 +767,30 @@ model Project {
 /// independently. `approximated` marks a row invented by the 0069 backfill from
 /// updatedAt rather than observed: the 0061 lesson is that once a guessed date
 /// is stored it is indistinguishable from a real one, so it is labelled instead.
+/// A project's number ladder (0116, Mike 2026-10-03): "A conceptual budget gets
+/// overwritten by a budget which gets overwritten by a signed PO." One row per
+/// number we were given; a newer number on the same step archives the older
+/// one, never deletes it. Current number = highest step with a live row.
+/// See src/lib/budgetAmounts.js.
+model ProjectBudgetAmount {
+  id           String       @id @default(cuid())
+  projectId    String
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tier         String // conceptual | budget | po
+  amount       Float
+  source       String // web-request | unfinished-draft | budget-file | po-file | manual
+  fileId       String?
+  file         ProjectFile? @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  note         String?
+  recordedById String?
+  recordedBy   User?        @relation("BudgetAmountRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime     @default(now())
+  archivedAt   DateTime?
+
+  @@index([projectId, tier])
+  @@index([tier, archivedAt])
+}
+
 model ProjectStatusEvent {
   id           String   @id @default(cuid())
   projectId    String
@@ -820,6 +848,7 @@ model ProjectFile {
   placedFixtures   PlacedFixture[]
   rfiAttachments   RFIAttachment[]       @relation("RFIDrawing")
   drawingRevisions DrawingRevisionFlag[] @relation("DrawingRevisionFlags")
+  budgetAmounts    ProjectBudgetAmount[]
   // Archived, never deleted (Mike, 2026-09-11: "drawings and budgets and products should be archive only").
   archivedAt       DateTime?
   archivedById     String?
@@ -977,6 +1006,9 @@ model SiteFeature {
   type       String // dogPark | courtyard | playground | tennisCourt | pickleballCourt | turfPlay
   count      Int?
   lengthFt   Float?
+  // Linear kinds only: true = a standard length (courtyard 60 ft each), not
+  // measured or typed (0115). Confirming or typing a length clears it.
+  lengthAssumed Boolean @default(false)
   source     String // drawing | typed
   sheet      Int? // 1-based sheet number the reading came from (drawing source)
   label      String? // the words on the sheet, when read off a drawing
@@ -3258,10 +3290,15 @@ model ConceptualDraft {
   submissionId   String?   @unique
   archivedAt     DateTime?
   archivedById   String?
+  // 0116: left for a day without sending, it becomes a project and Sales is
+  // told. abandonedAlertedAt is the sweep's claim stamp (once per draft).
+  projectId          String?   @unique
+  abandonedAlertedAt DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
   submission ConceptualSubmission?  @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+  project    Project?               @relation("DraftProject", fields: [projectId], references: [id], onDelete: SetNull)
   archivedBy User?                  @relation("DraftArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
   fields     ConceptualDraftField[]
   visits     ConceptualVisit[]

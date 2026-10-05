@@ -98,6 +98,9 @@ export const SERVICE_TYPES = [
   { value: 'designAssist', label: 'Design Assist' },
   { value: 'peerReview',   label: 'Peer Review' },
   { value: 'bidOnly',      label: 'Bid Only' },
+  // Mike 2026-10-03: every web conceptual budget becomes a project with this
+  // type, in the Qualified stage. Procurement board only, not Design.
+  { value: 'conceptual',   label: 'Conceptual Budget' },
 ];
 
 // Readable, never settable. Dashboards filter on ALL_SERVICE_TYPES so an old

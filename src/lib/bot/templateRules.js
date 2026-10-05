@@ -1,6 +1,6 @@
 // The optional matching rules on an Email Template (Mike 10-1). A blank or
 // "Any" means the rule is off (null). Pure.
-const SERVICE_TYPES = new Set(['fullDesign', 'designAssist', 'peerReview', 'bidOnly']);
+const SERVICE_TYPES = new Set(['fullDesign', 'designAssist', 'peerReview', 'bidOnly', 'conceptual']);
 const PIPELINES = new Set(['PROCUREMENT', 'DESIGN']);
 
 const clean = (v, max) => {

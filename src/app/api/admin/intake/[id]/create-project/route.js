@@ -1,15 +1,8 @@
 import { NextResponse } from 'next/server';
 import { requireIntakeReviewer } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { createProject } from '@/lib/projects/createProject';
-import { BUILDING_TYPES } from '@/lib/utils';
-import { loadPricing } from '@/lib/pricingLoader';
-import { loadAdoptedGuesses } from '@/lib/calibration/figureNormsLoad';
-import { logActivity } from '@/lib/activity';
-import { captureQuietly } from '@/lib/calibration/capture';
-import { takeAreaBaseline } from '@/lib/calibration/areaNormsLoad';
-import { writeSiteFeature } from '@/lib/siteFeatureRows';
-import { planHandoff, applyHandoff, drawingsFromSubmission } from '@/lib/intake/handoff';
+import { drawingsFromSubmission } from '@/lib/intake/handoff';
+import { planFromWeb, makeConceptualProject, carryWebFigures } from '@/lib/intake/conceptualProjects';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,49 +33,26 @@ export async function POST(request, { params }) {
   // project is created with the right type. The building type they picked on
   // the questionnaire comes first; it is only carried over when it is one of
   // the project's own types, otherwise the project page asks for it.
-  let plan = null;
-  try {
-    plan = planHandoff({
-      answers: submission.answers,
-      drawings: drawingsFromSubmission(submission),
-      pricing: await loadPricing(),
-      adopted: await loadAdoptedGuesses(),
-    });
-  } catch (e) {
-    console.error('[intake/create-project] could not read the request figures (non-fatal):', e?.message || e);
-  }
-  const isType = v => BUILDING_TYPES.some(t => t.value === v);
-  const buildingType = isType(plan?.buildingTypeKey) ? plan.buildingTypeKey
-    : isType(submission.buildingType) ? submission.buildingType : null;
-
-  const project = await createProject(prisma, user.id, {
-    name:         submission.proposedName,
-    budgetType:   'conceptual',
-    buildingType,
-    city:         submission.city,
-    state:        submission.state,
-    zip:          submission.zip,
-    contactName:  submission.submitterName,
-    contactEmail: submission.submitterEmail,
-    clientId:     submission.clientId,
+  // Shared with the automatic path (conceptualProjects.js, Mike 2026-10-03):
+  // Conceptual Budget service type, and the number the visitor was shown is
+  // saved as the first step of the number ladder.
+  const plan = await planFromWeb({ answers: submission.answers, drawings: drawingsFromSubmission(submission) });
+  const project = await makeConceptualProject(prisma, {
+    ownerId: user.id, plan,
+    fields: {
+      name:         submission.proposedName,
+      buildingType: submission.buildingType,
+      city:         submission.city,
+      state:        submission.state,
+      zip:          submission.zip,
+      contactName:  submission.submitterName,
+      contactEmail: submission.submitterEmail,
+      clientId:     submission.clientId,
+    },
   });
-
-  let carried = plan ? null : false;
-  try {
-    if (plan?.ready) {
-      carried = await applyHandoff(prisma, project.id, plan, { writeSiteFeature });
-      await logActivity(project.id, user, 'project_data',
-        `Carried over from the web budget request: ${carried.fields} building figures, ${carried.answers} questionnaire answers${carried.features ? `, ${carried.features} site features` : ''}`,
-        { source: 'intake', submissionId: submission.id });
-      captureQuietly(project.id, { minIntervalMs: 0 });
-      // What the visitor's answers came to, area by area — the budget's later
-      // areas are compared with it (staff-only alerts).
-      await takeAreaBaseline(project.id, 'web-request');
-    }
-  } catch (e) {
-    console.error('[intake/create-project] hand-off failed (non-fatal):', e?.message || e);
-    carried = false;
-  }
+  const carried = await carryWebFigures(prisma, project, plan, {
+    actor: user, source: 'web-request', note: 'Carried over from the web budget request', submissionId: submission.id,
+  });
 
   const line = `Created project ${project.name} (${project.budgetNumber}) from this request.`
     + (carried ? ` Carried over ${carried.fields} building figures and ${carried.answers} answers.`

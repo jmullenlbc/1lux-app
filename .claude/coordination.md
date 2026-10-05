@@ -2,7 +2,10 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-02 (newest) - Mike's Claude - **DEPLOYED 69b6c9d**, migration 0114 (additive: ProjectData.driveLengthFt, walkwayLengthFt): homes skip Corridors, walkway read not asked, 1 pole per 8 homes
+### 2026-10-03 (newest) - Mike's Claude - **DEPLOYED** (10-4), migrations 0115 (SiteFeature.lengthAssumed) + 0116 (ConceptualDraft.projectId/abandonedAlertedAt, new ProjectBudgetAmount), both additive: conceptual budgets become projects, number ladder, guess accuracy card
+New service type `conceptual`. Public intake send makes a project (unless it matches an existing job); unfinished drafts (24h to 30d old) become projects with an UNFINISHED_WEB_BUDGET alert to Sales. Number ladder Conceptual > Budget > Signed PO (uploads + typed). Pre-Con guess accuracy card, read only. **Sean: please schedule `GET /api/cron/unfinished-drafts` hourly (x-cron-secret), same as the other crons.** Until then it runs when someone opens the intake page. verify --full passed.
+
+### 2026-10-02 - Mike's Claude - **DEPLOYED 69b6c9d**, migration 0114 (additive: ProjectData.driveLengthFt, walkwayLengthFt): homes skip Corridors, walkway read not asked, 1 pole per 8 homes
 Town Houses / Single Family: no Corridors page (public + both internal wizards); front door sconce asked on Units (`FrontDoorQuestion.jsx`, stored as corridors.unitSconce), back balcony back on Units. Walkway length input removed; site read measures `walkwayLengthFtMeasured` (siteVision-2026-10-02c) into a `walkwayLengthFt` quantities row. Pole fallback 0.4 to 0.125 per home (1 per 8, Fremont = 37). Internal site read now proposes + saves drive and walkway length (0114); engine uses them for homes only, typed drive wins. verify --full passed.
 
 ### 2026-10-02 - Mike's Claude - **DEPLOYED 8b42d03**, no migration: homes Front Door & Back Balcony page, bollards / pedestrian poles, drive lights

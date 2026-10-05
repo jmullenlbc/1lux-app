@@ -280,11 +280,15 @@ export default function SiteDataUpload({ projectId, onCommitted }) {
     for (const [key, v] of Object.entries(picked)) {
       if (v.on && v.value != null && v.value !== '') fields[key] = v.value;
     }
+    // Rows still at the standard length (courtyard 60 ft each, 0115). Typing a
+    // different number makes it a person's figure, so the tag drops.
+    const assumed = {};
     for (const row of parsed?.proposal ?? []) {
       if (fields[row.key] != null && row.sheet) sheets[row.key] = row.sheet;
+      if (fields[row.key] != null && row.lengthAssumed && Number(fields[row.key]) === Number(row.value)) assumed[row.key] = true;
     }
     if (!Object.keys(fields).length) {
-      setErrMsg('Nothing is ticked — there is nothing to apply.');
+      setErrMsg('Nothing is ticked, so there is nothing to apply.');
       return;
     }
 
@@ -296,7 +300,7 @@ export default function SiteDataUpload({ projectId, onCommitted }) {
         // runId ties this apply back to the extraction that produced it, so the
         // server can diff what was applied against what the model read and
         // record the verdict itself. See src/lib/agent/siteDiff.js.
-        body: JSON.stringify({ fileId: parsed?.fileId, fields, sheets, runId: parsed?.review?.runId ?? null }),
+        body: JSON.stringify({ fileId: parsed?.fileId, fields, sheets, assumed, runId: parsed?.review?.runId ?? null }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.message || 'Could not save.');

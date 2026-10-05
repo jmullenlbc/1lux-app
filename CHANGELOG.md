@@ -5,6 +5,17 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Conceptual budgets become projects, number ladder, guess accuracy card, Courtyard "assumed" tag] - October 3, 2026 (DEPLOYED) - migrations 0115, 0116
+
+- **New service type "Conceptual Budget" (Mike 10-3):** `conceptual` in `SERVICE_TYPES` (`utils.js`), template rules, automation template labels, CRM labels, dashboard colour. It sits on the Procurement pipeline in the Qualified stage by default (not in the design pipeline).
+- **Every conceptual budget makes a project (0116):** the public form now makes the project on send (owner: oldest active admin, service type Conceptual Budget) unless it looks like a job we already have, in which case staff decide as before. The request still waits in the intake queue. Staff "This is a new job" uses the same path. Shared code in new `src/lib/intake/conceptualProjects.js`.
+- **Unfinished web budgets become projects too (Mike 10-3):** a draft left over 24 hours (and under 30 days) is made into a project and Sales gets an alert "Unfinished web budget: NAME ... stopped at STEP". If it looks like an existing job, no project is made and the alert names that job. 10 per run; runs from the intake page and new cron `/api/cron/unfinished-drafts` (needs scheduling, hourly). New `ConceptualDraft.projectId` / `abandonedAlertedAt`; pure rules in `src/lib/intake/unfinishedDrafts.js`. The intake page shows "Project made: NAME" on the draft.
+- **A typed Signed PO also sets Supply Contract Total (Mike 10-4).**
+- **Number ladder (0116, Mike 10-3):** Conceptual, then Budget, then Signed PO; each replaces the one before as the project's number, the older ones are kept. New table `ProjectBudgetAmount` (archive only). Filled by: the web budget total (Conceptual), a budget PDF upload (Budget), a signed supply contract upload (Signed PO), or typed on the new Number Ladder card on the project dashboard (`BudgetLadderCard.jsx`, `api/projects/[id]/budget-amounts`). The dashboard "Current Budget" follows the ladder. Pure logic in `src/lib/budgetAmounts.js`.
+- **Pre-Con "How Good Are Our Guesses" card:** conceptual vs real number per building type (typical gap, average miss, biggest misses). Says something only after 5 jobs of a type and a gap of 5% or more; it never changes a price by itself (`pre-con/GuessAccuracyCard.jsx`).
+- **Courtyard "assumed" tag (0115):** a courtyard length the system assumed (60 ft each) is tagged `SiteFeature.lengthAssumed`, shows an amber note on Project Data with a Confirm button, and carries through hand-off, duplicate and estimate.
+- Tests: new `conceptualProjects.test.mjs` (11), `siteFeatureAssumed.test.mjs` (4); `serviceAndDepartments.test.mjs` and `intakeHandoff.test.mjs` updated. `verify --full` green (15 gates).
+
 ## [Homes: no Corridors page, walkway read not asked, 1 pole per 8 homes, site lengths] - October 2, 2026 (DEPLOYED 69b6c9d) - migration 0114
 
 - **Bollards / pedestrian poles fallback 0.4 to 0.125 per home, 1 per 8 homes (Mike 10-2):** 0.4 would have priced 890 Fremont (293 homes) at 118 poles / $118,000; Mike's sheet had 25 bollards / $50,000 (0.085 per home). 1 per 8 gives 37 poles / $37,000. `pricing.js`, `calculations.js`, `ExteriorSection.jsx`, Master Pricing note.
