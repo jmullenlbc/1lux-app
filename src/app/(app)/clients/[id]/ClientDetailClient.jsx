@@ -23,6 +23,7 @@ import ProductOptionsTab from './ProductOptionsTab';
 import ShareStandardsButton from './ShareStandardsButton';
 import PersonalFactsPanel from '@/components/crm/PersonalFactsPanel';
 import WorkHistoryPanel from './WorkHistoryPanel';
+import LookAlikeReviews from '@/components/crm/LookAlikeReviews';
 import { WORK_HISTORY_READY } from '@/lib/workHistory';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -577,6 +578,7 @@ function OverviewTab({ client, onPatch }) {
 
   return (
     <div className="space-y-6">
+      <LookAlikeReviews clientId={client.id} />
       {/* ── One full-width client info window. Everything here edits in place:
              click it, change it, click away. Nothing to save. ── */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 md:p-6">
@@ -1134,6 +1136,8 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
   const inputCls = 'w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-amber-400';
 
   return (
+    <div className="space-y-4">
+    <LookAlikeReviews clientId={clientId} kind="contact" title="Same person?" />
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
       <ConfirmArchiveModal
         open={!!archiveTarget}
@@ -1362,6 +1366,7 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
           onClose={() => setDealList(null)}
         />
       )}
+    </div>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { DESK_CHANGED } from '@/lib/desk/desk';
 import { useDraftReminder } from '@/components/layout/useDraftReminder';
 import QuickNote from '@/components/desk/QuickNote';
 import PersonPicker from '@/components/desk/PersonPicker';
+import { ReviewRow } from '@/components/crm/LookAlikeReviews';
 
 // My Desk (Mike 9-26): the one place a salesperson looks. Reminders from their
 // sales notes, email drafts to review, check-ins due, notes still to finish.
@@ -224,50 +225,6 @@ function PoolRow({ p, salesPeople, myId, onDone }) {
           {salesPeople.filter(u => u.id !== myId).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
         </select>
       )}
-    </li>
-  );
-}
-
-const REVIEW_WORDS = {
-  contact: { ask: 'Same person?', same: 'Same person', different: 'Different person' },
-  client:  { ask: 'Same company?', same: 'Same company', different: 'Different company' },
-  project: { ask: 'Same job?', same: 'Same job', different: 'Different job' },
-};
-
-// "Same person? Same company? Same job?" from a web budget (0117). Nothing is joined or made until somebody answers.
-function ReviewRow({ r, onDone }) {
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState('');
-  const words = REVIEW_WORDS[r.kind] || REVIEW_WORDS.contact;
-  const typed = [[r.firstName, r.lastName].filter(Boolean).join(' '), r.email, r.companyName].filter(Boolean).join(' · ');
-  const have = r.kind === 'contact' && r.existingContact
-    ? { text: [r.existingContact.name, r.existingContact.email, r.existingContact.client?.name || r.existingContact.company].filter(Boolean).join(' · ') }
-    : r.kind === 'client' && r.existingClient
-      ? { text: [r.existingClient.name, r.existingClient.website].filter(Boolean).join(' · '), href: `/clients/${r.existingClient.id}` }
-      : r.existingProject
-        ? { text: [r.existingProject.name, r.existingProject.budgetNumber, [r.existingProject.city, r.existingProject.state].filter(Boolean).join(', ')].filter(Boolean).join(' · '), href: `/project/${r.existingProject.id}` }
-        : { text: 'A record we already have' };
-  async function answer(a) {
-    setBusy(true); setErr('');
-    try { await post(`/api/sales/desk/review/${r.id}`, { answer: a }); await onDone(a === 'same' ? 'Joined to the one we already have.' : 'Kept apart. A new one was made.'); }
-    catch (e) { setErr(e.message); }
-    setBusy(false);
-  }
-  return (
-    <li className="rounded-xl border border-amber-200 bg-white p-3">
-      <div className="text-sm font-medium text-slate-800">{words.ask}</div>
-      <p className="text-xs text-slate-500 mb-2">{r.reason}</p>
-      <dl className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 text-sm mb-2">
-        <dt className="text-slate-400">Web budget</dt>
-        <dd className="text-slate-700 min-w-0 break-words">{typed}{r.projectName ? <span className="text-slate-400"> · {r.projectName}</span> : null}</dd>
-        <dt className="text-slate-400">We have</dt>
-        <dd className="text-slate-700 min-w-0 break-words">{have.href ? <Link href={have.href} className="hover:underline">{have.text}</Link> : have.text}</dd>
-      </dl>
-      {err && <p className="text-sm text-rose-600">{err}</p>}
-      <div className="flex flex-wrap gap-2">
-        <Btn tone="go" disabled={busy} onClick={() => answer('same')}>{words.same}</Btn>
-        <Btn disabled={busy} onClick={() => answer('different')}>{words.different}</Btn>
-      </div>
     </li>
   );
 }

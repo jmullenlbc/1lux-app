@@ -23,10 +23,13 @@ function settledElsewhere(r) {
   return null;
 }
 
-/** Questions waiting on somebody, oldest first. Closes the ones already settled elsewhere. */
-export async function pendingReviews(db) {
+/**
+ * Questions waiting on somebody, oldest first. Closes the ones already settled
+ * elsewhere. `extra` narrows them (one company, one kind) for the CRM pages.
+ */
+export async function pendingReviews(db, extra = {}) {
   const rows = await db.duplicateReview.findMany({
-    where: { status: 'PENDING' },
+    where: { ...extra, status: 'PENDING' },
     orderBy: { createdAt: 'asc' },
     take: 50,
     include: {

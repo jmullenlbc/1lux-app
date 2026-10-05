@@ -90,4 +90,11 @@ test('wiring: first save, send, sweep and My Desk all use it', () => {
   assert.ok(desk.includes('salesOwnerId: null') && desk.includes('pendingReviews('));
   const reviews = read('src/lib/intake/webReviews.js');
   assert.ok(reviews.includes("status: 'PENDING'"), 'an answer claims the question first');
+  // Mike 10-4: the questions also show on the company page and the Contacts list.
+  const shared = "@/components/crm/LookAlikeReviews";
+  for (const f of ['src/app/(app)/clients/[id]/ClientDetailClient.jsx', 'src/app/(app)/crm/contacts/ContactsClient.jsx', 'src/app/(app)/sales/desk/page.jsx']) {
+    assert.ok(read(f).includes(shared), `${f} uses the shared look alike rows`);
+  }
+  const get = read('src/app/api/sales/desk/review/route.js');
+  assert.ok(get.includes('existingContact: { clientId }') && get.includes('pendingReviews(prisma, where)'), 'one company sees its own and its people\'s questions');
 });

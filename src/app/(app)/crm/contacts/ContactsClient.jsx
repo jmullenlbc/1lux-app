@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { companyLink, countMissingCompany } from '@/lib/crmClient';
 import { ALL_CONTACT_DEPARTMENTS, contactDepartmentLabel } from '@/lib/contactDepartments';
+import LookAlikeReviews from '@/components/crm/LookAlikeReviews';
 
 function checkInStatus(contact) {
   const ref = contact.lastInPersonAt ?? contact.lastTouchpointAt;
@@ -120,6 +121,8 @@ export default function ContactsClient({ contacts }) {
             </button>
           )}
         </div>
+
+        <div className="mb-6"><LookAlikeReviews kind="contact" title="Same person?" /></div>
 
         {/* Search + department */}
         <div className="mb-6 flex flex-col sm:flex-row gap-2">
