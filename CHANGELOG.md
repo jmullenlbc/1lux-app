@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Look-alike questions on the company page and the Contacts list] - October 4, 2026 (DEPLOYED) - no migration
+## [Look-alike questions on the company page and the Contacts list] - October 4, 2026 (DEPLOYED 89993d8) - no migration
 
 - **"Same person? Same company?" also on the company page and Contacts (Mike 10-4):** the same Same / Different rows from My Desk now show at the top of a company's Overview (its own look alikes and its people's), on its People tab (people only) and at the top of the Contacts list (every open "Same person?"). Hidden when there is nothing to answer. Shared rows in new `src/components/crm/LookAlikeReviews.jsx`; new `GET /api/sales/desk/review?clientId=|kind=`; `pendingReviews(db, extra)` takes a filter.
 - Tests: `sameWho.test.mjs` wiring check extended. `verify --full` green (15 gates).

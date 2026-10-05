@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-04 (newest) - Mike's Claude - **DEPLOYED**, no migration: look-alike Same/Different rows on the company page (Overview + People) and the Contacts list
+### 2026-10-04 (newest) - Mike's Claude - **DEPLOYED 89993d8**, no migration: look-alike Same/Different rows on the company page (Overview + People) and the Contacts list
 Shared `components/crm/LookAlikeReviews.jsx`, `GET /api/sales/desk/review?clientId=|kind=`. My Desk keeps its section. verify --full passed.
 
 ### 2026-10-04 - Mike's Claude - **DEPLOYED 4302748**, migration 0117 (additive: ConceptualDraft.clientId/contactId, ConceptualSubmission.contactId, new DuplicateReview): web budget pool, company/person on first save, look-alike questions
