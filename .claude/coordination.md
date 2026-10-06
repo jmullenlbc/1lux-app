@@ -2,7 +2,10 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-06 (newest) - Mike's Claude - **DEPLOYED 7584b9b**, no migration: mass edit and archive for Sales Notes
+### 2026-10-06 (newest) - Mike's Claude - **DEPLOYED PENDING3**, no migration: Market Intel "Refresh sources" button fixed + pages centered
+`POST /api/market-intel/poll` read the session into `session` but tested `user`, so the button 500'd for everyone signed in. Fixed; button relabeled "Refresh sources"; both Market Intel pages get `mx-auto`. Scheduled cron still waits on Sean. verify --full passed.
+
+### 2026-10-06 - Mike's Claude - **DEPLOYED 7584b9b**, no migration: mass edit and archive for Sales Notes
 Select button on `/crm/notes` + bulk bar (Archive, Publish, Back to draft, Set type, Add owner, Link company, Link project, Set date, Link person; the last three DEPLOYED 8bb1354). New `POST /api/crm/notes/bulk` loops the single-note logic per note (history, bot pause, publish actions). verify --full passed.
 
 ### 2026-10-06 - Mike's Claude - **DEPLOYED e9914e8**, no migration: tabs on every Sales module with sibling views

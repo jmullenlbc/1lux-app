@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAuth, getSession } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 import { runPoll } from '@/lib/market-intel/poller';
 
 export async function POST(request) {
@@ -9,7 +9,7 @@ export async function POST(request) {
   const isCron     = cronSecret && cronHeader === cronSecret;
 
   if (!isCron) {
-    const session = await getSession();
+    const user = await getSession();
     if (!user || (user.role !== 'ILC_ADMIN' && user.role !== 'SUPER_ADMIN')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

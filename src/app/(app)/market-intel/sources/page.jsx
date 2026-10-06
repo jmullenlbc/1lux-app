@@ -108,7 +108,7 @@ export default function MarketSourcesPage() {
   const localCount  = sources.filter(s => (s.market || DEFAULT_MARKET) !== DEFAULT_MARKET).length;
 
   return (
-    <div className="p-6 max-w-5xl">
+    <div className="p-6 max-w-5xl mx-auto">
       {/* Market Intelligence / Sources tabs (Mike 10-6) replace the back arrow. */}
       <SectionTabs tabs={MARKET_INTEL_TABS} />
       {/* Header */}
@@ -151,9 +151,9 @@ export default function MarketSourcesPage() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                 </svg>
-                Polling…
+                Refreshing…
               </>
-            ) : 'Run Poll Now'}
+            ) : 'Refresh sources'}
           </button>
         </div>
       </div>
