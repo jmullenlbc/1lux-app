@@ -17,20 +17,22 @@ export default async function DashboardSectionPage({ params, searchParams }) {
 
   const raw = (params.section || '').toLowerCase();
 
-  // The weekly sales meeting is a curated run-of-show, not the field-picker builder.
-  if (raw === 'meeting') return <MeetingDashboard />;
+  // The weekly meeting is a tab on the Sales dashboard now (Mike 10-6).
+  if (raw === 'meeting') redirect('/dashboards/sales?tab=meeting');
 
   const section = VALID[raw];
   if (!section) redirect('/dashboards/main');
 
-  // Sales dashboard tabs (Mike 10-6): Dashboard / Budget page visitors / Brief.
+  // Sales dashboard tabs (Mike 10-6): Dashboard / Weekly Meeting / Budget page visitors / Morning Brief.
   if (section === 'SALES') {
     const tab = salesDashboardTab(searchParams?.tab);
     if (tab !== 'dashboard') {
       return (
         <div className="p-6">
           <SalesDashboardTabs active={tab} />
-          {tab === 'visitors' ? <VisitorsPanel days={searchParams?.days} /> : <BriefPanel />}
+          {tab === 'meeting'  && <MeetingDashboard embedded />}
+          {tab === 'visitors' && <VisitorsPanel days={searchParams?.days} />}
+          {tab === 'brief'    && <BriefPanel />}
         </div>
       );
     }

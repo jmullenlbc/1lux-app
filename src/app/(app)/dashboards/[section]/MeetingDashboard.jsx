@@ -17,7 +17,8 @@ const fmtDate = d => d ? new Date(d).toLocaleDateString('en-US', { month: 'short
 // An empty cell, in words rather than a dash (house rule: no dashes in copy).
 const blank = <span className="text-slate-300">none</span>;
 
-export default function MeetingDashboard() {
+// `embedded`: rendered under the Sales dashboard tabs, which already pad the page.
+export default function MeetingDashboard({ embedded = false }) {
   const [layout, setLayout] = useState(null);   // { cards, source, catalog, canEditShared, hasPersonal }
   const [data, setData]     = useState(null);
   const [loading, setLoad]  = useState(true);
@@ -61,7 +62,7 @@ export default function MeetingDashboard() {
     load();
   }
 
-  if (loading) return <div className="p-8 text-sm text-slate-400">Loading the meeting…</div>;
+  if (loading) return <div className={`${embedded ? 'p-2' : 'p-8'} text-sm text-slate-400`}>Loading the meeting…</div>;
 
   const users = data.salesUsers || [];
   const c = data.counts || {};
@@ -73,9 +74,9 @@ export default function MeetingDashboard() {
   const countOn = lvl => cards.filter(k => levelOf(k) === lvl).length;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className={embedded ? 'space-y-6' : 'p-6 space-y-6'}>
       <div>
-        <p className="text-[10px] font-bold text-orange-500 uppercase tracking-wider">Sales</p>
+        {!embedded && <p className="text-[10px] font-bold text-orange-500 uppercase tracking-wider">Sales</p>}
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-xl font-bold text-slate-900">Weekly Meeting</h1>

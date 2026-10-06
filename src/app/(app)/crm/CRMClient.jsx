@@ -9,6 +9,7 @@ import {
   weightedRevenue, weightedForecast, FORECAST_WINDOW_DAYS,
 } from '@/lib/pipeline';
 import PipelineSidePanel from '@/components/crm/PipelineSidePanel';
+import SectionTabs, { PIPELINE_TABS } from '@/components/ui/SectionTabs';
 import { ALL_SERVICE_TYPES } from '@/lib/utils';
 
 // Re-exported for the (orphaned, Phase-2) Deal components' imports.
@@ -598,6 +599,8 @@ export default function CRMClient({ initialProjects, users, newRequests = [] }) 
     <div className="flex flex-col h-screen bg-slate-50 overflow-hidden">
       {/* Header */}
       <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0">
+        {/* Pipeline / Contacts / Check-ins tabs (Mike 10-6), same look as Sales Automation. */}
+        <SectionTabs tabs={PIPELINE_TABS} className="mb-4 -mt-1" />
         <div className="flex items-center justify-between gap-4">
           <div>
             <span className="text-[10px] font-bold text-orange-500 uppercase tracking-wider">ILC Studios</span>
@@ -620,13 +623,7 @@ export default function CRMClient({ initialProjects, users, newRequests = [] }) 
             <button onClick={handleExportCSV} className="text-xs border border-slate-200 text-slate-600 hover:bg-slate-50 px-2.5 py-1.5 rounded-lg">
               Export CSV
             </button>
-            {/* The Brief button now lives on the Sales dashboard beside + Widget (Maram 9-17). */}
-            <a href="/crm/contacts" className="text-xs text-slate-500 hover:text-amber-600 font-medium transition-colors">
-              Contacts →
-            </a>
-            <a href="/sales/check-ins" className="text-xs text-slate-500 hover:text-amber-600 font-medium transition-colors">
-              Check-ins →
-            </a>
+            {/* Contacts and Check-ins moved to the tabs above (Mike 10-6); the Brief is a Sales dashboard tab. */}
             <button onClick={newProject} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition-colors shadow-sm">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
               New Project

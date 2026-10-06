@@ -5,6 +5,16 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Tabs on every Sales module with sibling views] - October 6, 2026 (DEPLOYED) - no migration
+
+- **One tab strip** (`src/components/ui/SectionTabs.jsx`, Sales Automation look) for every Sales module that has more than one view (Mike 10-6).
+- **Weekly Meeting** is a tab on the Sales dashboard (Dashboard / Weekly Meeting / Budget page visitors / Morning Brief); sidebar row removed; `/dashboards/meeting` redirects to `/dashboards/sales?tab=meeting`. `MeetingDashboard` takes `embedded`.
+- **Pipeline** tabs Pipeline / Contacts / Check-ins on `/crm`, `/crm/contacts` and `/sales/check-ins`; the "Contacts →" and "Check-ins →" links and the "← Back to CRM" link are gone. Sidebar Pipeline row lights up on Check-ins.
+- **Market Intelligence** tabs Market Intelligence / Sources replace the Manage Sources button and the back arrow.
+- **Proposals** tabs Proposals / Templates replace the pill toggle; `/sales/proposals/templates` redirects to `?tab=templates`; `TemplatesClient` takes `embedded` (no back link).
+- **My Desk** tab bar restyled to the same orange look.
+- `verify --full` green (15 gates).
+
 ## [Sales sidebar order, dashboard tabs for Budget page visitors and Morning Brief] - October 6, 2026 (DEPLOYED 75222c0) - no migration
 
 - **Sales sidebar order (Mike 10-6):** My Desk, Dashboard, Pipeline, Weekly Meeting, Clients, Sales Notes, Market Intelligence, Sales Activity, Sales Automation, Proposals. "Budget Page Visitors" row removed.

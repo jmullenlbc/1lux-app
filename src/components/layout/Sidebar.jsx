@@ -580,11 +580,10 @@ export default function Sidebar({ user }) {
           />
           {expanded && crmOpen && (
             <div className="mt-0.5 space-y-0.5 ml-1">
-              {/* Order set by Mike 10-6. Budget page visitors and the Brief are tabs on the Sales dashboard now. */}
+              {/* Order set by Mike 10-6. Weekly Meeting, Budget page visitors and the Morning Brief are tabs on the Sales dashboard; Contacts and Check-ins are tabs on the Pipeline. */}
               <SubNavItem href="/sales/desk"     icon={<IconTask />}            label="My Desk"     expanded={expanded} badge={deskCount} active={startsWith('/sales/desk')} />
-              <SubNavItem href="/dashboards/sales" icon={<IconBarChart />}      label="Dashboard"   expanded={expanded} active={startsWith('/dashboards/sales')} />
-              <SubNavItem href="/crm"            icon={<IconPipeline />}        label="Pipeline"    expanded={expanded} active={at('/crm') || (crmRelated && !startsWith('/crm/dashboards') && !startsWith('/crm/notes') && !startsWith('/clients') && !startsWith('/sales') && !startsWith('/market-intel') && !startsWith('/dashboards'))} />
-              <SubNavItem href="/dashboards/meeting" icon={<IconHandshake />}   label="Weekly Meeting" expanded={expanded} active={startsWith('/dashboards/meeting')} />
+              <SubNavItem href="/dashboards/sales" icon={<IconBarChart />}      label="Dashboard"   expanded={expanded} active={startsWith('/dashboards/sales') || startsWith('/dashboards/meeting')} />
+              <SubNavItem href="/crm"            icon={<IconPipeline />}        label="Pipeline"    expanded={expanded} active={at('/crm') || startsWith('/sales/check-ins') || (crmRelated && !startsWith('/crm/dashboards') && !startsWith('/crm/notes') && !startsWith('/clients') && !startsWith('/sales') && !startsWith('/market-intel') && !startsWith('/dashboards'))} />
               <SubNavItem href="/clients"        icon={<IconClientUsers />}     label="Clients"     expanded={expanded} active={startsWith('/clients')} />
               <SubNavItem href="/crm/notes"      icon={<IconNotes />}           label="Sales Notes" expanded={expanded} badge={waitingDrafts} active={startsWith('/crm/notes')} />
               <SubNavItem href="/market-intel"      icon={<IconNews />}      label="Market Intelligence" expanded={expanded} active={startsWith('/market-intel')} />

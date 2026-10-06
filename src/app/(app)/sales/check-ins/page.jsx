@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import SectionTabs, { PIPELINE_TABS } from '@/components/ui/SectionTabs';
 
 // ── Activity meta ─────────────────────────────────────────────────────────────
 
@@ -421,6 +422,8 @@ export default function CheckInsPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6">
+      {/* Pipeline / Contacts / Check-ins tabs (Mike 10-6). */}
+      <SectionTabs tabs={PIPELINE_TABS} className="mb-5" />
       {/* Header */}
       <div className="mb-5">
         <h1 className="text-xl font-bold text-slate-900">Check-ins</h1>

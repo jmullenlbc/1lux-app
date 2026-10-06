@@ -292,10 +292,11 @@ function Section({ title, count, children, right, id }) {
 
 function TabBar({ tab, onPick, counts }) {
   return (
-    <div className="flex gap-1 border-b border-slate-200 mb-4">
+    <div className="flex items-center gap-1 border-b border-slate-200 mb-4">
+      {/* Same look as the Sales Automation tabs (Mike 10-6). */}
       {TABS.map(t => (
         <button key={t.key} type="button" onClick={() => onPick(t.key)}
-          className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px ${tab === t.key ? 'border-amber-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${tab === t.key ? 'border-orange-500 text-orange-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}>
           {t.label}{counts?.[t.key] > 0 && <span className="ml-1 text-xs text-slate-400">{counts[t.key]}</span>}
         </button>
       ))}

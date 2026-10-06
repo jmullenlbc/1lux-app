@@ -33,7 +33,7 @@ const TEMP_ACCOUNTS = [
 const SEEDED = [{ label: 'ILC_ADMIN', email: process.env.E2E_ADMIN_EMAIL, password: process.env.E2E_ADMIN_PASSWORD }];
 
 const PAGES = ['/dashboard', '/crm', '/clients', '/pre-con',
-  '/dashboards/main', '/dashboards/sales', '/dashboards/meeting'];
+  '/dashboards/main', '/dashboards/sales', '/dashboards/sales?tab=meeting', '/dashboards/meeting'];
 const APIS = ['/api/projects', '/api/clients', '/api/sales/meeting', '/api/users'];
 
 let sessions = [];

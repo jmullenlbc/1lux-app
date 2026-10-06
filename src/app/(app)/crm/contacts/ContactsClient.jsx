@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { companyLink, countMissingCompany } from '@/lib/crmClient';
 import { ALL_CONTACT_DEPARTMENTS, contactDepartmentLabel } from '@/lib/contactDepartments';
 import LookAlikeReviews from '@/components/crm/LookAlikeReviews';
+import SectionTabs, { PIPELINE_TABS } from '@/components/ui/SectionTabs';
 
 function checkInStatus(contact) {
   const ref = contact.lastInPersonAt ?? contact.lastTouchpointAt;
@@ -99,10 +100,8 @@ export default function ContactsClient({ contacts }) {
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <Link href="/crm" className="text-sm text-slate-500 hover:text-slate-700 mb-2 block">
-          ← Back to CRM
-        </Link>
+        {/* Header. Pipeline / Contacts / Check-ins tabs (Mike 10-6) replace the back link. */}
+        <SectionTabs tabs={PIPELINE_TABS} className="mb-5" />
         <h1 className="text-3xl font-bold text-slate-900 mb-1">Contacts</h1>
         <div className="flex flex-wrap items-center gap-3 mb-6">
           <p className="text-slate-500">{filtered.length} contact{filtered.length !== 1 ? 's' : ''}</p>

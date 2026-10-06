@@ -542,7 +542,8 @@ function TemplateEditor({ template, onSaved, onDeleted }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
-export default function TemplatesClient() {
+// `embedded`: rendered under the Proposals / Templates tabs, so no back link.
+export default function TemplatesClient({ embedded = false }) {
   const [templates,        setTemplates]        = useState([]);
   const [selectedId,       setSelectedId]       = useState(null);
   const [loading,          setLoading]          = useState(true);
@@ -592,9 +593,11 @@ export default function TemplatesClient() {
           <p className="text-xs text-slate-400 mt-0.5">Manage document templates and fee breakdowns for proposals</p>
         </div>
         <div className="flex items-center gap-2">
-          <a href="/sales/proposals" className="text-xs text-slate-500 hover:text-slate-700 transition-colors px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50">
-            ← Back to Proposals
-          </a>
+          {!embedded && (
+            <a href="/sales/proposals" className="text-xs text-slate-500 hover:text-slate-700 transition-colors px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50">
+              ← Back to Proposals
+            </a>
+          )}
           <button
             onClick={() => { setCreatingNew(true); setSelectedId(null); }}
             className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-orange-500 text-white text-sm font-bold hover:bg-orange-600 transition-colors">

@@ -5,6 +5,7 @@ import Link from 'next/link';
 // buttons, they should be tabs"). + Widget and Share stay buttons.
 export const SALES_DASHBOARD_TABS = [
   { key: 'dashboard', href: '/dashboards/sales',              label: 'Dashboard' },
+  { key: 'meeting',   href: '/dashboards/sales?tab=meeting',  label: 'Weekly Meeting' },
   { key: 'visitors',  href: '/dashboards/sales?tab=visitors', label: 'Budget page visitors' },
   { key: 'brief',     href: '/dashboards/sales?tab=brief',    label: 'Morning Brief' },
 ];

@@ -1,7 +1,8 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import TemplatesClient from './templates/TemplatesClient';
+import SectionTabs, { PROPOSAL_TABS } from '@/components/ui/SectionTabs';
 import {
   STATUS_LABELS, TIME_WINDOWS, DEFAULT_TIME_WINDOW, withinWindow, distinctClients, proposalClientName,
 } from '@/lib/proposals/listFilters';
@@ -532,33 +533,18 @@ function ProposalsList() {
 // ── Main Page (tabbed) ────────────────────────────────────────────────────────
 
 export default function ProposalsClient() {
-  const router     = useRouter();
-  const pathname   = usePathname();
   const searchParams = useSearchParams();
   const tab = searchParams.get('tab') === 'templates' ? 'templates' : 'proposals';
 
-  function setTab(t) {
-    const p = new URLSearchParams(searchParams.toString());
-    if (t === 'proposals') p.delete('tab'); else p.set('tab', t);
-    router.replace(`${pathname}?${p.toString()}`, { scroll: false });
-  }
-
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">
-      {/* Page header */}
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold text-slate-900">Proposals</h1>
-        <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
-          {[['proposals', 'Proposals'], ['templates', 'Templates']].map(([id, label]) => (
-            <button key={id} onClick={() => setTab(id)}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                tab === id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-              }`}>
-              {label}
-            </button>
-          ))}
+      {/* Proposals / Templates tabs (Mike 10-6), same look as Sales Automation. */}
+      <SectionTabs tabs={PROPOSAL_TABS} active={tab} className="mb-5" />
+      {tab === 'proposals' && (
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-xl font-bold text-slate-900">Proposals</h1>
         </div>
-      </div>
+      )}
 
       {tab === 'proposals' && <ProposalsList />}
       {tab === 'templates' && <TemplatesClient embedded />}
