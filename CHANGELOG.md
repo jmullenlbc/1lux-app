@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [CRM review with Maram: My Desk tabs, Proposal Sent stage, sync pre-build, who added a person] - October 5, 2026 - migrations 0118, 0119
+## [CRM review with Maram: My Desk tabs, Proposal Sent stage, sync pre-build, who added a person] - October 5, 2026 (DEPLOYED e8b36d6) - migrations 0118, 0119
 
 - **Sidebar trimmed (Mike 10-5):** Intel row gone (`/crm/intel` redirects to My Desk, Intel tab); Reminder Timeline, Voice Training and Email Signature rows gone (they are tabs inside Sales Automation).
 - **My Desk tabs:** To-dos, Intel, Look-alikes and pool. `#look-alikes` and `#pool` links still land. "Whose desk" picker: Mine, Everyone, or one salesperson (`GET /api/sales/desk?user=|scope=everyone`, `loadDeskFor`); someone else's desk is look only. Steps for the same person due within a rolling week sit under one header with an alert, rows kept (`src/lib/desk/groupByPerson.js`). New "Budgets made, not sent" section (a Budget or Signed PO figure on the ladder and no budget sent date). New cards "New people introduced to us" and "Email signatures say" (see sync below).
