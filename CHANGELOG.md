@@ -5,6 +5,12 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Sales sidebar order, dashboard tabs for Budget page visitors and Morning Brief] - October 6, 2026 (DEPLOYED) - no migration
+
+- **Sales sidebar order (Mike 10-6):** My Desk, Dashboard, Pipeline, Weekly Meeting, Clients, Sales Notes, Market Intelligence, Sales Activity, Sales Automation, Proposals. "Budget Page Visitors" row removed.
+- **Sales dashboard tabs:** Dashboard / Budget page visitors / Morning Brief across the top, same look as the Sales Automation tabs (`src/components/dashboards/SalesDashboardTabs.jsx`). + Widget and Share stay buttons. `/sales/visitors` and `/crm/brief` redirect to the matching tab (`/dashboards/sales?tab=visitors|brief`, the days picker carries over). Panels: `dashboards/[section]/VisitorsPanel.jsx` and `BriefPanel.jsx`; `BriefClient` takes `embedded`.
+- `verify --full` green (15 gates).
+
 ## [CRM review with Maram: My Desk tabs, Proposal Sent stage, sync pre-build, who added a person] - October 5, 2026 (DEPLOYED e8b36d6) - migrations 0118, 0119
 
 - **Sidebar trimmed (Mike 10-5):** Intel row gone (`/crm/intel` redirects to My Desk, Intel tab); Reminder Timeline, Voice Training and Email Signature rows gone (they are tabs inside Sales Automation).

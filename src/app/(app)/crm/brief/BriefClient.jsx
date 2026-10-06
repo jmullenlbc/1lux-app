@@ -14,7 +14,9 @@ function daysSince(dateStr) {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86_400_000);
 }
 
-export default function BriefClient({ stale, procSnapshot, designSnapshot, recentWins }) {
+// embedded: rendered inside the Sales dashboard's Brief tab (Mike 10-6), so no
+// full-page frame or back link of its own.
+export default function BriefClient({ stale, procSnapshot, designSnapshot, recentWins, embedded = false }) {
   const TODAY = new Date().toISOString().slice(0, 10);
   const LS_KEY = `brief-checked-${TODAY}`;
   const [checkedIds, setCheckedIds] = useState(() => {
@@ -33,22 +35,25 @@ export default function BriefClient({ stale, procSnapshot, designSnapshot, recen
   }
 
   return (
-    <div className="flex flex-col h-screen bg-slate-50 overflow-hidden">
+    <div className={embedded ? '' : 'flex flex-col h-screen bg-slate-50 overflow-hidden'}>
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0">
+      <div className={embedded ? 'mb-5' : 'bg-white border-b border-slate-200 px-6 py-4 shrink-0'}>
         <div className="flex items-center justify-between gap-4">
           <div>
-            <span className="text-[10px] font-bold text-orange-500 uppercase tracking-wider">ILC Studios</span>
+            {!embedded && <span className="text-[10px] font-bold text-orange-500 uppercase tracking-wider">ILC Studios</span>}
             <h1 className="text-xl font-bold text-slate-900">Morning Brief</h1>
+            {embedded && <p className="text-sm text-slate-500 mt-0.5">Stale open projects, the pipeline by stage, and what was won in the last 30 days.</p>}
           </div>
-          <a href="/crm" className="text-sm text-slate-500 hover:text-slate-700 underline">
-            ← Back to Pipeline
-          </a>
+          {!embedded && (
+            <a href="/crm" className="text-sm text-slate-500 hover:text-slate-700 underline">
+              ← Back to Pipeline
+            </a>
+          )}
         </div>
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div className={embedded ? '' : 'flex-1 overflow-y-auto px-6 py-4'}>
         <div className="max-w-6xl mx-auto space-y-6">
 
           {/* Section 1: Needs Attention */}

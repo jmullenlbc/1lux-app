@@ -580,17 +580,17 @@ export default function Sidebar({ user }) {
           />
           {expanded && crmOpen && (
             <div className="mt-0.5 space-y-0.5 ml-1">
+              {/* Order set by Mike 10-6. Budget page visitors and the Brief are tabs on the Sales dashboard now. */}
               <SubNavItem href="/sales/desk"     icon={<IconTask />}            label="My Desk"     expanded={expanded} badge={deskCount} active={startsWith('/sales/desk')} />
-              <SubNavItem href="/clients"        icon={<IconClientUsers />}     label="Clients"     expanded={expanded} active={startsWith('/clients')} />
-              <SubNavItem href="/crm"            icon={<IconPipeline />}        label="Pipeline"    expanded={expanded} active={at('/crm') || (crmRelated && !startsWith('/crm/dashboards') && !startsWith('/crm/notes') && !startsWith('/clients') && !startsWith('/sales') && !startsWith('/market-intel') && !startsWith('/dashboards'))} />
               <SubNavItem href="/dashboards/sales" icon={<IconBarChart />}      label="Dashboard"   expanded={expanded} active={startsWith('/dashboards/sales')} />
+              <SubNavItem href="/crm"            icon={<IconPipeline />}        label="Pipeline"    expanded={expanded} active={at('/crm') || (crmRelated && !startsWith('/crm/dashboards') && !startsWith('/crm/notes') && !startsWith('/clients') && !startsWith('/sales') && !startsWith('/market-intel') && !startsWith('/dashboards'))} />
               <SubNavItem href="/dashboards/meeting" icon={<IconHandshake />}   label="Weekly Meeting" expanded={expanded} active={startsWith('/dashboards/meeting')} />
+              <SubNavItem href="/clients"        icon={<IconClientUsers />}     label="Clients"     expanded={expanded} active={startsWith('/clients')} />
               <SubNavItem href="/crm/notes"      icon={<IconNotes />}           label="Sales Notes" expanded={expanded} badge={waitingDrafts} active={startsWith('/crm/notes')} />
-              <SubNavItem href="/sales/proposals"  icon={<IconDoc />}      label="Proposals"           expanded={expanded} active={startsWith('/sales/proposals')} />
               <SubNavItem href="/market-intel"      icon={<IconNews />}      label="Market Intelligence" expanded={expanded} active={startsWith('/market-intel')} />
               <SubNavItem href="/sales/activity"   icon={<IconBarChart />}  label="Sales Activity"      expanded={expanded} active={startsWith('/sales/activity')} />
-              <SubNavItem href="/sales/visitors"   icon={<IconClientUsers />} label="Budget Page Visitors" expanded={expanded} active={startsWith('/sales/visitors')} />
               <SubNavItem href="/sales/automation" icon={<IconSparkles />}  label="Sales Automation"    expanded={expanded} active={startsWith('/sales/automation')} />
+              <SubNavItem href="/sales/proposals"  icon={<IconDoc />}      label="Proposals"           expanded={expanded} active={startsWith('/sales/proposals')} />
             </div>
           )}
         </div>

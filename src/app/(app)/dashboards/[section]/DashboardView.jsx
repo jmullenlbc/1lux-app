@@ -1,6 +1,5 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import Chart from '@/components/dashboards/Chart';
 import CalibrationTable from '@/components/dashboards/CalibrationTable';
@@ -13,7 +12,7 @@ import { AGG_OPS, MATH_OPS, AGG_LABEL, MATH_LABEL } from '@/lib/dashboards/formu
 const AGG_OPTS  = AGG_OPS.map(k => ({ k, label: AGG_LABEL[k] }));
 const MATH_OPTS = MATH_OPS.map(k => ({ k, label: MATH_LABEL[k] }));
 
-export default function DashboardView({ section, sectionLabel }) {
+export default function DashboardView({ section, sectionLabel, tabs = null }) {
   const [dash, setDash]       = useState(null);     // active dashboard { id, name, ownerUserId, widgets[] }
   const [meta, setMeta]       = useState({ isPersonal: false, isAdmin: false, shared: [], hiddenCards: [] });
   const [series, setSeries]   = useState({});       // widgetId -> { chartType, series }
@@ -188,10 +187,11 @@ export default function DashboardView({ section, sectionLabel }) {
   }
 
   // ── Render ───────────────────────────────────────────────────────────────────
-  if (loading) return <div className="p-8 text-sm text-slate-400">Loading…</div>;
+  if (loading) return <div className="p-6">{tabs}<div className="p-2 text-sm text-slate-400">Loading…</div></div>;
 
   return (
     <div className="p-6">
+      {tabs}
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div>
           <p className="text-[10px] font-bold text-orange-500 uppercase tracking-wider">{sectionLabel}</p>
@@ -200,9 +200,7 @@ export default function DashboardView({ section, sectionLabel }) {
           </h1>
         </div>
         <div className="flex items-center gap-2">
-          {section === 'SALES' && <Link href="/sales/visitors" className="px-3 py-1.5 rounded-lg border border-orange-200 bg-orange-50 text-orange-700 text-xs font-semibold hover:bg-orange-100">Budget page visitors</Link>}
-          {/* Maram 9-17: the Brief lives here now, beside + Widget, not on the CRM boards. */}
-          {section === 'SALES' && <Link href="/crm/brief" className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50" title="The written pipeline brief">Brief →</Link>}
+          {/* Budget page visitors and the Brief are tabs above (Mike 10-6); only + Widget and Share stay buttons. */}
           {dash && <Button size="sm" variant="amber" onClick={() => setEditor({ spec: newSpec() })} className="text-xs font-semibold bg-orange-500 hover:bg-orange-600">+ Widget</Button>}
           {dash && <Button size="sm" variant="secondary" onClick={openShare} className="text-xs font-semibold shadow-none">Share</Button>}
           {dash && meta.hiddenCards?.length > 0 && (
