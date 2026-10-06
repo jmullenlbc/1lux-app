@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Mass edit and archive for Sales Notes] - October 6, 2026 (DEPLOYED PENDING) - no migration
+## [Mass edit and archive for Sales Notes] - October 6, 2026 (DEPLOYED 7584b9b) - no migration
 
 - **Select button** on the Sales Notes agenda (`/crm/notes`) turns on checkboxes; rows toggle instead of opening. "All shown" / "None" pick across the current filter and search.
 - **Bulk bar**: Archive (amber confirm, bot follow-ups held), Publish, Back to draft, Set type, Add owner, Link company. Archived notes leave the list; everything else updates in place.
