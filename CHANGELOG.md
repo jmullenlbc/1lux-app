@@ -10,6 +10,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 - **"Run Poll Now" is now "Refresh sources"** on the Sources tab (Mike 10-6). It reads every active news source right now and files what it finds as signals; the scheduled run (`/api/cron/market-intel`) still waits on Sean.
 - **Bug fix:** `POST /api/market-intel/poll` tested a variable it never set, so every click from the screen failed before polling. Reads the session into the right name now.
 - **Both Market Intelligence pages are centered** like every other page (`mx-auto` was missing).
+- **All staff can press Refresh sources** (Mike 10-6), not only admins; client viewers still cannot. (DEPLOYED PENDING4)
 - Files: `src/app/api/market-intel/poll/route.js`, `src/app/(app)/market-intel/page.jsx`, `src/app/(app)/market-intel/sources/page.jsx`.
 
 ## [Mass edit and archive for Sales Notes] - October 6, 2026 (DEPLOYED 7584b9b) - no migration
