@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Tabs on every Sales module with sibling views] - October 6, 2026 (DEPLOYED) - no migration
+## [Tabs on every Sales module with sibling views] - October 6, 2026 (DEPLOYED e9914e8) - no migration
 
 - **One tab strip** (`src/components/ui/SectionTabs.jsx`, Sales Automation look) for every Sales module that has more than one view (Mike 10-6).
 - **Weekly Meeting** is a tab on the Sales dashboard (Dashboard / Weekly Meeting / Budget page visitors / Morning Brief); sidebar row removed; `/dashboards/meeting` redirects to `/dashboards/sales?tab=meeting`. `MeetingDashboard` takes `embedded`.

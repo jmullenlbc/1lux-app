@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-06 (newest) - Mike's Claude - **DEPLOYED**, no migration: tabs on every Sales module with sibling views
+### 2026-10-06 (newest) - Mike's Claude - **DEPLOYED e9914e8**, no migration: tabs on every Sales module with sibling views
 Shared `components/ui/SectionTabs.jsx`. Weekly Meeting is a Sales dashboard tab (`/dashboards/meeting` redirects, sidebar row gone). Pipeline / Contacts / Check-ins tabs; Market Intelligence / Sources tabs; Proposals / Templates tabs (`/sales/proposals/templates` redirects); My Desk tab bar same look. verify --full passed.
 
 ### 2026-10-06 - Mike's Claude - **DEPLOYED 75222c0**, no migration: Sales sidebar reordered, dashboard tabs
