@@ -462,12 +462,21 @@ function DateTile({ date, tone }) {
   );
 }
 
-function NoteRow({ note, tone, active, onClick }) {
+// selectable: the list is in pick mode (Mike 10-6, mass edit or archive). The
+// row then toggles its checkbox instead of opening the note.
+function NoteRow({ note, tone, active, onClick, selectable = false, checked = false, onToggle }) {
   const meta = ACTIVITY_META[note.activityType];
   const company = note.clients?.map(nc => nc.client?.name).filter(Boolean).join(', ');
   return (
-    <button onClick={onClick}
-      className={`w-full text-left flex gap-3 px-3 py-2.5 rounded-lg transition-colors ${active ? 'bg-amber-50 ring-1 ring-amber-300' : 'hover:bg-white'}`}>
+    <button onClick={selectable ? onToggle : onClick}
+      className={`w-full text-left flex gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+        selectable && checked ? 'bg-amber-50 ring-1 ring-amber-300' : active && !selectable ? 'bg-amber-50 ring-1 ring-amber-300' : 'hover:bg-white'}`}>
+      {selectable && (
+        <span className={`mt-3 w-4 h-4 shrink-0 rounded border flex items-center justify-center text-[10px] ${
+          checked ? 'bg-amber-500 border-amber-500 text-white' : 'bg-white border-slate-300'}`} aria-hidden="true">
+          {checked ? '✓' : ''}
+        </span>
+      )}
       <DateTile date={note.meetingDate} tone={tone} />
       <div className="min-w-0 flex-1">
         <div className="text-sm font-medium text-slate-800 truncate">
@@ -1246,6 +1255,57 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
   // Phones show one side at a time: the agenda, or the meeting picked from it.
   const [phoneNote, setPhoneNote] = useState(false);
 
+  // Pick mode (Mike 10-6): tick notes in the list, then archive or edit them all at once.
+  const [selectMode,  setSelectMode]  = useState(false);
+  const [picked,      setPicked]      = useState(() => new Set());
+  const [bulkBusy,    setBulkBusy]    = useState(false);
+  const [bulkMsg,     setBulkMsg]     = useState('');
+  const [bulkArchive, setBulkArchive] = useState(false);
+  const [users,       setUsers]       = useState([]);
+  const shownIds = filtered.map(n => n.id);
+  const pickedShown = shownIds.filter(id => picked.has(id));
+
+  useEffect(() => {
+    if (!selectMode || users.length) return;
+    fetch('/api/users').then(r => r.json()).then(d => setUsers((d.users || []).filter(u => u.role !== 'CLIENT_VIEWER'))).catch(() => {});
+  }, [selectMode, users.length]);
+
+  function togglePick(id) {
+    setPicked(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
+  }
+  function leaveSelectMode() { setSelectMode(false); setPicked(new Set()); setBulkMsg(''); }
+
+  async function runBulk(change, label) {
+    if (!pickedShown.length || bulkBusy) return;
+    setBulkBusy(true); setBulkMsg('');
+    try {
+      const res = await fetch('/api/crm/notes/bulk', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: pickedShown, ...change }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setBulkMsg(data.error || 'Could not make that change.'); return; }
+      const updated = data.updated || [];
+      const byId = new Map(updated.map(n => [n.id, n]));
+      if (change.archived === true) {
+        const next = notes.filter(n => !byId.has(n.id));
+        setNotes(next);
+        if (byId.has(selected)) setSelected(firstInAgenda(next));
+      } else {
+        setNotes(prev => prev.map(n => byId.get(n.id) || n));
+      }
+      if (change.publish !== undefined) draftsChanged();
+      const failed = data.failed?.length || 0;
+      setBulkMsg(`${label} ${updated.length} note${updated.length === 1 ? '' : 's'}.${failed ? ` ${failed} could not be changed.` : ''}`);
+      setPicked(new Set());
+      setBulkArchive(false);
+    } catch {
+      setBulkMsg('Could not reach the server. Nothing was changed.');
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
   function handleCreated(note) {
     setNotes(prev => [note, ...prev]);
     setSelected(note.id);
@@ -1276,12 +1336,23 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
                 {groups.upcoming.length} coming up · {groups.needsNotes.length} need notes
               </p>
             </div>
-            <button
-              onClick={() => setNewOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500 hover:bg-amber-400 text-white transition-colors"
-            >
-              <IconPlus /> New note
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => (selectMode ? leaveSelectMode() : setSelectMode(true))}
+                title={selectMode ? 'Stop picking notes' : 'Pick several notes to archive or edit at once'}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                  selectMode ? 'bg-slate-800 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900'}`}
+              >
+                {selectMode ? 'Done' : 'Select'}
+              </button>
+              <button
+                onClick={() => setNewOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500 hover:bg-amber-400 text-white transition-colors"
+              >
+                <IconPlus /> New note
+              </button>
+            </div>
           </div>
           <div className="relative mb-2">
             <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500"><IconSearch /></span>
@@ -1305,6 +1376,46 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
               </button>
             ))}
           </div>
+          {selectMode && (
+            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-slate-700 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-medium">{pickedShown.length} picked</span>
+                <span className="flex gap-2">
+                  <button type="button" onClick={() => setPicked(new Set(shownIds))} className="text-amber-700 hover:underline">All shown</button>
+                  <button type="button" onClick={() => setPicked(new Set())} className="text-slate-500 hover:underline">None</button>
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                <button type="button" disabled={!pickedShown.length || bulkBusy} onClick={() => setBulkArchive(true)}
+                  className="px-2 py-1 rounded bg-white border border-amber-300 text-amber-800 font-medium hover:bg-amber-100 disabled:opacity-50">Archive</button>
+                <button type="button" disabled={!pickedShown.length || bulkBusy} onClick={() => runBulk({ publish: true }, 'Published')}
+                  className="px-2 py-1 rounded bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-50">Publish</button>
+                <button type="button" disabled={!pickedShown.length || bulkBusy} onClick={() => runBulk({ publish: false }, 'Back to draft:')}
+                  className="px-2 py-1 rounded bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-50">Back to draft</button>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                <select value="" disabled={!pickedShown.length || bulkBusy}
+                  onChange={e => { const v = e.target.value; if (v) runBulk({ activityType: v }, 'Set the type on'); }}
+                  className="bg-white border border-slate-200 rounded px-1.5 py-1 text-xs text-slate-700 disabled:opacity-50">
+                  <option value="">Set type…</option>
+                  {Object.entries(ACTIVITY_META).filter(([, m]) => !m.legacy).map(([k, m]) => <option key={k} value={k}>{m.emoji} {m.label}</option>)}
+                </select>
+                <select value="" disabled={!pickedShown.length || bulkBusy}
+                  onChange={e => { const v = e.target.value; if (v) runBulk({ addOwnerIds: [v] }, 'Added an owner to'); }}
+                  className="bg-white border border-slate-200 rounded px-1.5 py-1 text-xs text-slate-700 disabled:opacity-50">
+                  <option value="">Add owner…</option>
+                  {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                </select>
+                <select value="" disabled={!pickedShown.length || bulkBusy}
+                  onChange={e => { const v = e.target.value; if (v) runBulk({ addClientIds: [v] }, 'Linked a company to'); }}
+                  className="bg-white border border-slate-200 rounded px-1.5 py-1 text-xs text-slate-700 disabled:opacity-50 max-w-[11rem]">
+                  <option value="">Link company…</option>
+                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              {bulkMsg && <p className="text-[11px] text-slate-600">{bulkMsg}</p>}
+            </div>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto px-2 py-2">
@@ -1328,7 +1439,8 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
                 </button>
                 {hint && !folded && <p className="px-2 pb-1 text-[11px] text-slate-400">{hint}</p>}
                 {!folded && rows.map(n => (
-                  <NoteRow key={n.id} note={n} tone={key} active={n.id === selected} onClick={() => { setSelected(n.id); setPhoneNote(true); }} />
+                  <NoteRow key={n.id} note={n} tone={key} active={n.id === selected} onClick={() => { setSelected(n.id); setPhoneNote(true); }}
+                    selectable={selectMode} checked={picked.has(n.id)} onToggle={() => togglePick(n.id)} />
                 ))}
               </section>
             );
@@ -1361,6 +1473,15 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
       </div>
 
       <NewNoteModal open={newOpen} clients={clients} onClose={() => setNewOpen(false)} onCreated={handleCreated} />
+      <ConfirmArchiveModal
+        open={bulkArchive}
+        title={`Archive ${pickedShown.length} note${pickedShown.length === 1 ? '' : 's'}?`}
+        body="Nothing is deleted. Any follow-up emails these notes queued but have not sent yet are held. Restore a note from the Archive page to bring it back."
+        busy={bulkBusy}
+        onCancel={() => setBulkArchive(false)}
+        onConfirm={() => runBulk({ archived: true }, 'Archived')}
+        confirmLabel="Archive them"
+      />
     </div>
   );
 }
