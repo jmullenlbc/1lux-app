@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-06 (newest) - Mike's Claude - **DEPLOYED PENDING3**, no migration: Market Intel "Refresh sources" button fixed + pages centered
+### 2026-10-06 (newest) - Mike's Claude - **DEPLOYED 1509020**, no migration: Market Intel "Refresh sources" button fixed + pages centered
 `POST /api/market-intel/poll` read the session into `session` but tested `user`, so the button 500'd for everyone signed in. Fixed; button relabeled "Refresh sources"; both Market Intel pages get `mx-auto`. Scheduled cron still waits on Sean. verify --full passed.
 
 ### 2026-10-06 - Mike's Claude - **DEPLOYED 7584b9b**, no migration: mass edit and archive for Sales Notes

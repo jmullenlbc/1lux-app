@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Market Intelligence: Refresh sources button fixed, pages centered] - October 6, 2026 (DEPLOYED PENDING3) - no migration
+## [Market Intelligence: Refresh sources button fixed, pages centered] - October 6, 2026 (DEPLOYED 1509020) - no migration
 
 - **"Run Poll Now" is now "Refresh sources"** on the Sources tab (Mike 10-6). It reads every active news source right now and files what it finds as signals; the scheduled run (`/api/cron/market-intel`) still waits on Sean.
 - **Bug fix:** `POST /api/market-intel/poll` tested a variable it never set, so every click from the screen failed before polling. Reads the session into the right name now.
