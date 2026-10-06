@@ -24,7 +24,7 @@ const MAX_CHARS = 1500;
 // meeting, never the day ("Coffee follow-up", not "Great meeting today").
 const MEETING_WORDS = {
   COFFEE: 'Coffee', HAPPY_HOUR: 'Happy hour', GOLF: 'Golf', SITE_VISIT: 'Site visit',
-  CALL: 'Call', EVENT: 'Event',
+  CALL: 'Call', TEXT: 'Text', EVENT: 'Event',
 };
 
 export function meetingWord(activityType, title = '') {

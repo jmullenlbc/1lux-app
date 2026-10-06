@@ -51,16 +51,20 @@ function timeKey(dateVal, bucket) {
   return { key: `${y}-${pad(m + 1)}`, label: d.toLocaleString('en-US', { month: 'short', year: 'numeric' }), sort: y * 100 + m };
 }
 
-// ── Date windows (Year-to-Date / Custom range) ───────────────────────────────
+// ── Date windows (Year-to-Date / Custom range / next N months) ───────────────
+// Forward-looking windows, in months, keyed by the timeBucket value.
+export const NEXT_MONTHS = { next12: 12, next6: 6 };
 function dateWindow(bucket, spec) {
   if (bucket === 'ytd') {
     const now = new Date();
     return { start: new Date(now.getFullYear(), 0, 1), end: now };
   }
-  if (bucket === 'next12') {
-    // This month plus the eleven after it — Maram's "next 12 months" forecast.
+  if (NEXT_MONTHS[bucket]) {
+    // This month plus the ones after it: next12 is Maram's "next 12 months"
+    // forecast, next6 is Jason's "won, not yet ordered" window (Oct 5 call).
+    const n = NEXT_MONTHS[bucket];
     const now = new Date();
-    return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: new Date(now.getFullYear(), now.getMonth() + 12, 0, 23, 59, 59) };
+    return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: new Date(now.getFullYear(), now.getMonth() + n, 0, 23, 59, 59) };
   }
   // custom
   return {
@@ -91,7 +95,7 @@ export function runFieldWidget(widget, rows, section, globalFilters = []) {
   // Year-to-Date / Custom-Range are date-window modes: restrict to the window,
   // then bucket by month. (Plain week/month/quarter/year just bucket.)
   const bucket = spec.timeBucket || 'month';
-  const windowed = bucket === 'ytd' || bucket === 'custom' || bucket === 'next12';
+  const windowed = bucket === 'ytd' || bucket === 'custom' || !!NEXT_MONTHS[bucket];
   const win = (dim?.type === 'date' && windowed) ? dateWindow(bucket, spec) : null;
   if (win) {
     filtered = filtered.filter(r => {
@@ -108,8 +112,8 @@ export function runFieldWidget(widget, rows, section, globalFilters = []) {
   const groups = new Map(); // key -> { label, sort, rows }
   // A forecast shows every month in the window, $0 ones included, so a gap
   // reads as "nothing ordering then" rather than a missing bar.
-  if (win && bucket === 'next12') {
-    for (let i = 0; i < 12; i++) {
+  if (win && NEXT_MONTHS[bucket]) {
+    for (let i = 0; i < NEXT_MONTHS[bucket]; i++) {
       const g = timeKey(new Date(win.start.getFullYear(), win.start.getMonth() + i, 15), 'month');
       groups.set(g.key, { label: g.label, sort: g.sort, rows: [] });
     }

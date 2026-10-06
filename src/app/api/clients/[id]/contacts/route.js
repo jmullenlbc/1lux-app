@@ -84,6 +84,7 @@ export async function POST(request, { params }) {
       cellPhone:  cellPhone   || null,
       linkedInUrl: linkedInUrl || null,
       department: cleanDepartment(department),
+      createdById: user.id,
     },
     include: PROJECT_LINK_INCLUDE,
   });

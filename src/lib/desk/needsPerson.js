@@ -53,11 +53,11 @@ export function nameFromEmail(email) {
 
 const TYPE_WORDS = {
   COFFEE: 'Coffee', MEAL: 'Meal', GOLF: 'Golf', HAPPY_HOUR: 'Happy hour', SITE_VISIT: 'Site visit',
-  CALL: 'Call', EVENT: 'Event', TRAVEL: 'Trip', OTHER: 'Meeting',
+  CALL: 'Call', TEXT: 'Text', EVENT: 'Event', TRAVEL: 'Trip', OTHER: 'Meeting',
 };
 
 /** The Quick Note's picks, phone first. */
-export const QUICK_NOTE_TYPES = ['COFFEE', 'MEAL', 'SITE_VISIT', 'CALL', 'HAPPY_HOUR', 'GOLF', 'EVENT', 'OTHER']
+export const QUICK_NOTE_TYPES = ['COFFEE', 'MEAL', 'SITE_VISIT', 'CALL', 'TEXT', 'HAPPY_HOUR', 'GOLF', 'EVENT', 'OTHER']
   .map(key => ({ key, label: TYPE_WORDS[key] }));
 
 /** "Coffee with Jane Doe and Sam Lee". */

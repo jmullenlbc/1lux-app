@@ -104,7 +104,7 @@ export function invalidateRulesCache() {
 
 // ── Claude Haiku classifier ────────────────────────────────────────────────────
 
-const VALID_TYPES = ['COFFEE','MEAL','GOLF','HAPPY_HOUR','SITE_VISIT','TRAVEL','CALL','EVENT','OTHER','SKIP',
+const VALID_TYPES = ['COFFEE','MEAL','GOLF','HAPPY_HOUR','SITE_VISIT','TRAVEL','CALL','TEXT','EVENT','OTHER','SKIP',
   'LUNCH'];  // LUNCH kept so an older answer still parses; normalized to MEAL below
 
 async function classifyWithAI(event) {
@@ -140,6 +140,7 @@ HAPPY_HOUR - drinks, happy hour, cocktail event, brewery/bar visit
 SITE_VISIT - visiting a job site, project site, building tour
 TRAVEL - a day spent travelling for work: a flight, a trip to another city to see clients
 CALL - phone/video call that's still external relationship-building
+TEXT - a text message (SMS) conversation with a client, never in person
 EVENT - networking event, conference, awards, gala, mixer, tournament (not golf)
 OTHER - in-person meeting that doesn't fit above categories
 SKIP - internal-only meeting, all-hands, weekly standup, virtual meeting with no real relationship context

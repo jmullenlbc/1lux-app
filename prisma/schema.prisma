@@ -83,6 +83,7 @@ model User {
   shipSchedulePushes         ShipSchedulePush[]           @relation("ShipPusher")
   ownedClients               Client[]                     @relation("ClientOwner")
   ownedContacts              Contact[]                    @relation("ContactOwner")
+  createdContacts            Contact[]                    @relation("ContactCreator")
   alerts                     UserAlert[]
   // Sales Bot
   homeBaseCity               String?
@@ -132,6 +133,10 @@ model User {
   accessChangesMade          UserAccessEvent[]            @relation("UserAccessEventActor")
   archivedDrafts             ConceptualDraft[]            @relation("DraftArchiver")
   decidedDuplicateReviews    DuplicateReview[]            @relation("ReviewDecider")
+  introductionsMade          Introduction[]               @relation("IntroducedByUser")
+  confirmedIntroductions     Introduction[]               @relation("IntroductionConfirmer")
+  emailTagsApplied           EmailMessageTag[]            @relation("EmailTagger")
+  decidedFieldSuggestions    ContactFieldSuggestion[]     @relation("FieldSuggestionDecider")
   mcpApiKeys                 McpApiKey[]
 }
 
@@ -328,6 +333,7 @@ model Client {
   intakeSubmissions    ConceptualSubmission[]
   intakeDrafts         ConceptualDraft[]       @relation("DraftClient")
   duplicateReviews     DuplicateReview[]       @relation("ReviewExistingClient")
+  introductions        Introduction[]
   tagLinks             ClientTagLink[]
 
   // Projects where this company holds a seat on the team but is not the client
@@ -488,6 +494,11 @@ model Contact {
   // with no company still has someone whose desk their check-in email lands on.
   ownerId             String?
   owner               User?               @relation("ContactOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  // Who added this person (migration 0119, Mike 10-5: "we need to know who
+  // adds them"). Null for people added before 0119 and for web visitors.
+  // Sales Activity "New people" splits by this.
+  createdById         String?
+  createdBy           User?               @relation("ContactCreator", fields: [createdById], references: [id], onDelete: SetNull)
   name                String
   firstName           String? // parsed from name on save; editable
   lastName            String?
@@ -522,6 +533,9 @@ model Contact {
   intakeDrafts        ConceptualDraft[]       @relation("DraftContact")
   intakeSubmissions   ConceptualSubmission[]  @relation("SubmissionContact")
   duplicateReviews    DuplicateReview[]       @relation("ReviewExistingContact")
+  introducedIn        Introduction[]          @relation("IntroducedContact")
+  introductionsMade   Introduction[]          @relation("IntroducedByContact")
+  fieldSuggestions    ContactFieldSuggestion[]
   emailLinks          EmailContactLink[]
   noteLinks           NoteContact[]
   employment          ContactEmployment[]
@@ -530,6 +544,7 @@ model Contact {
 
   @@index([ownerId])
   @@index([clientId])
+  @@index([createdById])
   @@map("ClientContact")
 }
 
@@ -2481,6 +2496,9 @@ model EmailMessage {
   countsAsContact  Boolean            @default(false) // true only when all four above are false
   contactLinks     EmailContactLink[]
   fulfilledActions NoteAction[]       @relation("NoteActionFulfilledBy")
+  introductions    Introduction[]
+  messageTags      EmailMessageTag[]
+  fieldSuggestions ContactFieldSuggestion[]
 
   @@index([projectId])
   @@index([conversationId])
@@ -3789,4 +3807,88 @@ model ContactPersonalFact {
 
   @@index([contactId, archivedAt])
   @@index([sourceNoteId])
+}
+
+// ── Sync pre-build (0118). Built before the Microsoft Graph feed exists so the
+// day a feed arrives it just works (Mike and Maram, 2026-10-05).
+
+// Someone we do not know, on an email or an invite with a known contact, whose
+// address shares a domain with a company we work with. Confirming makes the
+// Contact (G2). Archive-only.
+model Introduction {
+  id                    String    @id @default(cuid())
+  kind                  String // email | calendar
+  introducedContactId   String?
+  introducedEmail       String
+  introducedName        String?
+  introducedByContactId String?
+  introducedByUserId    String?
+  clientId              String?
+  sourceMessageId       String?
+  sourceCalendarRef     String?
+  detectedAt            DateTime  @default(now())
+  status                String    @default("NEW") // NEW | CONFIRMED | DISMISSED
+  confirmedById         String?
+  confirmedAt           DateTime?
+  archivedAt            DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  introducedContact   Contact?      @relation("IntroducedContact", fields: [introducedContactId], references: [id], onDelete: SetNull)
+  introducedByContact Contact?      @relation("IntroducedByContact", fields: [introducedByContactId], references: [id], onDelete: SetNull)
+  introducedByUser    User?         @relation("IntroducedByUser", fields: [introducedByUserId], references: [id], onDelete: SetNull)
+  client              Client?       @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  sourceMessage       EmailMessage? @relation(fields: [sourceMessageId], references: [id], onDelete: SetNull)
+  confirmedBy         User?         @relation("IntroductionConfirmer", fields: [confirmedById], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([introducedEmail])
+  @@index([sourceMessageId])
+}
+
+// Email tags as rows. EmailMessage.tags (a JSON string) stays as it is; new
+// tags are EmailMessageTag rows so they can be queried.
+model EmailTag {
+  key       String   @id // BLOCKER, ISSUE, DECISION_NEEDED, GOOD_NEWS, FOLLOW_UP
+  label     String
+  color     String?
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  messages  EmailMessageTag[]
+}
+
+model EmailMessageTag {
+  id         String       @id @default(cuid())
+  messageId  String
+  message    EmailMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  tagKey     String
+  tag        EmailTag     @relation(fields: [tagKey], references: [key])
+  taggedById String?
+  taggedBy   User?        @relation("EmailTagger", fields: [taggedById], references: [id], onDelete: SetNull)
+  createdAt  DateTime     @default(now())
+
+  @@unique([messageId, tagKey])
+  @@index([tagKey])
+}
+
+// An email signature said something different from what we have on a person.
+// Blanks are filled straight away; a difference waits here for a person.
+model ContactFieldSuggestion {
+  id              String    @id @default(cuid())
+  contactId       String
+  contact         Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  field           String // phone | mobile | title | company | linkedInUrl | website
+  currentValue    String?
+  suggestedValue  String
+  sourceMessageId String?
+  sourceMessage   EmailMessage? @relation(fields: [sourceMessageId], references: [id], onDelete: SetNull)
+  status          String    @default("PENDING") // PENDING | ACCEPTED | REJECTED
+  decidedById     String?
+  decidedBy       User?     @relation("FieldSuggestionDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt       DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@unique([contactId, field, suggestedValue])
+  @@index([status])
 }

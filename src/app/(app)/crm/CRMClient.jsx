@@ -524,11 +524,18 @@ export default function CRMClient({ initialProjects, users, newRequests = [] }) 
     if (!id) return;
     const project = projects.find(p => p.id === id);
     if (!project || project[stageField] === newStage) return;
-    setProjects(prev => prev.map(p => p.id === id ? { ...p, [stageField]: newStage } : p));
+    // Proposal Sent (Design board only) is the same fact as proposalSentDate on
+    // the project. Dropping a card into that column stamps today on a blank
+    // date; dragging it back out leaves the date alone.
+    const patch = { [stageField]: newStage };
+    if (pipeline === 'DESIGN' && newStage === 'PROPOSAL_SENT' && !project.proposalSentDate) {
+      patch.proposalSentDate = new Date().toISOString().slice(0, 10);
+    }
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, ...patch } : p));
     try {
       const res = await fetch(`/api/projects/${id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [stageField]: newStage }),
+        body: JSON.stringify(patch),
       });
       if (!res.ok) throw new Error('failed');
     } catch {

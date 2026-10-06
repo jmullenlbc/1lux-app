@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import Button from '@/components/ui/Button';
 import Chart from '@/components/dashboards/Chart';
 import CalibrationTable from '@/components/dashboards/CalibrationTable';
 import VerificationCard from '@/components/dashboards/VerificationCard';
@@ -202,8 +203,8 @@ export default function DashboardView({ section, sectionLabel }) {
           {section === 'SALES' && <Link href="/sales/visitors" className="px-3 py-1.5 rounded-lg border border-orange-200 bg-orange-50 text-orange-700 text-xs font-semibold hover:bg-orange-100">Budget page visitors</Link>}
           {/* Maram 9-17: the Brief lives here now, beside + Widget, not on the CRM boards. */}
           {section === 'SALES' && <Link href="/crm/brief" className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50" title="The written pipeline brief">Brief →</Link>}
-          {dash && <button onClick={() => setEditor({ spec: newSpec() })} className="px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-semibold hover:bg-orange-600">+ Widget</button>}
-          {dash && <button onClick={openShare} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50">Share</button>}
+          {dash && <Button size="sm" variant="amber" onClick={() => setEditor({ spec: newSpec() })} className="text-xs font-semibold bg-orange-500 hover:bg-orange-600">+ Widget</Button>}
+          {dash && <Button size="sm" variant="secondary" onClick={openShare} className="text-xs font-semibold shadow-none">Share</Button>}
           {dash && meta.hiddenCards?.length > 0 && (
             <select value="" onChange={e => putBack(e.target.value)} title="Cards that were taken off this dashboard"
               className="text-xs rounded-lg border border-slate-200 px-2 py-1.5 text-slate-500 hover:bg-slate-50">
@@ -211,7 +212,7 @@ export default function DashboardView({ section, sectionLabel }) {
               {meta.hiddenCards.map(c => <option key={c.key} value={c.key}>{c.name}</option>)}
             </select>
           )}
-          {dash?.ownerUserId && <button onClick={resetToDefault} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-500 hover:bg-slate-50">Reset to default</button>}
+          {dash?.ownerUserId && <Button size="sm" variant="secondary" onClick={resetToDefault} className="text-xs font-semibold text-slate-500 shadow-none">Reset to default</Button>}
         </div>
       </div>
 
@@ -226,7 +227,7 @@ export default function DashboardView({ section, sectionLabel }) {
             </select>
           ))}
           {filters.length > 0 && (
-            <button onClick={() => setFilters([])} className="text-xs text-slate-400 hover:text-slate-700 underline">Clear all</button>
+            <Button size="sm" variant="ghost" onClick={() => setFilters([])} className="text-xs text-slate-400 hover:text-slate-700 underline px-1.5 py-0.5">Clear all</Button>
           )}
         </div>
       )}
@@ -235,7 +236,7 @@ export default function DashboardView({ section, sectionLabel }) {
         <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center">
           <p className="text-sm text-slate-500 mb-3">No dashboard for {sectionLabel} yet.</p>
           {meta.isAdmin
-            ? <button onClick={createDefault} className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold">Create the default</button>
+            ? <Button size="md" variant="amber" onClick={createDefault} className="font-semibold bg-orange-500 hover:bg-orange-600">Create the default</Button>
             : <p className="text-xs text-slate-400">Ask an admin to set up the {sectionLabel} default.</p>}
         </div>
       ) : (
@@ -252,9 +253,9 @@ export default function DashboardView({ section, sectionLabel }) {
                 <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
                   <span className="text-xs font-bold text-slate-700 cursor-grab">⠿ {w.name}</span>
                   <div className="flex items-center gap-1">
-                    <button onClick={() => toggleWidth(w)} title="Half / full width" className="text-[10px] text-slate-400 hover:text-slate-700 px-1.5 py-0.5 rounded hover:bg-slate-100">{w.width === 'FULL' ? '◧' : '▭'}</button>
-                    <button onClick={() => setEditor({ widget: w, spec: specFromWidget(w) })} className="text-[10px] text-slate-400 hover:text-slate-700 px-1.5 py-0.5 rounded hover:bg-slate-100">Edit</button>
-                    <button onClick={() => deleteWidget(w)} className="text-[10px] text-slate-400 hover:text-red-600 px-1.5 py-0.5 rounded hover:bg-red-50">✕</button>
+                    <Button size="sm" variant="ghost" onClick={() => toggleWidth(w)} title="Half / full width" className={CARD_BTN}>{w.width === 'FULL' ? '◧' : '▭'}</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setEditor({ widget: w, spec: specFromWidget(w) })} className={CARD_BTN}>Edit</Button>
+                    <Button size="sm" variant="ghost" onClick={() => deleteWidget(w)} className={`${CARD_BTN} hover:text-red-600 hover:bg-red-50`}>✕</Button>
                   </div>
                 </div>
                 <div className="px-2 py-3">
@@ -282,6 +283,19 @@ export default function DashboardView({ section, sectionLabel }) {
 }
 
 // ── helpers ─────────────────────────────────────────────────────────────────
+// The tiny buttons on a widget card's title bar (same look as before, one component).
+const CARD_BTN = 'text-[10px] text-slate-400 hover:text-slate-700 px-1.5 py-0.5 rounded rounded-lg font-normal';
+// What each built-in Sales card (dataSpec.tpl) is for, shown in the editor.
+const TPL_DESCRIPTION = {
+  'procurement-open-80':               'Open jobs, next 12 months, 80 percent and up, by expected order month.',
+  'procurement-open-20':               'Open jobs, next 12 months, 20 percent and up, by expected order month.',
+  'procurement-open-won-20-cumulative':'Open and won jobs, next 12 months, 20 percent and up, as a running total.',
+  'procurement-won-not-ordered':       'Won jobs with no purchase order yet, expected to order in the next 6 months. A job counts as ordered once it has a shipment.',
+  'design-won-not-ordered':            'Design fees on won design jobs with no purchase order yet, next 6 months.',
+  'procurement-buyout-open':           'Open jobs sitting in Buyout, by client.',
+  'procurement-buyout-days':           'Average days a job spent in Buyout, by owner.',
+  'procurement-on-hold':               'Product and design fee revenue on jobs that are On Hold, by client.',
+};
 function newSpec() { return { name: '', terms: [{ field: '', agg: 'sum' }], op: 'single', groupBy: '', timeBucket: 'month', customStart: '', customEnd: '', chartType: 'BAR', width: 'HALF' }; }
 function specFromWidget(w) {
   let s = {}; try { s = typeof w.dataSpec === 'string' ? JSON.parse(w.dataSpec || '{}') : (w.dataSpec || {}); } catch {}
@@ -336,8 +350,8 @@ function WidgetEditor({ section, measures, dimensions, init, onSave, onClose }) 
           </div>
           {errorLine}
           <div className="flex justify-end gap-2 mt-5">
-            <button onClick={onClose} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-500">Cancel</button>
-            <button disabled={saving} onClick={save} className="px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-semibold disabled:opacity-40">{saving ? 'Saving…' : 'Save'}</button>
+            <Button size="sm" variant="secondary" onClick={onClose} className="text-xs font-semibold text-slate-500 shadow-none">Cancel</Button>
+            <Button size="sm" variant="amber" disabled={saving} onClick={save} className="text-xs font-semibold bg-orange-500 hover:bg-orange-600">{saving ? 'Saving…' : 'Save'}</Button>
           </div>
           <style jsx>{`.inp{ width:100%; border:1px solid #e2e8f0; border-radius:8px; padding:7px 9px; font-size:13px; outline:none; } .inp:focus{ border-color:#f59e0b; }`}</style>
         </div>
@@ -350,6 +364,7 @@ function WidgetEditor({ section, measures, dimensions, init, onSave, onClose }) 
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-5" onClick={e => e.stopPropagation()}>
         <h3 className="text-sm font-bold text-slate-800 mb-4">{init.widget ? 'Edit widget' : 'New widget'}</h3>
         {spec.legacy && <p className="text-xs text-slate-500 -mt-2 mb-4">This is an older chart. Save as it is to change only the title or width, or pick a measure below to rebuild it.</p>}
+        {spec.tpl && <p className="text-xs text-slate-500 -mt-2 mb-4">Built-in Sales card. {TPL_DESCRIPTION[spec.tpl] || 'It arrives on every Sales dashboard by itself.'} You can change anything here and it keeps its place.</p>}
         <div className="space-y-3">
           <Field label="Title"><input value={spec.name} onChange={e => set('name', e.target.value)} placeholder="e.g. Product $ by client" className="inp" /></Field>
 
@@ -378,7 +393,7 @@ function WidgetEditor({ section, measures, dimensions, init, onSave, onClose }) 
             <select value={spec.groupBy} onChange={e => set('groupBy', e.target.value)} className="inp"><option value="">Single total</option>{dimensions.map(d => <option key={d.key} value={d.key}>{d.label}</option>)}</select>
           </Field>
           {dim?.type === 'date' && (
-            <Field label="Time bucket"><select value={spec.timeBucket} onChange={e => set('timeBucket', e.target.value)} className="inp"><option value="week">Week</option><option value="month">Month</option><option value="quarter">Quarter</option><option value="year">Annual</option><option value="ytd">Year to Date</option><option value="next12">Next 12 Months</option><option value="custom">Custom Range</option></select></Field>
+            <Field label="Time bucket"><select value={spec.timeBucket} onChange={e => set('timeBucket', e.target.value)} className="inp"><option value="week">Week</option><option value="month">Month</option><option value="quarter">Quarter</option><option value="year">Annual</option><option value="ytd">Year to Date</option><option value="next6">Next 6 Months</option><option value="next12">Next 12 Months</option><option value="custom">Custom Range</option></select></Field>
           )}
           {dim?.type === 'date' && (
             <label className="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" checked={!!spec.cumulative} onChange={e => set('cumulative', e.target.checked)} /> Running total (each bar adds up everything before it)</label>
@@ -398,8 +413,8 @@ function WidgetEditor({ section, measures, dimensions, init, onSave, onClose }) 
 
         {errorLine}
         <div className="flex justify-end gap-2 mt-5">
-          <button onClick={onClose} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-500">Cancel</button>
-          <button disabled={!valid || saving} onClick={save} className="px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-semibold disabled:opacity-40">{saving ? 'Saving…' : 'Save'}</button>
+          <Button size="sm" variant="secondary" onClick={onClose} className="text-xs font-semibold text-slate-500 shadow-none">Cancel</Button>
+          <Button size="sm" variant="amber" disabled={!valid || saving} onClick={save} className="text-xs font-semibold bg-orange-500 hover:bg-orange-600">{saving ? 'Saving…' : 'Save'}</Button>
         </div>
       </div>
       <style jsx>{`.inp{ width:100%; border:1px solid #e2e8f0; border-radius:8px; padding:7px 9px; font-size:13px; outline:none; } .inp:focus{ border-color:#f59e0b; }`}</style>
@@ -422,7 +437,7 @@ function ShareModal({ users, onShare, onClose }) {
           {filtered.map(u => <button key={u.id} onClick={() => onShare(u.id)} className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-50 text-sm text-slate-700">{u.name || u.email}</button>)}
           {!filtered.length && <p className="text-xs text-slate-400 px-3 py-2">No people found.</p>}
         </div>
-        <div className="flex justify-end mt-3"><button onClick={onClose} className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-500">Close</button></div>
+        <div className="flex justify-end mt-3"><Button size="sm" variant="secondary" onClick={onClose} className="text-xs font-semibold text-slate-500 shadow-none">Close</Button></div>
       </div>
     </div>
   );

@@ -6,7 +6,7 @@ import { prisma } from '@/lib/db';
 import { INCLUDE_ARCHIVED, archiveData, readArchivedFlag, deleteRefused, ARCHIVED_FLAG_HELP } from '@/lib/archive';
 import { logActivity, PHASE_LABELS } from '@/lib/activity';
 import { sendNotification } from '@/lib/notify';
-import { NEXT_ACTION_KEYS, STAGE_KEYS, STAGE_LABEL, PIPELINE_LABEL, SETTABLE_STATUS_KEYS } from '@/lib/pipeline';
+import { NEXT_ACTION_KEYS, stageKeysFor, STAGE_LABEL, PIPELINE_LABEL, SETTABLE_STATUS_KEYS, inDesignPipeline } from '@/lib/pipeline';
 import { recordStatusChanges, describeStatusChange } from '@/lib/statusEvents';
 import { PROJECT_TEAM_ROLES, pickTeamUpdate } from '@/lib/projectTeam';
 import { parseLooseNumber, isUnreadableNumber, NUMBER_HELP } from '@/lib/numberInput';
@@ -101,10 +101,30 @@ export async function PATCH(request, { params }) {
   // third copy of the list can never drift again. A project already stored as
   // 'other' keeps that value — it just cannot be written back.
   const validServiceTypes = SETTABLE_SERVICE_TYPE_KEYS;
-  // Both boards share one stage list (2026-09-04), taken from pipeline.js so a
-  // stage added there is accepted here without a second edit.
-  const validProcurementStages = STAGE_KEYS;
-  const validDesignStages      = validProcurementStages;
+  // Each board's list comes from pipeline.js so a stage added there is accepted
+  // here without a second edit. Design has one extra column (Proposal Sent).
+  const validProcurementStages = stageKeysFor('PROCUREMENT');
+  const validDesignStages      = stageKeysFor('DESIGN');
+
+  // Proposal Sent is one fact on one field, proposalSentDate, no matter which
+  // screen records it (Mike 10-5). Two automatic moves keep the Design board
+  // honest about it:
+  //   1. the date being set for the first time (from null) moves a design job
+  //      sitting in Qualified into the Proposal Sent column;
+  //   2. a card dragged or picked into Proposal Sent stamps today on the date
+  //      when it is still blank. Moving back out never clears the date.
+  const dateIsNew = proposalSentDate !== undefined && !!proposalSentDate && !project.proposalSentDate;
+  let designStageIn = designStage;
+  if (designStageIn === undefined && dateIsNew && inDesignPipeline(project)
+      && (project.designStage === 'QUALIFIED' || !project.designStage)) {
+    designStageIn = 'PROPOSAL_SENT';
+  }
+  let proposalSentDateIn = proposalSentDate;
+  if (designStageIn === 'PROPOSAL_SENT' && !project.proposalSentDate
+      && (proposalSentDateIn === undefined || proposalSentDateIn === null)) {
+    proposalSentDateIn = new Date();
+  }
+  const stageIn = { procurementStage, designStage: designStageIn };
   // The picker list from pipeline.js: OPEN, ON_HOLD, WON, LOST, ABANDONED.
   // COMPLETED can no longer be SET (Maram 9-17); rows already holding it are
   // left alone and still read as won.
@@ -181,7 +201,7 @@ export async function PATCH(request, { params }) {
       ...(projectType         !== undefined && { projectType: projectType || null }),
       ...(projectSubtype      !== undefined && { projectSubtype: String(projectSubtype || '').trim().slice(0, 120) || null }),
       ...(procurementStage    !== undefined && validProcurementStages.includes(procurementStage) && { procurementStage }),
-      ...(designStage         !== undefined && validDesignStages.includes(designStage) && { designStage }),
+      ...(designStageIn       !== undefined && validDesignStages.includes(designStageIn) && { designStage: designStageIn }),
       ...(pipelineProbability !== undefined && { pipelineProbability: clampPct(pipelineProbability) ?? 50 }),
       ...(probabilityToWin         !== undefined && { probabilityToWin:         clampPct(probabilityToWin) }),
       ...(probabilityToMoveForward !== undefined && { probabilityToMoveForward: clampPct(probabilityToMoveForward) }),
@@ -197,7 +217,7 @@ export async function PATCH(request, { params }) {
       ...(expectedOrderDate   !== undefined && { expectedOrderDate: expectedOrderDate ? new Date(expectedOrderDate) : null }),
       ...(expectedContractExecutionDate !== undefined && { expectedContractExecutionDate: expectedContractExecutionDate ? new Date(expectedContractExecutionDate) : null }),
       ...(salesOwnerId        !== undefined && { salesOwnerId: salesOwnerId || null }),
-      ...(proposalSentDate    !== undefined && { proposalSentDate: proposalSentDate ? new Date(proposalSentDate) : null }),
+      ...(proposalSentDateIn  !== undefined && { proposalSentDate: proposalSentDateIn ? new Date(proposalSentDateIn) : null }),
       ...(nextActionType      !== undefined && { nextActionType: (nextActionType && NEXT_ACTION_KEYS.includes(nextActionType)) ? nextActionType : null }),
       ...(nextActionOwnerId   !== undefined && { nextActionOwnerId: nextActionOwnerId || null }),
       ...(nextActionDueDate   !== undefined && { nextActionDueDate: nextActionDueDate ? new Date(nextActionDueDate) : null }),
@@ -225,8 +245,9 @@ export async function PATCH(request, { params }) {
   // A deal moving up the board belongs in the same story. Stage is a board-row
   // property like status, so it is reported per board and named the way the
   // boards name it rather than by its stored key.
+  // The automatic Proposal Sent move above is logged here too, same as a drag.
   for (const [pipeline, field] of [['PROCUREMENT', 'procurementStage'], ['DESIGN', 'designStage']]) {
-    if (body[field] === undefined || updated[field] === project[field]) continue;
+    if (stageIn[field] === undefined || updated[field] === project[field]) continue;
     const board = PIPELINE_LABEL[pipeline];
     const from  = project[field] ? (STAGE_LABEL[project[field]] || project[field]) : 'no stage';
     const to    = STAGE_LABEL[updated[field]] || updated[field];

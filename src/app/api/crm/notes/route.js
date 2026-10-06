@@ -31,7 +31,8 @@ const NOTE_INCLUDE = {
   contacts: NOTE_CONTACTS_INCLUDE,
 };
 
-// GET /api/crm/notes — Query params: search, clientId, dealId
+// GET /api/crm/notes. Query params: search, clientId, projectId, contactId,
+// published=1 (only published notes; the client and person profile pages use it).
 export async function GET(request) {
   const { user, error } = await requireAuth();
   if (error) return error;
@@ -40,6 +41,8 @@ export async function GET(request) {
   const search    = searchParams.get('search');
   const clientId  = searchParams.get('clientId');
   const projectId = searchParams.get('projectId');
+  const contactId = searchParams.get('contactId');
+  const published = searchParams.get('published');
 
   const where = { noteType: 'SALES' };
   if (search) {
@@ -50,6 +53,8 @@ export async function GET(request) {
   }
   if (clientId)  where.clients  = { some: { clientId } };
   if (projectId) where.projects = { some: { projectId } };
+  if (contactId) where.contacts = { some: { contactId } };
+  if (published === '1' || published === 'true') where.isPublished = true;
 
   const notes = await prisma.note.findMany({
     where,

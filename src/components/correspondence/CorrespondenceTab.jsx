@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import DOMPurify from 'dompurify';
+import EmailTagTargets, { startEmailDrag, untagEmailMessage } from '@/components/email/EmailTagTargets';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -183,7 +184,7 @@ function ThreadRow({ thread, selected, unread, onClick }) {
 
 // ── Message card ──────────────────────────────────────────────────────────────
 
-function MessageCard({ message, isLatest, collapsed, onToggle }) {
+function MessageCard({ message, isLatest, collapsed, onToggle, onUntag }) {
   const color = avatarColor(message.fromEmail);
   const init  = initials(message.fromName, message.fromEmail);
 
@@ -194,11 +195,14 @@ function MessageCard({ message, isLatest, collapsed, onToggle }) {
       collapsed ? 'opacity-65' : '',
     ].join(' ')}>
 
-      {/* Header */}
+      {/* Header. Drag it onto a tag above to tag this email (0118). */}
       <div
+        draggable
+        onDragStart={e => startEmailDrag(e, message.id)}
+        title="Drag onto a tag to tag this email"
         onClick={collapsed ? onToggle : undefined}
         className={[
-          'flex items-center gap-2.5 px-4 py-2.5',
+          'flex items-center gap-2.5 px-4 py-2.5 cursor-grab active:cursor-grabbing',
           isLatest ? 'bg-[#eff6ff] border-b border-[#dbeafe]' : 'bg-[#faf9f7] border-b border-slate-100',
           collapsed ? 'cursor-pointer hover:bg-slate-50' : '',
         ].join(' ')}
@@ -219,6 +223,21 @@ function MessageCard({ message, isLatest, collapsed, onToggle }) {
                 New
               </span>
             )}
+            {message.messageTags?.map(t => (
+              <span
+                key={t.key}
+                className="text-[9px] font-semibold px-1.5 py-0.5 rounded border bg-white"
+                style={{ borderColor: t.color || '#cbd5e1', color: t.color || '#475569' }}
+              >
+                {t.label}
+                <button
+                  type="button"
+                  title="Remove this tag"
+                  onClick={e => { e.stopPropagation(); onUntag?.(message.id, t.key); }}
+                  className="ml-1 text-slate-400 hover:text-slate-700"
+                >x</button>
+              </span>
+            ))}
           </div>
           {!collapsed && (
             <div className="text-[10px] text-[#9a9589]">
@@ -335,6 +354,20 @@ export default function CorrespondenceTab({ projectId, projectName }) {
   function toggleMsgCollapse(msgId) {
     setCollapsedMsgs(prev => ({ ...prev, [msgId]: !prev[msgId] }));
   }
+
+  // Tags as rows (0118): a drop or a click on a tag adds it, the x removes it.
+  function onTagged(messageId, tag) {
+    setMessages(prev => prev.map(m => m.id !== messageId || m.messageTags?.some(t => t.key === tag.key)
+      ? m
+      : { ...m, messageTags: [...(m.messageTags || []), { key: tag.key, label: tag.label, color: tag.color || null }] }));
+  }
+  async function onUntag(messageId, tagKey) {
+    try {
+      await untagEmailMessage(messageId, tagKey);
+      setMessages(prev => prev.map(m => m.id !== messageId ? m : { ...m, messageTags: (m.messageTags || []).filter(t => t.key !== tagKey) }));
+    } catch {}
+  }
+  const latestMessageId = messages.length ? messages[messages.length - 1].id : null;
 
   // Derive all tags present in this project's threads
   const allTags = [...new Set(threads.flatMap(t => t.tags ?? []))].sort();
@@ -532,6 +565,7 @@ export default function CorrespondenceTab({ projectId, projectName }) {
                   )}
                 </div>
               </div>
+              <EmailTagTargets className="mt-2" selectedMessageId={latestMessageId} onTagged={onTagged} />
             </div>
 
             {/* Messages */}
@@ -550,6 +584,7 @@ export default function CorrespondenceTab({ projectId, projectName }) {
                       isLatest={isLatest}
                       collapsed={!isLatest && (collapsedMsgs[msg.id] ?? true)}
                       onToggle={() => toggleMsgCollapse(msg.id)}
+                      onUntag={onUntag}
                     />
                   );
                 })

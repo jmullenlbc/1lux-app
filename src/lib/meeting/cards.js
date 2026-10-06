@@ -56,7 +56,7 @@ export const MEETING_LEVELS = [
   { key: 'project', label: 'Projects', hint: 'Deals, proposals, budgets and submissions' },
   { key: 'people',  label: 'People',   hint: 'Relationships, leads, travel and who is out' },
 ];
-const PEOPLE_LEVEL_CARDS = new Set(['wentQuiet', 'newLeads', 'travel', 'whosOut']);
+const PEOPLE_LEVEL_CARDS = new Set(['wentQuiet', 'newLeads', 'introductions', 'travel', 'whosOut']);
 export function cardLevel(key) { return PEOPLE_LEVEL_CARDS.has(key) ? 'people' : 'project'; }
 
 /**
@@ -67,10 +67,35 @@ export function cardLevel(key) { return PEOPLE_LEVEL_CARDS.has(key) ? 'people' :
  * shows it greyed with the reason, rather than pretending the data is there.
  */
 export const MEETING_CARDS = [
+  // ── Maram's agenda (Oct 5 call), in the order she runs the meeting ──────────
+  // defaultLayout() follows catalog order, so these sit at the top. The agenda
+  // is: new opportunities, new leads, introductions, ownership, next actions,
+  // client follow-ups, deadlines, blockers, then everything else.
   {
-    key: 'awaitingSignature',
-    title: 'Awaiting signature',
-    subtitle: 'Proposals out, not yet signed — longest-waiting first',
+    key: 'newOpportunities',
+    title: 'New opportunities',
+    subtitle: 'Projects added in the last 7 days, any board',
+    ...DEALS,
+    defaultOn: true,
+  },
+  {
+    key: 'newLeads',
+    title: 'New website leads to review',
+    subtitle: 'Conceptual budget requests still sitting at Pending',
+    ...INFO,
+    defaultOn: true,
+  },
+  {
+    key: 'introductions',
+    title: 'Introductions',
+    subtitle: 'People we asked to be introduced to, last 14 days or still open',
+    ...INFO,
+    defaultOn: true,
+  },
+  {
+    key: 'ownership',
+    title: 'Ownership',
+    subtitle: 'Open jobs nobody owns yet',
     ...DEALS,
     defaultOn: true,
   },
@@ -78,6 +103,35 @@ export const MEETING_CARDS = [
     key: 'nextActions',
     title: 'Next actions due',
     subtitle: 'Who owes what, by when — overdue in red',
+    ...DEALS,
+    defaultOn: true,
+  },
+  {
+    key: 'clientFollowUps',
+    title: 'Client follow-ups',
+    subtitle: 'Open steps where we are waiting on the client, grouped by client, oldest first',
+    ...DEALS,
+    defaultOn: true,
+  },
+  {
+    key: 'deadlines',
+    title: 'Deadlines',
+    subtitle: 'Contract dates and open steps landing in the next 14 days',
+    ...DEALS,
+    defaultOn: true,
+  },
+  {
+    key: 'blockers',
+    title: 'Blockers',
+    subtitle: 'Waiting or blocked, with the reason',
+    ...DEALS,
+    defaultOn: true,
+  },
+
+  {
+    key: 'awaitingSignature',
+    title: 'Awaiting signature',
+    subtitle: 'Proposals out, not yet signed, longest waiting first',
     ...DEALS,
     defaultOn: true,
   },
@@ -129,13 +183,6 @@ export const MEETING_CARDS = [
     subtitle: `Live relationships with no contact in ${QUIET_AFTER_DAYS}+ days`,
     ...INFO,
     defaultOn: false,
-  },
-  {
-    key: 'newLeads',
-    title: 'New website leads to review',
-    subtitle: 'Conceptual budget requests still sitting at Pending',
-    ...INFO,
-    defaultOn: true,
   },
   {
     key: 'flagged',

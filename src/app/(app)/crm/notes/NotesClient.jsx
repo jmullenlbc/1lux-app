@@ -382,6 +382,7 @@ const ACTIVITY_META = {
   SITE_VISIT: { emoji: '🏗', label: 'Site Visit',  color: 'bg-blue-50 text-blue-700 border-blue-200',        inPerson: true },
   CALL:       { emoji: '📞', label: 'Call',         color: 'bg-slate-100 text-slate-600 border-slate-200',    inPerson: false },
   EMAIL:      { emoji: '📧', label: 'Email',        color: 'bg-slate-100 text-slate-600 border-slate-200',    inPerson: false },
+  TEXT:       { emoji: '💬', label: 'Text',         color: 'bg-slate-100 text-slate-600 border-slate-200',    inPerson: false },
   EVENT:      { emoji: '🎉', label: 'Event',        color: 'bg-purple-50 text-purple-700 border-purple-200',  inPerson: false },
   OTHER:      { emoji: '📋', label: 'Other',        color: 'bg-slate-100 text-slate-500 border-slate-200',    inPerson: false },
 };
@@ -485,7 +486,7 @@ function NoteRow({ note, tone, active, onClick }) {
 
 const GROUPS = [
   ['upcoming',   'Coming up',   'Prep builds itself before the meeting.'],
-  ['needsNotes', 'Needs notes', 'The meeting happened — write what was said, then mark it complete.'],
+  ['needsNotes', 'Needs notes', 'The meeting happened. Write what was said, then publish it so the bot can start.'],
   ['done',       'Done',        null],
 ];
 
@@ -962,7 +963,7 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
       <div className="px-6 pt-4 pb-0 border-b border-slate-200 shrink-0 bg-white">
         <div className="flex items-center gap-2 mb-2">
           {note.isPublished ? (
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200">✓ Complete</span>
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200">✓ Published</span>
           ) : upcoming ? (
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500 text-white">Coming up</span>
           ) : (
@@ -1158,8 +1159,8 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
             <div className={`rounded-lg border p-4 flex flex-wrap items-center gap-3 ${note.isPublished ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'}`}>
               <p className="text-xs text-slate-700 flex-1 min-w-[16rem]">
                 {note.isPublished
-                  ? 'Complete. The bot is working the next steps — drafts land in the Bot Queue for review, and reminders are set.'
-                  : 'Nothing happens until you mark it complete. Then the bot drafts the follow-up emails, sets the reminders, and moves "last met" for everyone on the note.'}
+                  ? 'Published. The bot is working the next steps: drafts land in the Bot Queue for review, and reminders are set.'
+                  : 'Publishing starts the bot. It drafts the follow-up emails, sets the reminders, and moves "last met" for everyone on the note. Nothing happens until you publish.'}
               </p>
               <button
                 onClick={togglePublish}
@@ -1167,7 +1168,7 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
                 className={`text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50 ${
                   note.isPublished ? 'text-slate-600 border border-slate-300 bg-white hover:bg-slate-50' : 'bg-green-600 text-white hover:bg-green-700'
                 }`}>
-                {publishing ? '…' : note.isPublished ? 'Back to draft' : 'Mark complete ✓'}
+                {publishing ? '…' : note.isPublished ? 'Back to draft' : 'Publish'}
               </button>
             </div>
 
@@ -1207,7 +1208,9 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
   const [search,       setSearch]       = useState('');
   const [statusFilter, setStatusFilter] = useState(initialStatus);
   const [newOpen,      setNewOpen]      = useState(false);
-  const [doneOpen,     setDoneOpen]     = useState(false);
+  // Mike 10-5: published notes stay visible under All, newest first. The Done
+  // group opens by default; the Hide link is still there for a long list.
+  const [doneOpen,     setDoneOpen]     = useState(true);
 
   // The reminder's "Open them" link can be clicked while already on this screen.
   useEffect(() => {
@@ -1290,7 +1293,7 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
             />
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {[['all', 'All'], ['mine', 'Mine to publish']].map(([val, label]) => (
+            {[['all', 'All'], ['mine', 'Mine to publish'], ['draft', 'Draft'], ['published', 'Published']].map(([val, label]) => (
               <button
                 key={val}
                 onClick={() => setStatusFilter(val)}
@@ -1307,7 +1310,7 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
         <div className="flex-1 overflow-y-auto px-2 py-2">
           {filtered.length === 0 && (
             <div className="px-4 py-8 text-center text-sm text-slate-500">
-              {search ? 'Nothing matches your search' : 'No meetings yet — accepted invites show up here, or click New note.'}
+              {search ? 'Nothing matches your search' : 'No meetings yet. Accepted invites show up here, or click New note.'}
             </div>
           )}
           {GROUPS.map(([key, label, hint]) => {

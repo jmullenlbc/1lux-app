@@ -67,6 +67,7 @@ export async function POST(request) {
       preferredName: preferredName || null,
       company:       company       || null,
       department:    cleanDepartment(department),
+      createdById:   user.id,
     },
     include: {
       client: { select: { id: true, clientNumber: true, name: true } },

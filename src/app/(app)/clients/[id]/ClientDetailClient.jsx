@@ -22,6 +22,7 @@ import StandardFixtureScheduleTab from './StandardFixtureScheduleTab';
 import ProductOptionsTab from './ProductOptionsTab';
 import ShareStandardsButton from './ShareStandardsButton';
 import PersonalFactsPanel from '@/components/crm/PersonalFactsPanel';
+import SalesNotesPanel from '@/components/crm/SalesNotesPanel';
 import WorkHistoryPanel from './WorkHistoryPanel';
 import LookAlikeReviews from '@/components/crm/LookAlikeReviews';
 import { WORK_HISTORY_READY } from '@/lib/workHistory';
@@ -818,6 +819,9 @@ function OverviewTab({ client, onPatch }) {
           />
         </div>
 
+        {/* Published sales notes that name this company (Mike 10-5). */}
+        <SalesNotesPanel clientId={client.id} />
+
         <div className="mt-5 pt-4 border-t border-slate-100 text-xs text-slate-400">
           Added by {client.createdBy?.name || client.createdBy?.email}
         </div>
@@ -1059,6 +1063,7 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
   const [dealList,  setDealList]  = useState(null); // {contact, bucket, projects} | null
   const [historyFor, setHistoryFor] = useState(null); // contact id whose work history is open
   const [personalFor, setPersonalFor] = useState(null); // contact id whose personal facts are open
+  const [salesNotesFor, setSalesNotesFor] = useState(null); // contact id whose published sales notes are open
 
   // Propagate any contact change up so the Overview count, tab badge, and
   // Playbook "primary national contact" dropdown stay in sync without a refresh.
@@ -1298,6 +1303,10 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
                 className="text-slate-400 hover:text-amber-600" title="Kids, sports, hobbies, favorite coffee">
                 {personalFor === c.id ? '▾' : '▸'} Notes and personal
               </button>
+              <button type="button" onClick={() => setSalesNotesFor(s => (s === c.id ? null : c.id))}
+                className="text-slate-400 hover:text-amber-600" title="Published sales notes that name this person">
+                {salesNotesFor === c.id ? '▾' : '▸'} Sales notes
+              </button>
               {(c.lastEmailReceivedAt || c.lastEmailSentAt) && (
                 <span className="text-slate-300">
                   Last email {c.lastEmailReceivedAt ? `in ${new Date(c.lastEmailReceivedAt).toLocaleDateString()}` : ''}
@@ -1315,6 +1324,7 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
               </div>
             )}
             {personalFor === c.id && <PersonalFactsPanel contactId={c.id} name={c.name} />}
+            {salesNotesFor === c.id && <SalesNotesPanel contactId={c.id} compact />}
             {WORK_HISTORY_READY && historyFor === c.id && <WorkHistoryPanel clientId={clientId} contactId={c.id} name={c.name} />}
           </div>
         ))}

@@ -76,7 +76,7 @@ export const Note = {
   label: 'Note',
   description:
     'A sales activity or a project meeting. noteType is SALES | PROJECT_MEETING. Sales notes carry ' +
-    'activityType (COFFEE | MEAL | HAPPY_HOUR | GOLF | SITE_VISIT | TRAVEL | CALL | EMAIL | EVENT | OTHER) ' +
+    'activityType (COFFEE | MEAL | HAPPY_HOUR | GOLF | SITE_VISIT | TRAVEL | CALL | EMAIL | TEXT | EVENT | OTHER) ' +
     'and isInPerson. NOTHING downstream counts a note until isPublished is true. calendarRef links a note ' +
     'back to the calendar event it was synced from. attendees is a JSON-as-string array. ' +
     'Archived rows (archivedAt set) are hidden from normal reads.',
@@ -193,6 +193,7 @@ export const Contact = {
     contactNumber: { type: 'int',    sensitivity: 'ilc_only' },
     archivedAt:    { type: 'datetime', sensitivity: 'ilc_only' },
     archivedById:  { type: 'string',   sensitivity: 'ilc_only' },
+    createdById:   { type: 'string',   sensitivity: 'ilc_only' }, // who added the person (0119)
 
     clientId:      { type: 'string', sensitivity: 'ilc_only' },
     name:          { type: 'string', sensitivity: 'ilc_only' },

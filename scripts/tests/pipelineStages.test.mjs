@@ -25,7 +25,7 @@ import {
 
 // ── The list Mike asked for ──────────────────────────────────────────────────
 
-test('both boards show the same five stages, in Mike\'s order', () => {
+test('the Procurement board shows the five stages, in Mike\'s order', () => {
   const expected = [
     'Qualified',
     'Design / Pre-Con',
@@ -34,17 +34,20 @@ test('both boards show the same five stages, in Mike\'s order', () => {
     'Completed',
   ];
   assert.deepEqual(PIPELINE_STAGES.PROCUREMENT.map(s => s.label), expected);
-  assert.deepEqual(PIPELINE_STAGES.DESIGN.map(s => s.label), expected);
 });
 
-test('the two boards are literally the same list, not two copies that can drift', () => {
-  assert.equal(PIPELINE_STAGES.PROCUREMENT, PIPELINE_STAGES.DESIGN);
+test('the Design board is the same list with Proposal Sent added (10-5), not a second copy', () => {
+  // Every Procurement column appears on Design, in the same order, built from
+  // the same objects. The extra column is covered in pipelineProposalSent.test.mjs.
+  const shared = PIPELINE_STAGES.DESIGN.filter(s => s.key !== 'PROPOSAL_SENT');
+  assert.deepEqual(shared, PIPELINE_STAGES.PROCUREMENT);
+  shared.forEach((s, i) => assert.equal(s, PIPELINE_STAGES.PROCUREMENT[i]));
 });
 
 // ── The stored values, which must NOT follow a rename ────────────────────────
 
 test('the stored stage keys are unchanged by the 2026-09-07 relabel', () => {
-  assert.deepEqual(STAGE_KEYS, [
+  assert.deepEqual(STAGE_KEYS.filter(k => k !== 'PROPOSAL_SENT'), [
     'QUALIFIED', 'PRECONSTRUCTION', 'BUYOUT', 'CONSTRUCTION', 'COMPLETED',
   ]);
 });
@@ -74,7 +77,8 @@ test('a legacy value renders a label rather than a raw key', () => {
   // A row that never got migrated must not show "CONSTRUCTION_ADMIN" on screen.
   assert.equal(STAGE_LABEL.CONSTRUCTION_ADMIN, 'CA / Procurement');
   assert.equal(STAGE_LABEL.DESIGN,             'Design / Pre-Con');
-  assert.equal(STAGE_LABEL.PROPOSAL_SENT,      'Qualified');
+  // PROPOSAL_SENT is a live Design-board key again since 10-5, so it reads as itself.
+  assert.equal(STAGE_LABEL.PROPOSAL_SENT,      'Proposal Sent');
 });
 
 test('an unknown stage normalizes to null instead of guessing', () => {

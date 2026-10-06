@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { NEXT_ACTION_TYPES } from '@/lib/pipeline';
+import { SERVICE_TYPES } from '@/lib/utils';
 import { MEETING_LEVELS, cardLevel } from '@/lib/meeting/cards';
 
 // Weekly Sales Meeting — the run-of-show. Live queues you work down and edit in
@@ -13,6 +14,8 @@ import { MEETING_LEVELS, cardLevel } from '@/lib/meeting/cards';
 
 const money = v => v ? `$${Math.round(v).toLocaleString()}` : '—';
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+// An empty cell, in words rather than a dash (house rule: no dashes in copy).
+const blank = <span className="text-slate-300">none</span>;
 
 export default function MeetingDashboard() {
   const [layout, setLayout] = useState(null);   // { cards, source, catalog, canEditShared, hasPersonal }
@@ -134,7 +137,7 @@ function CardBody({ cardKey, data, users, patch }) {
         <Table cols={['Project', 'Client', 'Owner', 'Value', 'Waiting', 'Next action', '']}>
           {rows.map(d => (
             <Row key={d.id}>
-              <DealCell d={d} /><Td className="text-slate-500">{d.client || '—'}</Td>
+              <DealCell d={d} /><Td className="text-slate-500">{d.client || blank}</Td>
               <Owner d={d} /><Td className="text-slate-600">{money(d.value)}</Td>
               <Td><Waiting days={d.daysWaiting} /></Td>
               <Td><NextAction d={d} users={users} onSave={patch} /></Td>
@@ -150,7 +153,7 @@ function CardBody({ cardKey, data, users, patch }) {
         <Table cols={['Project', 'Client', 'Action', 'Owner', 'Due', '']}>
           {rows.map(d => (
             <Row key={d.id} className={d.overdue ? 'bg-red-50/40' : ''}>
-              <DealCell d={d} /><Td className="text-slate-500">{d.client || '—'}</Td>
+              <DealCell d={d} /><Td className="text-slate-500">{d.client || blank}</Td>
               <Td colSpan={3} className="p-0"><NextAction d={d} users={users} onSave={patch} inline /></Td>
               <Td><button onClick={() => patch(d.id, { nextActionType: null, nextActionOwnerId: null, nextActionDueDate: null })}
                 className="text-[11px] font-semibold text-slate-400 hover:text-emerald-600 whitespace-nowrap">Done ✓</button></Td>
@@ -164,7 +167,7 @@ function CardBody({ cardKey, data, users, patch }) {
         <Table cols={['Project', 'Client', 'Owner', 'Value', 'Expected order', 'Next action']}>
           {rows.map(d => (
             <Row key={d.id}>
-              <DealCell d={d} /><Td className="text-slate-500">{d.client || '—'}</Td>
+              <DealCell d={d} /><Td className="text-slate-500">{d.client || blank}</Td>
               <Owner d={d} /><Td className="text-slate-600">{money(d.value)}</Td>
               <Td className="font-semibold text-slate-700">{fmtDate(d.expectedOrderDate)}</Td>
               <Td><NextAction d={d} users={users} onSave={patch} /></Td>
@@ -178,7 +181,7 @@ function CardBody({ cardKey, data, users, patch }) {
         <Table cols={['Project', 'Client', 'Owner', 'Proposal', 'Fee', 'Sent', 'Status']}>
           {rows.map(d => (
             <Row key={d.id}>
-              <DealCell d={d} /><Td className="text-slate-500">{d.client || '—'}</Td>
+              <DealCell d={d} /><Td className="text-slate-500">{d.client || blank}</Td>
               <Owner d={d} /><Td className="text-slate-500">{d.title}</Td>
               <Td className="text-slate-600">{money(d.value)}</Td>
               <Td className="text-slate-500">{fmtDate(d.sentAt)}</Td>
@@ -193,7 +196,7 @@ function CardBody({ cardKey, data, users, patch }) {
         <Table cols={['Project', 'Client', 'Owner', 'Proposal', 'Fee', 'Waiting']}>
           {rows.map(d => (
             <Row key={d.id}>
-              <DealCell d={d} /><Td className="text-slate-500">{d.client || '—'}</Td>
+              <DealCell d={d} /><Td className="text-slate-500">{d.client || blank}</Td>
               <Owner d={d} /><Td className="text-slate-500">{d.title}</Td>
               <Td className="text-slate-600">{money(d.value)}</Td>
               <Td><Waiting days={d.daysWaiting} /></Td>
@@ -207,11 +210,11 @@ function CardBody({ cardKey, data, users, patch }) {
         <Table cols={['Project', 'Client', 'Owner', 'Direction', 'Phase', 'Files', 'When']}>
           {rows.map(d => (
             <Row key={d.id}>
-              <DealCell d={{ ...d, id: d.projectId }} /><Td className="text-slate-500">{d.client || '—'}</Td>
+              <DealCell d={{ ...d, id: d.projectId }} /><Td className="text-slate-500">{d.client || blank}</Td>
               <Owner d={d} />
               <Td><span className={`px-1.5 py-0.5 rounded text-[11px] font-semibold ${
                 d.direction === 'Sent out' ? 'bg-sky-50 text-sky-700' : 'bg-violet-50 text-violet-700'}`}>{d.direction}</span></Td>
-              <Td className="font-semibold text-slate-700">{d.phaseTag || '—'}</Td>
+              <Td className="font-semibold text-slate-700">{d.phaseTag || blank}</Td>
               <Td className="text-slate-500">{d.fileCount}</Td>
               <Td className="text-slate-500">{fmtDate(d.createdAt)}</Td>
             </Row>
@@ -224,7 +227,7 @@ function CardBody({ cardKey, data, users, patch }) {
         <Table cols={['Project', 'Client', 'Owner', 'Value', 'Budget sent', 'Silent for', 'Next action']}>
           {rows.map(d => (
             <Row key={d.id}>
-              <DealCell d={d} /><Td className="text-slate-500">{d.client || '—'}</Td>
+              <DealCell d={d} /><Td className="text-slate-500">{d.client || blank}</Td>
               <Owner d={d} /><Td className="text-slate-600">{money(d.value)}</Td>
               <Td className="text-slate-500">{fmtDate(d.budgetSentDate)}</Td>
               <Td><Waiting days={d.daysSinceSent} /></Td>
@@ -239,7 +242,7 @@ function CardBody({ cardKey, data, users, patch }) {
         <Table cols={['Project', 'Client', 'Owner', 'Value', 'Procurement', 'Design', 'Reason']}>
           {rows.map(d => (
             <Row key={d.id}>
-              <DealCell d={d} /><Td className="text-slate-500">{d.client || '—'}</Td>
+              <DealCell d={d} /><Td className="text-slate-500">{d.client || blank}</Td>
               <Owner d={d} /><Td className="text-slate-600">{money(d.value)}</Td>
               <Td><Outcome s={d.procurementStatus} /></Td>
               <Td><Outcome s={d.designStatus} /></Td>
@@ -254,8 +257,8 @@ function CardBody({ cardKey, data, users, patch }) {
         <Table cols={['Project', 'Client', 'Owner', 'Why it is flagged', '']}>
           {rows.map(d => (
             <Row key={d.id}>
-              <DealCell d={d} /><Td className="text-slate-500">{d.client || '—'}</Td>
-              <Owner d={d} /><Td className="text-slate-600">{d.flagNote || '—'}</Td>
+              <DealCell d={d} /><Td className="text-slate-500">{d.client || blank}</Td>
+              <Owner d={d} /><Td className="text-slate-600">{d.flagNote || blank}</Td>
               <Td><button onClick={() => patch(d.id, { flagged: false })}
                 className="text-[11px] font-semibold text-slate-400 hover:text-emerald-600 whitespace-nowrap">Clear ✓</button></Td>
             </Row>
@@ -271,7 +274,7 @@ function CardBody({ cardKey, data, users, patch }) {
               <Td><a href={`/admin/submissions`} className="font-semibold text-slate-800 hover:text-amber-600">{d.name}</a>
                 {d.possibleDuplicate && <span className="ml-1.5 text-[10px] font-semibold text-amber-600">possible duplicate</span>}</Td>
               <Td className="text-slate-500">{d.from}<span className="block text-slate-400">{d.email}</span></Td>
-              <Td className="text-slate-500">{d.buildingType || '—'}</Td>
+              <Td className="text-slate-500">{d.buildingType || blank}</Td>
               <Td><Waiting days={d.daysWaiting} /></Td>
               <Td><a href="/admin/submissions" className="text-[11px] font-semibold text-amber-600 hover:text-amber-700">Review →</a></Td>
             </Row>
@@ -286,7 +289,7 @@ function CardBody({ cardKey, data, users, patch }) {
             <Row key={d.id}>
               <Td><a href={`/crm/contacts`} className="font-semibold text-slate-800 hover:text-amber-600">{d.name}</a>
                 {d.title && <span className="block text-slate-400">{d.title}</span>}</Td>
-              <Td className="text-slate-500">{d.company || '—'}</Td>
+              <Td className="text-slate-500">{d.company || blank}</Td>
               <Td className="text-slate-500">{d.tier ? d.tier.replace(/_/g, ' ').toLowerCase() : '—'}</Td>
               <Td className="text-slate-500">{fmtDate(d.lastAt)}</Td>
               <Td><Waiting days={d.silentFor} /></Td>
@@ -296,10 +299,127 @@ function CardBody({ cardKey, data, users, patch }) {
         </Table>
       );
 
+    // ── Maram's agenda cards (Oct 5) ─────────────────────────────────────────
+    case 'newOpportunities':
+      return (
+        <Table cols={['Project', 'Client', 'Owner', 'Service type', 'Stage', 'Added']}>
+          {rows.map(d => (
+            <Row key={d.id}>
+              <DealCell d={d} /><Td className="text-slate-500">{d.client || blank}</Td>
+              <Owner d={d} />
+              <Td className="text-slate-500">{SERVICE_TYPE_LABEL[d.serviceType] || d.serviceType || blank}</Td>
+              <Td className="text-slate-500">{stageLabel(d.stage)}</Td>
+              <Td className="text-slate-500">{fmtDate(d.createdAt)}</Td>
+            </Row>
+          ))}
+        </Table>
+      );
+
+    case 'introductions':
+      return (
+        <Table cols={['Person', 'Who we asked', 'Client', 'Asked by', 'Asked', 'Status']}>
+          {rows.map(d => (
+            <Row key={d.id}>
+              <Td><span className="font-semibold text-slate-800">{d.person || d.what}</span>
+                {d.person && d.what && <span className="block text-slate-400 max-w-xs truncate">{d.what}</span>}</Td>
+              <Td className="text-slate-500">{d.askedOf || blank}</Td>
+              <Td className="text-slate-500">{d.client || blank}</Td>
+              <Td className="text-slate-500">{d.askedBy || blank}</Td>
+              <Td className="text-slate-500">{fmtDate(d.createdAt)}</Td>
+              <Td><Chip tone={d.status === 'open' ? 'amber' : 'slate'}>{d.status}</Chip></Td>
+            </Row>
+          ))}
+        </Table>
+      );
+
+    case 'ownership':
+      return (
+        <Table cols={['Project', 'Client', 'Service type', 'Where from', 'Unowned for', 'Owner']}>
+          {rows.map(d => (
+            <Row key={d.id}>
+              <DealCell d={d} /><Td className="text-slate-500">{d.client || blank}</Td>
+              <Td className="text-slate-500">{SERVICE_TYPE_LABEL[d.serviceType] || d.serviceType || blank}</Td>
+              <Td>{d.fromWeb ? <Chip tone="amber">web budget</Chip> : <span className="text-slate-400">entered by hand</span>}</Td>
+              <Td><Waiting days={d.daysUnowned} /></Td>
+              <Td>
+                <select value="" onChange={e => e.target.value && patch(d.id, { salesOwnerId: e.target.value })}
+                  className="text-xs bg-transparent border border-slate-200 rounded px-1.5 py-1 outline-none focus:border-amber-400 text-slate-400">
+                  <option value="">assign…</option>
+                  {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                </select>
+              </Td>
+            </Row>
+          ))}
+        </Table>
+      );
+
+    case 'clientFollowUps':
+      return (
+        <Table cols={['Client', 'Waiting for', 'Project', 'Owner', 'Open for', 'Due']}>
+          {rows.map((d, i) => {
+            const sameClient = i > 0 && rows[i - 1].client === d.client;
+            return (
+              <Row key={d.id} className={sameClient ? 'border-t-0' : ''}>
+                <Td className={sameClient ? 'text-transparent' : 'font-semibold text-slate-700'}>{d.client || 'No client'}</Td>
+                <Td className="text-slate-600 max-w-sm">{d.what}<span className="block text-slate-400">{d.typeLabel}</span></Td>
+                <Td>{d.projectId ? <a href={`/project/${d.projectId}`} className="text-slate-600 hover:text-amber-600">{d.name}</a> : <span className="text-slate-300">none</span>}</Td>
+                <Owner d={d} />
+                <Td><Waiting days={d.daysOpen} /></Td>
+                <Td className={d.overdue ? 'text-red-600 font-semibold' : 'text-slate-500'}>{fmtDate(d.dueDate) || blank}</Td>
+              </Row>
+            );
+          })}
+        </Table>
+      );
+
+    case 'deadlines':
+      return (
+        <Table cols={['What', 'When', 'Project', 'Client', 'Owner']}>
+          {rows.map(d => (
+            <Row key={`${d.kind}-${d.id}`} className={d.overdue ? 'bg-red-50/40' : ''}>
+              <Td className="text-slate-700">{d.what}{d.kind === 'step' && <span className="block text-slate-400">{d.typeLabel}</span>}</Td>
+              <Td className={`font-semibold ${d.overdue ? 'text-red-600' : 'text-slate-700'}`}>{fmtDate(d.when)}</Td>
+              <Td>{(d.projectId || d.kind === 'contract')
+                ? <a href={`/project/${d.projectId || d.id}`} className="font-semibold text-slate-800 hover:text-amber-600">{d.name}</a>
+                : <span className="text-slate-300">none</span>}</Td>
+              <Td className="text-slate-500">{d.client || blank}</Td>
+              <Owner d={d} />
+            </Row>
+          ))}
+        </Table>
+      );
+
+    case 'blockers':
+      return (
+        <Table cols={['Project', 'Client', 'Owner', 'Why', 'Since', '']}>
+          {rows.map(d => (
+            <Row key={`${d.kind}-${d.id}`}>
+              {d.kind === 'step'
+                ? <Td>{d.projectId ? <a href={`/project/${d.projectId}`} className="font-semibold text-slate-800 hover:text-amber-600">{d.name}</a> : <span className="font-semibold text-slate-800">{d.name}</span>}</Td>
+                : <DealCell d={d} />}
+              <Td className="text-slate-500">{d.client || blank}</Td>
+              <Owner d={d} />
+              <Td className="text-slate-600 max-w-sm">
+                <Chip tone={d.kind === 'flagged' ? 'red' : 'amber'}>{d.kind === 'flagged' ? 'flagged' : 'waiting'}</Chip>
+                <span className="ml-2">{d.reason || <span className="text-slate-300">no reason recorded</span>}</span>
+              </Td>
+              <Td className="text-slate-500">{fmtDate(d.since)}</Td>
+              <Td>{d.kind === 'flagged' && <button onClick={() => patch(d.id, { flagged: false })}
+                className="text-[11px] font-semibold text-slate-400 hover:text-emerald-600 whitespace-nowrap">Clear ✓</button>}
+                {d.kind === 'waiting' && <button onClick={() => patch(d.id, { nextActionType: null, nextActionOwnerId: null, nextActionDueDate: null })}
+                  className="text-[11px] font-semibold text-slate-400 hover:text-emerald-600 whitespace-nowrap">Unblocked ✓</button>}</Td>
+            </Row>
+          ))}
+        </Table>
+      );
+
     default:
       return <Empty>This card has nothing to show yet.</Empty>;
   }
 }
+
+const SERVICE_TYPE_LABEL = Object.fromEntries(SERVICE_TYPES.map(s => [s.value, s.label]));
+const stageLabel = (s) => s ? String(s).replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) : 'none';
 
 const EMPTY_LINE = {
   awaitingSignature:    'Nothing waiting on a signature. 🎉',
@@ -313,6 +433,12 @@ const EMPTY_LINE = {
   flagged:              'Nothing flagged.',
   newLeads:             'No website leads waiting on a review.',
   wentQuiet:            'Nobody has gone quiet past their check-in window.',
+  newOpportunities:     'No new projects in the last 7 days.',
+  introductions:        'No introductions asked for lately.',
+  ownership:            'Every open job has an owner.',
+  clientFollowUps:      'Nothing is waiting on a client right now.',
+  deadlines:            'No dates landing in the next two weeks.',
+  blockers:             'Nothing is waiting or blocked.',
 };
 
 // ── Add / remove / reorder the cards ──────────────────────────────────────────

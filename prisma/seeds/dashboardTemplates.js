@@ -23,6 +23,20 @@ const TEMPLATES_BY_SECTION = {
       filters: [{ field: 'procurementStatus', op: 'is', value: 'OPEN' }, { field: 'averageProbability', op: 'gte', value: 80 }] } },
     { name: 'Next 12 Months — Open + Won 20%+ Product Revenue, Running Total', chartType: 'BAR', width: 'FULL', dataSpec: { tpl: 'procurement-open-won-20-cumulative', groupBy: 'expectedOrderDate', timeBucket: 'next12', cumulative: true, terms: [{ field: 'productSaleTotal', agg: 'sum' }], op: 'single',
       filters: [{ field: 'procurementStatus', op: 'in', value: ['OPEN', 'WON'] }, { field: 'averageProbability', op: 'gte', value: 20 }] } },
+    // Jason's forecasting asks (Oct 5 call). The 80%+ card above is "open jobs,
+    // next 12 months, 80 percent and up". This one is the same at 20 percent and
+    // up, open only, by order month, not cumulative (the running-total card
+    // above also counts Won).
+    { name: 'Next 12 Months, Open 20%+ Product Revenue by Order Month', chartType: 'BAR', width: 'FULL', dataSpec: { tpl: 'procurement-open-20', groupBy: 'expectedOrderDate', timeBucket: 'next12', terms: [{ field: 'productSaleTotal', agg: 'sum' }], op: 'single',
+      filters: [{ field: 'procurementStatus', op: 'is', value: 'OPEN' }, { field: 'averageProbability', op: 'gte', value: 20 }] } },
+    // "Won but not ordered, next 6 months." Won on the board, no purchase order
+    // yet, expected order date inside the next six months. "Ordered" means the
+    // project has a Shipment row; that rule is ORDERED_RULE in
+    // src/lib/dashboards/providers.js, so Maram's definition changes in one place.
+    { name: 'Won, Not Yet Ordered, Next 6 Months (Product Revenue)', chartType: 'BAR', width: 'FULL', dataSpec: { tpl: 'procurement-won-not-ordered', groupBy: 'expectedOrderDate', timeBucket: 'next6', terms: [{ field: 'productSaleTotal', agg: 'sum' }], op: 'single',
+      filters: [{ field: 'procurementStatus', op: 'is', value: 'WON' }, { field: 'hasPurchaseOrder', op: 'is', value: 'No' }] } },
+    { name: 'Won, Not Yet Ordered, Next 6 Months (Design Fees)', chartType: 'BAR', width: 'HALF', dataSpec: { tpl: 'design-won-not-ordered', groupBy: 'expectedOrderDate', timeBucket: 'next6', terms: [{ field: 'designFeeTotal', agg: 'sum' }], op: 'single',
+      filters: [{ field: 'designStatus', op: 'is', value: 'WON' }, { field: 'hasPurchaseOrder', op: 'is', value: 'No' }] } },
     { name: 'Buyout — Not Yet Ordered (Product Revenue)', chartType: 'BAR', width: 'HALF', dataSpec: { tpl: 'procurement-buyout-open', hideZero: true, groupBy: 'client', terms: [{ field: 'productSaleTotal', agg: 'sum' }], op: 'single',
       filters: [{ field: 'procurementStage', op: 'is', value: 'BUYOUT' }, { field: 'procurementStatus', op: 'is', value: 'OPEN' }] } },
     { name: 'Average Days in Buyout by Owner', chartType: 'BAR', width: 'HALF', dataSpec: { tpl: 'procurement-buyout-days', groupBy: 'salesOwner', terms: [{ field: 'buyoutDays', agg: 'avg' }], op: 'single' } },

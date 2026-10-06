@@ -2,7 +2,10 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-04 (newest) - Mike's Claude - **DEPLOYED 89993d8**, no migration: look-alike Same/Different rows on the company page (Overview + People) and the Contacts list
+### 2026-10-05 (newest) - Mike's Claude - **DEPLOYING**, migrations 0118 (additive: Introduction, EmailTag, EmailMessageTag, ContactFieldSuggestion, NoteActionType LINKEDIN seed) + 0119 (`ClientContact.createdById`, who added the person): CRM review with Maram
+Sidebar trimmed (Intel + 3 automation rows gone). My Desk has tabs (To-dos / Intel / Look-alikes and pool), a whose-desk picker (mine / everyone / per salesperson, look only for others), same-person step bundles, "Budgets made, not sent", introductions and signature-suggestion cards. Proposal Sent stage on the DESIGN board only (auto on send, draggable, accept moves on). Proposals Won/Lost + 60-day default. Notes: Publish, Text type, published notes on the company page. Dashboard: Open 20%+ and Won-not-ordered next 6 months (ordered = Shipment row, `ORDERED_RULE`). Sales Activity by month/quarter. Six weekly meeting agenda cards. Email/calendar sync pre-build: recorders now detect introductions, parse signatures, and tags are rows; nothing syncs until a Graph feed exists. verify --full passed. **Sean: still need the hourly `/api/cron/unfinished-drafts` schedule; sandbox environment plan is in the Software engineering folder (SANDBOX_PLAN.md), waiting on Mike's go.**
+
+### 2026-10-04 - Mike's Claude - **DEPLOYED 89993d8**, no migration: look-alike Same/Different rows on the company page (Overview + People) and the Contacts list
 Shared `components/crm/LookAlikeReviews.jsx`, `GET /api/sales/desk/review?clientId=|kind=`. My Desk keeps its section. verify --full passed.
 
 ### 2026-10-04 - Mike's Claude - **DEPLOYED 4302748**, migration 0117 (additive: ConceptualDraft.clientId/contactId, ConceptualSubmission.contactId, new DuplicateReview): web budget pool, company/person on first save, look-alike questions

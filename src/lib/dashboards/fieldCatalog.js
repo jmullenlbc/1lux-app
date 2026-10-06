@@ -72,6 +72,10 @@ export const FIELD_CATALOG = {
     { key: 'procurementStage',   label: 'Procurement Stage',   type: 'dimension', source: 'procurementStage', valueLabels: STAGE_LABELS },
     { key: 'procurementStatus',  label: 'Procurement Status',  type: 'dimension', source: 'procurementStatus', valueLabels: STATUS_LABELS },
     { key: 'salesOwner',         label: 'Sales Owner',         type: 'dimension', source: 'salesOwner.name' },
+    // Jason, Oct 5 call: "won but not ordered". Yes once the project has a
+    // Shipment row (a placed PO). The rule lives in providers.js, ORDERED_RULE.
+    { key: 'hasPurchaseOrder',   label: 'Has Purchase Order',  type: 'dimension', source: 'hasPurchaseOrder',
+      description: 'Yes once the project has at least one shipment (a placed purchase order).' },
     { key: 'probabilityTier',    label: 'Probability Tier',    type: 'bucket',    source: 'averageProbability',
       buckets: [ { max: 24, label: '0–24%' }, { max: 49, label: '25–49%' }, { max: 79, label: '50–79%' }, { max: 100, label: '80–100%' } ] },
     // time

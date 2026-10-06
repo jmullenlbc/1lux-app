@@ -88,7 +88,7 @@ function IntelCard({ item, onPatch }) {
             {person && (
               <span className="relative inline-flex">
                 <button type="button" onClick={() => setLinking(v => !v)}
-                  title={item.contactId ? 'Linked to a CRM contact — click to change' : 'Not linked — click to link a CRM contact'}
+                  title={item.contactId ? 'Linked to a CRM contact. Click to change.' : 'Not linked. Click to link a CRM contact.'}
                   className={`inline-flex items-center gap-1 pl-0.5 pr-1.5 py-0.5 rounded-full text-[11px] border transition-colors ${
                     item.contactId ? 'bg-white border-slate-200 text-slate-700 hover:border-amber-400'
                                    : 'bg-white border-dashed border-slate-300 text-slate-500 hover:border-amber-400 hover:text-amber-700'}`}>
@@ -105,7 +105,7 @@ function IntelCard({ item, onPatch }) {
               </span>
             )}
             {item.company && <span className="text-[11px] text-slate-500">· {item.company}</span>}
-            {item.note && <span className="text-[11px] text-slate-400">Note #{item.note.noteNumber}{item.note.title ? ` — ${item.note.title}` : ''}</span>}
+            {item.note && <span className="text-[11px] text-slate-400">Note #{item.note.noteNumber}{item.note.title ? `, ${item.note.title}` : ''}</span>}
             <span className="text-[11px] text-slate-300">{fmt(item.createdAt)}</span>
           </div>
         </div>
@@ -157,17 +157,13 @@ export default function IntelClient() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8">
-      <div className="mb-1 flex items-center gap-2 text-sm text-slate-400">
-        <span>CRM</span><span>/</span><span className="text-slate-600">Intel</span>
-      </div>
-      <h1 className="text-2xl font-bold text-slate-900">Relationship Intel</h1>
-      <p className="text-slate-500 text-sm mt-1 max-w-2xl">
-        Facts the bot pulled from your notes — who does what, where, and for whom. Search across everything,
-        link a fact to its CRM contact, and confirm the ones worth keeping as verified relationship knowledge.
+    <div>
+      <p className="text-xs text-slate-500">
+        Facts the bot pulled from your notes: who does what, where, and for whom. Search across everything,
+        link a fact to its CRM contact, and confirm the ones worth keeping.
       </p>
 
-      <div className="flex items-center gap-3 mt-5 mb-4">
+      <div className="flex items-center gap-3 mt-3 mb-4">
         <div className="relative flex-1">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z" /></svg>
@@ -187,7 +183,7 @@ export default function IntelClient() {
         <p className="text-sm text-slate-400 py-10 text-center">Loading…</p>
       ) : items.length === 0 ? (
         <p className="text-sm text-slate-400 py-10 text-center">
-          {q ? 'No intel matches your search.' : 'No intel yet — it appears automatically as the bot reads your published notes.'}
+          {q ? 'No intel matches your search.' : 'No intel yet. It appears on its own as the bot reads your published notes.'}
         </p>
       ) : (
         <div className="space-y-2">

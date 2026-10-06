@@ -16,6 +16,8 @@ export async function GET(req, { params }) {
       attachments: {
         select: { id: true, filename: true, size: true, mimeType: true },
       },
+      // Tags as rows (0118), beside the legacy JSON tags.
+      messageTags: { select: { tagKey: true, tag: { select: { label: true, color: true } } } },
     },
   });
 
@@ -44,6 +46,7 @@ export async function GET(req, { params }) {
     receivedAt:        m.receivedAt,
     isRead:            m.isRead,
     tags:              (() => { try { return JSON.parse(m.tags || '[]'); } catch { return []; } })(),
+    messageTags:       (m.messageTags || []).map(t => ({ key: t.tagKey, label: t.tag?.label || t.tagKey, color: t.tag?.color || null })),
     hasAttachments:    m.hasAttachments,
     attachments:       m.attachments,
     webUrl:            m.webUrl,

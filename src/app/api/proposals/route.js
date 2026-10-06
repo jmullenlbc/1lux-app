@@ -4,7 +4,8 @@ import { prisma } from '@/lib/db';
 import { parseLooseNumber } from '@/lib/numberInput';
 
 const PROPOSAL_INCLUDE = {
-  project: { select: { id: true, name: true, city: true, state: true, lifecycleStatus: true } },
+  // client.name feeds the client picker on the Proposals list (10-5).
+  project: { select: { id: true, name: true, city: true, state: true, lifecycleStatus: true, client: { select: { id: true, name: true } } } },
   template: { select: { id: true, name: true } },
   createdBy: { select: { id: true, name: true } },
   _count: { select: { lineItems: true, sends: true } },

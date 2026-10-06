@@ -143,6 +143,23 @@ export async function recordCalendarEvent(
     }
   }
 
+  // A guest we do not know, invited alongside someone we do (0118). Never
+  // fails the recording.
+  if (prisma.introduction && !event.isCancelled && event.attendees?.length) {
+    try {
+      const { recordIntroductionsForAddresses } = await import('../sync/introductions.js');
+      const guests = [
+        ...(event.organizerEmail ? [{ email: event.organizerEmail, name: null }] : []),
+        ...event.attendees,
+      ];
+      await recordIntroductionsForAddresses(prisma, guests, {
+        kind: 'calendar', sourceCalendarRef: calendarRef, detectedAt: event.startAt || undefined, introducedByUserId: ownerUserId,
+      });
+    } catch (err) {
+      console.error('[calendar] introduction detection failed:', err?.message || err);
+    }
+  }
+
   // findFirst sees archived notes too, so a meeting re-accepted after a decline
   // finds the draft it archived.
   let existing = await prisma.note.findFirst({

@@ -4,15 +4,21 @@
 
 // Mike 2026-09-04: "we still want two pipelines created by the service type of
 // that project exactly how we have it right now. we just are going to have the
-// same pipeline stages." Both boards now share ONE stage list. The old Design
-// keys (DESIGN_QUALIFIED / PROPOSAL_SENT / DESIGN / CONSTRUCTION_ADMIN /
-// DESIGN_COMPLETED) were migrated in 0061 and are only kept below as a read-side
-// safety net for anything that still carries one.
+// same pipeline stages." Both boards share ONE stage list. The old Design
+// keys (DESIGN_QUALIFIED, DESIGN, CONSTRUCTION_ADMIN, DESIGN_COMPLETED) were
+// migrated in 0061 and are only kept below as a read-side safety net for
+// anything that still carries one.
 // Mike 2026-09-07 renamed the middle two so one label reads correctly on BOTH
 // boards at once: at that point in a job the design side is doing CA while the
 // procurement side is buying, and both projects sit in the same column.
 //
-// These are LABELS ONLY. The stored keys are untouched on purpose — renaming
+// Mike 2026-10-05: the Design board gets ONE extra column, Proposal Sent, between
+// Qualified and Design / Pre-Con. A design fee is sold with a proposal, so the
+// board shows who is waiting on a signature. Procurement sells product and has
+// no proposal step, so its list is unchanged. PROPOSAL_SENT is a live key again
+// (it was a legacy key from 0061 until now).
+//
+// These are LABELS ONLY. The stored keys are untouched on purpose. Renaming
 // PRECONSTRUCTION or CONSTRUCTION would mean rewriting every project row and
 // every saved bot rule, filter and dashboard that names a stage, for no gain
 // the user can see. What is on screen is what changed.
@@ -24,25 +30,35 @@ const SHARED_STAGES = [
   { key: 'COMPLETED',       label: 'Completed' },
 ];
 
+export const PROPOSAL_SENT_STAGE = { key: 'PROPOSAL_SENT', label: 'Proposal Sent' };
+
+// Design = the shared list with Proposal Sent slotted in after Qualified.
+const DESIGN_STAGES = SHARED_STAGES.flatMap(s => s.key === 'QUALIFIED' ? [s, PROPOSAL_SENT_STAGE] : [s]);
+
 export const PIPELINE_STAGES = {
   PROCUREMENT: SHARED_STAGES,
-  DESIGN:      SHARED_STAGES,
+  DESIGN:      DESIGN_STAGES,
 };
 
-export const STAGE_KEYS = SHARED_STAGES.map(s => s.key);
+/** The keys ONE board can hold. */
+export function stageKeysFor(pipeline) {
+  return (PIPELINE_STAGES[pipeline] || SHARED_STAGES).map(s => s.key);
+}
+
+/** Every live key across both boards (the union), in Design-board order. */
+export const STAGE_KEYS = DESIGN_STAGES.map(s => s.key);
 
 export const DEFAULT_STAGE = { PROCUREMENT: 'QUALIFIED', DESIGN: 'QUALIFIED' };
 
-// Old Design-board keys → the shared key they became (mirrors migration 0061).
+// Old Design-board keys to the shared key they became (mirrors migration 0061).
 export const LEGACY_DESIGN_STAGE = {
   DESIGN_QUALIFIED:   'QUALIFIED',
-  PROPOSAL_SENT:      'QUALIFIED',   // "proposal sent" lives on proposalSentDate now
   DESIGN:             'PRECONSTRUCTION',
   CONSTRUCTION_ADMIN: 'CONSTRUCTION',
   DESIGN_COMPLETED:   'COMPLETED',
 };
 
-/** Any stage value (shared or legacy design key) → a shared key. */
+/** Any stage value (live or legacy design key) to a live key. */
 export function normalizeStage(stage) {
   if (!stage) return null;
   if (STAGE_KEYS.includes(stage)) return stage;
@@ -68,7 +84,7 @@ export const NEXT_ACTION_LABEL = Object.fromEntries(NEXT_ACTION_TYPES.map(a => [
 export const NEXT_ACTION_KEYS  = NEXT_ACTION_TYPES.map(a => a.key);
 
 export const STAGE_LABEL = {
-  ...Object.fromEntries(SHARED_STAGES.map(s => [s.key, s.label])),
+  ...Object.fromEntries(DESIGN_STAGES.map(s => [s.key, s.label])),
   // legacy design keys render as the shared stage they map to
   ...Object.fromEntries(Object.entries(LEGACY_DESIGN_STAGE).map(([k, v]) => [k, SHARED_STAGES.find(s => s.key === v).label])),
 };
@@ -317,10 +333,16 @@ export function combinedRevenue(project) {
 // Both boards share one stage list (2026-09-04), so a dual-pipeline project is
 // in sync exactly when its two stages match. Legacy design keys are normalized
 // first so an un-migrated row doesn't false-flag.
+//
+// Proposal Sent exists on the Design board only. It sits between Qualified and
+// Design / Pre-Con, so a design job at Proposal Sent is in sync with a
+// procurement side at EITHER neighbour: the proposal is out, the product sale
+// has nowhere of its own to show that.
 export function stagesOutOfSync(project) {
   if (!inDesignPipeline(project)) return false; // only dual-pipeline projects
   const design = normalizeStage(project.designStage);
   const proc   = normalizeStage(project.procurementStage);
-  if (!design || !proc) return false; // unknown stage — don't false-flag
+  if (!design || !proc) return false; // unknown stage, don't false-flag
+  if (design === PROPOSAL_SENT_STAGE.key) return !['QUALIFIED', 'PRECONSTRUCTION'].includes(proc);
   return design !== proc;
 }

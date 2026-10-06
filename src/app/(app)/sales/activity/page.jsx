@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
+import { bucketByPeriod, bucketCountsByPeriod } from '@/lib/activity/byPeriod';
 
 // ── Activity meta ─────────────────────────────────────────────────────────────
 
@@ -14,6 +15,7 @@ const ACTIVITY_META = {
   SITE_VISIT: { emoji: '🏗', label: 'Site Visit',  color: 'bg-blue-50 text-blue-700 border-blue-200',        inPerson: true },
   CALL:       { emoji: '📞', label: 'Call',         color: 'bg-slate-100 text-slate-600 border-slate-200',    inPerson: false },
   EMAIL:      { emoji: '📧', label: 'Email',        color: 'bg-slate-100 text-slate-600 border-slate-200',    inPerson: false },
+  TEXT:       { emoji: '💬', label: 'Text',         color: 'bg-slate-100 text-slate-600 border-slate-200',    inPerson: false },
   EVENT:      { emoji: '🎉', label: 'Event',        color: 'bg-purple-50 text-purple-700 border-purple-200',  inPerson: false },
   OTHER:      { emoji: '📋', label: 'Other',        color: 'bg-slate-100 text-slate-500 border-slate-200',    inPerson: false },
 };
@@ -212,11 +214,88 @@ function ActivityBarChart({ byType }) {
   );
 }
 
+// ── By month / by quarter table ───────────────────────────────────────────────
+// Rows are periods, columns are each salesperson plus Team. Which notes count
+// depends on the selector; "New people" is contacts added, split by who added
+// them (Contact.createdById, 0119). People added before that count in Team only.
+
+const PERIOD_METRICS = [
+  { id: 'inPerson',  label: 'In person',    pick: (n) => !!(ACTIVITY_META[n.activityType] || ACTIVITY_META.OTHER).inPerson },
+  { id: 'calls',     label: 'Calls',        pick: (n) => n.activityType === 'CALL' },
+  { id: 'all',       label: 'All meetings', pick: () => true },
+  { id: 'newPeople', label: 'New people',   pick: null },
+];
+
+function ByPeriodTable({ notes, userList, newPeople }) {
+  const [period, setPeriod] = useState('month');
+  const [metric, setMetric] = useState('inPerson');
+  const def = PERIOD_METRICS.find(m => m.id === metric) || PERIOD_METRICS[0];
+  const isPeople = !def.pick;
+
+  const rows = useMemo(() => {
+    if (!isPeople) {
+      return bucketByPeriod(notes.filter(n => n.isPublished && def.pick(n)), { period, months: 12 });
+    }
+    // Contacts added, by who added them. Rows with no adder land in Team only.
+    return bucketCountsByPeriod(newPeople || [], { period, months: 12 });
+  }, [notes, newPeople, period, def, isPeople]);
+
+  const unassigned = useMemo(
+    () => isPeople ? (newPeople || []).filter(r => !r.userId).reduce((s, r) => s + (Number(r.count) || 0), 0) : 0,
+    [newPeople, isPeople]
+  );
+
+  const cols = userList;
+  const th = 'text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-3';
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl p-5">
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
+        <h2 className="text-sm font-bold text-slate-900">By {period === 'month' ? 'Month' : 'Quarter'}</h2>
+        <div className="flex items-center gap-2 flex-wrap">
+          <select value={metric} onChange={e => setMetric(e.target.value)} className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-700">
+            {PERIOD_METRICS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+          </select>
+          <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
+            {[['month', 'By month'], ['quarter', 'By quarter']].map(([id, label]) => (
+              <button key={id} onClick={() => setPeriod(id)} className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${period === id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{label}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-slate-100">
+              <th className={`text-left ${th}`}>{period === 'month' ? 'Month' : 'Quarter'}</th>
+              {cols.map(u => <th key={u.id} className={`text-right ${th}`}>{u.name}</th>)}
+              <th className={`text-right ${th}`}>Team</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+            {rows.map(r => (
+              <tr key={r.key} className="hover:bg-slate-50">
+                <td className="py-1.5 pr-3 text-slate-700">{r.label}</td>
+                {cols.map(u => <td key={u.id} className="py-1.5 pr-3 text-right text-slate-500">{r.perUser[u.id] || 0}</td>)}
+                <td className="py-1.5 text-right font-semibold text-slate-700">{r.team}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {isPeople && unassigned > 0 && (
+        <p className="text-[11px] text-slate-400 mt-2">{unassigned} of these people were added before the app recorded who added them, or came in from the website. They count in Team only.</p>
+      )}
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function SalesActivityPage() {
   const [notes,          setNotes]          = useState([]);
   const [upcoming,       setUpcoming]       = useState([]);
+  const [newPeople,      setNewPeople]      = useState([]);
   const [loading,        setLoading]        = useState(true);
   const [dateRange,      setDateRange]      = useState('month');
   const [selectedUserId, setSelectedUserId] = useState('all');
@@ -226,9 +305,10 @@ export default function SalesActivityPage() {
     setLoading(true);
     setErr('');
     try {
-      const [histRes, upcomingRes] = await Promise.all([
+      const [histRes, upcomingRes, peopleRes] = await Promise.all([
         fetch('/api/crm/notes?includeStats=true'),
         fetch('/api/crm/notes/upcoming'),
+        fetch('/api/crm/contacts/created-by-month'),
       ]);
       if (!histRes.ok) throw new Error(`Error ${histRes.status}`);
       const data = await histRes.json();
@@ -236,6 +316,10 @@ export default function SalesActivityPage() {
       if (upcomingRes.ok) {
         const upData = await upcomingRes.json();
         setUpcoming(upData.notes || []);
+      }
+      if (peopleRes.ok) {
+        const rows = await peopleRes.json();
+        setNewPeople(Array.isArray(rows) ? rows : []);
       }
     } catch (e) {
       setErr(e.message);
@@ -425,6 +509,9 @@ export default function SalesActivityPage() {
             </div>
 
           </div>
+
+          {/* ── By month / by quarter, per person and team (Oct 5 ask) ──────── */}
+          <ByPeriodTable notes={notes} userList={userList} newPeople={newPeople} />
 
           {/* ── Two-column row: recent feed + upcoming ─────────────────────── */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">

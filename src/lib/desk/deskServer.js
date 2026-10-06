@@ -6,7 +6,7 @@
  */
 import { prisma } from '@/lib/db';
 import { isWaitExecutor } from '@/lib/followUp/watch';
-import { groupDesk, deskAttention, snoozeUntil } from '@/lib/desk/desk';
+import { groupDesk, deskAttention, snoozeUntil, deskDue, DESK_GROUPS } from '@/lib/desk/desk';
 import { meetingsNeedingPeople } from '@/lib/desk/meetingPeople';
 import { checkInsWithoutOwner } from '@/lib/checkIns/checkInDrafts';
 import { ownedBy, ownerIdsOf, logNoteChanges } from '@/lib/notes/owners';
@@ -27,7 +27,7 @@ const DRAFT_SELECT = {
  * shown on the page but never counted in anyone's sidebar number.
  */
 export async function loadDesk(userId, now = new Date(), { full = true } = {}) {
-  const [actions, types, ownDrafts, pending, meetings, noOwner, pool, reviews, salesPeople] = await Promise.all([
+  const [actions, types, ownDrafts, pending, meetings, noOwner, pool, reviews, salesPeople, budgetsNotSent] = await Promise.all([
     prisma.noteAction.findMany({
       where: {
         kind: 'ACTION', status: 'CONFIRMED', fulfilledAt: null,
@@ -52,6 +52,7 @@ export async function loadDesk(userId, now = new Date(), { full = true } = {}) {
     full ? webBudgetPool() : [],
     full ? pendingReviews(prisma).catch(e => { console.error('[desk] look alikes failed (non-fatal):', e?.message || e); return []; }) : [],
     full ? prisma.user.findMany({ where: { isActive: true, ...inDepartment(SALES_MARKETING) }, select: { id: true, name: true }, orderBy: { name: 'asc' } }) : [],
+    full ? budgetsMadeNotSent(userId).catch(e => { console.error('[desk] budgets not sent failed (non-fatal):', e?.message || e); return []; }) : [],
   ]);
   const seen = new Set(pending.map(d => d.id));
   const drafts = [...pending, ...ownDrafts.filter(d => !seen.has(d.id))];
@@ -69,7 +70,75 @@ export async function loadDesk(userId, now = new Date(), { full = true } = {}) {
     clientId: cBy.get(a.contactId)?.clientId || null,
   }));
   const groups = groupDesk(items, { isWaiting: a => a.waiting, now });
-  return { userId, groups, drafts, meetings, noOwner, pool, reviews, salesPeople, attention: deskAttention({ groups, drafts: drafts.length, meetings: meetings.length }) };
+  return { userId, groups, drafts, meetings, noOwner, pool, reviews, salesPeople, budgetsNotSent, attention: deskAttention({ groups, drafts: drafts.length, meetings: meetings.length }) };
+}
+
+/**
+ * Whose desk (Mike 10-5): the viewer's own, one salesperson's, or everyone's.
+ * `loadDesk` is untouched; this picks who to call it for and merges.
+ *   { userId }           one person's desk (look-only on the page)
+ *   { scope: 'everyone' } every active Sales person's steps, drafts and
+ *                         meetings merged, each row tagged with ownerName.
+ * The company-wide lists (noOwner, pool, reviews, salesPeople, budgetsNotSent)
+ * always come from the viewer's own full call, once.
+ */
+export async function loadDeskFor({ viewerId, userId, scope, now = new Date() }) {
+  if (scope !== 'everyone') {
+    const target = userId || viewerId;
+    const desk = await loadDesk(target, now, { full: true });
+    if (target === viewerId) return desk;
+    const owner = await prisma.user.findUnique({ where: { id: target }, select: { name: true } });
+    return { ...desk, viewerId, ownerName: owner?.name || '' };
+  }
+
+  const mine = await loadDesk(viewerId, now, { full: true });
+  const people = mine.salesPeople.filter(u => u.id !== viewerId);
+  const others = await Promise.all(people.map(u => loadDesk(u.id, now, { full: false }).then(d => ({ ...d, ownerName: u.name }))));
+  const myName = mine.salesPeople.find(u => u.id === viewerId)?.name || '';
+  const all = [{ ...mine, ownerName: myName }, ...others];
+
+  const tag = (rows, d) => rows.map(r => ({ ...r, ownerName: d.ownerName, ownerId: d.userId }));
+  // A shared note's step sits on every owner's desk; keep the viewer's copy (first in `all`).
+  const seenStep = new Set();
+  const byKey = new Map();
+  for (const d of all) {
+    for (const g of d.groups) {
+      const slot = byKey.get(g.key) || { ...g, items: [] };
+      for (const a of tag(g.items, d)) if (!seenStep.has(a.id)) { seenStep.add(a.id); slot.items.push(a); }
+      byKey.set(g.key, slot);
+    }
+  }
+  const t = a => deskDue(a, now)?.getTime() ?? Infinity;
+  const groups = DESK_GROUPS.map(g => byKey.get(g.key)).filter(Boolean)
+    .map(g => ({ ...g, items: g.items.sort((x, y) => t(x) - t(y)) }));
+
+  const seenDraft = new Set();
+  const drafts = [];
+  for (const d of all) for (const x of tag(d.drafts, d)) if (!seenDraft.has(x.id)) { seenDraft.add(x.id); drafts.push(x); }
+  const seenMeeting = new Set();
+  const meetings = [];
+  for (const d of all) for (const m of tag(d.meetings, d)) if (!seenMeeting.has(m.id)) { seenMeeting.add(m.id); meetings.push(m); }
+
+  return { ...mine, viewerId, scope: 'everyone', groups, drafts, meetings };
+}
+
+/**
+ * Budgets made but never sent (Mike 10-5): the viewer's projects with no
+ * budgetSentDate that already hold a budget figure. "Budget made" = a live
+ * ProjectBudgetAmount row at tier "budget" or "po" (a real budget file or a
+ * hand-entered number; the "conceptual" tier is only the web guess, and
+ * budgetNumber is set on web budgets too, so neither of those count).
+ */
+function budgetsMadeNotSent(userId) {
+  return prisma.project.findMany({
+    where: {
+      salesOwnerId: userId, archivedAt: null, budgetSentDate: null,
+      budgetAmounts: { some: { tier: { in: ['budget', 'po'] }, archivedAt: null } },
+    },
+    orderBy: { updatedAt: 'desc' },
+    take: 25,
+    select: { id: true, name: true, budgetNumber: true, updatedAt: true, client: { select: { name: true } } },
+  });
 }
 
 /** Web budget projects nobody in Sales has taken yet (Mike, 10-4: "a pool where we assign that person to a sales person"). */

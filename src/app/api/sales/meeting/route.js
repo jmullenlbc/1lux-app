@@ -3,6 +3,11 @@ import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { NEXT_ACTION_LABEL } from '@/lib/pipeline';
 import { QUIET_AFTER_DAYS, normalizeLayout } from '@/lib/meeting/cards';
+import { isWaitExecutor } from '@/lib/followUp/watch';
+
+// Web budget projects (src/lib/intake/conceptualProjects.js, CONCEPTUAL_SERVICE_TYPE).
+// Spelled out here so this route does not pull in the whole intake module.
+const CONCEPTUAL_SERVICE_TYPE = 'conceptual';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +23,13 @@ const daysAhead = (n) => new Date(Date.now() + n * DAY);
 const PROJECT_CARDS = new Set([
   'awaitingSignature', 'nextActions', 'closingSoon',
   'budgetsAwaitingReply', 'wonAndLost', 'flagged',
+  'newOpportunities', 'ownership', 'deadlines', 'blockers',
 ]);
+
+// Cards built from note steps (NoteAction rows). The step's executor lives on
+// its type (NoteActionType.executor), so these read the type table once.
+const STEP_CARDS = new Set(['introductions', 'clientFollowUps', 'deadlines', 'blockers']);
+const OPEN_STEP = ['SUGGESTED', 'CONFIRMED'];
 
 // GET /api/sales/meeting?cards=a,b,c — one payload per card on the screen.
 export async function GET(request) {
@@ -42,7 +53,8 @@ export async function GET(request) {
         procurementStatusReason: true, designStatusReason: true,
         proposalSentDate: true, budgetSentDate: true, expectedOrderDate: true,
         nextActionType: true, nextActionOwnerId: true, nextActionDueDate: true,
-        flagged: true, flagNote: true, updatedAt: true,
+        flagged: true, flagNote: true, updatedAt: true, createdAt: true,
+        expectedContractExecutionDate: true,
         salesOwnerId: true,
         client: { select: { name: true } },
       },
@@ -64,6 +76,147 @@ export async function GET(request) {
 
   const out = {};
   const want = (k) => cards.has(k);
+
+  // ── Note steps, loaded once for every step card on the screen ──────────────
+  // Open steps plus, for introductions, anything from the last 14 days.
+  let steps = [];
+  let executorOf = {};
+  let labelOf = {};
+  if ([...STEP_CARDS].some(want)) {
+    const [rows, types] = await Promise.all([
+      prisma.noteAction.findMany({
+        where: {
+          kind: 'ACTION',
+          OR: [{ status: { in: OPEN_STEP } }, { createdAt: { gte: daysAgo(14) } }],
+        },
+        select: {
+          id: true, type: true, detail: true, rawText: true, status: true, dueDate: true,
+          contactId: true, contactName: true, targetName: true, company: true,
+          createdAt: true, fulfilledAt: true, leadUserId: true,
+          note: { select: {
+            id: true, title: true, createdById: true, projectId: true,
+            clients: { select: { client: { select: { id: true, name: true } } } },
+            projects: { select: { project: { select: { id: true, name: true, salesOwnerId: true } } } },
+          } },
+        },
+        orderBy: { createdAt: 'asc' },
+      }).catch(() => []),
+      prisma.noteActionType.findMany({ select: { key: true, executor: true, label: true } }).catch(() => []),
+    ]);
+    steps = rows;
+    executorOf = Object.fromEntries(types.map(t => [t.key, t.executor]));
+    labelOf = Object.fromEntries(types.map(t => [t.key, t.label]));
+  }
+  const isOpenStep = (s) => OPEN_STEP.includes(s.status);
+  const stepClient = (s) => s.note?.clients?.[0]?.client?.name || s.company || null;
+  const stepProject = (s) => s.note?.projects?.[0]?.project || null;
+  const shapeStep = (s) => {
+    const p = stepProject(s);
+    const ownerId = s.leadUserId || p?.salesOwnerId || s.note?.createdById || null;
+    return {
+      id: s.id, noteId: s.note?.id || null,
+      name: p?.name || s.note?.title || s.detail || s.rawText,
+      projectId: p?.id || null,
+      client: stepClient(s),
+      what: s.detail || s.rawText,
+      typeLabel: labelOf[s.type] || s.type,
+      status: isOpenStep(s) ? 'open' : (s.status === 'DONE' ? 'done' : 'dismissed'),
+      dueDate: s.dueDate, overdue: isOverdue(s.dueDate),
+      createdAt: s.createdAt, daysOpen: daysSince(s.createdAt),
+      salesOwnerId: ownerId, salesOwnerName: ownerId ? (nameOf[ownerId] || null) : null,
+    };
+  };
+
+  // ── New opportunities: projects added in the last 7 days, any board ────────
+  if (want('newOpportunities')) {
+    const since = daysAgo(7);
+    out.newOpportunities = projects
+      .filter(p => new Date(p.createdAt) >= since)
+      .map(p => ({
+        ...shape(p),
+        createdAt: p.createdAt,
+        stage: p.procurementStage || p.designStage || null,
+        procurementStage: p.procurementStage || null,
+        designStage: p.designStage || null,
+      }))
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }
+
+  // ── Introductions: intros we asked for, last 14 days or still open ─────────
+  if (want('introductions')) {
+    const since = daysAgo(14);
+    out.introductions = steps
+      .filter(s => {
+        const ex = executorOf[s.type] || '';
+        const isIntro = ex === 'EXPECT_INTRO' || String(s.type).toUpperCase().includes('INTRO');
+        return isIntro && (isOpenStep(s) || new Date(s.createdAt) >= since);
+      })
+      .map(s => ({
+        ...shapeStep(s),
+        person: s.targetName || s.contactName || null,
+        askedOf: s.contactName || null,
+        contactId: s.contactId || null,
+        askedBy: s.leadUserId ? (nameOf[s.leadUserId] || null) : (s.note?.createdById ? (nameOf[s.note.createdById] || null) : null),
+      }))
+      .sort((a, b) => (a.status === 'open' ? 0 : 1) - (b.status === 'open' ? 0 : 1) || new Date(b.createdAt) - new Date(a.createdAt));
+  }
+
+  // ── Ownership: open jobs nobody owns, including the web budget pool ────────
+  if (want('ownership')) {
+    out.ownership = projects
+      .filter(p => !p.salesOwnerId && (p.procurementStatus === OPEN || p.serviceType === CONCEPTUAL_SERVICE_TYPE))
+      .map(p => ({
+        ...shape(p),
+        createdAt: p.createdAt,
+        fromWeb: p.serviceType === CONCEPTUAL_SERVICE_TYPE,
+        daysUnowned: daysSince(p.createdAt),
+      }))
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  }
+
+  // ── Client follow-ups: open steps where we wait on the client ──────────────
+  if (want('clientFollowUps')) {
+    out.clientFollowUps = steps
+      .filter(s => isOpenStep(s) && isWaitExecutor(executorOf[s.type]))
+      .map(shapeStep)
+      .sort((a, b) => (a.client || '~').localeCompare(b.client || '~') || new Date(a.createdAt) - new Date(b.createdAt));
+  }
+
+  // ── Deadlines: dates landing in the next 14 days ───────────────────────────
+  // Contract execution dates on projects plus any open step with a due date.
+  // There is no "budget promised by" date on a project yet (see budgetsDue in
+  // the catalog), so budgets only appear here through a step with a due date.
+  if (want('deadlines')) {
+    const horizon = daysAhead(14);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const inWindow = (d) => d && new Date(d) <= horizon;
+    const fromProjects = projects
+      .filter(p => p.procurementStatus === OPEN && inWindow(p.expectedContractExecutionDate))
+      .map(p => ({
+        ...shape(p), kind: 'contract',
+        what: 'Contract expected to be signed', when: p.expectedContractExecutionDate,
+        overdue: new Date(p.expectedContractExecutionDate) < today,
+      }));
+    const fromSteps = steps
+      .filter(s => isOpenStep(s) && inWindow(s.dueDate))
+      .map(s => ({ ...shapeStep(s), kind: 'step', when: s.dueDate }));
+    out.deadlines = [...fromProjects, ...fromSteps].sort((a, b) => new Date(a.when) - new Date(b.when));
+  }
+
+  // ── Blockers: waiting or blocked, with the reason ──────────────────────────
+  if (want('blockers')) {
+    const fromProjects = projects
+      .filter(p => p.procurementStatus === OPEN && (p.nextActionType === 'WAITING' || (p.flagged && p.flagNote)))
+      .map(p => ({
+        ...shape(p), kind: p.nextActionType === 'WAITING' ? 'waiting' : 'flagged',
+        reason: p.flagNote || (p.nextActionType === 'WAITING' ? 'Marked waiting / blocked' : null),
+        since: p.nextActionDueDate || p.updatedAt,
+      }));
+    const fromSteps = steps
+      .filter(s => isOpenStep(s) && (String(s.type).toUpperCase() === 'WAITING' || executorOf[s.type] === 'WAITING'))
+      .map(s => ({ ...shapeStep(s), kind: 'step', reason: s.detail || s.rawText, since: s.createdAt }));
+    out.blockers = [...fromProjects, ...fromSteps].sort((a, b) => new Date(a.since) - new Date(b.since));
+  }
 
   // ── ① Awaiting signature — a proposal is out and the deal hasn't closed ─────
   if (want('awaitingSignature')) {

@@ -32,6 +32,11 @@ async function getSalesRows() {
       salesOwner: { select: { name: true } },
       // Stage moves, for Buyout Duration (entering Buyout → entering CA / Procurement).
       activities: { where: { type: 'deal_stage' }, select: { type: true, metadata: true, createdAt: true }, orderBy: { createdAt: 'asc' } },
+      // "Ordered" (Jason, Oct 5 call): the project has at least one Shipment
+      // row, which is only ever created when a purchase order is placed. If
+      // Maram's definition changes (for example, only shipments with a poDate),
+      // change ORDERED_RULE below, nothing else.
+      _count: { select: { shipments: true } },
     },
   });
   // Average Probability is derived (never stored) — mean of the two entered values,
@@ -39,14 +44,21 @@ async function getSalesRows() {
   // Weighted Revenue and Buyout Duration are derived the same way (Maram 9-17),
   // from the one definition in pipeline.js, so a dashboard tile and the CRM
   // board can never disagree.
-  return rows.map(({ activities, ...r }) => ({
+  return rows.map(({ activities, _count, ...r }) => ({
     ...r,
     averageProbability: avgProbability(r),
     weightedRevenue:    weightedRevenue(r, 'PROCUREMENT'),
     weightedDesignFee:  weightedRevenue(r, 'DESIGN'),
     buyoutDays:         buyoutDays(r, activities),
+    shipmentCount:      _count?.shipments || 0,
+    hasPurchaseOrder:   ORDERED_RULE(_count?.shipments || 0) ? 'Yes' : 'No',
   }));
 }
+
+// The one place that says what "ordered" means on the Sales dashboards.
+// Today: one or more Shipment rows on the project. Mike and Maram still have
+// to confirm this (Oct 5 call); edit here and every card follows.
+const ORDERED_RULE = (shipmentCount) => shipmentCount > 0;
 
 function avgProbability(r) {
   const parts = [r.probabilityToWin, r.probabilityToMoveForward].filter(v => v != null && v !== '');

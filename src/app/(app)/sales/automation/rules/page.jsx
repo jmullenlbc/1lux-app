@@ -779,6 +779,7 @@ const CLASS_RESULT_TYPES = [
   { value: 'SITE_VISIT',  label: '🏗 Site Visit' },
   { value: 'TRAVEL',      label: '✈️ Travel day' },
   { value: 'CALL',        label: '📞 Call' },
+  { value: 'TEXT',        label: '💬 Text' },
   { value: 'EVENT',       label: '🎟 Event' },
   { value: 'OTHER',       label: '📅 Other' },
   { value: 'SKIP',        label: '⏭ Skip' },

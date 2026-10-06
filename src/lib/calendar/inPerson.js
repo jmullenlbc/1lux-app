@@ -83,7 +83,7 @@ export const ALWAYS_IN_PERSON_TYPES = new Set(['GOLF', 'MEAL', 'COFFEE', 'HAPPY_
 
 /** Everything a meeting can be classified as. SKIP means "not worth a note". */
 export const ACTIVITY_TYPES = [
-  'COFFEE', 'MEAL', 'GOLF', 'HAPPY_HOUR', 'SITE_VISIT', 'TRAVEL', 'CALL', 'EVENT', 'OTHER',
+  'COFFEE', 'MEAL', 'GOLF', 'HAPPY_HOUR', 'SITE_VISIT', 'TRAVEL', 'CALL', 'TEXT', 'EVENT', 'OTHER',
 ];
 
 export function isInPersonType(activityType) {
@@ -160,6 +160,8 @@ const TITLE_KEYWORDS = [
   // no preposition. The word "stay" and a place to stay have to BOTH be there.
   [/\bstay\b(?=.*\b(hotel|inn|resort|lodge|suites|marriott|hilton|hyatt|westin|sheraton|ritz|kimpton|omni|courtyard|residence inn|embassy|doubletree|hampton)\b)|\b(hotel|inn|resort|lodge|suites|marriott|hilton|hyatt|westin|sheraton|ritz|kimpton|omni|courtyard|residence inn|embassy|doubletree|hampton)\b(?=.*\bstay\b)/i, 'TRAVEL'],
   [/\bconference\b|\btrade ?show\b|\bnetworking\b|\bgala\b|\bawards?\b|\bmixer\b|\bgroundbreaking\b|\bribbon cutting\b/i, 'EVENT'],
+  // A text thread (Mike 10-5). Tested before CALL so "text about the call" is a text.
+  [/\btexts?\b|\bsms\b|\btext message\b/i,                                'TEXT'],
   [/\bcall\b|\bzoom\b|\bteams\b|\bphone\b|\bcheck ?in\b|\bsync\b/i,       'CALL'],
 ];
 

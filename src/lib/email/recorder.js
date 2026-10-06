@@ -197,6 +197,34 @@ export async function recordEmailMessage(
     }
   }
 
+  // The sender wrote the signature, so only the FROM contact's card is read
+  // against it: blanks are filled, differences become questions (0118).
+  const sender = roles.find(r => r.role === 'FROM');
+  if (sender && !verdict.automated && !verdict.massEmail) {
+    try {
+      const { applySignatureFromMessage } = await import('./signatureApply.js');
+      await applySignatureFromMessage(prisma, { contactId: sender.contactId, message, messageId: saved.id });
+    } catch (err) {
+      console.error('[email] signature apply failed:', err?.message || err);
+    }
+  }
+
+  // Someone new on an email with someone we know (0118). Never fails the recording.
+  if (roles.length && prisma.introduction && !verdict.massEmail && !verdict.automated) {
+    try {
+      const { recordIntroductionsForAddresses } = await import('../sync/introductions.js');
+      const everyone = [
+        { email: message.from, name: message.fromName || null },
+        ...(message.to || []), ...(message.cc || []), ...(message.bcc || []),
+      ];
+      await recordIntroductionsForAddresses(prisma, everyone, {
+        kind: 'email', sourceMessageId: saved.id, detectedAt: fields.sentAt,
+      });
+    } catch (err) {
+      console.error('[email] introduction detection failed:', err?.message || err);
+    }
+  }
+
   return {
     messageId:        saved.id,
     counts:           verdict.counts,

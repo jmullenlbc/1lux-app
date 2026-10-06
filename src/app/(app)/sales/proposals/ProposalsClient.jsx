@@ -2,6 +2,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import TemplatesClient from './templates/TemplatesClient';
+import {
+  STATUS_LABELS, TIME_WINDOWS, DEFAULT_TIME_WINDOW, withinWindow, distinctClients, proposalClientName,
+} from '@/lib/proposals/listFilters';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -13,16 +16,18 @@ const PROPOSAL_TYPES = [
   // "Scope Letter" in TypeBadge; nobody can pick it any more.
 ];
 
+// Labels come from src/lib/proposals/listFilters.js: Accepted reads "Won" and
+// Declined reads "Lost" on this screen (Mike 10-5). Keys are unchanged.
 const STATUS_META = {
-  DRAFT:    { label: 'Draft',    color: 'bg-amber-100 text-amber-700 border-amber-200' },
-  SENT:     { label: 'Sent',     color: 'bg-blue-100 text-blue-700 border-blue-200' },
-  ACCEPTED: { label: 'Accepted', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-  DECLINED: { label: 'Declined', color: 'bg-red-100 text-red-700 border-red-200' },
+  DRAFT:    { label: STATUS_LABELS.DRAFT,    color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  SENT:     { label: STATUS_LABELS.SENT,     color: 'bg-blue-100 text-blue-700 border-blue-200' },
+  ACCEPTED: { label: STATUS_LABELS.ACCEPTED, color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  DECLINED: { label: STATUS_LABELS.DECLINED, color: 'bg-red-100 text-red-700 border-red-200' },
 };
 // Expired left the picker and the filter chips 2026-09-18 (Maram 9-17). A row
 // that was already Expired keeps its badge; it just cannot be chosen any more.
 const LEGACY_STATUS_META = {
-  EXPIRED:  { label: 'Expired',  color: 'bg-slate-100 text-slate-500 border-slate-200' },
+  EXPIRED:  { label: STATUS_LABELS.EXPIRED,  color: 'bg-slate-100 text-slate-500 border-slate-200' },
 };
 
 const PROJECT_TYPES = [
@@ -302,6 +307,10 @@ function ProposalsList() {
   const [err,       setErr]       = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter,   setTypeFilter]   = useState('all');
+  // Mike 10-5: the list opens on the last 60 days (sent date, else created
+  // date) and can be narrowed to one client. Both are client-side, like the rest.
+  const [timeFilter,   setTimeFilter]   = useState(DEFAULT_TIME_WINDOW);
+  const [clientFilter, setClientFilter] = useState('');
   const [showAdd,      setShowAdd]      = useState(false);
 
   const load = useCallback(async () => {
@@ -321,16 +330,34 @@ function ProposalsList() {
 
   useEffect(() => { load(); }, [load]);
 
-  const filtered = proposals.filter(p => {
+  const window     = TIME_WINDOWS.find(w => w.key === timeFilter) || TIME_WINDOWS[0];
+  const clients    = distinctClients(proposals);
+  // Time and client narrow everything, counts included, so the summary tiles
+  // describe the rows on screen.
+  const inWindow = proposals.filter(p =>
+    withinWindow(p, window.days) && (!clientFilter || proposalClientName(p) === clientFilter));
+
+  const filtered = inWindow.filter(p => {
     if (statusFilter !== 'all' && p.status !== statusFilter) return false;
     if (typeFilter   !== 'all' && p.type   !== typeFilter)   return false;
     return true;
   });
 
   const statusCounts = Object.keys(STATUS_META).reduce((acc, s) => {
-    acc[s] = proposals.filter(p => p.status === s).length;
+    acc[s] = inWindow.filter(p => p.status === s).length;
     return acc;
   }, {});
+
+  const activeChips = [
+    timeFilter !== 'all' && { key: 'time', label: window.label, clear: () => setTimeFilter('all') },
+    clientFilter && { key: 'client', label: clientFilter, clear: () => setClientFilter('') },
+    statusFilter !== 'all' && { key: 'status', label: STATUS_META[statusFilter]?.label || statusFilter, clear: () => setStatusFilter('all') },
+    typeFilter !== 'all' && { key: 'type', label: PROPOSAL_TYPES.find(t => t.value === typeFilter)?.label || typeFilter, clear: () => setTypeFilter('all') },
+  ].filter(Boolean);
+
+  function clearFilters() {
+    setTimeFilter('all'); setClientFilter(''); setStatusFilter('all'); setTypeFilter('all');
+  }
 
   function handleCreated(proposal) {
     setShowAdd(false);
@@ -400,7 +427,32 @@ function ProposalsList() {
             </button>
           ))}
         </div>
+        <select value={timeFilter} onChange={e => setTimeFilter(e.target.value)}
+          aria-label="Time window"
+          className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-orange-400">
+          {TIME_WINDOWS.map(w => <option key={w.key} value={w.key}>{w.label}</option>)}
+        </select>
+        <select value={clientFilter} onChange={e => setClientFilter(e.target.value)}
+          aria-label="Client"
+          className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-orange-400">
+          <option value="">All clients</option>
+          {clients.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
       </div>
+
+      {/* What is narrowing the list right now */}
+      {activeChips.length > 0 && (
+        <div className="flex items-center gap-2 mb-4 flex-wrap text-xs">
+          <span className="text-slate-400">Showing:</span>
+          {activeChips.map(c => (
+            <button key={c.key} type="button" onClick={c.clear} title="Remove this filter"
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200">
+              {c.label} <span className="text-slate-400">x</span>
+            </button>
+          ))}
+          <button type="button" onClick={clearFilters} className="text-slate-500 hover:text-slate-800 underline">Clear</button>
+        </div>
+      )}
 
       {/* Table */}
       {loading ? (
@@ -414,8 +466,14 @@ function ProposalsList() {
             {proposals.length === 0 ? 'No proposals yet' : 'No proposals match your filters'}
           </h3>
           <p className="text-sm text-slate-400 max-w-sm mb-5">
-            {proposals.length === 0 ? 'Click "Add Project" to create your first proposal.' : 'Try adjusting the filters above.'}
+            {proposals.length === 0 ? 'Click "Add Project" to create your first proposal.' : 'Try adjusting the filters above, or pick All time.'}
           </p>
+          {proposals.length > 0 && (
+            <button onClick={clearFilters}
+              className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-colors">
+              Clear filters
+            </button>
+          )}
           {proposals.length === 0 && (
             <button onClick={() => setShowAdd(true)}
               className="px-4 py-2 rounded-xl bg-orange-500 text-white text-sm font-bold hover:bg-orange-600 transition-colors">
@@ -447,7 +505,7 @@ function ProposalsList() {
                       <div className="text-[11px] text-slate-400 mt-0.5">{p.project.name}</div>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-sm text-slate-600">{p.clientName || '—'}</td>
+                  <td className="px-4 py-3 text-sm text-slate-600">{proposalClientName(p) || 'none'}</td>
                   <td className="px-4 py-3"><TypeBadge type={p.type} /></td>
                   <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
                   <td className="px-4 py-3 text-right">
