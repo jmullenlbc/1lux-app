@@ -8,8 +8,8 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 ## [Mass edit and archive for Sales Notes] - October 6, 2026 (DEPLOYED 7584b9b) - no migration
 
 - **Select button** on the Sales Notes agenda (`/crm/notes`) turns on checkboxes; rows toggle instead of opening. "All shown" / "None" pick across the current filter and search.
-- **Bulk bar**: Archive (amber confirm, bot follow-ups held), Publish, Back to draft, Set type, Add owner, Link company. Archived notes leave the list; everything else updates in place.
-- **New route** `POST /api/crm/notes/bulk` `{ ids, archived?, publish?, activityType?, addOwnerIds?, addClientIds?, addProjectIds? }` (max 200 ids). Applies the same changes as the single-note route per note: history lines, bot pause on archive and unpublish, last-met stamp and action extraction on publish. Returns `{ updated, failed }`.
+- **Bulk bar**: Archive (amber confirm, bot follow-ups held), Publish, Back to draft, Set type, Add owner, Link company, Link project, Set date, Link person (name search). Archived notes leave the list; everything else updates in place. (Link project / Set date / Link person DEPLOYED PENDING2, Mike 10-6 "yes and any options like connecting to a company or person too".)
+- **New route** `POST /api/crm/notes/bulk` `{ ids, archived?, publish?, activityType?, meetingDate?, addOwnerIds?, addClientIds?, addProjectIds?, addContactIds? }` (max 200 ids). Applies the same changes as the single-note route per note: history lines, bot pause on archive and unpublish, last-met stamp and action extraction on publish. Returns `{ updated, failed }`.
 - Files: `src/app/api/crm/notes/bulk/route.js` (new), `src/app/(app)/crm/notes/NotesClient.jsx`.
 
 ## [Tabs on every Sales module with sibling views] - October 6, 2026 (DEPLOYED e9914e8) - no migration

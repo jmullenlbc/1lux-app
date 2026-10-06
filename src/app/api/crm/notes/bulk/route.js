@@ -18,8 +18,10 @@ import { addNoteOwners, logNoteChanges } from '@/lib/notes/owners';
 //     publish?:  true | false,      publish or back to draft
 //     activityType?: 'CALL' ...,    set the meeting type
 //     addOwnerIds?: [...],          add owners (never removes)
+//     meetingDate?: ISO string,     set the meeting date and time
 //     addClientIds?: [...],         link companies
-//     addProjectIds?: [...] }       link projects
+//     addProjectIds?: [...],        link projects
+//     addContactIds?: [...] }       link people (never removes)
 //
 // Returns { updated: [notes...], failed: [{ id, error }] }.
 
@@ -51,6 +53,12 @@ export async function POST(request) {
   const activityType = typeof body.activityType === 'string' && body.activityType ? body.activityType : null;
   const addClientIds  = strList(body.addClientIds);
   const addProjectIds = strList(body.addProjectIds);
+  const addContactIds = strList(body.addContactIds);
+  let meetingDate = null;
+  if (body.meetingDate !== undefined && body.meetingDate !== null && body.meetingDate !== '') {
+    meetingDate = new Date(body.meetingDate);
+    if (Number.isNaN(meetingDate.getTime())) return NextResponse.json({ error: 'That meeting date is not a real date.' }, { status: 400 });
+  }
 
   let addOwnerIds = strList(body.addOwnerIds);
   if (addOwnerIds.length) {
@@ -58,7 +66,7 @@ export async function POST(request) {
     addOwnerIds = addOwnerIds.filter(id => real.some(u => u.id === id));
   }
 
-  if (archived === null && publish === null && !activityType && !addOwnerIds.length && !addClientIds.length && !addProjectIds.length) {
+  if (archived === null && publish === null && !activityType && !meetingDate && !addOwnerIds.length && !addClientIds.length && !addProjectIds.length && !addContactIds.length) {
     return NextResponse.json({ error: 'Nothing to change.' }, { status: 400 });
   }
 
@@ -77,6 +85,10 @@ export async function POST(request) {
         data.classificationConfidence = 100;
         changes.push({ field: 'activityType', before: note.activityType, after: activityType });
       }
+      if (meetingDate && day(meetingDate) !== day(note.meetingDate)) {
+        changes.push({ field: 'meetingDate', before: day(note.meetingDate), after: day(meetingDate) });
+      }
+      if (meetingDate) data.meetingDate = meetingDate;
       const publishing   = publish === true  && !note.isPublished;
       const unpublishing = publish === false &&  note.isPublished;
       if (publishing)   { data.isPublished = true;  data.publishedAt = new Date(); changes.push({ field: 'published', before: 'Draft', after: 'Published' }); }
@@ -90,6 +102,7 @@ export async function POST(request) {
         if (Object.keys(data).length) await tx.note.update({ where: { id: note.id }, data });
         await addNoteLinks(tx, 'client',  note.id, addClientIds);
         await addNoteLinks(tx, 'project', note.id, addProjectIds);
+        await addNoteLinks(tx, 'contact', note.id, addContactIds);
       });
 
       if (addOwnerIds.length) {
@@ -98,12 +111,13 @@ export async function POST(request) {
       }
       for (const n of await namesOf('client',  addClientIds))  changes.push({ field: 'company', after: n });
       for (const n of await namesOf('project', addProjectIds)) changes.push({ field: 'project', after: n });
+      for (const n of await namesOf('contact', addContactIds)) changes.push({ field: 'person', after: n });
       await logNoteChanges(prisma, note.id, user, changes);
 
       if (publishing) {
         const inPerson = data.isInPerson ?? note.isInPerson;
         if (inPerson) {
-          try { await stampLastMet(prisma, note.id, note.meetingDate); }
+          try { await stampLastMet(prisma, note.id, data.meetingDate ?? note.meetingDate); }
           catch (e) { console.error('[notes bulk publish] last-met update failed:', e?.message ?? e); }
         }
         try { await extractActionsOnPublish(note.id); }
@@ -126,6 +140,7 @@ export async function POST(request) {
   return NextResponse.json({ updated, failed });
 }
 
+const day = d => (d ? new Date(d).toISOString().slice(0, 10) : null);
 async function namesOf(model, ids) {
   if (!ids?.length) return [];
   return (await prisma[model].findMany({ where: { id: { in: ids } }, select: { name: true } })).map(r => r.name);

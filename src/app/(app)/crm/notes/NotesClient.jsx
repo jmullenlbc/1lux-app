@@ -1262,6 +1262,10 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
   const [bulkMsg,     setBulkMsg]     = useState('');
   const [bulkArchive, setBulkArchive] = useState(false);
   const [users,       setUsers]       = useState([]);
+  const [bulkDate,    setBulkDate]    = useState('');
+  const [personQ,     setPersonQ]     = useState('');
+  const [personHits,  setPersonHits]  = useState([]);
+  const personDeb = useRef(null);
   const shownIds = filtered.map(n => n.id);
   const pickedShown = shownIds.filter(id => picked.has(id));
 
@@ -1270,10 +1274,23 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
     fetch('/api/users').then(r => r.json()).then(d => setUsers((d.users || []).filter(u => u.role !== 'CLIENT_VIEWER'))).catch(() => {});
   }, [selectMode, users.length]);
 
+  // "Link person" in the bulk bar searches the CRM people the same way the note editor does.
+  useEffect(() => {
+    clearTimeout(personDeb.current);
+    if (!selectMode || !personQ.trim()) { setPersonHits([]); return undefined; }
+    personDeb.current = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/crm/contacts?search=${encodeURIComponent(personQ.trim())}`);
+        if (r.ok) { const d = await r.json(); setPersonHits((d.contacts || d || []).slice(0, 6)); }
+      } catch {}
+    }, 250);
+    return () => clearTimeout(personDeb.current);
+  }, [personQ, selectMode]);
+
   function togglePick(id) {
     setPicked(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
   }
-  function leaveSelectMode() { setSelectMode(false); setPicked(new Set()); setBulkMsg(''); }
+  function leaveSelectMode() { setSelectMode(false); setPicked(new Set()); setBulkMsg(''); setBulkDate(''); setPersonQ(''); }
 
   async function runBulk(change, label) {
     if (!pickedShown.length || bulkBusy) return;
@@ -1299,6 +1316,8 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
       setBulkMsg(`${label} ${updated.length} note${updated.length === 1 ? '' : 's'}.${failed ? ` ${failed} could not be changed.` : ''}`);
       setPicked(new Set());
       setBulkArchive(false);
+      setBulkDate('');
+      setPersonQ('');
     } catch {
       setBulkMsg('Could not reach the server. Nothing was changed.');
     } finally {
@@ -1412,6 +1431,36 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
                   <option value="">Link company…</option>
                   {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
+                <select value="" disabled={!pickedShown.length || bulkBusy}
+                  onChange={e => { const v = e.target.value; if (v) runBulk({ addProjectIds: [v] }, 'Linked a project to'); }}
+                  className="bg-white border border-slate-200 rounded px-1.5 py-1 text-xs text-slate-700 disabled:opacity-50 max-w-[11rem]">
+                  <option value="">Link project…</option>
+                  {projects.map(p => <option key={p.id} value={p.id}>{p.projectNumber ? `${p.projectNumber} ` : ''}{p.name}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <input type="datetime-local" value={bulkDate} disabled={!pickedShown.length || bulkBusy}
+                  onChange={e => setBulkDate(e.target.value)} title="Set the meeting date and time on every picked note"
+                  className="bg-white border border-slate-200 rounded px-1.5 py-1 text-xs text-slate-700 disabled:opacity-50" />
+                <button type="button" disabled={!pickedShown.length || bulkBusy || !fromLocalInput(bulkDate)}
+                  onClick={() => runBulk({ meetingDate: fromLocalInput(bulkDate) }, 'Set the date on')}
+                  className="px-2 py-1 rounded bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-50">Set date</button>
+              </div>
+              <div className="relative">
+                <input value={personQ} disabled={!pickedShown.length || bulkBusy}
+                  onChange={e => setPersonQ(e.target.value)} placeholder="Link person: type a name"
+                  className="w-full bg-white border border-slate-200 rounded px-1.5 py-1 text-xs text-slate-700 placeholder:text-slate-400 disabled:opacity-50" />
+                {personHits.length > 0 && (
+                  <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden">
+                    {personHits.map(c => (
+                      <button key={c.id} type="button" onClick={() => runBulk({ addContactIds: [c.id] }, `Linked ${c.name} to`)}
+                        className="w-full text-left px-2.5 py-1.5 text-xs hover:bg-amber-50">
+                        <span className="font-medium text-slate-800">{c.name}</span>
+                        {(c.company || c.client?.name) && <span className="text-slate-400"> · {c.company || c.client?.name}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               {bulkMsg && <p className="text-[11px] text-slate-600">{bulkMsg}</p>}
             </div>
