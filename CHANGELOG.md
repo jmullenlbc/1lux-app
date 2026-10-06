@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Sales sidebar order, dashboard tabs for Budget page visitors and Morning Brief] - October 6, 2026 (DEPLOYED) - no migration
+## [Sales sidebar order, dashboard tabs for Budget page visitors and Morning Brief] - October 6, 2026 (DEPLOYED 75222c0) - no migration
 
 - **Sales sidebar order (Mike 10-6):** My Desk, Dashboard, Pipeline, Weekly Meeting, Clients, Sales Notes, Market Intelligence, Sales Activity, Sales Automation, Proposals. "Budget Page Visitors" row removed.
 - **Sales dashboard tabs:** Dashboard / Budget page visitors / Morning Brief across the top, same look as the Sales Automation tabs (`src/components/dashboards/SalesDashboardTabs.jsx`). + Widget and Share stay buttons. `/sales/visitors` and `/crm/brief` redirect to the matching tab (`/dashboards/sales?tab=visitors|brief`, the days picker carries over). Panels: `dashboards/[section]/VisitorsPanel.jsx` and `BriefPanel.jsx`; `BriefClient` takes `embedded`.

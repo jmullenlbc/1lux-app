@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-06 (newest) - Mike's Claude - **DEPLOYED**, no migration: Sales sidebar reordered, dashboard tabs
+### 2026-10-06 (newest) - Mike's Claude - **DEPLOYED 75222c0**, no migration: Sales sidebar reordered, dashboard tabs
 Sales sidebar order per Mike (My Desk, Dashboard, Pipeline, Weekly Meeting, Clients, Sales Notes, Market Intelligence, Sales Activity, Sales Automation, Proposals). Sales dashboard has tabs Dashboard / Budget page visitors / Morning Brief (`SalesDashboardTabs.jsx`); `/sales/visitors` and `/crm/brief` redirect to `/dashboards/sales?tab=`. verify --full passed.
 
 ### 2026-10-05 - Mike's Claude - **DEPLOYED e8b36d6**, migrations 0118 (additive: Introduction, EmailTag, EmailMessageTag, ContactFieldSuggestion, NoteActionType LINKEDIN seed) + 0119 (`ClientContact.createdById`, who added the person): CRM review with Maram
