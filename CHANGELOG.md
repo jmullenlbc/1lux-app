@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Password on the public conceptual budget tool] - October 7, 2026 (DEPLOYED PENDINGn) - migration 0120 (additive)
+## [Password on the public conceptual budget tool] - October 7, 2026 (DEPLOYED 8daa035) - migration 0120 (additive)
 
 - **`/conceptual_budget` asks for a password** before the tool opens (Mike 10-7: "password protected for now"). Starting password `Lighitngbudget01`, seeded by the migration. A right answer sets a 30-day cookie; signed-in staff skip the screen. Ten tries a minute per address.
 - **The tool's APIs refuse without it too** (draft save/load, draft email, estimate, drawing read, PDF, submit return 401). The visit counter and the bug button stay open.
