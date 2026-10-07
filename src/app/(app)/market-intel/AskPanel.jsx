@@ -67,7 +67,7 @@ function CrmCell({ row, question, onChange }) {
       {!sure && (
         <span className="flex gap-2">
           <button onClick={add} disabled={busy}
-            className="text-xs bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white rounded-md px-2 py-0.5 whitespace-nowrap">Add to CRM</button>
+            className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white whitespace-nowrap">Add to CRM</button>
           <button onClick={() => dismiss('dismiss')} disabled={busy} className="text-xs text-slate-500 hover:underline whitespace-nowrap">Not useful</button>
         </span>
       )}
@@ -203,7 +203,7 @@ export default function AskPanel() {
           placeholder="e.g. Who are the top multifamily GCs in the Tampa Bay area?"
           className="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:bg-slate-50" />
         <button onClick={ask} disabled={running || text.trim().length < 8}
-          className="sm:self-start text-sm bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white rounded-lg px-4 py-2 font-medium">
+          className="sm:self-start px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white">
           {running ? 'Searching…' : 'Ask'}
         </button>
       </div>

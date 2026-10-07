@@ -91,9 +91,10 @@ export default function MarketIntelPage() {
   const hasActiveFilters = filters.projectType || filters.signalType || filters.reviewStatus !== 'UNREVIEWED' || filters.clientId || search;
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6">
       {/* Market Intelligence / Sources tabs (Mike 10-6) replace the Manage Sources button. */}
       <SectionTabs tabs={MARKET_INTEL_TABS} />
+      <div className="max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-start justify-between mb-5">
         <div>
@@ -230,6 +231,7 @@ export default function MarketIntelPage() {
           </button>
         </div>
       )}
+      </div>
     </div>
   );
 }

@@ -211,7 +211,7 @@ function IntakeDrawer({ projectId, allUsers, onCreated, onClose }) {
 
         <div className="flex gap-3 px-6 py-4 border-t border-slate-100 flex-shrink-0">
           <button type="button" onClick={onClose} className="flex-1 py-2 text-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50">Cancel</button>
-          <button onClick={handleSave} disabled={saving} className="flex-1 py-2 text-sm bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg disabled:opacity-60">
+          <button onClick={handleSave} disabled={saving} className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-60">
             {saving ? 'Saving…' : 'Log RFI'}
           </button>
         </div>
@@ -565,7 +565,7 @@ export default function RFIModule({ projectId, allUsers, currentUserName }) {
           </p>
         </div>
         <button onClick={() => setShowIntake(true)}
-          className="px-4 py-2 text-sm bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg transition-colors flex items-center gap-1.5">
+          className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors flex items-center gap-1.5">
           + Log RFI
         </button>
       </div>

@@ -2,7 +2,10 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-06 (newest) - Mike's Claude - **DEPLOYED 1509020**, no migration: Market Intel "Refresh sources" button fixed + pages centered
+### 2026-10-06 (newest) - Mike's Claude - **DEPLOYED PENDINGn**, no migration: UI consistency pass
+Tab strips left-aligned on all 12 tabbed pages + Contacts + My Desk (strip hoisted above the centered column). One button standard: Pipeline size, orange-500/600 for actions, white secondary; ~87 buttons in 55 files restyled by script, `Button.jsx` amber = orange. Dashboard header: Share then + Widget. Sales Notes: always-visible row checkboxes + Select all, Select button removed. verify --full passed.
+
+### 2026-10-06 - Mike's Claude - **DEPLOYED 1509020**, no migration: Market Intel "Refresh sources" button fixed + pages centered
 `POST /api/market-intel/poll` read the session into `session` but tested `user`, so the button 500'd for everyone signed in. Fixed; button relabeled "Refresh sources"; both Market Intel pages get `mx-auto`. Scheduled cron still waits on Sean. verify --full passed. Follow-up DEPLOYED 9d932b5: all staff may press it (was admins only).
 
 ### 2026-10-06 - Mike's Claude - **DEPLOYED 7584b9b**, no migration: mass edit and archive for Sales Notes

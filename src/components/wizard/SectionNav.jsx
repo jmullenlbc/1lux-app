@@ -66,13 +66,13 @@ export default function SectionNav({ steps, currentStep, completedSteps, onJump,
               <button
                 onClick={handleSave}
                 disabled={saving || !form.name.trim()}
-                className="flex-1 text-xs bg-amber-500 hover:bg-amber-600 text-white rounded py-1 font-medium disabled:opacity-50 transition-colors"
+                className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50 transition-colors"
               >
                 {saving ? 'Saving…' : 'Save'}
               </button>
               <button
                 onClick={() => { setEditing(false); setForm({ name: project.name || '', location: project.location || '', contactEmail: project.contactEmail || '' }); }}
-                className="flex-1 text-xs border border-slate-200 text-slate-500 hover:bg-slate-50 rounded py-1 transition-colors"
+                className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>

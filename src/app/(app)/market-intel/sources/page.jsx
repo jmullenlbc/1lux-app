@@ -108,9 +108,10 @@ export default function MarketSourcesPage() {
   const localCount  = sources.filter(s => (s.market || DEFAULT_MARKET) !== DEFAULT_MARKET).length;
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6">
       {/* Market Intelligence / Sources tabs (Mike 10-6) replace the back arrow. */}
       <SectionTabs tabs={MARKET_INTEL_TABS} />
+      <div className="max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -295,6 +296,7 @@ export default function MarketSourcesPage() {
           ))}
         </div>
       )}
+      </div>
     </div>
   );
 }

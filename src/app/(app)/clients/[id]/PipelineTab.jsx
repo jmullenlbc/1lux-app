@@ -245,7 +245,7 @@ export default function PipelineTab({ clientId, canEdit = false }) {
             {err && <p className="text-xs text-rose-600">{err}</p>}
             <div className="flex gap-2">
               <button onClick={doImport} disabled={saving}
-                className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold disabled:opacity-50">
+                className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50">
                 {saving ? 'Importing…' : `Import ${preview.length} project${preview.length !== 1 ? 's' : ''}`}
               </button>
               <button onClick={() => resetImport()} className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm hover:bg-slate-50">Choose a different file</button>
@@ -354,7 +354,7 @@ export default function PipelineTab({ clientId, canEdit = false }) {
           </div>
           {canEdit && (
             <button onClick={() => { resetImport(); setView('import'); }}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold">
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v12m0-12l-4 4m4-4l4 4M4 20h16" /></svg>
               {projects.length ? 'Update' : 'Import'}
             </button>

@@ -162,7 +162,7 @@ export default function ShipScheduleImport({ projectId, onClose, onImported }) {
             <button
               onClick={commit}
               disabled={importing}
-              className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-white text-sm font-semibold disabled:opacity-60"
+              className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-60"
             >
               {importing ? 'Importing…' : `Import ${preview.preview.length} Shipment${preview.preview.length !== 1 ? 's' : ''}`}
             </button>

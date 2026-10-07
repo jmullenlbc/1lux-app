@@ -125,7 +125,7 @@ export default function PriorityStack({ initialPriorities = [] }) {
           />
           <button
             onClick={add}
-            className="text-sm font-semibold px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors shrink-0"
+            className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors shrink-0"
           >
             + Add
           </button>

@@ -571,7 +571,7 @@ function JobLinkPanel({ submission, projects, onUpdated }) {
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-700 flex-1">Make a new project called “{submission.proposedName}”?</span>
               <button onClick={createNew} disabled={busy}
-                className="px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold disabled:opacity-50">
+                className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50">
                 {busy ? 'Creating…' : 'Yes, create it'}
               </button>
               <button onClick={() => setConfirmCreate(false)} disabled={busy}
@@ -888,7 +888,7 @@ export default function IntakeClient({ submissions: initialSubmissions, drafts =
                   <button
                     onClick={handleSave}
                     disabled={saving}
-                    className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded-lg disabled:opacity-50 transition-colors"
+                    className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50 transition-colors"
                   >
                     {saving ? 'Saving...' : 'Save'}
                   </button>
@@ -957,7 +957,7 @@ export default function IntakeClient({ submissions: initialSubmissions, drafts =
                           onClick={handleSendInvite}
                           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                             canInvite && selected.duplicateMatchId && !inviting
-                              ? 'bg-amber-500 hover:bg-amber-400 text-white'
+                              ? 'bg-orange-500 hover:bg-orange-600 text-white'
                               : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                           }`}
                         >

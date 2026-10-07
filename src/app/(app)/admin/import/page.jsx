@@ -212,7 +212,7 @@ export default function ImportPage() {
               <button
                 onClick={handleImport}
                 disabled={selectedCount === 0}
-                className="px-5 py-2 rounded-lg text-sm font-semibold bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors"
+                className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors"
               >
                 Import {selectedCount} Project{selectedCount !== 1 ? 's' : ''}
               </button>
@@ -335,7 +335,7 @@ export default function ImportPage() {
             <button
               onClick={handleImport}
               disabled={selectedCount === 0}
-              className="px-6 py-2.5 rounded-lg text-sm font-semibold bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors"
+              className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors"
             >
               Import {selectedCount} Project{selectedCount !== 1 ? 's' : ''}
             </button>
@@ -388,7 +388,7 @@ export default function ImportPage() {
           <div className="flex gap-3">
             <button
               onClick={() => router.push('/dashboard')}
-              className="px-5 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-white font-semibold text-sm transition-colors"
+              className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors"
             >
               Go to Dashboard
             </button>

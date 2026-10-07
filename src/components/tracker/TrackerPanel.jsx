@@ -258,7 +258,7 @@ function AddReviewForm({ versionId, roles, onAdd, onCancel }) {
       <div className="flex items-center justify-end gap-2">
         <button type="button" onClick={onCancel} className="text-xs text-slate-400 hover:text-slate-600">Cancel</button>
         <button type="submit" disabled={saving}
-          className="px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold transition-colors disabled:opacity-60">
+          className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-60">
           {saving ? 'Saving…' : 'Add Review'}
         </button>
       </div>

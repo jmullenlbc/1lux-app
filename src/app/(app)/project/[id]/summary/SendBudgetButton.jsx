@@ -9,7 +9,7 @@ export default function SendBudgetButton({ projectId, projectName, totalBudget }
     <>
       <button
         onClick={() => setOpen(true)}
-        className="px-4 py-2 rounded-lg text-sm font-medium bg-amber-500 hover:bg-amber-400 text-white transition-colors flex items-center gap-1.5"
+        className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors flex items-center gap-1.5"
       >
         <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
           <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>

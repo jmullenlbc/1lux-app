@@ -362,7 +362,7 @@ export default function ProfileClient({ user }) {
           <button
             onClick={handleSaveName}
             disabled={savingName || !name.trim() || name.trim() === (user?.name || '')}
-            className="px-4 py-2 rounded-lg text-sm font-medium bg-amber-500 hover:bg-amber-600 text-white transition-colors disabled:opacity-40"
+            className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-40"
           >
             {savingName ? 'Saving…' : 'Save'}
           </button>

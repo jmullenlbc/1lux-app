@@ -993,8 +993,9 @@ export default function KnowledgePage() {
   const groupKeys = Object.keys(grouped).sort();
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6">
+    <div className="px-4 py-6">
       <AutomationNav />
+      <div className="max-w-5xl mx-auto">
       {/* Header */}
       <div className="mb-5">
         <h1 className="text-xl font-bold text-slate-900">Bot Knowledge</h1>
@@ -1177,6 +1178,7 @@ export default function KnowledgePage() {
         onCancel={() => setConfirmEntry(null)}
         onConfirm={() => setActive(confirmEntry, false)}
       />
+      </div>
     </div>
   );
 }

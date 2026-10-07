@@ -131,7 +131,7 @@ function NewClientModal({ onClose, onCreated }) {
               Cancel
             </button>
             <button type="submit" disabled={saving}
-              className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-60">
+              className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-60">
               {saving ? 'Creating…' : 'Create Client'}
             </button>
           </div>
@@ -537,9 +537,10 @@ export default function ProposalsClient() {
   const tab = searchParams.get('tab') === 'templates' ? 'templates' : 'proposals';
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
+    <div className="px-4 py-6">
       {/* Proposals / Templates tabs (Mike 10-6), same look as Sales Automation. */}
       <SectionTabs tabs={PROPOSAL_TABS} active={tab} className="mb-5" />
+      <div className="max-w-6xl mx-auto">
       {tab === 'proposals' && (
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-xl font-bold text-slate-900">Proposals</h1>
@@ -548,6 +549,7 @@ export default function ProposalsClient() {
 
       {tab === 'proposals' && <ProposalsList />}
       {tab === 'templates' && <TemplatesClient embedded />}
+      </div>
     </div>
   );
 }

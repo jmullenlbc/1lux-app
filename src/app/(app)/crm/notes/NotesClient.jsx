@@ -462,34 +462,31 @@ function DateTile({ date, tone }) {
   );
 }
 
-// selectable: the list is in pick mode (Mike 10-6, mass edit or archive). The
-// row then toggles its checkbox instead of opening the note.
-function NoteRow({ note, tone, active, onClick, selectable = false, checked = false, onToggle }) {
+// Every row carries a checkbox on the left, always visible (Mike 10-6: "multi-select
+// on the left with a box on each line"), so several notes can be archived or edited at once.
+function NoteRow({ note, tone, active, onClick, checked = false, onToggle }) {
   const meta = ACTIVITY_META[note.activityType];
   const company = note.clients?.map(nc => nc.client?.name).filter(Boolean).join(', ');
   return (
-    <button onClick={selectable ? onToggle : onClick}
-      className={`w-full text-left flex gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-        selectable && checked ? 'bg-amber-50 ring-1 ring-amber-300' : active && !selectable ? 'bg-amber-50 ring-1 ring-amber-300' : 'hover:bg-white'}`}>
-      {selectable && (
-        <span className={`mt-3 w-4 h-4 shrink-0 rounded border flex items-center justify-center text-[10px] ${
-          checked ? 'bg-amber-500 border-amber-500 text-white' : 'bg-white border-slate-300'}`} aria-hidden="true">
-          {checked ? '✓' : ''}
-        </span>
-      )}
-      <DateTile date={note.meetingDate} tone={tone} />
-      <div className="min-w-0 flex-1">
-        <div className="text-sm font-medium text-slate-800 truncate">
-          {note.title || <span className="text-slate-400 italic">Untitled meeting</span>}
+    <div className={`w-full flex items-start gap-2 pl-2 pr-3 py-2.5 rounded-lg transition-colors ${
+        checked ? 'bg-orange-50 ring-1 ring-orange-300' : active ? 'bg-amber-50 ring-1 ring-amber-300' : 'hover:bg-white'}`}>
+      <input type="checkbox" checked={checked} onChange={onToggle} aria-label={`Pick ${note.title || 'untitled meeting'}`}
+        className="mt-3 w-4 h-4 shrink-0 accent-orange-500 cursor-pointer" />
+      <button type="button" onClick={onClick} className="min-w-0 flex-1 text-left flex gap-3">
+        <DateTile date={note.meetingDate} tone={tone} />
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium text-slate-800 truncate">
+            {note.title || <span className="text-slate-400 italic">Untitled meeting</span>}
+          </div>
+          <div className="text-[11px] text-slate-500 truncate">
+            {note.meetingDate && fmtTime(note.meetingDate)}
+            {meta && <> · {meta.emoji} {meta.label}</>}
+            {note.calendarRef && <span title="Came from the calendar"> · 📅</span>}
+          </div>
+          {company && <div className="text-[11px] text-slate-400 truncate">{company}</div>}
         </div>
-        <div className="text-[11px] text-slate-500 truncate">
-          {note.meetingDate && fmtTime(note.meetingDate)}
-          {meta && <> · {meta.emoji} {meta.label}</>}
-          {note.calendarRef && <span title="Came from the calendar"> · 📅</span>}
-        </div>
-        {company && <div className="text-[11px] text-slate-400 truncate">{company}</div>}
-      </div>
-    </button>
+      </button>
+    </div>
   );
 }
 
@@ -1255,8 +1252,7 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
   // Phones show one side at a time: the agenda, or the meeting picked from it.
   const [phoneNote, setPhoneNote] = useState(false);
 
-  // Pick mode (Mike 10-6): tick notes in the list, then archive or edit them all at once.
-  const [selectMode,  setSelectMode]  = useState(false);
+  // Multi-select (Mike 10-6): every row has a checkbox; tick some, then archive or edit them all at once.
   const [picked,      setPicked]      = useState(() => new Set());
   const [bulkBusy,    setBulkBusy]    = useState(false);
   const [bulkMsg,     setBulkMsg]     = useState('');
@@ -1268,16 +1264,18 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
   const personDeb = useRef(null);
   const shownIds = filtered.map(n => n.id);
   const pickedShown = shownIds.filter(id => picked.has(id));
+  const anyPicked = pickedShown.length > 0;
+  const allShownPicked = shownIds.length > 0 && pickedShown.length === shownIds.length;
 
   useEffect(() => {
-    if (!selectMode || users.length) return;
+    if (!anyPicked || users.length) return;
     fetch('/api/users').then(r => r.json()).then(d => setUsers((d.users || []).filter(u => u.role !== 'CLIENT_VIEWER'))).catch(() => {});
-  }, [selectMode, users.length]);
+  }, [anyPicked, users.length]);
 
   // "Link person" in the bulk bar searches the CRM people the same way the note editor does.
   useEffect(() => {
     clearTimeout(personDeb.current);
-    if (!selectMode || !personQ.trim()) { setPersonHits([]); return undefined; }
+    if (!anyPicked || !personQ.trim()) { setPersonHits([]); return undefined; }
     personDeb.current = setTimeout(async () => {
       try {
         const r = await fetch(`/api/crm/contacts?search=${encodeURIComponent(personQ.trim())}`);
@@ -1285,12 +1283,14 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
       } catch {}
     }, 250);
     return () => clearTimeout(personDeb.current);
-  }, [personQ, selectMode]);
+  }, [personQ, anyPicked]);
 
   function togglePick(id) {
     setPicked(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
   }
-  function leaveSelectMode() { setSelectMode(false); setPicked(new Set()); setBulkMsg(''); setBulkDate(''); setPersonQ(''); }
+  function toggleAll() {
+    setPicked(allShownPicked ? new Set() : new Set(shownIds));
+  }
 
   async function runBulk(change, label) {
     if (!pickedShown.length || bulkBusy) return;
@@ -1355,23 +1355,12 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
                 {groups.upcoming.length} coming up · {groups.needsNotes.length} need notes
               </p>
             </div>
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => (selectMode ? leaveSelectMode() : setSelectMode(true))}
-                title={selectMode ? 'Stop picking notes' : 'Pick several notes to archive or edit at once'}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                  selectMode ? 'bg-slate-800 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900'}`}
-              >
-                {selectMode ? 'Done' : 'Select'}
-              </button>
-              <button
-                onClick={() => setNewOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500 hover:bg-amber-400 text-white transition-colors"
-              >
-                <IconPlus /> New note
-              </button>
-            </div>
+            <button
+              onClick={() => setNewOpen(true)}
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors shrink-0"
+            >
+              <IconPlus /> New note
+            </button>
           </div>
           <div className="relative mb-2">
             <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500"><IconSearch /></span>
@@ -1395,18 +1384,18 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
               </button>
             ))}
           </div>
-          {selectMode && (
-            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-slate-700 space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-medium">{pickedShown.length} picked</span>
-                <span className="flex gap-2">
-                  <button type="button" onClick={() => setPicked(new Set(shownIds))} className="text-amber-700 hover:underline">All shown</button>
-                  <button type="button" onClick={() => setPicked(new Set())} className="text-slate-500 hover:underline">None</button>
-                </span>
-              </div>
+          {/* Select all sits at the top of the list; the action bar appears once something is ticked. */}
+          <label className="mt-3 flex items-center gap-2 text-xs text-slate-600 cursor-pointer select-none">
+            <input type="checkbox" checked={allShownPicked} onChange={toggleAll} disabled={!shownIds.length}
+              className="w-4 h-4 accent-orange-500" />
+            <span>Select all{shownIds.length ? ` (${shownIds.length})` : ''}</span>
+            {anyPicked && <span className="ml-auto font-medium text-slate-800">{pickedShown.length} picked</span>}
+          </label>
+          {anyPicked && (
+            <div className="mt-2 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-slate-700 space-y-2">
               <div className="flex flex-wrap gap-1.5">
                 <button type="button" disabled={!pickedShown.length || bulkBusy} onClick={() => setBulkArchive(true)}
-                  className="px-2 py-1 rounded bg-white border border-amber-300 text-amber-800 font-medium hover:bg-amber-100 disabled:opacity-50">Archive</button>
+                  className="px-2 py-1 rounded bg-white border border-orange-300 text-orange-800 font-medium hover:bg-orange-100 disabled:opacity-50">Archive</button>
                 <button type="button" disabled={!pickedShown.length || bulkBusy} onClick={() => runBulk({ publish: true }, 'Published')}
                   className="px-2 py-1 rounded bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-50">Publish</button>
                 <button type="button" disabled={!pickedShown.length || bulkBusy} onClick={() => runBulk({ publish: false }, 'Back to draft:')}
@@ -1489,7 +1478,7 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
                 {hint && !folded && <p className="px-2 pb-1 text-[11px] text-slate-400">{hint}</p>}
                 {!folded && rows.map(n => (
                   <NoteRow key={n.id} note={n} tone={key} active={n.id === selected} onClick={() => { setSelected(n.id); setPhoneNote(true); }}
-                    selectable={selectMode} checked={picked.has(n.id)} onToggle={() => togglePick(n.id)} />
+                    checked={picked.has(n.id)} onToggle={() => togglePick(n.id)} />
                 ))}
               </section>
             );

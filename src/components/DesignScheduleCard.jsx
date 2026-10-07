@@ -171,7 +171,7 @@ export default function DesignScheduleCard({ projectId, initialMilestones, onSav
           <button
             onClick={save}
             disabled={saving}
-            className="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-semibold disabled:opacity-50 transition-colors"
+            className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50 transition-colors"
           >
             {saving ? 'Saving…' : 'Save changes'}
           </button>

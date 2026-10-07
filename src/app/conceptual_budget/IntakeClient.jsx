@@ -1130,8 +1130,8 @@ export default function IntakeClient() {
   const todayLabel = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
   const navBtn = (enabled) =>
-    `px-5 py-2.5 rounded-lg font-semibold text-sm transition-colors ${
-      enabled ? 'bg-amber-500 hover:bg-amber-400 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+    `px-4 py-2 rounded-lg font-semibold text-sm transition-colors ${
+      enabled ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'
     }`;
   const backBtn = 'px-4 py-2.5 rounded-lg font-semibold text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors';
 

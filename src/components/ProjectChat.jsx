@@ -337,7 +337,7 @@ export default function ProjectChat({ projectId }) {
             </div>
             {view === 'list' && (
               <button onClick={newConversation}
-                className="text-xs px-2.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-white font-medium transition-colors shrink-0">
+                className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors shrink-0">
                 + New
               </button>
             )}
@@ -370,7 +370,7 @@ export default function ProjectChat({ projectId }) {
                     <p className="text-xs text-slate-400 mt-1">Start a new chat to ask questions about this project</p>
                   </div>
                   <button onClick={newConversation}
-                    className="mt-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-white text-sm font-medium transition-colors">
+                    className="mt-2 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors">
                     Start a conversation
                   </button>
                 </div>
@@ -469,7 +469,7 @@ export default function ProjectChat({ projectId }) {
                   <button
                     onClick={send}
                     disabled={loading || !input.trim()}
-                    className="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+                    className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
                   >
                     {loading ? (
                       <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">

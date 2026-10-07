@@ -77,14 +77,14 @@ export default function PersonalFactsPanel({ contactId, name }) {
       </ul>
       <div className="flex gap-2">
         <select value={draft.category} onChange={e => setDraft(d => ({ ...d, category: e.target.value }))}
-          className="border border-slate-200 rounded-lg px-2 py-1 text-xs bg-white">
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white">
           {PERSONAL_CATEGORIES.map(c => <option key={c} value={c}>{PERSONAL_LABEL[c]}</option>)}
         </select>
         <input value={draft.fact} onChange={e => setDraft(d => ({ ...d, fact: e.target.value }))}
           onKeyDown={e => { if (e.key === 'Enter') add(); }} maxLength={200}
-          placeholder="e.g. Two kids who play soccer" className="flex-1 border border-slate-200 rounded-lg px-2 py-1 text-xs bg-white" />
+          placeholder="e.g. Two kids who play soccer" className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white" />
         <button onClick={add} disabled={busy || !draft.fact.trim()}
-          className="text-xs bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white rounded-lg px-3">Add</button>
+          className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white">Add</button>
       </div>
       {err && <p className="text-xs text-red-600 mt-1">{err}</p>}
       {away.length > 0 && (

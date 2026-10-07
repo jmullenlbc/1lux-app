@@ -271,7 +271,7 @@ export default function SubmittalTrackerClient({ projectId, projectName }) {
 
             <button
               onClick={() => setShowNewSub(true)}
-              className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white transition-colors shadow-sm"
+              className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors shadow-sm"
             >
               + New Submission
             </button>
@@ -379,7 +379,7 @@ export default function SubmittalTrackerClient({ projectId, projectName }) {
           <button
             onClick={createTracker}
             disabled={creating}
-            className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-colors shadow-sm disabled:opacity-60"
+            className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors shadow-sm disabled:opacity-60"
           >
             {creating ? 'Creating…' : 'Create Tracker'}
           </button>

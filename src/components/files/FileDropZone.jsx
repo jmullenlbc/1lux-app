@@ -96,7 +96,7 @@ function TagsModal({ fileName, tab, onConfirm, onCancel }) {
             type="button"
             onClick={() => onConfirm({ tags: selected })}
             disabled={selected.length === 0}
-            className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 hover:bg-amber-400 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             Upload
           </button>
@@ -457,7 +457,7 @@ export default function FileDropZone({ projectId, tab, initialFiles = [], onFile
                 <button
                   onClick={() => setAskBulk(true)}
                   disabled={bulkDeleting}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold transition-colors disabled:opacity-60"
+                  className="flex items-center gap-1 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-60"
                 >
                   <ArchiveBoxIcon className="w-3 h-3" />
                   {bulkDeleting ? 'Archiving…' : 'Archive'}

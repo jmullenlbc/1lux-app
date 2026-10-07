@@ -86,7 +86,7 @@ export default function InvitePage({ params }) {
         <h2 className="text-lg font-semibold text-slate-800 mb-2">Already Accepted</h2>
         <p className="text-sm text-slate-500 mb-6">You&apos;ve already set up your account. Log in to access your project portal.</p>
         <a href="/portal/login"
-          className="inline-block px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-colors">
+          className="inline-block px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors">
           Go to Login
         </a>
       </div>
@@ -161,7 +161,7 @@ export default function InvitePage({ params }) {
           <button
             type="submit"
             disabled={saving}
-            className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold text-sm transition-colors disabled:opacity-60"
+            className="w-full px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-60"
           >
             {saving ? 'Setting up your account…' : 'Accept Invitation'}
           </button>

@@ -86,7 +86,7 @@ export default function BudgetLadderCard({ projectId, amounts, onChange, onContr
                     </select>
                   )}
                   <div className="flex gap-2">
-                    <button type="button" onClick={save} disabled={busy} className="text-xs font-semibold text-white bg-orange-500 hover:bg-orange-600 rounded-lg px-3 py-1 disabled:opacity-50">Save</button>
+                    <button type="button" onClick={save} disabled={busy} className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50">Save</button>
                     <button type="button" onClick={() => { setEditing(null); setErr(null); }} className="text-xs text-slate-500">Cancel</button>
                   </div>
                   {err && <p className="text-[11px] text-red-600">{err}</p>}

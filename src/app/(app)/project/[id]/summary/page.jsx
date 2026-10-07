@@ -229,7 +229,7 @@ export default async function SummaryPage({ params }) {
           </div>
           <Link
             href={`/project/${project.id}/wizard`}
-            className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-white transition-colors"
+            className="shrink-0 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors"
           >
             Enter Project Data →
           </Link>

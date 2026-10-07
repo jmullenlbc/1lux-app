@@ -4,7 +4,9 @@ import { cn } from '@/lib/utils';
 const variants = {
   primary:   'bg-navy-800 hover:bg-navy-900 text-white shadow-sm',
   secondary: 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm',
-  amber:     'bg-amber-500 hover:bg-amber-600 text-white shadow-sm',
+  // One orange everywhere (Mike 10-6): orange-500, hover orange-600, same as the tabs.
+  amber:     'bg-orange-500 hover:bg-orange-600 text-white shadow-sm',
+  orange:    'bg-orange-500 hover:bg-orange-600 text-white shadow-sm',
   ghost:     'hover:bg-slate-100 text-slate-600',
   danger:    'bg-red-600 hover:bg-red-700 text-white shadow-sm',
 };

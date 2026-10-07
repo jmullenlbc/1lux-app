@@ -225,7 +225,7 @@ function AddContactForm({ projectId, onAdded, onCancel }) {
 
       <div className="flex gap-2">
         <button type="submit" disabled={saving}
-          className="flex-1 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-colors disabled:opacity-60">
+          className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-60">
           {saving ? 'Adding…' : 'Add & Send Invite'}
         </button>
         <button type="button" onClick={onCancel}
@@ -273,7 +273,7 @@ export default function ContactsTab({ projectId }) {
         {!adding && (
           <button
             onClick={() => setAdding(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-colors shadow-sm"
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors shadow-sm"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />

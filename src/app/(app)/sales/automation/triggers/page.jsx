@@ -18,8 +18,9 @@ export default async function SalesAutomationTriggersPage() {
   if (!allowed) redirect('/sales/automation/rules');
 
   return (
-    <div className="px-6 py-6 max-w-5xl mx-auto">
+    <div className="px-6 py-6">
       <AutomationNav />
+      <div className="max-w-5xl mx-auto">
       <div className="mb-5">
         <h1 className="text-xl font-bold text-slate-900">If-Then Rules</h1>
         <p className="text-slate-500 text-sm mt-1 max-w-3xl">
@@ -33,6 +34,7 @@ export default async function SalesAutomationTriggersPage() {
         </span>
       </div>
       <TriggersClient />
+      </div>
     </div>
   );
 }

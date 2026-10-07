@@ -84,7 +84,7 @@ export default function MissingInputsWarning({ projectData, projectId, mode = 'f
           </div>
           <Link
             href={editUrl}
-            className="inline-block px-3 py-1.5 rounded-md bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold transition-colors"
+            className="inline-block px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors"
           >
             Edit Project Data
           </Link>

@@ -79,7 +79,7 @@ function NewClientModal({ onClose, onCreated }) {
               Cancel
             </button>
             <button type="submit" disabled={saving}
-              className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 hover:bg-amber-400 text-white disabled:opacity-60">
+              className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-60">
               {saving ? 'Creating…' : 'Create Client'}
             </button>
           </div>

@@ -193,7 +193,7 @@ function AddItemRow({ colSpan, onAdd }) {
             className="w-32 text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-amber-400"
           />
           <button type="submit"
-            className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold transition-colors">
+            className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors">
             Add
           </button>
           <button type="button" onClick={() => setOpen(false)}

@@ -421,9 +421,10 @@ export default function CheckInsPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6">
+    <div className="px-4 py-6">
       {/* Pipeline / Contacts / Check-ins tabs (Mike 10-6). */}
       <SectionTabs tabs={PIPELINE_TABS} className="mb-5" />
+      <div className="max-w-5xl mx-auto">
       {/* Header */}
       <div className="mb-5">
         <h1 className="text-xl font-bold text-slate-900">Check-ins</h1>
@@ -487,6 +488,7 @@ export default function CheckInsPage() {
           />
         </div>
       )}
+      </div>
     </div>
   );
 }

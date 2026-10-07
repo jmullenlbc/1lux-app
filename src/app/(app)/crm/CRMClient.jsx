@@ -620,11 +620,11 @@ export default function CRMClient({ initialProjects, users, newRequests = [] }) 
               <button onClick={() => setViewMode('kanban')} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${viewMode === 'kanban' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}>Board</button>
               <button onClick={() => setViewMode('list')}   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${viewMode === 'list'   ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}>List</button>
             </div>
-            <button onClick={handleExportCSV} className="text-xs border border-slate-200 text-slate-600 hover:bg-slate-50 px-2.5 py-1.5 rounded-lg">
+            <button onClick={handleExportCSV} className="px-4 py-2 text-sm font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm transition-colors">
               Export CSV
             </button>
             {/* Contacts and Check-ins moved to the tabs above (Mike 10-6); the Brief is a Sales dashboard tab. */}
-            <button onClick={newProject} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition-colors shadow-sm">
+            <button onClick={newProject} className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors shadow-sm">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
               New Project
             </button>

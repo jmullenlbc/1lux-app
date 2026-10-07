@@ -64,7 +64,7 @@ export default function ArchivedBanner({ kind, id, archivedAt, archivedBy, canRe
               type="button"
               onClick={restore}
               disabled={busy}
-              className="px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold transition-colors disabled:opacity-60"
+              className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-60"
             >
               {busy ? 'Restoring…' : 'Restore'}
             </button>

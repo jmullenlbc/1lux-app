@@ -462,7 +462,7 @@ function ReviewModal({ proposal, fileName, onConfirm, onCancel }) {
             <button onClick={onCancel} className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm font-semibold">
               Cancel
             </button>
-            <button onClick={handleApply} className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-white font-semibold text-sm">
+            <button onClick={handleApply} className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white">
               Apply to Project
             </button>
           </div>
@@ -774,7 +774,7 @@ export default function UnitMatrixUpload({ projectId, onCommitted }) {
                     setState('idle');
                     if (pendingFile) { uploadAndParse(pendingFile); setPendingFile(null); }
                   }}
-                  className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-white font-semibold text-sm"
+                  className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white"
                 >
                   Replace
                 </button>

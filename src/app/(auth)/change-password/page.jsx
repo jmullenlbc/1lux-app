@@ -89,7 +89,7 @@ export default function ChangePasswordPage() {
             <button
               type="submit"
               disabled={saving}
-              className="w-full py-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-colors disabled:opacity-60"
+              className="w-full px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-60"
             >
               {saving ? 'Saving…' : 'Set Password & Continue'}
             </button>

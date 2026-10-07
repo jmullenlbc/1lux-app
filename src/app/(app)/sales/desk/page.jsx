@@ -402,10 +402,12 @@ function MyDeskPage() {
   const poolCount = (desk.reviews?.length || 0) + (desk.pool?.length || 0);
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-5">
+    <div className="px-4 py-5">
+      {/* Tab line starts at the left edge like every other page (Mike 10-6); the content stays centered. */}
+      <TabBar tab={tab} onPick={setTab} counts={{ pool: poolCount }} />
+      <div className="max-w-2xl mx-auto">
       <h1 className="text-lg font-semibold text-slate-800">My Desk</h1>
       <p className="text-xs text-slate-500 mb-4">Everything waiting on you: reminders, emails to review, check-ins and notes to finish.</p>
-      <TabBar tab={tab} onPick={setTab} counts={{ pool: poolCount }} />
 
       {tab === 'intel' && <IntelClient />}
 
@@ -519,6 +521,7 @@ function MyDeskPage() {
         </Section>
       )}
       </>)}
+      </div>
     </div>
   );
 }

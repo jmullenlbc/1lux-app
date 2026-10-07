@@ -634,8 +634,9 @@ export default function TemplatesPage() {
   ];
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6">
+    <div className="px-4 py-6">
       <AutomationNav />
+      <div className="max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
@@ -713,6 +714,7 @@ export default function TemplatesPage() {
         onCancel={() => setArchiving(null)}
         onConfirm={confirmArchive}
       />
+      </div>
     </div>
   );
 }

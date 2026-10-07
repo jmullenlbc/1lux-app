@@ -122,7 +122,7 @@ export default function SendBudgetModal({ projectId, projectName, totalBudget, o
 
               <button
                 onClick={onClose}
-                className="mt-5 w-full py-2.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-white font-semibold text-sm transition-colors"
+                className="mt-5 w-full px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors"
               >
                 Done
               </button>
@@ -201,7 +201,7 @@ export default function SendBudgetModal({ projectId, projectName, totalBudget, o
               <button
                 onClick={handleSend}
                 disabled={sending || emails.every(e => !e.trim())}
-                className="w-full py-2.5 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2"
+                className="w-full px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors flex items-center justify-center gap-2"
               >
                 {sending ? (
                   <>

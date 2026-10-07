@@ -160,7 +160,7 @@ export default function NewSubmissionModal({ projectId, tracker, onClose, onCrea
             <button
               type="submit"
               disabled={saving}
-              className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-colors shadow-sm disabled:opacity-60"
+              className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors shadow-sm disabled:opacity-60"
             >
               {saving ? 'Creating…' : 'Create Submission'}
             </button>

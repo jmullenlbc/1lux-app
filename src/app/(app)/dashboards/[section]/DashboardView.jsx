@@ -200,9 +200,10 @@ export default function DashboardView({ section, sectionLabel, tabs = null }) {
           </h1>
         </div>
         <div className="flex items-center gap-2">
-          {/* Budget page visitors and the Brief are tabs above (Mike 10-6); only + Widget and Share stay buttons. */}
-          {dash && <Button size="sm" variant="amber" onClick={() => setEditor({ spec: newSpec() })} className="text-xs font-semibold bg-orange-500 hover:bg-orange-600">+ Widget</Button>}
-          {dash && <Button size="sm" variant="secondary" onClick={openShare} className="text-xs font-semibold shadow-none">Share</Button>}
+          {/* Budget page visitors and the Brief are tabs above (Mike 10-6); only + Widget and Share stay buttons,
+              Pipeline-button size, Share on the left and + Widget on the right. */}
+          {dash && <Button size="md" variant="secondary" onClick={openShare} className="font-semibold">Share</Button>}
+          {dash && <Button size="md" variant="orange" onClick={() => setEditor({ spec: newSpec() })} className="font-semibold">+ Widget</Button>}
           {dash && meta.hiddenCards?.length > 0 && (
             <select value="" onChange={e => putBack(e.target.value)} title="Cards that were taken off this dashboard"
               className="text-xs rounded-lg border border-slate-200 px-2 py-1.5 text-slate-500 hover:bg-slate-50">
@@ -234,7 +235,7 @@ export default function DashboardView({ section, sectionLabel, tabs = null }) {
         <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center">
           <p className="text-sm text-slate-500 mb-3">No dashboard for {sectionLabel} yet.</p>
           {meta.isAdmin
-            ? <Button size="md" variant="amber" onClick={createDefault} className="font-semibold bg-orange-500 hover:bg-orange-600">Create the default</Button>
+            ? <Button size="md" variant="amber" onClick={createDefault} className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600">Create the default</Button>
             : <p className="text-xs text-slate-400">Ask an admin to set up the {sectionLabel} default.</p>}
         </div>
       ) : (
@@ -349,7 +350,7 @@ function WidgetEditor({ section, measures, dimensions, init, onSave, onClose }) 
           {errorLine}
           <div className="flex justify-end gap-2 mt-5">
             <Button size="sm" variant="secondary" onClick={onClose} className="text-xs font-semibold text-slate-500 shadow-none">Cancel</Button>
-            <Button size="sm" variant="amber" disabled={saving} onClick={save} className="text-xs font-semibold bg-orange-500 hover:bg-orange-600">{saving ? 'Saving…' : 'Save'}</Button>
+            <Button size="sm" variant="amber" disabled={saving} onClick={save} className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600">{saving ? 'Saving…' : 'Save'}</Button>
           </div>
           <style jsx>{`.inp{ width:100%; border:1px solid #e2e8f0; border-radius:8px; padding:7px 9px; font-size:13px; outline:none; } .inp:focus{ border-color:#f59e0b; }`}</style>
         </div>
@@ -412,7 +413,7 @@ function WidgetEditor({ section, measures, dimensions, init, onSave, onClose }) 
         {errorLine}
         <div className="flex justify-end gap-2 mt-5">
           <Button size="sm" variant="secondary" onClick={onClose} className="text-xs font-semibold text-slate-500 shadow-none">Cancel</Button>
-          <Button size="sm" variant="amber" disabled={!valid || saving} onClick={save} className="text-xs font-semibold bg-orange-500 hover:bg-orange-600">{saving ? 'Saving…' : 'Save'}</Button>
+          <Button size="sm" variant="amber" disabled={!valid || saving} onClick={save} className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600">{saving ? 'Saving…' : 'Save'}</Button>
         </div>
       </div>
       <style jsx>{`.inp{ width:100%; border:1px solid #e2e8f0; border-radius:8px; padding:7px 9px; font-size:13px; outline:none; } .inp:focus{ border-color:#f59e0b; }`}</style>

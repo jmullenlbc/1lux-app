@@ -267,7 +267,7 @@ export default function QcCapture() {
                 Cancel
               </button>
               <button onClick={handleSubmit} disabled={loading}
-                className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-white text-sm font-semibold">
+                className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white">
                 {loading ? 'Submitting…' : 'Submit report'}
               </button>
             </div>

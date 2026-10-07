@@ -182,7 +182,7 @@ export default function DashboardClient({ projects = [], user }) {
             Clients
           </button>
           <button onClick={() => router.push('/project/new')}
-            className="px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 hover:bg-amber-400 text-white transition-colors flex items-center gap-1.5">
+            className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors flex items-center gap-1.5">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
@@ -254,7 +254,7 @@ export default function DashboardClient({ projects = [], user }) {
             </p>
             {projects.length === 0 && (
               <button onClick={() => router.push('/project/new')}
-                className="mt-4 px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 hover:bg-amber-400 text-white transition-colors">
+                className="mt-4 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors">
                 New Project
               </button>
             )}

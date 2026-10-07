@@ -172,7 +172,7 @@ function CreateUserForm({ currentUserRole, onCreated }) {
           )}
 
           <button type="submit" disabled={saving}
-            className="w-full py-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-colors disabled:opacity-60">
+            className="w-full px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-60">
             {saving ? 'Creating…' : 'Create User'}
           </button>
         </form>
@@ -517,7 +517,7 @@ function EditUserModal({ user, currentUserRole, projects, onSaved, onClose }) {
               Close
             </button>
             <button type="submit" disabled={saving}
-              className="flex-1 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-colors disabled:opacity-60">
+              className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-60">
               {saving ? 'Saving…' : 'Save Changes'}
             </button>
           </div>

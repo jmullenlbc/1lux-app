@@ -180,7 +180,7 @@ export default function TocImportModal({ projectId, onClose, onImported }) {
             <button
               onClick={importItems}
               disabled={importing}
-              className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 hover:bg-amber-600 text-white transition-colors disabled:opacity-50"
+              className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-50"
             >
               {importing ? 'Importing…' : `Import ${items.length} Type${items.length !== 1 ? 's' : ''}`}
             </button>

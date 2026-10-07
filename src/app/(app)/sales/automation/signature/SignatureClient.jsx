@@ -75,7 +75,7 @@ export default function SignatureClient() {
               {dirty && <button onClick={() => setDraft(data.template)} disabled={saving}
                 className="text-sm text-slate-600 border border-slate-200 rounded-lg px-3 py-1.5">Cancel</button>}
               <button onClick={save} disabled={!dirty || saving}
-                className="text-sm bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white rounded-lg px-4 py-1.5">
+                className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white">
                 {saving ? 'Saving…' : 'Save'}
               </button>
             </div>

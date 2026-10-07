@@ -154,7 +154,7 @@ function TagModal({ fileName, onConfirm, onCancel, allowedTags = null }) {
             type="button"
             onClick={() => selected && onConfirm({ tag: selected, aiReview: tagMeta(selected).aiReview })}
             disabled={!selected}
-            className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 hover:bg-amber-400 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {meta?.aiReview ? '⚡ Upload & Review' : 'Upload'}
           </button>

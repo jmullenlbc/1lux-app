@@ -280,7 +280,7 @@ function Templates({ templates, busy, onAction }) {
                 <>
                   <button onClick={() => onAction(t, 'dismiss')} disabled={busy} className="text-xs text-slate-500 hover:underline disabled:opacity-40">Not useful</button>
                   <button onClick={() => onAction(t, 'save')} disabled={busy}
-                    className="text-xs bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white rounded-lg px-3 py-1">Save as email template</button>
+                    className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white">Save as email template</button>
                 </>
               )}
             </div>
@@ -547,7 +547,7 @@ export default function VoiceTrainingClient() {
           rewrites the templates below. Press it after adding or putting back emails.
         </p>
         <button onClick={relearnNow} disabled={busy || data.count < 5}
-          className="text-sm font-semibold px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-40 shrink-0">
+          className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-40 shrink-0">
           Relearn
         </button>
       </div>
@@ -615,7 +615,7 @@ export default function VoiceTrainingClient() {
             className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
           <div className="flex justify-end mt-2">
             <button onClick={onPaste} disabled={busy || !paste.trim()}
-              className="text-sm bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white rounded-lg px-4 py-1.5">Add pasted emails</button>
+              className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white">Add pasted emails</button>
           </div>
         </div>
 
@@ -801,7 +801,7 @@ function QandA({ batches, busy, who, onSave, onLearn }) {
           <div className="flex flex-wrap items-center justify-end gap-3">
             <button onClick={next} disabled={busy} className="text-xs text-slate-500 hover:underline disabled:opacity-40">Skip</button>
             <button onClick={async () => { if (await onSave(q, subject, body)) next(); }} disabled={busy || body.trim().length < 40}
-              className="text-sm bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white rounded-lg px-4 py-1.5">Save and next</button>
+              className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white">Save and next</button>
             {answered.size > 0 && (
               <button onClick={onLearn} disabled={busy} className="text-sm border border-orange-300 text-orange-700 hover:bg-orange-50 disabled:opacity-40 rounded-lg px-4 py-1.5">Learn from my answers</button>
             )}

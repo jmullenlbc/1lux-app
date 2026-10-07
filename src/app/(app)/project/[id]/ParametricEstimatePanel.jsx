@@ -310,10 +310,10 @@ export default function ParametricEstimatePanel({ projectId }) {
                 })}
               </div>
               <button onClick={applyToWizard} disabled={applying || applied}
-                className={`w-full py-2 rounded-xl text-sm font-semibold transition-colors ${
+                className={`w-full px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                   applied
                     ? 'bg-green-100 text-green-700'
-                    : 'bg-amber-500 hover:bg-amber-400 text-white disabled:opacity-60'
+                    : 'bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-60'
                 }`}>
                 {applied ? '✓ Applied to wizard' : applying ? 'Applying…' : 'Apply counts to wizard'}
               </button>

@@ -233,7 +233,7 @@ export default function ShipmentDrawer({ projectId, shipment, onClose, onSaved }
           <button onClick={onClose} className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50">
             {isEdit ? 'Done' : 'Cancel'}
           </button>
-          <button onClick={save} disabled={saving} className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-white text-sm font-semibold disabled:opacity-60">
+          <button onClick={save} disabled={saving} className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-60">
             {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Shipment'}
           </button>
         </div>

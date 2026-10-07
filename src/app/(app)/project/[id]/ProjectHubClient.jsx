@@ -149,7 +149,7 @@ function ProjectSearch({ projectId }) {
                 placeholder="Search across all uploaded files…"
                 className="flex-1 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none bg-transparent" />
               <button onClick={() => search(query)} disabled={loading}
-                className="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-white text-xs font-semibold disabled:opacity-60">
+                className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-60">
                 {loading ? '…' : 'Search'}
               </button>
               <button onClick={() => { setOpen(false); setQuery(''); setResults([]); setSearched(false); }}
@@ -897,7 +897,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                     <button
                       onClick={saveProjectInfo}
                       disabled={savingInfo}
-                      className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold disabled:opacity-60 transition-colors"
+                      className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-60 transition-colors"
                     >
                       {savingInfo ? 'Saving…' : 'Save'}
                     </button>
@@ -1000,7 +1000,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                   <button
                     onClick={saveClient}
                     disabled={savingClient}
-                    className="flex-1 px-2 py-1 rounded bg-amber-500 hover:bg-amber-400 text-white text-xs font-semibold disabled:opacity-60"
+                    className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-60"
                   >
                     {savingClient ? 'Saving…' : 'Save'}
                   </button>
@@ -1236,7 +1236,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
               <div className="flex items-center gap-3 px-5 py-3 bg-slate-50">
                 <Link
                   href={wizardUrl}
-                  className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-colors"
+                  className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors"
                 >
                   Open Budget
                 </Link>

@@ -175,7 +175,7 @@ function ClientModal({ client, onClose, onSave }) {
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 hover:bg-amber-400 text-white transition-colors disabled:opacity-60"
+              className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-60"
             >
               {saving ? 'Saving…' : client ? 'Save Changes' : 'Create Client'}
             </button>
@@ -264,7 +264,7 @@ export default function ClientsClient({ clients: initial, user }) {
         </div>
         <button
           onClick={() => setModal('new')}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 hover:bg-amber-400 text-white transition-colors"
+          className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -350,7 +350,7 @@ export default function ClientsClient({ clients: initial, user }) {
           {clients.length === 0 && (
             <button
               onClick={() => setModal('new')}
-              className="px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 hover:bg-amber-400 text-white transition-colors"
+              className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors"
             >
               Add First Client
             </button>

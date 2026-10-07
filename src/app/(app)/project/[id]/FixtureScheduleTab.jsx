@@ -77,7 +77,7 @@ function TagsModal({ fileName, onConfirm, onCancel }) {
             Cancel
           </button>
           <button type="button" onClick={() => onConfirm(selected)}
-            className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 hover:bg-amber-400 text-white transition-colors">
+            className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors">
             Upload
           </button>
         </div>

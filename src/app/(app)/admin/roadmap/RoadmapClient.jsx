@@ -65,7 +65,7 @@ function RequestFeatureButton() {
                 <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
                   <button onClick={handleClose} className="px-4 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-100 transition-colors">Cancel</button>
                   <button onClick={handleSubmit} disabled={saving || !text.trim()}
-                    className="px-4 py-2 rounded-lg text-sm font-medium bg-amber-500 hover:bg-amber-600 text-white transition-colors disabled:opacity-50">
+                    className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-50">
                     {saving ? 'Submitting…' : 'Submit request'}
                   </button>
                 </div>
