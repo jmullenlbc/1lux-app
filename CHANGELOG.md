@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [UI consistency: tabs left, one orange, one button size, Notes checkboxes] - October 6, 2026 (DEPLOYED PENDINGn) - no migration
+## [UI consistency: tabs left, one orange, one button size, Notes checkboxes] - October 6, 2026 (DEPLOYED 9e150eb) - no migration
 
 - **Tab strips start at the left on every page that has them** (Mike 10-6). The strips on Sales Automation (8 pages), Market Intelligence (2), Check-ins, Proposals, Contacts and My Desk used to sit inside the centered column, so they looked centered; they now sit above it and the page content stays centered.
 - **One button standard across the app**: the Pipeline size (`px-4 py-2 text-sm font-semibold rounded-lg`). Action buttons are orange-500 / hover orange-600, the same orange as the tabs; secondary buttons are white with a slate border. About 87 solid orange or amber buttons in 55 files were restyled; `Button.jsx` `amber` and `orange` variants now share that orange. Inputs paired with a restyled button (personal facts row, wizard sidebar edit) were brought up to the same height.
