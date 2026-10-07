@@ -8,7 +8,7 @@ import { getSession } from '@/lib/auth';
  * Password on the public /conceptual_budget tool (Mike 10-7: "password
  * protected for now, something simple"). One shared password, kept in the
  * AppSetting row `conceptual_budget_password`; admins change it on
- * Admin > Web budget requests. An empty value opens the tool to everyone.
+ * Admin > Users and settings. An empty value opens the tool to everyone.
  *
  * A visitor who types the right password gets a cookie holding an HMAC of the
  * password, so changing the password signs everyone out at once. Signed-in
@@ -20,7 +20,7 @@ const SECRET = process.env.JWT_SECRET || 'ilc-studios-secret';
 
 // Fails closed: if the row is missing or the read fails, the starting password
 // (seeded by migration 0120) applies. Only an admin saving an empty value opens it.
-const STARTING_PASSWORD = 'Lighitngbudget01';
+const STARTING_PASSWORD = 'Lightingbudget01';
 
 export async function getPublicBudgetPassword() {
   try {

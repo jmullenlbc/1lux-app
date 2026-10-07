@@ -5,6 +5,12 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Public budget password spelling fixed, Admin menu added] - October 7, 2026 (DEPLOYED PENDINGn) - migration 0121 (data only)
+
+- **Password is now `Lightingbudget01`** (Mike 10-7: the first one was misspelled). Migration 0121 updates the stored row only if it still holds the old spelling, so a password an admin already changed is left alone. The fallback in `src/lib/publicAccess.js` uses the new spelling too.
+- **New Admin section on the left menu** for every admin (Mike 10-7: "There is no menu option for it"). It holds "Users and settings" (the old Users page, moved out of Settings) and "Web budget requests".
+- **The password card moved to Admin > Users and settings**, at the top of the page.
+
 ## [Password on the public conceptual budget tool] - October 7, 2026 (DEPLOYED 8daa035) - migration 0120 (additive)
 
 - **`/conceptual_budget` asks for a password** before the tool opens (Mike 10-7: "password protected for now"). Starting password `Lighitngbudget01`, seeded by the migration. A right answer sets a 30-day cookie; signed-in staff skip the screen. Ten tries a minute per address.

@@ -2,7 +2,10 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-07 (newest) - Mike's Claude - **DEPLOYED 8daa035**, migration 0120 (additive: new `AppSetting` table, seeds `conceptual_budget_password`): password on the public budget tool
+### 2026-10-07 (newest) - Mike's Claude - **DEPLOYED PENDINGn**, migration 0121 (data only): public budget password respelled to `Lightingbudget01`
+Conditional UPDATE on the `conceptual_budget_password` row; fallback constant changed. Next migration 0122. Sidebar gains an Admin section (actsAsAdmin): Users and settings (`/admin`, moved out of Settings) + Web budget requests (`/admin/intake`). Password card now on `/admin`.
+
+### 2026-10-07 - Mike's Claude - **DEPLOYED 8daa035**, migration 0120 (additive: new `AppSetting` table, seeds `conceptual_budget_password`): password on the public budget tool
 `/conceptual_budget` layout shows a password screen unless the visitor has the `cb_access` cookie (HMAC of the password) or a staff session. Six public intake APIs return 401 without it (`requirePublicBudgetAccess`). Admins set or clear it on `/admin/intake`. Fails closed to the seeded password. Next migration 0121.
 
 ### 2026-10-06 - Mike's Claude - **DEPLOYED 9e150eb**, no migration: UI consistency pass

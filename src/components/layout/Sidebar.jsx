@@ -476,6 +476,7 @@ export default function Sidebar({ user }) {
                           startsWith('/admin/tasks') || startsWith('/admin/tech-stack') ||
                           startsWith('/admin/usage') || startsWith('/admin/agent-runs') ||
                           startsWith('/admin/mcp-keys');
+  const adminRelated    = at('/admin') || startsWith('/admin/intake');
 
   // ── Collapsible open states ───────────────────────────────────────────────────
   // Which sections start open is decided by the person's departments, so the
@@ -486,6 +487,7 @@ export default function Sidebar({ user }) {
   const [crmOpen,      setCrmOpen]      = useState(startOpen.crm);
   const [preconOpen,   setPreconOpen]   = useState(startOpen.precon);
   const [softwareOpen, setSoftwareOpen] = useState(startOpen.software);
+  const [adminOpen,    setAdminOpen]    = useState(false);
 
   // Auto-open when navigating to a related path
   useEffect(() => {
@@ -493,6 +495,7 @@ export default function Sidebar({ user }) {
     if (crmRelated)      setCrmOpen(true);
     if (preconRelated)   setPreconOpen(true);
     if (softwareRelated) setSoftwareOpen(true);
+    if (adminRelated)    setAdminOpen(true);
   }, [pathname]);
 
   async function handleLogout() {
@@ -619,6 +622,26 @@ export default function Sidebar({ user }) {
         <NavItem href="#" icon={<IconDesign />}       label="Design"       disabled expanded={expanded} />
         <NavItem href="#" icon={<IconFinance />}      label="Finance"      disabled expanded={expanded} />
 
+        {/* ── Admin (any admin, Mike 10-7: "make admin a menu item on the left") ── */}
+        {isAdmin && (
+          <div>
+            <SectionHeader
+              icon={<IconCog />}
+              label="Admin"
+              isActive={adminRelated}
+              isOpen={adminOpen}
+              expanded={expanded}
+              onClick={() => expanded ? setAdminOpen(o => !o) : router.push('/admin')}
+            />
+            {expanded && adminOpen && (
+              <div className="mt-0.5 space-y-0.5 ml-1">
+                <SubNavItem href="/admin"        icon={<IconUsers />} label="Users and settings"  expanded={expanded} active={at('/admin')} />
+                <SubNavItem href="/admin/intake" icon={<IconDoc />}   label="Web budget requests" expanded={expanded} active={startsWith('/admin/intake')} />
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── Software (Super Admin only) ── */}
         {isIlcAdmin && (
           <div>
@@ -655,7 +678,6 @@ export default function Sidebar({ user }) {
 
         <SubNavItem href="/admin/profile"  icon={<IconUserCircle />} label="Profile"        expanded={expanded} active={startsWith('/admin/profile')} />
         {can(user, 'editMasterPricing') && <SubNavItem href="/admin/pricing"  icon={<IconTag />}     label="Master Pricing"  expanded={expanded} active={startsWith('/admin/pricing')} />}
-        {isAdmin                        && <SubNavItem href="/admin"           icon={<IconUsers />}   label="Users"           expanded={expanded} active={at('/admin')} />}
         {can(user, 'editProducts')      && <SubNavItem href="/fixture-library" icon={<IconFixture />} label="Fixture Library" expanded={expanded} active={startsWith('/fixture-library')} />}
         <SubNavItem href="#" icon={<IconBuilding />} label="Company" disabled expanded={expanded} />
       </nav>

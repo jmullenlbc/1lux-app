@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 // nothing on these pages may read session data or internal-only fields.
 //
 // Since 10-7 the tool sits behind one shared password (Mike: "password
-// protected for now"). Admins set it on Admin > Web budget requests; an empty
+// protected for now"). Admins set it on Admin > Users and settings; an empty
 // password opens the tool again. Signed-in staff skip the gate.
 //
 // PublicBugButton is the beta-client "Report a bug" button. It is mounted here

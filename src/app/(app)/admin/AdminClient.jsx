@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Badge from '@/components/ui/Badge';
+import PublicAccessCard from '@/components/admin/PublicAccessCard';
 import { DEPARTMENTS, DEPARTMENT_LABEL } from '@/lib/departments';
 import { canAssignRole, canManageAccount } from '@/lib/roles';
 import { effectiveRole } from '@/lib/permissions';
@@ -676,6 +677,9 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
         <h1 className="text-2xl font-bold text-slate-900">Admin Panel</h1>
         <p className="text-slate-500 text-sm mt-1">Manage users and view all projects.</p>
       </div>
+
+      {/* Password on the public budget tool (moved here 10-7 so admins can find it) */}
+      <PublicAccessCard />
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-slate-200 mb-6">
