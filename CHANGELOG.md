@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Public budget password spelling fixed, Admin menu added] - October 7, 2026 (DEPLOYED PENDINGn) - migration 0121 (data only)
+## [Public budget password spelling fixed, Admin menu added] - October 7, 2026 (DEPLOYED bf300f2) - migration 0121 (data only)
 
 - **Password is now `Lightingbudget01`** (Mike 10-7: the first one was misspelled). Migration 0121 updates the stored row only if it still holds the old spelling, so a password an admin already changed is left alone. The fallback in `src/lib/publicAccess.js` uses the new spelling too.
 - **New Admin section on the left menu** for every admin (Mike 10-7: "There is no menu option for it"). It holds "Users and settings" (the old Users page, moved out of Settings) and "Web budget requests".
