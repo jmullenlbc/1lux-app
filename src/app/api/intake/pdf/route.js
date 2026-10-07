@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requirePublicBudgetAccess } from '@/lib/publicAccess';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
 import { checkLocation } from '@/lib/usStates';
 import { answersToMap } from '@/lib/intake/quantities';
@@ -39,6 +40,8 @@ function safeTimeZone(tz) {
 }
 
 export async function POST(req) {
+  const access = await requirePublicBudgetAccess();
+  if (access.error) return access.error;
   const ip = clientIp(req);
   const gate = rateLimit(`intake-pdf:${ip}`, LIMIT);
   if (!gate.allowed) {

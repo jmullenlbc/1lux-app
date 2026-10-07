@@ -132,6 +132,7 @@ model User {
   accessEvents               UserAccessEvent[]            @relation("UserAccessEventSubject")
   accessChangesMade          UserAccessEvent[]            @relation("UserAccessEventActor")
   archivedDrafts             ConceptualDraft[]            @relation("DraftArchiver")
+  appSettingsUpdated         AppSetting[]                 @relation("AppSettingUpdater")
   decidedDuplicateReviews    DuplicateReview[]            @relation("ReviewDecider")
   introductionsMade          Introduction[]               @relation("IntroducedByUser")
   confirmedIntroductions     Introduction[]               @relation("IntroductionConfirmer")
@@ -3891,4 +3892,17 @@ model ContactFieldSuggestion {
 
   @@unique([contactId, field, suggestedValue])
   @@index([status])
+}
+
+// One row per app-wide setting an admin may change from a screen (10-7). The
+// first key is `conceptual_budget_password`, the password on the public
+// /conceptual_budget tool (Mike 10-7: "password protected for now"). An empty
+// value opens the tool to everyone. Plain settings only, never staff secrets.
+model AppSetting {
+  key         String   @id
+  value       String
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+
+  updatedBy User? @relation("AppSettingUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
 }

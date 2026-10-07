@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requirePublicBudgetAccess } from '@/lib/publicAccess';
 import { prisma } from '@/lib/db';
 import { classifyIntakeEmail, resolveClientByDomain } from '@/lib/intake';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
@@ -41,6 +42,8 @@ const LIMIT = { limit: 5, windowMs: 60_000 };
 const MAX_PAYLOAD_CHARS = 200_000; // rawPayload ceiling (~200KB of JSON)
 
 export async function POST(req) {
+  const access = await requirePublicBudgetAccess();
+  if (access.error) return access.error;
   const ip = clientIp(req);
   const gate = rateLimit(`intake-submit:${ip}`, LIMIT);
   if (!gate.allowed) {

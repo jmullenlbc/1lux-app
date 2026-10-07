@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requirePublicBudgetAccess } from '@/lib/publicAccess';
 import { stampError } from '@/lib/intake/errorNumbers';
 import Anthropic from '@anthropic-ai/sdk';
 import { getAnthropicKey } from '@/lib/anthropicKey';
@@ -279,6 +280,8 @@ const bad = (code, message, status = 400) =>
   NextResponse.json({ error: code, message: stampError(code, message) }, { status });
 
 export async function POST(request) {
+  const access = await requirePublicBudgetAccess();
+  if (access.error) return access.error;
   const ip = clientIp(request);
   // The flood brake goes first, before we agree to read a body off the wire.
   const flood = rateLimit(`intake-parse-req:${ip}`, REQUESTS);

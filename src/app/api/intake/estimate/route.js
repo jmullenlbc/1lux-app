@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requirePublicBudgetAccess } from '@/lib/publicAccess';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
 import { publicIntakeEstimate, intakeEstimateGate } from '@/lib/intake/estimate';
 import { loadPricing } from '@/lib/pricingLoader';
@@ -34,6 +35,8 @@ const LIMIT = { limit: 30, windowMs: 60_000 }; // fires on every answer change, 
 const MAX_PAYLOAD_CHARS = 200_000;             // same ceiling as the submit route
 
 export async function POST(req) {
+  const access = await requirePublicBudgetAccess();
+  if (access.error) return access.error;
   const ip = clientIp(req);
   const gate = rateLimit(`intake-estimate:${ip}`, LIMIT);
   if (!gate.allowed) {

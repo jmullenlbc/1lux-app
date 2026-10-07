@@ -7,6 +7,7 @@ import { computeReviewFlags, figureReviewFlags } from '@/lib/intake/reviewFlags'
 import { computeQuantities } from '@/lib/intake/quantities';
 import { INTAKE_QUESTIONS } from '@/lib/intake/questionnaire';
 import { draftStage, reachedLabel } from '@/lib/intake/drafts';
+import PublicAccessCard from '@/components/admin/PublicAccessCard';
 
 const STATUS_CONFIG = {
   PENDING: { color: 'bg-amber-100 text-amber-700 border border-amber-200', label: 'Pending' },
@@ -690,6 +691,9 @@ export default function IntakeClient({ submissions: initialSubmissions, drafts =
           ← {canInvite ? 'Admin' : 'Pipeline'}
         </Link>
         <h1 className="text-3xl font-bold text-slate-900 mb-6">Conceptual Submissions</h1>
+
+        {/* Admins set the password on the public tool here (Mike 10-7). */}
+        {canInvite && <PublicAccessCard />}
 
         <div className="grid grid-cols-3 gap-6">
           {/* List */}

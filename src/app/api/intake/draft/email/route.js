@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requirePublicBudgetAccess } from '@/lib/publicAccess';
 import { prisma } from '@/lib/db';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
 import { hashToken } from '@/lib/intake/draftTokens';
@@ -20,6 +21,8 @@ export const dynamic = 'force-dynamic';
 const LIMIT = { limit: 5, windowMs: 60_000 };
 
 export async function POST(req) {
+  const access = await requirePublicBudgetAccess();
+  if (access.error) return access.error;
   const ip = clientIp(req);
   const gate = rateLimit(`intake-draft-email:${ip}`, LIMIT);
   if (!gate.allowed) {

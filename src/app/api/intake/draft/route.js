@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requirePublicBudgetAccess } from '@/lib/publicAccess';
 import { prisma } from '@/lib/db';
 import { classifyIntakeEmail } from '@/lib/intake';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
@@ -61,6 +62,8 @@ function leadColumns(packed) {
 }
 
 export async function POST(req) {
+  const access = await requirePublicBudgetAccess();
+  if (access.error) return access.error;
   const ip = clientIp(req);
   const gate = rateLimit(`intake-draft-save:${ip}`, SAVE_LIMIT);
   if (!gate.allowed) {
@@ -142,6 +145,8 @@ export async function POST(req) {
 }
 
 export async function GET(req) {
+  const access = await requirePublicBudgetAccess();
+  if (access.error) return access.error;
   const ip = clientIp(req);
   const gate = rateLimit(`intake-draft-load:${ip}`, LOAD_LIMIT);
   if (!gate.allowed) {

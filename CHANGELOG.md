@@ -5,6 +5,14 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Password on the public conceptual budget tool] - October 7, 2026 (DEPLOYED PENDINGn) - migration 0120 (additive)
+
+- **`/conceptual_budget` asks for a password** before the tool opens (Mike 10-7: "password protected for now"). Starting password `Lighitngbudget01`, seeded by the migration. A right answer sets a 30-day cookie; signed-in staff skip the screen. Ten tries a minute per address.
+- **The tool's APIs refuse without it too** (draft save/load, draft email, estimate, drawing read, PDF, submit return 401). The visit counter and the bug button stay open.
+- **Admins change or remove it** on Admin > Web budget requests (`/admin/intake`), "Public budget tool password" card. Changing it signs every visitor out at once; removing it opens the tool to everyone. If the setting cannot be read, the starting password applies (fails closed).
+- **New table `AppSetting`** (key, value, updatedAt, updatedById) for app-wide settings an admin changes from a screen.
+- Files: `prisma/migrations/0120_app_setting`, `src/lib/publicAccess.js` (new), `src/app/api/intake/access/route.js` (new), `src/app/api/admin/intake/access/route.js` (new), `src/components/public/PasswordGate.jsx` (new), `src/components/admin/PublicAccessCard.jsx` (new), `src/app/conceptual_budget/layout.jsx`, `src/app/(app)/admin/intake/IntakeClient.jsx`, six `src/app/api/intake/*` routes.
+
 ## [UI consistency: tabs left, one orange, one button size, Notes checkboxes] - October 6, 2026 (DEPLOYED 9e150eb) - no migration
 
 - **Tab strips start at the left on every page that has them** (Mike 10-6). The strips on Sales Automation (8 pages), Market Intelligence (2), Check-ins, Proposals, Contacts and My Desk used to sit inside the centered column, so they looked centered; they now sit above it and the page content stays centered.

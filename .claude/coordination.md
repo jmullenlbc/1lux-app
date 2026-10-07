@@ -2,7 +2,10 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-06 (newest) - Mike's Claude - **DEPLOYED 9e150eb**, no migration: UI consistency pass
+### 2026-10-07 (newest) - Mike's Claude - **DEPLOYED PENDINGn**, migration 0120 (additive: new `AppSetting` table, seeds `conceptual_budget_password`): password on the public budget tool
+`/conceptual_budget` layout shows a password screen unless the visitor has the `cb_access` cookie (HMAC of the password) or a staff session. Six public intake APIs return 401 without it (`requirePublicBudgetAccess`). Admins set or clear it on `/admin/intake`. Fails closed to the seeded password. Next migration 0121.
+
+### 2026-10-06 - Mike's Claude - **DEPLOYED 9e150eb**, no migration: UI consistency pass
 Tab strips left-aligned on all 12 tabbed pages + Contacts + My Desk (strip hoisted above the centered column). One button standard: Pipeline size, orange-500/600 for actions, white secondary; ~87 buttons in 55 files restyled by script, `Button.jsx` amber = orange. Dashboard header: Share then + Widget. Sales Notes: always-visible row checkboxes + Select all, Select button removed. verify --full passed.
 
 ### 2026-10-06 - Mike's Claude - **DEPLOYED 1509020**, no migration: Market Intel "Refresh sources" button fixed + pages centered
