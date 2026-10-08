@@ -117,6 +117,21 @@ export function tagsFromExtraction(extracted = {}) {
   return out;
 }
 
+/**
+ * The city and state columns (0127) a signal gets from its tag rows: METRO
+ * "Austin, TX" gives both, a lone STATE tag gives the state only. Missing
+ * pieces stay as they were (undefined), so a thin re-tag never blanks them.
+ */
+export function placeColumns(rows = []) {
+  const metro = rows.find(r => r.kind === 'METRO')?.name || '';
+  const [city = '', metroState = ''] = metro.split(',').map(s => s.trim());
+  const state = rows.find(r => r.kind === 'STATE')?.name || metroState;
+  const out = {};
+  if (city)  out.city  = city;
+  if (state) out.state = state;
+  return out;
+}
+
 /** Developer names for the client matcher: the roles that used to be the only names kept. */
 export function developerNamesFrom(extracted = {}) {
   const names = [];

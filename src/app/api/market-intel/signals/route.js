@@ -51,6 +51,9 @@ export async function GET(request) {
     const v = searchParams.get(param)?.trim();
     if (v) tagFilters.push({ tags: { some: { tag: { kind, normalized: normalizeTagName(v, kind) } } } });
   }
+  // city / state columns (0127): exact match on the column, no tag walk.
+  const cityParam  = searchParams.get('city')?.trim();
+  if (cityParam) tagFilters.push({ city: { equals: cityParam, mode: 'insensitive' } });
   const assignedTo = searchParams.get('assignedTo')?.trim();
   const hasUnits   = searchParams.get('hasUnits') === '1';
 

@@ -62,8 +62,9 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
   // The permit card's Location field (Mike 10-8): city and state are two tag
   // rows (METRO "Austin, TX" and STATE "TX"), shown together as one field.
   const metroName    = tagLinks.find(l => l.tag.kind === 'METRO')?.tag.name || '';
-  const city         = metroName.split(',')[0].trim() || null;
-  const stateName    = tagLinks.find(l => l.tag.kind === 'STATE')?.tag.name || metroName.split(',')[1]?.trim() || null;
+  // Columns first (0127); tags cover signals tagged before the columns existed.
+  const city         = signal.city  || metroName.split(',')[0].trim() || null;
+  const stateName    = signal.state || tagLinks.find(l => l.tag.kind === 'STATE')?.tag.name || metroName.split(',')[1]?.trim() || null;
   // Companies the feed named that are not in the CRM yet: each gets an Add button.
   const addable      = tagLinks.filter(l => l.tag.kind === 'COMPANY' && !l.tag.clientId);
   const [adding, setAdding] = useState('');

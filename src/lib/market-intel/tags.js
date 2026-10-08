@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db';
-import { tagsFromExtraction } from './tagRules.js';
+import { tagsFromExtraction, placeColumns } from './tagRules.js';
 import { applySupersedes } from './supersede.js';
 
 /**
@@ -37,7 +37,9 @@ export async function saveSignalTags(signalId, extracted, { matches = [], db } =
     });
     saved.push(tag);
   }
-  await client.marketSignal.update({ where: { id: signalId }, data: { taggedAt: new Date() } }).catch(() => {});
+  // city / state columns (0127) follow the METRO / STATE tags, so a signal can
+  // be filtered and exported by place without walking the tag table.
+  await client.marketSignal.update({ where: { id: signalId }, data: { taggedAt: new Date(), ...placeColumns(rows) } }).catch(() => {});
   // One building, one count (0124): now that the metro tag is on, settle who supersedes whom.
   await applySupersedes(signalId, { db: client }).catch(() => {});
   return saved;

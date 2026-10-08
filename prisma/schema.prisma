@@ -2229,6 +2229,11 @@ model MarketSignal {
   permitClass        String?      // New Building | Addition | ... as the city names it
   address            String?
   neighborhood       String?
+  // Migration 0127 (Mike 10-8): "city and state ... tracked as different
+  // fields and combined visually". Written from the METRO / STATE tags every
+  // time a signal is tagged, so they are plain columns to filter and export.
+  city               String?      // "Austin"
+  state              String?      // "TX"
   valuation          Float?       // declared construction value in dollars
   contractorName     String?      // applicant / contractor of record as the city prints it
   // Migration 0124 (Mike 10-8): for one building, a permit beats a concept
@@ -2261,6 +2266,7 @@ model MarketSignal {
   @@index([kind, ownerLookupAt])
   @@index([permitNumber])
   @@index([supersededById])
+  @@index([state, city])
 }
 
 // Market Intel tags (migration 0122, Mike 10-7): the names an article drops,

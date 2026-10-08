@@ -5,6 +5,15 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [City and state as columns on every signal] - October 8, 2026 (BUILT, NOT DEPLOYED) - migration 0127 additive
+
+- **Why:** Mike: "Show city and state, but those should be tracked as different fields", then "yes" to real columns so they can be filtered and exported as columns.
+- **Migration 0127** adds `city` and `state` to `MarketSignal` (additive, index on state + city) and backfills both from the METRO ("Austin, TX") and STATE ("TX") tag rows every signal already carries. The tag rows stay; they still drive the clients list and the tag filters.
+- `saveSignalTags` (the one place every signal's tags are written: poller, permits, retag, owner lookup) now writes the two columns in the same update as `taggedAt`, from a new pure `placeColumns(rows)` in `tagRules.js`. A thin re-tag with no place never blanks them.
+- Permit card Location reads the columns first and falls back to the tags for anything tagged before the columns existed.
+- Signals API: new `city=` filter (exact, case-insensitive); the `state=` filter stays on the STATE tag. The columns ride along in every signals read, so an export sees them as plain fields.
+- Files: `prisma/schema.prisma`, `prisma/migrations/0127_market_city_state/migration.sql`, `src/lib/market-intel/tagRules.js`, `src/lib/market-intel/tags.js`, `src/components/market-intel/SignalCard.jsx`, `src/app/api/market-intel/signals/route.js`, `scripts/tests/marketTags.test.mjs`.
+
 ## [Houston permits + Location as city and state] - October 8, 2026 (DEPLOYED f3b9401) - no migration
 
 - **Why:** Mike: "Show city and state, but those should be tracked as different fields and combined visually." and "Can we start on houston and salt lake city next?"

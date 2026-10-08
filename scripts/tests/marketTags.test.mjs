@@ -1,7 +1,7 @@
 // Market Intel tags and the units rollup (migration 0122, Mike 10-7). Pure, no DB.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeTagName, stateCode, metroTag, unitCountFrom, tagsFromExtraction, developerNamesFrom } from '../../src/lib/market-intel/tagRules.js';
+import { normalizeTagName, stateCode, metroTag, unitCountFrom, tagsFromExtraction, developerNamesFrom, placeColumns } from '../../src/lib/market-intel/tagRules.js';
 import { rollupUnits, withinMonths, ROLE_GROUPS } from '../../src/lib/market-intel/forecast.js';
 
 test('company names normalize to one row', () => {
@@ -52,6 +52,10 @@ test('one extraction becomes deduped tag rows with roles', () => {
   ]);
   // Old shape still works
   assert.deepEqual(tagsFromExtraction({ developerNames: ['Zocalo'] }).map(t => t.kind), ['COMPANY']);
+  // city / state columns (0127) come from the same rows
+  assert.deepEqual(placeColumns(tags), { city: 'Denver', state: 'CO' });
+  assert.deepEqual(placeColumns(tagsFromExtraction({ state: 'Texas' })), { state: 'TX' });
+  assert.deepEqual(placeColumns(tagsFromExtraction({ developerNames: ['Zocalo'] })), {});
 });
 
 test('developer names for the matcher skip GCs and architects', () => {
