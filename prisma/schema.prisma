@@ -2215,11 +2215,23 @@ model MarketSignal {
   assignedById       String?
   assignedAt         DateTime?
   tags               MarketSignalTag[]
+  // Migration 0123 (Mike 10-7): a signal is an ARTICLE (RSS) or a PERMIT (a row
+  // from a city's open-data permit feed). Permits carry the city's own fields
+  // so they are queryable without reading the title. Null on articles.
+  kind               String       @default("ARTICLE") // ARTICLE | PERMIT
+  permitNumber       String?
+  permitClass        String?      // New Building | Addition | ... as the city names it
+  address            String?
+  neighborhood       String?
+  valuation          Float?       // declared construction value in dollars
+  contractorName     String?      // applicant / contractor of record as the city prints it
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
 
   @@index([assignedToId])
   @@index([taggedAt])
+  @@index([kind, publishedAt])
+  @@index([permitNumber])
 }
 
 // Market Intel tags (migration 0122, Mike 10-7): the names an article drops,

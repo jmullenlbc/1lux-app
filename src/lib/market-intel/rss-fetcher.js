@@ -31,7 +31,8 @@ export async function fetchFeed(source) {
 
 export async function fetchAllFeeds(sources) {
   const results = await Promise.allSettled(
-    sources.filter(s => s.isActive).map(s => fetchFeed(s))
+    // Permit feeds (sourceType ARCGIS_PERMITS, 0123) are not RSS; permits.js reads them.
+    sources.filter(s => s.isActive && (s.sourceType || 'RSS') === 'RSS').map(s => fetchFeed(s))
   );
   return results
     .filter(r => r.status === 'fulfilled')

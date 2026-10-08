@@ -36,6 +36,14 @@ export const MARKETS = [
   { key: 'AUSTIN',   label: 'Austin',               blurb: 'Town Lake and the corridor.' },
   { key: 'DALLAS',   label: 'Dallas-Fort Worth',    blurb: 'DFW metroplex.' },
   { key: 'TEXAS',    label: 'Texas statewide',      blurb: 'Covers all Texas metros at once.' },
+  // Mike 10-7: the metros we sell into next. Each feed below was fetched live
+  // that day and returned items. Business Journals, Orlando Sentinel, Tampa
+  // Bay Times, Florida Trend and The Real Deal block feed readers.
+  { key: 'PHOENIX',      label: 'Phoenix',          blurb: 'Valley-wide. Rose Law Group and AZBEX name the developer and the parcel.' },
+  { key: 'MIAMI',        label: 'Miami & South Florida', blurb: 'Miami-Dade, Broward, Palm Beach.' },
+  { key: 'ORLANDO',      label: 'Orlando',          blurb: 'Central Florida.' },
+  { key: 'TAMPA',        label: 'Tampa Bay',        blurb: 'Tampa, St. Pete, Clearwater.' },
+  { key: 'JACKSONVILLE', label: 'Jacksonville',     blurb: 'Northeast Florida.' },
 ];
 
 export const DEFAULT_MARKET = 'NATIONAL';
@@ -141,6 +149,31 @@ export const SOURCES = [
   { name: 'Bisnow Dallas-Fort Worth',   market: 'DALLAS',   feedUrl: 'https://www.bisnow.com/rss/dallas-ft-worth',            siteUrl: 'https://www.bisnow.com/dallas-ft-worth',   projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY'  },
   { name: 'Urbanize Dallas',            market: 'DALLAS',   feedUrl: 'https://dallas.urbanize.city/rss.xml',                  siteUrl: 'https://dallas.urbanize.city',             projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY'  },
   { name: 'Community Impact - DFW',     market: 'DALLAS',   feedUrl: 'https://communityimpact.com/rss/dallas-fort-worth/',    siteUrl: 'https://communityimpact.com/dfw',          projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY'  },
+
+  // ── Phoenix (added 2026-10-07) ───────────────────────────────────────────
+  { name: 'Bisnow Phoenix',             market: 'PHOENIX',  feedUrl: 'https://www.bisnow.com/rss/phoenix',                    siteUrl: 'https://www.bisnow.com/phoenix',           projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY',  notes: 'Local CRE desk.' },
+  { name: 'Rose Law Group Reporter',    market: 'PHOENIX',  feedUrl: 'https://roselawgroupreporter.com/feed/',                siteUrl: 'https://roselawgroupreporter.com',         projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY',  notes: 'Arizona real estate and zoning wire. Names the developer and the council vote.' },
+  { name: 'AZBEX',                      market: 'PHOENIX',  feedUrl: 'https://azbex.com/feed/',                               siteUrl: 'https://azbex.com',                        projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY',  notes: 'Arizona Builders Exchange: projects in planning and bidding, with counts.' },
+
+  // ── Miami & South Florida (added 2026-10-07) ─────────────────────────────
+  { name: 'Bisnow South Florida',       market: 'MIAMI',    feedUrl: 'https://www.bisnow.com/rss/south-florida',              siteUrl: 'https://www.bisnow.com/south-florida',     projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY',  notes: 'Local CRE desk.' },
+  { name: 'Miami Today',                market: 'MIAMI',    feedUrl: 'https://www.miamitodaynews.com/feed/',                  siteUrl: 'https://www.miamitodaynews.com',           projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY',  notes: 'Miami business weekly. Covers towers by name and board approvals.' },
+
+  // ── Orlando (added 2026-10-07) ───────────────────────────────────────────
+  { name: 'Bungalower',                 market: 'ORLANDO',  feedUrl: 'https://bungalower.com/feed/',                          siteUrl: 'https://bungalower.com',                   projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY',  notes: 'Orlando development blog. Writes up every new apartment filing by address.' },
+
+  // ── Tampa Bay (added 2026-10-07) ─────────────────────────────────────────
+  { name: 'St. Pete Catalyst',          market: 'TAMPA',    feedUrl: 'https://www.stpetecatalyst.com/feed/',                  siteUrl: 'https://www.stpetecatalyst.com',           projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY',  notes: 'St. Petersburg business desk; strong on downtown towers.' },
+  { name: '83 Degrees Media',           market: 'TAMPA',    feedUrl: 'https://www.83degreesmedia.com/rss',                    siteUrl: 'https://www.83degreesmedia.com',           projectTypes: ALL_TYPES,                         pollingFrequency: 'WEEKLY', notes: 'Tampa Bay development and neighbourhood features.' },
+  { name: 'Tampa Bay Newswire',         market: 'TAMPA',    feedUrl: 'https://www.tampabaynewswire.com/feed/',                siteUrl: 'https://www.tampabaynewswire.com',         projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY',  notes: 'Press releases from Tampa Bay firms, including groundbreakings.' },
+
+  // ── Jacksonville (added 2026-10-07) ──────────────────────────────────────
+  { name: 'Jacksonville Today',         market: 'JACKSONVILLE', feedUrl: 'https://jaxtoday.org/feed/',                        siteUrl: 'https://jaxtoday.org',                     projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY',  notes: 'Nonprofit city desk. Covers council approvals and apartment filings.' },
+
+  // ── City permit feeds (migration 0123, Mike 10-7) ────────────────────────
+  // Not RSS. sourceType ARCGIS_PERMITS; the market key picks the profile in
+  // permitRules.js. The feedUrl is the open-data layer being queried.
+  { name: 'Denver building permits',    market: 'DENVER',   feedUrl: 'https://services1.arcgis.com/zdB7qR0BtYrg0Xpl/arcgis/rest/services/ODC_DEV_COMMERCIALCONSTPERMIT_P/FeatureServer/317/query', siteUrl: 'https://www.denvergov.org/opendata', projectTypes: ALL_TYPES, pollingFrequency: 'DAILY', sourceType: 'ARCGIS_PERMITS', notes: 'City and County of Denver commercial construction permits. New buildings and additions with a unit count or a value over $1M.' },
 
   // ── Texas statewide ──────────────────────────────────────────────────────
   { name: 'Virtual Builders Exchange',  market: 'TEXAS',    feedUrl: 'https://virtualbx.com/feed/',                           siteUrl: 'https://virtualbx.com',                    projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY',  notes: 'Texas construction bid news. Reports groundbreakings and awards by project name and dollar value.' },

@@ -63,6 +63,7 @@ export async function POST(request) {
           feedUrl:          source.feedUrl,
           siteUrl:          source.siteUrl || '',
           market:           source.market || DEFAULT_MARKET,
+          sourceType:       source.sourceType || 'RSS',
           projectTypes:     JSON.stringify(source.projectTypes || []),
           pollingFrequency: source.pollingFrequency || 'DAILY',
           notes:            source.notes || null,

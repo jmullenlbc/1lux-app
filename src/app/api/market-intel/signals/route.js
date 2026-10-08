@@ -36,8 +36,15 @@ export async function GET(request) {
   const assignedTo = searchParams.get('assignedTo')?.trim();
   const hasUnits   = searchParams.get('hasUnits') === '1';
 
+  // kind (0123): ARTICLE is the news tab, PERMIT the permits tab. A direct
+  // link by signalId must work from either tab, so no kind filter then.
+  const kind        = (searchParams.get('kind') || 'ARTICLE').toUpperCase();
+  const permitClass = searchParams.get('permitClass')?.trim();
+
   const where = {};
   if (signalId)     where.id           = signalId;
+  else if (kind !== 'ALL') where.kind  = kind;
+  if (permitClass)  where.permitClass  = permitClass;
   if (projectType)  where.projectType  = projectType;
   if (signalType)   where.signalType   = signalType;
   if (reviewStatus) where.reviewStatus = reviewStatus;
@@ -63,6 +70,9 @@ export async function GET(request) {
       { title:          { contains: search } },
       { summary:        { contains: search } },
       { developerNames: { contains: search } },
+      { address:        { contains: search, mode: 'insensitive' } },
+      { contractorName: { contains: search, mode: 'insensitive' } },
+      { permitNumber:   { contains: search, mode: 'insensitive' } },
       { tags: { some: { tag: { normalized: { contains: search.toLowerCase() } } } } },
     ] });
   }

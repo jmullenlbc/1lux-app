@@ -2,7 +2,10 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-07 (newest) - Mike's Claude - **DEPLOYED 9521091**, migration 0122 (additive: `MarketTag`, `MarketSignalTag`, five columns on `MarketSignal`): Market Intel tags + forecast + assign
+### 2026-10-07 (newest) - Mike's Claude - **DEPLOYED PENDING1**, migration 0123 (additive: 7 columns + 2 indexes on `MarketSignal`): Denver permits tab, Add to CRM, five new metros
+`MarketSignal.kind` ARTICLE|PERMIT plus permitNumber, permitClass, address, neighborhood, valuation, contractorName. Permit feed = `MarketSource` with `sourceType ARCGIS_PERMITS` (market key picks the profile in `permitRules.js`; Denver layer 317). `pollAllPermits()` runs inside `runPoll()` and from `POST /api/market-intel/permits/poll`. `/market-intel/permits` tab shares `src/components/market-intel/SignalCard.jsx` with the news tab. Add to CRM: `POST /api/market-intel/signals/[id]/add-to-crm { tagId }` -> `addCompanyTagToCrm`. Signals GET takes `kind` (default ARTICLE, ALL for both) and `permitClass`. New metros PHOENIX, MIAMI, ORLANDO, TAMPA, JACKSONVILLE in `sourceCatalog.js`. Verify full 15/15. **Next free migration 0124.** After deploy: press "Add missing sources" then "Pull permits now".
+
+### 2026-10-07 - Mike's Claude - **DEPLOYED 9521091**, migration 0122 (additive: `MarketTag`, `MarketSignalTag`, five columns on `MarketSignal`): Market Intel tags + forecast + assign
 Articles get company (with role) / project / metro / state tag rows; `unitCount` read per article; `/market-intel/forecast` rolls units up by company, metro, state; assign an article to a salesperson (bell `MARKET_SIGNAL_ASSIGNED`); `POST /api/market-intel/retag` backfills 25 at a time; five verified national feeds added to the catalog. Next migration 0123. After deploy: press "Add missing sources" then "Re-read tags" on the Sources tab.
 
 ### 2026-10-07 - Mike's Claude - **DEPLOYED bf300f2**, migration 0121 (data only): public budget password respelled to `Lightingbudget01`

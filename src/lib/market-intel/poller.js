@@ -4,6 +4,7 @@ import { extractFromArticle } from './entity-extractor.js';
 import { matchCandidates } from './fuzzy-matcher.js';
 import { matchProject } from './project-matcher.js';
 import { saveSignalTags, attachSignalToClient } from './tags.js';
+import { pollAllPermits } from './permits.js';
 import { createId } from '@paralleldrive/cuid2';
 
 // Process in batches to avoid Claude rate limits on the initial bulk run
@@ -165,9 +166,16 @@ export async function runPoll() {
   log.inserted = newItems.length - log.errors.length;
 
   await prisma.marketSource.updateMany({
-    where: { isActive: true },
+    where: { isActive: true, sourceType: 'RSS' },
     data:  { lastPolledAt: new Date() },
   });
+
+  // City permit feeds (0123) ride the same poll. One bad city must not stop the news.
+  try {
+    log.permits = await pollAllPermits();
+  } catch (err) {
+    log.errors.push({ url: 'permits', error: err.message });
+  }
 
   return log;
 }

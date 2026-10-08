@@ -4,21 +4,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import AskPanel from './AskPanel';
 import SectionTabs, { MARKET_INTEL_TABS } from '@/components/ui/SectionTabs';
-
-const PROJECT_TYPE_LABELS = {
-  MARKET_RATE:    'Market Rate',
-  AFFORDABLE:     'Affordable',
-  STUDENT_HOUSING:'Student Housing',
-  SENIOR_LIVING:  'Senior Living',
-};
-
-const SIGNAL_TYPE_META = {
-  GROUNDBREAKING:  { label: 'Groundbreaking', color: 'bg-green-100 text-green-700'  },
-  FINANCING:       { label: 'Financing',       color: 'bg-blue-100 text-blue-700'   },
-  ACQUISITION:     { label: 'Acquisition',     color: 'bg-purple-100 text-purple-700'},
-  DEVELOPER_AWARD: { label: 'Award',           color: 'bg-amber-100 text-amber-700' },
-  NEWS:            { label: 'News',            color: 'bg-slate-100 text-slate-600' },
-};
+import SignalCard, { PROJECT_TYPE_LABELS, SIGNAL_TYPE_META } from '@/components/market-intel/SignalCard';
 
 // A bell notification links to /market-intel?signal=<id>. useSearchParams needs
 // a Suspense boundary in Next 14, so the page is a thin wrapper.
@@ -116,6 +102,14 @@ function MarketIntelInner() {
     fetchSignals();
   }
 
+  // Add to CRM (Mike 10-7): the named company becomes a client, the article links to it.
+  async function addToCrm(id, tagId) {
+    const res  = await fetch(`/api/market-intel/signals/${id}/add-to-crm`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tagId }) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { alert(data.error || 'Could not add to CRM'); return; }
+    fetchSignals();
+  }
+
   const totalPages = Math.ceil(total / 50);
 
   function handleSearchChange(val) {
@@ -190,7 +184,7 @@ function MarketIntelInner() {
           className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
         >
           <option value="">All signal types</option>
-          {Object.entries(SIGNAL_TYPE_META).map(([k, v]) => (
+          {Object.entries(SIGNAL_TYPE_META).filter(([k]) => k !== 'PERMIT').map(([k, v]) => (
             <option key={k} value={k}>{v.label}</option>
           ))}
         </select>
@@ -271,7 +265,7 @@ function MarketIntelInner() {
       ) : (
         <div className="space-y-2">
           {signals.map(signal => (
-            <SignalCard key={signal.id} signal={signal} onUpdate={updateSignal} onTagClick={filterByTag} salesUsers={salesUsers} />
+            <SignalCard key={signal.id} signal={signal} onUpdate={updateSignal} onTagClick={filterByTag} onAddToCrm={addToCrm} salesUsers={salesUsers} />
           ))}
         </div>
       )}
@@ -296,208 +290,6 @@ function MarketIntelInner() {
           </button>
         </div>
       )}
-      </div>
-    </div>
-  );
-}
-
-const ROLE_LABELS = { DEVELOPER: 'developer', OWNER: 'owner', INVESTOR: 'investor', GC: 'GC', ARCHITECT: 'architect', LENDER: 'lender' };
-const TAG_STYLES  = {
-  COMPANY: 'bg-slate-100 text-slate-700 hover:bg-slate-200',
-  PROJECT: 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100',
-  METRO:   'bg-teal-50 text-teal-700 hover:bg-teal-100',
-  STATE:   'bg-teal-50 text-teal-700 hover:bg-teal-100',
-};
-
-function SignalCard({ signal, onUpdate, onTagClick, salesUsers = [] }) {
-  const meta         = SIGNAL_TYPE_META[signal.signalType] || SIGNAL_TYPE_META.NEWS;
-  const developers   = (() => { try { return JSON.parse(signal.developerNames || '[]'); } catch { return []; } })();
-  const isDismissed  = signal.reviewStatus === 'DISMISSED';
-  const tagLinks     = signal.tags || [];
-  // Hide the STATE chip when a METRO chip already names it ("Denver, CO").
-  const metroStates  = new Set(tagLinks.filter(l => l.tag.kind === 'METRO').map(l => l.tag.name.split(',').pop()?.trim()));
-  const chips        = tagLinks.filter(l => !(l.tag.kind === 'STATE' && metroStates.has(l.tag.name)));
-
-  return (
-    <div className={`bg-white border border-slate-200 rounded-xl p-4 transition-opacity ${isDismissed ? 'opacity-50' : ''}`}>
-      <div className="flex items-start gap-3">
-        <div className="flex-1 min-w-0">
-          {/* Title + type chips */}
-          <div className="flex flex-wrap items-center gap-2 mb-1.5">
-            <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${meta.color}`}>
-              {meta.label}
-            </span>
-            {signal.projectType && (
-              <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
-                {PROJECT_TYPE_LABELS[signal.projectType] || signal.projectType}
-              </span>
-            )}
-            {signal.reviewStatus === 'REVIEWED' && (
-              <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-green-50 text-green-600">✓ Reviewed</span>
-            )}
-          </div>
-
-          <a
-            href={signal.url}
-            target="_blank"
-            rel="noreferrer"
-            className="text-sm font-semibold text-slate-800 hover:text-amber-600 transition-colors line-clamp-2"
-          >
-            {signal.title}
-          </a>
-
-          {signal.summary && (
-            <p className="text-xs text-slate-500 mt-1 line-clamp-2">{signal.summary}</p>
-          )}
-
-          {/* Meta row */}
-          <div className="flex flex-wrap items-center gap-3 mt-2">
-            <span className="text-xs text-slate-400">
-              {signal.source?.name} · {signal.publishedAt ? new Date(signal.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
-            </span>
-
-            {/* Client match */}
-            {signal.matchStatus === 'AUTO_LINKED' && signal.linkedClient && (
-              <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1.5 group">
-                <Link href={`/clients/${signal.linkedClient.id}`} className="hover:underline">
-                  ✓ {signal.linkedClient.name}
-                </Link>
-                <button
-                  onClick={() => onUpdate(signal.id, { linkedClientId: null, matchStatus: 'REJECTED' })}
-                  className="opacity-0 group-hover:opacity-100 text-green-400 hover:text-red-600 transition-all ml-0.5"
-                  title="Wrong match — reject"
-                >✗</button>
-              </span>
-            )}
-            {signal.matchStatus === 'SUGGESTED' && signal.linkedClient && (
-              <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-                Possible: {signal.linkedClient.name}?
-                <button
-                  onClick={() => onUpdate(signal.id, { linkedClientId: signal.linkedClientId })}
-                  className="ml-1 hover:text-green-700" title="Confirm match"
-                >✓</button>
-                <button
-                  onClick={() => onUpdate(signal.id, { linkedClientId: null, matchStatus: 'REJECTED' })}
-                  className="hover:text-red-600" title="Reject match"
-                >✗</button>
-              </span>
-            )}
-            {signal.matchStatus === 'REJECTED' && (
-              <span className="text-xs text-slate-300 italic">No match</span>
-            )}
-            {/* Project match — a separate claim from the client match. "This is
-                Zocalo" and "this is Trailhead" can be right and wrong independently,
-                so each is confirmed or rejected on its own. */}
-            {signal.projectMatchStatus === 'AUTO_LINKED' && signal.linkedProject && (
-              <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1.5 group">
-                <Link href={`/projects/${signal.linkedProject.id}`} className="hover:underline">
-                  ✓ {signal.linkedProject.name}
-                </Link>
-                <button
-                  onClick={() => onUpdate(signal.id, { linkedProjectId: null })}
-                  className="opacity-0 group-hover:opacity-100 text-blue-400 hover:text-red-600 transition-all ml-0.5"
-                  title="Not this job — reject"
-                >✗</button>
-              </span>
-            )}
-            {signal.projectMatchStatus === 'CONFIRMED' && signal.linkedProject && (
-              <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1.5 group">
-                <Link href={`/projects/${signal.linkedProject.id}`} className="hover:underline">
-                  ✓ {signal.linkedProject.name}
-                </Link>
-                <button
-                  onClick={() => onUpdate(signal.id, { linkedProjectId: null })}
-                  className="opacity-0 group-hover:opacity-100 text-blue-400 hover:text-red-600 transition-all ml-0.5"
-                  title="Not this job — reject"
-                >✗</button>
-              </span>
-            )}
-            {signal.projectMatchStatus === 'SUGGESTED' && signal.linkedProject && (
-              <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-                Our job: {signal.linkedProject.name}?
-                <button
-                  onClick={() => onUpdate(signal.id, { linkedProjectId: signal.linkedProjectId })}
-                  className="ml-1 hover:text-green-700" title="Yes, this is that job"
-                >✓</button>
-                <button
-                  onClick={() => onUpdate(signal.id, { linkedProjectId: null })}
-                  className="hover:text-red-600" title="No, different job"
-                >✗</button>
-              </span>
-            )}
-            {developers.length > 0 && !signal.linkedClient && signal.matchStatus !== 'REJECTED' && chips.length === 0 && (
-              <span className="text-xs text-slate-400 italic">{developers.join(', ')}</span>
-            )}
-          </div>
-
-          {/* Tag chips (0122): company, project, place, units. Click one to filter. */}
-          {(chips.length > 0 || signal.unitCount) && (
-            <div className="flex flex-wrap items-center gap-1.5 mt-2">
-              {chips.map(l => (
-                <button
-                  key={l.tag.id}
-                  onClick={() => onTagClick?.(l.tag)}
-                  className={`text-[11px] font-medium px-2 py-0.5 rounded-full transition-colors ${TAG_STYLES[l.tag.kind] || TAG_STYLES.COMPANY}`}
-                  title={`Show all ${l.tag.kind === 'COMPANY' ? 'articles naming' : 'articles tagged'} ${l.tag.name}`}
-                >
-                  {l.tag.name}
-                  {l.tag.kind === 'COMPANY' && l.role && ROLE_LABELS[l.role] ? <span className="opacity-60"> · {ROLE_LABELS[l.role]}</span> : null}
-                  {l.tag.kind === 'COMPANY' && l.tag.clientId ? <span className="text-green-600"> ✓</span> : null}
-                </button>
-              ))}
-              {signal.unitCount ? (
-                <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">
-                  {signal.unitCount.toLocaleString()} units
-                </span>
-              ) : null}
-            </div>
-          )}
-
-          {/* Hand it to a salesperson. They get a bell notification. */}
-          {salesUsers.length > 0 && (
-            <div className="flex items-center gap-2 mt-2">
-              <select
-                value={signal.assignedToId || ''}
-                onChange={e => onUpdate(signal.id, { assignedToId: e.target.value || null })}
-                className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-400"
-              >
-                <option value="">Assign to…</option>
-                {salesUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-              </select>
-              {signal.assignedTo && signal.assignedAt && (
-                <span className="text-[11px] text-slate-400">
-                  since {new Date(signal.assignedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Actions */}
-        {!isDismissed && signal.reviewStatus !== 'REVIEWED' && (
-          <div className="flex gap-1.5 shrink-0">
-            <button
-              onClick={() => onUpdate(signal.id, { reviewStatus: 'REVIEWED' })}
-              className="text-xs px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 whitespace-nowrap"
-            >
-              Mark reviewed
-            </button>
-            <button
-              onClick={() => onUpdate(signal.id, { reviewStatus: 'DISMISSED' })}
-              className="text-xs px-2.5 py-1 rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-50"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
-        {isDismissed && (
-          <button
-            onClick={() => onUpdate(signal.id, { reviewStatus: 'UNREVIEWED' })}
-            className="text-xs px-2.5 py-1 rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-50 shrink-0"
-          >
-            Restore
-          </button>
-        )}
       </div>
     </div>
   );

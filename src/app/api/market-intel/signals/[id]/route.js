@@ -73,9 +73,9 @@ export async function PATCH(request, { params }) {
     await notifyUser({
       userId:    signal.assignedToId,
       type:      'MARKET_SIGNAL_ASSIGNED',
-      title:     'Market article assigned to you',
+      title:     signal.kind === 'PERMIT' ? 'Building permit assigned to you' : 'Market article assigned to you',
       message:   `${user.name || 'A teammate'} assigned you: ${existing.title}`.slice(0, 300),
-      link:      `/market-intel?signal=${signal.id}`,
+      link:      `${signal.kind === 'PERMIT' ? '/market-intel/permits' : '/market-intel'}?signal=${signal.id}`,
       dedupeKey: `market-signal-assigned:${signal.id}:${signal.assignedToId}`,
     }).catch(() => {});
   }

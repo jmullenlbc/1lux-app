@@ -145,7 +145,7 @@ test('groups come back in the order MARKETS declares', () => {
 
 test('an unknown market key renders as itself rather than blank', () => {
   assert.equal(marketLabel('DENVER'), 'Denver & Colorado');
-  assert.equal(marketLabel('PHOENIX'), 'PHOENIX');
+  assert.equal(marketLabel('BOISE'), 'BOISE');
   assert.equal(marketLabel(''), DEFAULT_MARKET);
   assert.equal(marketLabel(undefined), DEFAULT_MARKET);
 });
