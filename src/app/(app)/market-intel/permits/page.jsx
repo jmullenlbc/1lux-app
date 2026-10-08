@@ -46,6 +46,7 @@ function PermitsInner() {
   const [polling,     setPolling]     = useState(false);
   const [pollNote,    setPollNote]    = useState('');
   const [filters,     setFilters]     = useState(() => deepLinkId ? { ...EMPTY_FILTERS, reviewStatus: '', signalId: deepLinkId } : EMPTY_FILTERS);
+  const [sort,        setSort]        = useState('newest');
   const searchDebounce = useRef(null);
 
   useEffect(() => {
@@ -62,6 +63,7 @@ function PermitsInner() {
         if (filters[key]) params.set(key, filters[key]);
       }
       if (search) params.set('search', search);
+      if (sort !== 'newest') params.set('sort', sort);
       const res  = await fetch(`/api/market-intel/signals?${params}`);
       const data = await res.json();
       setSignals(data.signals || []);
@@ -69,7 +71,7 @@ function PermitsInner() {
     } finally {
       setLoading(false);
     }
-  }, [filters, page, search]);
+  }, [filters, page, search, sort]);
 
   useEffect(() => { fetchSignals(); }, [fetchSignals]);
 
@@ -203,6 +205,15 @@ function PermitsInner() {
             <option value="">Anyone's</option>
             <option value="me">Assigned to me</option>
             {salesUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+          </select>
+          {/* Sort is done by the server because the list is paged (Mike 10-8). */}
+          <select value={sort} onChange={e => { setSort(e.target.value); setPage(1); }} className={SELECT_CLS} title="Sort">
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="value">Highest value</option>
+            <option value="units">Most units</option>
+            <option value="contractor">Contractor A to Z</option>
+            <option value="address">Address A to Z</option>
           </select>
           {filters.company && (
             <span className="text-sm bg-slate-100 text-slate-700 rounded-lg px-3 py-1.5 flex items-center gap-2">

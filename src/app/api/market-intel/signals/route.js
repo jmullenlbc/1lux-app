@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { normalizeTagName } from '@/lib/market-intel/tagRules';
+import { RELEVANCE_SELECT, rankByRelevance } from '@/lib/market-intel/relevance';
 
 export const SIGNAL_INCLUDE = {
   source:        { select: { name: true, siteUrl: true } },
@@ -12,11 +13,27 @@ export const SIGNAL_INCLUDE = {
   tags:          { select: { role: true, tag: { select: { id: true, kind: true, name: true, normalized: true, clientId: true } } } },
 };
 
+// Sort orders the news and permits tabs offer (Mike 10-8: "sort all those
+// tabs"). Nulls go last so "most units" does not open with the blanks.
+// `relevant` is not a database order: see relevance.js and the branch below.
+export const SIGNAL_SORTS = {
+  relevant:   [{ publishedAt: 'desc' }],
+  newest:     [{ publishedAt: 'desc' }],
+  oldest:     [{ publishedAt: 'asc' }],
+  units:      [{ unitCount:      { sort: 'desc', nulls: 'last' } }, { publishedAt: 'desc' }],
+  value:      [{ valuation:      { sort: 'desc', nulls: 'last' } }, { publishedAt: 'desc' }],
+  title:      [{ title: 'asc' }],
+  source:     [{ source: { name: 'asc' } }, { publishedAt: 'desc' }],
+  contractor: [{ contractorName: { sort: 'asc', nulls: 'last' } }, { publishedAt: 'desc' }],
+  address:    [{ address:        { sort: 'asc', nulls: 'last' } }, { publishedAt: 'desc' }],
+};
+
 export async function GET(request) {
   const { user, error } = await requireAuth(request);
   if (error) return error;
 
   const { searchParams } = new URL(request.url);
+  const sort         = SIGNAL_SORTS[searchParams.get('sort')] ? searchParams.get('sort') : 'newest';
   const projectType  = searchParams.get('projectType');
   const signalType   = searchParams.get('signalType');
   const reviewStatus = searchParams.get('reviewStatus');
@@ -79,10 +96,20 @@ export async function GET(request) {
   }
   if (tagFilters.length) where.AND = tagFilters;
 
+  // "Most relevant" is a score, not a column: score every matching row on a
+  // handful of fields, take this page's ids, then load those rows in full.
+  if (sort === 'relevant') {
+    const thin  = await prisma.marketSignal.findMany({ where, select: RELEVANCE_SELECT });
+    const ids   = rankByRelevance(thin).slice((page - 1) * limit, page * limit);
+    const rows  = await prisma.marketSignal.findMany({ where: { id: { in: ids } }, include: SIGNAL_INCLUDE });
+    const byId  = new Map(rows.map(r => [r.id, r]));
+    return NextResponse.json({ signals: ids.map(id => byId.get(id)).filter(Boolean), total: thin.length, page, limit });
+  }
+
   const [signals, total] = await Promise.all([
     prisma.marketSignal.findMany({
       where,
-      orderBy: { publishedAt: 'desc' },
+      orderBy: SIGNAL_SORTS[sort],
       skip:    (page - 1) * limit,
       take:    limit,
       include: SIGNAL_INCLUDE,

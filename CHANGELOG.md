@@ -5,6 +5,18 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Market Intelligence: five "dead" feeds put back, and every tab sorts] - October 8, 2026 (DEPLOYED PENDING1) - no migration
+
+- **Why:** Mike asked why the twelve "dead" national sources were not working, since they should be. Checked every one at its stored address and at every likely new path, as our bot and as a browser. Five papers still publish, under a new feed address. Seven are gone for reasons no feed reader gets past.
+- **Put back (feed moved):** Affordable Housing Finance (`/rss.xml`), CRE Daily (`/briefs/feed/`; the main feed is empty), HUD News (`hud.gov/rss.xml`), NIC Blog (`/feed/?post_type=post`), NLIHC (`/rss.xml`). Each catalog entry carries `movedFrom` (the old address). The seeder repairs a row ONLY while it still holds the old address, so a hand-edited feed URL is never overwritten; the log says "Feed address fixed: N". The Sources page shows an amber note on each moved row and the update button reads "Fix N moved feeds" (or "Update N sources" when there are also missing ones).
+- **Still retired, reasons re-verified 10-8:** GlobeSt x3 (Cloudflare bot wall), McKnight's Senior Living (Haymarket login), MultifamilyBiz and NMHC (no feed published), NCSHA (feeds switched off in WordPress). "Turn off 7 dead sources" stays available.
+- **Sorting on all four tabs:** Market Intelligence sorts Newest, Oldest or **Most relevant** (Mike 10-8: "sortable by date and most relevant"). Permits sorts newest, oldest, highest value, most units, contractor, address. Both are done by the server (`sort` param on `GET /api/market-intel/signals`; nulls last; unknown values fall back to newest). Forecast and Sources get clickable column headers (click again to flip), sorted in the browser since those lists are not paged.
+- **"Most relevant", first cut** in `src/lib/market-intel/relevance.js`, one pure function so the rule can be changed without touching the query: our client +50 (suggested +25), one of our jobs +40 (suggested +20), +1 per 10 units capped at +30, groundbreaking +15 / financing +10 / award +10 / acquisition +5, assigned +10, minus 1 per week of age capped at 26, superseded by a permit minus 100. Not stored: the route scores the matching rows on seven fields, takes the page's ids, then loads them in full. 7 tests in `relevance.test.mjs`.
+- **Also:** two "Stopped publishing" strings lost their dashes.
+- Tests: `sourceCatalog.test.mjs` 26 pass (four new: `movedFrom` never equals the live address, an old address belongs to one source, the five put-back papers each carry one, and only a row still on the OLD address is offered for repair).
+- Files: `src/lib/market-intel/sourceCatalog.js`, `src/lib/market-intel/relevance.js`, `scripts/tests/relevance.test.mjs`, `src/app/api/market-intel/sources/seed/route.js`, `src/app/api/market-intel/signals/route.js`, `src/app/(app)/market-intel/page.jsx`, `src/app/(app)/market-intel/permits/page.jsx`, `src/app/(app)/market-intel/forecast/page.jsx`, `src/app/(app)/market-intel/sources/page.jsx`, `scripts/tests/sourceCatalog.test.mjs`.
+- After deploy: on Sources press "Fix 5 moved feeds", then "Refresh sources".
+
 ## [Market Intelligence: pulls run in 22 second slices so big first runs finish] - October 8, 2026 (DEPLOYED b8292d2) - no migration
 
 - **Why:** Mike pressed "Pull permits now" after the seven new feeds went live and nothing populated. A first pull is about 530 permits, each a handful of database round trips, and the news refresh runs every feed plus AI extraction in one request. Both run past the ~30 second Amplify wall, the request is cut with an empty 504, the Permits tab said "Pull failed" and the Sources tab button could stay stuck.

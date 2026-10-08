@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import SectionTabs, { MARKET_INTEL_TABS } from '@/components/ui/SectionTabs';
-import { MARKETS, DEFAULT_MARKET, RETIRED, marketLabel, missingSources, isRetired, retiredStillActive } from '@/lib/market-intel/sourceCatalog';
+import { MARKETS, DEFAULT_MARKET, RETIRED, marketLabel, missingSources, isRetired, retiredStillActive, movedSources } from '@/lib/market-intel/sourceCatalog';
 
 /**
  * Market Sources.
@@ -43,6 +43,44 @@ export default function MarketSourcesPage() {
   // the poller ten seconds of waiting and returns nothing.
   const dead = useMemo(() => retiredStillActive(sources), [sources]);
   const reasonFor = name => RETIRED.find(r => r.name.trim().toLowerCase() === String(name).trim().toLowerCase())?.reason;
+
+  // Sources still on a feed address the paper has moved away from (10-8). The
+  // same "Update sources" press repairs them.
+  const moved = useMemo(() => movedSources(sources), [sources]);
+  const movedNames = useMemo(() => new Set(moved.map(m => m.row.name)), [moved]);
+  const updates = missing.length + moved.length;
+
+  // Click a column header to sort within every market group; click again to
+  // flip (Mike 10-8). Default is the order the API returns.
+  const [sortKey, setSortKey] = useState('');
+  const [sortDir, setSortDir] = useState('asc');
+  function toggleSort(key) {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(key); setSortDir(key === 'lastPolledAt' ? 'desc' : 'asc'); }
+  }
+  const sortRows = rows => {
+    if (!sortKey) return rows;
+    const dir = sortDir === 'asc' ? 1 : -1;
+    const val = s => {
+      if (sortKey === 'lastPolledAt') return s.lastPolledAt ? new Date(s.lastPolledAt).getTime() : 0;
+      if (sortKey === 'isActive')     return s.isActive ? 1 : 0;
+      if (sortKey === 'projectTypes') { try { return JSON.parse(s.projectTypes || '[]').join(','); } catch { return ''; } }
+      return s[sortKey] ?? '';
+    };
+    return [...rows].sort((a, b) => {
+      const av = val(a), bv = val(b);
+      if (typeof av === 'string' || typeof bv === 'string') return dir * String(av).localeCompare(String(bv));
+      return dir * (av - bv);
+    });
+  };
+  const Th = ({ col, children, right }) => (
+    <th
+      onClick={() => toggleSort(col)}
+      className={`${right ? 'text-right' : 'text-left'} px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide cursor-pointer select-none hover:text-slate-800`}
+    >
+      {children}{sortKey === col ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
+    </th>
+  );
 
   // Markets in catalog order, then anything hand-added under a market we do not
   // recognise, so a source can never become invisible by being mis-tagged.
@@ -160,13 +198,20 @@ export default function MarketSourcesPage() {
               {retiring ? 'Turning off…' : `Turn off ${dead.length} dead source${dead.length === 1 ? '' : 's'}`}
             </button>
           )}
-          {missing.length > 0 && (
+          {updates > 0 && (
             <button
               onClick={seedSources}
               disabled={seeding}
               className="px-4 py-2 text-sm font-medium bg-slate-800 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50"
+              title={[
+                missing.length ? `Add ${missing.length} missing` : '',
+                moved.length   ? `fix ${moved.length} moved feed address${moved.length === 1 ? '' : 'es'}` : '',
+              ].filter(Boolean).join(', ')}
             >
-              {seeding ? 'Adding…' : `Add ${missing.length} missing source${missing.length === 1 ? '' : 's'}`}
+              {seeding ? 'Updating…'
+                : moved.length && !missing.length ? `Fix ${moved.length} moved feed${moved.length === 1 ? '' : 's'}`
+                : !moved.length ? `Add ${missing.length} missing source${missing.length === 1 ? '' : 's'}`
+                : `Update ${updates} sources`}
             </button>
           )}
           <button
@@ -198,16 +243,24 @@ export default function MarketSourcesPage() {
       {/* Feeds that have stopped publishing */}
       {!loading && dead.length > 0 && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-900">
-          {dead.length} source{dead.length === 1 ? '' : 's'} here stopped publishing — the feed is gone, blocked
+          {dead.length} source{dead.length === 1 ? '' : 's'} here stopped publishing: the feed is gone, blocked
           or broken. Each one makes the poll wait ten seconds for nothing. Turning them off changes no data
           and can be undone from the row.
         </div>
       )}
 
-      {/* Why local matters — the finding, stated once, where the decision is made */}
+      {/* Feeds that moved to a new address */}
+      {!loading && moved.length > 0 && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900">
+          {moved.length} source{moved.length === 1 ? '' : 's'} here still point{moved.length === 1 ? 's' : ''} at a feed address the
+          paper has moved away from, so every poll comes back empty. The button above fixes the address; nothing else changes.
+        </div>
+      )}
+
+      {/* Why local matters: the finding, stated once, where the decision is made */}
       {!loading && localCount === 0 && sources.length > 0 && (
         <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900">
-          Every source here is national trade press. That press names companies, not buildings —
+          Every source here is national trade press. That press names companies, not buildings,
           which is why no article has ever been tagged with one of our jobs. Adding the local
           papers is what changes that.
         </div>
@@ -221,6 +274,7 @@ export default function MarketSourcesPage() {
             <span>Added: {seedLog.added?.length ?? 0}</span>
             <span>Already there: {seedLog.alreadyThere ?? 0}</span>
             {seedLog.retagged?.length > 0 && <span>Re-tagged: {seedLog.retagged.length}</span>}
+            {seedLog.moved?.length > 0 && <span>Feed address fixed: {seedLog.moved.length}</span>}
             {seedLog.errors?.length > 0 && <span className="text-red-600">Errors: {seedLog.errors.length}</span>}
             <button onClick={() => setSeedLog(null)} className="ml-auto text-slate-400 hover:text-slate-600">✕</button>
           </div>
@@ -270,15 +324,15 @@ export default function MarketSourcesPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-100 bg-slate-50">
-                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Source</th>
-                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Types</th>
-                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Freq</th>
-                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Last Poll</th>
-                      <th className="px-4 py-2.5" />
+                      <Th col="name">Source</Th>
+                      <Th col="projectTypes">Types</Th>
+                      <Th col="pollingFrequency">Freq</Th>
+                      <Th col="lastPolledAt">Last Poll</Th>
+                      <Th col="isActive" right>On</Th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {group.rows.map(source => {
+                    {sortRows(group.rows).map(source => {
                       const types = (() => { try { return JSON.parse(source.projectTypes || '[]'); } catch { return []; } })();
                       return (
                         <tr key={source.id} className={source.isActive ? '' : 'opacity-50'}>
@@ -290,7 +344,12 @@ export default function MarketSourcesPage() {
                             </a>
                             {isRetired(source.name) && (
                               <div className="text-xs text-red-600 mt-1">
-                                Stopped publishing — {reasonFor(source.name)}
+                                Stopped publishing: {reasonFor(source.name)}
+                              </div>
+                            )}
+                            {movedNames.has(source.name) && (
+                              <div className="text-xs text-amber-700 mt-1">
+                                Feed moved. Press the update button above to fix the address.
                               </div>
                             )}
                             {source.notes && (

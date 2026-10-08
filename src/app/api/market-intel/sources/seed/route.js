@@ -17,10 +17,12 @@ import { SOURCES, DEFAULT_MARKET } from '@/lib/market-intel/sourceCatalog';
  * short of deleting everything. Here the decision is made server-side against
  * the live list, so pressing the button twice does nothing the second time.
  *
- * It never edits an existing source's feed URL or frequency. If somebody has
- * turned a source off or moved it to weekly, that is a decision, and a seeder
- * that silently reverts decisions is worse than no seeder. The one exception is
- * `market` on a source that has never been given one — see below.
+ * It never edits an existing source's frequency or on/off state. If somebody
+ * has turned a source off or moved it to weekly, that is a decision, and a
+ * seeder that silently reverts decisions is worse than no seeder. Two
+ * exceptions, both facts about the paper rather than choices: `market` on a
+ * source that has never been given one, and a feed URL the catalog says has
+ * MOVED (`movedFrom`), repaired only while the row still holds the old address.
  */
 export async function POST(request) {
   const { user, error } = await requireAuth(request);
@@ -30,11 +32,11 @@ export async function POST(request) {
   }
 
   const existing = await prisma.marketSource.findMany({
-    select: { id: true, name: true, market: true },
+    select: { id: true, name: true, market: true, feedUrl: true },
   });
   const byName = new Map(existing.map(s => [s.name.trim().toLowerCase(), s]));
 
-  const log = { added: [], alreadyThere: 0, retagged: [], errors: [] };
+  const log = { added: [], alreadyThere: 0, retagged: [], moved: [], errors: [] };
 
   for (const source of SOURCES) {
     const key   = source.name.trim().toLowerCase();
@@ -49,6 +51,16 @@ export async function POST(request) {
         try {
           await prisma.marketSource.update({ where: { id: found.id }, data: { market: source.market } });
           log.retagged.push({ name: source.name, market: source.market });
+        } catch (err) {
+          log.errors.push({ name: source.name, error: err?.message ?? String(err) });
+        }
+      }
+      // The paper moved its feed (2026-10-08: five of the "dead" twelve had).
+      // Only a row still on the old address is touched.
+      if (source.movedFrom?.includes(found.feedUrl)) {
+        try {
+          await prisma.marketSource.update({ where: { id: found.id }, data: { feedUrl: source.feedUrl } });
+          log.moved.push({ name: source.name, feedUrl: source.feedUrl });
         } catch (err) {
           log.errors.push({ name: source.name, error: err?.message ?? String(err) });
         }

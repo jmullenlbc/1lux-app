@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import SectionTabs, { MARKET_INTEL_TABS } from '@/components/ui/SectionTabs';
 
@@ -25,6 +25,13 @@ export default function ForecastPage() {
   const [months,  setMonths]  = useState(12);
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(true);
+  // Click a column header to sort; click again to flip (Mike 10-8).
+  const [sortKey, setSortKey] = useState('units');
+  const [sortDir, setSortDir] = useState('desc');
+  function toggleSort(key) {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(key); setSortDir(key === 'label' ? 'asc' : 'desc'); }
+  }
 
   useEffect(() => {
     let alive = true;
@@ -37,9 +44,26 @@ export default function ForecastPage() {
     return () => { alive = false; };
   }, [by, months]);
 
-  const rows = data?.rows || [];
-  const max  = rows[0]?.units || 1;
+  const rows = useMemo(() => {
+    const list = [...(data?.rows || [])];
+    const dir  = sortDir === 'asc' ? 1 : -1;
+    list.sort((a, b) => {
+      const av = a[sortKey], bv = b[sortKey];
+      if (typeof av === 'string' || typeof bv === 'string') return dir * String(av || '').localeCompare(String(bv || ''));
+      return dir * ((av || 0) - (bv || 0));
+    });
+    return list;
+  }, [data, sortKey, sortDir]);
+  const max  = Math.max(1, ...(data?.rows || []).map(r => r.units || 0));
   const filterKey = { company: 'company', metro: 'metro', state: 'state' }[by];
+  const Th = ({ col, children, right }) => (
+    <th
+      onClick={() => toggleSort(col)}
+      className={`${right ? 'text-right' : 'text-left'} px-4 py-2 font-semibold cursor-pointer select-none hover:text-slate-800`}
+    >
+      {children}{sortKey === col ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
+    </th>
+  );
 
   return (
     <div className="p-6">
@@ -87,10 +111,10 @@ export default function ForecastPage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                 <tr>
-                  <th className="text-left px-4 py-2 font-semibold">{by === 'company' ? 'Company' : by === 'metro' ? 'Metro' : 'State'}</th>
-                  <th className="text-right px-4 py-2 font-semibold">Units</th>
-                  <th className="text-right px-4 py-2 font-semibold">Projects</th>
-                  <th className="text-right px-4 py-2 font-semibold">Articles</th>
+                  <Th col="label">{by === 'company' ? 'Company' : by === 'metro' ? 'Metro' : 'State'}</Th>
+                  <Th col="units" right>Units</Th>
+                  <Th col="projects" right>Projects</Th>
+                  <Th col="articles" right>Articles</Th>
                   {by === 'company' && <th className="text-left px-4 py-2 font-semibold">Where</th>}
                   <th className="px-4 py-2 w-40"></th>
                 </tr>

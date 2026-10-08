@@ -21,7 +21,7 @@ import assert from 'node:assert/strict';
 import {
   MARKETS, SOURCES, DEFAULT_MARKET, RETIRED,
   marketLabel, isKnownMarket, missingSources, groupByMarket,
-  isRetired, retiredStillActive,
+  isRetired, retiredStillActive, movedSources,
 } from '../../src/lib/market-intel/sourceCatalog.js';
 
 // ── The list itself ─────────────────────────────────────────────────────────
@@ -179,7 +179,7 @@ test('no source is retired twice', () => {
 
 test('retirement is matched the same way the seeder matches names', () => {
   // Names come back out of a database, not out of this file.
-  assert.equal(isRetired('  HUD NEWS  '), true);
+  assert.equal(isRetired('  NMHC NEWS  '), true);
   assert.equal(isRetired('Multi-Housing News'), false);
   assert.equal(isRetired(''), false);
   assert.equal(isRetired(undefined), false);
@@ -189,11 +189,58 @@ test('only sources that are retired AND still switched on are offered up', () =>
   // Offering to turn off something already off would report work that is not
   // there; offering to turn off a live source would be a bug with teeth.
   const rows = [
-    { id: '1', name: 'HUD News',           isActive: true  },
-    { id: '2', name: 'NLIHC',              isActive: false },
+    { id: '1', name: 'NMHC News',          isActive: true  },
+    { id: '2', name: 'NCSHA',              isActive: false },
     { id: '3', name: 'Multi-Housing News', isActive: true  },
   ];
   assert.deepEqual(retiredStillActive(rows).map(r => r.id), ['1']);
   assert.deepEqual(retiredStillActive([]), []);
   assert.deepEqual(retiredStillActive(), []);
+});
+
+// ── Feeds that moved (10-8) ─────────────────────────────────────────────────
+
+test('a moved feed never lists its own live address as the old one', () => {
+  // Otherwise the seeder would "repair" a row to the address it already has,
+  // forever, and the page would offer the button forever.
+  for (const s of SOURCES) {
+    for (const old of s.movedFrom || []) {
+      assert.notEqual(old, s.feedUrl, `${s.name}: movedFrom holds the live address`);
+      assert.match(old, /^https?:\/\//, `${s.name}: movedFrom "${old}" is not a URL`);
+    }
+  }
+});
+
+test('an old address belongs to one source only', () => {
+  const seen = new Map();
+  for (const s of SOURCES) {
+    for (const old of s.movedFrom || []) {
+      assert.equal(seen.has(old), false, `${old} is listed as moved for both ${seen.get(old)} and ${s.name}`);
+      seen.set(old, s.name);
+    }
+  }
+});
+
+test('the five papers put back on 10-8 each carry their old address', () => {
+  for (const name of ['Affordable Housing Finance', 'CRE Daily', 'HUD News', 'NIC Blog', 'NLIHC']) {
+    const s = SOURCES.find(x => x.name === name);
+    assert.ok(s, `${name} is no longer in the catalog`);
+    assert.ok(s.movedFrom?.length, `${name} has no movedFrom, so an old row would never be repaired`);
+    assert.equal(isRetired(name), false);
+  }
+});
+
+test('only a row still on the OLD address is offered for repair', () => {
+  const hud = SOURCES.find(s => s.name === 'HUD News');
+  const rows = [
+    { id: '1', name: 'HUD News',           feedUrl: hud.movedFrom[0] },          // old address: fix it
+    { id: '2', name: 'NLIHC',              feedUrl: 'https://nlihc.org/rss.xml' }, // already right
+    { id: '3', name: 'NIC Blog',           feedUrl: 'https://example.com/hand-edited' }, // somebody chose this
+    { id: '4', name: 'Multi-Housing News', feedUrl: 'https://www.multihousingnews.com/feed/' },
+  ];
+  const out = movedSources(rows);
+  assert.deepEqual(out.map(m => m.row.id), ['1']);
+  assert.equal(out[0].feedUrl, hud.feedUrl);
+  assert.deepEqual(movedSources([]), []);
+  assert.deepEqual(movedSources(), []);
 });

@@ -64,23 +64,24 @@ const ALL_TYPES = ['MARKET_RATE', 'AFFORDABLE', 'STUDENT_HOUSING', 'SENIOR_LIVIN
  * database and offer to turn them off. Removing a row is not this file's job —
  * somebody may have notes on it.
  *
- * All twelve are national trade press, which is the category that never named
+ * All twelve were national trade press, which is the category that never named
  * one of our jobs in 191 collected articles. Losing them costs coverage of
  * client news, not project news.
+ *
+ * Checked again 2026-10-08 (Mike: "they should be working"). Five of the
+ * twelve still publish, under a new feed address: they are back in SOURCES
+ * below with `movedFrom` set to the old address so the seeder can repair the
+ * row. The seven here were tried at every likely path, as our bot and as a
+ * browser, and are gone for a reason no feed reader can get past.
  */
 export const RETIRED = [
-  { name: 'Affordable Housing Finance', reason: 'feed returns 404' },
-  { name: 'CRE Daily',                  reason: 'feed parses but has published nothing' },
-  { name: 'GlobeSt Multifamily',        reason: 'feed returns 404' },
-  { name: 'GlobeSt Senior Housing',     reason: 'blocked — 403' },
-  { name: 'GlobeSt Student Housing',    reason: 'blocked — 403' },
-  { name: 'HUD News',                   reason: 'feed returns 404' },
-  { name: "McKnight's Senior Living",   reason: 'redirect loop' },
-  { name: 'MultifamilyBiz',             reason: 'feed returns 404' },
-  { name: 'NCSHA',                      reason: 'server error — 500' },
-  { name: 'NIC Blog',                   reason: 'feed is not valid XML' },
-  { name: 'NLIHC',                      reason: 'feed returns 404' },
-  { name: 'NMHC News',                  reason: 'blocked — 406' },
+  { name: 'GlobeSt Multifamily',        reason: 'bot wall (Cloudflare 403 at every path), checked again 2026-10-08' },
+  { name: 'GlobeSt Senior Housing',     reason: 'bot wall (Cloudflare 403 at every path), checked again 2026-10-08' },
+  { name: 'GlobeSt Student Housing',    reason: 'bot wall (Cloudflare 403 at every path), checked again 2026-10-08' },
+  { name: "McKnight's Senior Living",   reason: 'feed now needs a Haymarket login, checked again 2026-10-08' },
+  { name: 'MultifamilyBiz',             reason: 'site publishes no feed, checked again 2026-10-08' },
+  { name: 'NCSHA',                      reason: 'feed switched off in WordPress ("No feed available"), checked again 2026-10-08' },
+  { name: 'NMHC News',                  reason: 'site publishes no feed, every feed path returns the home page, checked again 2026-10-08' },
 ];
 
 /** Is this source one we have given up on? Matched the way the seeder matches. */
@@ -96,6 +97,22 @@ export function isRetired(name) {
  */
 export function retiredStillActive(rows = []) {
   return (rows || []).filter(r => r.isActive && isRetired(r.name));
+}
+
+/**
+ * Of the sources this database holds, which still point at a feed address the
+ * catalog knows has moved (`movedFrom`). Matched on name AND on the old
+ * address, so a feed URL somebody edited by hand is never touched. Each entry
+ * is `{ row, feedUrl }`: the row as stored and the address it should have.
+ */
+export function movedSources(rows = []) {
+  const out = [];
+  for (const r of rows || []) {
+    const key = String(r?.name || '').trim().toLowerCase();
+    const c   = SOURCES.find(s => s.name.trim().toLowerCase() === key);
+    if (c?.movedFrom?.includes(r.feedUrl)) out.push({ row: r, feedUrl: c.feedUrl });
+  }
+  return out;
 }
 
 /**
@@ -125,6 +142,15 @@ export const SOURCES = [
   { name: 'Yield PRO',                  market: 'NATIONAL', feedUrl: 'https://yieldpro.com/feed/',                            siteUrl: 'https://yieldpro.com',                     projectTypes: ['MARKET_RATE','AFFORDABLE'],      pollingFrequency: 'DAILY',  notes: 'Multifamily owner and developer trade paper; project announcements with counts.' },
   { name: 'Senior Housing News',        market: 'NATIONAL', feedUrl: 'https://seniorhousingnews.com/feed/',                   siteUrl: 'https://seniorhousingnews.com',            projectTypes: ['SENIOR_LIVING'],                 pollingFrequency: 'DAILY',  notes: 'The senior living trade paper of record.' },
   { name: 'Construction Dive',          market: 'NATIONAL', feedUrl: 'https://www.constructiondive.com/feeds/news/',          siteUrl: 'https://www.constructiondive.com',         projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY',  notes: 'GC side of the same jobs: who won the contract, when it breaks ground.' },
+  // Put back 2026-10-08. Retired on 8-24 because the old feed path died, but
+  // each paper still publishes under a new one (every feed below returned
+  // dated items that day). `movedFrom` is the old address; the seeder repairs
+  // a database row that still points at it and leaves any other address alone.
+  { name: 'Affordable Housing Finance', market: 'NATIONAL', feedUrl: 'https://www.housingfinance.com/rss.xml',                siteUrl: 'https://www.housingfinance.com',           projectTypes: ['AFFORDABLE'],                    pollingFrequency: 'DAILY',  movedFrom: ['https://www.housingfinance.com/feed/'],        notes: 'LIHTC closings, preservation deals and the developers behind them.' },
+  { name: 'CRE Daily',                  market: 'NATIONAL', feedUrl: 'https://www.credaily.com/briefs/feed/',                siteUrl: 'https://www.credaily.com',                 projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY',  movedFrom: ['https://www.credaily.com/feed/'],              notes: 'Daily CRE briefs. The main feed is empty; the briefs feed carries the items.' },
+  { name: 'HUD News',                   market: 'NATIONAL', feedUrl: 'https://www.hud.gov/rss.xml',                          siteUrl: 'https://www.hud.gov',                      projectTypes: ['AFFORDABLE','SENIOR_LIVING'],    pollingFrequency: 'WEEKLY', movedFrom: ['https://www.hud.gov/rss/hud_news_rss.xml'],    notes: 'HUD press releases: funding awards and programme changes.' },
+  { name: 'NIC Blog',                   market: 'NATIONAL', feedUrl: 'https://www.nic.org/feed/?post_type=post',             siteUrl: 'https://www.nic.org',                      projectTypes: ['SENIOR_LIVING'],                 pollingFrequency: 'WEEKLY', movedFrom: ['https://www.nic.org/feed/'],                   notes: 'Senior housing occupancy and construction data from NIC MAP.' },
+  { name: 'NLIHC',                      market: 'NATIONAL', feedUrl: 'https://nlihc.org/rss.xml',                            siteUrl: 'https://nlihc.org',                        projectTypes: ['AFFORDABLE'],                    pollingFrequency: 'WEEKLY', movedFrom: ['https://nlihc.org/feed/'],                     notes: 'Affordable housing policy; the weekly Memo to Members.' },
 
   // ── Denver & Colorado ────────────────────────────────────────────────────
   // Mile High CRE was already here and was, until now, the only local paper in
