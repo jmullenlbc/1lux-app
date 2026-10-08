@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Houston permits + Location as city and state] - October 8, 2026 (DEPLOYED PENDING1) - no migration
+## [Houston permits + Location as city and state] - October 8, 2026 (DEPLOYED f3b9401) - no migration
 
 - **Why:** Mike: "Show city and state, but those should be tracked as different fields and combined visually." and "Can we start on houston and salt lake city next?"
 - **Houston building permits.** The city has no open-data permit layer; its legacy "Sold (approved) Permits" report (Permitting Center, WebFOCUS) is driven the way a browser does it: one POST runs the multi-family report for a date window, a second POST exports the rows as CSV. New `src/lib/market-intel/houstonFeed.js` (the two calls, browser User-Agent + Referer + session cookies), profile `HOUSTON` (`api: 'houston'`) and pure form/window/CSV helpers in `permitRules.js`, a catalog row in `sourceCatalog.js`. Keeps PERMIT_TYPE 13 "Building Pmt" rows at $10M or more; owner from OWNER_OCCUPANT becomes an OWNER company tag (Add to CRM, matcher); units read from the description ("(65 UNITS)", "(104UNITS)"); contractor not given. **The report has no issue date**, so a permit is dated by the end of the window it was found in: 90-day windows on the first pull (looks back 270 days, about 9 s and 9,700 rows for 10 kept), then the usual 14 days plus the gap. Live check 10-8: 10 permits (JLB Center Street three buildings, Dakota at Enclave two, Bernicia Place, 2811 Kirby, JHB at Acres Homes, Trinity East UMC, University of St. Thomas $43M).
