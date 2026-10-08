@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Pipeline forecast: click a row to see the projects that made its unit count] - October 8, 2026 (DEPLOYED PENDING1) - no migration
+## [Pipeline forecast: click a row to see the projects that made its unit count] - October 8, 2026 (DEPLOYED 62c9bb3) - no migration
 
 - **Why:** Mike: "how can we see what projects made that unit count? ... I think I like the collapse and uncollapse better."
 - Every row on the Pipeline forecast tab (company, metro or state) now drops open on click. Under it: one line per counted item with Project, Units, Where, From (Permit or Article) and Date. A project that several articles named shows once at its biggest figure, marked "(N articles, biggest figure counted)", and links to the article that printed that figure; a permit or an article with no project name is its own line. Each line links to the card (`/market-intel?signal=` or `/market-intel/permits?signal=`). Open rows close when the grouping or a server-side filter changes.

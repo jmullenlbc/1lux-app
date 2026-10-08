@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-08 (newest) - Mike's Claude - **DEPLOYED PENDING1**, no migration: Pipeline forecast rows drop open to show the projects behind the unit count
+### 2026-10-08 (newest) - Mike's Claude - **DEPLOYED 62c9bb3**, no migration: Pipeline forecast rows drop open to show the projects behind the unit count
 `rollupUnits` returns `items[]` per row (project once at its biggest figure, loose permits and articles one each, each linked to its card); kind (permits or articles) and company role filters; the forecast page toggles a sub-table per row on click. Unit total now summed from the same items so the list always adds up.
 
 ### 2026-10-08 - Mike's Claude - **DEPLOYED e683fde**, migration 0126 (additive): permit owner looked up on the web
