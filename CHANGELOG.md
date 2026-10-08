@@ -5,6 +5,12 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Permit cards: five fields, Location first] - October 8, 2026 (DEPLOYED PENDING1) - no migration
+
+- **Why:** Mike: "Need the location large as a field ... Make location (i.e. Austin) be the first field. Remove neighborhood ... Remove Permit as a field ... Make units it's own field too ... Just have the issued date be another field."
+- A permit card now shows five fields in one row: Location (the metro tag, "Austin, TX"), Units, Declared value, Contractor, Issued. Every field always shows, with "Not stated" or "Not named" when the permit left it blank. Neighborhood and permit number are gone from the card (still searchable). The source line under the card no longer carries "issued <date>" for permits; article cards are unchanged.
+- File: `src/components/market-intel/SignalCard.jsx`.
+
 ## [Pipeline forecast: click a row to see the projects that made its unit count] - October 8, 2026 (DEPLOYED 62c9bb3) - no migration
 
 - **Why:** Mike: "how can we see what projects made that unit count? ... I think I like the collapse and uncollapse better."
