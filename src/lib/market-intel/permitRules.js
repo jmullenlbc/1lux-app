@@ -9,12 +9,13 @@
  * what, and which permit classes count. Denver is the first. Adding a city is
  * a new profile here plus one SOURCES row in sourceCatalog.js.
  *
- * Profile fields: api 'arcgis' | 'socrata'; dateField; classField (arcgis
+ * Profile fields: api 'arcgis' | 'socrata' | 'houston'; dateField; classField (arcgis
  * defaults to CLASS); valueField or valueExpr (arcgis defaults to VALUATION);
  * baseWhere; keepClasses (leave out to keep every class the $10M floor lets
  * through); dateLiteral 'plain' for servers that reject DATE '...'; headers
  * sent with the fetch; map(row) -> the common permit shape, with skip: true
- * for rows to drop.
+ * for rows to drop; firstLookbackDays for feeds too slow for the 18-month
+ * first pull (Houston); ownerName in the map output becomes an OWNER company.
  */
 
 /** The MarketSource.sourceType that marks a permit feed. Kept as the 0123 value for every city, ArcGIS or Socrata. */
@@ -43,6 +44,9 @@ export const HILLSBOROUGH_KEEP_CLASSES = ['Commercial New Construction', 'Commer
 
 /** Jacksonville types of work worth a look (building permits only). */
 export const JACKSONVILLE_KEEP_CLASSES = ['New Building', 'Addition', 'Alterations & Repairs', 'Tenant Build-Out'];
+
+/** Houston "Sold Permits" report: the one permit description that is the building permit itself (PERMIT_TYPE 13). */
+export const HOUSTON_KEEP_CLASSES = ['Building Pmt'];
 
 /** Below this declared value a permit is too small a job for us, unit count or not (Mike 10-8: $10M). */
 export const MIN_VALUATION = 10_000_000;
@@ -100,6 +104,38 @@ export const PERMIT_PROFILES = {
       skip:           /Other Than Bldg|Demolition|Relocation/i.test(str(a.permit_class)),
       issuedAt:       a.issue_date ? new Date(a.issue_date) : null,
       url:            a.link && a.link.url ? String(a.link.url) : null,
+    }),
+  },
+  // Houston has no open-data layer. Its legacy "Sold (approved) Permits"
+  // WebFOCUS report answers a form POST for a date window, then a second POST
+  // exports the rows as CSV (houstonFeed.js). Rows carry the owner, the
+  // address, a free-text description with the unit count, and the declared
+  // value, but NO issue date: a row is dated by the end of the window it was
+  // found in (Mike 10-8: approximate, flagged). Multi-family only (FCC 002-004).
+  HOUSTON: {
+    key:       'HOUSTON',
+    api:       'houston',
+    metro:     'Houston, TX',
+    state:     'TX',
+    layerUrl:  'https://cohtora.houstontx.gov/ibi_apps/WFServlet',
+    siteUrl:   'https://cohtora.houstontx.gov/approot/soldpermits/online_permit.htm',
+    firstLookbackDays: 270,
+    windowDays: 90,
+    keepClasses: HOUSTON_KEEP_CLASSES,
+    map: (a) => ({
+      permitNumber:   str(a.PROJECT_NO),
+      permitClass:    str(a.PERMIT_DESC),
+      buildingKind:   shortText(a.PROJECT_DESC, 90),
+      // "3910 OLD SPANISH TRL BLD A 77021": the zip is the last word.
+      address:        titleCaseAddress(str(a.Address).replace(/\s+\d{5}$/, '')),
+      neighborhood:   /\d{5}$/.test(str(a.Address)) ? `ZIP ${str(a.Address).slice(-5)}` : '',
+      valuation:      num(a.CURRENT_VALUATION),
+      contractorName: '',
+      ownerName:      cleanCompany(str(a.OWNER_OCCUPANT).replace(/^\*+\s*/, '')),
+      unitCount:      unitsFromText(a.PROJECT_DESC),
+      skip:           str(a.PERMIT_TYPE) !== '13' || /\bDEMO/i.test(str(a.PROJECT_DESC)),
+      issuedAt:       a.issuedAt ? new Date(a.issuedAt) : null,
+      url:            null,
     }),
   },
   // Orlando publishes permit applications on Socrata (dataset ryhf-m453),
@@ -382,6 +418,7 @@ export function permitToSignal(profile, attributes) {
   const parts = [
     p.buildingKind ? p.buildingKind : null,
     p.contractorName ? `Contractor ${p.contractorName}` : null,
+    p.ownerName ? `Owner ${p.ownerName}` : null,
     p.valuation ? `declared value ${money(p.valuation)}` : null,
     p.neighborhood ? `in ${p.neighborhood}` : null,
     `Permit ${p.permitNumber}`,
@@ -403,14 +440,76 @@ export function permitToSignal(profile, attributes) {
     valuation:      p.valuation,
     contractorName: p.contractorName,
     extracted: {
-      companies:      p.contractorName ? [{ name: p.contractorName, role: 'GC' }] : [],
-      developerNames: p.contractorName ? [p.contractorName] : [],
+      companies: [
+        ...(p.contractorName ? [{ name: p.contractorName, role: 'GC' }] : []),
+        ...(p.ownerName      ? [{ name: p.ownerName,      role: 'OWNER' }] : []),
+      ],
+      developerNames: [p.ownerName, p.contractorName].filter(Boolean),
       projectNames:   [],
       metro:          profile.metro,
       state:          profile.state,
       unitCount:      p.unitCount,
     },
   };
+}
+
+// ── Houston report (pure: forms and CSV; the fetch lives in houstonFeed.js) ──
+
+/** Date windows of n days from `since` to `until`, oldest first, each `{ start, end }`. */
+export function houstonWindows(since, until, days = 90) {
+  const out = [];
+  let start = new Date(since);
+  const end = new Date(until);
+  while (start < end) {
+    const stop = new Date(Math.min(start.getTime() + days * 86400e3, end.getTime()));
+    out.push({ start, end: stop });
+    start = stop;
+  }
+  return out;
+}
+
+const ymd = (d) => new Date(d).toISOString().slice(0, 10).replace(/-/g, '');
+
+/** Form body for the report POST: multi-family (SELTD=MF), building permits, one date window. */
+export function houstonReportForm(start, end) {
+  return new URLSearchParams({
+    IBIF_ex: 'online_per_se.fex', ibiapp_app: 'soldpermits', ibic_server: 'EDASERVE',
+    BDT: ymd(start), EDT: ymd(end), edit4: '', edit5: '', SRH: '', SELTD: 'MF', PTYPE: '13',
+  }).toString();
+}
+
+/** Form body for the CSV export of the report just run (same session cookies). Column order fixed. */
+export const HOUSTON_EXPORT_FORM = 'IBIF_webapp=%2Fibi_apps&IBIC_server=EDASERVE&IBIWF_msgviewer=OFF&IBIF_ex=c1che&AR_CFUNC=EXPORT&IBIF_wfdescribe=OFF&AR_CFORMAT=COMMA&AR_WCOND=&AR_SORDER=&AR_CACHEMAS=REPS_PAID_PERMITS_MV&AR_CACHEMODE=0&AR_CACHEFMT=BINARY&AR_CACHEFEX=c1che&AR_COLS=++F01+AS+%27PROJECT_NO%27+F02+AS+%27PERMIT_DESC%27+F03+AS+%27OWNER_OCCUPANT%27+F04+AS+%27Address%27+F05+AS+%27PROJECT_DESC%27+F06+AS+%27CURRENT_VALUATION%27+F07+AS+%27PERMIT_TYPE%27&AR_COUNTCOL=F07&AR_RAND=367';
+
+export const HOUSTON_COLUMNS = ['PROJECT_NO', 'PERMIT_DESC', 'OWNER_OCCUPANT', 'Address', 'PROJECT_DESC', 'CURRENT_VALUATION', 'PERMIT_TYPE'];
+
+/** One CSV line into cells: quoted text with "" escapes, bare numbers with padding. */
+export function csvCells(line) {
+  const cells = [];
+  let cur = '', q = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (q) {
+      if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+      else if (c === '"') q = false;
+      else cur += c;
+    } else if (c === '"') q = true;
+    else if (c === ',') { cells.push(cur); cur = ''; }
+    else cur += c;
+  }
+  cells.push(cur);
+  return cells.map(s => s.trim());
+}
+
+/** The export CSV (no header row) into objects, each stamped with the window's end as issuedAt. */
+export function houstonRows(csv, { issuedAt = null } = {}) {
+  return String(csv || '').split(/\r?\n/).filter(l => l.trim()).map(line => {
+    const cells = csvCells(line);
+    const row = {};
+    HOUSTON_COLUMNS.forEach((k, i) => { row[k] = cells[i] ?? ''; });
+    row.issuedAt = issuedAt;
+    return row;
+  }).filter(r => /^\d+$/.test(r.PROJECT_NO));
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────

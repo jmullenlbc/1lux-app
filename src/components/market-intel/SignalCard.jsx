@@ -59,8 +59,11 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
   // Hide the STATE chip when a METRO chip already names it ("Denver, CO").
   const metroStates  = new Set(tagLinks.filter(l => l.tag.kind === 'METRO').map(l => l.tag.name.split(',').pop()?.trim()));
   const chips        = tagLinks.filter(l => !(l.tag.kind === 'STATE' && metroStates.has(l.tag.name)));
-  // The permit card's Location field (Mike 10-8): the metro tag, "Austin, TX".
-  const metroName    = tagLinks.find(l => l.tag.kind === 'METRO')?.tag.name || null;
+  // The permit card's Location field (Mike 10-8): city and state are two tag
+  // rows (METRO "Austin, TX" and STATE "TX"), shown together as one field.
+  const metroName    = tagLinks.find(l => l.tag.kind === 'METRO')?.tag.name || '';
+  const city         = metroName.split(',')[0].trim() || null;
+  const stateName    = tagLinks.find(l => l.tag.kind === 'STATE')?.tag.name || metroName.split(',')[1]?.trim() || null;
   // Companies the feed named that are not in the CRM yet: each gets an Add button.
   const addable      = tagLinks.filter(l => l.tag.kind === 'COMPANY' && !l.tag.clientId);
   const [adding, setAdding] = useState('');
@@ -125,7 +128,7 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
             <dl className="grid grid-cols-2 sm:grid-cols-5 gap-x-4 gap-y-1 mt-1.5 text-xs">
               {/* Mike 10-8: Location first, then Units, Declared value, Contractor, Issued.
                   No neighborhood, no permit number: "we don't care about" either. */}
-              <div><dt className="text-slate-400">Location</dt><dd className="text-slate-700 font-medium">{metroName || signal.neighborhood || 'Unknown'}</dd></div>
+              <div><dt className="text-slate-400">Location</dt><dd className="text-slate-700 font-medium">{city || signal.neighborhood || 'Unknown'}{city && stateName && <span className="text-slate-500 font-normal">, {stateName}</span>}</dd></div>
               <div><dt className="text-slate-400">Units</dt><dd className="text-slate-700 font-medium">{signal.unitCount ? signal.unitCount.toLocaleString() : 'Not stated'}</dd></div>
               <div><dt className="text-slate-400">Declared value</dt><dd className="text-slate-700">{signal.valuation ? money(signal.valuation) : 'Not stated'}</dd></div>
               <div><dt className="text-slate-400">Contractor</dt><dd className="text-slate-700">{signal.contractorName || 'Not named'}</dd></div>

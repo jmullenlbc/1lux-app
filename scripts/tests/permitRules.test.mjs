@@ -1,7 +1,7 @@
 // City permit feeds (migration 0123, Mike 10-7). Pure, no DB, no fetch.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PERMIT_PROFILES, profileForSource, permitWhere, permitQueryUrl, permitRows, permitToSignal, unitsFrom, unitsFromText, whatFor, shortText, cleanCompany, titleCaseAddress, money } from '../../src/lib/market-intel/permitRules.js';
+import { PERMIT_PROFILES, profileForSource, permitWhere, permitQueryUrl, permitRows, permitToSignal, unitsFrom, unitsFromText, whatFor, shortText, cleanCompany, titleCaseAddress, money, houstonWindows, houstonReportForm, houstonRows, csvCells } from '../../src/lib/market-intel/permitRules.js';
 
 const DENVER = PERMIT_PROFILES.DENVER;
 const ROW = {
@@ -278,4 +278,39 @@ test('money reads short', () => {
   assert.equal(money(3500000), '$3.5M');
   assert.equal(money(299500), '$300K');
   assert.equal(money(0), '');
+});
+
+test('Houston: the report form, 90-day windows and the CSV export rows', () => {
+  const H = PERMIT_PROFILES.HOUSTON;
+  assert.equal(H.api, 'houston');
+  const form = houstonReportForm(Date.UTC(2026, 0, 1), Date.UTC(2026, 2, 31));
+  assert.match(form, /IBIF_ex=online_per_se\.fex/);
+  assert.match(form, /BDT=20260101&EDT=20260331/);
+  assert.match(form, /SELTD=MF&PTYPE=13/);
+  const w = houstonWindows(Date.UTC(2026, 0, 1), Date.UTC(2026, 6, 1), 90);
+  assert.equal(w.length, 3);
+  assert.equal(w[2].end.getTime(), Date.UTC(2026, 6, 1));
+  assert.equal(csvCells('"24004085","Building Pmt    ","*HARRIS, LLC","a ""b"" c",  14000000,"13"').join('|'), '24004085|Building Pmt|*HARRIS, LLC|a "b" c|14000000|13');
+  const csv = [
+    '"25065309","Building Pmt    ","*JLB CENTER STREET L.P.                     ","3028 CENTER ST BLD1B 77007         ","78,855 SF NEW APT BLD (65 UNITS) (M/8) 1-5-3-R2-A-SPK/FA \'21 IBC  ",  10724280,"13"',
+    '"25065310","Building Pmt    ","*JLB CENTER STREET L.P.                     ","3028 CENTER ST BLD1A 77007         ","119,873 SF NEW APT BLD (104UNITS)(2/8) 1-5-3-R2/A3-A-SPK/FA \'21IBC",  16302728,"13"',
+    '"14051649","TEMPORARY C/O   ","*REGALIA AT THE PARK HOLDINGS, LLC          ","10 N CRAWFORD ST 77002             ","NEW APARTMENT BUILDING (MASTER 1 OF 3)1-5-3-R2-B  100% SPR        ",         0,"CT"',
+    '"24055972","Building Pmt    ","*2811 KIRBY                                 ","2811 KIRBY DR 77098                ","(M/46) NEW SHELL/CORE FOR APRTMNTS 1-38-1-SH-A \'15 IBC SPK13      ",   9999999,"13"',
+    '',
+  ].join('\r\n');
+  const rows = houstonRows(csv, { issuedAt: new Date(Date.UTC(2026, 2, 31)) });
+  assert.equal(rows.length, 4);
+  assert.equal(rows[0].OWNER_OCCUPANT, '*JLB CENTER STREET L.P.');
+  const kept = rows.map(r => permitToSignal(H, r)).filter(Boolean);
+  assert.deepEqual(kept.map(s => s.permitNumber), ['25065309', '25065310']);
+  assert.equal(kept[0].title, 'New building, 65 units: 3028 Center St Bld1b');
+  assert.equal(kept[1].unitCount, 104);
+  assert.equal(kept[0].address, '3028 Center St Bld1b');
+  assert.equal(kept[0].neighborhood, 'ZIP 77007');
+  assert.equal(kept[0].contractorName, '');
+  assert.deepEqual(kept[0].extracted.companies, [{ name: 'Jlb Center Street L.P.', role: 'OWNER' }]);
+  assert.deepEqual(kept[0].extracted.developerNames, ['Jlb Center Street L.P.']);
+  assert.equal(kept[0].publishedAt.toISOString().slice(0, 10), '2026-03-31');
+  assert.match(kept[0].summary, /Owner Jlb Center Street L\.P\./);
+  assert.equal(profileForSource({ feedUrl: 'https://cohtora.houstontx.gov/ibi_apps/WFServlet', market: 'HOUSTON' }).key, 'HOUSTON');
 });

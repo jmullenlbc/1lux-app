@@ -2,7 +2,10 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-08 (newest) - Mike's Claude - **DEPLOYED fbe9702**, no migration: permit cards show Location, Units, Declared value, Contractor, Issued
+### 2026-10-08 (newest) - Mike's Claude - **DEPLOYED PENDING1**, no migration: Houston permit feed + permit card Location as city and state
+Houston "Sold Permits" WebFOCUS report driven by two POSTs (`houstonFeed.js`, profile `HOUSTON` api 'houston', catalog row). No issue date in the report: dated by the end of the window found in (90-day first pull over 270 days). Owner becomes an OWNER company tag. Salt Lake City has no usable feed (Accela only). Card Location = city (METRO tag) + state (STATE tag) combined visually. After deploy: "Add missing sources" then "Pull permits now".
+
+### 2026-10-08 - Mike's Claude - **DEPLOYED fbe9702**, no migration: permit cards show Location, Units, Declared value, Contractor, Issued
 `SignalCard.jsx` only. Location = the METRO tag; neighborhood and permit number dropped from the card; "issued <date>" moved out of the source line into its own field.
 
 ### 2026-10-08 - Mike's Claude - **DEPLOYED 62c9bb3**, no migration: Pipeline forecast rows drop open to show the projects behind the unit count

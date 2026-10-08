@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db';
 import { matchCandidates } from './fuzzy-matcher';
 import { saveSignalTags, attachSignalToClient } from './tags';
 import { PERMIT_SOURCE_TYPE, profileForSource, permitQueryUrl, permitRows, permitToSignal } from './permitRules';
+import { fetchHoustonRows } from './houstonFeed';
 
 /**
  * Pull one city's permit feed into MarketSignal rows (migration 0123).
@@ -22,13 +23,17 @@ export async function pollPermitSource(source, { limit = 500, now = new Date(), 
 
   const since = source.lastPolledAt
     ? new Date(new Date(source.lastPolledAt).getTime() - 14 * 86400e3)
-    : new Date(now.getTime() - 548 * 86400e3);
+    : new Date(now.getTime() - (profile.firstLookbackDays || 548) * 86400e3);
 
   let rows = [];
   try {
-    const res  = await fetch(permitQueryUrl(profile, since, { limit }), { headers: { 'User-Agent': 'ILC-Studios-MarketIntel/1.0', ...(profile.headers || {}) }, signal: AbortSignal.timeout(20000) });
-    const json = await res.json();
-    rows = permitRows(profile, json);
+    if (profile.api === 'houston') {
+      rows = await fetchHoustonRows(profile, since, now);
+    } else {
+      const res  = await fetch(permitQueryUrl(profile, since, { limit }), { headers: { 'User-Agent': 'ILC-Studios-MarketIntel/1.0', ...(profile.headers || {}) }, signal: AbortSignal.timeout(20000) });
+      const json = await res.json();
+      rows = permitRows(profile, json);
+    }
   } catch (err) {
     log.errors.push({ error: `fetch failed: ${err.message}` });
     return log;
