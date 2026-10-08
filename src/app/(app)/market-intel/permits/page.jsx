@@ -98,18 +98,27 @@ function PermitsInner() {
   }
 
   // Pull the city feeds now. Same button as the Sources tab, permits only.
+  // The server works in 22 s slices (Amplify cuts longer requests), so keep
+  // pressing for it until it says it is done. A first pull of a city is a few
+  // hundred rows and takes several slices.
   async function pullPermits() {
     setPolling(true);
     setPollNote('');
+    let ins = 0;
+    const errs = [];
     try {
-      const res  = await fetch('/api/market-intel/permits/poll', { method: 'POST' });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) { setPollNote(data.error || 'Pull failed'); return; }
-      const logs = data.logs || [];
-      const ins  = logs.reduce((n, l) => n + (l.inserted || 0), 0);
-      const errs = logs.flatMap(l => l.errors || []);
+      for (let round = 0; round < 60; round++) {
+        const res  = await fetch('/api/market-intel/permits/poll', { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { setPollNote(data.error || `Pull failed after ${ins} new permit${ins === 1 ? '' : 's'}. Press again to continue.`); return; }
+        const logs = data.logs || [];
+        ins += logs.reduce((n, l) => n + (l.inserted || 0), 0);
+        errs.push(...logs.flatMap(l => l.errors || []));
+        fetchSignals();
+        if (!data.more) break;
+        setPollNote(`${ins} new permit${ins === 1 ? '' : 's'} so far, still pulling…`);
+      }
       setPollNote(`${ins} new permit${ins === 1 ? '' : 's'}${errs.length ? `, ${errs.length} error${errs.length === 1 ? '' : 's'}: ${errs[0].error}` : ''}`);
-      fetchSignals();
     } finally {
       setPolling(false);
     }

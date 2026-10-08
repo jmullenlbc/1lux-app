@@ -16,8 +16,9 @@ export async function POST(request) {
     if (!user || user.role === 'CLIENT_VIEWER') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   try {
-    const logs = await pollAllPermits();
-    return NextResponse.json({ ok: true, logs });
+    // 22 s of work per press keeps every slice under the ~30 s Amplify wall.
+    const { logs, more } = await pollAllPermits({ deadline: Date.now() + 22000 });
+    return NextResponse.json({ ok: true, logs, more });
   } catch (err) {
     console.error('[market-intel/permits/poll]', err);
     return NextResponse.json({ error: err.message }, { status: 500 });

@@ -95,13 +95,29 @@ export default function MarketSourcesPage() {
     loadSources();
   }
 
+  // The server works in 22 s slices (Amplify cuts longer requests), so keep
+  // pressing for it until it says it is done; totals add up across slices.
   async function runPoll() {
     setPolling(true);
     setPollLog(null);
-    const res  = await fetch('/api/market-intel/poll', { method: 'POST' });
-    const data = await res.json();
-    setPollLog(data.log || data);
-    setPolling(false);
+    const total = { fetched: 0, inserted: 0, skipped: 0, errors: [], more: false };
+    try {
+      for (let round = 0; round < 60; round++) {
+        const res  = await fetch('/api/market-intel/poll', { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { total.errors.push({ error: data.error || 'Refresh was cut short. Press again to continue.' }); break; }
+        const log = data.log || {};
+        total.fetched  = log.fetched ?? total.fetched;
+        total.skipped  = log.skipped ?? total.skipped;
+        total.inserted += log.inserted || 0;
+        total.errors.push(...(log.errors || []));
+        total.more = !!log.more;
+        setPollLog({ ...total });
+        if (!log.more) break;
+      }
+    } finally {
+      setPolling(false);
+    }
   }
 
   // Backfill tags on older articles, 25 per press (0122).
@@ -224,7 +240,7 @@ export default function MarketSourcesPage() {
       {/* Poll result */}
       {pollLog && (
         <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800 flex items-center gap-4">
-          <span>✓ Poll complete</span>
+          <span>{polling ? 'Still refreshing…' : '✓ Poll complete'}</span>
           <span>Fetched: {pollLog.fetched}</span>
           <span>New: {pollLog.inserted}</span>
           <span>Skipped: {pollLog.skipped}</span>

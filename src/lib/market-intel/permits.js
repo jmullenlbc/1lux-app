@@ -15,8 +15,8 @@ import { PERMIT_SOURCE_TYPE, profileForSource, permitQueryUrl, permitRows, permi
  * last poll so a late-published row is not missed. Rows are keyed on the
  * city's permit number, so re-running never duplicates.
  */
-export async function pollPermitSource(source, { limit = 500, now = new Date() } = {}) {
-  const log = { source: source.name, fetched: 0, kept: 0, inserted: 0, updated: 0, errors: [] };
+export async function pollPermitSource(source, { limit = 500, now = new Date(), deadline = Infinity } = {}) {
+  const log = { source: source.name, fetched: 0, kept: 0, inserted: 0, updated: 0, errors: [], partial: false };
   const profile = profileForSource(source);
   if (!profile) { log.errors.push({ error: `no permit profile for market ${source.market}` }); return log; }
 
@@ -46,6 +46,12 @@ export async function pollPermitSource(source, { limit = 500, now = new Date() }
   const byNumber = new Map(existing.map(e => [e.permitNumber, e]));
 
   for (const s of signals) {
+    // Amplify cuts any request at ~30 s with an empty 504. A first pull of a
+    // city is hundreds of rows, each a handful of DB round trips, so the work is
+    // done in slices: stop at the deadline, say so, and the page presses again.
+    // lastPolledAt stays unset on a partial run so the next slice looks back
+    // the same 18 months; rows already saved are skipped by permit number.
+    if (Date.now() > deadline) { log.partial = true; break; }
     try {
       const { extracted, ...data } = s;
       const prior = byNumber.get(s.permitNumber);
@@ -81,14 +87,25 @@ export async function pollPermitSource(source, { limit = 500, now = new Date() }
     }
   }
 
-  await prisma.marketSource.update({ where: { id: source.id }, data: { lastPolledAt: now } }).catch(() => {});
+  if (!log.partial) await prisma.marketSource.update({ where: { id: source.id }, data: { lastPolledAt: now } }).catch(() => {});
   return log;
 }
 
-/** Every active permit feed. Called from runPoll and from the Permits tab button. */
+/**
+ * Every active permit feed. Called from runPoll and from the Permits tab button.
+ * Returns `{ logs, more }`; `more` is true when the deadline cut the run short
+ * and the caller should run it again to finish.
+ */
 export async function pollAllPermits(opts = {}) {
-  const sources = await prisma.marketSource.findMany({ where: { isActive: true, sourceType: PERMIT_SOURCE_TYPE } });
+  const deadline = opts.deadline ?? Infinity;
+  const sources  = await prisma.marketSource.findMany({ where: { isActive: true, sourceType: PERMIT_SOURCE_TYPE } });
   const logs = [];
-  for (const s of sources) logs.push(await pollPermitSource(s, opts));
-  return logs;
+  let more = false;
+  for (const s of sources) {
+    if (Date.now() > deadline) { more = true; break; }
+    const log = await pollPermitSource(s, opts);
+    logs.push(log);
+    if (log.partial) more = true;
+  }
+  return { logs, more };
 }

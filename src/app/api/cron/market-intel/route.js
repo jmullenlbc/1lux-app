@@ -34,7 +34,7 @@ export async function GET(req) {
   }
 
   try {
-    const log = await runPoll();
+    const log = await runPoll({ deadline: Date.now() + 22000 });
     return NextResponse.json({ ok: true, log });
   } catch (err) {
     // A feed being down, a source changing its markup, or the AI key being out

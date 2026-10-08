@@ -126,8 +126,14 @@ export async function retagUntagged({ limit = 25 } = {}) {
   return log;
 }
 
-export async function runPoll() {
-  const log = { fetched: 0, skipped: 0, inserted: 0, errors: [] };
+/**
+ * `deadline` (ms epoch): Amplify cuts any request at ~30 s with an empty 504,
+ * so a big first run is done in slices. Past the deadline the loop stops,
+ * `log.more` is true, and the page presses again; articles already saved are
+ * skipped by URL, so nothing is done twice.
+ */
+export async function runPoll({ deadline = Infinity } = {}) {
+  const log = { fetched: 0, skipped: 0, inserted: 0, errors: [], more: false };
 
   const sources  = await prisma.marketSource.findMany({ where: { isActive: true } });
   const rawItems = await fetchAllFeeds(sources);
@@ -147,8 +153,13 @@ export async function runPoll() {
   const projects  = await loadProjectsForMatching();
 
   // Process in batches of 10 with 500 ms pause between batches
+  let done = 0;
   for (let i = 0; i < newItems.length; i += BATCH_SIZE) {
+    // Always do the first batch: fetching the feeds can eat most of the slice,
+    // and a slice that saves nothing would never finish.
+    if (i > 0 && Date.now() > deadline) { log.more = true; break; }
     const batch = newItems.slice(i, i + BATCH_SIZE);
+    done += batch.length;
     await Promise.all(
       batch.map(item =>
         processItem(item, projects).catch(err => {
@@ -163,16 +174,21 @@ export async function runPoll() {
   }
 
   // Re-count inserted accurately
-  log.inserted = newItems.length - log.errors.length;
+  log.inserted = done - log.errors.length;
+  log.remaining = newItems.length - done;
 
-  await prisma.marketSource.updateMany({
-    where: { isActive: true, sourceType: 'RSS' },
-    data:  { lastPolledAt: new Date() },
-  });
+  if (!log.more) {
+    await prisma.marketSource.updateMany({
+      where: { isActive: true, sourceType: 'RSS' },
+      data:  { lastPolledAt: new Date() },
+    });
+  }
 
   // City permit feeds (0123) ride the same poll. One bad city must not stop the news.
   try {
-    log.permits = await pollAllPermits();
+    const permits = await pollAllPermits({ deadline });
+    log.permits = permits.logs;
+    if (permits.more) log.more = true;
   } catch (err) {
     log.errors.push({ url: 'permits', error: err.message });
   }

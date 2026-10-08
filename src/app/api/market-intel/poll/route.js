@@ -17,7 +17,8 @@ export async function POST(request) {
   }
 
   try {
-    const log = await runPoll();
+    // 22 s of work per press keeps every slice under the ~30 s Amplify wall.
+    const log = await runPoll({ deadline: Date.now() + 22000 });
     return NextResponse.json({ ok: true, log });
   } catch (err) {
     console.error('[market-intel/poll]', err);
