@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-08 (newest) - Mike's Claude - **DEPLOYED PENDING1**, no migration: permit cards show Location, Units, Declared value, Contractor, Issued
+### 2026-10-08 (newest) - Mike's Claude - **DEPLOYED fbe9702**, no migration: permit cards show Location, Units, Declared value, Contractor, Issued
 `SignalCard.jsx` only. Location = the METRO tag; neighborhood and permit number dropped from the card; "issued <date>" moved out of the source line into its own field.
 
 ### 2026-10-08 - Mike's Claude - **DEPLOYED 62c9bb3**, no migration: Pipeline forecast rows drop open to show the projects behind the unit count
