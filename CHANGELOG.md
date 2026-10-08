@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [City and state as columns on every signal] - October 8, 2026 (BUILT, NOT DEPLOYED) - migration 0127 additive
+## [City and state as columns on every signal] - October 8, 2026 (DEPLOYED PENDING1) - migration 0127 additive
 
 - **Why:** Mike: "Show city and state, but those should be tracked as different fields", then "yes" to real columns so they can be filtered and exported as columns.
 - **Migration 0127** adds `city` and `state` to `MarketSignal` (additive, index on state + city) and backfills both from the METRO ("Austin, TX") and STATE ("TX") tag rows every signal already carries. The tag rows stay; they still drive the clients list and the tag filters.

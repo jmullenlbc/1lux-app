@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-08 (newest) - Mike's Claude - **BUILT, NOT DEPLOYED**, migration 0127 (additive): `city` and `state` columns on MarketSignal
+### 2026-10-08 (newest) - Mike's Claude - **DEPLOYED PENDING1**, migration 0127 (additive): `city` and `state` columns on MarketSignal
 Backfilled from the METRO / STATE tag rows in the migration; kept in step by `saveSignalTags` via `placeColumns()` in `tagRules.js`. Card reads columns first, tags as fallback. Signals API gains `city=`. Next free migration is 0128 (MacroStat moves there).
 
 ### 2026-10-08 - Mike's Claude - **DEPLOYED f3b9401**, no migration: Houston permit feed + permit card Location as city and state
