@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Market Intelligence: tags, units forecast, assign to salesperson, five new papers] - October 7, 2026 (DEPLOYED PENDING1) - migration 0122 (additive)
+## [Market Intelligence: tags, units forecast, assign to salesperson, five new papers] - October 7, 2026 (DEPLOYED 9521091) - migration 0122 (additive)
 
 - **Every article now gets tag rows** (`MarketTag` + `MarketSignalTag`, migration 0122): companies with their role (developer, owner, investor, GC, architect, lender), project names, metro ("Denver, CO") and state. Tags are rows with FKs, never JSON. A company tag that matches a client points at that client; a confirmed client also gets the article's metro and state as client tags.
 - **Unit counts** are read from the article into `MarketSignal.unitCount`. New **Pipeline forecast** tab rolls units up by company, metro or state over the last 3/6/12/24 months. One project counts once per group at its largest printed figure.
