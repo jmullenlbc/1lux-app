@@ -5,6 +5,14 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Pipeline forecast: click a row to see the projects that made its unit count] - October 8, 2026 (DEPLOYED PENDING1) - no migration
+
+- **Why:** Mike: "how can we see what projects made that unit count? ... I think I like the collapse and uncollapse better."
+- Every row on the Pipeline forecast tab (company, metro or state) now drops open on click. Under it: one line per counted item with Project, Units, Where, From (Permit or Article) and Date. A project that several articles named shows once at its biggest figure, marked "(N articles, biggest figure counted)", and links to the article that printed that figure; a permit or an article with no project name is its own line. Each line links to the card (`/market-intel?signal=` or `/market-intel/permits?signal=`). Open rows close when the grouping or a server-side filter changes.
+- `rollupUnits` returns `items[]` per row (pure, in `forecast.js`); the route selects `kind` and `title` for it. The unit total is unchanged: it is now summed from the same items the list shows, so the list always adds up to the number.
+- **Two more filters (Mike: "yes"):** "Permits and articles / Permits only / Articles only" (`kind=` on the route; articles = anything not a permit) and, on the By company view, "All roles / Developers and owners / Contractors / Architects, lenders, others" (`role=`, groups in `ROLE_GROUPS`; a company link with no role counts as a developer because that is what the pre-tag extractor meant). Contractors were topping the list because a permit names the builder, not the owner.
+- Files: `src/lib/market-intel/forecast.js`, `src/app/api/market-intel/forecast/route.js`, `src/app/(app)/market-intel/forecast/page.jsx`, `scripts/tests/marketTags.test.mjs`.
+
 ## [Permits: the owner is looked up on the web when the city does not name one] - October 8, 2026 (DEPLOYED e683fde) - migration 0126
 
 - **Why:** Mike, on a Tempe permit that named only the contractor: "if the permit doesn't say a client, our system should be smart enough to quickly search the web because there is almost always something about that address. In this instance I found it was Empire Group in less than a minute."

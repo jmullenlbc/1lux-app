@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeTagName, stateCode, metroTag, unitCountFrom, tagsFromExtraction, developerNamesFrom } from '../../src/lib/market-intel/tagRules.js';
-import { rollupUnits, withinMonths } from '../../src/lib/market-intel/forecast.js';
+import { rollupUnits, withinMonths, ROLE_GROUPS } from '../../src/lib/market-intel/forecast.js';
 
 test('company names normalize to one row', () => {
   assert.equal(normalizeTagName('Lincoln Avenue Communities, Inc.'), 'lincoln avenue communities');
@@ -62,17 +62,36 @@ const tag = (kind, name, extra = {}) => ({ tag: { kind, name, normalized: name.t
 
 test('rollup counts a project once at its biggest figure', () => {
   const signals = [
-    { unitCount: 342, tags: [tag('COMPANY', 'Zocalo', { clientId: 'c1' }), tag('PROJECT', 'The Approach'), tag('METRO', 'Denver, CO'), tag('STATE', 'CO')] },
-    { unitCount: 350, tags: [tag('COMPANY', 'Zocalo'), tag('PROJECT', 'The Approach'), tag('METRO', 'Denver, CO')] },
-    { unitCount: 100, tags: [tag('COMPANY', 'Zocalo'), tag('METRO', 'Austin, TX'), tag('STATE', 'TX')] },
+    { id: 'a1', title: 'Zoning ok', unitCount: 342, tags: [tag('COMPANY', 'Zocalo', { clientId: 'c1' }), tag('PROJECT', 'The Approach'), tag('METRO', 'Denver, CO'), tag('STATE', 'CO')] },
+    { id: 'a2', title: 'Groundbreaking', unitCount: 350, tags: [tag('COMPANY', 'Zocalo'), tag('PROJECT', 'The Approach'), tag('METRO', 'Denver, CO')] },
+    { id: 'p1', kind: 'PERMIT', title: 'New building: 1 Main St', unitCount: 100, tags: [tag('COMPANY', 'Zocalo'), tag('METRO', 'Austin, TX'), tag('STATE', 'TX')] },
     { unitCount: null, tags: [tag('COMPANY', 'Zocalo')] },
   ];
   const byCompany = rollupUnits(signals, 'company');
-  assert.deepEqual(byCompany, [{ key: 'zocalo', label: 'Zocalo', clientId: 'c1', units: 450, articles: 3, projects: 1, metros: ['Austin, TX', 'Denver, CO'] }]);
+  assert.deepEqual(byCompany.map(({ items, ...r }) => r), [{ key: 'zocalo', label: 'Zocalo', clientId: 'c1', units: 450, articles: 3, projects: 1, metros: ['Austin, TX', 'Denver, CO'] }]);
+  // The list under the row: the project once, linked to the article with the biggest figure, then the loose permit.
+  assert.deepEqual(byCompany[0].items.map(i => [i.label, i.units, i.kind, i.signalId, i.sources]), [
+    ['The Approach', 350, 'ARTICLE', 'a2', 2],
+    ['New building: 1 Main St', 100, 'PERMIT', 'p1', 1],
+  ]);
   const byMetro = rollupUnits(signals, 'metro');
   assert.deepEqual(byMetro.map(r => [r.label, r.units]), [['Denver, CO', 350], ['Austin, TX', 100]]);
   // Only the first Approach article carries a STATE tag, so CO sees 342 once.
   assert.deepEqual(rollupUnits(signals, 'state').map(r => [r.label, r.units]), [['CO', 342], ['TX', 100]]);
+});
+
+test('company view can keep only developers or only contractors', () => {
+  const signals = [
+    { id: 'p1', kind: 'PERMIT', title: 'New building', unitCount: 200, tags: [{ ...tag('COMPANY', 'Isaacs Roofing'), role: 'GC' }, tag('METRO', 'Miami, FL')] },
+    { id: 'a1', title: 'Empire plans 288 units', unitCount: 288, tags: [{ ...tag('COMPANY', 'Empire Group'), role: 'DEVELOPER' }, { ...tag('COMPANY', 'Big Build'), role: 'GC' }] },
+    { id: 'a2', title: 'Old shape', unitCount: 50, tags: [tag('COMPANY', 'Legacy Dev')] },
+  ];
+  const all = rollupUnits(signals, 'company').map(r => r.label);
+  assert.deepEqual(all, ['Big Build', 'Empire Group', 'Isaacs Roofing', 'Legacy Dev']);
+  assert.deepEqual(rollupUnits(signals, 'company', { roles: ROLE_GROUPS.DEVELOPER }).map(r => r.label), ['Empire Group', 'Legacy Dev']);
+  assert.deepEqual(rollupUnits(signals, 'company', { roles: ROLE_GROUPS.GC }).map(r => r.label), ['Big Build', 'Isaacs Roofing']);
+  // Metro view ignores roles.
+  assert.deepEqual(rollupUnits(signals, 'metro', { roles: ROLE_GROUPS.GC }).map(r => [r.label, r.units]), [['Miami, FL', 200]]);
 });
 
 test('time window keeps undated signals', () => {

@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { rollupUnits, withinMonths } from '@/lib/market-intel/forecast';
+import { rollupUnits, withinMonths, ROLE_GROUPS } from '@/lib/market-intel/forecast';
 import { normalizeTagName } from '@/lib/market-intel/tagRules';
 import { PROJECT_ONLY } from '@/lib/market-intel/relevance';
 
-// GET /api/market-intel/forecast?by=company|metro|state&months=12[&metro=Denver, CO][&state=CO]
+// GET /api/market-intel/forecast?by=company|metro|state&months=12[&metro=Denver, CO][&state=CO][&kind=PERMIT|ARTICLE][&role=DEVELOPER|GC|OTHER]
 // Units stated in articles, rolled up in code (forecast.js). A project counts
 // once per group at its largest printed figure, so five articles about one
 // 342-unit building do not become 1,710 units.
@@ -25,17 +25,23 @@ export async function GET(request) {
     const v = searchParams.get(param)?.trim();
     if (v) scope.push({ tags: { some: { tag: { kind, normalized: normalizeTagName(v, kind) } } } });
   }
+  // Permits only or press only (Mike 10-8). "Articles" is everything that is not a permit.
+  const kindParam = searchParams.get('kind');
+  if (kindParam === 'PERMIT')  where.kind = 'PERMIT';
+  if (kindParam === 'ARTICLE') where.kind = { not: 'PERMIT' };
   if (scope.length) where.AND = scope;
+  // Company view only: developers, contractors or the rest (ROLE_GROUPS).
+  const roles = ROLE_GROUPS[searchParams.get('role')] || null;
 
   const signals = await prisma.marketSignal.findMany({
     where,
-    select: { id: true, unitCount: true, publishedAt: true, tags: { select: { tag: { select: { kind: true, name: true, normalized: true, clientId: true } } } } },
+    select: { id: true, kind: true, title: true, unitCount: true, publishedAt: true, tags: { select: { role: true, tag: { select: { kind: true, name: true, normalized: true, clientId: true } } } } },
     orderBy: { publishedAt: 'desc' },
     take: 5000,
   });
 
   const inWindow = withinMonths(signals, months);
-  const rows     = rollupUnits(inWindow, by);
+  const rows     = rollupUnits(inWindow, by, { roles });
   const totalUnits = rows.reduce((s, r) => s + r.units, 0);
   return NextResponse.json({ by, months, articles: inWindow.length, rows, totalUnits });
 }

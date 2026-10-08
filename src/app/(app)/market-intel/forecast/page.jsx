@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Fragment } from 'react';
 import Link from 'next/link';
 import SectionTabs, { MARKET_INTEL_TABS } from '@/components/ui/SectionTabs';
 
@@ -33,6 +33,9 @@ export default function ForecastPage() {
   const [state,       setState]       = useState('');
   const [clientsOnly, setClientsOnly] = useState(false);
   const [nameFilter,  setNameFilter]  = useState('');
+  // Permits or press, and which company role (Mike 10-8: contractors were mixed in with developers).
+  const [kind,        setKind]        = useState('');
+  const [role,        setRole]        = useState('');
   const [tagOptions,  setTagOptions]  = useState({ METRO: [], STATE: [] });
   useEffect(() => {
     fetch('/api/market-intel/tags')
@@ -40,6 +43,13 @@ export default function ForecastPage() {
       .then(d => setTagOptions({ METRO: d.tags?.METRO || [], STATE: d.tags?.STATE || [] }))
       .catch(() => {});
   }, []);
+  // Click a row to drop open the projects that made its number (Mike 10-8:
+  // "I think I like the collapse and uncollapse better").
+  const [open, setOpen] = useState(() => new Set());
+  function toggleOpen(key) {
+    setOpen(prev => { const next = new Set(prev); next.has(key) ? next.delete(key) : next.add(key); return next; });
+  }
+  useEffect(() => { setOpen(new Set()); }, [by, months, metro, state, kind, role]);
   // Click a column header to sort; click again to flip (Mike 10-8).
   const [sortKey, setSortKey] = useState('units');
   const [sortDir, setSortDir] = useState('desc');
@@ -54,13 +64,15 @@ export default function ForecastPage() {
     const params = new URLSearchParams({ by, months: String(months) });
     if (metro) params.set('metro', metro);
     if (state) params.set('state', state);
+    if (kind)  params.set('kind', kind);
+    if (role && by === 'company') params.set('role', role);
     fetch(`/api/market-intel/forecast?${params}`)
       .then(r => r.json())
       .then(d => { if (alive) setData(d); })
       .catch(() => { if (alive) setData(null); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-  }, [by, months, metro, state]);
+  }, [by, months, metro, state, kind, role]);
 
   const rows = useMemo(() => {
     const needle = nameFilter.trim().toLowerCase();
@@ -76,7 +88,7 @@ export default function ForecastPage() {
     });
     return list;
   }, [data, sortKey, sortDir, clientsOnly, nameFilter]);
-  const hasFilters = metro || state || clientsOnly || nameFilter;
+  const hasFilters = metro || state || clientsOnly || nameFilter || kind || role;
   const max  = Math.max(1, ...(data?.rows || []).map(r => r.units || 0));
   const filterKey = { company: 'company', metro: 'metro', state: 'state' }[by];
   const Th = ({ col, children, right }) => (
@@ -128,6 +140,19 @@ export default function ForecastPage() {
               {tagOptions.STATE.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
             </select>
           )}
+          <select value={kind} onChange={e => setKind(e.target.value)} className={SELECT_CLS}>
+            <option value="">Permits and articles</option>
+            <option value="PERMIT">Permits only</option>
+            <option value="ARTICLE">Articles only</option>
+          </select>
+          {by === 'company' && (
+            <select value={role} onChange={e => setRole(e.target.value)} className={SELECT_CLS}>
+              <option value="">All roles</option>
+              <option value="DEVELOPER">Developers and owners</option>
+              <option value="GC">Contractors</option>
+              <option value="OTHER">Architects, lenders, others</option>
+            </select>
+          )}
           <input
             type="text"
             value={nameFilter}
@@ -143,7 +168,7 @@ export default function ForecastPage() {
           )}
           {hasFilters && (
             <button
-              onClick={() => { setMetro(''); setState(''); setClientsOnly(false); setNameFilter(''); }}
+              onClick={() => { setMetro(''); setState(''); setClientsOnly(false); setNameFilter(''); setKind(''); setRole(''); }}
               className="text-sm text-slate-400 hover:text-slate-600 px-2"
             >
               Clear filters
@@ -173,10 +198,15 @@ export default function ForecastPage() {
               </thead>
               <tbody>
                 {rows.map(r => (
-                  <tr key={r.key} className="border-t border-slate-100">
+                  <Fragment key={r.key}>
+                  <tr
+                    onClick={() => toggleOpen(r.key)}
+                    className={`border-t border-slate-100 cursor-pointer ${open.has(r.key) ? 'bg-amber-50/40' : 'hover:bg-slate-50'}`}
+                  >
                     <td className="px-4 py-2 font-medium text-slate-800">
-                      <Link href={`/market-intel?${filterKey}=${encodeURIComponent(r.label)}`} className="hover:text-amber-600">{r.label}</Link>
-                      {r.clientId && <Link href={`/clients/${r.clientId}`} className="ml-2 text-[11px] text-green-600 hover:underline">client ✓</Link>}
+                      <span className="inline-block w-4 text-slate-400 text-xs">{open.has(r.key) ? '▾' : '▸'}</span>
+                      {r.label}
+                      {r.clientId && <Link href={`/clients/${r.clientId}`} onClick={e => e.stopPropagation()} className="ml-2 text-[11px] text-green-600 hover:underline">client ✓</Link>}
                     </td>
                     <td className="px-4 py-2 text-right tabular-nums">{r.units.toLocaleString()}</td>
                     <td className="px-4 py-2 text-right tabular-nums text-slate-500">{r.projects}</td>
@@ -188,6 +218,44 @@ export default function ForecastPage() {
                       </div>
                     </td>
                   </tr>
+                  {open.has(r.key) && (
+                    <tr className="bg-slate-50/60">
+                      <td colSpan={by === 'company' ? 6 : 5} className="px-4 pb-3 pt-1">
+                        <table className="w-full text-xs">
+                          <thead className="text-[11px] uppercase text-slate-400">
+                            <tr>
+                              <th className="text-left pl-4 pr-2 py-1 font-semibold">Project</th>
+                              <th className="text-right px-2 py-1 font-semibold">Units</th>
+                              <th className="text-left px-2 py-1 font-semibold">Where</th>
+                              <th className="text-left px-2 py-1 font-semibold">From</th>
+                              <th className="text-left px-2 py-1 font-semibold">Date</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(r.items || []).map(it => (
+                              <tr key={it.signalId || it.label} className="border-t border-slate-100">
+                                <td className="pl-4 pr-2 py-1 text-slate-700">
+                                  <Link
+                                    href={`${it.kind === 'PERMIT' ? '/market-intel/permits' : '/market-intel'}?signal=${it.signalId}`}
+                                    onClick={e => e.stopPropagation()}
+                                    className="hover:text-amber-600"
+                                  >
+                                    {it.label}
+                                  </Link>
+                                  {it.sources > 1 && <span className="ml-1 text-slate-400">({it.sources} articles, biggest figure counted)</span>}
+                                </td>
+                                <td className="px-2 py-1 text-right tabular-nums">{it.units.toLocaleString()}</td>
+                                <td className="px-2 py-1 text-slate-500">{it.metro || ''}</td>
+                                <td className="px-2 py-1 text-slate-500">{it.kind === 'PERMIT' ? 'Permit' : 'Article'}</td>
+                                <td className="px-2 py-1 text-slate-500 whitespace-nowrap">{it.publishedAt ? new Date(it.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
