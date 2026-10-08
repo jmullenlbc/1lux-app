@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db';
 import { matchCandidates } from './fuzzy-matcher';
 import { saveSignalTags, attachSignalToClient } from './tags';
-import { PERMIT_SOURCE_TYPE, profileFor, permitQueryUrl, permitRows, permitToSignal } from './permitRules';
+import { PERMIT_SOURCE_TYPE, profileForSource, permitQueryUrl, permitRows, permitToSignal } from './permitRules';
 
 /**
  * Pull one city's permit feed into MarketSignal rows (migration 0123).
@@ -17,7 +17,7 @@ import { PERMIT_SOURCE_TYPE, profileFor, permitQueryUrl, permitRows, permitToSig
  */
 export async function pollPermitSource(source, { limit = 500, now = new Date() } = {}) {
   const log = { source: source.name, fetched: 0, kept: 0, inserted: 0, updated: 0, errors: [] };
-  const profile = profileFor(source.market);
+  const profile = profileForSource(source);
   if (!profile) { log.errors.push({ error: `no permit profile for market ${source.market}` }); return log; }
 
   const since = source.lastPolledAt
@@ -26,7 +26,7 @@ export async function pollPermitSource(source, { limit = 500, now = new Date() }
 
   let rows = [];
   try {
-    const res  = await fetch(permitQueryUrl(profile, since, { limit }), { headers: { 'User-Agent': 'ILC-Studios-MarketIntel/1.0' }, signal: AbortSignal.timeout(20000) });
+    const res  = await fetch(permitQueryUrl(profile, since, { limit }), { headers: { 'User-Agent': 'ILC-Studios-MarketIntel/1.0', ...(profile.headers || {}) }, signal: AbortSignal.timeout(20000) });
     const json = await res.json();
     rows = permitRows(profile, json);
   } catch (err) {
