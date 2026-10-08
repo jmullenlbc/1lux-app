@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-08 (newest) - Mike's Claude - **DEPLOYED PENDING1**, migration 0124 (additive: `supersededById` self FK SET NULL, `supersededAt`, `supersedeReviewed` + index on `MarketSignal`): one building one count, $10M permit floor, Austin permits
+### 2026-10-08 (newest) - Mike's Claude - **DEPLOYED 23016e7**, migration 0124 (additive: `supersededById` self FK SET NULL, `supersededAt`, `supersedeReviewed` + index on `MarketSignal`): one building one count, $10M permit floor, Austin permits
 Permit beats Concept plan beats Article for the unit forecast. `applySupersedes()` in `src/lib/market-intel/supersede.js` runs at the end of `saveSignalTags`; the pure rule (same metro, 24 months, address in text or equal unit count) is `supersedeRules.js`. Forecast `where` adds `supersededById: null`. Card shows an amber "Superseded by permit" chip and a "Not the same building" button (`PATCH supersededById: null` sets `supersedeReviewed`). `MIN_VALUATION` is now $10M. Permit profiles carry `api: 'arcgis' | 'socrata'`; Austin reads Socrata 3syk-w9eu with a class-gated unit count. Dallas and Houston have no usable open feed. Next free migration **0125**. Schema-guard: additive only, safe.
 
 ### 2026-10-07 - Mike's Claude - **DEPLOYED db4cbf0**, migration 0123 (additive: 7 columns + 2 indexes on `MarketSignal`): Denver permits tab, Add to CRM, five new metros

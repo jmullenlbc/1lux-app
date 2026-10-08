@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Market Intelligence: one building one count, $10M permit floor, Austin permits] - October 8, 2026 (DEPLOYED PENDING1) - migration 0124 (additive)
+## [Market Intelligence: one building one count, $10M permit floor, Austin permits] - October 8, 2026 (DEPLOYED 23016e7) - migration 0124 (additive)
 
 - **One building, one count.** The same building reaches Market Intel as an article, later as a concept plan, later as a pulled permit. The most certain one now wins the unit forecast: Permit beats Concept plan beats Article. Rule in `src/lib/market-intel/supersedeRules.js`: same metro tag, published within 24 months, and either the permit's street number and street name appear in the other signal's text or both state the same unit count. `applySupersedes()` (`supersede.js`) runs at the end of every `saveSignalTags`, so new articles, new permits and the retag backfill all link up. The loser keeps its tab and gets an amber "Superseded by permit" chip linking to the winner; the forecast skips any signal with `supersededById` set. A **Not the same building** button clears the link and sets `supersedeReviewed`, so a retag never puts it back. New `MarketSignal` columns: `supersededById` (self FK, SET NULL), `supersededAt`, `supersedeReviewed`.
 - **$10M floor.** Every permit must declare $10M or more (`MIN_VALUATION`), unit count or not. Mike 10-8: anything under is too small a job. The feed query and the keep rule both apply it.
