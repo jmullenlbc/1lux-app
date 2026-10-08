@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Market Intelligence: Denver permits tab, Add to CRM, five new metros] - October 7, 2026 (DEPLOYED PENDING1) - migration 0123 (additive)
+## [Market Intelligence: Denver permits tab, Add to CRM, five new metros] - October 7, 2026 (DEPLOYED db4cbf0) - migration 0123 (additive)
 
 - **Permits tab** at `/market-intel/permits`, same tags, filters, assign and review as the news tab. Reads the City and County of Denver commercial construction permit layer (ArcGIS open data). Keeps New Building, Addition, Phased Construction and Foundation permits that carry a unit count or a declared value of $1M or more. Each permit is a `MarketSignal` with `kind = PERMIT` and the city's own columns: permit number, class, address, neighborhood, valuation, contractor. Live check 10-7: 156 usable permits over the last 18 months. The contractor goes through the client matcher, so a permit pulled by a client shows on that client.
 - **Pull permits now** button on the tab (`POST /api/market-intel/permits/poll`); the daily news poll runs the same pull. Permit source row has `sourceType = ARCGIS_PERMITS` and the news fetcher skips it. First pull looks back 18 months, later pulls 14 days before the last poll; rows are keyed on permit number so re-pulling never duplicates.
