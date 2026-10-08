@@ -8,6 +8,7 @@ export const SIGNAL_INCLUDE = {
   linkedClient:  { select: { id: true, name: true } },
   linkedProject: { select: { id: true, name: true, projectNumber: true } },
   assignedTo:    { select: { id: true, name: true } },
+  supersededBy:  { select: { id: true, kind: true, title: true } },
   tags:          { select: { role: true, tag: { select: { id: true, kind: true, name: true, normalized: true, clientId: true } } } },
 };
 

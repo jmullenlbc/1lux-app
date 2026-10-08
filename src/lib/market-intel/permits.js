@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db';
 import { matchCandidates } from './fuzzy-matcher';
 import { saveSignalTags, attachSignalToClient } from './tags';
-import { PERMIT_SOURCE_TYPE, profileFor, permitQueryUrl, permitToSignal } from './permitRules';
+import { PERMIT_SOURCE_TYPE, profileFor, permitQueryUrl, permitRows, permitToSignal } from './permitRules';
 
 /**
  * Pull one city's permit feed into MarketSignal rows (migration 0123).
@@ -28,8 +28,7 @@ export async function pollPermitSource(source, { limit = 500, now = new Date() }
   try {
     const res  = await fetch(permitQueryUrl(profile, since, { limit }), { headers: { 'User-Agent': 'ILC-Studios-MarketIntel/1.0' }, signal: AbortSignal.timeout(20000) });
     const json = await res.json();
-    if (json.error) throw new Error(json.error.message || 'feed error');
-    rows = (json.features || []).map(f => f.attributes);
+    rows = permitRows(profile, json);
   } catch (err) {
     log.errors.push({ error: `fetch failed: ${err.message}` });
     return log;

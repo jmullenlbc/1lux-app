@@ -10,6 +10,7 @@ const INCLUDE = {
   linkedClient:  { select: { id: true, name: true } },
   linkedProject: { select: { id: true, name: true, projectNumber: true } },
   assignedTo:    { select: { id: true, name: true } },
+  supersededBy:  { select: { id: true, kind: true, title: true } },
   tags:          { select: { role: true, tag: { select: { id: true, kind: true, name: true, normalized: true, clientId: true } } } },
 };
 
@@ -50,6 +51,14 @@ export async function PATCH(request, { params }) {
     } else if (body.matchStatus === 'REJECTED' || !body.linkedClientId) {
       data.matchStatus = 'REJECTED';
     }
+  }
+
+  // "Not the same building" (0124): clear the pointer and remember the answer
+  // so the next retag does not put it back.
+  if ('supersededById' in body && !body.supersededById) {
+    data.supersededById    = null;
+    data.supersededAt      = null;
+    data.supersedeReviewed = true;
   }
 
   // Hand the article to a salesperson (0122). Null clears it. The bell rings

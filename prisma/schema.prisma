@@ -2225,6 +2225,16 @@ model MarketSignal {
   neighborhood       String?
   valuation          Float?       // declared construction value in dollars
   contractorName     String?      // applicant / contractor of record as the city prints it
+  // Migration 0124 (Mike 10-8): for one building, a permit beats a concept
+  // plan beats an article. The losing signal points at the winner and drops
+  // out of the unit forecast; it still shows in its tab, marked. A person who
+  // says "not the same building" clears the pointer and sets supersedeReviewed
+  // so the next retag does not put it back.
+  supersededById     String?
+  supersededBy       MarketSignal?  @relation("MarketSignalSupersedes", fields: [supersededById], references: [id], onDelete: SetNull)
+  supersedes         MarketSignal[] @relation("MarketSignalSupersedes")
+  supersededAt       DateTime?
+  supersedeReviewed  Boolean      @default(false)
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
 
@@ -2232,6 +2242,7 @@ model MarketSignal {
   @@index([taggedAt])
   @@index([kind, publishedAt])
   @@index([permitNumber])
+  @@index([supersededById])
 }
 
 // Market Intel tags (migration 0122, Mike 10-7): the names an article drops,

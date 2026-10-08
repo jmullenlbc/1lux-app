@@ -16,7 +16,8 @@ export async function GET(request) {
   const by     = ['company', 'metro', 'state'].includes(searchParams.get('by')) ? searchParams.get('by') : 'company';
   const months = Math.min(60, Math.max(1, parseInt(searchParams.get('months') || '12', 10)));
 
-  const where = { unitCount: { not: null }, reviewStatus: { not: 'DISMISSED' } };
+  // supersededById null (0124): a building with an article and a permit counts once, from the permit.
+  const where = { unitCount: { not: null }, reviewStatus: { not: 'DISMISSED' }, supersededById: null };
   const scope = [];
   for (const [kind, param] of [['METRO', 'metro'], ['STATE', 'state']]) {
     const v = searchParams.get(param)?.trim();

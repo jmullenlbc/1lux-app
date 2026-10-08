@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db';
 import { tagsFromExtraction } from './tagRules.js';
+import { applySupersedes } from './supersede.js';
 
 /**
  * Database side of Market Intel tags (0122). Pure rules live in tagRules.js.
@@ -37,6 +38,8 @@ export async function saveSignalTags(signalId, extracted, { matches = [], db } =
     saved.push(tag);
   }
   await client.marketSignal.update({ where: { id: signalId }, data: { taggedAt: new Date() } }).catch(() => {});
+  // One building, one count (0124): now that the metro tag is on, settle who supersedes whom.
+  await applySupersedes(signalId, { db: client }).catch(() => {});
   return saved;
 }
 

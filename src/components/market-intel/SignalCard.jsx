@@ -23,6 +23,8 @@ export const SIGNAL_TYPE_META = {
   PERMIT:          { label: 'Permit',          color: 'bg-orange-100 text-orange-700' },
 };
 
+const SUPERSEDE_LABELS = { PERMIT: 'permit', CONCEPT: 'concept plan', ARTICLE: 'article' };
+
 const ROLE_LABELS = { DEVELOPER: 'developer', OWNER: 'owner', INVESTOR: 'investor', GC: 'GC', ARCHITECT: 'architect', LENDER: 'lender' };
 const TAG_STYLES  = {
   COMPANY: 'bg-slate-100 text-slate-700 hover:bg-slate-200',
@@ -51,6 +53,8 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, s
   const addable      = tagLinks.filter(l => l.tag.kind === 'COMPANY' && !l.tag.clientId);
   const [adding, setAdding] = useState('');
   const linkedChip   = ['AUTO_LINKED', 'CONFIRMED'].includes(signal.matchStatus) && signal.linkedClient;
+  // One building, one count (0124): a permit beats a concept plan beats an article.
+  const superseded   = !!(signal.supersededById && signal.supersededBy);
 
   async function addToCrm(tagId) {
     if (!onAddToCrm || adding) return;
@@ -79,6 +83,15 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, s
             )}
             {signal.reviewStatus === 'REVIEWED' && (
               <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-green-50 text-green-600">✓ Reviewed</span>
+            )}
+            {superseded && (
+              <a
+                href={`${signal.supersededBy.kind === 'PERMIT' ? '/market-intel/permits' : '/market-intel'}?signal=${signal.supersededBy.id}`}
+                title={signal.supersededBy.title}
+                className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 hover:bg-amber-100"
+              >
+                Superseded by {SUPERSEDE_LABELS[signal.supersededBy.kind] || 'a newer signal'}
+              </a>
             )}
           </div>
 
@@ -229,6 +242,15 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, s
         {/* Actions */}
         {!isDismissed && signal.reviewStatus !== 'REVIEWED' && (
           <div className="flex gap-1.5 shrink-0">
+            {superseded && (
+              <button
+                onClick={() => onUpdate(signal.id, { supersededById: null })}
+                title="Count this one in the forecast again"
+                className="text-xs px-2.5 py-1 rounded-lg border border-amber-200 text-amber-700 hover:bg-amber-50 whitespace-nowrap"
+              >
+                Not the same building
+              </button>
+            )}
             <button
               onClick={() => onUpdate(signal.id, { reviewStatus: 'REVIEWED' })}
               className="text-xs px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 whitespace-nowrap"
