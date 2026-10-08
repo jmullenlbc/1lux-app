@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-08 (newest) - Mike's Claude - **DEPLOYED PENDING1**, migration 0125 (additive): non-project articles screened out, relevance in tiers
+### 2026-10-08 (newest) - Mike's Claude - **DEPLOYED 0852625**, migration 0125 (additive): non-project articles screened out, relevance in tiers
 `MarketSignal.projectRelated` Boolean? (null = not screened). The extractor answers it per article; false rows are saved hidden (URL dedupe) with no tags or matching, and every reader (`signals`, `forecast`, Meeting Prep, Monday roundup) takes `PROJECT_ONLY` (true or null). New signalTypes `NEW_DEVELOPMENT` / `RENOVATION` (GROUNDBREAKING legacy). `relevance.js` tiers: client 1000/300, job 400/200, type to 15, rest under 100. "Screen articles" button loops the backfill. Next free migration **0126** (MacroStat moves there). **Prod finding 10-8: every `marketIntel.entityExtract` call fails in 100 to 380 ms (500/500 ledger rows ERROR) and `marketIntel.ask` has failed since 10-5. No article gets tags until the model call works; likely the Anthropic key in the Amplify env or the credit balance. `GET /api/admin/agent-runs` now exposes `errorMessage`. Failed reads no longer mark a row tagged. Sean: check `ANTHROPIC_API_KEY` in Amplify after this deploys.** Same pass: Show screened out + Keep it, forecast filters, permit Units field first.
 
 ### 2026-10-08 - Mike's Claude - **DEPLOYED 58ca0fe**, no migration: five "dead" feeds put back + sort on every Market Intel tab

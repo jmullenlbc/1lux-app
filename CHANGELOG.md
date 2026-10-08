@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Market Intelligence: articles that are not about a project are screened out; relevance is client, job, then new development] - October 8, 2026 (DEPLOYED PENDING1) - migration 0125
+## [Market Intelligence: articles that are not about a project are screened out; relevance is client, job, then new development] - October 8, 2026 (DEPLOYED 0852625) - migration 0125
 
 - **Why:** Mike: "half of those articles talk to developers rather than a supplier like me... If it's not project related we don't need it really. Can we filter those out completely?" and relevance is "client match, project match, then new development information or new renovation project"; where the building is does not matter.
 - **Screening (migration 0125, additive):** `MarketSignal.projectRelated` Boolean, null = not screened yet. The reader now answers `projectRelated` for every article: true only for a specific building or development (proposed, approved, financed, started, opened, renovated, sold, awarded); false for advice, operations, leasing tips, rent and market commentary, policy, rates, people moves, earnings, events. A false article is still SAVED, hidden, with no matching and no tags, because the poller dedupes by URL and would otherwise fetch and re-read the same article every run. Nothing shows a false row: the news tab, Most relevant, the unit forecast, Meeting Prep and the Monday roundup all take true or null only. A direct link by id (an old bell item) still opens. Permits are true by definition (set in the migration and on every new permit).
