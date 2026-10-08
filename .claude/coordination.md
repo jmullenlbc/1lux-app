@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-08 (newest) - Mike's Claude - **DEPLOYED PENDING1**, no migration: five "dead" feeds put back + sort on every Market Intel tab
+### 2026-10-08 (newest) - Mike's Claude - **DEPLOYED 58ca0fe**, no migration: five "dead" feeds put back + sort on every Market Intel tab
 Five of the twelve retired national sources moved their feed address (AHF, CRE Daily, HUD, NIC, NLIHC); catalog rows carry `movedFrom`, seeder repairs a row only while it still holds the old address. Seven stay retired (GlobeSt x3 bot wall, McKnight's login wall, MultifamilyBiz + NMHC no feed, NCSHA feeds off). `GET /api/market-intel/signals` takes `sort=`; Forecast and Sources headers sort in the browser. Next free migration still **0125**.
 
 ### 2026-10-08 - Mike's Claude - **REQUEST FOR SEAN**: FRED API key

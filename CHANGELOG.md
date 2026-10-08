@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Market Intelligence: five "dead" feeds put back, and every tab sorts] - October 8, 2026 (DEPLOYED PENDING1) - no migration
+## [Market Intelligence: five "dead" feeds put back, and every tab sorts] - October 8, 2026 (DEPLOYED 58ca0fe) - no migration
 
 - **Why:** Mike asked why the twelve "dead" national sources were not working, since they should be. Checked every one at its stored address and at every likely new path, as our bot and as a browser. Five papers still publish, under a new feed address. Seven are gone for reasons no feed reader gets past.
 - **Put back (feed moved):** Affordable Housing Finance (`/rss.xml`), CRE Daily (`/briefs/feed/`; the main feed is empty), HUD News (`hud.gov/rss.xml`), NIC Blog (`/feed/?post_type=post`), NLIHC (`/rss.xml`). Each catalog entry carries `movedFrom` (the old address). The seeder repairs a row ONLY while it still holds the old address, so a hand-edited feed URL is never overwritten; the log says "Feed address fixed: N". The Sources page shows an amber note on each moved row and the update button reads "Fix N moved feeds" (or "Update N sources" when there are also missing ones).
