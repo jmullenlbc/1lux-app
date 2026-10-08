@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-08 (newest) - Mike's Claude - **DEPLOYED PENDING1**, no migration: permit and news pulls run in 22 s slices
+### 2026-10-08 (newest) - Mike's Claude - **DEPLOYED b8292d2**, no migration: permit and news pulls run in 22 s slices
 First pull of the seven new feeds (~530 permits) and the full news refresh both ran past the ~30 s Amplify wall (empty 504, "Pull failed"). `pollAllPermits({ deadline })` now returns `{ logs, more }`; `runPoll({ deadline })` sets `log.more` / `log.remaining` and only stamps `lastPolledAt` on a finished run. The three poll routes give each request 22 s; the Permits and Sources pages loop until `more` is false. Sean: the EventBridge rule for `/api/cron/market-intel`, when scheduled, should fire a few times an hour or call until `more` is false; one call per night may not finish a big day.
 
 ### 2026-10-08 - Mike's Claude - **DEPLOYED cd00619**, no migration: seven more permit feeds (Orlando, Mesa, Tempe, Miami-Dade, City of Miami, Hillsborough County, Jacksonville)

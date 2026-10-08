@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Market Intelligence: pulls run in 22 second slices so big first runs finish] - October 8, 2026 (DEPLOYED PENDING1) - no migration
+## [Market Intelligence: pulls run in 22 second slices so big first runs finish] - October 8, 2026 (DEPLOYED b8292d2) - no migration
 
 - **Why:** Mike pressed "Pull permits now" after the seven new feeds went live and nothing populated. A first pull is about 530 permits, each a handful of database round trips, and the news refresh runs every feed plus AI extraction in one request. Both run past the ~30 second Amplify wall, the request is cut with an empty 504, the Permits tab said "Pull failed" and the Sources tab button could stay stuck.
 - **Fix:** `pollAllPermits` and `runPoll` take a `deadline`. The permit loop stops at the deadline, reports `partial`, and leaves `lastPolledAt` unset so the next slice looks back the same 18 months (rows already saved are skipped by permit number). The news loop stops between batches of 10 (always finishing the first batch so a slice can never save nothing) and reports `more` + `remaining`; `lastPolledAt` is only stamped on a finished run. Routes `permits/poll`, `market-intel/poll` and `cron/market-intel` give each request 22 seconds.
