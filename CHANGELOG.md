@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Market Intelligence: seven more permit feeds (Orlando, Mesa, Tempe, Miami-Dade, Miami, Hillsborough, Jacksonville)] - October 8, 2026 (DEPLOYED PENDING1) - no migration
+## [Market Intelligence: seven more permit feeds (Orlando, Mesa, Tempe, Miami-Dade, Miami, Hillsborough, Jacksonville)] - October 8, 2026 (DEPLOYED cd00619) - no migration
 
 - **Seven city permit feeds added**, each a profile in `src/lib/market-intel/permitRules.js` plus a SOURCES row in `sourceCatalog.js`. All verified live 10-8 over 18 months at the $10M floor: Orlando 54 (Socrata, no unit column), Mesa 83 (Socrata; unit columns are empty so the count is read out of the description, "305-units"), Tempe 28 (ArcGIS, housing units on family classes, contractor often blank), Miami-Dade County 133 (ArcGIS, text value cast to a number, BLDG permits only so the job value is not repeated on trade permits, units on residential uses), City of Miami 120 (ArcGIS, text value, no units, WorkItems says what the building holds), Hillsborough County 63 (ArcGIS, units on residential occupancies, no contractor column), Jacksonville 48 (the city's ArcGIS layer behind the Building Inspection Division site proxy; needs a Referer header and a plain quoted date, no units).
 - **Cities with no usable feed:** Phoenix itself (no permit values anywhere public), Dallas (ends 2019), Houston (none), City of Tampa (no values or issue dates), St. Petersburg, Pinellas, Clearwater, Fort Lauderdale (frozen 2021), Broward. Phoenix is covered by Mesa and Tempe; Tampa Bay by Hillsborough County.

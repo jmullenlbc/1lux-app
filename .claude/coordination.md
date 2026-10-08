@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-08 (newest) - Mike's Claude - **DEPLOYED PENDING1**, no migration: seven more permit feeds (Orlando, Mesa, Tempe, Miami-Dade, City of Miami, Hillsborough County, Jacksonville)
+### 2026-10-08 (newest) - Mike's Claude - **DEPLOYED cd00619**, no migration: seven more permit feeds (Orlando, Mesa, Tempe, Miami-Dade, City of Miami, Hillsborough County, Jacksonville)
 One profile each in `permitRules.js` + one SOURCES row each in `sourceCatalog.js`. `profileForSource()` picks the profile by feedUrl first (Mesa + Tempe both under PHOENIX, county + city under MIAMI). Profiles may carry `valueExpr`, `baseWhere`, `dateLiteral: 'plain'`, `headers`, and may omit `keepClasses`. Jacksonville goes through the city BID site proxy (Referer header; alias path may change on a city redeploy). No feed exists for Phoenix proper, Dallas, Houston, City of Tampa, St. Pete, Pinellas, Clearwater, Fort Lauderdale or Broward. Verify full 15/15; 47 unit tests. Next free migration still **0125**. After deploy: "Add missing sources" then "Pull permits now".
 
 ### 2026-10-08 - Mike's Claude - **DEPLOYED 23016e7**, migration 0124 (additive: `supersededById` self FK SET NULL, `supersededAt`, `supersedeReviewed` + index on `MarketSignal`): one building one count, $10M permit floor, Austin permits
