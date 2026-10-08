@@ -50,6 +50,7 @@ export const PIPELINE_TABS = [
 export const MARKET_INTEL_TABS = [
   { key: 'intel',   href: '/market-intel',         label: 'Market Intelligence' },
   { key: 'sources', href: '/market-intel/sources', label: 'Sources' },
+  { key: 'forecast', href: '/market-intel/forecast', label: 'Pipeline forecast' },
 ];
 
 export const PROPOSAL_TABS = [

@@ -3,6 +3,7 @@ import { fetchAllFeeds } from './rss-fetcher.js';
 import { extractFromArticle } from './entity-extractor.js';
 import { matchCandidates } from './fuzzy-matcher.js';
 import { matchProject } from './project-matcher.js';
+import { saveSignalTags, attachSignalToClient } from './tags.js';
 import { createId } from '@paralleldrive/cuid2';
 
 // Process in batches to avoid Claude rate limits on the initial bulk run
@@ -33,7 +34,10 @@ async function loadProjectsForMatching() {
 
 async function processItem(item, projects = []) {
   const extracted = await extractFromArticle(item.title, item.rawContent);
-  const matches   = await matchCandidates(extracted.developerNames || []);
+  // Every company the article names goes to the matcher, not only the
+  // developer: a GC or an architect is a client too (Mike 10-7).
+  const allNames  = [...new Set([...(extracted.companies || []).map(c => c.name), ...(extracted.developerNames || [])])];
+  const matches   = await matchCandidates(allNames);
 
   const autoLink  = matches.find(m => m.status === 'AUTO_LINKED');
   const suggested = !autoLink ? matches.find(m => m.status === 'SUGGESTED') : null;
@@ -48,7 +52,7 @@ async function processItem(item, projects = []) {
     { matchedClientId: autoLink ? autoLink.clientId : null },
   );
 
-  await prisma.marketSignal.create({
+  const signal = await prisma.marketSignal.create({
     data: {
       sourceId:       item.sourceId,
       title:          item.title,
@@ -57,6 +61,7 @@ async function processItem(item, projects = []) {
       publishedAt:    item.publishedAt    || null,
       signalType:     extracted.signalType || 'NEWS',
       projectType:    extracted.projectType || null,
+      unitCount:      extracted.unitCount ?? null,
       developerNames: JSON.stringify(extracted.developerNames || []),
       linkedClientId: autoLink ? autoLink.clientId : null,
       matchScore:     bestMatch ? bestMatch.score  : null,
@@ -73,6 +78,51 @@ async function processItem(item, projects = []) {
       reviewStatus:   'UNREVIEWED',
     },
   });
+
+  // Tag rows (0122). An auto-linked client inherits the article's place tags.
+  await saveSignalTags(signal.id, extracted, { matches });
+  if (autoLink) {
+    await attachSignalToClient(signal.id, autoLink.clientId, { companyNames: [autoLink.candidateName] }).catch(() => {});
+  }
+}
+
+/**
+ * Re-read tags for signals that have none yet (0122 backfill). Older articles
+ * never kept their body, so this reads title plus summary: enough for the
+ * company, the place and usually the unit count. Runs in small slices so one
+ * call stays well under the 30 second read wall.
+ */
+export async function retagUntagged({ limit = 25 } = {}) {
+  const log = { tagged: 0, errors: [] };
+  const signals = await prisma.marketSignal.findMany({
+    where:   { taggedAt: null },
+    orderBy: { publishedAt: 'desc' },
+    take:    limit,
+    select:  { id: true, title: true, summary: true, linkedClientId: true, matchStatus: true, developerNames: true },
+  });
+  const remaining = Math.max(0, (await prisma.marketSignal.count({ where: { taggedAt: null } })) - signals.length);
+  for (const s of signals) {
+    try {
+      const extracted = await extractFromArticle(s.title, s.summary || '');
+      const matches   = s.linkedClientId && ['AUTO_LINKED', 'CONFIRMED'].includes(s.matchStatus)
+        ? (() => { try { return JSON.parse(s.developerNames || '[]').map(n => ({ candidateName: n, clientId: s.linkedClientId, status: 'AUTO_LINKED' })); } catch { return []; } })()
+        : [];
+      await saveSignalTags(s.id, extracted, { matches });
+      if (extracted.unitCount) {
+        await prisma.marketSignal.update({ where: { id: s.id }, data: { unitCount: extracted.unitCount } }).catch(() => {});
+      }
+      if (matches.length) {
+        await attachSignalToClient(s.id, s.linkedClientId, { companyNames: matches.map(m => m.candidateName) }).catch(() => {});
+      }
+      log.tagged++;
+    } catch (err) {
+      log.errors.push({ id: s.id, error: err.message });
+      // Mark it so a broken article does not block the queue forever.
+      await prisma.marketSignal.update({ where: { id: s.id }, data: { taggedAt: new Date() } }).catch(() => {});
+    }
+  }
+  log.remaining = remaining;
+  return log;
 }
 
 export async function runPoll() {

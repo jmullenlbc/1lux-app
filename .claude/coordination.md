@@ -2,7 +2,10 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-07 (newest) - Mike's Claude - **DEPLOYED bf300f2**, migration 0121 (data only): public budget password respelled to `Lightingbudget01`
+### 2026-10-07 (newest) - Mike's Claude - **DEPLOYED PENDING1**, migration 0122 (additive: `MarketTag`, `MarketSignalTag`, five columns on `MarketSignal`): Market Intel tags + forecast + assign
+Articles get company (with role) / project / metro / state tag rows; `unitCount` read per article; `/market-intel/forecast` rolls units up by company, metro, state; assign an article to a salesperson (bell `MARKET_SIGNAL_ASSIGNED`); `POST /api/market-intel/retag` backfills 25 at a time; five verified national feeds added to the catalog. Next migration 0123. After deploy: press "Add missing sources" then "Re-read tags" on the Sources tab.
+
+### 2026-10-07 - Mike's Claude - **DEPLOYED bf300f2**, migration 0121 (data only): public budget password respelled to `Lightingbudget01`
 Conditional UPDATE on the `conceptual_budget_password` row; fallback constant changed. Next migration 0122. Sidebar gains an Admin section (actsAsAdmin): Users and settings (`/admin`, moved out of Settings) + Web budget requests (`/admin/intake`). Password card now on `/admin`.
 
 ### 2026-10-07 - Mike's Claude - **DEPLOYED 8daa035**, migration 0120 (additive: new `AppSetting` table, seeds `conceptual_budget_password`): password on the public budget tool

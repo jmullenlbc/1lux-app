@@ -108,6 +108,7 @@ model User {
   voiceSamples               VoiceSample[]                @relation("VoiceSampleOwner")
   voiceTemplates             VoiceTemplateSuggestion[]    @relation("VoiceTemplateOwner")
   marketQuestions            MarketQuestion[]             @relation("MarketQuestionAsker")
+  assignedMarketSignals      MarketSignal[]               @relation("MarketSignalAssignee")
   botConfig                  BotConfig?
   botDrafts                  BotDraft[]                   @relation("BotDraftOwner")
   schedulingRules            SchedulingRule[]             @relation("SchedulingRuleCreator")
@@ -328,6 +329,7 @@ model Client {
   pipelineUploads      PipelineUpload[]
   pipelineProjects     PipelineProject[]
   signals              MarketSignal[]
+  marketTags           MarketTag[]
   marketAnswers        MarketAnswerRow[]
   aliases              ClientAlias[]
   cadenceDays          Int? // company-level cadence override; null = use individual tier defaults
@@ -2201,8 +2203,55 @@ model MarketSignal {
   matchScore         Float?
   matchStatus        String       @default("UNREVIEWED") // AUTO_LINKED | SUGGESTED | UNREVIEWED | CONFIRMED | REJECTED
   reviewStatus       String       @default("UNREVIEWED") // UNREVIEWED | REVIEWED | CONVERTED | DISMISSED
+  // Migration 0122 (Mike 10-7): what the article says the building holds, so
+  // units can be rolled up by company and by region. Null = not stated.
+  unitCount          Int?
+  // When the article's tags were last read. Null = tagged by nobody yet; the
+  // retag endpoint works through those.
+  taggedAt           DateTime?
+  // A salesperson handed this article (0122). Assigning rings their bell.
+  assignedToId       String?
+  assignedTo         User?        @relation("MarketSignalAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  assignedById       String?
+  assignedAt         DateTime?
+  tags               MarketSignalTag[]
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
+
+  @@index([assignedToId])
+  @@index([taggedAt])
+}
+
+// Market Intel tags (migration 0122, Mike 10-7): the names an article drops,
+// kept as rows so they can be searched, filtered and counted. One tag row per
+// distinct name, one link row per article that names it. A COMPANY tag points
+// at the CRM client once a match is confirmed, which is how "every article
+// about Lincoln Avenue Communities" is answered.
+model MarketTag {
+  id         String            @id @default(cuid())
+  kind       String // COMPANY | PROJECT | METRO | STATE
+  name       String // as printed, e.g. "Lincoln Avenue Communities", "Denver, CO", "CO"
+  normalized String // lower, trimmed, punctuation stripped; unique within a kind
+  clientId   String?
+  client     Client?           @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  createdAt  DateTime          @default(now())
+  links      MarketSignalTag[]
+
+  @@unique([kind, normalized])
+  @@index([clientId])
+}
+
+model MarketSignalTag {
+  id        String       @id @default(cuid())
+  signalId  String
+  signal    MarketSignal @relation(fields: [signalId], references: [id], onDelete: Cascade)
+  tagId     String
+  tag       MarketTag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  role      String? // COMPANY tags only: DEVELOPER | OWNER | INVESTOR | GC | ARCHITECT | LENDER | OTHER
+  createdAt DateTime     @default(now())
+
+  @@unique([signalId, tagId])
+  @@index([tagId])
 }
 
 // Market Intel "ask any market question" (Mike 9-27, migration 0110). The

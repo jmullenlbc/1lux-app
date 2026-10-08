@@ -1,6 +1,7 @@
 'use client';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import AskPanel from './AskPanel';
 import SectionTabs, { MARKET_INTEL_TABS } from '@/components/ui/SectionTabs';
 
@@ -19,7 +20,32 @@ const SIGNAL_TYPE_META = {
   NEWS:            { label: 'News',            color: 'bg-slate-100 text-slate-600' },
 };
 
+// A bell notification links to /market-intel?signal=<id>. useSearchParams needs
+// a Suspense boundary in Next 14, so the page is a thin wrapper.
 export default function MarketIntelPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-sm text-slate-400">Loading…</div>}>
+      <MarketIntelInner />
+    </Suspense>
+  );
+}
+
+const EMPTY_FILTERS = {
+  projectType:  '',
+  signalType:   '',
+  reviewStatus: 'UNREVIEWED',
+  clientId:     '',
+  metro:        '',
+  state:        '',
+  company:      '',
+  project:      '',
+  assignedTo:   '',
+  signalId:     '',
+};
+
+function MarketIntelInner() {
+  const searchParams = useSearchParams();
+  const deepLinkId   = searchParams.get('signal') || '';
   const [signals,      setSignals]      = useState([]);
   const [total,        setTotal]        = useState(0);
   const [loading,      setLoading]      = useState(true);
@@ -27,19 +53,24 @@ export default function MarketIntelPage() {
   const [search,       setSearch]       = useState('');
   const [searchInput,  setSearchInput]  = useState('');
   const [clients,      setClients]      = useState([]);  // clients with matched signals
-  const [filters,      setFilters]      = useState({
-    projectType:  '',
-    signalType:   '',
-    reviewStatus: 'UNREVIEWED',
-    clientId:     '',
-  });
+  const [tagOptions,   setTagOptions]   = useState({ METRO: [], STATE: [] });
+  const [salesUsers,   setSalesUsers]   = useState([]);
+  const [filters,      setFilters]      = useState(() => deepLinkId ? { ...EMPTY_FILTERS, reviewStatus: '', signalId: deepLinkId } : EMPTY_FILTERS);
   const searchDebounce = useRef(null);
 
-  // Load clients with signals once
+  // Load clients with signals, the place tags and the sales team once
   useEffect(() => {
     fetch('/api/market-intel/clients')
       .then(r => r.json())
       .then(d => setClients(d.clients || []))
+      .catch(() => {});
+    fetch('/api/market-intel/tags')
+      .then(r => r.json())
+      .then(d => setTagOptions({ METRO: d.tags?.METRO || [], STATE: d.tags?.STATE || [] }))
+      .catch(() => {});
+    fetch('/api/users?department=SALES_MARKETING')
+      .then(r => r.json())
+      .then(d => setSalesUsers(d.users || []))
       .catch(() => {});
   }, []);
 
@@ -47,10 +78,9 @@ export default function MarketIntelPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(page) });
-      if (filters.projectType)  params.set('projectType',  filters.projectType);
-      if (filters.signalType)   params.set('signalType',   filters.signalType);
-      if (filters.reviewStatus) params.set('reviewStatus', filters.reviewStatus);
-      if (filters.clientId)     params.set('clientId',     filters.clientId);
+      for (const key of ['projectType', 'signalType', 'reviewStatus', 'clientId', 'metro', 'state', 'company', 'project', 'assignedTo', 'signalId']) {
+        if (filters[key]) params.set(key, filters[key]);
+      }
       if (search)               params.set('search',       search);
       const res  = await fetch(`/api/market-intel/signals?${params}`);
       const data = await res.json();
@@ -64,7 +94,16 @@ export default function MarketIntelPage() {
   useEffect(() => { fetchSignals(); }, [fetchSignals]);
 
   function setFilter(key, value) {
-    setFilters(f => ({ ...f, [key]: value }));
+    // Any filter change leaves the single-article deep link behind.
+    setFilters(f => ({ ...f, [key]: value, signalId: '' }));
+    setPage(1);
+  }
+
+  // Clicking a chip on a card filters the list by that tag (0122).
+  function filterByTag(tag) {
+    const key = { COMPANY: 'company', PROJECT: 'project', METRO: 'metro', STATE: 'state' }[tag.kind];
+    if (!key) return;
+    setFilters(f => ({ ...f, [key]: tag.name, reviewStatus: '', signalId: '' }));
     setPage(1);
   }
 
@@ -88,7 +127,8 @@ export default function MarketIntelPage() {
     }, 350);
   }
 
-  const hasActiveFilters = filters.projectType || filters.signalType || filters.reviewStatus !== 'UNREVIEWED' || filters.clientId || search;
+  const hasActiveFilters = Object.keys(EMPTY_FILTERS).some(k => filters[k] !== EMPTY_FILTERS[k]) || search;
+  const SELECT_CLS = 'text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400';
 
   return (
     <div className="p-6">
@@ -180,10 +220,35 @@ export default function MarketIntelPage() {
           </select>
         )}
 
+        {/* Place filters come from the tags articles actually carry (0122). */}
+        {tagOptions.METRO.length > 0 && (
+          <select value={filters.metro} onChange={e => setFilter('metro', e.target.value)} className={SELECT_CLS}>
+            <option value="">All metros</option>
+            {tagOptions.METRO.map(t => <option key={t.id} value={t.name}>{t.name} ({t.count})</option>)}
+          </select>
+        )}
+        {tagOptions.STATE.length > 0 && (
+          <select value={filters.state} onChange={e => setFilter('state', e.target.value)} className={SELECT_CLS}>
+            <option value="">All states</option>
+            {tagOptions.STATE.map(t => <option key={t.id} value={t.name}>{t.name} ({t.count})</option>)}
+          </select>
+        )}
+        <select value={filters.assignedTo} onChange={e => setFilter('assignedTo', e.target.value)} className={SELECT_CLS}>
+          <option value="">Anyone's</option>
+          <option value="me">Assigned to me</option>
+          {salesUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+        </select>
+        {(filters.company || filters.project) && (
+          <span className="text-sm bg-slate-100 text-slate-700 rounded-lg px-3 py-1.5 flex items-center gap-2">
+            {filters.company || filters.project}
+            <button onClick={() => setFilter(filters.company ? 'company' : 'project', '')} className="text-slate-400 hover:text-slate-600" title="Remove">✗</button>
+          </span>
+        )}
+
         {hasActiveFilters && (
           <button
             onClick={() => {
-              setFilters({ projectType: '', signalType: '', reviewStatus: 'UNREVIEWED', clientId: '' });
+              setFilters(EMPTY_FILTERS);
               setSearchInput('');
               setSearch('');
               setPage(1);
@@ -206,7 +271,7 @@ export default function MarketIntelPage() {
       ) : (
         <div className="space-y-2">
           {signals.map(signal => (
-            <SignalCard key={signal.id} signal={signal} onUpdate={updateSignal} />
+            <SignalCard key={signal.id} signal={signal} onUpdate={updateSignal} onTagClick={filterByTag} salesUsers={salesUsers} />
           ))}
         </div>
       )}
@@ -236,10 +301,22 @@ export default function MarketIntelPage() {
   );
 }
 
-function SignalCard({ signal, onUpdate }) {
+const ROLE_LABELS = { DEVELOPER: 'developer', OWNER: 'owner', INVESTOR: 'investor', GC: 'GC', ARCHITECT: 'architect', LENDER: 'lender' };
+const TAG_STYLES  = {
+  COMPANY: 'bg-slate-100 text-slate-700 hover:bg-slate-200',
+  PROJECT: 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100',
+  METRO:   'bg-teal-50 text-teal-700 hover:bg-teal-100',
+  STATE:   'bg-teal-50 text-teal-700 hover:bg-teal-100',
+};
+
+function SignalCard({ signal, onUpdate, onTagClick, salesUsers = [] }) {
   const meta         = SIGNAL_TYPE_META[signal.signalType] || SIGNAL_TYPE_META.NEWS;
   const developers   = (() => { try { return JSON.parse(signal.developerNames || '[]'); } catch { return []; } })();
   const isDismissed  = signal.reviewStatus === 'DISMISSED';
+  const tagLinks     = signal.tags || [];
+  // Hide the STATE chip when a METRO chip already names it ("Denver, CO").
+  const metroStates  = new Set(tagLinks.filter(l => l.tag.kind === 'METRO').map(l => l.tag.name.split(',').pop()?.trim()));
+  const chips        = tagLinks.filter(l => !(l.tag.kind === 'STATE' && metroStates.has(l.tag.name)));
 
   return (
     <div className={`bg-white border border-slate-200 rounded-xl p-4 transition-opacity ${isDismissed ? 'opacity-50' : ''}`}>
@@ -348,10 +425,52 @@ function SignalCard({ signal, onUpdate }) {
                 >✗</button>
               </span>
             )}
-            {developers.length > 0 && !signal.linkedClient && signal.matchStatus !== 'REJECTED' && (
+            {developers.length > 0 && !signal.linkedClient && signal.matchStatus !== 'REJECTED' && chips.length === 0 && (
               <span className="text-xs text-slate-400 italic">{developers.join(', ')}</span>
             )}
           </div>
+
+          {/* Tag chips (0122): company, project, place, units. Click one to filter. */}
+          {(chips.length > 0 || signal.unitCount) && (
+            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+              {chips.map(l => (
+                <button
+                  key={l.tag.id}
+                  onClick={() => onTagClick?.(l.tag)}
+                  className={`text-[11px] font-medium px-2 py-0.5 rounded-full transition-colors ${TAG_STYLES[l.tag.kind] || TAG_STYLES.COMPANY}`}
+                  title={`Show all ${l.tag.kind === 'COMPANY' ? 'articles naming' : 'articles tagged'} ${l.tag.name}`}
+                >
+                  {l.tag.name}
+                  {l.tag.kind === 'COMPANY' && l.role && ROLE_LABELS[l.role] ? <span className="opacity-60"> · {ROLE_LABELS[l.role]}</span> : null}
+                  {l.tag.kind === 'COMPANY' && l.tag.clientId ? <span className="text-green-600"> ✓</span> : null}
+                </button>
+              ))}
+              {signal.unitCount ? (
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">
+                  {signal.unitCount.toLocaleString()} units
+                </span>
+              ) : null}
+            </div>
+          )}
+
+          {/* Hand it to a salesperson. They get a bell notification. */}
+          {salesUsers.length > 0 && (
+            <div className="flex items-center gap-2 mt-2">
+              <select
+                value={signal.assignedToId || ''}
+                onChange={e => onUpdate(signal.id, { assignedToId: e.target.value || null })}
+                className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-400"
+              >
+                <option value="">Assign to…</option>
+                {salesUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+              {signal.assignedTo && signal.assignedAt && (
+                <span className="text-[11px] text-slate-400">
+                  since {new Date(signal.assignedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Actions */}

@@ -2,26 +2,42 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { recordMatchFeedback } from '@/lib/market-intel/fuzzy-matcher';
+import { attachSignalToClient } from '@/lib/market-intel/tags';
+import { notifyUser } from '@/lib/alerts';
+
+const INCLUDE = {
+  source:        { select: { name: true } },
+  linkedClient:  { select: { id: true, name: true } },
+  linkedProject: { select: { id: true, name: true, projectNumber: true } },
+  assignedTo:    { select: { id: true, name: true } },
+  tags:          { select: { role: true, tag: { select: { id: true, kind: true, name: true, normalized: true, clientId: true } } } },
+};
 
 export async function PATCH(request, { params }) {
   const { user, error } = await requireAuth(request);
   if (error) return error;
+  const userId = user.id || user.userId || 'unknown';
 
   const body = await request.json();
 
   // Load the current signal so we know the developer name + previous client
   const existing = await prisma.marketSignal.findUnique({
     where:  { id: params.id },
-    select: { developerNames: true, linkedClientId: true, matchStatus: true },
+    select: { title: true, developerNames: true, linkedClientId: true, matchStatus: true, assignedToId: true },
   });
+  if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const data = {};
   if (body.reviewStatus !== undefined) data.reviewStatus = body.reviewStatus;
   if (body.matchStatus  !== undefined) data.matchStatus  = body.matchStatus;
+  if ('unitCount' in body) {
+    const n = parseInt(body.unitCount, 10);
+    data.unitCount = Number.isFinite(n) && n > 0 ? n : null;
+  }
 
   // A project link is confirmed or rejected independently of the client link.
-  // They are two different claims about the article — "this is Zocalo" and
-  // "this is Trailhead" — and one can be right while the other is wrong.
+  // They are two different claims about the article: "this is Zocalo" and
+  // "this is Trailhead", and one can be right while the other is wrong.
   if ('linkedProjectId' in body) {
     data.linkedProjectId    = body.linkedProjectId || null;
     data.projectMatchStatus = body.linkedProjectId ? 'CONFIRMED' : 'REJECTED';
@@ -36,15 +52,33 @@ export async function PATCH(request, { params }) {
     }
   }
 
+  // Hand the article to a salesperson (0122). Null clears it. The bell rings
+  // only when the person changes, so re-saving the same name is silent.
+  let notifyAssignee = false;
+  if ('assignedToId' in body) {
+    const next = body.assignedToId || null;
+    data.assignedToId = next;
+    data.assignedById = next ? userId : null;
+    data.assignedAt   = next ? new Date() : null;
+    notifyAssignee    = !!next && next !== existing.assignedToId && next !== userId;
+  }
+
   const signal = await prisma.marketSignal.update({
     where: { id: params.id },
     data,
-    include: {
-      source:        { select: { name: true } },
-      linkedClient:  { select: { id: true, name: true } },
-      linkedProject: { select: { id: true, name: true, projectNumber: true } },
-    },
+    include: INCLUDE,
   });
+
+  if (notifyAssignee) {
+    await notifyUser({
+      userId:    signal.assignedToId,
+      type:      'MARKET_SIGNAL_ASSIGNED',
+      title:     'Market article assigned to you',
+      message:   `${user.name || 'A teammate'} assigned you: ${existing.title}`.slice(0, 300),
+      link:      `/market-intel?signal=${signal.id}`,
+      dedupeKey: `market-signal-assigned:${signal.id}:${signal.assignedToId}`,
+    }).catch(() => {});
+  }
 
   // Record feedback so future polls learn from confirmations and rejections
   const isConfirm = data.matchStatus === 'CONFIRMED' && data.linkedClientId;
@@ -62,9 +96,12 @@ export async function PATCH(request, { params }) {
           matchedClientId: targetClientId,
           outcome,
           signalId:  params.id,
-          userId:    user.id || user.userId || 'unknown',
+          userId,
         }).catch(() => {});
       }
+      // A confirmed client inherits the article's place tags and owns its
+      // company tag from now on.
+      if (isConfirm) await attachSignalToClient(params.id, data.linkedClientId, { companyNames: devNames }).catch(() => {});
     } catch {}
   }
 

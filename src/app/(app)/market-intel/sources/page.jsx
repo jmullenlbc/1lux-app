@@ -104,6 +104,18 @@ export default function MarketSourcesPage() {
     setPolling(false);
   }
 
+  // Backfill tags on older articles, 25 per press (0122).
+  const [retagging, setRetagging] = useState(false);
+  const [retagLog,  setRetagLog]  = useState(null);
+  async function runRetag() {
+    setRetagging(true);
+    setRetagLog(null);
+    const res  = await fetch('/api/market-intel/retag', { method: 'POST' });
+    const data = await res.json();
+    setRetagLog(data.log || data);
+    setRetagging(false);
+  }
+
   const activeCount = sources.filter(s => s.isActive).length;
   const localCount  = sources.filter(s => (s.market || DEFAULT_MARKET) !== DEFAULT_MARKET).length;
 
@@ -141,6 +153,14 @@ export default function MarketSourcesPage() {
               {seeding ? 'Adding…' : `Add ${missing.length} missing source${missing.length === 1 ? '' : 's'}`}
             </button>
           )}
+          <button
+            onClick={runRetag}
+            disabled={retagging}
+            className="px-4 py-2 text-sm font-medium bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 shadow-sm disabled:opacity-50"
+            title="Read company, project, place and unit tags on older articles, 25 at a time"
+          >
+            {retagging ? 'Reading…' : retagLog ? `Re-read tags (${retagLog.remaining ?? 0} left)` : 'Re-read tags'}
+          </button>
           <button
             onClick={runPoll}
             disabled={polling || activeCount === 0}

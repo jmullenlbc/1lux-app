@@ -5,6 +5,16 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Market Intelligence: tags, units forecast, assign to salesperson, five new papers] - October 7, 2026 (DEPLOYED PENDING1) - migration 0122 (additive)
+
+- **Every article now gets tag rows** (`MarketTag` + `MarketSignalTag`, migration 0122): companies with their role (developer, owner, investor, GC, architect, lender), project names, metro ("Denver, CO") and state. Tags are rows with FKs, never JSON. A company tag that matches a client points at that client; a confirmed client also gets the article's metro and state as client tags.
+- **Unit counts** are read from the article into `MarketSignal.unitCount`. New **Pipeline forecast** tab rolls units up by company, metro or state over the last 3/6/12/24 months. One project counts once per group at its largest printed figure.
+- **Search and filter by tag** on the Market Intelligence page: metro, state and "assigned to" dropdowns; clicking a company or project chip on a card filters to that tag; the search box matches tag names too. Client filter now includes articles whose company tag points at the client, not only the linked one.
+- **Assign an article to a salesperson** from the card. They get a bell notification ("Market article assigned to you", new type `MARKET_SIGNAL_ASSIGNED`) linking to `/market-intel?signal=<id>`.
+- **Re-read tags** button on the Sources tab backfills tags on older articles, 25 per press, from title plus summary.
+- **Five national papers added** to the catalog after a live feed check: Bisnow National, Connect CRE, Yield PRO, Senior Housing News, Construction Dive. Press "Add missing sources" on the Sources tab after deploy.
+- Files: `prisma/migrations/0122_market_tags`, `src/lib/market-intel/{tagRules,forecast,tags,entity-extractor,poller,sourceCatalog}.js`, `src/app/api/market-intel/{signals,tags,forecast,retag}`, `src/app/(app)/market-intel/{page,forecast/page,sources/page}.jsx`, `src/lib/notificationTypes.js`, `scripts/tests/marketTags.test.mjs`.
+
 ## [Public budget password spelling fixed, Admin menu added] - October 7, 2026 (DEPLOYED bf300f2) - migration 0121 (data only)
 
 - **Password is now `Lightingbudget01`** (Mike 10-7: the first one was misspelled). Migration 0121 updates the stored row only if it still holds the old spelling, so a password an admin already changed is left alone. The fallback in `src/lib/publicAccess.js` uses the new spelling too.

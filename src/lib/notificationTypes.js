@@ -43,6 +43,8 @@ export const NOTIFICATION_TYPES = {
   DESIGN_DEADLINE_1W:       { label: 'Design deadline in 1 week',  pattern: 'THRESHOLD', external: false },
   // CRM
   CRM_CLOSE_DATE: { label: 'Project close date in 1 month', pattern: 'THRESHOLD', external: false },
+  // Market Intel (0122): a teammate handed you an article
+  MARKET_SIGNAL_ASSIGNED: { label: 'Market article assigned to you', pattern: 'EVENT', external: false },
   // Warehousing
   WAREHOUSE_RELEASED: { label: 'Item released from warehouse', pattern: 'EVENT', external: true },
   // Misc
@@ -64,5 +66,6 @@ export const NOTIFICATION_MODULES = [
   { module: 'Design Info',       keys: ['DESIGN_SCHEDULE_UPLOADED','DESIGN_DEADLINE_1M','DESIGN_DEADLINE_2W','DESIGN_DEADLINE_1W'] },
   { module: 'Warehousing',       keys: ['WAREHOUSE_RELEASED'] },
   { module: 'CRM',               keys: ['CRM_CLOSE_DATE'] },
+  { module: 'Market Intel',      keys: ['MARKET_SIGNAL_ASSIGNED'] },
   { module: 'Other',             keys: ['FIXTURE_SCHEDULE_SUBMITTED','TAKEOFF_READY','PROPOSAL_SENT'] },
 ];

@@ -109,6 +109,14 @@ export const SOURCES = [
   { name: 'Argentum',                   market: 'NATIONAL', feedUrl: 'https://www.argentum.org/feed/',                        siteUrl: 'https://www.argentum.org',                 projectTypes: ['SENIOR_LIVING'],                 pollingFrequency: 'WEEKLY' },
   { name: 'LeadingAge',                 market: 'NATIONAL', feedUrl: 'https://www.leadingage.org/feed/',                      siteUrl: 'https://www.leadingage.org',               projectTypes: ['SENIOR_LIVING','AFFORDABLE'],    pollingFrequency: 'WEEKLY' },
   { name: 'REBusinessOnline',           market: 'NATIONAL', feedUrl: 'https://rebusinessonline.com/feed/',                    siteUrl: 'https://rebusinessonline.com',             projectTypes: ['STUDENT_HOUSING','MARKET_RATE'], pollingFrequency: 'DAILY'  },
+  // Added 2026-10-07 after a live check (Mike asked what national papers we were
+  // missing). Each one returned items that day. Multifamily Executive, Builder,
+  // ULI and NAHB were tried and are blocked or have no feed.
+  { name: 'Bisnow National',            market: 'NATIONAL', feedUrl: 'https://www.bisnow.com/rss/national',                   siteUrl: 'https://www.bisnow.com',                   projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY',  notes: 'National CRE desk: capital raises, portfolio deals, who is building where.' },
+  { name: 'Connect CRE',                market: 'NATIONAL', feedUrl: 'https://www.connectcre.com/feed/',                      siteUrl: 'https://www.connectcre.com',               projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY',  notes: 'Deal-by-deal wire. Short items that name the developer, the lender and the unit count.' },
+  { name: 'Yield PRO',                  market: 'NATIONAL', feedUrl: 'https://yieldpro.com/feed/',                            siteUrl: 'https://yieldpro.com',                     projectTypes: ['MARKET_RATE','AFFORDABLE'],      pollingFrequency: 'DAILY',  notes: 'Multifamily owner and developer trade paper; project announcements with counts.' },
+  { name: 'Senior Housing News',        market: 'NATIONAL', feedUrl: 'https://seniorhousingnews.com/feed/',                   siteUrl: 'https://seniorhousingnews.com',            projectTypes: ['SENIOR_LIVING'],                 pollingFrequency: 'DAILY',  notes: 'The senior living trade paper of record.' },
+  { name: 'Construction Dive',          market: 'NATIONAL', feedUrl: 'https://www.constructiondive.com/feeds/news/',          siteUrl: 'https://www.constructiondive.com',         projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY',  notes: 'GC side of the same jobs: who won the contract, when it breaks ground.' },
 
   // ── Denver & Colorado ────────────────────────────────────────────────────
   // Mile High CRE was already here and was, until now, the only local paper in
