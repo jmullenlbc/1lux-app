@@ -2241,6 +2241,16 @@ model MarketSignal {
   supersedes         MarketSignal[] @relation("MarketSignalSupersedes")
   supersededAt       DateTime?
   supersedeReviewed  Boolean      @default(false)
+  // Migration 0126 (Mike 10-8): "if the permit doesn't say a client, our
+  // system should be smart enough to quickly search the web". A permit names
+  // the contractor, rarely the owner; the web usually does. ownerLookupAt is
+  // set on every attempt, found or not, so a permit is searched once; the
+  // companies found become COMPANY tags like any other, the page they came
+  // from is kept so a person can check it.
+  ownerLookupAt      DateTime?
+  ownerLookupNote    String?
+  ownerSourceUrl     String?
+  ownerSourceTitle   String?
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
 
@@ -2248,6 +2258,7 @@ model MarketSignal {
   @@index([taggedAt])
   @@index([kind, publishedAt])
   @@index([kind, projectRelated])
+  @@index([kind, ownerLookupAt])
   @@index([permitNumber])
   @@index([supersededById])
 }

@@ -43,7 +43,14 @@ function money(n) {
   return `$${Math.round(n)}`;
 }
 
-export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, salesUsers = [] }) {
+export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, onFindOwner, salesUsers = [] }) {
+  // Owner looked up on the web (0126): a permit names the builder, not the owner.
+  const [finding, setFinding] = useState(false);
+  async function findOwner() {
+    if (!onFindOwner || finding) return;
+    setFinding(true);
+    try { await onFindOwner(signal.id); } finally { setFinding(false); }
+  }
   const meta         = SIGNAL_TYPE_META[signal.signalType] || SIGNAL_TYPE_META.NEWS;
   const isPermit     = signal.kind === 'PERMIT';
   const developers   = (() => { try { return JSON.parse(signal.developerNames || '[]'); } catch { return []; } })();
@@ -123,6 +130,35 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, s
             </dl>
           ) : signal.summary && (
             <p className="text-xs text-slate-500 mt-1 line-clamp-2">{signal.summary}</p>
+          )}
+
+          {/* Who is behind the permit, from the web (0126, Mike 10-8: "there is
+              almost always something about that address"). The companies found
+              are the chips below; this line is the page they came from. */}
+          {isPermit && onFindOwner && (
+            <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs">
+              {signal.ownerLookupAt && signal.ownerSourceUrl ? (
+                <>
+                  <span className="text-slate-500">
+                    Found on the web:{' '}
+                    <a href={signal.ownerSourceUrl} target="_blank" rel="noreferrer" className="text-amber-700 hover:underline">
+                      {signal.ownerSourceTitle || signal.ownerSourceUrl.replace(/^https?:\/\/(www\.)?/, '').slice(0, 60)}
+                    </a>
+                  </span>
+                  {signal.ownerLookupNote && <span className="text-slate-400 line-clamp-1">{signal.ownerLookupNote}</span>}
+                </>
+              ) : signal.ownerLookupAt ? (
+                <span className="text-slate-400 italic">Nothing on the web about this address yet</span>
+              ) : null}
+              <button
+                onClick={findOwner}
+                disabled={finding}
+                className="text-xs px-2.5 py-1 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 whitespace-nowrap"
+                title="Search the web for who is building at this address"
+              >
+                {finding ? 'Searching…' : signal.ownerLookupAt ? 'Search again' : 'Find the owner'}
+              </button>
+            </div>
           )}
 
           {/* Meta row */}

@@ -109,6 +109,9 @@ export const JOB_TIERS = {
   'user.toneProfile':         'READ',     // reads a stack of the user's real emails
   'user.voiceTemplates':      'READ',     // writes templates from emails they send over and over
   'marketIntel.ask':          'READ',     // web research: any market question, answered as rows
+  // Web search needs Sonnet or better (Haiku has no web_search tool), and the
+  // permit backlog is hundreds of rows, so not READ. A few searches per permit.
+  'market.ownerLookup':       'CHAT',
 
   // ── Live chat: someone is sitting there watching it type ─────────────────
   'chat.project':             'CHAT',

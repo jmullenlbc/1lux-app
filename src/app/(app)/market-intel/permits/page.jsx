@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import SectionTabs, { MARKET_INTEL_TABS } from '@/components/ui/SectionTabs';
 import SignalCard from '@/components/market-intel/SignalCard';
+import { postParked } from '@/lib/parkedFetch';
 
 /**
  * Permits tab (migration 0123, Mike 10-7). Building permits pulled from a
@@ -126,6 +127,45 @@ function PermitsInner() {
     }
   }
 
+  // Who is behind a permit, from the web (0126). One card, or the whole
+  // backlog three at a time; each call is a web research job that can run
+  // past the front door's ~30 s, so it is parked and polled.
+  const [finding,  setFinding]  = useState(false);
+  const [findNote, setFindNote] = useState('');
+  async function findOwner(id) {
+    const res  = await postParked('/api/market-intel/owner-lookup', { signalId: id });
+    const data = await res.json().catch(() => ({}));
+    const log  = data.log || {};
+    if (!res.ok) alert(data.message || data.error || 'The lookup failed');
+    else if (log.readError) alert(`The web search could not run: ${log.readError}`);
+    fetchSignals();
+  }
+  async function findOwners() {
+    setFinding(true);
+    setFindNote('');
+    const total = { looked: 0, found: 0, readFailed: 0, readError: null, remaining: 0 };
+    try {
+      for (let round = 0; round < 40; round++) {
+        const res  = await postParked('/api/market-intel/owner-lookup', {});
+        const data = await res.json().catch(() => ({}));
+        const log  = data.log || {};
+        if (!res.ok) { setFindNote(data.message || data.error || 'The lookup failed. Press again to continue.'); return; }
+        total.looked     += log.looked     || 0;
+        total.found      += log.found      || 0;
+        total.readFailed += log.readFailed || 0;
+        total.readError   = total.readError || log.readError || null;
+        total.remaining   = log.remaining ?? 0;
+        fetchSignals();
+        setFindNote(`Looked up ${total.looked}, found ${total.found}, ${total.remaining} still waiting${total.readError ? `. The web search could not run: ${total.readError}` : ''}`);
+        if (!total.remaining) break;
+        // The search is failing and nothing moved: pressing on burns calls.
+        if (log.readFailed && !log.looked) break;
+      }
+    } finally {
+      setFinding(false);
+    }
+  }
+
   function handleSearchChange(val) {
     setSearchInput(val);
     clearTimeout(searchDebounce.current);
@@ -147,6 +187,7 @@ function PermitsInner() {
               {total.toLocaleString()} permit{total !== 1 ? 's' : ''} · new buildings and additions from city open data, matched to clients
             </p>
             {pollNote && <p className="text-xs text-slate-500 mt-1">{pollNote}</p>}
+            {findNote && <p className="text-xs text-slate-500 mt-1">{findNote}</p>}
           </div>
           <div className="flex items-center gap-2">
             <div className="relative">
@@ -158,6 +199,14 @@ function PermitsInner() {
                 className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400 w-56 placeholder:text-slate-400"
               />
             </div>
+            <button
+              onClick={findOwners}
+              disabled={finding}
+              className="px-4 py-2 text-sm font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 whitespace-nowrap"
+              title="Search the web for who is behind each permit that does not name an owner yet, newest first, three at a time"
+            >
+              {finding ? 'Searching…' : 'Find owners'}
+            </button>
             <button
               onClick={pullPermits}
               disabled={polling}
@@ -238,7 +287,7 @@ function PermitsInner() {
         ) : (
           <div className="space-y-2">
             {signals.map(signal => (
-              <SignalCard key={signal.id} signal={signal} onUpdate={updateSignal} onTagClick={filterByTag} onAddToCrm={addToCrm} salesUsers={salesUsers} />
+              <SignalCard key={signal.id} signal={signal} onUpdate={updateSignal} onTagClick={filterByTag} onAddToCrm={addToCrm} onFindOwner={findOwner} salesUsers={salesUsers} />
             ))}
           </div>
         )}
