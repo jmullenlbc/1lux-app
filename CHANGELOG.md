@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Permits: the owner is looked up on the web when the city does not name one] - October 8, 2026 (DEPLOYED PENDING1) - migration 0126
+## [Permits: the owner is looked up on the web when the city does not name one] - October 8, 2026 (DEPLOYED e683fde) - migration 0126
 
 - **Why:** Mike, on a Tempe permit that named only the contractor: "if the permit doesn't say a client, our system should be smart enough to quickly search the web because there is almost always something about that address. In this instance I found it was Empire Group in less than a minute."
 - **Migration 0126 (additive):** `MarketSignal.ownerLookupAt`, `ownerLookupNote`, `ownerSourceUrl`, `ownerSourceTitle` + index (kind, ownerLookupAt). The stamp is set on every attempt, found or not, so a permit is searched once.
