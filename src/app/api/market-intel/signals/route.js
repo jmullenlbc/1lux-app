@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { normalizeTagName } from '@/lib/market-intel/tagRules';
-import { RELEVANCE_SELECT, rankByRelevance } from '@/lib/market-intel/relevance';
+import { RELEVANCE_SELECT, PROJECT_ONLY, rankByRelevance } from '@/lib/market-intel/relevance';
 
 export const SIGNAL_INCLUDE = {
   source:        { select: { name: true, siteUrl: true } },
@@ -62,6 +62,12 @@ export async function GET(request) {
   const where = {};
   if (signalId)     where.id           = signalId;
   else if (kind !== 'ALL') where.kind  = kind;
+  // Articles that are not about a project are not wanted (Mike 10-8, 0125).
+  // A direct link by id still opens, so an old bell item never 404s.
+  // screened=1 flips the list to ONLY the screened out ones, so a wrong call
+  // can be found and kept ("Show screened out" on the news tab).
+  const screened = searchParams.get('screened') === '1';
+  if (!signalId)    tagFilters.push(screened ? { projectRelated: false } : PROJECT_ONLY);
   if (permitClass)  where.permitClass  = permitClass;
   if (projectType)  where.projectType  = projectType;
   if (signalType)   where.signalType   = signalType;

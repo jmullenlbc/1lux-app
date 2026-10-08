@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { rollupUnits, withinMonths } from '@/lib/market-intel/forecast';
 import { normalizeTagName } from '@/lib/market-intel/tagRules';
+import { PROJECT_ONLY } from '@/lib/market-intel/relevance';
 
 // GET /api/market-intel/forecast?by=company|metro|state&months=12[&metro=Denver, CO][&state=CO]
 // Units stated in articles, rolled up in code (forecast.js). A project counts
@@ -18,7 +19,8 @@ export async function GET(request) {
 
   // supersededById null (0124): a building with an article and a permit counts once, from the permit.
   const where = { unitCount: { not: null }, reviewStatus: { not: 'DISMISSED' }, supersededById: null };
-  const scope = [];
+  // An article screened out as not about a project (0125) has no building to count.
+  const scope = [PROJECT_ONLY];
   for (const [kind, param] of [['METRO', 'metro'], ['STATE', 'state']]) {
     const v = searchParams.get(param)?.trim();
     if (v) scope.push({ tags: { some: { tag: { kind, normalized: normalizeTagName(v, kind) } } } });

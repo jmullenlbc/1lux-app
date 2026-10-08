@@ -149,6 +149,8 @@ export default function MarketSourcesPage() {
         total.skipped  = log.skipped ?? total.skipped;
         total.inserted += log.inserted || 0;
         total.errors.push(...(log.errors || []));
+        total.readFailed = (total.readFailed || 0) + (log.readFailed || 0);
+        total.readError  = total.readError || log.readError || null;
         total.more = !!log.more;
         setPollLog({ ...total });
         if (!log.more) break;
@@ -158,15 +160,31 @@ export default function MarketSourcesPage() {
     }
   }
 
-  // Backfill tags on older articles, 25 per press (0122).
+  // Screen older articles for "is this about a project" (0125) and read
+  // their tags (0122), 25 per press.
   const [retagging, setRetagging] = useState(false);
   const [retagLog,  setRetagLog]  = useState(null);
+  // Keeps calling, 25 at a time, until nothing is left (or 40 slices), the
+  // same way "Refresh sources" loops, so one press screens the whole backlog.
   async function runRetag() {
     setRetagging(true);
     setRetagLog(null);
-    const res  = await fetch('/api/market-intel/retag', { method: 'POST' });
-    const data = await res.json();
-    setRetagLog(data.log || data);
+    const total = { tagged: 0, screenedOut: 0, readFailed: 0, readError: null, errors: [], remaining: 0 };
+    for (let i = 0; i < 40; i++) {
+      const res  = await fetch('/api/market-intel/retag', { method: 'POST' });
+      const data = await res.json();
+      const log  = data.log || data;
+      total.tagged      += log.tagged      || 0;
+      total.screenedOut += log.screenedOut || 0;
+      total.readFailed  += log.readFailed  || 0;
+      total.readError    = total.readError || log.readError || null;
+      total.errors       = total.errors.concat(log.errors || []);
+      total.remaining    = log.remaining ?? 0;
+      setRetagLog({ ...total });
+      if (!total.remaining || !res.ok) break;
+      // The reader is failing and nothing moved: pressing on burns calls.
+      if (log.readFailed && !(log.tagged || log.screenedOut)) break;
+    }
     setRetagging(false);
   }
 
@@ -218,9 +236,9 @@ export default function MarketSourcesPage() {
             onClick={runRetag}
             disabled={retagging}
             className="px-4 py-2 text-sm font-medium bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 shadow-sm disabled:opacity-50"
-            title="Read company, project, place and unit tags on older articles, 25 at a time"
+            title="Marks older articles that are not about a project so they drop out, and reads company, project, place and unit tags on the rest, 25 at a time"
           >
-            {retagging ? 'Reading…' : retagLog ? `Re-read tags (${retagLog.remaining ?? 0} left)` : 'Re-read tags'}
+            {retagging ? 'Screening…' : retagLog ? `Screen articles (${retagLog.remaining ?? 0} left)` : 'Screen articles'}
           </button>
           <button
             onClick={runPoll}
@@ -291,6 +309,23 @@ export default function MarketSourcesPage() {
         </div>
       )}
 
+      {/* Screen articles result */}
+      {retagLog && (
+        <div className="mb-4 p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 flex items-center gap-4">
+          <span className="font-medium">{retagging ? 'Screening articles…' : 'Articles screened'}</span>
+          <span>Kept and tagged: {retagLog.tagged}</span>
+          <span>Not about a project, hidden: {retagLog.screenedOut}</span>
+          {retagLog.remaining > 0 && <span>Still waiting: {retagLog.remaining}</span>}
+          {retagLog.errors?.length > 0 && <span className="text-red-600">Errors: {retagLog.errors.length}</span>}
+          {retagLog.readFailed > 0 && (
+            <span className="text-red-600" title={retagLog.readError || ''}>
+              The reader could not read {retagLog.readFailed}{retagLog.readError ? `: ${retagLog.readError}` : ''}
+            </span>
+          )}
+          {!retagging && <button onClick={() => setRetagLog(null)} className="ml-auto text-slate-400 hover:text-slate-600">✕</button>}
+        </div>
+      )}
+
       {/* Poll result */}
       {pollLog && (
         <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800 flex items-center gap-4">
@@ -299,6 +334,11 @@ export default function MarketSourcesPage() {
           <span>New: {pollLog.inserted}</span>
           <span>Skipped: {pollLog.skipped}</span>
           {pollLog.errors?.length > 0 && <span className="text-red-600">Errors: {pollLog.errors.length}</span>}
+          {pollLog.readFailed > 0 && (
+            <span className="text-red-600" title={pollLog.readError || ''}>
+              Saved without tags, the reader could not read {pollLog.readFailed}{pollLog.readError ? `: ${pollLog.readError}` : ''}
+            </span>
+          )}
           <button onClick={() => setPollLog(null)} className="ml-auto text-green-600 hover:text-green-800">✕</button>
         </div>
       )}

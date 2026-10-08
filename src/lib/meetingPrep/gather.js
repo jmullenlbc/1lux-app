@@ -193,6 +193,8 @@ export async function gatherMeetingFacts(prisma, noteId, now = new Date(), opts 
       where: {
         publishedAt: { gte: new Date(now.getTime() - NEWS_LOOKBACK_DAYS * DAY) },
         reviewStatus: { not: 'DISMISSED' },
+        // Screened out as not about a project (0125): true or null only.
+        AND: [{ OR: [{ projectRelated: true }, { projectRelated: null }] }],
         OR: [
           { linkedClientId: { in: clientIds }, matchStatus: { not: 'REJECTED' } },
           { linkedProjectId: { in: projectIds }, projectMatchStatus: { not: 'REJECTED' } },

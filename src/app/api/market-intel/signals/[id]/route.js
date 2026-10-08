@@ -31,6 +31,13 @@ export async function PATCH(request, { params }) {
   const data = {};
   if (body.reviewStatus !== undefined) data.reviewStatus = body.reviewStatus;
   if (body.matchStatus  !== undefined) data.matchStatus  = body.matchStatus;
+  // "Keep it" on a screened out article (0125): a person overrules the reader.
+  // taggedAt is cleared so Screen articles reads its tags; the poller keeps a
+  // row a person marked true even if the reader disagrees again.
+  if (typeof body.projectRelated === 'boolean') {
+    data.projectRelated = body.projectRelated;
+    if (body.projectRelated) data.taggedAt = null;
+  }
   if ('unitCount' in body) {
     const n = parseInt(body.unitCount, 10);
     data.unitCount = Number.isFinite(n) && n > 0 ? n : null;

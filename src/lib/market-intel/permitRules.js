@@ -390,6 +390,7 @@ export function permitToSignal(profile, attributes) {
   return {
     kind:           'PERMIT',
     signalType:     'PERMIT',
+    projectRelated: true,
     title,
     summary:        parts.join(', ') + '.',
     url:            p.url || null,

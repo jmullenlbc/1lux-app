@@ -86,6 +86,8 @@ export async function GET(req) {
         where: {
           publishedAt:  { gte: new Date(now.getTime() - SIGNAL_WINDOW_DAYS * DAY) },
           reviewStatus: { not: 'DISMISSED' },
+          // Screened out as not about a project (0125): true or null only.
+          OR: [{ projectRelated: true }, { projectRelated: null }],
         },
         take: 500,
         select: {

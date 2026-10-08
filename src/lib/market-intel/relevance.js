@@ -1,56 +1,72 @@
 /**
- * "Most relevant" for the news tab (Mike 10-8: "sortable by date and most
- * relevant, then we need to make logic for relevant").
+ * "Most relevant" for the news tab, and which articles count at all.
  *
- * This is the FIRST CUT of that logic, kept in one pure function so the rule
- * can be argued about and changed without touching the query. Every term is a
- * question a salesperson would ask about an article:
+ * Mike 10-8: the order is client match, then project match, then new
+ * development or renovation news. Where the building is does not matter.
+ * Articles that are not about a project (advice to developers, operations,
+ * policy, rent commentary) are not wanted at all: see PROJECT_ONLY.
  *
- *   Is it about one of our clients?       linked +50, suggested +25
- *   Is it about one of our jobs?          linked +40, suggested +20
- *   How big is the building?              +1 per 10 units, capped at +30
- *   Is money moving?                      groundbreaking +15, financing +10,
- *                                         acquisition +5, award +10
- *   Is somebody already on it?            assigned +10
- *   How old is it?                        -1 per week, capped at -26
- *   Has a permit replaced it?             superseded -100 (one building, one count)
+ * The score is in tiers so a lower question can never outrank a higher one:
  *
- * The score is not stored: the news tab asks for it, the route scores the
- * matching rows and pages the result. Storing it would need a migration and
- * would go stale every time a rule above changes.
+ *   Is it about one of our clients?       linked 1000, suggested 300
+ *   Is it about one of our jobs?          linked 400, suggested 200
+ *   What kind of project news is it?      new development or renovation 15,
+ *                                         financing 8, acquisition 5, award 3
+ *   How big is the building?              +1 per 10 units, capped at 10
+ *   Is somebody already on it?            assigned 5
+ *   How old is it?                        -1 per week, capped at 26
+ *   Has a permit replaced it?             superseded -2000 (one building, one count)
+ *   Is it about a project at all?         no: -5000
+ *
+ * Everything below the two match tiers adds up to under 100 either way, and
+ * the tiers sit at least 100 apart, so a fresh unmatched groundbreaking never
+ * passes an old article about a client. A suggested client (300) sits below a
+ * confirmed job (400) on purpose: a confirmed fact beats a guess.
+ *
+ * Not stored: the route scores the matching rows and pages the result.
+ * Storing it would need a migration and go stale when a rule changes.
  */
 
 const LINKED    = new Set(['AUTO_LINKED', 'CONFIRMED']);
 const SUGGESTED = new Set(['SUGGESTED']);
 
+// GROUNDBREAKING is the pre-0125 name for a new development.
 const TYPE_POINTS = {
+  NEW_DEVELOPMENT: 15,
   GROUNDBREAKING:  15,
-  FINANCING:       10,
-  DEVELOPER_AWARD: 10,
+  RENOVATION:      15,
+  FINANCING:        8,
   ACQUISITION:      5,
+  DEVELOPER_AWARD:  3,
   NEWS:             0,
 };
 
 // The fields a signal needs for scoring; the route selects exactly these.
 export const RELEVANCE_SELECT = {
-  id: true, publishedAt: true, unitCount: true, signalType: true,
+  id: true, publishedAt: true, unitCount: true, signalType: true, projectRelated: true,
   matchStatus: true, projectMatchStatus: true, assignedToId: true, supersededById: true,
 };
 
+// Prisma where-fragment that drops screened-out articles. Null (not screened
+// yet) stays visible until the Screen articles backfill gets to it. Written
+// as an OR because `not: false` would also drop the nulls in Postgres.
+export const PROJECT_ONLY = { OR: [{ projectRelated: true }, { projectRelated: null }] };
+
 export function relevanceScore(s, now = Date.now()) {
   let score = 0;
-  if (LINKED.has(s.matchStatus))           score += 50;
-  else if (SUGGESTED.has(s.matchStatus))   score += 25;
-  if (LINKED.has(s.projectMatchStatus))    score += 40;
-  else if (SUGGESTED.has(s.projectMatchStatus)) score += 20;
-  if (s.unitCount > 0)                     score += Math.min(30, Math.floor(s.unitCount / 10));
+  if (LINKED.has(s.matchStatus))                score += 1000;
+  else if (SUGGESTED.has(s.matchStatus))        score += 300;
+  if (LINKED.has(s.projectMatchStatus))         score += 400;
+  else if (SUGGESTED.has(s.projectMatchStatus)) score += 200;
   score += TYPE_POINTS[s.signalType] || 0;
-  if (s.assignedToId)                      score += 10;
+  if (s.unitCount > 0)                          score += Math.min(10, Math.floor(s.unitCount / 10));
+  if (s.assignedToId)                           score += 5;
   if (s.publishedAt) {
     const weeks = Math.max(0, (now - new Date(s.publishedAt).getTime()) / (7 * 86400 * 1000));
     score -= Math.min(26, Math.floor(weeks));
   }
-  if (s.supersededById)                    score -= 100;
+  if (s.supersededById)                         score -= 2000;
+  if (s.projectRelated === false)               score -= 5000;
   return score;
 }
 

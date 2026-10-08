@@ -27,6 +27,7 @@ const EMPTY_FILTERS = {
   project:      '',
   assignedTo:   '',
   signalId:     '',
+  screened:     '',   // '1' = show only the articles the reader screened out (0125)
 };
 
 function MarketIntelInner() {
@@ -65,7 +66,7 @@ function MarketIntelInner() {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(page) });
-      for (const key of ['projectType', 'signalType', 'reviewStatus', 'clientId', 'metro', 'state', 'company', 'project', 'assignedTo', 'signalId']) {
+      for (const key of ['projectType', 'signalType', 'reviewStatus', 'clientId', 'metro', 'state', 'company', 'project', 'assignedTo', 'signalId', 'screened']) {
         if (filters[key]) params.set(key, filters[key]);
       }
       if (search)               params.set('search',       search);
@@ -240,6 +241,12 @@ function MarketIntelInner() {
           <option value="oldest">Oldest first</option>
           <option value="relevant">Most relevant</option>
         </select>
+        {/* The reader hides articles that are not about a project (0125). This
+            shows only those, so a wrong call can be kept. */}
+        <label className={`${SELECT_CLS} flex items-center gap-2 cursor-pointer ${filters.screened ? 'bg-amber-50 border-amber-300' : ''}`}>
+          <input type="checkbox" checked={filters.screened === '1'} onChange={e => setFilter('screened', e.target.checked ? '1' : '')} className="accent-amber-500" />
+          Show screened out
+        </label>
         {(filters.company || filters.project) && (
           <span className="text-sm bg-slate-100 text-slate-700 rounded-lg px-3 py-1.5 flex items-center gap-2">
             {filters.company || filters.project}

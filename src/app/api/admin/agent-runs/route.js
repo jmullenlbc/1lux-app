@@ -70,6 +70,9 @@ export async function GET(request) {
       autoChecks: r.autoChecks,
       autoCheckPass: r.autoCheckPass,
       latencyMs: r.latencyMs,
+      // Why a run failed (10-8): a key, model or credit problem is invisible
+      // from the list without it. Super admin only, trimmed.
+      errorMessage: r.errorMessage ? String(r.errorMessage).slice(0, 300) : null,
     })),
     tiers,
     health,

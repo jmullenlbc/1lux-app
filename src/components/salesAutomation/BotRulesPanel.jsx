@@ -148,7 +148,7 @@ function TriggerConfig({ triggerType, config, onChange }) {
             value={config.signalTypes || ''}
             onChange={e => set('signalTypes', e.target.value)}
             className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
-            placeholder="GROUNDBREAKING, FINANCING"
+            placeholder="NEW_DEVELOPMENT, RENOVATION, FINANCING"
           />
         </div>
         <label className="flex items-center gap-2 cursor-pointer">

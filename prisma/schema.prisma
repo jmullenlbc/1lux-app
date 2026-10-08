@@ -2187,7 +2187,7 @@ model MarketSignal {
   summary            String?
   url                String?
   publishedAt        DateTime?
-  signalType         String       @default("NEWS") // NEWS | GROUNDBREAKING | FINANCING | ACQUISITION | DEVELOPER_AWARD
+  signalType         String       @default("NEWS") // NEWS | NEW_DEVELOPMENT | RENOVATION | FINANCING | ACQUISITION | DEVELOPER_AWARD | PERMIT (GROUNDBREAKING on rows read before 0125)
   projectType        String? // MARKET_RATE | AFFORDABLE | STUDENT_HOUSING | SENIOR_LIVING
   developerNames     String? // JSON array of extracted org names
   linkedClientId     String?
@@ -2209,6 +2209,12 @@ model MarketSignal {
   // When the article's tags were last read. Null = tagged by nobody yet; the
   // retag endpoint works through those.
   taggedAt           DateTime?
+  // Migration 0125 (Mike 10-8): "if it's not project related we don't need
+  // it". The reader answers whether the article is about a building (a job,
+  // a development, a sale of one). false = advice, operations, policy or
+  // market commentary, kept only so the poller does not re-read the same URL,
+  // hidden everywhere. null = not screened yet (rows older than 0125).
+  projectRelated     Boolean?
   // A salesperson handed this article (0122). Assigning rings their bell.
   assignedToId       String?
   assignedTo         User?        @relation("MarketSignalAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
@@ -2241,6 +2247,7 @@ model MarketSignal {
   @@index([assignedToId])
   @@index([taggedAt])
   @@index([kind, publishedAt])
+  @@index([kind, projectRelated])
   @@index([permitNumber])
   @@index([supersededById])
 }

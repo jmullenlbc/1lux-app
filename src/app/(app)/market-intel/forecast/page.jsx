@@ -19,12 +19,27 @@ const BY_OPTIONS = [
 ];
 
 const MONTH_OPTIONS = [3, 6, 12, 24];
+const SELECT_CLS = 'text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400';
 
 export default function ForecastPage() {
   const [by,      setBy]      = useState('company');
   const [months,  setMonths]  = useState(12);
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(true);
+  // Filters (Mike 10-8: "I still need the pipeline tab to have filterability").
+  // Metro and state narrow the articles counted (server side); clients only
+  // and the name box narrow the rows shown.
+  const [metro,       setMetro]       = useState('');
+  const [state,       setState]       = useState('');
+  const [clientsOnly, setClientsOnly] = useState(false);
+  const [nameFilter,  setNameFilter]  = useState('');
+  const [tagOptions,  setTagOptions]  = useState({ METRO: [], STATE: [] });
+  useEffect(() => {
+    fetch('/api/market-intel/tags')
+      .then(r => r.json())
+      .then(d => setTagOptions({ METRO: d.tags?.METRO || [], STATE: d.tags?.STATE || [] }))
+      .catch(() => {});
+  }, []);
   // Click a column header to sort; click again to flip (Mike 10-8).
   const [sortKey, setSortKey] = useState('units');
   const [sortDir, setSortDir] = useState('desc');
@@ -36,16 +51,23 @@ export default function ForecastPage() {
   useEffect(() => {
     let alive = true;
     setLoading(true);
-    fetch(`/api/market-intel/forecast?by=${by}&months=${months}`)
+    const params = new URLSearchParams({ by, months: String(months) });
+    if (metro) params.set('metro', metro);
+    if (state) params.set('state', state);
+    fetch(`/api/market-intel/forecast?${params}`)
       .then(r => r.json())
       .then(d => { if (alive) setData(d); })
       .catch(() => { if (alive) setData(null); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-  }, [by, months]);
+  }, [by, months, metro, state]);
 
   const rows = useMemo(() => {
-    const list = [...(data?.rows || [])];
+    const needle = nameFilter.trim().toLowerCase();
+    const list = (data?.rows || []).filter(r =>
+      (!clientsOnly || r.clientId) &&
+      (!needle || String(r.label || '').toLowerCase().includes(needle))
+    );
     const dir  = sortDir === 'asc' ? 1 : -1;
     list.sort((a, b) => {
       const av = a[sortKey], bv = b[sortKey];
@@ -53,7 +75,8 @@ export default function ForecastPage() {
       return dir * ((av || 0) - (bv || 0));
     });
     return list;
-  }, [data, sortKey, sortDir]);
+  }, [data, sortKey, sortDir, clientsOnly, nameFilter]);
+  const hasFilters = metro || state || clientsOnly || nameFilter;
   const max  = Math.max(1, ...(data?.rows || []).map(r => r.units || 0));
   const filterKey = { company: 'company', metro: 'metro', state: 'state' }[by];
   const Th = ({ col, children, right }) => (
@@ -90,21 +113,50 @@ export default function ForecastPage() {
               </button>
             ))}
           </div>
-          <select
-            value={months}
-            onChange={e => setMonths(Number(e.target.value))}
-            className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
-          >
+          <select value={months} onChange={e => setMonths(Number(e.target.value))} className={SELECT_CLS}>
             {MONTH_OPTIONS.map(m => <option key={m} value={m}>Last {m} months</option>)}
           </select>
+          {tagOptions.METRO.length > 0 && (
+            <select value={metro} onChange={e => setMetro(e.target.value)} className={SELECT_CLS}>
+              <option value="">All metros</option>
+              {tagOptions.METRO.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+            </select>
+          )}
+          {tagOptions.STATE.length > 0 && (
+            <select value={state} onChange={e => setState(e.target.value)} className={SELECT_CLS}>
+              <option value="">All states</option>
+              {tagOptions.STATE.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+            </select>
+          )}
+          <input
+            type="text"
+            value={nameFilter}
+            onChange={e => setNameFilter(e.target.value)}
+            placeholder={by === 'company' ? 'Company name…' : by === 'metro' ? 'Metro…' : 'State…'}
+            className={`${SELECT_CLS} w-44`}
+          />
+          {by === 'company' && (
+            <label className={`${SELECT_CLS} flex items-center gap-2 cursor-pointer ${clientsOnly ? 'bg-amber-50 border-amber-300' : ''}`}>
+              <input type="checkbox" checked={clientsOnly} onChange={e => setClientsOnly(e.target.checked)} className="accent-amber-500" />
+              Clients only
+            </label>
+          )}
+          {hasFilters && (
+            <button
+              onClick={() => { setMetro(''); setState(''); setClientsOnly(false); setNameFilter(''); }}
+              className="text-sm text-slate-400 hover:text-slate-600 px-2"
+            >
+              Clear filters
+            </button>
+          )}
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-16 text-slate-400 text-sm">Loading…</div>
         ) : rows.length === 0 ? (
           <div className="text-center py-16 text-slate-400">
-            <p className="font-medium">No unit counts yet</p>
-            <p className="text-xs mt-1">Articles get a unit count when they are read. Press "Re-read tags" on the Sources tab to fill in older ones.</p>
+            <p className="font-medium">{hasFilters ? 'Nothing matches these filters' : 'No unit counts yet'}</p>
+            <p className="text-xs mt-1">{hasFilters ? 'Clear a filter to widen the list.' : 'Articles get a unit count when they are read. Press "Screen articles" on the Sources tab to fill in older ones.'}</p>
           </div>
         ) : (
           <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">

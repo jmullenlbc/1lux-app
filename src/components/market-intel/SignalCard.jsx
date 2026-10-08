@@ -15,6 +15,9 @@ export const PROJECT_TYPE_LABELS = {
 };
 
 export const SIGNAL_TYPE_META = {
+  NEW_DEVELOPMENT: { label: 'New development', color: 'bg-green-100 text-green-700'  },
+  RENOVATION:      { label: 'Renovation',      color: 'bg-teal-100 text-teal-700'   },
+  // Pre-0125 name for a new development; rows read before then still carry it.
   GROUNDBREAKING:  { label: 'Groundbreaking', color: 'bg-green-100 text-green-700'  },
   FINANCING:       { label: 'Financing',       color: 'bg-blue-100 text-blue-700'   },
   ACQUISITION:     { label: 'Acquisition',     color: 'bg-purple-100 text-purple-700'},
@@ -84,6 +87,11 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, s
             {signal.reviewStatus === 'REVIEWED' && (
               <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-green-50 text-green-600">✓ Reviewed</span>
             )}
+            {signal.projectRelated === false && (
+              <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-500" title="The reader said this article is not about a specific project, so it is hidden from the list">
+                Not about a project
+              </span>
+            )}
             {superseded && (
               <a
                 href={`${signal.supersededBy.kind === 'PERMIT' ? '/market-intel/permits' : '/market-intel'}?signal=${signal.supersededBy.id}`}
@@ -106,8 +114,10 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, s
           {/* Permit facts as a row of labelled values, not prose (0123). */}
           {isPermit ? (
             <dl className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1 mt-1.5 text-xs">
-              {signal.contractorName && <div><dt className="text-slate-400">Contractor</dt><dd className="text-slate-700">{signal.contractorName}</dd></div>}
+              {/* Units first: it matters more than the declared value (Mike 10-8). */}
+              {signal.unitCount ? <div><dt className="text-slate-400">Units</dt><dd className="text-slate-700 font-medium">{signal.unitCount.toLocaleString()}</dd></div> : null}
               {signal.valuation ? <div><dt className="text-slate-400">Declared value</dt><dd className="text-slate-700">{money(signal.valuation)}</dd></div> : null}
+              {signal.contractorName && <div><dt className="text-slate-400">Contractor</dt><dd className="text-slate-700">{signal.contractorName}</dd></div>}
               {signal.neighborhood && <div><dt className="text-slate-400">Neighborhood</dt><dd className="text-slate-700">{signal.neighborhood}</dd></div>}
               {signal.permitNumber && <div><dt className="text-slate-400">Permit</dt><dd className="text-slate-700 font-mono">{signal.permitNumber}</dd></div>}
             </dl>
@@ -183,7 +193,7 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, s
           </div>
 
           {/* Tag chips (0122): company, project, place, units. Click one to filter. */}
-          {(chips.length > 0 || signal.unitCount) && (
+          {(chips.length > 0 || (signal.unitCount && !isPermit)) && (
             <div className="flex flex-wrap items-center gap-1.5 mt-2">
               {chips.map(l => (
                 <button
@@ -197,7 +207,8 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, s
                   {l.tag.kind === 'COMPANY' && l.tag.clientId ? <span className="text-green-600"> ✓</span> : null}
                 </button>
               ))}
-              {signal.unitCount ? (
+              {/* Articles keep the units chip; a permit shows Units as a field above. */}
+              {signal.unitCount && !isPermit ? (
                 <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">
                   {signal.unitCount.toLocaleString()} units
                 </span>
@@ -242,6 +253,15 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, s
         {/* Actions */}
         {!isDismissed && signal.reviewStatus !== 'REVIEWED' && (
           <div className="flex gap-1.5 shrink-0">
+            {signal.projectRelated === false && (
+              <button
+                onClick={() => onUpdate(signal.id, { projectRelated: true })}
+                title="Show this article in the list again and read its tags"
+                className="text-xs px-2.5 py-1 rounded-lg border border-amber-200 text-amber-700 hover:bg-amber-50 whitespace-nowrap"
+              >
+                Keep it
+              </button>
+            )}
             {superseded && (
               <button
                 onClick={() => onUpdate(signal.id, { supersededById: null })}

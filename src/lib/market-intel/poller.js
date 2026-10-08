@@ -35,6 +35,30 @@ async function loadProjectsForMatching() {
 
 async function processItem(item, projects = []) {
   const extracted = await extractFromArticle(item.title, item.rawContent);
+
+  // Not about a project (Mike 10-8: "if it's not project related we don't
+  // need it"). The row is still saved, because the poller dedupes by URL and
+  // would otherwise fetch and re-read the same article every run, but it is
+  // saved hidden: no matching, no tags, projectRelated false. Nothing shows it.
+  if (extracted.projectRelated === false) {
+    await prisma.marketSignal.create({
+      data: {
+        sourceId:       item.sourceId,
+        title:          item.title,
+        summary:        extracted.summary || null,
+        url:            item.url          || null,
+        publishedAt:    item.publishedAt  || null,
+        signalType:     extracted.signalType || 'NEWS',
+        projectType:    extracted.projectType || null,
+        projectRelated: false,
+        developerNames: '[]',
+        taggedAt:       new Date(),
+        reviewStatus:   'UNREVIEWED',
+      },
+    });
+    return { screenedOut: true };
+  }
+
   // Every company the article names goes to the matcher, not only the
   // developer: a GC or an architect is a client too (Mike 10-7).
   const allNames  = [...new Set([...(extracted.companies || []).map(c => c.name), ...(extracted.developerNames || [])])];
@@ -62,6 +86,8 @@ async function processItem(item, projects = []) {
       publishedAt:    item.publishedAt    || null,
       signalType:     extracted.signalType || 'NEWS',
       projectType:    extracted.projectType || null,
+      // null = the reader did not answer; shown, and screened again later.
+      projectRelated: extracted.projectRelated ?? null,
       unitCount:      extracted.unitCount ?? null,
       developerNames: JSON.stringify(extracted.developerNames || []),
       linkedClientId: autoLink ? autoLink.clientId : null,
@@ -80,31 +106,61 @@ async function processItem(item, projects = []) {
     },
   });
 
+  // The reader never answered: leave taggedAt empty so Screen articles reads
+  // it once the model call works again, instead of filing it as "tagged".
+  if (extracted.failed) return { readFailed: true, error: extracted.error };
+
   // Tag rows (0122). An auto-linked client inherits the article's place tags.
   await saveSignalTags(signal.id, extracted, { matches });
   if (autoLink) {
     await attachSignalToClient(signal.id, autoLink.clientId, { companyNames: [autoLink.candidateName] }).catch(() => {});
   }
+  return {};
 }
 
+// Articles the reader has not yet screened for "is this about a project"
+// (0125), or that have no tags yet (0122). Permits are never read here.
+const UNSCREENED = { kind: 'ARTICLE', OR: [{ projectRelated: null }, { taggedAt: null }] };
+
 /**
- * Re-read tags for signals that have none yet (0122 backfill). Older articles
- * never kept their body, so this reads title plus summary: enough for the
- * company, the place and usually the unit count. Runs in small slices so one
- * call stays well under the 30 second read wall.
+ * Screen and re-read older articles (the "Screen articles" button). Each
+ * article is read once more from title plus summary (its body was never
+ * kept): the reader says whether it is about a project at all (0125) and,
+ * when it is, which companies, place and unit count it names (0122). An
+ * article that is not about a project is marked and loses nothing else; it
+ * simply stops showing. Runs in small slices so one call stays well under
+ * the 30 second read wall.
  */
 export async function retagUntagged({ limit = 25 } = {}) {
-  const log = { tagged: 0, errors: [] };
+  const log = { tagged: 0, screenedOut: 0, readFailed: 0, readError: null, errors: [] };
   const signals = await prisma.marketSignal.findMany({
-    where:   { taggedAt: null },
+    where:   UNSCREENED,
     orderBy: { publishedAt: 'desc' },
     take:    limit,
-    select:  { id: true, title: true, summary: true, linkedClientId: true, matchStatus: true, developerNames: true },
+    select:  { id: true, title: true, summary: true, linkedClientId: true, matchStatus: true, developerNames: true, taggedAt: true, projectRelated: true },
   });
-  const remaining = Math.max(0, (await prisma.marketSignal.count({ where: { taggedAt: null } })) - signals.length);
+  const remaining = Math.max(0, (await prisma.marketSignal.count({ where: UNSCREENED })) - signals.length);
   for (const s of signals) {
     try {
       const extracted = await extractFromArticle(s.title, s.summary || '');
+      // The model call itself failed (key, model id, credit). Leave the row
+      // untouched so it is asked again later, and stop the slice after three
+      // in a row: 25 rejected calls per press tell nobody anything new.
+      if (extracted.failed) {
+        log.readFailed++;
+        log.readError = log.readError || extracted.error;
+        if (log.readFailed >= 3 && log.tagged + log.screenedOut === 0) break;
+        continue;
+      }
+      // A reader that answered but left the question blank gets the benefit
+      // of the doubt. A row a person already kept ("Keep it" on a screened out
+      // article sets projectRelated true and clears taggedAt) stays kept.
+      const related = s.projectRelated === true ? true : (extracted.projectRelated ?? true);
+      await prisma.marketSignal.update({
+        where: { id: s.id },
+        data:  { projectRelated: related, signalType: extracted.signalType || 'NEWS', ...(related ? {} : { taggedAt: s.taggedAt || new Date() }) },
+      });
+      if (!related) { log.screenedOut++; continue; }
       const matches   = s.linkedClientId && ['AUTO_LINKED', 'CONFIRMED'].includes(s.matchStatus)
         ? (() => { try { return JSON.parse(s.developerNames || '[]').map(n => ({ candidateName: n, clientId: s.linkedClientId, status: 'AUTO_LINKED' })); } catch { return []; } })()
         : [];
@@ -119,10 +175,11 @@ export async function retagUntagged({ limit = 25 } = {}) {
     } catch (err) {
       log.errors.push({ id: s.id, error: err.message });
       // Mark it so a broken article does not block the queue forever.
-      await prisma.marketSignal.update({ where: { id: s.id }, data: { taggedAt: new Date() } }).catch(() => {});
+      await prisma.marketSignal.update({ where: { id: s.id }, data: { taggedAt: new Date(), projectRelated: true } }).catch(() => {});
     }
   }
-  log.remaining = remaining;
+  // Rows the reader could not read are still waiting.
+  log.remaining = remaining + log.readFailed + Math.max(0, signals.length - log.tagged - log.screenedOut - log.readFailed - log.errors.length);
   return log;
 }
 
@@ -162,7 +219,11 @@ export async function runPoll({ deadline = Infinity } = {}) {
     done += batch.length;
     await Promise.all(
       batch.map(item =>
-        processItem(item, projects).catch(err => {
+        processItem(item, projects).then(r => {
+          // Saved, but the reader never answered: counted so the Sources page
+          // can say "the reader is failing" instead of "all done" (10-8).
+          if (r?.readFailed) { log.readFailed = (log.readFailed || 0) + 1; log.readError = log.readError || r.error; }
+        }).catch(err => {
           log.errors.push({ url: item.url, error: err.message });
         })
       )
