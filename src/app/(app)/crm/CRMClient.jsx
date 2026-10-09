@@ -10,7 +10,27 @@ import {
 } from '@/lib/pipeline';
 import PipelineSidePanel from '@/components/crm/PipelineSidePanel';
 import SectionTabs, { PIPELINE_TABS } from '@/components/ui/SectionTabs';
-import { ALL_SERVICE_TYPES } from '@/lib/utils';
+import { ALL_SERVICE_TYPES, BUILDING_TYPES, PROJECT_TYPES } from '@/lib/utils';
+
+// Pipeline filters (Mike 10-8: "You still haven't added a filtering option to
+// the pipeline tab"). The quick row keeps search, status, service type and
+// owner; "Filters" opens the rest. Every list is built from the jobs on the
+// board, so a choice never comes back empty.
+const EMPTY_FILTERS = {
+  search: '', status: '', serviceType: '', salesOwnerId: '',
+  stage: '', clientId: '', state: '', city: '', buildingType: '', projectType: '',
+  minProb: '', expected: '', minUnits: '', minValue: '',
+};
+const MORE_FILTER_KEYS = ['stage', 'clientId', 'state', 'city', 'buildingType', 'projectType', 'minProb', 'expected', 'minUnits', 'minValue'];
+const EXPECTED_OPTIONS = [
+  { value: '',        label: 'Any expected date' },
+  { value: 'overdue', label: 'Expected date passed' },
+  { value: '30',      label: 'Expected in 30 days' },
+  { value: '90',      label: 'Expected in 90 days' },
+  { value: '180',     label: 'Expected in 180 days' },
+  { value: 'none',    label: 'No expected date' },
+];
+const FILTER_SELECT_CLS = 'text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-orange-400';
 
 // Re-exported for the (orphaned, Phase-2) Deal components' imports.
 export { PIPELINE_STAGES };
@@ -473,7 +493,8 @@ export default function CRMClient({ initialProjects, users, newRequests = [] }) 
   const [projects, setProjects] = useState(initialProjects || []);
   const [pipeline, setPipeline] = useState('PROCUREMENT');
   const [viewMode, setViewMode] = useState('kanban');
-  const [filters,  setFilters]  = useState({ search: '', status: '', serviceType: '', salesOwnerId: '' });
+  const [filters,  setFilters]  = useState(EMPTY_FILTERS);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [needsAttention, setNeedsAttention] = useState(false);
   const dragId = useRef(null);
   const [draggingId, setDraggingId] = useState(null);
@@ -493,12 +514,47 @@ export default function CRMClient({ initialProjects, users, newRequests = [] }) 
     if (filters.status && p[statusField] !== filters.status) return false;
     if (filters.serviceType    && p.serviceType    !== filters.serviceType)    return false;
     if (filters.salesOwnerId   && p.salesOwner?.id !== filters.salesOwnerId)   return false;
+    if (filters.stage          && p[stageField]    !== filters.stage)          return false;
+    if (filters.clientId       && p.client?.id     !== filters.clientId)       return false;
+    if (filters.state          && (p.state || '')  !== filters.state)          return false;
+    if (filters.city           && (p.city  || '')  !== filters.city)           return false;
+    if (filters.buildingType   && p.buildingType   !== filters.buildingType)   return false;
+    if (filters.projectType    && p.projectType    !== filters.projectType)    return false;
+    if (filters.minProb  && (averageProbability(p) ?? -1) < Number(filters.minProb))  return false;
+    if (filters.minUnits && (unitsOf(p) ?? -1)            < Number(filters.minUnits)) return false;
+    if (filters.minValue && (revenueFor(p, pipeline) ?? -1) < Number(filters.minValue)) return false;
+    if (filters.expected) {
+      const raw = pipeline === 'DESIGN' ? p.expectedContractExecutionDate : p.expectedOrderDate;
+      const d   = raw ? new Date(raw).getTime() : null;
+      if (filters.expected === 'none')         { if (d) return false; }
+      else if (filters.expected === 'overdue') { if (!d || d >= Date.now()) return false; }
+      else { const horizon = Date.now() + Number(filters.expected) * 86_400_000; if (!d || d < Date.now() || d > horizon) return false; }
+    }
     if (filters.search) {
       const q = filters.search.toLowerCase();
       if (!(p.name || '').toLowerCase().includes(q) && !(p.client?.name || '').toLowerCase().includes(q)) return false;
     }
     return true;
   }), [projects, pipeline, filters]);
+
+  // Choices for the Filters panel, read off the jobs on this board.
+  const filterOptions = useMemo(() => {
+    const onBoard = projects.filter(inBoard);
+    const distinct = pick => [...new Set(onBoard.map(pick).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
+    const clients  = new Map();
+    onBoard.forEach(p => { if (p.client?.id) clients.set(p.client.id, p.client.name || ''); });
+    return {
+      clients:       [...clients].sort((a, b) => a[1].localeCompare(b[1])),
+      states:        distinct(p => p.state),
+      cities:        distinct(p => p.city),
+      buildingTypes: distinct(p => p.buildingType),
+      projectTypes:  distinct(p => p.projectType),
+    };
+  }, [projects, pipeline]);
+  const moreCount = MORE_FILTER_KEYS.filter(k => filters[k]).length;
+  const anyFilter = Object.keys(EMPTY_FILTERS).some(k => filters[k]) || needsAttention;
+  const setF = (key, value) => setFilters(f => ({ ...f, [key]: value }));
+  const labelOf = (list, v) => list.find(t => t.value === v)?.label || v;
 
   const byStage = useMemo(() => {
     const map = {};
@@ -666,10 +722,16 @@ export default function CRMClient({ initialProjects, users, newRequests = [] }) 
             <option value="">All owners</option>
             {(users || []).map(u => <option key={u.id} value={u.id}>{u.name || u.email}</option>)}
           </select>
-          {(filters.search || filters.status || filters.serviceType || filters.salesOwnerId || needsAttention) && (
+          <button
+            onClick={() => setMoreOpen(o => !o)}
+            className={`px-2.5 py-1.5 text-[10px] font-bold rounded-lg border transition-colors ${moreOpen || moreCount ? 'bg-slate-900 text-white border-slate-900' : 'text-slate-500 border-slate-200 hover:bg-slate-100'}`}
+          >
+            Filters{moreCount ? ` (${moreCount})` : ''}
+          </button>
+          {anyFilter && (
             <button
               onClick={() => {
-                setFilters({ search: '', status: '', serviceType: '', salesOwnerId: '' });
+                setFilters(EMPTY_FILTERS);
                 setNeedsAttention(false);
               }}
               className="px-2.5 py-1.5 text-[10px] font-bold rounded-lg text-slate-400 hover:bg-slate-100 border border-slate-200"
@@ -679,6 +741,43 @@ export default function CRMClient({ initialProjects, users, newRequests = [] }) 
           )}
           <span className="text-xs text-slate-400 ml-auto">{filtered.length} project{filtered.length !== 1 ? 's' : ''}</span>
         </div>
+        {moreOpen && (
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
+            <select value={filters.stage} onChange={e => setF('stage', e.target.value)} className={FILTER_SELECT_CLS}>
+              <option value="">All stages</option>
+              {stages.map(s => <option key={s.key} value={s.key}>{STAGE_LABEL[s.key] || s.label || s.key}</option>)}
+            </select>
+            <select value={filters.clientId} onChange={e => setF('clientId', e.target.value)} className={FILTER_SELECT_CLS}>
+              <option value="">All clients</option>
+              {filterOptions.clients.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+            </select>
+            <select value={filters.state} onChange={e => setF('state', e.target.value)} className={FILTER_SELECT_CLS}>
+              <option value="">All states</option>
+              {filterOptions.states.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <select value={filters.city} onChange={e => setF('city', e.target.value)} className={FILTER_SELECT_CLS}>
+              <option value="">All cities</option>
+              {filterOptions.cities.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <select value={filters.buildingType} onChange={e => setF('buildingType', e.target.value)} className={FILTER_SELECT_CLS}>
+              <option value="">All building types</option>
+              {filterOptions.buildingTypes.map(b => <option key={b} value={b}>{labelOf(BUILDING_TYPES, b)}</option>)}
+            </select>
+            <select value={filters.projectType} onChange={e => setF('projectType', e.target.value)} className={FILTER_SELECT_CLS}>
+              <option value="">All project types</option>
+              {filterOptions.projectTypes.map(t => <option key={t} value={t}>{labelOf(PROJECT_TYPES, t)}</option>)}
+            </select>
+            <select value={filters.minProb} onChange={e => setF('minProb', e.target.value)} className={FILTER_SELECT_CLS}>
+              <option value="">Any win %</option>
+              {[20, 50, 80, 90].map(n => <option key={n} value={n}>Win % {n} or more</option>)}
+            </select>
+            <select value={filters.expected} onChange={e => setF('expected', e.target.value)} className={FILTER_SELECT_CLS}>
+              {EXPECTED_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <input type="number" min="0" value={filters.minUnits} onChange={e => setF('minUnits', e.target.value)} placeholder="Units at least" className={`${FILTER_SELECT_CLS} w-28`} />
+            <input type="number" min="0" step="1000" value={filters.minValue} onChange={e => setF('minValue', e.target.value)} placeholder="Value at least $" className={`${FILTER_SELECT_CLS} w-32`} />
+          </div>
+        )}
       </div>
 
       {/* Body */}

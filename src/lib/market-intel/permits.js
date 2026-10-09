@@ -3,6 +3,7 @@ import { matchCandidates } from './fuzzy-matcher';
 import { saveSignalTags, attachSignalToClient } from './tags';
 import { PERMIT_SOURCE_TYPE, profileForSource, permitQueryUrl, permitRows, permitToSignal } from './permitRules';
 import { fetchHoustonRows } from './houstonFeed';
+import { walkAccela } from './accelaFeed';
 
 /**
  * Pull one city's permit feed into MarketSignal rows (migration 0123).
@@ -25,6 +26,8 @@ export async function pollPermitSource(source, { limit = 500, now = new Date(), 
     ? new Date(new Date(source.lastPolledAt).getTime() - 14 * 86400e3)
     : new Date(now.getTime() - (profile.firstLookbackDays || 548) * 86400e3);
 
+  if (profile.api === 'accela') return pollAccelaSource(source, profile, since, { now, deadline, log });
+
   let rows = [];
   try {
     if (profile.api === 'houston') {
@@ -44,6 +47,43 @@ export async function pollPermitSource(source, { limit = 500, now = new Date(), 
   log.kept = signals.length;
   if (!signals.length) return log;
 
+  await saveSignals(source, signals, log, deadline);
+
+  if (!log.partial) await prisma.marketSource.update({ where: { id: source.id }, data: { lastPolledAt: now } }).catch(() => {});
+  return log;
+}
+
+/**
+ * A portal that is walked page by page (Accela). Each window is saved as soon
+ * as it is read and `pullCursorAt` moves to the end of it, so a run cut by
+ * the deadline resumes where it stopped instead of starting over. When the
+ * walk reaches now, the cursor clears and lastPolledAt is set like any feed.
+ */
+async function pollAccelaSource(source, profile, since, { now, deadline, log }) {
+  const start = source.pullCursorAt ? new Date(source.pullCursorAt) : since;
+  const saved = await prisma.marketSignal.findMany({ where: { sourceId: source.id, permitNumber: { not: null } }, select: { permitNumber: true } });
+  const known = new Set(saved.map(r => r.permitNumber));
+  let cursor = source.pullCursorAt ? new Date(source.pullCursorAt) : null;
+  try {
+    for await (const w of walkAccela(profile, start, now, { known, deadline })) {
+      log.fetched += w.rows.length;
+      const signals = w.rows.map(a => permitToSignal(profile, a)).filter(Boolean);
+      log.kept += signals.length;
+      if (signals.length) await saveSignals(source, signals, log, deadline);
+      if (w.complete && !log.partial) cursor = w.end;
+      else { log.partial = true; break; }
+    }
+  } catch (err) {
+    log.errors.push({ error: `fetch failed: ${err.message}` });
+    log.partial = true;
+  }
+  const data = log.partial ? { pullCursorAt: cursor } : { lastPolledAt: now, pullCursorAt: null };
+  await prisma.marketSource.update({ where: { id: source.id }, data }).catch(() => {});
+  return log;
+}
+
+/** Insert new signals, revise changed ones; stops at the deadline and marks the log partial. */
+async function saveSignals(source, signals, log, deadline = Infinity) {
   const existing = await prisma.marketSignal.findMany({
     where:  { sourceId: source.id, permitNumber: { in: signals.map(s => s.permitNumber) } },
     select: { id: true, permitNumber: true, unitCount: true, valuation: true, contractorName: true },
@@ -91,9 +131,6 @@ export async function pollPermitSource(source, { limit = 500, now = new Date(), 
       log.errors.push({ permitNumber: s.permitNumber, error: err.message });
     }
   }
-
-  if (!log.partial) await prisma.marketSource.update({ where: { id: source.id }, data: { lastPolledAt: now } }).catch(() => {});
-  return log;
 }
 
 /**

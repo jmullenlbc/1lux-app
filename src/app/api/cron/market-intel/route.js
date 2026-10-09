@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, actsAsAdmin } from '@/lib/auth';
 import { runPoll } from '@/lib/market-intel/poller';
+import { pullMacroStats, macroStale } from '@/lib/market-intel/macroStats';
 
 /**
  * GET /api/cron/market-intel
@@ -34,8 +35,12 @@ export async function GET(req) {
   }
 
   try {
-    const log = await runPoll({ deadline: Date.now() + 22000 });
-    return NextResponse.json({ ok: true, log });
+    const deadline = Date.now() + 22000;
+    // The national numbers (0128) once a day, a few seconds at most, before the feeds.
+    let macro = null;
+    if (await macroStale().catch(() => false)) macro = await pullMacroStats({ deadline: Date.now() + 6000 }).catch(err => ({ errors: [{ error: err.message }] }));
+    const log = await runPoll({ deadline });
+    return NextResponse.json({ ok: true, log, macro });
   } catch (err) {
     // A feed being down, a source changing its markup, or the AI key being out
     // of credit are all normal and none of them should look like an outage.

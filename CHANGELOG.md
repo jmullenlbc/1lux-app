@@ -5,6 +5,31 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Salt Lake City permits + national numbers strip] - October 8, 2026 (DEPLOYED PENDING1) - migration 0128 additive
+
+Mike 10-8: "get houston and salt lake city built" and "You never finished building out the macro market numbers on the market intelligence tab".
+
+**Salt Lake City permits.** No open data (Utah's portal is retired), so the feed drives the city's public Accela portal the way a browser does: GET the search page for cookies and view state, POST the search for a 14-day window of Commercial Building Permits, page with the "Next" postback, then open each permit that reads like a whole building for its Job Value, use type, square footage and record status. The list date is the application date, not the issue date; no owner or contractor is public. A first pull covers 180 days over several presses of "Pull permits now": each window is saved as it is read and `MarketSource.pullCursorAt` remembers where the walk got to, so a slice cut by the 22 s wall resumes instead of starting over. Live check: one window found "New building, 128 units: 1881 W North Temple St" at $25M.
+
+**National numbers strip.** A row of cards at the top of Market Intelligence from FRED's public CSV (no key needed after all): Fed funds, 10 yr Treasury, 30 yr mortgage, 5+ unit starts, completions and permits, construction materials PPI, rent CPI and rental vacancy, each with its date and the change against a year ago (green when the move helps us sell, red when it does not), plus our own "$10M+ permits found, last 30 days" and "Units in permits, last 12 months". The strip pulls itself the first time it is opened, "Refresh numbers" pulls again, and the daily cron pulls when the numbers are over 20 hours old.
+
+- `prisma/schema.prisma` + `prisma/migrations/0128_macro_stats_pull_cursor/migration.sql`: `MarketSource.pullCursorAt DateTime?`; new `MacroStat` (series, date, value, source, fetchedAt; unique on series + date).
+- `src/lib/market-intel/permitRules.js`: `SALT_LAKE` profile (api `accela`) and pure Accela helpers: `accelaDate`, `accelaState`, `accelaSearchForm`, `accelaNextTarget`, `accelaNextForm`, `accelaRows`, `accelaTotal`, `accelaWorthDetail`, `accelaDetail`.
+- `src/lib/market-intel/accelaFeed.js` (new): `accelaWindows`, `walkAccela` async generator (one window at a time, `known` set, deadline, 8 s per fetch).
+- `src/lib/market-intel/permits.js`: `pollAccelaSource` (cursor) and the save loop factored into `saveSignals`.
+- `src/lib/market-intel/sourceCatalog.js`: `SALT_LAKE` market and the "Salt Lake City building permits" source row.
+- `src/lib/market-intel/macroSeries.js` (new, pure): the nine-series catalog, `parseFredCsv`, `latestAndYearAgo`, formatting. `src/lib/market-intel/macroStats.js` (new): `pullMacroStats`, `macroStale`, `macroSnapshot`.
+- `src/app/api/market-intel/macro/route.js` (new): GET the strip, POST pull now. `src/app/api/cron/market-intel/route.js` pulls when stale before the feeds.
+- `src/components/market-intel/MacroStrip.jsx` (new) on `src/app/(app)/market-intel/page.jsx` above the ask box.
+- Tests: `scripts/tests/macroSeries.test.mjs` (new), Salt Lake City case in `scripts/tests/permitRules.test.mjs`.
+- After deploy: Admin presses "Add missing sources" on the Sources tab, then "Pull permits now" on Permits (several times for Salt Lake City). Apartment List rents still deferred (page is script-rendered); rent CPI stands in.
+
+## [Sales Pipeline filters] - October 8, 2026 (DEPLOYED PENDING1) - no migration
+
+Mike 10-8: "Pipeline filter". The Sales Pipeline (`/crm`) gets a **Filters** button next to the quick row (search, status, service type, owner). It opens a second row: stage, client, state, city, building type, project type, win % at least (20/50/80/90), expected date window (passed, 30/90/180 days, none), units at least, value at least. Every list is built from the jobs on the current board. The button shows how many extra filters are on; Clear resets everything. Client side, no API change.
+
+- `src/app/(app)/crm/CRMClient.jsx`: `EMPTY_FILTERS`, `filterOptions`, `moreCount`; the `filtered` memo checks the new fields (expected date uses `expectedContractExecutionDate` on the Design board, `expectedOrderDate` on Procurement).
+
 ## [City and state as columns on every signal] - October 8, 2026 (DEPLOYED 01fe79f) - migration 0127 additive
 
 - **Why:** Mike: "Show city and state, but those should be tracked as different fields", then "yes" to real columns so they can be filtered and exported as columns.

@@ -138,6 +138,41 @@ export const PERMIT_PROFILES = {
       url:            null,
     }),
   },
+  // Salt Lake City has no open-data layer either (Utah's Socrata portal is
+  // decommissioned; the county publishes nothing). The city's Accela portal
+  // answers a plain ASP.NET search POST for a date window and permit type,
+  // ten rows a page; the declared value ("Job Value") sits on each permit's
+  // own page, so the feed reads the list, keeps the rows that read like a
+  // building, then opens those (accelaFeed.js). The list date is the
+  // application date, not the issue date; the record status says how far it
+  // got. No owner or contractor is shown to the public.
+  SALT_LAKE: {
+    key:       'SALT_LAKE',
+    api:       'accela',
+    metro:     'Salt Lake City, UT',
+    state:     'UT',
+    layerUrl:  'https://aca-prod.accela.com/SLCREF/Cap/CapHome.aspx?module=Building&TabName=Building',
+    siteUrl:   'https://aca-prod.accela.com/SLCREF/Cap/CapHome.aspx?module=Building&TabName=Building',
+    detailBase: 'https://aca-prod.accela.com',
+    permitType: 'Building/Permit/Commercial/NA',
+    firstLookbackDays: 180,
+    windowDays: 14,
+    keepClasses: ['Commercial Building Permit'],
+    map: (a) => ({
+      permitNumber:   str(a.permitNumber),
+      permitClass:    str(a.permitType),
+      buildingKind:   [str(a.projectName), str(a.useType) ? `${str(a.useType)}` : '', shortText(a.description, 110)].filter(Boolean).join(': '),
+      // "177 E 900 S, Ste 200, Salt Lake City UT 84111-4229"
+      address:        titleCaseAddress(str(a.address).replace(/,\s*Salt Lake City\s+UT.*$/i, '')),
+      neighborhood:   a.status ? `status ${str(a.status)}` : '',
+      valuation:      num(a.jobValue),
+      contractorName: '',
+      unitCount:      unitsFromText(a.description),
+      skip:           /withdrawn|denied|void|cancel|expired/i.test(str(a.status)),
+      issuedAt:       a.date ? new Date(a.date) : null,
+      url:            a.url ? String(a.url) : null,
+    }),
+  },
   // Orlando publishes permit applications on Socrata (dataset ryhf-m453),
   // updated daily. No unit count column; plan_review_type says whether the
   // building is commercial or three-plus-unit residential.
@@ -510,6 +545,106 @@ export function houstonRows(csv, { issuedAt = null } = {}) {
     row.issuedAt = issuedAt;
     return row;
   }).filter(r => /^\d+$/.test(r.PROJECT_NO));
+}
+
+// ── Accela portal (pure: forms and HTML; the fetch lives in accelaFeed.js) ──
+
+/** mm/dd/yyyy in UTC, the way the Accela date boxes want it. */
+export function accelaDate(d) {
+  const x = new Date(d);
+  return `${String(x.getUTCMonth() + 1).padStart(2, '0')}/${String(x.getUTCDate()).padStart(2, '0')}/${x.getUTCFullYear()}`;
+}
+
+/** The hidden ASP.NET fields a page carries; every POST must echo them. */
+export function accelaState(html) {
+  const pick = (n) => (String(html || '').match(new RegExp(`id="${n}"[^>]*value="([^"]*)"`)) || [])[1] || '';
+  return { __VIEWSTATE: pick('__VIEWSTATE'), __VIEWSTATEGENERATOR: pick('__VIEWSTATEGENERATOR'), __VIEWSTATEENCRYPTED: pick('__VIEWSTATEENCRYPTED') };
+}
+
+/** Search form for one date window and permit type (first page). */
+export function accelaSearchForm(profile, start, end, state) {
+  return new URLSearchParams({
+    ...state,
+    'ctl00$PlaceHolderMain$generalSearchForm$txtGSStartDate': accelaDate(start),
+    'ctl00$PlaceHolderMain$generalSearchForm$txtGSEndDate':   accelaDate(end),
+    'ctl00$PlaceHolderMain$generalSearchForm$ddlGSPermitType': profile.permitType,
+    'ctl00$PlaceHolderMain$btnNewSearch': 'Search',
+  }).toString();
+}
+
+/** The postback that turns to the next page, or null on the last page. */
+export function accelaNextTarget(html) {
+  return (String(html || '').match(/__doPostBack\(&#39;([^&]*)&#39;,&#39;&#39;\)">Next/) || [])[1] || null;
+}
+
+/** Form for the "Next >" postback on a result page. */
+export function accelaNextForm(profile, start, end, state, target) {
+  return new URLSearchParams({
+    ...state,
+    __EVENTTARGET: target,
+    __EVENTARGUMENT: '',
+    'ctl00$PlaceHolderMain$generalSearchForm$txtGSStartDate': accelaDate(start),
+    'ctl00$PlaceHolderMain$generalSearchForm$txtGSEndDate':   accelaDate(end),
+    'ctl00$PlaceHolderMain$generalSearchForm$ddlGSPermitType': profile.permitType,
+  }).toString();
+}
+
+const unescapeHtml = (s) => String(s || '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+
+/** The ten rows of a result page: date, detail link, number, type, description, project, address, status. */
+export function accelaRows(html) {
+  const re = /lblUpdatedTime[^>]*>([^<]*)<[\s\S]*?href="([^"]*CapDetail[^"]*)"[\s\S]*?lblPermitNumber1">([^<]*)<[\s\S]*?lblType">([^<]*)<[\s\S]*?lblDescription">([^<]*)<[\s\S]*?lblProjectName">([^<]*)<[\s\S]*?lblAddress">([^<]*)<[\s\S]*?lblStatus">([^<]*)</g;
+  return [...String(html || '').matchAll(re)].map(m => ({
+    date:         m[1].trim(),
+    url:          unescapeHtml(m[2]),
+    permitNumber: m[3].trim(),
+    permitType:   unescapeHtml(m[4]),
+    description:  unescapeHtml(m[5]),
+    projectName:  unescapeHtml(m[6]),
+    address:      unescapeHtml(m[7]),
+    status:       unescapeHtml(m[8]),
+  }));
+}
+
+/** "Showing 1-10 of 87" on a result page, as the total (null when absent). */
+export function accelaTotal(html) {
+  const m = String(html || '').match(/Showing \d+-\d+ of (\d+)(\+?)/);
+  return m ? Number(m[1]) + (m[2] ? 1 : 0) : null;
+}
+
+/**
+ * Only rows that read like a building are worth a detail fetch: a remodel of
+ * one suite never reaches $10M. Says yes on new construction, additions,
+ * apartments, hotels, towers, shells, a unit or storey count, or a square
+ * footage of five figures or more.
+ */
+export function accelaWorthDetail(row) {
+  if (/withdrawn|denied|void|cancel|expired/i.test(String(row.status || ''))) return false;
+  const t = `${row.projectName || ''} ${row.description || ''}`;
+  // Five or more units or storeys, or a word only a whole building gets.
+  const strong = /\b(([5-9]|\d{2,})\s*-?\s*(unit|units|stor(y|ies|ey))|apartments?|multi.?family|multifamily|mixed.?use|hotel|tower|podium|parking (structure|garage)|new (commercial |office |residential |apartment |mixed.?use |\d+.story )?(building|construction|structure)|ground.?up|shell (and|&) core|core (and|&) shell)\b/i;
+  // Work inside an existing building, however the sentence starts.
+  const tenant = /\b(interior|remodel|alteration|tenant|build.?out|sign|repair|remediation|re.?roof|roof|hvac|mechanical|electrical|plumbing|demo|demolition|fire|sprinkler|expansion space|suite)\b/i;
+  const weak   = /\b(new|construct|erect|addition|expansion|shell|condo|dwelling|residential building)\b/i;
+  if (strong.test(t)) return true;
+  if (/\b\d{2,3},\d{3}\s*(sf|sq|square)/i.test(t) || /\b\d{5,}\s*(sf|sq|square)/i.test(t)) return true;
+  return weak.test(t) && !tenant.test(t);
+}
+
+/** Job Value, use type, square footage and record status from a permit's own page. */
+export function accelaDetail(html) {
+  const flat = String(html || '').replace(/\s+/g, ' ');
+  const text = (label) => {
+    const m = flat.match(new RegExp(`${label}(?:<[^>]+>|&nbsp;|\\s)*([^<]+)<`));
+    return m ? unescapeHtml(m[1]) : '';
+  };
+  const jobValue = (flat.match(/Job Value[\s\S]{0,400}?\$\s*([\d,]+(?:\.\d+)?)/) || [])[1];
+  return {
+    jobValue: jobValue ? Number(jobValue.replace(/,/g, '')) : null,
+    useType:  text('Use Type \\(Permit\\):'),
+    sqft:     Number((text('Square footage of work area:') || '').replace(/,/g, '')) || null,
+    status:   text('Record Status:'),
+  };
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────

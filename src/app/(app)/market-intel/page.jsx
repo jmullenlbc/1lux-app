@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import AskPanel from './AskPanel';
 import SectionTabs, { MARKET_INTEL_TABS } from '@/components/ui/SectionTabs';
 import SignalCard, { PROJECT_TYPE_LABELS, SIGNAL_TYPE_META } from '@/components/market-intel/SignalCard';
+import MacroStrip from '@/components/market-intel/MacroStrip';
 
 // A bell notification links to /market-intel?signal=<id>. useSearchParams needs
 // a Suspense boundary in Next 14, so the page is a thin wrapper.
@@ -165,6 +166,9 @@ function MarketIntelInner() {
           </div>
         </div>
       </div>
+
+      {/* National numbers (0128): rates, 5+ unit starts, permits, costs, rents. */}
+      <MacroStrip />
 
       <AskPanel />
 

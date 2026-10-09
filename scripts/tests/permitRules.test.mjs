@@ -314,3 +314,73 @@ test('Houston: the report form, 90-day windows and the CSV export rows', () => {
   assert.match(kept[0].summary, /Owner Jlb Center Street L\.P\./);
   assert.equal(profileForSource({ feedUrl: 'https://cohtora.houstontx.gov/ibi_apps/WFServlet', market: 'HOUSTON' }).key, 'HOUSTON');
 });
+
+test('Salt Lake City: the Accela form, the result rows, the next page and the permit page', async () => {
+  const { accelaDate, accelaState, accelaSearchForm, accelaNextTarget, accelaNextForm, accelaRows, accelaTotal, accelaWorthDetail, accelaDetail } = await import('../../src/lib/market-intel/permitRules.js');
+  const { accelaWindows } = await import('../../src/lib/market-intel/accelaFeed.js');
+  const S = PERMIT_PROFILES.SALT_LAKE;
+  assert.equal(S.api, 'accela');
+  assert.equal(profileForSource({ feedUrl: S.layerUrl, market: 'SALT_LAKE' }).key, 'SALT_LAKE');
+
+  assert.equal(accelaDate(Date.UTC(2026, 9, 8)), '10/08/2026');
+  const page = '<input type="hidden" id="__VIEWSTATE" value="VS1" /><input type="hidden" id="__VIEWSTATEGENERATOR" value="A9A677DE" /><input type="hidden" id="__VIEWSTATEENCRYPTED" value="" />';
+  const state = accelaState(page);
+  assert.deepEqual(state, { __VIEWSTATE: 'VS1', __VIEWSTATEGENERATOR: 'A9A677DE', __VIEWSTATEENCRYPTED: '' });
+  const form = new URLSearchParams(accelaSearchForm(S, Date.UTC(2026, 8, 1), Date.UTC(2026, 8, 15), state));
+  assert.equal(form.get('ctl00$PlaceHolderMain$generalSearchForm$txtGSStartDate'), '09/01/2026');
+  assert.equal(form.get('ctl00$PlaceHolderMain$generalSearchForm$ddlGSPermitType'), 'Building/Permit/Commercial/NA');
+  assert.equal(form.get('ctl00$PlaceHolderMain$btnNewSearch'), 'Search');
+  assert.equal(form.get('__VIEWSTATE'), 'VS1');
+
+  const row = (no, desc, status, project = 'Tower A') => `<span id="lblUpdatedTime" CSS="x">10/08/2026</span><a href="/SLCREF/Cap/CapDetail.aspx?Module=Building&amp;capID1=26HIS&amp;capID2=00000&amp;capID3=${no}">x</a>`
+    + `<span id="lblPermitNumber1">BLD2026-${no}</span><span id="lblType">Commercial Building Permit</span><span id="lblDescription">${desc}</span>`
+    + `<span id="lblProjectName">${project}</span><span id="lblAddress">177 E 900 S, Salt Lake City UT 84111-4229</span><span id="lblStatus">${status}</span>`;
+  const list = `Showing 1-10 of 100+ ${row('08316', 'New 6 story 212 unit apartment building', 'In For Review')}${row('08294', 'Suite remodel &amp; paint', 'Issued', '')}`
+    + `<a href="javascript:__doPostBack(&#39;ctl00$PlaceHolderMain$dgvPermitList$gdvPermitList$ctl13$ctl14&#39;,&#39;&#39;)">Next</a>`;
+  const rows = accelaRows(list);
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].permitNumber, 'BLD2026-08316');
+  assert.equal(rows[0].url, '/SLCREF/Cap/CapDetail.aspx?Module=Building&capID1=26HIS&capID2=00000&capID3=08316');
+  assert.equal(rows[1].description, 'Suite remodel & paint');
+  assert.equal(accelaTotal(list), 101);
+  assert.equal(accelaNextTarget(list), 'ctl00$PlaceHolderMain$dgvPermitList$gdvPermitList$ctl13$ctl14');
+  assert.equal(accelaNextTarget('<p>no more</p>'), null);
+  const next = new URLSearchParams(accelaNextForm(S, Date.UTC(2026, 8, 1), Date.UTC(2026, 8, 15), state, 'ctl00$x'));
+  assert.equal(next.get('__EVENTTARGET'), 'ctl00$x');
+  assert.equal(next.get('ctl00$PlaceHolderMain$btnNewSearch'), null);
+  assert.equal(accelaWorthDetail(rows[0]), true);
+  assert.equal(accelaWorthDetail(rows[1]), false);
+  // only rows that read like a whole building are worth opening (each page is a second)
+  const worth = (projectName, description, status = 'In For Review') => accelaWorthDetail({ projectName, description, status });
+  assert.equal(worth('Phase II - The Cooperative', '128 unit affordable housing project'), true);
+  assert.equal(worth('South Temple Apartments', 'Lobby refresh'), true);
+  assert.equal(worth('', 'New 4 story mixed-use building, 40,015 sf'), true);
+  assert.equal(worth('LifeStance Health', 'THIS WORK CONSISTS OF THE INTERIOR ALTERATIONS FOR A NEW TENANT'), false);
+  assert.equal(worth("Trader Joe's", 'New 2800 SQ.FT expansion space, new bathroom, new break room'), false);
+  assert.equal(worth('Swallow 327 #2', 'Fire remediation - just 1 unit'), false);
+  assert.equal(worth('Provenza Wall Sign', 'New wall sign', 'Void'), false);
+  assert.equal(worth('', 'Construct new 2 story office building shell'), true);
+
+  const detail = 'Job Value<span><span><span>($)</span></span></span>:</h2></span><span class="ACA_SmLabel">$71,000,000.00</span></div>'
+    + "Use Type (Permit): </span> </div> <div class='c'> <span class='s'>New Construction</span> </div>"
+    + 'Square footage of work area: </span></div><div><span>184,500</span></div>'
+    + 'Record Status:</span>&nbsp;<span id="ctl00_PlaceHolderMain_lblRecordStatus">Issued</span></h1>';
+  assert.deepEqual(accelaDetail(detail), { jobValue: 71000000, useType: 'New Construction', sqft: 184500, status: 'Issued' });
+  assert.equal(accelaDetail('<p>nothing</p>').jobValue, null);
+
+  // the row plus its page becomes a signal; the city name is cut from the address
+  const sig = permitToSignal(S, { ...rows[0], ...accelaDetail(detail), url: 'https://aca-prod.accela.com' + rows[0].url });
+  assert.ok(sig);
+  assert.equal(sig.valuation, 71000000);
+  assert.equal(sig.unitCount, 212);
+  assert.equal(sig.permitNumber, 'BLD2026-08316');
+  assert.match(sig.title, /177 E 900 S/);
+  assert.doesNotMatch(sig.title, /Salt Lake City UT/);
+  assert.equal(sig.extracted.metro, 'Salt Lake City, UT');
+  assert.equal(permitToSignal(S, { ...rows[1], jobValue: 71000 }), null);
+  assert.equal(permitToSignal(S, { ...rows[0], jobValue: 71000000, status: 'Withdrawn' }), null);
+
+  const w = accelaWindows(Date.UTC(2026, 0, 1), Date.UTC(2026, 1, 5), 14);
+  assert.equal(w.length, 3);
+  assert.equal(w[2].end.toISOString(), '2026-02-05T00:00:00.000Z');
+});

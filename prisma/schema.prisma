@@ -2172,6 +2172,10 @@ model MarketSource {
   projectTypes     String         @default("[]") // JSON array: ["MARKET_RATE","AFFORDABLE","STUDENT_HOUSING","SENIOR_LIVING"]
   isActive         Boolean        @default(true)
   lastPolledAt     DateTime?
+  // A portal walked page by page (Salt Lake City's Accela, 0128) cannot finish
+  // 180 days inside one 22 s slice. This is the end of the last window saved;
+  // the next slice starts there and it clears once the walk reaches today.
+  pullCursorAt     DateTime?
   pollingFrequency String         @default("DAILY") // "DAILY" | "WEEKLY"
   notes            String?
   signals          MarketSignal[]
@@ -4001,4 +4005,21 @@ model AppSetting {
   updatedById String?
 
   updatedBy User? @relation("AppSettingUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+}
+
+// One national number on one date (migration 0128, Mike 10-8: "the macro
+// market numbers on the market intelligence tab"). Series come from FRED's
+// public CSV (no key): Fed funds, 10 yr Treasury, 30 yr mortgage, 5+ unit
+// starts, completions and permits, construction materials PPI, rent CPI and
+// rental vacancy. The strip at the top of Market Intelligence reads the latest
+// row and the row a year earlier. Catalog in src/lib/market-intel/macroStats.js.
+model MacroStat {
+  id        String   @id @default(cuid())
+  series    String   // FRED series id, e.g. "DFF", "HOUST5F"
+  date      DateTime // the observation date the source gives
+  value     Float
+  source    String   @default("FRED")
+  fetchedAt DateTime @default(now())
+
+  @@unique([series, date])
 }
