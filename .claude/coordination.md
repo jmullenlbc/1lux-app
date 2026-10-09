@@ -6,6 +6,8 @@ Cross-session memory for the ILC platform. Read this at session start to see wha
 
 - New `SalesExpense` table (0129, create table + indexes only). "Amount spent ($)" on sales notes writes one row per note; Expenses tab at `/sales/activity/expenses` for standalone spend; Spent card, column and period metric on Sales Activity; "Cost to First Project" on Sales Activity and on every company's Overview tab (meetings, in person, dollars, days to the first WON/COMPLETED status event).
 - Archive-only like the rest of the CRM (DELETE 405). Note-borne rows are changed on the note; the expense PATCH refuses them with a 409.
+- Mike 10-9: expenses are a placeholder until the data source is settled; a note naming several companies splits its spend evenly; amount box also on the New Note modal.
+- Same commit: public budget tool no-drawings sidebar now lists the required boxes still blank (it priced only once all five were typed and said "Upload your drawings" meanwhile) and reports a failed price call's HTTP code.
 - Waits on Mike's "Deploy".
 
 ### 2026-10-09 - Mike's Claude - **DEPLOYED fc72d06**, no migration: FRED User-Agent fix for the national numbers strip

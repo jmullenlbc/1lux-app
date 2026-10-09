@@ -471,6 +471,9 @@ export default function IntakeClient() {
   // server's usual for the building type.
   const [hasClubhouse, setHasClubhouse] = useState('');
   const [estimate, setEstimate] = useState(null); // { budget, projectData, range } from the server
+  // HTTP status of the last failed estimate call (429 rate limit, 401 password
+  // gate), so the sidebar can say why the number did not come back.
+  const [estimateStatus, setEstimateStatus] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted,  setSubmitted]  = useState(false);
   const [submitError, setSubmitError] = useState(null);
@@ -635,9 +638,9 @@ export default function IntakeClient() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ answers: mergedAnswers, drawings: manual ? null : drawings }),
         });
-        if (!res.ok) return; // keep the last good estimate
+        if (!res.ok) { if (seq === estimateSeq.current) setEstimateStatus(res.status); return; } // keep the last good estimate
         const data = await res.json();
-        if (seq === estimateSeq.current) setEstimate(data);
+        if (seq === estimateSeq.current) { setEstimate(data); setEstimateStatus(null); }
       } catch { /* transient network failure — keep the last good estimate */ }
     }, 500);
     return () => clearTimeout(t);
@@ -1813,9 +1816,36 @@ export default function IntakeClient() {
                 <div className="text-2xl font-bold text-white tabular-nums">—</div>
               </div>
               <div className="px-4 py-4">
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  Upload your drawings and answer the design questions to watch your budget build itself.
-                </p>
+                {/* Say what is holding the number back. Mike 10-9: on the
+                    no-drawings path the sidebar sat on "Upload your drawings"
+                    while one required box (surface stalls, exterior amenity
+                    SF) was still blank, so it looked broken. */}
+                {manual && !manualCheck.ready ? (
+                  <>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      Your budget prices as soon as these boxes on the Drawings page are filled in:
+                    </p>
+                    <ul className="mt-2 space-y-1">
+                      {manualCheck.missing.map(m => (
+                        <li key={m} className="text-xs text-amber-700 font-medium leading-relaxed">• {m}</li>
+                      ))}
+                    </ul>
+                  </>
+                ) : manual || drawings ? (
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    {estimateStatus
+                      ? `The live price did not come back (code ${estimateStatus}). Keep going; it tries again on your next change.`
+                      : 'Pricing your budget now. It updates as you answer the design questions.'}
+                  </p>
+                ) : haveDrawings === null ? (
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Tell us whether you have drawings on the Drawings page. With drawings we read the figures; without them you type five numbers and the budget prices live.
+                  </p>
+                ) : (
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Upload your drawings and answer the design questions to watch your budget build itself.
+                  </p>
+                )}
                 <p className="text-xs text-slate-400 mt-2 leading-relaxed">{CONFIRM_NOTE}</p>
               </div>
             </aside>

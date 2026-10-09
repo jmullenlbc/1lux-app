@@ -61,9 +61,12 @@ export async function firstProjectCostRows(prisma, { clientIds = null } = {}) {
   for (const l of links) (notesBy[l.clientId] ||= []).push({ date: noteDate(l.note), isInPerson: l.note.isInPerson, userId: l.note.createdById, userName: l.note.createdBy?.name });
   for (const e of expenses) {
     // An expense pinned to a company counts there only; one that rides on a
-    // note counts for every company on that note.
+    // note is split evenly across the note's companies (Mike 10-9: a golf
+    // league with 20 clients is not 20 full rounds). Placeholder until the
+    // expense data source is settled.
     const targets = e.clientId ? [e.clientId] : (e.note?.clients || []).map(c => c.clientId);
-    for (const cid of targets) if (ids.includes(cid)) (expBy[cid] ||= []).push({ spentOn: e.spentOn, amountCents: e.amountCents });
+    const share = targets.length ? Math.round(e.amountCents / targets.length) : 0;
+    for (const cid of targets) if (ids.includes(cid)) (expBy[cid] ||= []).push({ spentOn: e.spentOn, amountCents: share });
   }
 
   return clients.map(c => {

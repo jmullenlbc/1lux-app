@@ -580,7 +580,7 @@ function MoreMenu({ onArchive }) {
 
 // ── New note (manual) ─────────────────────────────────────────────────────────
 
-const BLANK_NEW = { title: '', meetingDate: '', activityType: '', meetingLink: '', clientId: '' };
+const BLANK_NEW = { title: '', meetingDate: '', activityType: '', meetingLink: '', clientId: '', amountSpent: '' };
 
 function NewNoteModal({ open, clients, onClose, onCreated }) {
   const [f, setF] = useState(BLANK_NEW);
@@ -602,6 +602,7 @@ function NewNoteModal({ open, clients, onClose, onCreated }) {
           activityType: f.activityType || undefined,
           meetingLink:  f.meetingLink.trim() || null,
           clientIds:    f.clientId ? [f.clientId] : [],
+          amountSpent:  f.amountSpent,
         }),
       });
       const d = await res.json().catch(() => ({}));
@@ -633,12 +634,18 @@ function NewNoteModal({ open, clients, onClose, onCreated }) {
             </select>
           </div>
         </div>
-        <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1">Company <span className="font-normal text-slate-400">(optional)</span></label>
-          <select value={f.clientId} onChange={e => setF({ ...f, clientId: e.target.value })} className={input}>
-            <option value="">—</option>
-            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">Company <span className="font-normal text-slate-400">(optional)</span></label>
+            <select value={f.clientId} onChange={e => setF({ ...f, clientId: e.target.value })} className={input}>
+              <option value="">—</option>
+              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">Amount spent ($) <span className="font-normal text-slate-400">(optional)</span></label>
+            <input inputMode="decimal" value={f.amountSpent} onChange={e => setF({ ...f, amountSpent: e.target.value })} placeholder="0.00" className={input} />
+          </div>
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-500 mb-1">Calendar link <span className="font-normal text-slate-400">(optional — paste the Outlook event link)</span></label>
