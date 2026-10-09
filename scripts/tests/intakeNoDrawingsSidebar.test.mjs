@@ -36,6 +36,25 @@ test('the typed-in estimate prices once the minimum is in, and not before', () =
   assert.equal(partial.projectData, null);
 });
 
+test('provisional: the sidebar prices from a unit count alone, labeled rough; strict callers still refuse', () => {
+  const onlyUnits = { noDrawings: 'yes', figureTotalUnits: '120' };
+  const r = computeIntakeEstimate({ answers: onlyUnits, drawings: null, provisional: true });
+  assert.ok(r.budget && r.budget.totalWithControls > 0, 'a rough number comes back');
+  assert.equal(r.provisional, true);
+  assert.equal(r.range, null, 'no "likely between" band on a rough number');
+  assert.ok(r.missing.includes('Project type') && r.missing.includes('Stories'));
+  // The PDF and hand-off call without provisional and still get nothing.
+  assert.equal(computeIntakeEstimate({ answers: onlyUnits, drawings: null }).budget, null);
+  // No units, no number, even provisionally.
+  assert.equal(computeIntakeEstimate({ answers: { noDrawings: 'yes' }, drawings: null, provisional: true }).budget, null);
+  // Filling the five boxes turns the rough number into the real one.
+  const real = computeIntakeEstimate({ answers: full, drawings: null, provisional: true });
+  assert.ok(!real.provisional && real.range);
+  // Partial: typed figures move the rough number.
+  const more = computeIntakeEstimate({ answers: { ...onlyUnits, projectType: 'Garden (3 Levels)', figureAvgUnitSf: '1200' }, drawings: null, provisional: true });
+  assert.ok(more.budget.totalWithControls !== r.budget.totalWithControls);
+});
+
 test('the sidebar placeholder lists the missing boxes and reports a failed price call', () => {
   const src = read('src/app/conceptual_budget/IntakeClient.jsx');
   assert.match(src, /manual && !manualCheck\.ready \? \(/);

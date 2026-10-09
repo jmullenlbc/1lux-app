@@ -2,7 +2,10 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-09 (newest) - Mike's Claude - **DEPLOYED c6db704**, migration 0129 (additive): Sales expenses + cost to first project
+### 2026-10-09 (newest) - Mike's Claude - **BUILT, NOT DEPLOYED**, no migration: Municipal tab + stage filter, article "Read tags now", permit card fields, rough sidebar price
+Permits tab renamed Municipal; Stage filter (concept, site entitlement, council, permit) from `src/lib/market-intel/stages.js`. Articles tab reads the untagged backlog (failed on credits 10-5 to 10-9). Owner lookup returns units. Public tool sidebar prices from units alone, labeled rough. No Sean action.
+
+### 2026-10-09 - Mike's Claude - **DEPLOYED c6db704**, migration 0129 (additive): Sales expenses + cost to first project
 
 - New `SalesExpense` table (0129, create table + indexes only). "Amount spent ($)" on sales notes writes one row per note; Expenses tab at `/sales/activity/expenses` for standalone spend; Spent card, column and period metric on Sales Activity; "Cost to First Project" on Sales Activity and on every company's Overview tab (meetings, in person, dollars, days to the first WON/COMPLETED status event).
 - Archive-only like the rest of the CRM (DELETE 405). Note-borne rows are changed on the note; the expense PATCH refuses them with a 409.

@@ -5,6 +5,17 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Municipal tab, article tags, permit card fields, rough sidebar price] - October 9, 2026 (BUILT, NOT DEPLOYED) - no migration
+
+Mike: "change the permit tab to be called something about municipal ... filterable by the stage", "I still do not see tags associated with articles", "permit cards ... show the company that filed for the permit and units as fields", and "the budget should show up even if not everything's filled in".
+
+- **Municipal tab.** The Permits tab is now "Municipal" (same address, `/market-intel/permits`), headed "Municipal filings", with a Stage filter: Concept submissions, Site entitlements, City council approvals, Permit submissions. A concept case whose type is a land use approval (rezoning, PUD, planned development, conditional or special use, annexation, plat, subdivision, variance) counts as a site entitlement; the rest are concept submissions. Council approvals have no feed yet (needs an agenda reader). Pure rules in `src/lib/market-intel/stages.js`; the signals API takes `?stage=`. No migration: `kind` stays a plain string.
+- **Permit cards are all fields.** Location, Units, Project and Owner / developer on every filing; Case type and Filed on concept cases; Filed by, Declared value and Issued on permits. The owner web lookup now also returns the unit count and fills it when the city left it blank. The lookup's note moved into the Source link's tooltip.
+- **Article tags.** The code worked, but every article read failed for lack of credit from 10-5 until credits were added 10-9, and none has run since. The Articles tab now shows how many articles are waiting and a "Read tags now" button that reads them 25 at a time (22 second slices) until none are left. Each read now fetches the article page itself, not only the feed summary, so tags are richer. Project types gain Build to rent and Hospitality; the project type chip on a card filters the list.
+- **Public budget tool: rough number before every box is filled.** The live sidebar prices from a unit count alone, labeled "Rough number" with the boxes still filled by typical figures. The PDF and hand-off still need the full minimum.
+
+Files: `src/lib/market-intel/stages.js`, `src/app/api/market-intel/signals/route.js`, `src/app/api/market-intel/retag/route.js`, `src/lib/market-intel/poller.js`, `src/lib/market-intel/rss-fetcher.js`, `src/lib/market-intel/entity-extractor.js`, `src/lib/market-intel/ownerRules.js`, `src/lib/market-intel/ownerLookup.js`, `src/components/market-intel/SignalCard.jsx`, `src/app/(app)/market-intel/page.jsx`, `src/app/(app)/market-intel/permits/page.jsx`, `src/components/ui/SectionTabs.jsx`, `src/lib/intake/estimate.js`, `src/lib/intake/noDrawingGuesses.js`, `src/components/wizard/BudgetSidebar.jsx`, `src/app/conceptual_budget/IntakeClient.jsx`, `scripts/tests/municipalStages.test.mjs`, `scripts/tests/intakeNoDrawingsSidebar.test.mjs`.
+
 ## [Sales expenses + cost to first project] - October 9, 2026 (DEPLOYED c6db704) - migration 0129 (additive)
 
 Mike: "Let's tie in sales person expenses to sales activity. Also, let's gauge how many meetings or money spent does it cost to get the 1st project with a client."

@@ -4,20 +4,26 @@ import { useSearchParams } from 'next/navigation';
 import SectionTabs, { MARKET_INTEL_TABS } from '@/components/ui/SectionTabs';
 import SignalCard from '@/components/market-intel/SignalCard';
 import { postParked } from '@/lib/parkedFetch';
+import { STAGES, isEntitlementClass } from '@/lib/market-intel/stages';
 
 /**
- * Permits tab (migration 0123, Mike 10-7). Building permits pulled from a
+ * Municipal tab (was Permits; renamed and staged Mike 10-9). Migration 0123, Mike 10-7. Building permits pulled from a
  * city's open data, shown with the same tags, filters, assignment and review
  * as the news tab. Denver first; another city is one profile in permitRules.js.
  */
 const PERMIT_CLASSES = ['New Building', 'Addition', 'Phased Construction', 'Foundation Only/Excavation'];
 // Concept plans (Mike 10-8): the planning cases filed about a year before the permit.
 const CONCEPT_CLASSES = ['Site Plan Administrative', 'Site Plan Commission', 'Site Plan Small Project', 'Zoning/Rezoning', 'Planned Unit Development (PUD)', 'Concept Plan', 'Design Review', 'Planned Development', 'Conditional Use'];
-const KIND_OPTIONS = [
-  { value: 'PERMIT',         label: 'Permits' },
-  { value: 'CONCEPT',        label: 'Concept plans' },
-  { value: 'PERMIT,CONCEPT', label: 'Permits and concept plans' },
-];
+// Stage filter (Mike 10-9), earliest stage first. See stages.js.
+const STAGE_OPTIONS = [{ value: 'ALL', label: 'All stages' }, ...STAGES.map(s => ({ value: s.value, label: s.label }))];
+function classesFor(stage) {
+  if (stage === 'PERMIT')      return PERMIT_CLASSES;
+  if (stage === 'CONCEPT')     return CONCEPT_CLASSES.filter(c => !isEntitlementClass(c));
+  if (stage === 'ENTITLEMENT') return CONCEPT_CLASSES.filter(isEntitlementClass);
+  if (stage === 'COUNCIL')     return [];
+  return [...CONCEPT_CLASSES, ...PERMIT_CLASSES];
+}
+const STAGE_NOUN = { ALL: 'filing', PERMIT: 'permit', CONCEPT: 'concept submission', ENTITLEMENT: 'site entitlement', COUNCIL: 'council approval' };
 
 export default function PermitsPage() {
   return (
@@ -28,7 +34,7 @@ export default function PermitsPage() {
 }
 
 const EMPTY_FILTERS = {
-  kind:         'PERMIT',
+  stage:        'ALL',
   reviewStatus: 'UNREVIEWED',
   permitClass:  '',
   clientId:     '',
@@ -43,7 +49,7 @@ const EMPTY_FILTERS = {
 function PermitsInner() {
   const searchParams = useSearchParams();
   const deepLinkId   = searchParams.get('signal') || '';
-  const deepLinkKind = KIND_OPTIONS.some(k => k.value === searchParams.get('kind')) ? searchParams.get('kind') : '';
+  const deepLinkKind = STAGE_OPTIONS.some(k => k.value === searchParams.get('stage')) ? searchParams.get('stage') : '';
   const [signals,     setSignals]     = useState([]);
   const [total,       setTotal]       = useState(0);
   const [loading,     setLoading]     = useState(true);
@@ -56,7 +62,7 @@ function PermitsInner() {
   const [polling,     setPolling]     = useState(false);
   const [pollNote,    setPollNote]    = useState('');
   const [filters,     setFilters]     = useState(() => {
-    const base = deepLinkKind ? { ...EMPTY_FILTERS, kind: deepLinkKind } : EMPTY_FILTERS;
+    const base = deepLinkKind ? { ...EMPTY_FILTERS, stage: deepLinkKind } : EMPTY_FILTERS;
     return deepLinkId ? { ...base, reviewStatus: '', signalId: deepLinkId } : base;
   });
   const [sort,        setSort]        = useState('newest');
@@ -71,7 +77,7 @@ function PermitsInner() {
   const fetchSignals = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(page), kind: filters.kind || 'PERMIT' });
+      const params = new URLSearchParams({ page: String(page), stage: filters.stage || 'ALL' });
       for (const key of ['reviewStatus', 'permitClass', 'clientId', 'metro', 'state', 'company', 'assignedTo', 'hasUnits', 'signalId']) {
         if (filters[key]) params.set(key, filters[key]);
       }
@@ -125,15 +131,15 @@ function PermitsInner() {
       for (let round = 0; round < 60; round++) {
         const res  = await fetch('/api/market-intel/permits/poll', { method: 'POST' });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) { setPollNote(data.error || `Pull failed after ${ins} new permit${ins === 1 ? '' : 's'}. Press again to continue.`); return; }
+        if (!res.ok) { setPollNote(data.error || `Pull failed after ${ins} new filing${ins === 1 ? '' : 's'}. Press again to continue.`); return; }
         const logs = data.logs || [];
         ins += logs.reduce((n, l) => n + (l.inserted || 0), 0);
         errs.push(...logs.flatMap(l => l.errors || []));
         fetchSignals();
         if (!data.more) break;
-        setPollNote(`${ins} new permit${ins === 1 ? '' : 's'} so far, still pulling…`);
+        setPollNote(`${ins} new filing${ins === 1 ? '' : 's'} so far, still pulling…`);
       }
-      setPollNote(`${ins} new permit${ins === 1 ? '' : 's'}${errs.length ? `, ${errs.length} error${errs.length === 1 ? '' : 's'}: ${errs[0].error}` : ''}`);
+      setPollNote(`${ins} new filing${ins === 1 ? '' : 's'}${errs.length ? `, ${errs.length} error${errs.length === 1 ? '' : 's'}: ${errs[0].error}` : ''}`);
     } finally {
       setPolling(false);
     }
@@ -194,9 +200,9 @@ function PermitsInner() {
       <div className="max-w-5xl mx-auto">
         <div className="flex items-start justify-between mb-5">
           <div>
-            <h1 className="text-xl font-semibold text-slate-900">Permits and concept plans</h1>
+            <h1 className="text-xl font-semibold text-slate-900">Municipal filings</h1>
             <p className="text-sm text-slate-500 mt-0.5">
-              {total.toLocaleString()} {filters.kind === 'CONCEPT' ? `concept plan${total !== 1 ? 's' : ''}` : filters.kind === 'PERMIT' ? `permit${total !== 1 ? 's' : ''}` : `record${total !== 1 ? 's' : ''}`} · building permits and the site plan cases filed about a year before them, from city feeds, matched to clients
+              {total.toLocaleString()} {STAGE_NOUN[filters.stage] || 'filing'}{total !== 1 ? 's' : ''} · concept submissions, site entitlements, council approvals and permits from city feeds, matched to clients
             </p>
             {pollNote && <p className="text-xs text-slate-500 mt-1">{pollNote}</p>}
             {findNote && <p className="text-xs text-slate-500 mt-1">{findNote}</p>}
@@ -224,14 +230,14 @@ function PermitsInner() {
               disabled={polling}
               className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50 whitespace-nowrap"
             >
-              {polling ? 'Pulling…' : 'Pull permits now'}
+              {polling ? 'Pulling…' : 'Pull city filings now'}
             </button>
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2 mb-5">
-          <select value={filters.kind} onChange={e => setFilter('kind', e.target.value)} className={SELECT_CLS} title="Permits, concept plans or both">
-            {KIND_OPTIONS.map(k => <option key={k.value} value={k.value}>{k.label}</option>)}
+          <select value={filters.stage} onChange={e => { setFilter('stage', e.target.value); setFilter('permitClass', ''); }} className={SELECT_CLS} title="Project stage">
+            {STAGE_OPTIONS.map(k => <option key={k.value} value={k.value}>{k.label}</option>)}
           </select>
           <select value={filters.reviewStatus} onChange={e => setFilter('reviewStatus', e.target.value)} className={SELECT_CLS}>
             <option value="UNREVIEWED">Unreviewed</option>
@@ -240,8 +246,8 @@ function PermitsInner() {
             <option value="DISMISSED">Dismissed</option>
           </select>
           <select value={filters.permitClass} onChange={e => setFilter('permitClass', e.target.value)} className={SELECT_CLS}>
-            <option value="">All {filters.kind === 'CONCEPT' ? 'case' : 'permit'} types</option>
-            {(filters.kind === 'CONCEPT' ? CONCEPT_CLASSES : filters.kind === 'PERMIT' ? PERMIT_CLASSES : [...PERMIT_CLASSES, ...CONCEPT_CLASSES]).map(c => <option key={c} value={c}>{c}</option>)}
+            <option value="">All {filters.stage === 'PERMIT' ? 'permit' : 'case'} types</option>
+            {classesFor(filters.stage).map(c => <option key={c} value={c}>{c}</option>)}
           </select>
           <select value={filters.hasUnits} onChange={e => setFilter('hasUnits', e.target.value)} className={SELECT_CLS}>
             <option value="">With or without units</option>
@@ -296,8 +302,12 @@ function PermitsInner() {
           <div className="flex items-center justify-center py-16 text-slate-400 text-sm">Loading…</div>
         ) : signals.length === 0 ? (
           <div className="text-center py-16 text-slate-400">
-            <p className="font-medium">No {filters.kind === 'CONCEPT' ? 'concept plans' : filters.kind === 'PERMIT' ? 'permits' : 'permits or concept plans'} match these filters</p>
-            <p className="text-xs mt-1">Press Pull permits now to read the city feeds. The pull reads permits and concept plans together.</p>
+            <p className="font-medium">No {STAGE_NOUN[filters.stage] || 'filing'}s match these filters</p>
+            <p className="text-xs mt-1">
+              {filters.stage === 'COUNCIL'
+                ? 'Council approvals come from city council agendas, which are not read yet.'
+                : 'Press Pull city filings now to read the city feeds. One pull reads permits and planning cases together.'}
+            </p>
           </div>
         ) : (
           <div className="space-y-2">

@@ -628,8 +628,11 @@ export default function IntakeClient() {
   // them. Typed figures only REFINE an estimate the drawings started — unless
   // the visitor said "no drawings" and filled in the minimum (Mike, 2026-09-11).
   const estimateSeq = useRef(0);
+  // Mike 10-9: on the no-drawings path the number starts as soon as a unit
+  // count is in (the server fills the other blanks and marks it rough).
+  const unitsTyped = Number(String(mergedAnswers.figureTotalUnits ?? '').replace(/[^\d.]/g, '')) > 0;
   useEffect(() => {
-    if (manual ? !manualCheck.ready : !drawings) { setEstimate(null); return; }
+    if (manual ? !unitsTyped : !drawings) { setEstimate(null); return; }
     const seq = ++estimateSeq.current;
     const t = setTimeout(async () => {
       try {
@@ -644,7 +647,7 @@ export default function IntakeClient() {
       } catch { /* transient network failure — keep the last good estimate */ }
     }, 500);
     return () => clearTimeout(t);
-  }, [mergedAnswers, figures, drawings, manual, manualCheck.ready]);
+  }, [mergedAnswers, figures, drawings, manual, unitsTyped]);
 
   // The old "Figures we couldn't read from your drawings" card on the Units
   // page is gone (Mike, 2026-09-16: "unread figures belong on the drawings
@@ -1806,7 +1809,8 @@ export default function IntakeClient() {
         {!submitted && (
           hasEstimate ? (
             <div className="hidden lg:flex shrink-0">
-              <BudgetSidebar budget={budget} projectData={estimatePd} currentStep={step.budgetStep || null} range={range} projectName={project} homeType={homeType} />
+              <BudgetSidebar budget={budget} projectData={estimatePd} currentStep={step.budgetStep || null} range={range} projectName={project} homeType={homeType}
+                roughMissing={estimate?.provisional ? (estimate.missing || []) : null} />
             </div>
           ) : (
             <aside className="hidden lg:flex w-64 bg-white border-l border-slate-100 flex-col shrink-0">
@@ -1823,7 +1827,7 @@ export default function IntakeClient() {
                 {manual && !manualCheck.ready ? (
                   <>
                     <p className="text-xs text-slate-500 leading-relaxed">
-                      Your budget prices as soon as these boxes on the Drawings page are filled in:
+                      A rough number shows as soon as Total units is typed. These boxes on the Drawings page tighten it:
                     </p>
                     <ul className="mt-2 space-y-1">
                       {manualCheck.missing.map(m => (

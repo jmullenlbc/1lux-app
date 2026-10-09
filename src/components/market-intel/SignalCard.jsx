@@ -1,17 +1,21 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import { municipalStage, STAGE_BY_VALUE } from '@/lib/market-intel/stages';
 
 /**
  * One Market Intel signal: a news article or, since 0123, a city permit.
  * Shared by /market-intel and /market-intel/permits so both tabs tag, filter,
  * assign and review the same way (Mike 10-7).
  */
+// Project type is a tag too (Mike 10-9: "type of projects like affordable housing").
 export const PROJECT_TYPE_LABELS = {
-  MARKET_RATE:    'Market Rate',
-  AFFORDABLE:     'Affordable',
-  STUDENT_HOUSING:'Student Housing',
-  SENIOR_LIVING:  'Senior Living',
+  MARKET_RATE:     'Market rate',
+  AFFORDABLE:      'Affordable housing',
+  STUDENT_HOUSING: 'Student housing',
+  SENIOR_LIVING:   'Senior living',
+  BUILD_TO_RENT:   'Build to rent',
+  HOSPITALITY:     'Hospitality',
 };
 
 export const SIGNAL_TYPE_META = {
@@ -31,11 +35,11 @@ export const SIGNAL_TYPE_META = {
 /** Where a signal of each kind lives, for links between them. */
 export function signalHref(signal) {
   if (signal.kind === 'PERMIT')  return `/market-intel/permits?signal=${signal.id}`;
-  if (signal.kind === 'CONCEPT') return `/market-intel/permits?kind=CONCEPT&signal=${signal.id}`;
+  if (signal.kind === 'CONCEPT' || signal.kind === 'COUNCIL') return `/market-intel/permits?signal=${signal.id}`;
   return `/market-intel?signal=${signal.id}`;
 }
 
-const SUPERSEDE_LABELS = { PERMIT: 'permit', CONCEPT: 'concept plan', ARTICLE: 'article' };
+const SUPERSEDE_LABELS = { PERMIT: 'permit', CONCEPT: 'concept plan', COUNCIL: 'council item', ARTICLE: 'article' };
 
 const ROLE_LABELS = { DEVELOPER: 'developer', OWNER: 'owner', INVESTOR: 'investor', GC: 'GC', ARCHITECT: 'architect', LENDER: 'lender' };
 const TAG_STYLES  = {
@@ -45,6 +49,10 @@ const TAG_STYLES  = {
   STATE:   'bg-teal-50 text-teal-700 hover:bg-teal-100',
 };
 
+function Field({ label, children }) {
+  return <div className="min-w-0"><dt className="text-slate-400">{label}</dt><dd className="text-slate-700 truncate">{children}</dd></div>;
+}
+
 function money(n) {
   if (!n) return '';
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1)}M`;
@@ -52,7 +60,7 @@ function money(n) {
   return `$${Math.round(n)}`;
 }
 
-export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, onFindOwner, salesUsers = [] }) {
+export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, onFindOwner, onProjectTypeClick, salesUsers = [] }) {
   // Owner looked up on the web (0126): a permit names the builder, not the owner.
   const [finding, setFinding] = useState(false);
   async function findOwner() {
@@ -60,10 +68,12 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
     setFinding(true);
     try { await onFindOwner(signal.id); } finally { setFinding(false); }
   }
-  const meta         = SIGNAL_TYPE_META[signal.signalType] || SIGNAL_TYPE_META.NEWS;
-  // A concept plan is a permit-shaped row (address, units, case number) with no value or contractor.
-  const isConcept    = signal.kind === 'CONCEPT';
-  const isPermit     = signal.kind === 'PERMIT' || isConcept;
+  // A concept plan or council item is a permit-shaped row (address, units, case number) with no value or contractor.
+  const stage        = municipalStage(signal);
+  const isConcept    = signal.kind === 'CONCEPT' || signal.kind === 'COUNCIL';
+  const isPermit     = !!stage;
+  const meta         = stage ? { label: STAGE_BY_VALUE[stage].chip, color: STAGE_BY_VALUE[stage].color }
+                     : (SIGNAL_TYPE_META[signal.signalType] || SIGNAL_TYPE_META.NEWS);
   const developers   = (() => { try { return JSON.parse(signal.developerNames || '[]'); } catch { return []; } })();
   const isDismissed  = signal.reviewStatus === 'DISMISSED';
   const tagLinks     = signal.tags || [];
@@ -80,6 +90,11 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
   const addable      = tagLinks.filter(l => l.tag.kind === 'COMPANY' && !l.tag.clientId);
   const [adding, setAdding] = useState('');
   const linkedChip   = ['AUTO_LINKED', 'CONFIRMED'].includes(signal.matchStatus) && signal.linkedClient;
+  // Card fields (Mike 10-9: "the company that filed" and units as fields, not
+  // the note below). Owner side first, then whoever the city printed.
+  const ownerTag     = tagLinks.find(l => l.tag.kind === 'COMPANY' && ['DEVELOPER', 'OWNER', 'INVESTOR'].includes(l.role));
+  const projectTag   = tagLinks.find(l => l.tag.kind === 'PROJECT');
+  const ownerName    = ownerTag?.tag.name || (isConcept ? developers[0] : developers.find(n => n !== signal.contractorName)) || null;
   // One building, one count (0124): a permit beats a concept plan beats an article.
   const superseded   = !!(signal.supersededById && signal.supersededBy);
 
@@ -104,9 +119,13 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
               <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{signal.permitClass}</span>
             )}
             {signal.projectType && (
-              <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
+              <button
+                onClick={() => onProjectTypeClick?.(signal.projectType)}
+                className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 hover:bg-violet-100"
+                title="Show everything of this project type"
+              >
                 {PROJECT_TYPE_LABELS[signal.projectType] || signal.projectType}
-              </span>
+              </button>
             )}
             {signal.reviewStatus === 'REVIEWED' && (
               <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-green-50 text-green-600">✓ Reviewed</span>
@@ -135,24 +154,23 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
             <span className="text-sm font-semibold text-slate-800 line-clamp-2">{signal.title}</span>
           )}
 
-          {/* Permit facts as a row of labelled values, not prose (0123). */}
+          {/* Permit facts as a row of labelled values, not prose (0123, Mike 10-9). */}
           {isPermit ? (
-            <dl className="grid grid-cols-2 sm:grid-cols-5 gap-x-4 gap-y-1 mt-1.5 text-xs">
-              {/* Mike 10-8: Location first, then Units, Declared value, Contractor, Issued.
-                  No neighborhood, no permit number: "we don't care about" either. */}
-              <div><dt className="text-slate-400">Location</dt><dd className="text-slate-700 font-medium">{city || signal.neighborhood || 'Unknown'}{city && stateName && <span className="text-slate-500 font-normal">, {stateName}</span>}</dd></div>
-              <div><dt className="text-slate-400">Units</dt><dd className="text-slate-700 font-medium">{signal.unitCount ? signal.unitCount.toLocaleString() : 'Not stated'}</dd></div>
+            <dl className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 mt-1.5 text-xs">
+              <Field label="Location"><span className="font-medium">{city || signal.neighborhood || 'Unknown'}</span>{city && stateName && <span className="text-slate-500">, {stateName}</span>}</Field>
+              <Field label="Units"><span className="font-medium">{signal.unitCount ? signal.unitCount.toLocaleString() : 'Not stated'}</span></Field>
+              <Field label="Project">{projectTag?.tag.name || 'Not named'}</Field>
+              <Field label="Owner / developer">{ownerName || 'Not found yet'}</Field>
               {isConcept ? (
                 <>
-                  <div><dt className="text-slate-400">Owner</dt><dd className="text-slate-700">{developers[0] || 'Not named'}</dd></div>
-                  <div><dt className="text-slate-400">Case type</dt><dd className="text-slate-700">{signal.permitClass || 'Not stated'}</dd></div>
-                  <div><dt className="text-slate-400">Filed</dt><dd className="text-slate-700">{when}</dd></div>
+                  <Field label="Case type">{signal.permitClass || 'Not stated'}</Field>
+                  <Field label="Filed">{when}</Field>
                 </>
               ) : (
                 <>
-                  <div><dt className="text-slate-400">Declared value</dt><dd className="text-slate-700">{signal.valuation ? money(signal.valuation) : 'Not stated'}</dd></div>
-                  <div><dt className="text-slate-400">Contractor</dt><dd className="text-slate-700">{signal.contractorName || 'Not named'}</dd></div>
-                  <div><dt className="text-slate-400">Issued</dt><dd className="text-slate-700">{when}</dd></div>
+                  <Field label="Filed by">{signal.contractorName || 'Not named'}</Field>
+                  <Field label="Declared value">{signal.valuation ? money(signal.valuation) : 'Not stated'}</Field>
+                  <Field label="Issued">{when}</Field>
                 </>
               )}
             </dl>
@@ -167,13 +185,12 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
             <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs">
               {signal.ownerLookupAt && signal.ownerSourceUrl ? (
                 <>
-                  <span className="text-slate-500">
-                    Found on the web:{' '}
+                  <span className="text-slate-500" title={signal.ownerLookupNote || ''}>
+                    Source:{' '}
                     <a href={signal.ownerSourceUrl} target="_blank" rel="noreferrer" className="text-amber-700 hover:underline">
                       {signal.ownerSourceTitle || signal.ownerSourceUrl.replace(/^https?:\/\/(www\.)?/, '').slice(0, 60)}
                     </a>
                   </span>
-                  {signal.ownerLookupNote && <span className="text-slate-400 line-clamp-1">{signal.ownerLookupNote}</span>}
                 </>
               ) : signal.ownerLookupAt ? (
                 <span className="text-slate-400 italic">Nothing on the web about this address yet</span>

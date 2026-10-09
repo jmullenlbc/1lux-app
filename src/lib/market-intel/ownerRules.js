@@ -9,7 +9,7 @@
  * the city's planning docs. The model searches for the address and answers
  * with the companies a page ties to it, plus the page.
  */
-import { COMPANY_ROLES, DEVELOPER_ROLES } from './tagRules.js';
+import { COMPANY_ROLES, DEVELOPER_ROLES, unitCountFrom } from './tagRules.js';
 
 export const MAX_OWNER_SEARCHES = 4;
 
@@ -60,6 +60,7 @@ When you are done searching, reply with ONLY this JSON object, nothing before or
 {
   "found": true or false,
   "projectName": "marketing name of the building, or null",
+  "unitCount": number of residential units, keys or beds in THIS building, or null,
   "companies": [{ "name": "company name", "role": "DEVELOPER | OWNER | GC | ARCHITECT | INVESTOR | LENDER | OTHER" }],
   "note": "one or two plain sentences: what the page says about the project (size, stage, timing)",
   "source": { "url": "https://... the page that names the owner", "title": "page title" }
@@ -99,6 +100,8 @@ export function readOwnerAnswer(text) {
   return {
     found:       companies.length > 0,
     projectName: plain(str(obj.projectName, 200)),
+    // Mike 10-9: units go in the card's Units field, not only the note.
+    unitCount:   unitCountFrom(obj.unitCount),
     companies,
     note:        plain(str(obj.note, 1000)),
     source,

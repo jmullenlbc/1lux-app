@@ -13,6 +13,31 @@ function stripHtml(html) {
   return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+/**
+ * The visible text of an article page, for re-reading an article whose body
+ * was never kept (Mike 10-9: tags from the headline alone are thin). Short
+ * timeout and a size cap; '' on any failure so the caller falls back to the
+ * summary. Browser-like User-Agent: many news sites refuse a bot one.
+ */
+export async function fetchArticleText(url, { timeoutMs = 6000, maxChars = 12000 } = {}) {
+  if (!/^https?:\/\//i.test(String(url || ''))) return '';
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: ctl.signal, redirect: 'follow', headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36', Accept: 'text/html' } });
+    if (!res.ok || !/html/i.test(res.headers.get('content-type') || '')) return '';
+    const html = (await res.text()).slice(0, 600000);
+    const body = html
+      .replace(/<(script|style|noscript|svg|nav|footer|header|form)[\s\S]*?<\/\1>/gi, ' ')
+      .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&#39;|&rsquo;/g, "'").replace(/&quot;|&ldquo;|&rdquo;/g, '"');
+    return stripHtml(body).slice(0, maxChars);
+  } catch {
+    return '';
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function fetchFeed(source) {
   try {
     const feed = await parser.parseURL(source.feedUrl);

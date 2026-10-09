@@ -97,6 +97,39 @@ function MarketIntelInner() {
     setPage(1);
   }
 
+  // Articles not read for tags yet (Mike 10-9: "I still do not see tags").
+  // Every read failed 10-5 to 10-9 for lack of credit, so a backlog waits;
+  // the button reads it 25 per call, looping until none are left.
+  const [unread,   setUnread]   = useState(0);
+  const [reading,  setReading]  = useState(false);
+  const [readNote, setReadNote] = useState('');
+  useEffect(() => {
+    fetch('/api/market-intel/retag').then(r => r.json()).then(d => setUnread(d.remaining || 0)).catch(() => {});
+  }, []);
+  async function readTags() {
+    setReading(true);
+    setReadNote('');
+    let tagged = 0, hidden = 0;
+    try {
+      for (let i = 0; i < 80; i++) {
+        const res  = await fetch('/api/market-intel/retag', { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
+        const log  = data.log || {};
+        if (!res.ok) { setReadNote('The read stopped. Press again to continue.'); break; }
+        tagged += log.tagged || 0;
+        hidden += log.screenedOut || 0;
+        setUnread(log.remaining ?? 0);
+        setReadNote(`Tagged ${tagged}, hid ${hidden} not about a project${log.remaining ? `, ${log.remaining} still waiting` : ''}`);
+        if (log.readFailed && !(log.tagged || log.screenedOut)) { setReadNote(`The reader could not run: ${log.readError || 'unknown error'}`); break; }
+        if (i % 3 === 2) fetchSignals();
+        if (!log.remaining) break;
+      }
+    } finally {
+      setReading(false);
+      fetchSignals();
+    }
+  }
+
   async function updateSignal(id, patch) {
     await fetch(`/api/market-intel/signals/${id}`, {
       method:  'PATCH',
@@ -171,6 +204,19 @@ function MarketIntelInner() {
       <MacroStrip />
 
       <AskPanel />
+
+      {(unread > 0 || readNote) && (
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <p className="text-sm text-amber-800">
+            {readNote || `${unread.toLocaleString()} article${unread === 1 ? '' : 's'} not read for tags yet. Tags (companies, projects, project type, place) show once an article is read.`}
+          </p>
+          {unread > 0 && (
+            <button onClick={readTags} disabled={reading} className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50 whitespace-nowrap">
+              {reading ? 'Reading…' : 'Read tags now'}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2 mb-5">
@@ -284,7 +330,7 @@ function MarketIntelInner() {
       ) : (
         <div className="space-y-2">
           {signals.map(signal => (
-            <SignalCard key={signal.id} signal={signal} onUpdate={updateSignal} onTagClick={filterByTag} onAddToCrm={addToCrm} salesUsers={salesUsers} />
+            <SignalCard key={signal.id} signal={signal} onUpdate={updateSignal} onTagClick={filterByTag} onProjectTypeClick={t => setFilter('projectType', t)} onAddToCrm={addToCrm} salesUsers={salesUsers} />
           ))}
         </div>
       )}

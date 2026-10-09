@@ -14,12 +14,15 @@
  * @see src/app/api/intake/estimate/route.js — the live sidebar number
  * @see src/app/api/intake/pdf/route.js      — the PDF download
  */
-import { answersToEngine, NO_DRAWINGS_KEY, noDrawingsReady } from './questionnaire.js';
+import { answersToEngine, NO_DRAWINGS_KEY, noDrawingsReady, INTAKE_QUESTIONS } from './questionnaire.js';
+import { NO_DRAWING_GUESSES } from './noDrawingGuesses.js';
 import { computeQuantities, answersToMap } from './quantities.js';
 import { calculateBudget } from '../calculations.js';
 import { siteFeaturesFromRows } from '../siteFeatures.js';
 import { parseLooseNumber } from '../numberInput.js';
 import { controlsMathOf } from './controlsWords.js';
+
+const INTAKE_TYPE_OPTIONS = INTAKE_QUESTIONS.find(q => q.key === 'projectType')?.options || [];
 
 /** A stated, usable number — or null (Number(null) is 0, hence the dance). */
 function num(v) {
@@ -42,11 +45,35 @@ function num(v) {
  *
  * @returns {{ ready: boolean, hasDrawings: boolean }}
  */
-export function intakeEstimateGate(answers, drawings) {
+export function intakeEstimateGate(answers, drawings, { provisional = false } = {}) {
   const map = answersToMap(answers);
   const typedIn = map[NO_DRAWINGS_KEY] === 'yes';
   const hasDrawings = !typedIn && !!drawings && typeof drawings === 'object';
-  return { ready: hasDrawings || (typedIn && noDrawingsReady(map).ready), hasDrawings };
+  const check = typedIn ? noDrawingsReady(map) : { ready: false, missing: [] };
+  if (hasDrawings || (typedIn && check.ready)) return { ready: true, hasDrawings, provisional: false, missing: [] };
+  // Provisional (Mike 10-9: "It should start filling in the numbers as numbers
+  // are filled in"): the live sidebar only, once a unit count is typed. Every
+  // other blank gets a stand-in and the result is labeled rough. Submitting,
+  // the PDF and the staff hand-off still need the full minimum.
+  if (provisional && typedIn && Number(parseLooseNumber(map.figureTotalUnits)) > 0) {
+    return { ready: true, hasDrawings: false, provisional: true, missing: check.missing };
+  }
+  return { ready: false, hasDrawings, provisional: false, missing: check.missing };
+}
+
+const PROVISIONAL_TYPE = 'Garden (3 Levels)';
+
+/** The answers with stand-ins for the size and type a provisional price needs. */
+function provisionalAnswers(answers) {
+  const map = answersToMap(answers);
+  if (!INTAKE_TYPE_OPTIONS.includes(map.projectType)) map.projectType = PROVISIONAL_TYPE;
+  const hasSize = Number(parseLooseNumber(map.figureGrossSf)) > 0 || Number(parseLooseNumber(map.figureAvgUnitSf)) > 0;
+  if (!hasSize) {
+    const typeKey = answersToEngine(map).buildingTypeKey;
+    const sf = NO_DRAWING_GUESSES.avgUnitSfByType[typeKey] ?? NO_DRAWING_GUESSES.avgUnitSfByType.garden;
+    map.figureAvgUnitSf = String(sf);
+  }
+  return map;
 }
 
 /**
@@ -55,9 +82,14 @@ export function intakeEstimateGate(answers, drawings) {
  * @returns {{ budget, projectData, quantities }} — budget/projectData null
  *   (and quantities empty) when the gate above says no.
  */
-export function computeIntakeEstimate({ answers, drawings, pricing = null, adopted = null }) {
-  const gate = intakeEstimateGate(answers, drawings);
+export function computeIntakeEstimate({ answers, drawings, pricing = null, adopted = null, provisional = false, _standIns = false }) {
+  // _standIns: internal, the provisional pass below; blanks are guessed downstream.
+  const gate = _standIns ? { ready: true, hasDrawings: false } : intakeEstimateGate(answers, drawings, { provisional });
   if (!gate.ready) return { budget: null, projectData: null, quantities: [] };
+  if (gate.provisional) {
+    const full = computeIntakeEstimate({ answers: provisionalAnswers(answers), drawings: null, pricing, adopted, _standIns: true });
+    return { ...full, range: null, provisional: true, missing: gate.missing };
+  }
 
   // Drawings → quantities (null stays null: "the drawing did not say"). A
   // typed-in budget passes no drawings; its blanks get the stand-in guesses.
@@ -301,6 +333,7 @@ export function publicIntakeEstimate(args) {
     projectData: full.projectData,
     quantities: (full.quantities || []).map(publicQuantity),
     ...(full.range !== undefined ? { range: full.range } : {}),
+    ...(full.provisional ? { provisional: true, missing: full.missing || [] } : {}),
   };
 }
 

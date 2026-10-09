@@ -59,7 +59,7 @@ export async function POST(req) {
   const { answers, drawings } = body || {};
 
   // No drawings and no typed-in minimum → no number (and no pricing load).
-  if (!intakeEstimateGate(answers, drawings).ready) {
+  if (!intakeEstimateGate(answers, drawings, { provisional: true }).ready) {
     return NextResponse.json({ budget: null, projectData: null, quantities: [] });
   }
 
@@ -69,5 +69,5 @@ export async function POST(req) {
   // (Mike 2026-09-16: "someone could steal all the math"). The public
   // projection keeps labels, the visitor's own quantities and the dollars;
   // counts × price-each, multipliers and "1 pole per 30 ft" stay internal.
-  return NextResponse.json(publicIntakeEstimate({ answers, drawings, pricing, adopted: await loadAdoptedGuesses() }));
+  return NextResponse.json(publicIntakeEstimate({ answers, drawings, pricing, adopted: await loadAdoptedGuesses(), provisional: true }));
 }

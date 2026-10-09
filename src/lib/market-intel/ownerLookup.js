@@ -87,6 +87,8 @@ export async function applyOwnerLookup(signal, answer) {
   const best    = auto || sugg;
 
   data.developerNames = mergeDeveloperNames(signal.developerNames, answer);
+  // The city's own unit count stands; the web fills it only when blank.
+  if (answer.unitCount && !signal.unitCount) data.unitCount = answer.unitCount;
   // A person's confirm or reject stands; so does a link the permit already has.
   const undecided = ['UNREVIEWED', 'SUGGESTED'].includes(signal.matchStatus);
   if (best && undecided) {

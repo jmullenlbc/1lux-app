@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { stageWhere } from '@/lib/market-intel/stages';
 import { normalizeTagName } from '@/lib/market-intel/tagRules';
 import { RELEVANCE_SELECT, PROJECT_ONLY, rankByRelevance } from '@/lib/market-intel/relevance';
 
@@ -65,7 +66,11 @@ export async function GET(request) {
   const permitClass = searchParams.get('permitClass')?.trim();
 
   const where = {};
+  // stage (Mike 10-9): the Municipal tab filters by project stage instead of
+  // kind; see stages.js. A stage list wins over kind.
+  const stage       = searchParams.get('stage')?.trim();
   if (signalId)     where.id           = signalId;
+  else if (stage)   tagFilters.push(stageWhere(stage));
   else if (kind !== 'ALL') where.kind  = kinds.length > 1 ? { in: kinds } : kind;
   // Articles that are not about a project are not wanted (Mike 10-8, 0125).
   // A direct link by id still opens, so an old bell item never 404s.

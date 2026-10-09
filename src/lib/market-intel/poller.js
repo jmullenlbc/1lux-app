@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db';
-import { fetchAllFeeds } from './rss-fetcher.js';
+import { fetchAllFeeds, fetchArticleText } from './rss-fetcher.js';
 import { extractFromArticle } from './entity-extractor.js';
 import { matchCandidates } from './fuzzy-matcher.js';
 import { matchProject } from './project-matcher.js';
@@ -120,7 +120,7 @@ async function processItem(item, projects = []) {
 
 // Articles the reader has not yet screened for "is this about a project"
 // (0125), or that have no tags yet (0122). Permits are never read here.
-const UNSCREENED = { kind: 'ARTICLE', OR: [{ projectRelated: null }, { taggedAt: null }] };
+export const UNSCREENED = { kind: 'ARTICLE', OR: [{ projectRelated: null }, { taggedAt: null }] };
 
 /**
  * Screen and re-read older articles (the "Screen articles" button). Each
@@ -131,26 +131,29 @@ const UNSCREENED = { kind: 'ARTICLE', OR: [{ projectRelated: null }, { taggedAt:
  * simply stops showing. Runs in small slices so one call stays well under
  * the 30 second read wall.
  */
-export async function retagUntagged({ limit = 25 } = {}) {
+export async function retagUntagged({ limit = 25, deadline = Date.now() + 22000, concurrency = 5 } = {}) {
   const log = { tagged: 0, screenedOut: 0, readFailed: 0, readError: null, errors: [] };
   const signals = await prisma.marketSignal.findMany({
     where:   UNSCREENED,
     orderBy: { publishedAt: 'desc' },
     take:    limit,
-    select:  { id: true, title: true, summary: true, linkedClientId: true, matchStatus: true, developerNames: true, taggedAt: true, projectRelated: true },
+    select:  { id: true, title: true, summary: true, url: true, linkedClientId: true, matchStatus: true, developerNames: true, taggedAt: true, projectRelated: true },
   });
   const remaining = Math.max(0, (await prisma.marketSignal.count({ where: UNSCREENED })) - signals.length);
-  for (const s of signals) {
+  let skipped = 0;
+
+  async function readOne(s) {
     try {
-      const extracted = await extractFromArticle(s.title, s.summary || '');
+      // The article page itself when it answers (Mike 10-9: headline-only
+      // tags are thin); the stored summary otherwise.
+      const page      = await fetchArticleText(s.url);
+      const extracted = await extractFromArticle(s.title, page || s.summary || '');
       // The model call itself failed (key, model id, credit). Leave the row
-      // untouched so it is asked again later, and stop the slice after three
-      // in a row: 25 rejected calls per press tell nobody anything new.
+      // untouched so it is asked again later.
       if (extracted.failed) {
         log.readFailed++;
         log.readError = log.readError || extracted.error;
-        if (log.readFailed >= 3 && log.tagged + log.screenedOut === 0) break;
-        continue;
+        return;
       }
       // A reader that answered but left the question blank gets the benefit
       // of the doubt. A row a person already kept ("Keep it" on a screened out
@@ -158,9 +161,15 @@ export async function retagUntagged({ limit = 25 } = {}) {
       const related = s.projectRelated === true ? true : (extracted.projectRelated ?? true);
       await prisma.marketSignal.update({
         where: { id: s.id },
-        data:  { projectRelated: related, signalType: extracted.signalType || 'NEWS', ...(related ? {} : { taggedAt: s.taggedAt || new Date() }) },
+        data:  {
+          projectRelated: related,
+          signalType:     extracted.signalType || 'NEWS',
+          ...(extracted.projectType ? { projectType: extracted.projectType } : {}),
+          ...(page && extracted.summary ? { summary: extracted.summary } : {}),
+          ...(related ? {} : { taggedAt: s.taggedAt || new Date() }),
+        },
       });
-      if (!related) { log.screenedOut++; continue; }
+      if (!related) { log.screenedOut++; return; }
       const matches   = s.linkedClientId && ['AUTO_LINKED', 'CONFIRMED'].includes(s.matchStatus)
         ? (() => { try { return JSON.parse(s.developerNames || '[]').map(n => ({ candidateName: n, clientId: s.linkedClientId, status: 'AUTO_LINKED' })); } catch { return []; } })()
         : [];
@@ -178,8 +187,16 @@ export async function retagUntagged({ limit = 25 } = {}) {
       await prisma.marketSignal.update({ where: { id: s.id }, data: { taggedAt: new Date(), projectRelated: true } }).catch(() => {});
     }
   }
+
+  // Five at a time, inside the slice (Amplify cuts a request at ~30 s).
+  for (let i = 0; i < signals.length; i += concurrency) {
+    if (Date.now() > deadline) { skipped = signals.length - i; break; }
+    await Promise.all(signals.slice(i, i + concurrency).map(readOne));
+    // Three failed calls and nothing read: the reader is down, stop spending.
+    if (log.readFailed >= 3 && log.tagged + log.screenedOut === 0) { skipped = signals.length - i - concurrency; break; }
+  }
   // Rows the reader could not read are still waiting.
-  log.remaining = remaining + log.readFailed + Math.max(0, signals.length - log.tagged - log.screenedOut - log.readFailed - log.errors.length);
+  log.remaining = remaining + log.readFailed + Math.max(0, skipped);
   return log;
 }
 

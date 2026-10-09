@@ -36,7 +36,7 @@ Rules:
 - metro: the metropolitan area the project is in, written "City, ST" (e.g. "Denver, CO"). null if the article is not about one place.
 - state: two-letter state code of the project. null if unknown.
 - unitCount: the number of residential units, keys or beds in the project the article is about. null if not stated. Never add up several projects.
-- projectType: one of MARKET_RATE | AFFORDABLE | STUDENT_HOUSING | SENIOR_LIVING | null
+- projectType: one of MARKET_RATE | AFFORDABLE | STUDENT_HOUSING | SENIOR_LIVING | BUILD_TO_RENT | HOSPITALITY | null. AFFORDABLE covers income restricted, LIHTC, workforce and public housing. BUILD_TO_RENT is a rental community of houses or townhomes. HOSPITALITY is a hotel or resort.
 - signalType: one of NEW_DEVELOPMENT | RENOVATION | FINANCING | ACQUISITION | DEVELOPER_AWARD | NEWS
   - NEW_DEVELOPMENT: a new building or community is proposed, planned, approved, under construction, breaking ground, topping out or opening
   - RENOVATION: an existing building is being renovated, redeveloped, converted, repositioned or expanded

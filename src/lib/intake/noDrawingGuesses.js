@@ -24,6 +24,14 @@
  * Server-side only: imported by quantities.js, never by the public wizard.
  */
 export const NO_DRAWING_GUESSES = {
+  // Average unit SF, used ONLY for the provisional sidebar price before the
+  // visitor has typed a building size (Mike 10-9: "the budget should show up
+  // even if not everything's filled in"). Never reaches a submitted budget:
+  // submitting still needs the real size.
+  avgUnitSfByType: {
+    singleFamily: 2200, townHouses: 1500, stackedFlats: 950, garden: 900, gurban: 900,
+    wrap: 850, podium: 850, midRise: 850, highRise: 900,
+  },
   // Stories: the low end of each type's own label ("Garden (3 Levels)",
   // "Podium (3-8 Levels)" is usually 5, "High Rise (12+)" starts at 12).
   storiesByType: {
