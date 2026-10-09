@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Salt Lake City permits + national numbers strip] - October 8, 2026 (DEPLOYED PENDING1) - migration 0128 additive
+## [Salt Lake City permits + national numbers strip] - October 8, 2026 (DEPLOYED 485aacc) - migration 0128 additive
 
 Mike 10-8: "get houston and salt lake city built" and "You never finished building out the macro market numbers on the market intelligence tab".
 
@@ -24,7 +24,7 @@ Mike 10-8: "get houston and salt lake city built" and "You never finished buildi
 - Tests: `scripts/tests/macroSeries.test.mjs` (new), Salt Lake City case in `scripts/tests/permitRules.test.mjs`.
 - After deploy: Admin presses "Add missing sources" on the Sources tab, then "Pull permits now" on Permits (several times for Salt Lake City). Apartment List rents still deferred (page is script-rendered); rent CPI stands in.
 
-## [Sales Pipeline filters] - October 8, 2026 (DEPLOYED PENDING1) - no migration
+## [Sales Pipeline filters] - October 8, 2026 (DEPLOYED 485aacc) - no migration
 
 Mike 10-8: "Pipeline filter". The Sales Pipeline (`/crm`) gets a **Filters** button next to the quick row (search, status, service type, owner). It opens a second row: stage, client, state, city, building type, project type, win % at least (20/50/80/90), expected date window (passed, 30/90/180 days, none), units at least, value at least. Every list is built from the jobs on the current board. The button shows how many extra filters are on; Clear resets everything. Client side, no API change.
 

@@ -2,10 +2,10 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-08 (newest) - Mike's Claude - **DEPLOYED PENDING1**, migration 0128 (additive): Salt Lake City permit feed + national numbers strip
+### 2026-10-08 (newest) - Mike's Claude - **DEPLOYED 485aacc**, migration 0128 (additive): Salt Lake City permit feed + national numbers strip
 `MarketSource.pullCursorAt` and new `MacroStat`. SLC walks the city's Accela portal in 14-day windows with a resume cursor (no open data; application date, value from each permit page, no owner or contractor). Nine FRED series (public CSV, no key) on a strip at the top of Market Intelligence, pulled by the page on first open, by "Refresh numbers", and by the cron when over 20 hours old. After deploy: "Add missing sources", then "Pull permits now" several times. See CHANGELOG.
 
-### 2026-10-08 - Mike's Claude - **DEPLOYED PENDING1**, no migration: Sales Pipeline "Filters" row on `/crm`
+### 2026-10-08 - Mike's Claude - **DEPLOYED 485aacc**, no migration: Sales Pipeline "Filters" row on `/crm`
 Stage, client, state, city, building type, project type, win % at least, expected date window, units and value at least. Lists come from the jobs on the board; count badge on the button; Clear resets all. Client side only.
 
 ### 2026-10-08 - Mike's Claude - **DEPLOYED 01fe79f**, migration 0127 (additive): `city` and `state` columns on MarketSignal
