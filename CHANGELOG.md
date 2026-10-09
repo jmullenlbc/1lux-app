@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [National numbers strip: FRED pull fix] - October 9, 2026 (DEPLOYED PENDING1) - no migration
+## [National numbers strip: FRED pull fix] - October 9, 2026 (DEPLOYED fc72d06) - no migration
 
 Mike: "can we get the national market numbers going now?" In prod every FRED series timed out ("The operation was aborted due to timeout"), so the strip showed nothing. FRED's edge stalls requests whose User-Agent is not browser-like; the same CSV URL answered in 0.6 s from the live app with a Mozilla User-Agent.
 
@@ -14,7 +14,7 @@ Mike: "can we get the national market numbers going now?" In prod every FRED ser
 
 Files: `src/lib/market-intel/macroStats.js`.
 
-## [Concept plan feeds: Austin, Denver, Salt Lake City] - October 8, 2026 (DEPLOYED PENDING1) - no migration
+## [Concept plan feeds: Austin, Denver, Salt Lake City] - October 8, 2026 (DEPLOYED fc72d06) - no migration
 
 Mike 10-8: "We want to get in around when the 1st site entitlement submittal goes in or right after ... probably at least 1 year before permit" and "do 25 plus units".
 
