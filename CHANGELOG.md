@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Sales expenses + cost to first project] - October 9, 2026 (DEPLOYED PENDING1) - migration 0129 (additive)
+## [Sales expenses + cost to first project] - October 9, 2026 (DEPLOYED c6db704) - migration 0129 (additive)
 
 Mike: "Let's tie in sales person expenses to sales activity. Also, let's gauge how many meetings or money spent does it cost to get the 1st project with a client."
 
