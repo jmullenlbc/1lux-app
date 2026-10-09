@@ -7,6 +7,8 @@ import { addNoteLinks, NOTE_CONTACTS_INCLUDE } from '@/lib/noteLinks';
 import { isInPersonType } from '@/lib/calendar/inPerson';
 import { cleanCalendarLink } from '@/lib/calendar/salesOwner';
 import { addNoteOwners } from '@/lib/notes/owners';
+import { syncNoteExpense, NOTE_EXPENSE_SELECT } from '@/lib/sales/noteExpense';
+import { parseAmountCents } from '@/lib/sales/expenses';
 
 async function nextNoteNumber() {
   const max = await prisma.note.aggregate({ where: { noteType: 'SALES' }, _max: { noteNumber: true } });
@@ -14,6 +16,7 @@ async function nextNoteNumber() {
 }
 
 const NOTE_INCLUDE = {
+  expense:   NOTE_EXPENSE_SELECT,
   createdBy: { select: { id: true, name: true } },
   owners: { select: { userId: true, user: { select: { id: true, name: true } } }, orderBy: { createdAt: 'asc' } },
   clients: {
@@ -83,10 +86,13 @@ export async function POST(request) {
     activityType,
     contactIds   = [],
     ownerIds     = [],
+    amountSpent,     // "Amount spent" (0129), dollars as typed
   } = body;
 
   const link = cleanCalendarLink(meetingLink);
   if (link === undefined) return NextResponse.json({ error: 'The calendar link has to be a web address (https://…).' }, { status: 400 });
+  const spentCents = parseAmountCents(amountSpent);
+  if (spentCents === undefined) return NextResponse.json({ error: 'Amount spent has to be a dollar figure, like 42.50.' }, { status: 400 });
 
   // An empty draft is fine — the "New" button starts one and the editor fills it in.
   const isInPerson = isInPersonType(activityType);
@@ -114,6 +120,10 @@ export async function POST(request) {
   await addNoteLinks(prisma, 'client',  note.id, clientIds);
   await addNoteLinks(prisma, 'project', note.id, projectIds);
   await addNoteLinks(prisma, 'contact', note.id, contactIds);
+  if (spentCents) {
+    try { await syncNoteExpense(prisma, note.id, spentCents, { userId: user.id }); }
+    catch (e) { console.error('[notes create] expense sync failed:', e?.message ?? e); }
+  }
   // "Last met" dates move only when the note is published, never on a draft.
 
   const full = await prisma.note.findUnique({ where: { id: note.id }, include: NOTE_INCLUDE });

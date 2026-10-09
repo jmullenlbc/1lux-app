@@ -29,7 +29,7 @@ import {
   DesignBidMatrix, DesignBidMatrixItem,
   PeerReviewItem, ProjectData,
 } from './objects/budget.js';
-import { Task, Note, NoteAction, Contact, RFI } from './objects/crm.js';
+import { Task, Note, NoteAction, Contact, RFI, SalesExpense } from './objects/crm.js';
 import { SENSITIVITY, DEFAULT_SENSITIVITY, NEVER_READABLE } from './sensitivity.js';
 
 const ALL = [
@@ -39,7 +39,7 @@ const ALL = [
   FixtureSchedule, FixtureScheduleItem,
   DesignBidMatrix, DesignBidMatrixItem,
   PeerReviewItem, ProjectData,
-  Task, Note, NoteAction, Contact, RFI,
+  Task, Note, NoteAction, Contact, RFI, SalesExpense,
 ];
 
 /** objectKey → definition. e.g. objects.ChangeOrder */

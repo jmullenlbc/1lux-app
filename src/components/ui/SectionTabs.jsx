@@ -54,6 +54,11 @@ export const MARKET_INTEL_TABS = [
   { key: 'forecast', href: '/market-intel/forecast', label: 'Pipeline forecast' },
 ];
 
+export const ACTIVITY_TABS = [
+  { key: 'activity', href: '/sales/activity',          label: 'Sales Activity' },
+  { key: 'expenses', href: '/sales/activity/expenses', label: 'Expenses' },
+];
+
 export const PROPOSAL_TABS = [
   { key: 'proposals', href: '/sales/proposals',               label: 'Proposals' },
   { key: 'templates', href: '/sales/proposals?tab=templates', label: 'Templates' },

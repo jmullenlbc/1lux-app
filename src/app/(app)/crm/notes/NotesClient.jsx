@@ -7,6 +7,7 @@ import { isReminderDraft } from '@/lib/calendar/draftReminder';
 import { attendeesToText, textToAttendees, toLocalInput, fromLocalInput } from '@/lib/noteAttendees';
 import { groupNotesForAgenda, agendaGroup, defaultNoteTab } from '@/lib/notes/agenda';
 import { shouldAutoPrep } from '@/lib/meetingPrep/due';
+import { centsToInput } from '@/lib/sales/expenses';
 
 // ── Contact tag chip + inline link picker ────────────────────────────────────
 function ContactChip({ name, linked, onClick }) {
@@ -397,6 +398,8 @@ function formFromNote(note) {
     attendees:    attendeesToText(note.attendees),
     meetingLink:  note.meetingLink || '',
     activityType: note.activityType || '',
+    // What the meeting cost (0129); blank when nothing was spent.
+    amountSpent:  note.expense && !note.expense.archivedAt ? centsToInput(note.expense.amountCents) : '',
   };
 }
 function contactsFromNote(note) {
@@ -1032,7 +1035,7 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Date &amp; time</label>
                 <input type="datetime-local" value={form.meetingDate} onChange={e => set('meetingDate', e.target.value, 0)} className={input} />
@@ -1041,6 +1044,12 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
                 <label className="block text-xs font-medium text-slate-500 mb-1">Calendar link</label>
                 <input value={form.meetingLink} onChange={e => set('meetingLink', e.target.value)}
                   placeholder="Paste the Outlook event link" className={input} />
+              </div>
+              {/* Amount spent (0129): one expense row per note, see src/lib/sales/noteExpense.js. */}
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Amount spent <span className="font-normal text-slate-400">($)</span></label>
+                <input inputMode="decimal" value={form.amountSpent} onChange={e => set('amountSpent', e.target.value)}
+                  placeholder="0.00" className={input} />
               </div>
             </div>
 

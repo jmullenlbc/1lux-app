@@ -23,6 +23,7 @@ import ProductOptionsTab from './ProductOptionsTab';
 import ShareStandardsButton from './ShareStandardsButton';
 import PersonalFactsPanel from '@/components/crm/PersonalFactsPanel';
 import SalesNotesPanel from '@/components/crm/SalesNotesPanel';
+import FirstProjectCostCard from '@/components/crm/FirstProjectCostCard';
 import WorkHistoryPanel from './WorkHistoryPanel';
 import LookAlikeReviews from '@/components/crm/LookAlikeReviews';
 import { WORK_HISTORY_READY } from '@/lib/workHistory';
@@ -826,6 +827,9 @@ function OverviewTab({ client, onPatch }) {
           Added by {client.createdBy?.name || client.createdBy?.email}
         </div>
       </div>
+
+      {/* ── Meetings and money before the first project (0129) ── */}
+      <FirstProjectCostCard clientId={client.id} />
 
       {/* ── Stats below ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">

@@ -41,7 +41,7 @@ const ROUTES = [
 // ─── the rule itself ────────────────────────────────────────────────────────
 
 test('the four archivable models', () => {
-  assert.deepEqual([...ARCHIVABLE].sort(), ['client', 'contact', 'note', 'project']);
+  assert.deepEqual([...ARCHIVABLE].sort(), ['client', 'contact', 'note', 'project', 'salesExpense']);
 });
 
 test('scopeArchived hides archived rows unless the query already says otherwise', () => {

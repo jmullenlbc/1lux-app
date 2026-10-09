@@ -10,8 +10,11 @@ import { executeNotePublished, pauseNoteOnUnpublish } from '@/lib/bot/noteAction
 import { isInPersonType } from '@/lib/calendar/inPerson';
 import { cleanCalendarLink } from '@/lib/calendar/salesOwner';
 import { addNoteOwners, logNoteChanges, ownerIdsOf } from '@/lib/notes/owners';
+import { syncNoteExpense, NOTE_EXPENSE_SELECT } from '@/lib/sales/noteExpense';
+import { parseAmountCents, formatMoney } from '@/lib/sales/expenses';
 
 const NOTE_INCLUDE = {
+  expense: NOTE_EXPENSE_SELECT,
   createdBy: { select: { id: true, name: true } },
   owners: { select: { userId: true, user: { select: { id: true, name: true } } }, orderBy: { createdAt: 'asc' } },
   clients: {
@@ -46,7 +49,7 @@ export async function PATCH(request, { params }) {
 
   const note = await prisma.note.findUnique({
     where: { id: params.id },
-    include: { contacts: { select: { contactId: true } }, owners: { select: { userId: true } } },
+    include: { contacts: { select: { contactId: true } }, owners: { select: { userId: true } }, expense: NOTE_EXPENSE_SELECT },
   });
   if (!note) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
@@ -54,6 +57,7 @@ export async function PATCH(request, { params }) {
   const {
     title, noteBody, meetingDate, attendees, calendarRef, meetingLink,
     activityType,
+    amountSpent,      // "Amount spent" box (0129): dollars as typed; blank clears it
     publish,          // true = mark complete (enable automations); false = revert to draft
     addClientIds    = [],
     removeClientIds = [],
@@ -70,6 +74,12 @@ export async function PATCH(request, { params }) {
     const real = await prisma.user.findMany({ where: { id: { in: ids }, role: { not: 'CLIENT_VIEWER' } }, select: { id: true } });
     owners = ids.filter(id => real.some(u => u.id === id));
     if (!owners.length) return NextResponse.json({ error: 'A note needs at least one owner.' }, { status: 400 });
+  }
+
+  let spentCents;  // undefined = not in this PATCH
+  if (amountSpent !== undefined) {
+    spentCents = parseAmountCents(amountSpent);
+    if (spentCents === undefined) return NextResponse.json({ error: 'Amount spent has to be a dollar figure, like 42.50.' }, { status: 400 });
   }
 
   const data = {};
@@ -133,9 +143,18 @@ export async function PATCH(request, { params }) {
     }
   }
 
+  // Amount spent (0129): its own row, kept in step with the note's date,
+  // activity type, company and project whenever those move.
+  const hadExpense = !!note.expense && !note.expense.archivedAt;
+  const linksMoved = addClientIds.length || removeClientIds.length || addProjectIds.length || removeProjectIds.length;
+  if (spentCents !== undefined || (hadExpense && (meetingDate !== undefined || activityType !== undefined || linksMoved))) {
+    try { await syncNoteExpense(prisma, params.id, spentCents, { userId: user.id }); }
+    catch (e) { console.error('[notes patch] expense sync failed:', e?.message ?? e); }
+  }
+
   // History (0108): who changed what.
   await logNoteChanges(prisma, params.id, user, await changesFor(note, data, {
-    addClientIds, removeClientIds, addProjectIds, removeProjectIds, contactIds, ownersAdded, ownersRemoved,
+    addClientIds, removeClientIds, addProjectIds, removeProjectIds, contactIds, ownersAdded, ownersRemoved, spentCents,
   }));
 
   // Published and in person → the people on it were met on the meeting date.
@@ -185,6 +204,11 @@ async function changesFor(note, data, links) {
   if ('activityType' in data && !same(data.activityType, note.activityType)) out.push({ field: 'activityType', before: note.activityType, after: data.activityType });
   if ('meetingLink' in data && !same(data.meetingLink, note.meetingLink)) out.push({ field: 'meetingLink', before: note.meetingLink, after: data.meetingLink });
   if ('isPublished' in data) out.push({ field: 'published', before: note.isPublished ? 'Published' : 'Draft', after: data.isPublished ? 'Published' : 'Draft' });
+  if (links.spentCents !== undefined) {
+    const had = note.expense && !note.expense.archivedAt ? note.expense.amountCents : null;
+    const now = links.spentCents || null;
+    if (had !== now) out.push({ field: 'spent', before: had === null ? null : formatMoney(had), after: now === null ? null : formatMoney(now) });
+  }
   for (const n of await namesOf('client', links.addClientIds)) out.push({ field: 'company', after: n });
   for (const n of await namesOf('client', links.removeClientIds)) out.push({ field: 'company', before: n });
   for (const n of await namesOf('project', links.addProjectIds)) out.push({ field: 'project', after: n });

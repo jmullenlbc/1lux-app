@@ -2,6 +2,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { bucketByPeriod, bucketCountsByPeriod } from '@/lib/activity/byPeriod';
+import SectionTabs, { ACTIVITY_TABS } from '@/components/ui/SectionTabs';
+import { formatMoney } from '@/lib/sales/expenses';
 
 // ── Activity meta ─────────────────────────────────────────────────────────────
 
@@ -76,9 +78,20 @@ function rangeEnd(dateRange) {
 
 // ── Stats computation ─────────────────────────────────────────────────────────
 
-function computeStats(notes, dateRange, selectedUserId = 'all') {
+function computeStats(notes, dateRange, selectedUserId = 'all', expenses = []) {
   const cutoff  = rangeStart(dateRange);
   const ceiling = rangeEnd(dateRange);  // null for most ranges, Dec 31 last year for 'lastyear'
+
+  // Money spent (0129): every expense row in the window, by the salesperson it belongs to.
+  const spentByUser = {};
+  let totalSpentCents = 0;
+  for (const e of expenses) {
+    const d = new Date(e.spentOn);
+    if (!(d >= cutoff && (!ceiling || d <= ceiling))) continue;
+    if (selectedUserId !== 'all' && e.userId !== selectedUserId) continue;
+    spentByUser[e.userId] = (spentByUser[e.userId] || 0) + (Number(e.amountCents) || 0);
+    totalSpentCents += Number(e.amountCents) || 0;
+  }
 
   const filtered = notes.filter(n => {
     // Only finished notes count — a draft (incl. every calendar draft) is not activity yet.
@@ -152,9 +165,19 @@ function computeStats(notes, dateRange, selectedUserId = 'all') {
     byType[t] = (byType[t] || 0) + 1;
   }
 
+  // A rep with spend but no notes in the window still gets a row.
+  for (const [userId, cents] of Object.entries(spentByUser)) {
+    if (!userMap[userId]) {
+      const name = expenses.find(e => e.userId === userId)?.user?.name || 'Unknown';
+      userMap[userId] = { userId, userName: name, inPersonCount: 0, callCount: 0, otherCount: 0, totalCount: 0, uniqueContacts: new Set(), byActivityType: {} };
+    }
+    userMap[userId].spentCents = cents;
+  }
+
   return {
     filtered,
     totalInPerson,
+    totalSpentCents,
     uniqueContactsTotal: allContactIds.size,
     byType,
     perUser: Object.values(userMap).sort((a, b) => b.totalCount - a.totalCount),
@@ -224,21 +247,27 @@ const PERIOD_METRICS = [
   { id: 'calls',     label: 'Calls',        pick: (n) => n.activityType === 'CALL' },
   { id: 'all',       label: 'All meetings', pick: () => true },
   { id: 'newPeople', label: 'New people',   pick: null },
+  { id: 'spent',     label: 'Spent',        pick: null, money: true },  // 0129: expense rows, dollars
 ];
 
-function ByPeriodTable({ notes, userList, newPeople }) {
+function ByPeriodTable({ notes, userList, newPeople, expenses }) {
   const [period, setPeriod] = useState('month');
   const [metric, setMetric] = useState('inPerson');
   const def = PERIOD_METRICS.find(m => m.id === metric) || PERIOD_METRICS[0];
-  const isPeople = !def.pick;
+  const isMoney  = !!def.money;
+  const isPeople = !def.pick && !isMoney;
 
   const rows = useMemo(() => {
+    if (isMoney) {
+      return bucketByPeriod(expenses || [], { period, months: 12, weight: e => e.amountCents });
+    }
     if (!isPeople) {
       return bucketByPeriod(notes.filter(n => n.isPublished && def.pick(n)), { period, months: 12 });
     }
     // Contacts added, by who added them. Rows with no adder land in Team only.
     return bucketCountsByPeriod(newPeople || [], { period, months: 12 });
-  }, [notes, newPeople, period, def, isPeople]);
+  }, [notes, newPeople, expenses, period, def, isPeople, isMoney]);
+  const cell = (v) => isMoney ? (v ? formatMoney(v) : '$0') : (v || 0);
 
   const unassigned = useMemo(
     () => isPeople ? (newPeople || []).filter(r => !r.userId).reduce((s, r) => s + (Number(r.count) || 0), 0) : 0,
@@ -276,8 +305,8 @@ function ByPeriodTable({ notes, userList, newPeople }) {
             {rows.map(r => (
               <tr key={r.key} className="hover:bg-slate-50">
                 <td className="py-1.5 pr-3 text-slate-700">{r.label}</td>
-                {cols.map(u => <td key={u.id} className="py-1.5 pr-3 text-right text-slate-500">{r.perUser[u.id] || 0}</td>)}
-                <td className="py-1.5 text-right font-semibold text-slate-700">{r.team}</td>
+                {cols.map(u => <td key={u.id} className="py-1.5 pr-3 text-right text-slate-500">{cell(r.perUser[u.id])}</td>)}
+                <td className="py-1.5 text-right font-semibold text-slate-700">{cell(r.team)}</td>
               </tr>
             ))}
           </tbody>
@@ -290,12 +319,136 @@ function ByPeriodTable({ notes, userList, newPeople }) {
   );
 }
 
+// ── Cost to first project (0129) ──────────────────────────────────────────────
+// "How many meetings or how much money does it take to get the first project
+// with a client." Team averages over clients already won, one line per
+// salesperson, and what has gone into clients still open.
+
+function num(v, digits = 1) {
+  if (v === null || v === undefined || Number.isNaN(v)) return '—';
+  return Number(v).toLocaleString('en-US', { maximumFractionDigits: digits });
+}
+
+function FirstProjectCost({ report, selectedUserId }) {
+  const [showOpen, setShowOpen] = useState(false);
+  if (!report) return null;
+  const { summary, perUser = [], rows = [] } = report;
+  const s = selectedUserId === 'all' ? summary : (perUser.find(u => u.userId === selectedUserId) || null);
+  const openRows = rows
+    .filter(r => !r.won && (selectedUserId === 'all' || r.salesUserId === selectedUserId) && (r.meetings > 0 || r.spentCents > 0))
+    .sort((a, b) => b.spentCents - a.spentCents || b.meetings - a.meetings);
+  const th = 'text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-3';
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl p-5">
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
+        <h2 className="text-sm font-bold text-slate-900">Cost to First Project</h2>
+        <span className="text-[11px] text-slate-400">Meetings and money before a company's first won project</span>
+      </div>
+      {!s || s.wonClients === 0 ? (
+        <p className="text-xs text-slate-500 py-4 text-center">No company has a dated first win yet, so there is nothing to average. The open companies below show what has gone in so far.</p>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+          <div className="rounded-lg bg-slate-50 px-3 py-2.5">
+            <div className="text-xl font-bold text-slate-900">{num(s.avgMeetings)}</div>
+            <div className="text-[11px] text-slate-500">Meetings to first project <span className="text-slate-400">(median {num(s.medianMeetings)})</span></div>
+          </div>
+          <div className="rounded-lg bg-slate-50 px-3 py-2.5">
+            <div className="text-xl font-bold text-slate-900">{num(s.avgInPerson)}</div>
+            <div className="text-[11px] text-slate-500">of them in person</div>
+          </div>
+          <div className="rounded-lg bg-slate-50 px-3 py-2.5">
+            <div className="text-xl font-bold text-slate-900">{formatMoney(s.avgSpentCents || 0)}</div>
+            <div className="text-[11px] text-slate-500">Spent to first project <span className="text-slate-400">(median {formatMoney(s.medianSpentCents || 0)})</span></div>
+          </div>
+          <div className="rounded-lg bg-slate-50 px-3 py-2.5">
+            <div className="text-xl font-bold text-slate-900">{num(s.avgDaysToWin, 0)}</div>
+            <div className="text-[11px] text-slate-500">Days from first meeting <span className="text-slate-400">({s.wonClients} won {s.wonClients === 1 ? 'company' : 'companies'})</span></div>
+          </div>
+        </div>
+      )}
+      {s && s.approximatedClients > 0 && (
+        <p className="text-[11px] text-slate-400 mt-2">{s.approximatedClients} {s.approximatedClients === 1 ? 'company has' : 'companies have'} only a guessed win date and {s.approximatedClients === 1 ? 'is' : 'are'} left out of the averages.</p>
+      )}
+
+      {selectedUserId === 'all' && perUser.length > 0 && (
+        <div className="overflow-x-auto mt-4">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-slate-100">
+                <th className={`text-left ${th}`}>Salesperson</th>
+                <th className={`text-right ${th}`}>Won</th>
+                <th className={`text-right ${th}`}>Avg meetings</th>
+                <th className={`text-right ${th}`}>Avg spent</th>
+                <th className={`text-right ${th}`}>Avg days</th>
+                <th className={`text-right ${th}`}>Open</th>
+                <th className={`text-right ${th}`}>Open spend</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {perUser.map(u => (
+                <tr key={u.userId} className="hover:bg-slate-50">
+                  <td className="py-1.5 pr-3 font-medium text-slate-800">{u.userName}</td>
+                  <td className="py-1.5 pr-3 text-right text-slate-700">{u.wonClients}</td>
+                  <td className="py-1.5 pr-3 text-right text-slate-500">{u.wonClients ? num(u.avgMeetings) : '—'}</td>
+                  <td className="py-1.5 pr-3 text-right text-slate-500">{u.wonClients ? formatMoney(u.avgSpentCents || 0) : '—'}</td>
+                  <td className="py-1.5 pr-3 text-right text-slate-500">{u.wonClients ? num(u.avgDaysToWin, 0) : '—'}</td>
+                  <td className="py-1.5 pr-3 text-right text-slate-500">{u.openClients}</td>
+                  <td className="py-1.5 text-right text-slate-500">{formatMoney(u.openSpentCents || 0)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {openRows.length > 0 && (
+        <div className="mt-4">
+          <button type="button" onClick={() => setShowOpen(v => !v)} className="text-xs font-semibold text-orange-600 hover:text-orange-700">
+            {showOpen ? 'Hide' : 'Show'} {openRows.length} {openRows.length === 1 ? 'company' : 'companies'} still waiting on a first project
+          </button>
+          {showOpen && (
+            <div className="overflow-x-auto mt-2">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100">
+                    <th className={`text-left ${th}`}>Company</th>
+                    <th className={`text-left ${th}`}>Salesperson</th>
+                    <th className={`text-right ${th}`}>Meetings</th>
+                    <th className={`text-right ${th}`}>In person</th>
+                    <th className={`text-right ${th}`}>Spent so far</th>
+                    <th className={`text-left ${th}`}>First meeting</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {openRows.map(r => (
+                    <tr key={r.clientId} className="hover:bg-slate-50">
+                      <td className="py-1.5 pr-3"><Link href={`/clients/${r.clientId}`} className="font-medium text-slate-800 hover:text-orange-600">{r.clientName}</Link></td>
+                      <td className="py-1.5 pr-3 text-slate-500">{r.salesUserName || '—'}</td>
+                      <td className="py-1.5 pr-3 text-right text-slate-700">{r.meetings}</td>
+                      <td className="py-1.5 pr-3 text-right text-slate-500">{r.inPerson}</td>
+                      <td className="py-1.5 pr-3 text-right text-slate-700">{formatMoney(r.spentCents || 0)}</td>
+                      <td className="py-1.5 text-slate-500">{fmtDate(r.firstTouchAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function SalesActivityPage() {
   const [notes,          setNotes]          = useState([]);
   const [upcoming,       setUpcoming]       = useState([]);
   const [newPeople,      setNewPeople]      = useState([]);
+  const [expenses,       setExpenses]       = useState([]);
+  const [firstProject,   setFirstProject]   = useState(null);
   const [loading,        setLoading]        = useState(true);
   const [dateRange,      setDateRange]      = useState('month');
   const [selectedUserId, setSelectedUserId] = useState('all');
@@ -305,11 +458,15 @@ export default function SalesActivityPage() {
     setLoading(true);
     setErr('');
     try {
-      const [histRes, upcomingRes, peopleRes] = await Promise.all([
+      const [histRes, upcomingRes, peopleRes, expRes, fpRes] = await Promise.all([
         fetch('/api/crm/notes?includeStats=true'),
         fetch('/api/crm/notes/upcoming'),
         fetch('/api/crm/contacts/created-by-month'),
+        fetch('/api/sales/expenses'),
+        fetch('/api/sales/first-project-cost'),
       ]);
+      if (expRes.ok) setExpenses((await expRes.json()).expenses || []);
+      if (fpRes.ok)  setFirstProject(await fpRes.json());
       if (!histRes.ok) throw new Error(`Error ${histRes.status}`);
       const data = await histRes.json();
       setNotes(data.notes || data || []);
@@ -338,10 +495,13 @@ export default function SalesActivityPage() {
       const name = n.createdBy?.name;
       if (id && !seen.has(id)) seen.set(id, { id, name: name || id });
     }
+    for (const e of expenses) {
+      if (e.userId && !seen.has(e.userId)) seen.set(e.userId, { id: e.userId, name: e.user?.name || e.userId });
+    }
     return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [notes]);
+  }, [notes, expenses]);
 
-  const stats = useMemo(() => computeStats(notes, dateRange, selectedUserId), [notes, dateRange, selectedUserId]);
+  const stats = useMemo(() => computeStats(notes, dateRange, selectedUserId, expenses), [notes, dateRange, selectedUserId, expenses]);
 
   const RANGES = [
     { id: 'week',     label: 'This Week' },
@@ -366,12 +526,14 @@ export default function SalesActivityPage() {
     .slice(0, 10);
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6">
+    <div className="px-4 py-6">
+    <SectionTabs tabs={ACTIVITY_TABS} className="mb-5" />
+    <div className="max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Sales Activity</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Manually logged activities — relationship touchpoints across your team</p>
+          <p className="text-xs text-slate-500 mt-0.5">Manually logged activities and what they cost, across your team</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {/* User selector */}
@@ -422,7 +584,7 @@ export default function SalesActivityPage() {
         <div className="space-y-5">
 
           {/* ── Summary cards ─────────────────────────────────────────────── */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <SummaryCard
               value={stats.totalInPerson}
               label="In-Person Meetings"
@@ -432,6 +594,12 @@ export default function SalesActivityPage() {
               value={stats.uniqueContactsTotal}
               label="Client Companies Met"
               sub="Unique CRM clients linked to meetings"
+            />
+            <SummaryCard
+              value={formatMoney(stats.totalSpentCents || 0)}
+              label="Spent"
+              sub="Meals, travel, golf, gifts in this period"
+              href="/sales/activity/expenses"
             />
             <SummaryCard
               value="→"
@@ -458,6 +626,7 @@ export default function SalesActivityPage() {
                         <th className="text-right text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-3">In-Person</th>
                         <th className="text-right text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-3">Calls</th>
                         <th className="text-right text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-3">Other</th>
+                        <th className="text-right text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-3">Spent</th>
                         <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2">Types</th>
                       </tr>
                     </thead>
@@ -475,6 +644,7 @@ export default function SalesActivityPage() {
                           <td className="py-2.5 pr-3 text-right font-semibold text-slate-700">{u.inPersonCount}</td>
                           <td className="py-2.5 pr-3 text-right text-slate-500">{u.callCount}</td>
                           <td className="py-2.5 pr-3 text-right text-slate-500">{u.otherCount}</td>
+                          <td className="py-2.5 pr-3 text-right text-slate-500">{u.spentCents ? formatMoney(u.spentCents) : '—'}</td>
                           <td className="py-2.5">
                             <div className="flex flex-wrap gap-1">
                               {Object.entries(u.byActivityType)
@@ -511,7 +681,10 @@ export default function SalesActivityPage() {
           </div>
 
           {/* ── By month / by quarter, per person and team (Oct 5 ask) ──────── */}
-          <ByPeriodTable notes={notes} userList={userList} newPeople={newPeople} />
+          <ByPeriodTable notes={notes} userList={userList} newPeople={newPeople} expenses={expenses} />
+
+          {/* ── Cost to first project (0129) ─────────────────────────────────── */}
+          <FirstProjectCost report={firstProject} selectedUserId={selectedUserId} />
 
           {/* ── Two-column row: recent feed + upcoming ─────────────────────── */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -599,6 +772,7 @@ export default function SalesActivityPage() {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }

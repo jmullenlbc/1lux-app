@@ -5,6 +5,23 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Sales expenses + cost to first project] - October 9, 2026 (BUILT, NOT DEPLOYED) - migration 0129 (additive)
+
+Mike: "Let's tie in sales person expenses to sales activity. Also, let's gauge how many meetings or money spent does it cost to get the 1st project with a client."
+
+**What it is.** A `SalesExpense` table (one row per spend: who, date, amount in cents, what for, company, project, optional note). Money shows up next to meetings everywhere sales activity is counted, and every company gets a "Cost to First Project" read: meetings, in-person meetings, dollars and days from the first logged meeting to the first won project.
+
+- **Amount spent on a sales note.** The note editor (Date / Calendar row) gets an "Amount spent ($)" box. Saving it writes one expense row tied to the note (same date, same companies and project, category from the activity type: coffee, lunch and happy hour are Meals; golf is Golf; site visits are Travel; events are Events). Changing the amount updates the row; clearing it archives the row; moving the note's date or companies moves the row with it. The note's change log records "spent" before and after.
+- **Expenses tab** at `/sales/activity/expenses` (SectionTabs next to Sales Activity): log a standalone expense (who, date, amount, what for, company, project, description), filter by person and dates, per-person totals, edit or archive standalone rows. Note-borne rows link to their note and are changed only on the note (the API refuses with a 409).
+- **Sales Activity page**: a "Spent" summary card, a Spent column in the per-rep table, a Spent metric in the by-period table (months or quarters), and a "Cost to First Project" section: team averages and medians, a per-salesperson table, and a toggle listing companies still waiting on a first project with what has been spent so far.
+- **Company Overview tab**: a "Cost to First Project" card (Won on date, or No project yet; meetings, in person, spent, days from first meeting; first project name and salesperson).
+- **The math** (`src/lib/sales/expenses.js`, `firstProject.js`): first win = the earliest `ProjectStatusEvent` to WON or COMPLETED among the company's projects. Everything dated before that win counts; after it, nothing. A company with an approximated close date is shown but left out of the averages. Only published sales notes count as meetings. Expenses with no company ride on their note's companies.
+- API: `GET/POST /api/sales/expenses`, `PATCH /api/sales/expenses/[id]` (standalone only), archive by `POST {archived}`, DELETE 405. `GET /api/sales/first-project-cost` (team report) and `GET /api/clients/[id]/first-project-cost`. Notes `POST`/`PATCH` take `amountSpent`.
+- Ontology: `SalesExpense` object registered; Note links `expense`.
+- Tests: `scripts/tests/salesExpenses.test.mjs` (pure math) and `salesExpensesE2e.test.mjs` (against the dev server).
+
+Files: `prisma/schema.prisma`, `prisma/migrations/0129_sales_expenses/migration.sql`, `src/lib/archive.js`, `src/lib/activity/byPeriod.js`, `src/lib/sales/expenses.js`, `src/lib/sales/firstProject.js`, `src/lib/sales/noteExpense.js`, `src/app/api/sales/expenses/route.js`, `src/app/api/sales/expenses/[id]/route.js`, `src/app/api/sales/first-project-cost/route.js`, `src/app/api/clients/[id]/first-project-cost/route.js`, `src/app/api/crm/notes/route.js`, `src/app/api/crm/notes/[id]/route.js`, `src/app/(app)/crm/notes/NotesClient.jsx`, `src/app/(app)/sales/activity/page.jsx`, `src/app/(app)/sales/activity/expenses/page.jsx`, `src/components/crm/FirstProjectCostCard.jsx`, `src/app/(app)/clients/[id]/ClientDetailClient.jsx`, `src/components/ui/SectionTabs.jsx`, `src/lib/ontology/objects/crm.js`, `src/lib/ontology/index.js`.
+
 ## [National numbers strip: FRED pull fix] - October 9, 2026 (DEPLOYED fc72d06) - no migration
 
 Mike: "can we get the national market numbers going now?" In prod every FRED series timed out ("The operation was aborted due to timeout"), so the strip showed nothing. FRED's edge stalls requests whose User-Agent is not browser-like; the same CSV URL answered in 0.6 s from the live app with a Mozilla User-Agent.

@@ -12,7 +12,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 const pad = (n) => (n < 10 ? '0' + n : String(n));
 
 function noteDate(n) {
-  const raw = n.meetingDate || n.createdAt;
+  const raw = n.meetingDate || n.spentOn || n.createdAt;
   if (!raw) return null;
   const d = new Date(raw);
   return isNaN(d) ? null : d;
@@ -28,7 +28,9 @@ function quarterKey(d) { return `${d.getFullYear()}-Q${Math.floor(d.getMonth() /
 function monthLabel(d) { return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`; }
 function quarterLabel(d) { return `Q${Math.floor(d.getMonth() / 3) + 1} ${d.getFullYear()}`; }
 
-export function bucketByPeriod(notes, { period = 'month', months = 12, now = new Date() } = {}) {
+// `weight` (0129) sums a number per row instead of counting rows: the Spent
+// metric passes expenses with weight = amountCents and reads dollars out.
+export function bucketByPeriod(notes, { period = 'month', months = 12, now = new Date(), weight = null } = {}) {
   const ref = new Date(now);
   const byQuarter = period === 'quarter';
   const buckets = [];
@@ -57,9 +59,10 @@ export function bucketByPeriod(notes, { period = 'month', months = 12, now = new
     if (!d) continue;
     const b = index.get(byQuarter ? quarterKey(d) : monthKey(d));
     if (!b) continue;
-    b.team += 1;
+    const w = weight ? (Number(weight(n)) || 0) : 1;
+    b.team += w;
     const u = noteUser(n);
-    if (u) b.perUser[u] = (b.perUser[u] || 0) + 1;
+    if (u) b.perUser[u] = (b.perUser[u] || 0) + w;
   }
   return buckets;
 }

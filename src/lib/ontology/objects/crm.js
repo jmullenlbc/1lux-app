@@ -111,8 +111,53 @@ export const Note = {
   },
 
   links: {
-    project: { object: 'Project',    via: 'projectId', cardinality: 'one' },
-    actions: { object: 'NoteAction', via: 'noteId',    cardinality: 'many' },
+    project: { object: 'Project',      via: 'projectId', cardinality: 'one' },
+    actions: { object: 'NoteAction',   via: 'noteId',    cardinality: 'many' },
+    expense: { object: 'SalesExpense', via: 'noteId',    cardinality: 'one' },
+  },
+
+  actions: [],
+};
+
+/**
+ * SalesExpense (0129) — one thing a salesperson paid for while courting a
+ * client: the meal, the round of golf, the flight, the gift. A row either rides
+ * on a sales note (noteId set; the "Amount spent" box) or stands alone.
+ *
+ * Money a specific ILC employee spent on a specific company is as private as
+ * the note it came from, so every field is ilc_only.
+ */
+export const SalesExpense = {
+  key:   'SalesExpense',
+  model: 'salesExpense',
+  label: 'Sales Expense',
+  description:
+    'Money a salesperson spent on a client. amountCents is whole cents. category is ' +
+    'MEAL | TRAVEL | GOLF | EVENT | GIFT | OTHER. noteId is set when the amount was typed on a sales note ' +
+    '(one expense per note); clientId and projectId say who it was for. userId is whose spend it is, ' +
+    'createdById who typed it. Archived rows (archivedAt set) are hidden from normal reads.',
+
+  properties: {
+    id:           { type: 'string',   sensitivity: 'ilc_only' },
+    archivedAt:   { type: 'datetime', sensitivity: 'ilc_only', desc: 'set = archived; rows are archived, never deleted' },
+    archivedById: { type: 'string',   sensitivity: 'ilc_only' },
+    noteId:       { type: 'string',   sensitivity: 'ilc_only', desc: 'the sales note it was typed on, if any' },
+    userId:       { type: 'string',   sensitivity: 'ilc_only', desc: 'the salesperson whose spend it is' },
+    clientId:     { type: 'string',   sensitivity: 'ilc_only' },
+    projectId:    { type: 'string',   sensitivity: 'ilc_only' },
+    spentOn:      { type: 'datetime', sensitivity: 'ilc_only' },
+    amountCents:  { type: 'int',      sensitivity: 'ilc_only', desc: 'whole cents' },
+    category:     { type: 'string',   sensitivity: 'ilc_only', desc: 'MEAL | TRAVEL | GOLF | EVENT | GIFT | OTHER' },
+    description:  { type: 'string',   sensitivity: 'ilc_only' },
+    createdById:  { type: 'string',   sensitivity: 'ilc_only' },
+    createdAt:    { type: 'datetime', sensitivity: 'ilc_only' },
+    updatedAt:    { type: 'datetime', sensitivity: 'ilc_only' },
+  },
+
+  links: {
+    note:    { object: 'Note',    via: 'noteId',    cardinality: 'one' },
+    client:  { object: 'Client',  via: 'clientId',  cardinality: 'one' },
+    project: { object: 'Project', via: 'projectId', cardinality: 'one' },
   },
 
   actions: [],

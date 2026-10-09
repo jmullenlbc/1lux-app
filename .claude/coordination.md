@@ -2,7 +2,13 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-09 (newest) - Mike's Claude - **DEPLOYED fc72d06**, no migration: FRED User-Agent fix for the national numbers strip
+### 2026-10-09 (newest) - Mike's Claude - **BUILT, NOT DEPLOYED**, migration 0129 (additive): Sales expenses + cost to first project
+
+- New `SalesExpense` table (0129, create table + indexes only). "Amount spent ($)" on sales notes writes one row per note; Expenses tab at `/sales/activity/expenses` for standalone spend; Spent card, column and period metric on Sales Activity; "Cost to First Project" on Sales Activity and on every company's Overview tab (meetings, in person, dollars, days to the first WON/COMPLETED status event).
+- Archive-only like the rest of the CRM (DELETE 405). Note-borne rows are changed on the note; the expense PATCH refuses them with a 409.
+- Waits on Mike's "Deploy".
+
+### 2026-10-09 - Mike's Claude - **DEPLOYED fc72d06**, no migration: FRED User-Agent fix for the national numbers strip
 
 - **Prod outage, for Sean:** around 10-9 morning (Mountain) app.ilcstudios.com returned empty 500s on every database read for roughly an hour. Signed-out routes answered 401 normally, so the Lambda was fine; `prisma.user.findUnique` threw. Nothing was pushed (main still 1bfc41c). It recovered on its own. Worth a look at RDS events / connection count for that window.
 - National numbers strip: every FRED series timed out from the Lambda. FRED stalls non-browser User-Agents. `macroStats.js` now sends a Mozilla UA. Needs a deploy, then the strip fills on first open.

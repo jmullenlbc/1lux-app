@@ -25,7 +25,9 @@
 // version number spread INCLUDE_ARCHIVED so an archived v3 still counts and
 // the next one is v4, not a second v3.
 
-export const ARCHIVABLE = ['client', 'project', 'contact', 'note'];
+// Sales expenses joined 2026-10-09 (migration 0129): archived from the
+// Expenses tab, auto-hidden like the rest.
+export const ARCHIVABLE = ['client', 'project', 'contact', 'note', 'salesExpense'];
 export const ARCHIVABLE_DOCUMENTS = ['projectFile', 'drawingSubmission', 'manufacturerProduct', 'designBidMatrix'];
 
 // Records that may never be deleted through the app's database client, even by

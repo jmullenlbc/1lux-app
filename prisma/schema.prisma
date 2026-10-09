@@ -45,6 +45,7 @@ model User {
   salesOwnedProjects         Project[]                    @relation("ProjectSalesOwner")
   notesCreated               Note[]                       @relation("NoteCreator")
   notesOwned                 NoteOwner[]                  @relation("NoteOwnerUser")
+  salesExpenses              SalesExpense[]               @relation("SalesExpenseUser")
   noteStepsLed               NoteAction[]                 @relation("NoteActionLead")
   publishedSchedules         FixtureSchedule[]            @relation("SchedulePublisher")
   pushedBidMatrices          DesignBidMatrix[]            @relation("BidPusher")
@@ -315,6 +316,7 @@ model Client {
   createdBy            User                    @relation(fields: [createdById], references: [id])
   projects             Project[]
   contacts             Contact[]
+  salesExpenses        SalesExpense[]
   kbSections           ClientKBSection[]
   standardsAnswers     ClientStandardsAnswer[]
   standardFixtures     ClientStandardFixture[]
@@ -733,6 +735,7 @@ model Project {
   files                ProjectFile[]
   projectAccess        ProjectAccess[]
   notes                Note[]
+  salesExpenses        SalesExpense[]
   submittalTracker     SubmittalTracker?
   activities           ProjectActivity[]
   chatConversations    ChatConversation[]
@@ -1366,11 +1369,43 @@ model Note {
   // creator above is always one of them; see src/lib/notes/owners.js.
   owners        NoteOwner[]
   changes       NoteChange[]
+  // What the meeting cost (0129): the "Amount spent" box on the note.
+  expense       SalesExpense?
 
   // The calendar sync looks a note up by the event's own id on every pass, so
   // that lookup gets an index. Not unique: a manually typed calendarRef could
   // repeat, and a duplicate must never fail the sync.
   @@index([calendarRef])
+}
+
+// Money a salesperson spent on sales activity (Mike 10-9, migration 0129).
+// One row per expense. Most come straight off a sales note ("Amount spent",
+// one row per note, noteId unique); the rest are typed on Sales > Activity >
+// Expenses with no note. Whole dollars and cents live in amountCents so sums
+// never drift. Archived, never deleted (hidden by withArchiveFilter).
+model SalesExpense {
+  id           String    @id @default(cuid())
+  archivedAt   DateTime?
+  archivedById String?
+  noteId       String?   @unique
+  note         Note?     @relation(fields: [noteId], references: [id], onDelete: SetNull)
+  userId       String // the salesperson whose spend it is
+  user         User      @relation("SalesExpenseUser", fields: [userId], references: [id])
+  clientId     String?
+  client       Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  projectId    String?
+  project      Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  spentOn      DateTime
+  amountCents  Int
+  category     String    @default("OTHER") // MEAL | TRAVEL | GOLF | EVENT | GIFT | OTHER
+  description  String    @default("")
+  createdById  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([clientId])
+  @@index([spentOn])
 }
 
 // Structured items the AI extracts from a note's prose: ACTIONs (→ bot follow-ups)
