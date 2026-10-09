@@ -109,7 +109,7 @@ export async function applyOwnerLookup(signal, answer) {
 export async function runOwnerLookups({ limit = 3, deadline = Date.now() + 240_000, userId = null, signalId = null } = {}) {
   const where = signalId
     ? { id: signalId }
-    : { kind: 'PERMIT', ownerLookupAt: null, reviewStatus: { not: 'DISMISSED' } };
+    : { kind: { in: ['PERMIT', 'CONCEPT'] }, ownerLookupAt: null, reviewStatus: { not: 'DISMISSED' } };
   const rows = await prisma.marketSignal.findMany({
     where, orderBy: { publishedAt: 'desc' }, take: limit, select: SIGNAL_SELECT,
   });
@@ -133,6 +133,6 @@ export async function runOwnerLookups({ limit = 3, deadline = Date.now() + 240_0
       log.errors.push({ id: row.id, error: String(e?.message || e).slice(0, 200) });
     }
   }
-  log.remaining = await prisma.marketSignal.count({ where: { kind: 'PERMIT', ownerLookupAt: null, reviewStatus: { not: 'DISMISSED' } } });
+  log.remaining = await prisma.marketSignal.count({ where: { kind: { in: ['PERMIT', 'CONCEPT'] }, ownerLookupAt: null, reviewStatus: { not: 'DISMISSED' } } });
   return log;
 }

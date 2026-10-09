@@ -24,7 +24,16 @@ export const SIGNAL_TYPE_META = {
   DEVELOPER_AWARD: { label: 'Award',           color: 'bg-amber-100 text-amber-700' },
   NEWS:            { label: 'News',            color: 'bg-slate-100 text-slate-600' },
   PERMIT:          { label: 'Permit',          color: 'bg-orange-100 text-orange-700' },
+  // A planning case filed about a year before the permit (Mike 10-8).
+  CONCEPT:         { label: 'Concept plan',    color: 'bg-amber-100 text-amber-800' },
 };
+
+/** Where a signal of each kind lives, for links between them. */
+export function signalHref(signal) {
+  if (signal.kind === 'PERMIT')  return `/market-intel/permits?signal=${signal.id}`;
+  if (signal.kind === 'CONCEPT') return `/market-intel/permits?kind=CONCEPT&signal=${signal.id}`;
+  return `/market-intel?signal=${signal.id}`;
+}
 
 const SUPERSEDE_LABELS = { PERMIT: 'permit', CONCEPT: 'concept plan', ARTICLE: 'article' };
 
@@ -52,7 +61,9 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
     try { await onFindOwner(signal.id); } finally { setFinding(false); }
   }
   const meta         = SIGNAL_TYPE_META[signal.signalType] || SIGNAL_TYPE_META.NEWS;
-  const isPermit     = signal.kind === 'PERMIT';
+  // A concept plan is a permit-shaped row (address, units, case number) with no value or contractor.
+  const isConcept    = signal.kind === 'CONCEPT';
+  const isPermit     = signal.kind === 'PERMIT' || isConcept;
   const developers   = (() => { try { return JSON.parse(signal.developerNames || '[]'); } catch { return []; } })();
   const isDismissed  = signal.reviewStatus === 'DISMISSED';
   const tagLinks     = signal.tags || [];
@@ -107,7 +118,7 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
             )}
             {superseded && (
               <a
-                href={`${signal.supersededBy.kind === 'PERMIT' ? '/market-intel/permits' : '/market-intel'}?signal=${signal.supersededBy.id}`}
+                href={signalHref(signal.supersededBy)}
                 title={signal.supersededBy.title}
                 className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 hover:bg-amber-100"
               >
@@ -131,9 +142,19 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
                   No neighborhood, no permit number: "we don't care about" either. */}
               <div><dt className="text-slate-400">Location</dt><dd className="text-slate-700 font-medium">{city || signal.neighborhood || 'Unknown'}{city && stateName && <span className="text-slate-500 font-normal">, {stateName}</span>}</dd></div>
               <div><dt className="text-slate-400">Units</dt><dd className="text-slate-700 font-medium">{signal.unitCount ? signal.unitCount.toLocaleString() : 'Not stated'}</dd></div>
-              <div><dt className="text-slate-400">Declared value</dt><dd className="text-slate-700">{signal.valuation ? money(signal.valuation) : 'Not stated'}</dd></div>
-              <div><dt className="text-slate-400">Contractor</dt><dd className="text-slate-700">{signal.contractorName || 'Not named'}</dd></div>
-              <div><dt className="text-slate-400">Issued</dt><dd className="text-slate-700">{when}</dd></div>
+              {isConcept ? (
+                <>
+                  <div><dt className="text-slate-400">Owner</dt><dd className="text-slate-700">{developers[0] || 'Not named'}</dd></div>
+                  <div><dt className="text-slate-400">Case type</dt><dd className="text-slate-700">{signal.permitClass || 'Not stated'}</dd></div>
+                  <div><dt className="text-slate-400">Filed</dt><dd className="text-slate-700">{when}</dd></div>
+                </>
+              ) : (
+                <>
+                  <div><dt className="text-slate-400">Declared value</dt><dd className="text-slate-700">{signal.valuation ? money(signal.valuation) : 'Not stated'}</dd></div>
+                  <div><dt className="text-slate-400">Contractor</dt><dd className="text-slate-700">{signal.contractorName || 'Not named'}</dd></div>
+                  <div><dt className="text-slate-400">Issued</dt><dd className="text-slate-700">{when}</dd></div>
+                </>
+              )}
             </dl>
           ) : signal.summary && (
             <p className="text-xs text-slate-500 mt-1 line-clamp-2">{signal.summary}</p>
@@ -284,7 +305,7 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
                   onClick={() => addToCrm(l.tag.id)}
                   disabled={!!adding}
                   className="text-xs px-2.5 py-1 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold disabled:opacity-50 whitespace-nowrap"
-                  title={`Create a CRM client named ${l.tag.name} and link this ${isPermit ? 'permit' : 'article'} to it`}
+                  title={`Create a CRM client named ${l.tag.name} and link this ${isConcept ? 'concept plan' : isPermit ? 'permit' : 'article'} to it`}
                 >
                   {adding === l.tag.id ? 'Adding…' : `+ Add ${l.tag.name} to CRM`}
                 </button>

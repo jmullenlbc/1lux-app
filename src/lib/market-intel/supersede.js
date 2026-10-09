@@ -31,7 +31,7 @@ export async function applySupersedes(signalId, { db } = {}) {
   // Same metro, in the window, a different kind, and either a matching unit
   // count or an address to check against the text (permits always have one).
   const sameBuildingHints = [{ address: { not: null } }];
-  if (signal.address) sameBuildingHints.push({ kind: { not: 'PERMIT' } });
+  if (signal.address) sameBuildingHints.push({ kind: { notIn: ['PERMIT', 'CONCEPT'] } });
   if (signal.unitCount) sameBuildingHints.push({ unitCount: signal.unitCount });
 
   const candidates = await client.marketSignal.findMany({

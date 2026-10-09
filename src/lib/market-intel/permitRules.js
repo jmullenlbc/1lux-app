@@ -16,6 +16,15 @@
  * sent with the fetch; map(row) -> the common permit shape, with skip: true
  * for rows to drop; firstLookbackDays for feeds too slow for the 18-month
  * first pull (Houston); ownerName in the map output becomes an OWNER company.
+ *
+ * CONCEPT profiles (Mike 10-8): the same machinery read against a city's
+ * planning cases, which are filed about a year before the permit. They carry
+ * no declared value, so the $10M floor is replaced by a unit floor: a case is
+ * kept when it states minUnits or more, or (keepUnstated) when it reads as
+ * multifamily without a count. Rows become kind CONCEPT. Extra fields:
+ * kind 'CONCEPT'; minUnits; keepClassRe (regex on permitClass instead of the
+ * list); keepUnstated; noDetail (Accela: never open the record's page);
+ * openAll (Accela: open every unlisted record's page, the unit count is there).
  */
 
 /** The MarketSource.sourceType that marks a permit feed. Kept as the 0123 value for every city, ArcGIS or Socrata. */
@@ -50,6 +59,18 @@ export const HOUSTON_KEEP_CLASSES = ['Building Pmt'];
 
 /** Below this declared value a permit is too small a job for us, unit count or not (Mike 10-8: $10M). */
 export const MIN_VALUATION = 10_000_000;
+
+/** A planning case with fewer stated units than this is not worth a salesperson's time (Mike 10-8: 25). */
+export const CONCEPT_MIN_UNITS = 25;
+
+/** Words that say a planning case is housing we light, when the unit count is not stated. */
+export const MULTIFAMILY_RE = /multi.?family|multi.?unit|apartment|mixed.?use|condo|residential units|dwelling units|senior (living|housing)|student housing|hotel|townho/i;
+
+/** Planning statuses that mean the case is dead. */
+const DEAD_CASE_RE = /withdrawn|denied|void|cancel|expired|inactive|aborted|rejected/i;
+
+/** The Salt Lake City planning record types that are a real site entitlement (not a sign, a fence or an appeal). */
+export const SALT_LAKE_PLANNING_RE = /Design Review|Planned Development|Zoning Incentives|Conditional Use|Zoning Map Amendment|Master Plan Amendment|Transit Station|New Construction|Preliminary Subdiv|Special Exception/i;
 
 export const PERMIT_PROFILES = {
   DENVER: {
@@ -376,7 +397,159 @@ export const PERMIT_PROFILES = {
       url:            null,
     }),
   },
+
+  // ── Concept plans: planning cases filed about a year before the permit ──
+
+  // Austin site plan cases (Socrata mavg-96ck, daily): the first site
+  // entitlement submittal. The description usually says "multifamily" with
+  // no count; proposed_no_of_units is filled on some rows. Owner and
+  // applicant (usually the civil engineer) are named.
+  AUSTIN_SITE_PLAN: {
+    key:       'AUSTIN_SITE_PLAN',
+    kind:      'CONCEPT',
+    api:       'socrata',
+    metro:     'Austin, TX',
+    state:     'TX',
+    layerUrl:  'https://data.austintexas.gov/resource/mavg-96ck.json',
+    siteUrl:   'https://data.austintexas.gov/Building-and-Development/Site-Plan-Cases/mavg-96ck',
+    dateField: 'application_start_date',
+    classField: 'sub_type',
+    baseWhere: "sub_type in ('Site Plan Administrative','Site Plan Commission','Site Plan Small Project')",
+    outFields: ['permit_number', 'case_name', 'sub_type', 'status', 'description_of_work', 'proposed_land_use', 'link', 'application_start_date', 'street_number', 'street_prefix', 'street_direction', 'street_name', 'street_type', 'council_district', 'existing_no_of_units', 'proposed_no_of_units', 'proposed_bldg_sq_footage', 'applicant_fullname', 'applicant_organization_name', 'owner_fullname', 'owner_organization_name'],
+    minUnits: CONCEPT_MIN_UNITS,
+    keepUnstated: true,
+    firstLookbackDays: 365,
+    map: (a) => austinCase(a, {
+      permitNumber: str(a.permit_number),
+      address:      titleCaseAddress([a.street_number, a.street_prefix, a.street_direction, a.street_name, a.street_type].map(str).filter(Boolean).join(' ')),
+      status:       str(a.status),
+      unitCount:    unitsFrom(a.proposed_no_of_units) || unitsFromText(a.description_of_work) || unitsFromText(a.case_name),
+    }),
+  },
+  // Austin zoning cases (Socrata edir-dcnf): rezonings and PUDs, even
+  // earlier than a site plan. Units are almost never stated, so only a case
+  // that states 25 or more is kept.
+  AUSTIN_ZONING: {
+    key:       'AUSTIN_ZONING',
+    kind:      'CONCEPT',
+    api:       'socrata',
+    metro:     'Austin, TX',
+    state:     'TX',
+    layerUrl:  'https://data.austintexas.gov/resource/edir-dcnf.json',
+    siteUrl:   'https://data.austintexas.gov/Building-and-Development/Zoning-Cases/edir-dcnf',
+    dateField: 'application_start_date',
+    classField: 'sub_type',
+    baseWhere: "sub_type in ('Zoning/Rezoning','Planned Unit Development (PUD)')",
+    outFields: ['case_number', 'permit_number', 'case_name', 'sub_type', 'detailed_status', 'description_of_work', 'proposed_land_use', 'link', 'application_start_date', 'site_address', 'council_district', 'applicant_fullname', 'applicant_organization_name', 'owner_fullname', 'owner_organization_name'],
+    minUnits: CONCEPT_MIN_UNITS,
+    keepUnstated: false,
+    firstLookbackDays: 365,
+    map: (a) => austinCase(a, {
+      permitNumber: str(a.case_number) || str(a.permit_number),
+      // "1213 W 6TH   , AUSTIN,TX 78703"
+      address:      titleCaseAddress(str(a.site_address).replace(/\s*,\s*AUSTIN.*$/i, '')),
+      status:       str(a.detailed_status),
+      unitCount:    unitsFromText(a.description_of_work) || unitsFromText(a.case_name),
+    }),
+  },
+  // Denver concept plans: the first Site Development Plan submittal, read
+  // from the city's Accela Development module like Salt Lake's permits. The
+  // list row has no unit count; every record's own page has "Number of
+  // Proposed Dwelling Units", "Proposed Use 1" and the gross floor area, so
+  // every new record is opened. The open-data layer (SDPConceptDynamic) has
+  // the same rows without those fields.
+  DENVER_CONCEPT: {
+    key:       'DENVER_CONCEPT',
+    kind:      'CONCEPT',
+    api:       'accela',
+    metro:     'Denver, CO',
+    state:     'CO',
+    layerUrl:  'https://aca-prod.accela.com/DENVER/Cap/CapHome.aspx?module=Development&TabName=Development',
+    siteUrl:   'https://aca-prod.accela.com/DENVER/Cap/CapHome.aspx?module=Development&TabName=Development',
+    permitType: 'Development/Project/Concept Review/NA',
+    firstLookbackDays: 365,
+    windowDays: 14,
+    openAll: true,
+    minUnits: CONCEPT_MIN_UNITS,
+    keepUnstated: true,
+    map: (a) => ({
+      permitNumber:   str(a.permitNumber),
+      permitClass:    str(a.permitType) || 'Concept Plan',
+      // "2026PM0000333 - 3550 W. 13th Ave - Westridge Mulroy Bldg" -> the project name after the master number and address.
+      buildingKind:   [denverProjectName(a.projectName), str(a.proposedUse), a.grossSf ? `${Number(a.grossSf).toLocaleString('en-US')} sq ft` : ''].filter(Boolean).join(': '),
+      // "3550 W 13th AVE, Denver CO 80204-1500"
+      address:        titleCaseAddress(str(a.address).replace(/,\s*Denver\s+CO.*$/i, '')),
+      neighborhood:   a.status ? `status ${str(a.status)}` : '',
+      valuation:      null,
+      contractorName: '',
+      // A stated count, even 1, is a count: a one-unit page is a house and fails the floor.
+      unitCount:      a.proposedUnits >= 1 ? a.proposedUnits : null,
+      multifamily:    MULTIFAMILY_RE.test(`${str(a.proposedUse)} ${str(a.projectName)}`),
+      skip:           DEAD_CASE_RE.test(str(a.status)),
+      issuedAt:       a.date ? new Date(a.date) : null,
+      url:            a.url ? String(a.url) : null,
+    }),
+  },
+  // Salt Lake City planning cases: the Accela Planning module, every record
+  // type in one search (blank type), kept when the type is a site
+  // entitlement. The list row carries the project name and a short note;
+  // the record's page adds nothing, so none is opened.
+  SALT_LAKE_PLANNING: {
+    key:       'SALT_LAKE_PLANNING',
+    kind:      'CONCEPT',
+    api:       'accela',
+    metro:     'Salt Lake City, UT',
+    state:     'UT',
+    layerUrl:  'https://aca-prod.accela.com/SLCREF/Cap/CapHome.aspx?module=Planning&TabName=Planning',
+    siteUrl:   'https://aca-prod.accela.com/SLCREF/Cap/CapHome.aspx?module=Planning&TabName=Planning',
+    permitType: '',
+    firstLookbackDays: 365,
+    windowDays: 14,
+    noDetail: true,
+    keepClassRe: SALT_LAKE_PLANNING_RE,
+    minUnits: CONCEPT_MIN_UNITS,
+    keepUnstated: true,
+    map: (a) => ({
+      permitNumber:   str(a.permitNumber),
+      permitClass:    str(a.permitType),
+      buildingKind:   [str(a.projectName), shortText(a.description, 140)].filter(Boolean).join(': '),
+      address:        titleCaseAddress(str(a.address).replace(/,\s*Salt Lake City\s+UT.*$/i, '')),
+      neighborhood:   a.status ? `status ${str(a.status)}` : '',
+      valuation:      null,
+      contractorName: '',
+      unitCount:      unitsFromText(a.projectName) || unitsFromText(a.description),
+      multifamily:    MULTIFAMILY_RE.test(`${str(a.projectName)} ${str(a.description)}`),
+      skip:           DEAD_CASE_RE.test(str(a.status)),
+      issuedAt:       a.date ? new Date(a.date) : null,
+      url:            a.url ? String(a.url) : null,
+    }),
+  },
 };
+
+/** The shared part of an Austin planning case: class, kind of building, people, status, link. */
+function austinCase(a, own) {
+  const text = `${str(a.case_name)} ${str(a.description_of_work)} ${str(a.proposed_land_use)}`;
+  return {
+    ...own,
+    permitClass:    str(a.sub_type),
+    buildingKind:   [str(a.case_name), shortText(a.description_of_work, 140)].filter(Boolean).join(': '),
+    neighborhood:   a.council_district ? `Council District ${str(a.council_district)}` : '',
+    valuation:      null,
+    contractorName: '',
+    ownerName:      cleanCompany(str(a.owner_organization_name) || str(a.owner_fullname)),
+    applicantName:  cleanCompany(str(a.applicant_organization_name) || str(a.applicant_fullname)),
+    multifamily:    MULTIFAMILY_RE.test(text),
+    skip:           DEAD_CASE_RE.test(own.status) || /^closed$/i.test(own.status) || /City-Initiated|COA Planning/i.test(`${str(a.case_name)} ${str(a.applicant_organization_name)}`),
+    issuedAt:       a.application_start_date ? new Date(a.application_start_date) : null,
+    url:            typeof a.link === 'string' ? a.link : (a.link && a.link.url ? String(a.link.url) : null),
+  };
+}
+
+/** "2026PM0000333 - 3550 W. 13th Ave - Westridge Mulroy Bldg" -> "Westridge Mulroy Bldg" (the name is the last dash part). */
+export function denverProjectName(v) {
+  const parts = str(v).split(/\s+-\s+/);
+  return parts.length > 1 ? parts.slice(2).join(' - ') || parts[1] : parts[0];
+}
 
 /** The profile for a source row: its feed URL first, then its market key. Two feeds can share one metro. */
 export function profileForSource(source) {
@@ -397,11 +570,13 @@ export function permitWhere(profile, since) {
   const base    = profile.baseWhere ? `${profile.baseWhere} AND ` : '';
   const value   = profile.valueExpr || profile.valueField || 'VALUATION';
   const klass   = profile.keepClasses ? ` AND ${profile.classField || 'CLASS'} IN (${classes})` : '';
+  // A planning case declares no value; the unit floor is applied in permitToSignal.
+  const floor   = profile.kind === 'CONCEPT' ? '' : ` AND ${value} >= ${MIN_VALUATION}`;
   if (profile.api === 'socrata') {
-    return `${base}${profile.dateField} >= '${iso}'${klass} AND ${value} >= ${MIN_VALUATION}`;
+    return `${base}${profile.dateField} >= '${iso}'${klass}${floor}`;
   }
   const date = profile.dateLiteral === 'plain' ? `'${iso}'` : `DATE '${iso}'`;
-  return `${base}${profile.dateField} >= ${date}${klass} AND ${value} >= ${MIN_VALUATION}`;
+  return `${base}${profile.dateField} >= ${date}${klass}${floor}`;
 }
 
 /** Full query URL for one profile. */
@@ -445,6 +620,8 @@ export function permitToSignal(profile, attributes) {
   const p = profile.map(attributes || {});
   if (!p.permitNumber || p.skip) return null;
   if (profile.keepClasses && !profile.keepClasses.includes(p.permitClass)) return null;
+  if (profile.keepClassRe && !profile.keepClassRe.test(p.permitClass)) return null;
+  if (profile.kind === 'CONCEPT') return conceptToSignal(profile, p);
   if (!(p.valuation >= MIN_VALUATION)) return null;
 
   const what  = whatFor(p.permitClass);
@@ -480,6 +657,56 @@ export function permitToSignal(profile, attributes) {
         ...(p.ownerName      ? [{ name: p.ownerName,      role: 'OWNER' }] : []),
       ],
       developerNames: [p.ownerName, p.contractorName].filter(Boolean),
+      projectNames:   [],
+      metro:          profile.metro,
+      state:          profile.state,
+      unitCount:      p.unitCount,
+    },
+  };
+}
+
+/**
+ * A planning case as a CONCEPT signal. Kept when it states minUnits or more,
+ * or reads as multifamily with no count stated (keepUnstated). The applicant
+ * is usually the engineer or architect, so it is tagged OTHER; the owner is
+ * the one a salesperson wants.
+ */
+function conceptToSignal(profile, p) {
+  const min = profile.minUnits || CONCEPT_MIN_UNITS;
+  if (p.unitCount) { if (p.unitCount < min) return null; }
+  else if (!(profile.keepUnstated && p.multifamily)) return null;
+
+  const units = p.unitCount ? `${p.unitCount.toLocaleString('en-US')} units` : 'units not stated';
+  const title = `Concept plan, ${units}: ${p.address || 'address not given'}`;
+  const parts = [
+    p.buildingKind ? p.buildingKind : null,
+    p.ownerName ? `Owner ${p.ownerName}` : null,
+    p.applicantName ? `Applicant ${p.applicantName}` : null,
+    p.neighborhood ? `in ${p.neighborhood}` : null,
+    `Case ${p.permitNumber}`,
+  ].filter(Boolean);
+
+  return {
+    kind:           'CONCEPT',
+    signalType:     'CONCEPT',
+    projectRelated: true,
+    title,
+    summary:        parts.join(', ') + '.',
+    url:            p.url || null,
+    publishedAt:    p.issuedAt,
+    unitCount:      p.unitCount,
+    permitNumber:   p.permitNumber,
+    permitClass:    p.permitClass,
+    address:        p.address,
+    neighborhood:   p.neighborhood,
+    valuation:      null,
+    contractorName: '',
+    extracted: {
+      companies: [
+        ...(p.ownerName     ? [{ name: p.ownerName,     role: 'OWNER' }] : []),
+        ...(p.applicantName ? [{ name: p.applicantName, role: 'OTHER' }] : []),
+      ],
+      developerNames: [p.ownerName].filter(Boolean),
       projectNames:   [],
       metro:          profile.metro,
       state:          profile.state,
@@ -591,19 +818,32 @@ export function accelaNextForm(profile, start, end, state, target) {
 
 const unescapeHtml = (s) => String(s || '').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
 
-/** The ten rows of a result page: date, detail link, number, type, description, project, address, status. */
+/**
+ * The ten rows of a result page: date, detail link, number, type, description,
+ * project, address, status. Each row is read on its own, label by label, so a
+ * module that leaves a column out (Planning has lblShortNote and
+ * lblPermitAddress instead of lblDescription and lblAddress) still parses.
+ */
 export function accelaRows(html) {
-  const re = /lblUpdatedTime[^>]*>([^<]*)<[\s\S]*?href="([^"]*CapDetail[^"]*)"[\s\S]*?lblPermitNumber1">([^<]*)<[\s\S]*?lblType">([^<]*)<[\s\S]*?lblDescription">([^<]*)<[\s\S]*?lblProjectName">([^<]*)<[\s\S]*?lblAddress">([^<]*)<[\s\S]*?lblStatus">([^<]*)</g;
-  return [...String(html || '').matchAll(re)].map(m => ({
-    date:         m[1].trim(),
-    url:          unescapeHtml(m[2]),
-    permitNumber: m[3].trim(),
-    permitType:   unescapeHtml(m[4]),
-    description:  unescapeHtml(m[5]),
-    projectName:  unescapeHtml(m[6]),
-    address:      unescapeHtml(m[7]),
-    status:       unescapeHtml(m[8]),
-  }));
+  // The lookahead split never cuts at position 0, so the header is dropped by test, not by index.
+  const chunks = String(html || '').split(/(?=<span[^>]*lblUpdatedTime)/).filter(c => /lblUpdatedTime/.test(c));
+  const label = (chunk, ...names) => {
+    for (const n of names) {
+      const m = chunk.match(new RegExp(`${n}"[^>]*>([^<]*)<`));
+      if (m) return unescapeHtml(m[1]);
+    }
+    return '';
+  };
+  return chunks.map(chunk => ({
+    date:         label(chunk, 'lblUpdatedTime'),
+    url:          unescapeHtml((chunk.match(/href="([^"]*CapDetail[^"]*)"/) || [])[1] || ''),
+    permitNumber: label(chunk, 'lblPermitNumber1'),
+    permitType:   label(chunk, 'lblType'),
+    description:  label(chunk, 'lblDescription', 'lblShortNote'),
+    projectName:  label(chunk, 'lblProjectName'),
+    address:      label(chunk, 'lblAddress', 'lblPermitAddress'),
+    status:       label(chunk, 'lblStatus'),
+  })).filter(r => r.permitNumber);
 }
 
 /** "Showing 1-10 of 87" on a result page, as the total (null when absent). */
@@ -631,19 +871,27 @@ export function accelaWorthDetail(row) {
   return weak.test(t) && !tenant.test(t);
 }
 
-/** Job Value, use type, square footage and record status from a permit's own page. */
+/**
+ * Job Value, use type, square footage and record status from a permit's own
+ * page. A Denver concept plan's page adds the proposed dwelling units, the
+ * proposed use and the gross floor area.
+ */
 export function accelaDetail(html) {
   const flat = String(html || '').replace(/\s+/g, ' ');
   const text = (label) => {
     const m = flat.match(new RegExp(`${label}(?:<[^>]+>|&nbsp;|\\s)*([^<]+)<`));
     return m ? unescapeHtml(m[1]) : '';
   };
+  const count = (label) => { const n = parseInt((text(label) || '').replace(/,/g, ''), 10); return Number.isFinite(n) ? n : null; };
   const jobValue = (flat.match(/Job Value[\s\S]{0,400}?\$\s*([\d,]+(?:\.\d+)?)/) || [])[1];
   return {
-    jobValue: jobValue ? Number(jobValue.replace(/,/g, '')) : null,
-    useType:  text('Use Type \\(Permit\\):'),
-    sqft:     Number((text('Square footage of work area:') || '').replace(/,/g, '')) || null,
-    status:   text('Record Status:'),
+    jobValue:      jobValue ? Number(jobValue.replace(/,/g, '')) : null,
+    useType:       text('Use Type \\(Permit\\):'),
+    sqft:          Number((text('Square footage of work area:') || '').replace(/,/g, '')) || null,
+    status:        text('Record Status:'),
+    proposedUnits: count('Number of Proposed Dwelling Units:'),
+    proposedUse:   text('Proposed Use 1:'),
+    grossSf:       count('Gross Floor Area \\(sq\\. ft\\):'),
   };
 }
 

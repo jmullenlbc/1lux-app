@@ -81,11 +81,15 @@ export async function* walkAccela(profile, since, until = new Date(), { known = 
       body = accelaNextForm(profile, w.start, w.end, state, next);
     }
 
-    // 4. the permit pages worth opening
+    // 4. the permit pages worth opening. A profile with noDetail (Salt Lake
+    // planning: the page adds nothing) keeps every listed row as is; one
+    // with openAll (Denver concept plans: the unit count is only on the
+    // page) opens every record not saved yet.
     let opened = 0;
     for (const row of listed) {
       if (known.has(row.permitNumber)) continue;
-      if (!accelaWorthDetail(row)) continue;
+      if (profile.noDetail) { out.rows.push({ ...row, url: row.url ? new URL(row.url, base).href : null }); continue; }
+      if (!profile.openAll && !accelaWorthDetail(row)) continue;
       if (opened >= maxDetails) { cut = true; break; }
       if (!timeLeft()) { cut = true; break; }
       opened += 1;

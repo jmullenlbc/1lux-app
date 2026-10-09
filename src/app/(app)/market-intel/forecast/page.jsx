@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo, Fragment } from 'react';
 import Link from 'next/link';
 import SectionTabs, { MARKET_INTEL_TABS } from '@/components/ui/SectionTabs';
+import { signalHref } from '@/components/market-intel/SignalCard';
 
 /**
  * Pipeline forecast (0122).
@@ -141,8 +142,9 @@ export default function ForecastPage() {
             </select>
           )}
           <select value={kind} onChange={e => setKind(e.target.value)} className={SELECT_CLS}>
-            <option value="">Permits and articles</option>
+            <option value="">Permits, concept plans and articles</option>
             <option value="PERMIT">Permits only</option>
+            <option value="CONCEPT">Concept plans only</option>
             <option value="ARTICLE">Articles only</option>
           </select>
           {by === 'company' && (
@@ -236,7 +238,7 @@ export default function ForecastPage() {
                               <tr key={it.signalId || it.label} className="border-t border-slate-100">
                                 <td className="pl-4 pr-2 py-1 text-slate-700">
                                   <Link
-                                    href={`${it.kind === 'PERMIT' ? '/market-intel/permits' : '/market-intel'}?signal=${it.signalId}`}
+                                    href={signalHref({ id: it.signalId, kind: it.kind })}
                                     onClick={e => e.stopPropagation()}
                                     className="hover:text-amber-600"
                                   >
@@ -246,7 +248,7 @@ export default function ForecastPage() {
                                 </td>
                                 <td className="px-2 py-1 text-right tabular-nums">{it.units.toLocaleString()}</td>
                                 <td className="px-2 py-1 text-slate-500">{it.metro || ''}</td>
-                                <td className="px-2 py-1 text-slate-500">{it.kind === 'PERMIT' ? 'Permit' : 'Article'}</td>
+                                <td className="px-2 py-1 text-slate-500">{it.kind === 'PERMIT' ? 'Permit' : it.kind === 'CONCEPT' ? 'Concept plan' : 'Article'}</td>
                                 <td className="px-2 py-1 text-slate-500 whitespace-nowrap">{it.publishedAt ? new Date(it.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</td>
                               </tr>
                             ))}

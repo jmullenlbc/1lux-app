@@ -5,6 +5,31 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [National numbers strip: FRED pull fix] - October 9, 2026 (DEPLOYED PENDING1) - no migration
+
+Mike: "can we get the national market numbers going now?" In prod every FRED series timed out ("The operation was aborted due to timeout"), so the strip showed nothing. FRED's edge stalls requests whose User-Agent is not browser-like; the same CSV URL answered in 0.6 s from the live app with a Mozilla User-Agent.
+
+- `pullMacroStats` now sends `Mozilla/5.0 (compatible; ILCStudiosBot/1.0; +market-intel)` and `Accept: text/csv`.
+- Also this morning: app.ilcstudios.com returned empty 500s on every database read for about an hour (digests 2607106228, 406364852). Nothing was pushed; the Lambda answered; the Postgres side was unreachable and came back on its own. Noted for Sean.
+
+Files: `src/lib/market-intel/macroStats.js`.
+
+## [Concept plan feeds: Austin, Denver, Salt Lake City] - October 8, 2026 (DEPLOYED PENDING1) - no migration
+
+Mike 10-8: "We want to get in around when the 1st site entitlement submittal goes in or right after ... probably at least 1 year before permit" and "do 25 plus units".
+
+**What it is.** Four new city feeds read the planning case that comes about a year before the building permit and save it as a `CONCEPT` signal (MarketSignal.kind is a plain string, so no migration). A case is kept when it states 25 or more units, or reads as multifamily with no count stated (Austin zoning cases drop the unstated ones, since they almost never say). There is no $10M floor on a planning case. The feeds share the permit pipeline: same `MarketSource` rows (sourceType ARCGIS_PERMITS), same "Pull permits now" button and cron, same 22 s slices and `pullCursorAt` resume, same tags, assignment, review, Add to CRM, Find owners and "one building, one count" supersede (Permit beats Concept plan beats Article).
+
+- **Austin site plan cases** (Socrata `mavg-96ck`): Site Plan Administrative, Commission and Small Project. Names the owner (tagged OWNER, goes to the CRM matcher) and the applicant (usually the civil engineer, tagged OTHER). Units from the proposed-units column or the text.
+- **Austin zoning cases** (Socrata `edir-dcnf`): rezonings and PUDs. City-initiated cases dropped.
+- **Denver concept plans**: the city's Accela Development portal, record type Concept Review. The list row has no unit count, so every new record's page is opened for "Number of Proposed Dwelling Units", "Proposed Use 1" and gross floor area (`openAll`). "Closed - Approved" plans are still leads; withdrawn, denied, void and expired are not.
+- **Salt Lake City planning cases**: the city's Accela Planning portal, every record type in one search, kept when the type is a site entitlement (design review, planned development, conditional use, zoning amendments, new construction and so on). The list row's project name and short note carry the units, so no page is opened (`noDetail`).
+- **Permits tab** is now "Permits and concept plans": a Permits / Concept plans / Both select (deep link `?kind=CONCEPT`), the type list switches with it, cards show an amber "Concept plan" badge with Owner, Case type and Filed instead of value, contractor and issued. The forecast tab gets "Concept plans only"; Find owners and the owner cron now cover concept plans too.
+- **To turn on in prod:** press "Refresh sources" on Market Intel sources (adds the four rows), then "Pull permits now" a few times (Denver and Salt Lake walk 365 days in 14-day windows).
+- Council agendas (Legistar) wait until the Anthropic credits are added, since reading an agenda needs a model call.
+
+Files: `src/lib/market-intel/permitRules.js` (CONCEPT profiles, `conceptToSignal`, `accelaRows` per-row labels, `accelaDetail` concept fields, no value floor for CONCEPT), `accelaFeed.js` (`noDetail`, `openAll`), `sourceCatalog.js` (four rows), `supersede.js`, `ownerLookup.js`, `SignalCard.jsx` (`signalHref`, concept card), `api/market-intel/signals/route.js` (`kind=A,B`), `api/market-intel/forecast/route.js`, `api/market-intel/owner-lookup/route.js`, `market-intel/permits/page.jsx`, `market-intel/forecast/page.jsx`, `scripts/tests/permitRules.test.mjs` (3 new tests).
+
 ## [Salt Lake City permits + national numbers strip] - October 8, 2026 (DEPLOYED 485aacc) - migration 0128 additive
 
 Mike 10-8: "get houston and salt lake city built" and "You never finished building out the macro market numbers on the market intelligence tab".

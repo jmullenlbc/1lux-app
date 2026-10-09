@@ -59,12 +59,14 @@ export async function GET(request) {
 
   // kind (0123): ARTICLE is the news tab, PERMIT the permits tab. A direct
   // link by signalId must work from either tab, so no kind filter then.
+  // CONCEPT (Mike 10-8) shares the permits tab; "PERMIT,CONCEPT" shows both.
   const kind        = (searchParams.get('kind') || 'ARTICLE').toUpperCase();
+  const kinds       = kind.split(',').map(s => s.trim()).filter(Boolean);
   const permitClass = searchParams.get('permitClass')?.trim();
 
   const where = {};
   if (signalId)     where.id           = signalId;
-  else if (kind !== 'ALL') where.kind  = kind;
+  else if (kind !== 'ALL') where.kind  = kinds.length > 1 ? { in: kinds } : kind;
   // Articles that are not about a project are not wanted (Mike 10-8, 0125).
   // A direct link by id still opens, so an old bell item never 404s.
   // screened=1 flips the list to ONLY the screened out ones, so a wrong call

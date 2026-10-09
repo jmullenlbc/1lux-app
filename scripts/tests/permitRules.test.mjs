@@ -365,7 +365,7 @@ test('Salt Lake City: the Accela form, the result rows, the next page and the pe
     + "Use Type (Permit): </span> </div> <div class='c'> <span class='s'>New Construction</span> </div>"
     + 'Square footage of work area: </span></div><div><span>184,500</span></div>'
     + 'Record Status:</span>&nbsp;<span id="ctl00_PlaceHolderMain_lblRecordStatus">Issued</span></h1>';
-  assert.deepEqual(accelaDetail(detail), { jobValue: 71000000, useType: 'New Construction', sqft: 184500, status: 'Issued' });
+  assert.deepEqual(accelaDetail(detail), { jobValue: 71000000, useType: 'New Construction', sqft: 184500, status: 'Issued', proposedUnits: null, proposedUse: '', grossSf: null });
   assert.equal(accelaDetail('<p>nothing</p>').jobValue, null);
 
   // the row plus its page becomes a signal; the city name is cut from the address
@@ -383,4 +383,155 @@ test('Salt Lake City: the Accela form, the result rows, the next page and the pe
   const w = accelaWindows(Date.UTC(2026, 0, 1), Date.UTC(2026, 1, 5), 14);
   assert.equal(w.length, 3);
   assert.equal(w[2].end.toISOString(), '2026-02-05T00:00:00.000Z');
+});
+
+// ── Concept plans (Mike 10-8): planning cases kept at 25+ units, saved as CONCEPT ──
+
+test('Austin site plan cases: 25+ units kept, under 25 dropped, multifamily with no count kept, dead cases skipped', async () => {
+  const { denverProjectName, CONCEPT_MIN_UNITS } = await import('../../src/lib/market-intel/permitRules.js');
+  const A = PERMIT_PROFILES.AUSTIN_SITE_PLAN;
+  assert.equal(A.kind, 'CONCEPT');
+  assert.equal(CONCEPT_MIN_UNITS, 25);
+  assert.equal(profileForSource({ feedUrl: A.layerUrl, market: 'AUSTIN' }).key, 'AUSTIN_SITE_PLAN');
+  // no $10M floor on a planning case, only the class list and the date
+  const where = permitWhere(A, Date.UTC(2026, 0, 1));
+  assert.match(where, /sub_type in \('Site Plan Administrative'/);
+  assert.match(where, /application_start_date >= '2026-01-01'/);
+  assert.doesNotMatch(where, /10000000/);
+
+  const base = {
+    permit_number: 'SP-2026-0123C', case_name: 'Lamar Union Apartments', sub_type: 'Site Plan Administrative', status: 'In Review',
+    description_of_work: 'New 5 story multifamily building with 312 units and structured parking', proposed_land_use: 'Multifamily',
+    link: 'https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=1', application_start_date: '2026-09-15T00:00:00.000',
+    street_number: '1100', street_direction: 'S', street_name: 'LAMAR', street_type: 'BLVD', council_district: '5',
+    proposed_no_of_units: '312', applicant_organization_name: 'KIMLEY-HORN AND ASSOCIATES INC', owner_organization_name: 'GREYSTAR DEVELOPMENT LLC',
+  };
+  const sig = permitToSignal(A, base);
+  assert.ok(sig);
+  assert.equal(sig.kind, 'CONCEPT');
+  assert.equal(sig.signalType, 'CONCEPT');
+  assert.equal(sig.unitCount, 312);
+  assert.equal(sig.valuation, null);
+  assert.equal(sig.permitNumber, 'SP-2026-0123C');
+  assert.equal(sig.address, '1100 S Lamar Blvd');
+  assert.equal(sig.title, 'Concept plan, 312 units: 1100 S Lamar Blvd');
+  assert.match(sig.summary, /Owner Greystar Development LLC/);
+  assert.match(sig.summary, /Applicant Kimley-Horn And Associates INC/);
+  assert.match(sig.summary, /Council District 5/);
+  assert.match(sig.summary, /Case SP-2026-0123C\.$/);
+  assert.equal(sig.url, base.link);
+  assert.deepEqual(sig.extracted.companies, [{ name: 'Greystar Development LLC', role: 'OWNER' }, { name: 'Kimley-Horn And Associates INC', role: 'OTHER' }]);
+  assert.deepEqual(sig.extracted.developerNames, ['Greystar Development LLC']);
+  assert.equal(sig.extracted.metro, 'Austin, TX');
+
+  // under the floor
+  assert.equal(permitToSignal(A, { ...base, proposed_no_of_units: '12', description_of_work: 'New 12 unit townhome project' }), null);
+  // units in the text when the column is empty
+  assert.equal(permitToSignal(A, { ...base, proposed_no_of_units: '' }).unitCount, 312);
+  // multifamily with no count stated is kept, an office with no count is not
+  const unstated = permitToSignal(A, { ...base, proposed_no_of_units: '', description_of_work: 'New multifamily development with podium parking' });
+  assert.equal(unstated.unitCount, null);
+  assert.equal(unstated.title, 'Concept plan, units not stated: 1100 S Lamar Blvd');
+  assert.equal(permitToSignal(A, { ...base, proposed_no_of_units: '', description_of_work: 'New office building', proposed_land_use: 'Office', case_name: 'Lamar Office' }), null);
+  // dead or city cases
+  assert.equal(permitToSignal(A, { ...base, status: 'Expired' }), null);
+  assert.equal(permitToSignal(A, { ...base, status: 'Closed' }), null);
+  assert.equal(permitToSignal(A, { ...base, case_name: 'City-Initiated Rezoning' }), null);
+  // the link as an object still works
+  assert.equal(permitToSignal(A, { ...base, link: { url: 'https://x' } }).url, 'https://x');
+
+  // zoning: units are rarely stated, so an unstated multifamily case is dropped
+  const Z = PERMIT_PROFILES.AUSTIN_ZONING;
+  const z = { case_number: 'C14-2026-0042', case_name: 'Ross Road Rezoning', sub_type: 'Zoning/Rezoning', detailed_status: 'Active',
+    description_of_work: 'Rezone from SF-3 to MF-6 for 240 unit multifamily', site_address: '5807  ROSS   , AUSTIN,TX 78617', application_start_date: '2026-09-01T00:00:00.000', link: 'https://z' };
+  const zs = permitToSignal(Z, z);
+  assert.equal(zs.permitNumber, 'C14-2026-0042');
+  assert.equal(zs.unitCount, 240);
+  assert.equal(zs.address, '5807 Ross');
+  assert.equal(zs.permitClass, 'Zoning/Rezoning');
+  assert.equal(permitToSignal(Z, { ...z, description_of_work: 'Rezone from SF-3 to MF-6 for multifamily' }), null);
+  assert.doesNotMatch(permitWhere(Z, Date.UTC(2026, 0, 1)), /10000000/);
+
+  assert.equal(denverProjectName('2026PM0000333 - 3550 W. 13th Ave - Westridge Mulroy Bldg'), 'Westridge Mulroy Bldg');
+  assert.equal(denverProjectName('2026PM0000333 - 3550 W. 13th Ave'), '3550 W. 13th Ave');
+  assert.equal(denverProjectName('Plain name'), 'Plain name');
+});
+
+test('Denver concept plans: the record page gives the units, use and floor area', async () => {
+  const { accelaRows, accelaDetail } = await import('../../src/lib/market-intel/permitRules.js');
+  const D = PERMIT_PROFILES.DENVER_CONCEPT;
+  assert.equal(D.api, 'accela');
+  assert.equal(D.openAll, true);
+  assert.equal(profileForSource({ feedUrl: D.layerUrl, market: 'DENVER' }).key, 'DENVER_CONCEPT');
+  assert.equal(profileForSource({ feedUrl: PERMIT_PROFILES.DENVER.layerUrl, market: 'DENVER' }).key, 'DENVER');
+
+  const list = '<span id="x_lblUpdatedTime" CSS="x">09/30/2026</span><a id="x_hlPermitNumber" href="/DENVER/Cap/CapDetail.aspx?Module=Development&amp;capID1=26CON&amp;capID2=00000&amp;capID3=00169">x</a>'
+    + '<span id="x_lblPermitNumber1">2026-CONCEPT-0000169</span><span id="x_lblType">Concept Plan</span>'
+    + '<span id="x_lblProjectName">2026PM0000333 - 3550 W. 13th Ave - Westridge Mulroy Bldg</span><span id="x_lblAddress">3550 W 13th AVE, Denver CO 80204-1500</span><span id="x_lblStatus">Review in Progress</span>';
+  const rows = accelaRows(list);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].permitNumber, '2026-CONCEPT-0000169');
+  assert.equal(rows[0].permitType, 'Concept Plan');
+  assert.equal(rows[0].description, '');
+  assert.equal(rows[0].address, '3550 W 13th AVE, Denver CO 80204-1500');
+
+  const detail = 'Number of Proposed Dwelling Units:</span></div><div><span>186</span></div>'
+    + 'Proposed Use 1:</span></div><div><span>Multi-Unit Dwelling</span></div>'
+    + 'Gross Floor Area (sq. ft):</span></div><div><span>212,400</span></div>'
+    + 'Record Status:</span>&nbsp;<span id="lblRecordStatus">Review in Progress</span>';
+  const d = accelaDetail(detail);
+  assert.equal(d.proposedUnits, 186);
+  assert.equal(d.proposedUse, 'Multi-Unit Dwelling');
+  assert.equal(d.grossSf, 212400);
+  assert.equal(accelaDetail('<p>nothing</p>').proposedUnits, null);
+
+  const sig = permitToSignal(D, { ...rows[0], ...d, url: 'https://aca-prod.accela.com' + rows[0].url });
+  assert.ok(sig);
+  assert.equal(sig.kind, 'CONCEPT');
+  assert.equal(sig.unitCount, 186);
+  assert.equal(sig.permitClass, 'Concept Plan');
+  assert.equal(sig.address, '3550 W 13th Ave');
+  assert.equal(sig.title, 'Concept plan, 186 units: 3550 W 13th Ave');
+  assert.match(sig.summary, /^Westridge Mulroy Bldg: Multi-Unit Dwelling: 212,400 sq ft, in status Review in Progress, Case 2026-CONCEPT-0000169\.$/);
+  assert.equal(sig.extracted.metro, 'Denver, CO');
+  // a closed and approved plan is still a lead; a withdrawn one is not; 1 unit means a house
+  assert.ok(permitToSignal(D, { ...rows[0], ...d, status: 'Closed - Approved' }));
+  assert.equal(permitToSignal(D, { ...rows[0], ...d, status: 'Withdrawn' }), null);
+  assert.equal(permitToSignal(D, { ...rows[0], ...d, proposedUnits: 1 }), null);
+  assert.equal(permitToSignal(D, { ...rows[0], ...d, proposedUnits: 24 }), null);
+  assert.equal(permitToSignal(D, { ...rows[0], ...d, proposedUnits: null, proposedUse: 'Office' }), null);
+  assert.equal(permitToSignal(D, { ...rows[0], ...d, proposedUnits: null }).unitCount, null);
+});
+
+test('Salt Lake City planning cases: list-only rows with the Planning module labels', async () => {
+  const { accelaRows, accelaSearchForm, accelaState } = await import('../../src/lib/market-intel/permitRules.js');
+  const P = PERMIT_PROFILES.SALT_LAKE_PLANNING;
+  assert.equal(P.noDetail, true);
+  assert.equal(profileForSource({ feedUrl: P.layerUrl, market: 'SALT_LAKE' }).key, 'SALT_LAKE_PLANNING');
+  assert.equal(profileForSource({ feedUrl: PERMIT_PROFILES.SALT_LAKE.layerUrl, market: 'SALT_LAKE' }).key, 'SALT_LAKE');
+  const form = new URLSearchParams(accelaSearchForm(P, Date.UTC(2026, 8, 1), Date.UTC(2026, 8, 15), accelaState('')));
+  assert.equal(form.get('ctl00$PlaceHolderMain$generalSearchForm$ddlGSPermitType'), '');
+
+  const row = (no, type, project, note, status = 'Under Review') => `<span id="r_lblUpdatedTime">09/30/2026</span><a id="r_hlPermitNumber" href="/SLCREF/Cap/CapDetail.aspx?Module=Planning&amp;capID3=${no}">x</a>`
+    + `<span id="r_lblPermitNumber1">PLNPCM2026-${no}</span><span id="r_lblType">${type}</span><span id="r_lblProjectName">${project}</span>`
+    + `<span id="r_lblShortNote">${note}</span><span id="r_lblPermitAddress">600 S STATE ST, Salt Lake City UT 84111</span><span id="r_lblStatus">${status}</span>`;
+  const list = row('00411', 'Design Review', 'State Street Apartments', 'New 7 story 240 unit multifamily building')
+    + row('00412', 'Sign Permit', 'Wall sign', 'New wall sign')
+    + row('00413', 'Planned Development', 'Liberty Wells PD', 'Mixed-use development, residential over retail')
+    + row('00414', 'Conditional Use', 'The Grove', 'New 300 unit apartment project', 'Withdrawn');
+  const rows = accelaRows(list);
+  assert.equal(rows.length, 4);
+  assert.equal(rows[0].description, 'New 7 story 240 unit multifamily building');
+  assert.equal(rows[0].address, '600 S STATE ST, Salt Lake City UT 84111');
+  assert.equal(rows[0].url, '/SLCREF/Cap/CapDetail.aspx?Module=Planning&capID3=00411');
+
+  const sigs = rows.map(r => permitToSignal(P, r));
+  assert.equal(sigs[0].kind, 'CONCEPT');
+  assert.equal(sigs[0].unitCount, 240);
+  assert.equal(sigs[0].permitClass, 'Design Review');
+  assert.equal(sigs[0].address, '600 S State St');
+  assert.match(sigs[0].summary, /^State Street Apartments: New 7 story 240 unit multifamily building/);
+  assert.equal(sigs[1], null);                  // not a planning type we keep
+  assert.equal(sigs[2].unitCount, null);        // mixed-use with no count, kept
+  assert.equal(sigs[3], null);                  // withdrawn
 });

@@ -16,7 +16,9 @@ export async function pullMacroStats({ deadline = Infinity, timeoutMs = 10000 } 
   for (const s of MACRO_SERIES) {
     if (Date.now() > deadline) { log.partial = true; break; }
     try {
-      const res  = await fetch(fredCsvUrl(s.id, since), { headers: { 'User-Agent': 'ILC-Studios-MarketIntel/1.0' }, signal: AbortSignal.timeout(timeoutMs) });
+      // FRED's edge stalls requests whose User-Agent is not browser-like (10-9: every
+      // series timed out from the live app; the same URL answered in 0.6 s as Mozilla).
+      const res  = await fetch(fredCsvUrl(s.id, since), { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ILCStudiosBot/1.0; +market-intel)', 'Accept': 'text/csv,*/*' }, signal: AbortSignal.timeout(timeoutMs) });
       const text = await res.text();
       if (!res.ok) throw new Error(`FRED ${res.status}`);
       const rows = parseFredCsv(text);

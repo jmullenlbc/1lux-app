@@ -28,7 +28,8 @@ export async function GET(request) {
   // Permits only or press only (Mike 10-8). "Articles" is everything that is not a permit.
   const kindParam = searchParams.get('kind');
   if (kindParam === 'PERMIT')  where.kind = 'PERMIT';
-  if (kindParam === 'ARTICLE') where.kind = { not: 'PERMIT' };
+  if (kindParam === 'CONCEPT') where.kind = 'CONCEPT';
+  if (kindParam === 'ARTICLE') where.kind = { notIn: ['PERMIT', 'CONCEPT'] };
   if (scope.length) where.AND = scope;
   // Company view only: developers, contractors or the rest (ROLE_GROUPS).
   const roles = ROLE_GROUPS[searchParams.get('role')] || null;

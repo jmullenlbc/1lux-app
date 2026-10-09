@@ -2,7 +2,15 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-08 (newest) - Mike's Claude - **DEPLOYED 485aacc**, migration 0128 (additive): Salt Lake City permit feed + national numbers strip
+### 2026-10-09 (newest) - Mike's Claude - **DEPLOYED PENDING1**, no migration: FRED User-Agent fix for the national numbers strip
+
+- **Prod outage, for Sean:** around 10-9 morning (Mountain) app.ilcstudios.com returned empty 500s on every database read for roughly an hour. Signed-out routes answered 401 normally, so the Lambda was fine; `prisma.user.findUnique` threw. Nothing was pushed (main still 1bfc41c). It recovered on its own. Worth a look at RDS events / connection count for that window.
+- National numbers strip: every FRED series timed out from the Lambda. FRED stalls non-browser User-Agents. `macroStats.js` now sends a Mozilla UA. Needs a deploy, then the strip fills on first open.
+
+### 2026-10-08 - Mike's Claude - **DEPLOYED PENDING1**, no migration: Concept plan feeds (Austin, Denver, Salt Lake City)
+Planning cases filed about a year before the permit, saved as `MarketSignal.kind = 'CONCEPT'` (plain string, no migration). Kept at 25+ units, or multifamily with no count. Four new `sourceCatalog.js` rows ride the permit pipeline (same button, cron, slices, cursor, tags, supersede). Permits tab has a Permits / Concept plans / Both select. After deploy: "Refresh sources", then "Pull permits now" several times. Council agendas wait on Anthropic credits. See CHANGELOG.
+
+### 2026-10-08 - Mike's Claude - **DEPLOYED 485aacc**, migration 0128 (additive): Salt Lake City permit feed + national numbers strip
 `MarketSource.pullCursorAt` and new `MacroStat`. SLC walks the city's Accela portal in 14-day windows with a resume cursor (no open data; application date, value from each permit page, no owner or contractor). Nine FRED series (public CSV, no key) on a strip at the top of Market Intelligence, pulled by the page on first open, by "Refresh numbers", and by the cron when over 20 hours old. After deploy: "Add missing sources", then "Pull permits now" several times. See CHANGELOG.
 
 ### 2026-10-08 - Mike's Claude - **DEPLOYED 485aacc**, no migration: Sales Pipeline "Filters" row on `/crm`

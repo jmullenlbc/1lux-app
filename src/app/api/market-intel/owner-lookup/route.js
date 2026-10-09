@@ -22,7 +22,7 @@ export async function POST(request) {
     const signalId = String(body.signalId || '').trim() || null;
     if (signalId) {
       const row = await prisma.marketSignal.findUnique({ where: { id: signalId }, select: { kind: true } });
-      if (!row || row.kind !== 'PERMIT') return NextResponse.json({ error: 'Not a permit' }, { status: 404 });
+      if (!row || !['PERMIT', 'CONCEPT'].includes(row.kind)) return NextResponse.json({ error: 'Not a permit' }, { status: 404 });
       // "Search again": clear the stamp so the lookup runs once more.
       await prisma.marketSignal.update({ where: { id: signalId }, data: { ownerLookupAt: null } });
       args = { signalId, limit: 1 };
