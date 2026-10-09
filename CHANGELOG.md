@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Municipal tab, council agenda reader, likely land buyer, article tags, permit card fields, live sidebar] - October 9, 2026 (DEPLOYED PENDING1) - no migration
+## [Municipal tab, council agenda reader, likely land buyer, article tags, permit card fields, live sidebar] - October 9, 2026 (DEPLOYED 001a413) - no migration
 
 Mike: "change the permit tab to be called something about municipal ... filterable by the stage", "I still do not see tags associated with articles", "permit cards ... show the company that filed for the permit and units as fields", and "the budget should show up even if not everything's filled in".
 
