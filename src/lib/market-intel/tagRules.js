@@ -10,11 +10,13 @@
 
 export const TAG_KINDS = ['COMPANY', 'PROJECT', 'METRO', 'STATE'];
 
-export const COMPANY_ROLES = ['DEVELOPER', 'OWNER', 'INVESTOR', 'GC', 'ARCHITECT', 'LENDER', 'OTHER'];
+// BUYER (Mike 10-9): a company asking to rezone land it does not own yet,
+// so it likely has the land under contract. See likelyLandBuyer in permitRules.
+export const COMPANY_ROLES = ['DEVELOPER', 'OWNER', 'INVESTOR', 'BUYER', 'GC', 'ARCHITECT', 'LENDER', 'OTHER'];
 
 // Roles that count as "the developer" for client matching, same set the
 // extractor used before tags existed.
-export const DEVELOPER_ROLES = ['DEVELOPER', 'OWNER', 'INVESTOR'];
+export const DEVELOPER_ROLES = ['DEVELOPER', 'OWNER', 'INVESTOR', 'BUYER'];
 
 const STATE_CODES = {
   alabama: 'AL', alaska: 'AK', arizona: 'AZ', arkansas: 'AR', california: 'CA', colorado: 'CO',

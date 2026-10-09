@@ -16,7 +16,7 @@
  * as a developer: that is what the old extractor meant by a company name.
  */
 export const ROLE_GROUPS = {
-  DEVELOPER: ['DEVELOPER', 'OWNER', 'INVESTOR', null],
+  DEVELOPER: ['DEVELOPER', 'OWNER', 'INVESTOR', 'BUYER', null],
   GC:        ['GC'],
   OTHER:     ['ARCHITECT', 'LENDER', 'OTHER'],
 };

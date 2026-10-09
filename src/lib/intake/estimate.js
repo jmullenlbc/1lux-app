@@ -53,7 +53,7 @@ export function intakeEstimateGate(answers, drawings, { provisional = false } = 
   if (hasDrawings || (typedIn && check.ready)) return { ready: true, hasDrawings, provisional: false, missing: [] };
   // Provisional (Mike 10-9: "It should start filling in the numbers as numbers
   // are filled in"): the live sidebar only, once a unit count is typed. Every
-  // other blank gets a stand-in and the result is labeled rough. Submitting,
+  // other blank gets a typical figure; the sidebar looks the same. Submitting,
   // the PDF and the staff hand-off still need the full minimum.
   if (provisional && typedIn && Number(parseLooseNumber(map.figureTotalUnits)) > 0) {
     return { ready: true, hasDrawings: false, provisional: true, missing: check.missing };

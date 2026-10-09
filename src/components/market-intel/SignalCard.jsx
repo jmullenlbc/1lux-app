@@ -30,6 +30,8 @@ export const SIGNAL_TYPE_META = {
   PERMIT:          { label: 'Permit',          color: 'bg-orange-100 text-orange-700' },
   // A planning case filed about a year before the permit (Mike 10-8).
   CONCEPT:         { label: 'Concept plan',    color: 'bg-amber-100 text-amber-800' },
+  // A rezoning read from a council agenda (Mike 10-9).
+  COUNCIL:         { label: 'Council item',    color: 'bg-violet-100 text-violet-700' },
 };
 
 /** Where a signal of each kind lives, for links between them. */
@@ -41,7 +43,7 @@ export function signalHref(signal) {
 
 const SUPERSEDE_LABELS = { PERMIT: 'permit', CONCEPT: 'concept plan', COUNCIL: 'council item', ARTICLE: 'article' };
 
-const ROLE_LABELS = { DEVELOPER: 'developer', OWNER: 'owner', INVESTOR: 'investor', GC: 'GC', ARCHITECT: 'architect', LENDER: 'lender' };
+const ROLE_LABELS = { DEVELOPER: 'developer', OWNER: 'owner', INVESTOR: 'investor', BUYER: 'likely land buyer', GC: 'GC', ARCHITECT: 'architect', LENDER: 'lender' };
 const TAG_STYLES  = {
   COMPANY: 'bg-slate-100 text-slate-700 hover:bg-slate-200',
   PROJECT: 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100',
@@ -95,6 +97,11 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
   const ownerTag     = tagLinks.find(l => l.tag.kind === 'COMPANY' && ['DEVELOPER', 'OWNER', 'INVESTOR'].includes(l.role));
   const projectTag   = tagLinks.find(l => l.tag.kind === 'PROJECT');
   const ownerName    = ownerTag?.tag.name || (isConcept ? developers[0] : developers.find(n => n !== signal.contractorName)) || null;
+  // Who filed a planning case or council item. BUYER (Mike 10-9): the filer
+  // is not the landowner, so it likely has the land under contract.
+  const buyerTag     = tagLinks.find(l => l.tag.kind === 'COMPANY' && l.role === 'BUYER');
+  const filerTag     = buyerTag || tagLinks.find(l => l.tag.kind === 'COMPANY' && ['OTHER', 'DEVELOPER'].includes(l.role) && l.tag.name !== ownerName);
+  const isCouncil    = signal.kind === 'COUNCIL';
   // One building, one count (0124): a permit beats a concept plan beats an article.
   const superseded   = !!(signal.supersededById && signal.supersededBy);
 
@@ -163,8 +170,10 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
               <Field label="Owner / developer">{ownerName || 'Not found yet'}</Field>
               {isConcept ? (
                 <>
+                  <Field label={buyerTag ? 'Likely land buyer' : 'Filed by'}><span className={buyerTag ? 'font-medium text-violet-700' : ''}>{filerTag?.tag.name || 'Not named'}</span></Field>
                   <Field label="Case type">{signal.permitClass || 'Not stated'}</Field>
-                  <Field label="Filed">{when}</Field>
+                  {isCouncil && <Field label="Status">{signal.neighborhood || 'Not stated'}</Field>}
+                  <Field label={isCouncil ? 'Date' : 'Filed'}>{when}</Field>
                 </>
               ) : (
                 <>

@@ -524,7 +524,40 @@ export const PERMIT_PROFILES = {
       url:            a.url ? String(a.url) : null,
     }),
   },
+
+  // ── Council agendas (Mike 10-9): rezoning and PUD votes from Legistar ──
+  // Legistar's web API is free and keyless. Each item's title carries the
+  // case number, address, zoning asked for and, in most cities, the
+  // applicant and owner. Kept when it states 25+ units or reads multifamily
+  // (or names a multifamily zone district). Phoenix and Dallas have no permit
+  // feed, so this is their first city source.
+  DENVER_COUNCIL:       legistarProfile('DENVER_COUNCIL',       'denver',             'Denver, CO',        'CO', { typeRe: /^Bill$/,                       keepRe: /\bto\s+[A-Z]-(?:MX|MS|RX|RO|MU|RH)-\d/ }),
+  PHOENIX_COUNCIL:      legistarProfile('PHOENIX_COUNCIL',      'phoenix',            'Phoenix, AZ',       'AZ', { typeRe: /Zoning Ordinance/,             keepRe: /\bR-[345]A?\b|Walkable Urban|\bWU\b|Residen|Apartment|Multi-?family|\bLiving\b|\bLofts?\b|\bFlats\b/i }),
+  DALLAS_COUNCIL:       legistarProfile('DALLAS_COUNCIL',       'cityofdallas',       'Dallas, TX',        'TX', { typeRe: /^ZONING CASES/,                keepRe: /\bMF-\d/, typeClause: "substringof('ZONING CASES',MatterTypeName)" }),
+  AUSTIN_COUNCIL:       legistarProfile('AUSTIN_COUNCIL',       'austintexas',        'Austin, TX',        'TX', { typeRe: /Zoning and Neighborhood Plan/, keepRe: /\bMF-\d|\bVMU\d?\b/ }),
+  MESA_COUNCIL:         legistarProfile('MESA_COUNCIL',         'mesa',               'Mesa, AZ',          'AZ', { typeRe: /^Ordinance$|^PZ Zoning/,       keepRe: /\bRM-\d/ }),
+  JACKSONVILLE_COUNCIL: legistarProfile('JACKSONVILLE_COUNCIL', 'jaxcityc',           'Jacksonville, FL',  'FL', { typeRe: /^Ordinance$/,                  keepRe: null }),
+  HILLSBOROUGH_COUNCIL: legistarProfile('HILLSBOROUGH_COUNCIL', 'hillsboroughcounty', 'Tampa, FL',         'FL', { typeRe: /^Rezoning|Public Hearing-Land Use/, keepRe: /\bRMC-\d|\bRM-\d|Comprehensive Plan:\s*(?:R-(?:9|12|16|20|35)|[CUSR]MU-\d+)/ }),
 };
+
+function legistarProfile(key, client, metro, state, { typeRe, keepRe, typeClause = '' }) {
+  return {
+    key,
+    kind:     'COUNCIL',
+    api:      'legistar',
+    client,
+    metro,
+    state,
+    layerUrl: `https://webapi.legistar.com/v1/${client}/matters`,
+    siteUrl:  `https://${client}.legistar.com/Legislation.aspx`,
+    firstLookbackDays: 365,
+    minUnits: CONCEPT_MIN_UNITS,
+    typeRe,
+    keepRe,
+    typeClause,
+    map: (m) => legistarMatter(client, m),
+  };
+}
 
 /** The shared part of an Austin planning case: class, kind of building, people, status, link. */
 function austinCase(a, own) {
@@ -581,6 +614,13 @@ export function permitWhere(profile, since) {
 
 /** Full query URL for one profile. */
 export function permitQueryUrl(profile, since, { limit = 500 } = {}) {
+  if (profile.api === 'legistar') {
+    const iso = (since instanceof Date ? since : new Date(since)).toISOString().slice(0, 10);
+    // substringof is case sensitive: 'zon' covers zoning, rezone, rezoning, zoned.
+    const words = ['zon', 'Zon', 'PUD', 'Planned'].map(w => `substringof('${w}',MatterTitle)`).join(' or ');
+    const f = `MatterIntroDate ge datetime'${iso}' and (${words})${profile.typeClause ? ` and ${profile.typeClause}` : ''}`;
+    return `${profile.layerUrl}?$top=1000&$orderby=MatterId desc&$filter=${encodeURIComponent(f)}`;
+  }
   if (profile.api === 'socrata') {
     const p = new URLSearchParams({
       $select: profile.outFields.join(','),
@@ -603,6 +643,10 @@ export function permitQueryUrl(profile, since, { limit = 500 } = {}) {
 
 /** Rows out of a feed response, whichever shape the city's API uses. */
 export function permitRows(profile, json) {
+  if (profile.api === 'legistar') {
+    if (json && !Array.isArray(json)) throw new Error(json.Message || 'feed error');
+    return json || [];
+  }
   if (profile.api === 'socrata') {
     if (json && json.error) throw new Error(json.message || 'feed error');
     return Array.isArray(json) ? json : [];
@@ -622,6 +666,7 @@ export function permitToSignal(profile, attributes) {
   if (profile.keepClasses && !profile.keepClasses.includes(p.permitClass)) return null;
   if (profile.keepClassRe && !profile.keepClassRe.test(p.permitClass)) return null;
   if (profile.kind === 'CONCEPT') return conceptToSignal(profile, p);
+  if (profile.kind === 'COUNCIL') return councilToSignal(profile, p);
   if (!(p.valuation >= MIN_VALUATION)) return null;
 
   const what  = whatFor(p.permitClass);
@@ -665,11 +710,43 @@ export function permitToSignal(profile, attributes) {
   };
 }
 
+// ── Likely land buyer (Mike 10-9) ──
+// A rezoning or site plan filed by a company that does not own the land
+// usually means that company has the land under contract: the earliest public
+// sign of a sale. The applicant is often the engineer, architect or zoning
+// lawyer instead, so those are left as OTHER, and a person's name (no company
+// word) is never called a buyer.
+const PROFESSIONAL_RE = /engineer|consult|architect|design|survey|planning|planners|\blaw\b|attorney|legal|PLLC|\bP\.?C\.?$|\bL\.?L\.?P\.?$|civil|permit|expedit|land use|landscape|Kimley|Bury|Pape-Dawson|Halff|\bLJA\b|Stantec|Westwood|Atwell|Bohler|Langan|Dunaway|Garver|Huitt-Zollars|Drenner|Armbrust|Winstead|Jackson Walker|Dubois|Metcalfe|Coats Rose|Masterplan|Withey Morris|Rose Law|Snell/i;
+const COMPANY_WORD_RE = /\b(LLC|L\.L\.C|LP|L\.P|LLLP|Inc|Corp|Corporation|Company|Co|Partners|Partnership|Group|Holdings|Development|Developers|Properties|Homes|Communities|Residential|Living|Capital|Ventures|Investments|Investors|Realty|Real Estate|Trust|Fund|Builders|Apartments|Housing|Multifamily|Equities|Acquisitions|Land)\b/i;
+const sameName = (a, b) => String(a || '').toLowerCase().replace(/[^a-z0-9]/g, '') === String(b || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+export function likelyLandBuyer(ownerName, applicantName) {
+  if (!ownerName || !applicantName || sameName(ownerName, applicantName)) return false;
+  return COMPANY_WORD_RE.test(applicantName) && !PROFESSIONAL_RE.test(applicantName);
+}
+
+/** The applicant's tag role: BUYER, DEVELOPER (no owner named), OTHER (a consultant or a person), or null (it is the owner). */
+export function applicantRole(ownerName, applicantName) {
+  if (!applicantName) return null;
+  if (ownerName && sameName(ownerName, applicantName)) return null;
+  if (likelyLandBuyer(ownerName, applicantName)) return 'BUYER';
+  if (!ownerName && COMPANY_WORD_RE.test(applicantName) && !PROFESSIONAL_RE.test(applicantName)) return 'DEVELOPER';
+  return 'OTHER';
+}
+
+function filingCompanies(ownerName, applicantName) {
+  const role = applicantRole(ownerName, applicantName);
+  return [
+    ...(ownerName ? [{ name: ownerName, role: 'OWNER' }] : []),
+    ...(role      ? [{ name: applicantName, role }] : []),
+  ];
+}
+
 /**
  * A planning case as a CONCEPT signal. Kept when it states minUnits or more,
  * or reads as multifamily with no count stated (keepUnstated). The applicant
- * is usually the engineer or architect, so it is tagged OTHER; the owner is
- * the one a salesperson wants.
+ * is usually the engineer or architect (OTHER); when it is a company that is
+ * not the owner it is tagged BUYER (see likelyLandBuyer).
  */
 function conceptToSignal(profile, p) {
   const min = profile.minUnits || CONCEPT_MIN_UNITS;
@@ -702,12 +779,131 @@ function conceptToSignal(profile, p) {
     valuation:      null,
     contractorName: '',
     extracted: {
-      companies: [
-        ...(p.ownerName     ? [{ name: p.ownerName,     role: 'OWNER' }] : []),
-        ...(p.applicantName ? [{ name: p.applicantName, role: 'OTHER' }] : []),
-      ],
-      developerNames: [p.ownerName].filter(Boolean),
+      companies: filingCompanies(p.ownerName, p.applicantName),
+      developerNames: [p.ownerName, applicantRole(p.ownerName, p.applicantName) === 'BUYER' ? p.applicantName : null].filter(Boolean),
       projectNames:   [],
+      metro:          profile.metro,
+      state:          profile.state,
+      unitCount:      p.unitCount,
+    },
+  };
+}
+
+// ── Council agendas (Legistar) ──
+
+const PASSED_RE = /passed|adopted|approved|enacted|granted|recommendation followed/i;
+// Words that end a name inside a run-on Legistar title.
+const NAME_END = '(?=\\s+(?:Representative|Owner|Location|Surveyor|U\\/A|Staff|Planner|Council|Folio|Agent|Application|Zoning|Request|City Staff)\\b|[.;]\\s|$)';
+
+/** First capture of the first pattern that matches, trimmed. */
+function firstMatch(text, patterns) {
+  for (const re of patterns) { const m = text.match(re); if (m && m[1]) return m[1].trim(); }
+  return '';
+}
+
+/** Case number, address, project, owner and applicant out of one Legistar title. Pure, exported for tests. */
+export function parseCouncilTitle(title) {
+  const t = str(title).replace(/\s+/g, ' ');
+  const caseNumber = firstMatch(t, [
+    /\b(C14[A-Z]?-\d{4}-\d{3,4})\b/,                 // Austin
+    /\b(ZON\d{2}-\d{5})\b/,                           // Mesa
+    /Rezoning Application (Z-[\dA-Z]+-\d{2}-\d)\b/,  // Phoenix
+    /\b(Z-\d{2}-\d{6})\b/,                            // Dallas
+    /\(Appl # (Z-\d+)/,                               // Jacksonville
+    /Application Number:\s*([A-Z-]+ \d{2}-\d{4})/,    // Hillsborough
+  ]);
+  // Owner and applicant, most specific pattern first.
+  let ownerName = '', applicantName = '';
+  const both = firstMatch(t, [/Owner\/Applicant:\s*(.+?)(?=\.\s|$)/, new RegExp(`Applicant\\/Owner:\\s*(.+?)${NAME_END}`)]);
+  const mesa = t.match(/(?:^|[.;]\s*)([^.;]+?),\s*owner;\s*([^.;]+?),\s*applicant\b/i);
+  if (both) { ownerName = both; applicantName = both; }
+  else if (mesa) { ownerName = mesa[1]; applicantName = mesa[2]; }
+  else {
+    ownerName     = firstMatch(t, [new RegExp(`\\bOwner:\\s*(.+?)${NAME_END}`), /\s-\s([^-()]+?)\s*\(R\.E\.\s*#/]);
+    applicantName = firstMatch(t, [new RegExp(`\\bApplicant:\\s*(.+?)${NAME_END}`), /Rezoning Application Z-[^\s]+ \(([^()]+?) - /]);
+  }
+  // "Kittle Property Group / Jana Darmon": the company, not the contact.
+  applicantName = applicantName.split(' / ')[0];
+  const address = firstMatch(t, [
+    /\bAKA\s+(.+?)(?=\.\s|$)/,                                   // Dallas
+    /locally known as\s+(.+?)\s*\(/,                              // Austin
+    /Rezoning at\s+([^,]+),/,                                     // Jacksonville
+    /zoning classification for\s+(.+?)\s+in\s+[A-Z]/,             // Denver
+    /Location:\s*(.+?)\s+Folio/,                                  // Hillsborough
+    /-\s*((?:Approximately|Northeast|Northwest|Southeast|Southwest)\b[^()]+?)\s*\(Ordinance/i, // Phoenix
+    /located\s+((?:approximately|at)\b[^.]+?)\.\s/i,              // Mesa
+  ]);
+  const projectName = firstMatch(t, [
+    /^C14[^ ]* - (.+?) - Conduct/,          // Austin
+    /"([^"]{3,80}?),?"/,                    // Mesa
+    /Described in the (.+? PUD)\b/,         // Jacksonville
+  ]);
+  return { caseNumber, ownerName: cleanCompany(ownerName), applicantName: cleanCompany(applicantName), address: shortText(address, 120), projectName };
+}
+
+/** One Legistar matter, in the shape permitToSignal reads. */
+export function legistarMatter(client, m) {
+  const title  = str(m.MatterTitle);
+  const parsed = parseCouncilTitle(title);
+  const status = str(m.MatterStatusName);
+  return {
+    permitNumber:  parsed.caseNumber || str(m.MatterFile),
+    permitClass:   str(m.MatterTypeName),
+    body:          str(m.MatterBodyName),
+    status,
+    passed:        PASSED_RE.test(status),
+    title,
+    address:       parsed.address,
+    projectName:   parsed.projectName || str(m.MatterName).replace(/^ZON\d{2}-\d{5}\s*-\s*/, ''),
+    ownerName:     parsed.ownerName,
+    applicantName: parsed.applicantName,
+    neighborhood:  [str(m.MatterBodyName), status].filter(Boolean).join(': '),
+    unitCount:     unitsFromText(title),
+    multifamily:   MULTIFAMILY_RE.test(title),
+    skip:          DEAD_CASE_RE.test(status) || /minutes|vacat|variance|replat|\bplat\b/i.test(`${str(m.MatterTypeName)} ${title.slice(0, 80)}`),
+    issuedAt:      m.MatterPassedDate || m.MatterAgendaDate || m.MatterIntroDate ? new Date(m.MatterPassedDate || m.MatterAgendaDate || m.MatterIntroDate) : null,
+    url:           m.MatterId ? `https://${client}.legistar.com/LegislationDetail.aspx?ID=${m.MatterId}${m.MatterGuid ? `&GUID=${m.MatterGuid}` : ''}` : null,
+  };
+}
+
+/** A council or hearing-body zoning item as a COUNCIL signal. */
+function councilToSignal(profile, p) {
+  if (profile.typeRe && !profile.typeRe.test(p.permitClass)) return null;
+  if (!/zon|PUD|Planned (?:Unit|Development|Area)/i.test(p.title)) return null;
+  const min = profile.minUnits || CONCEPT_MIN_UNITS;
+  if (p.unitCount) { if (p.unitCount < min) return null; }
+  else if (!(p.multifamily || (profile.keepRe && profile.keepRe.test(p.title)))) return null;
+
+  const units = p.unitCount ? `${p.unitCount.toLocaleString('en-US')} units` : 'units not stated';
+  const title = `${p.passed ? 'Rezoning approved' : 'Rezoning on the agenda'}, ${units}: ${p.address || p.projectName || 'address not given'}`;
+  const role  = applicantRole(p.ownerName, p.applicantName);
+  const parts = [
+    p.projectName || null,
+    p.ownerName ? `Owner ${p.ownerName}` : null,
+    p.applicantName && role ? `Applicant ${p.applicantName}` : null,
+    p.neighborhood || null,
+    `Case ${p.permitNumber}`,
+  ].filter(Boolean);
+
+  return {
+    kind:           'COUNCIL',
+    signalType:     'COUNCIL',
+    projectRelated: true,
+    title,
+    summary:        `${parts.join(', ')}. ${shortText(p.title, 400)}`,
+    url:            p.url || null,
+    publishedAt:    p.issuedAt,
+    unitCount:      p.unitCount,
+    permitNumber:   p.permitNumber,
+    permitClass:    p.permitClass,
+    address:        p.address,
+    neighborhood:   p.neighborhood,
+    valuation:      null,
+    contractorName: '',
+    extracted: {
+      companies:      filingCompanies(p.ownerName, p.applicantName),
+      developerNames: [p.ownerName, role === 'BUYER' || role === 'DEVELOPER' ? p.applicantName : null].filter(Boolean),
+      projectNames:   p.projectName ? [p.projectName] : [],
       metro:          profile.metro,
       state:          profile.state,
       unitCount:      p.unitCount,

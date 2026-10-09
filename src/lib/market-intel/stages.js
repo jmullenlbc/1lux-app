@@ -3,7 +3,7 @@
  * that project"). Pure, so the card and the signals route agree.
  *
  * Stored kinds: PERMIT (building permit), CONCEPT (planning case from the
- * concept feeds) and, once the agenda reader exists, COUNCIL. A CONCEPT row
+ * concept feeds) and COUNCIL (rezonings read from council agendas). A CONCEPT row
  * whose case type is a land use approval (rezoning, PUD, conditional use,
  * plat) is a site entitlement; the rest (site plan, concept plan, design
  * review) is a concept submission. No migration: kind stays a plain string.

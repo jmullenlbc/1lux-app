@@ -83,6 +83,8 @@ export async function GET(request) {
   if (signalType)   where.signalType   = signalType;
   if (reviewStatus) where.reviewStatus = reviewStatus;
   if (hasUnits)     where.unitCount    = { not: null };
+  // buyer=1 (Mike 10-9): filings whose applicant is not the landowner.
+  if (searchParams.get('buyer') === '1') tagFilters.push({ tags: { some: { role: 'BUYER' } } });
   if (assignedTo)   where.assignedToId = assignedTo === 'me' ? (user.id || user.userId) : assignedTo;
   // "This client's news" means articles linked to it OR tagged with a company
   // tag that points at it, so a confirmed GC or architect match counts too.

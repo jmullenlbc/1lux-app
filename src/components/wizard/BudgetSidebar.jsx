@@ -37,7 +37,7 @@ function PlainRow({ label, value, indent, highlight, bold }) {
 // server estimate carries a ±10% band; the internal wizard never passes it.
 // `areaNotes` ({ [area]: node }) and `areaSummary` are the staff-only area
 // alerts, passed only by the internal wizards — never by the public form.
-export default function BudgetSidebar({ budget, projectData, currentStep, range = null, areaNotes = null, areaSummary = null, projectName = '', homeType = false, roughMissing = null }) {
+export default function BudgetSidebar({ budget, projectData, currentStep, range = null, areaNotes = null, areaSummary = null, projectName = '', homeType = false }) {
   if (!budget) return null;
 
   const { sections, freight, warehousing, freightRate, warehousingRate, lightingProductSubtotal, subtotalLightingOnly, controls, controlsFreight, controlsWarehousing, totalWithControls, perSf, perUnit, energyCreditPct, energyCreditLighting, energyCreditControls } = budget;
@@ -65,17 +65,6 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
         {hasData && range && (
           <div className="mt-2 text-xs text-navy-300 tabular-nums leading-snug">
             Likely between {formatCurrency(range.low)} and {formatCurrency(range.high)}
-          </div>
-        )}
-        {/* Public no-drawings tool, priced before the minimum is in (Mike 10-9). */}
-        {hasData && Array.isArray(roughMissing) && (
-          <div className="mt-2 rounded-md bg-amber-500/15 px-2 py-1.5">
-            <div className="text-xs font-semibold text-amber-300">Rough number</div>
-            <div className="text-[11px] text-amber-100 leading-snug">
-              {roughMissing.length
-                ? `We filled in typical figures for: ${roughMissing.join(', ')}. Type them in to tighten it.`
-                : 'Filling in typical figures for now.'}
-            </div>
           </div>
         )}
       </div>

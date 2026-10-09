@@ -1809,8 +1809,7 @@ export default function IntakeClient() {
         {!submitted && (
           hasEstimate ? (
             <div className="hidden lg:flex shrink-0">
-              <BudgetSidebar budget={budget} projectData={estimatePd} currentStep={step.budgetStep || null} range={range} projectName={project} homeType={homeType}
-                roughMissing={estimate?.provisional ? (estimate.missing || []) : null} />
+              <BudgetSidebar budget={budget} projectData={estimatePd} currentStep={step.budgetStep || null} range={range} projectName={project} homeType={homeType} />
             </div>
           ) : (
             <aside className="hidden lg:flex w-64 bg-white border-l border-slate-100 flex-col shrink-0">

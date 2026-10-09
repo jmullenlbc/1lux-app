@@ -43,7 +43,15 @@ export async function pollPermitSource(source, { limit = 500, now = new Date(), 
   }
   log.fetched = rows.length;
 
-  const signals = rows.map(a => permitToSignal(profile, a)).filter(Boolean);
+  // One case number, one row: a council agenda lists the same rezoning once
+  // per body (Mesa: council ordinance and P&Z), so keep the first (newest),
+  // unless a later copy says it passed.
+  const byCase = new Map();
+  for (const s of rows.map(a => permitToSignal(profile, a)).filter(Boolean)) {
+    const prior = byCase.get(s.permitNumber);
+    if (!prior || (/approved/i.test(s.title) && !/approved/i.test(prior.title))) byCase.set(s.permitNumber, s);
+  }
+  const signals = [...byCase.values()];
   log.kept = signals.length;
   if (!signals.length) return log;
 
@@ -86,7 +94,7 @@ async function pollAccelaSource(source, profile, since, { now, deadline, log }) 
 async function saveSignals(source, signals, log, deadline = Infinity) {
   const existing = await prisma.marketSignal.findMany({
     where:  { sourceId: source.id, permitNumber: { in: signals.map(s => s.permitNumber) } },
-    select: { id: true, permitNumber: true, unitCount: true, valuation: true, contractorName: true },
+    select: { id: true, permitNumber: true, unitCount: true, valuation: true, contractorName: true, neighborhood: true },
   });
   const byNumber = new Map(existing.map(e => [e.permitNumber, e]));
 
@@ -102,9 +110,12 @@ async function saveSignals(source, signals, log, deadline = Infinity) {
       const prior = byNumber.get(s.permitNumber);
       if (prior) {
         // The city revises rows (a change of contractor, a corrected count).
-        const changed = prior.unitCount !== data.unitCount || prior.valuation !== data.valuation || prior.contractorName !== data.contractorName;
+        // A council case moves body to body ("Planning Commission: Approved"
+        // then "City Council: Passed"), carried in neighborhood.
+        const changed = prior.unitCount !== data.unitCount || prior.valuation !== data.valuation || prior.contractorName !== data.contractorName
+          || (data.neighborhood !== undefined && prior.neighborhood !== data.neighborhood);
         if (changed) {
-          await prisma.marketSignal.update({ where: { id: prior.id }, data: { unitCount: data.unitCount, valuation: data.valuation, contractorName: data.contractorName, title: data.title, summary: data.summary } });
+          await prisma.marketSignal.update({ where: { id: prior.id }, data: { unitCount: data.unitCount, valuation: data.valuation, contractorName: data.contractorName, neighborhood: data.neighborhood, title: data.title, summary: data.summary } });
           log.updated += 1;
         }
         continue;

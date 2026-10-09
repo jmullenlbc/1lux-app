@@ -36,7 +36,7 @@ test('the typed-in estimate prices once the minimum is in, and not before', () =
   assert.equal(partial.projectData, null);
 });
 
-test('provisional: the sidebar prices from a unit count alone, labeled rough; strict callers still refuse', () => {
+test('provisional: the sidebar prices from a unit count alone, normal sidebar, no rough label; strict callers still refuse', () => {
   const onlyUnits = { noDrawings: 'yes', figureTotalUnits: '120' };
   const r = computeIntakeEstimate({ answers: onlyUnits, drawings: null, provisional: true });
   assert.ok(r.budget && r.budget.totalWithControls > 0, 'a rough number comes back');
@@ -61,4 +61,7 @@ test('the sidebar placeholder lists the missing boxes and reports a failed price
   assert.match(src, /manualCheck\.missing\.map\(/);
   assert.match(src, /setEstimateStatus\(res\.status\)/);
   assert.match(src, /The live price did not come back/);
+  // Mike 10-9: "I never said anything about rough budget." Normal sidebar only.
+  assert.doesNotMatch(src, /roughMissing/);
+  assert.doesNotMatch(read('src/components/wizard/BudgetSidebar.jsx'), /Rough number|roughMissing/);
 });

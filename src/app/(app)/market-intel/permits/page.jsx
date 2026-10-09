@@ -43,6 +43,7 @@ const EMPTY_FILTERS = {
   company:      '',
   assignedTo:   '',
   hasUnits:     '',
+  buyer:        '',
   signalId:     '',
 };
 
@@ -78,7 +79,7 @@ function PermitsInner() {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(page), stage: filters.stage || 'ALL' });
-      for (const key of ['reviewStatus', 'permitClass', 'clientId', 'metro', 'state', 'company', 'assignedTo', 'hasUnits', 'signalId']) {
+      for (const key of ['reviewStatus', 'permitClass', 'clientId', 'metro', 'state', 'company', 'assignedTo', 'hasUnits', 'buyer', 'signalId']) {
         if (filters[key]) params.set(key, filters[key]);
       }
       if (search) params.set('search', search);
@@ -253,6 +254,10 @@ function PermitsInner() {
             <option value="">With or without units</option>
             <option value="1">Has a unit count</option>
           </select>
+          <select value={filters.buyer} onChange={e => setFilter('buyer', e.target.value)} className={SELECT_CLS} title="The applicant is not the landowner">
+            <option value="">Any filer</option>
+            <option value="1">Likely land buyer</option>
+          </select>
           {clients.length > 0 && (
             <select value={filters.clientId} onChange={e => setFilter('clientId', e.target.value)} className={SELECT_CLS}>
               <option value="">All clients</option>
@@ -305,7 +310,7 @@ function PermitsInner() {
             <p className="font-medium">No {STAGE_NOUN[filters.stage] || 'filing'}s match these filters</p>
             <p className="text-xs mt-1">
               {filters.stage === 'COUNCIL'
-                ? 'Council approvals come from city council agendas, which are not read yet.'
+                ? 'Council rezonings come from the agendas of Denver, Phoenix, Mesa, Dallas, Austin, Jacksonville and Hillsborough County. Press Pull city filings now.'
                 : 'Press Pull city filings now to read the city feeds. One pull reads permits and planning cases together.'}
             </p>
           </div>
