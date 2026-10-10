@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Land sales, Not relevant learning, By company view, Sales roles] - October 9, 2026 (DEPLOYED PENDING1) - migration 0130
+## [Land sales, Not relevant learning, By company view, Sales roles] - October 9, 2026 (DEPLOYED a2d9cdc) - migration 0130
 
 Mike 10-9: "We need a system that gets smarter", "3. Yes build and deploy".
 
