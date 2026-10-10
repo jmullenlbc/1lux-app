@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { stageWhere } from '@/lib/market-intel/stages';
+import { stageWhere, municipalStage } from '@/lib/market-intel/stages';
 import { normalizeTagName } from '@/lib/market-intel/tagRules';
 import { RELEVANCE_SELECT, PROJECT_ONLY, rankByRelevance } from '@/lib/market-intel/relevance';
 
@@ -113,6 +113,35 @@ export async function GET(request) {
     ] });
   }
   if (tagFilters.length) where.AND = tagFilters;
+
+  // By company (Mike 10-9): the same filtered rows, one entry per company tag,
+  // newest filing first. Not paged: the company list is short.
+  if (searchParams.get('view') === 'company') {
+    const rows = await prisma.marketSignal.findMany({
+      where,
+      orderBy: [{ publishedAt: 'desc' }],
+      take:    2000,
+      select:  { id: true, kind: true, title: true, permitClass: true, city: true, unitCount: true, publishedAt: true, tags: { select: { role: true, tag: { select: { id: true, kind: true, name: true, normalized: true, clientId: true } } } } },
+    });
+    const groups = new Map();
+    for (const r of rows) {
+      for (const l of r.tags) {
+        if (l.tag.kind !== 'COMPANY') continue;
+        const g = groups.get(l.tag.id) || { tagId: l.tag.id, name: l.tag.name, normalized: l.tag.normalized, clientId: l.tag.clientId, roles: new Set(), cities: new Set(), filings: 0, totalUnits: 0, latestAt: null, signals: [] };
+        if (l.role) g.roles.add(l.role);
+        if (r.city) g.cities.add(r.city);
+        g.filings += 1;
+        g.totalUnits += r.unitCount || 0;
+        if (!g.latestAt || (r.publishedAt && r.publishedAt > g.latestAt)) g.latestAt = r.publishedAt;
+        g.signals.push({ id: r.id, kind: r.kind, stage: municipalStage(r), title: r.title, publishedAt: r.publishedAt });
+        groups.set(l.tag.id, g);
+      }
+    }
+    const companies = [...groups.values()]
+      .map(g => ({ ...g, roles: [...g.roles], cities: [...g.cities] }))
+      .sort((a, b) => b.filings - a.filings || (b.latestAt?.getTime() || 0) - (a.latestAt?.getTime() || 0));
+    return NextResponse.json({ companies, signals: [], total: companies.length, page: 1, limit: companies.length });
+  }
 
   // "Most relevant" is a score, not a column: score every matching row on a
   // handful of fields, take this page's ids, then load those rows in full.

@@ -16,8 +16,13 @@ export async function GET(request) {
     return NextResponse.json({ error: `Unknown department. Use one of: ${DEPARTMENT_KEYS.join(', ')}` }, { status: 400 });
   }
 
+  // A Sales or Sales Admin login (10-9) is on the sales team without a
+  // department row, so the sales dropdowns list them too.
+  const inDept = !department ? {}
+    : department === 'SALES_MARKETING' ? { OR: [inDepartment(department), { role: { in: ['SALES', 'SALES_ADMIN'] } }] }
+    : inDepartment(department);
   const users = await prisma.user.findMany({
-    where: { isActive: true, ...(department ? inDepartment(department) : {}) },
+    where: { isActive: true, ...inDept },
     select: { id: true, name: true, email: true, departments: DEPARTMENTS_SELECT },
     orderBy: { name: 'asc' },
   });

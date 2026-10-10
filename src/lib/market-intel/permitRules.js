@@ -604,6 +604,43 @@ export const PERMIT_PROFILES = {
     },
   },
 
+  // ── Land sales (Mike 10-9, land offer plan): Denver assessor parcels ──
+  // The assessor file carries the last sale on every parcel. A closed sale of
+  // buildable land to a company is the earliest sign of a project. Rule
+  // agreed 10-9: company buyer; vacant land at any size; commercial or
+  // industrial only on a 5+ story zone (suffix 5 or more, or downtown D-*)
+  // and a quarter acre; RH zones a quarter acre. Condos, rowhouses and
+  // existing apartment buildings are not land. No dollar floor: the floor
+  // is $1,000 to skip the $0 transfers. City limits only (Mike 10-9).
+  DENVER_LAND: {
+    key:        'DENVER_LAND',
+    kind:       'LAND',
+    api:        'arcgis',
+    metro:      'Denver, CO',
+    state:      'CO',
+    layerUrl:   'https://services1.arcgis.com/zdB7qR0BtYrg0Xpl/arcgis/rest/services/ODC_PROP_PARCELS_A/FeatureServer/245/query',
+    dateField:  'SALE_DATE',
+    outFields:  ['SCHEDNUM', 'SITUS_ADDRESS_LINE1', 'ZONE_10', 'D_CLASS_CN', 'OWNER_NAME', 'LAND_AREA', 'TOT_UNITS', 'COM_GROSS_AREA', 'RECEPTION_NUM', 'SALE_DATE', 'SALE_PRICE'],
+    baseWhere:  "SALE_PRICE >= 1000 AND (D_CLASS_CN LIKE 'VACANT LAND%' OR D_CLASS_CN LIKE 'COMMERCIAL%' OR D_CLASS_CN LIKE 'INDUSTRIAL%' OR D_CLASS_CN LIKE '%W/MIXED USE%' OR D_CLASS_CN LIKE 'RESIDENTIAL LAND%') AND D_CLASS_CN NOT LIKE '%CONDOMINIUM%' AND D_CLASS_CN NOT LIKE 'RESIDENTIAL-ROWHOUSE%' AND D_CLASS_CN NOT LIKE 'RESIDENTIAL-MULTI UNIT APTS%' AND (ZONE_10 LIKE '%-MX-%' OR ZONE_10 LIKE '%-MU-%' OR ZONE_10 LIKE '%-RX-%' OR ZONE_10 LIKE '%-RH-%' OR ZONE_10 LIKE '%-MS-%' OR ZONE_10 LIKE 'D-%' OR ZONE_10 LIKE 'CMP-%' OR ZONE_10 LIKE 'PUD%' OR ZONE_10 LIKE '%-CC-%')",
+    firstLookbackDays: 365,
+    map(a) {
+      const owner = cleanCompany(a.OWNER_NAME);
+      const date  = a.SALE_DATE ? new Date(a.SALE_DATE) : null;
+      return {
+        permitNumber: str(a.RECEPTION_NUM) || (a.SCHEDNUM && date ? `${a.SCHEDNUM}-${date.toISOString().slice(0, 10)}` : ''),
+        permitClass:  str(a.D_CLASS_CN),
+        address:      titleCaseAddress(a.SITUS_ADDRESS_LINE1),
+        neighborhood: str(a.ZONE_10),
+        valuation:    num(a.SALE_PRICE),
+        landArea:     num(a.LAND_AREA),
+        unitCount:    null,
+        ownerName:    owner,
+        issuedAt:     date,
+        url:          null,
+      };
+    },
+  },
+
   // ── Council agendas (Mike 10-9): rezoning and PUD votes from Legistar ──
   // Legistar's web API is free and keyless. Each item's title carries the
   // case number, address, zoning asked for and, in most cities, the
@@ -683,7 +720,8 @@ export function permitWhere(profile, since) {
   const value   = profile.valueExpr || profile.valueField || 'VALUATION';
   const klass   = profile.keepClasses ? ` AND ${profile.classField || 'CLASS'} IN (${classes})` : '';
   // A planning case declares no value; the unit floor is applied in permitToSignal.
-  const floor   = profile.kind === 'CONCEPT' ? '' : ` AND ${value} >= ${MIN_VALUATION}`;
+  // A land sale carries its own price floor in baseWhere.
+  const floor   = (profile.kind === 'CONCEPT' || profile.kind === 'LAND') ? '' : ` AND ${value} >= ${MIN_VALUATION}`;
   if (profile.api === 'socrata') {
     return `${base}${profile.dateField} >= '${iso}'${klass}${floor}`;
   }
@@ -746,6 +784,7 @@ export function permitToSignal(profile, attributes) {
   if (profile.keepClassRe && !profile.keepClassRe.test(p.permitClass)) return null;
   if (profile.kind === 'CONCEPT') return conceptToSignal(profile, p);
   if (profile.kind === 'COUNCIL') return councilToSignal(profile, p);
+  if (profile.kind === 'LAND')    return landToSignal(profile, p);
   if (!(p.valuation >= MIN_VALUATION)) return null;
 
   const what  = whatFor(p.permitClass);
@@ -819,6 +858,78 @@ function filingCompanies(ownerName, applicantName) {
     ...(ownerName ? [{ name: ownerName, role: 'OWNER' }] : []),
     ...(role      ? [{ name: applicantName, role }] : []),
   ];
+}
+
+// ── Land sales (Mike 10-9) ──
+/** A quarter acre in square feet. */
+export const LAND_MIN_SF = 10_890;
+
+/** Stories a Denver zone allows: the trailing number ("C-MX-8" is 8), downtown D-* and CMP-* count as high rise. */
+export function zoneStories(zone) {
+  const z = String(zone || '').toUpperCase();
+  if (/^D-|^CMP-/.test(z)) return 20;
+  const m = z.match(/-(\d{1,2})[A-Z]*$/);
+  return m ? Number(m[1]) : 0;
+}
+
+/**
+ * Keep this sale? Vacant land any size. Commercial or industrial (a building
+ * is on it) only where the zone allows 5+ stories and the lot is a quarter
+ * acre, since a tower needs little ground. RH (row house) zones a quarter acre.
+ */
+export function keepLandSale({ permitClass, neighborhood, landArea, ownerName }) {
+  if (!ownerName || !COMPANY_WORD_RE.test(ownerName)) return false;
+  const klass = String(permitClass || '').toUpperCase();
+  const zone  = String(neighborhood || '').toUpperCase();
+  const sf    = Number(landArea) || 0;
+  if (/-RH-/.test(zone)) return sf >= LAND_MIN_SF;
+  if (klass.startsWith('VACANT') || klass.startsWith('RESIDENTIAL LAND')) return true;
+  return zoneStories(zone) >= 5 && sf >= LAND_MIN_SF;
+}
+
+function acres(sf) {
+  const a = Number(sf) / 43_560;
+  if (!(a > 0)) return '';
+  return `${a >= 10 ? a.toFixed(0) : a.toFixed(2)} ac`;
+}
+
+/** A closed land sale as a LAND signal; the buyer is tagged BUYER. */
+function landToSignal(profile, p) {
+  if (!keepLandSale(p)) return null;
+  const title = `Land sale: ${p.address || 'address not given'}`;
+  const parts = [
+    p.ownerName ? `Bought by ${p.ownerName}` : null,
+    p.valuation ? `for ${money(p.valuation)}` : null,
+    p.landArea ? `${acres(p.landArea)} (${Math.round(p.landArea).toLocaleString('en-US')} sf)` : null,
+    p.permitClass ? p.permitClass.toLowerCase() : null,
+    p.neighborhood ? `zoned ${p.neighborhood}` : null,
+    `Reception ${p.permitNumber}`,
+  ].filter(Boolean);
+
+  return {
+    kind:           'LAND',
+    signalType:     'LAND',
+    projectRelated: true,
+    title,
+    summary:        parts.join(', ') + '.',
+    url:            null,
+    publishedAt:    p.issuedAt,
+    unitCount:      null,
+    permitNumber:   p.permitNumber,
+    permitClass:    p.permitClass,
+    address:        p.address,
+    neighborhood:   p.neighborhood,
+    valuation:      p.valuation,
+    contractorName: '',
+    extracted: {
+      companies:      [{ name: p.ownerName, role: 'BUYER' }],
+      developerNames: [p.ownerName],
+      projectNames:   [],
+      metro:          profile.metro,
+      state:          profile.state,
+      unitCount:      null,
+    },
+  };
 }
 
 /**

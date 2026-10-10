@@ -63,6 +63,7 @@ export function parsePermissions(permissions) {
 export function isSalesAdmin(user) {
   if (!user) return false;
   if (isSuperAdmin(user.role)) return true;
+  if (user.role === 'SALES_ADMIN') return true;   // the role (10-9), not just the flag
   return parsePermissions(user.permissions).salesAdmin === true;
 }
 
@@ -190,9 +191,9 @@ export async function requireSalesAdmin(request) {
   return { user, error: null };
 }
 
-// The sales team: any admin, a Sales Admin, or anyone in Sales + marketing.
+// The sales team: any admin, a Sales Admin, a Sales login, or anyone in Sales + marketing.
 export function isSalesTeam(user) {
-  return !!user && (actsAsAdmin(user) || isSalesAdmin(user) || hasDepartment(user, SALES_MARKETING));
+  return !!user && (actsAsAdmin(user) || isSalesAdmin(user) || user.role === 'SALES' || hasDepartment(user, SALES_MARKETING));
 }
 
 // Who can work the web budget request queue: any admin, plus anyone in the

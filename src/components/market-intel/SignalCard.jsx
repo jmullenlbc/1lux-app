@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { municipalStage, STAGE_BY_VALUE } from '@/lib/market-intel/stages';
+import { REASONS, reasonNeedsText } from '@/lib/market-intel/feedbackRules';
 
 /**
  * One Market Intel signal: a news article or, since 0123, a city permit.
@@ -32,16 +33,56 @@ export const SIGNAL_TYPE_META = {
   CONCEPT:         { label: 'Concept plan',    color: 'bg-amber-100 text-amber-800' },
   // A rezoning read from a council agenda (Mike 10-9).
   COUNCIL:         { label: 'Council item',    color: 'bg-violet-100 text-violet-700' },
+  // A closed land sale to a company (Mike 10-9), earlier than any filing.
+  LAND:            { label: 'Land sale',       color: 'bg-emerald-100 text-emerald-800' },
 };
 
 /** Where a signal of each kind lives, for links between them. */
 export function signalHref(signal) {
   if (signal.kind === 'PERMIT')  return `/market-intel/permits?signal=${signal.id}`;
-  if (signal.kind === 'CONCEPT' || signal.kind === 'COUNCIL') return `/market-intel/permits?signal=${signal.id}`;
+  if (signal.kind === 'CONCEPT' || signal.kind === 'COUNCIL' || signal.kind === 'LAND') return `/market-intel/permits?signal=${signal.id}`;
   return `/market-intel?signal=${signal.id}`;
 }
 
-const SUPERSEDE_LABELS = { PERMIT: 'permit', CONCEPT: 'concept plan', COUNCIL: 'council item', ARTICLE: 'article' };
+const SUPERSEDE_LABELS = { PERMIT: 'permit', CONCEPT: 'concept plan', COUNCIL: 'council item', LAND: 'land sale', ARTICLE: 'article' };
+
+// "Not relevant" (migration 0130, Mike 10-9): a reason per press so the system
+// learns. Only "Other" asks for a sentence.
+function NotRelevantPicker({ onSave, onCancel }) {
+  const [reasonCode, setReasonCode] = useState('');
+  const [reasonText, setReasonText] = useState('');
+  const [saving, setSaving]         = useState(false);
+  const needsText = reasonNeedsText(reasonCode);
+  const ready     = reasonCode && (!needsText || reasonText.trim().length > 0);
+  async function save() {
+    if (!ready || saving) return;
+    setSaving(true);
+    try { await onSave({ reasonCode, reasonText: reasonText.trim() }); } finally { setSaving(false); }
+  }
+  return (
+    <div className="flex flex-col gap-1.5 items-end" onClick={e => e.stopPropagation()}>
+      <select value={reasonCode} onChange={e => setReasonCode(e.target.value)} autoFocus className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-700">
+        <option value="">Why not relevant?</option>
+        {REASONS.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
+      </select>
+      {needsText && (
+        <input
+          type="text"
+          value={reasonText}
+          onChange={e => setReasonText(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') save(); }}
+          placeholder="One sentence on why"
+          maxLength={300}
+          className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-700 w-56"
+        />
+      )}
+      <div className="flex gap-1.5">
+        <button onClick={onCancel} className="text-xs px-2.5 py-1 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">Cancel</button>
+        <button onClick={save} disabled={!ready || saving} className="text-xs px-2.5 py-1 rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50">{saving ? 'Saving…' : 'Save'}</button>
+      </div>
+    </div>
+  );
+}
 
 const ROLE_LABELS = { DEVELOPER: 'developer', OWNER: 'owner', INVESTOR: 'investor', BUYER: 'likely land buyer', GC: 'GC', ARCHITECT: 'architect', LENDER: 'lender' };
 const TAG_STYLES  = {
@@ -62,9 +103,10 @@ function money(n) {
   return `$${Math.round(n)}`;
 }
 
-export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, onFindOwner, onProjectTypeClick, salesUsers = [] }) {
+export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, onFindOwner, onProjectTypeClick, onNotRelevant, salesUsers = [] }) {
   // Owner looked up on the web (0126): a permit names the builder, not the owner.
   const [finding, setFinding] = useState(false);
+  const [picking, setPicking] = useState(false);
   async function findOwner() {
     if (!onFindOwner || finding) return;
     setFinding(true);
@@ -73,6 +115,7 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
   // A concept plan or council item is a permit-shaped row (address, units, case number) with no value or contractor.
   const stage        = municipalStage(signal);
   const isConcept    = signal.kind === 'CONCEPT' || signal.kind === 'COUNCIL';
+  const isLand       = signal.kind === 'LAND';
   const isPermit     = !!stage;
   const meta         = stage ? { label: STAGE_BY_VALUE[stage].chip, color: STAGE_BY_VALUE[stage].color }
                      : (SIGNAL_TYPE_META[signal.signalType] || SIGNAL_TYPE_META.NEWS);
@@ -168,7 +211,14 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
               <Field label="Units"><span className="font-medium">{signal.unitCount ? signal.unitCount.toLocaleString() : 'Not stated'}</span></Field>
               <Field label="Project">{projectTag?.tag.name || 'Not named'}</Field>
               <Field label="Owner / developer">{ownerName || 'Not found yet'}</Field>
-              {isConcept ? (
+              {isLand ? (
+                <>
+                  <Field label="Buyer"><span className="font-medium text-violet-700">{buyerTag?.tag.name || ownerName || 'Not named'}</span></Field>
+                  <Field label="Sale price">{signal.valuation ? money(signal.valuation) : 'Not stated'}</Field>
+                  <Field label="Lot / zoning">{signal.neighborhood ? `Zoned ${signal.neighborhood}` : 'Not stated'}{signal.permitClass ? `, ${signal.permitClass.toLowerCase()}` : ''}</Field>
+                  <Field label="Sold">{when}</Field>
+                </>
+              ) : isConcept ? (
                 <>
                   <Field label={buyerTag ? 'Likely land buyer' : 'Filed by'}><span className={buyerTag ? 'font-medium text-violet-700' : ''}>{filerTag?.tag.name || 'Not named'}</span></Field>
                   <Field label="Case type">{signal.permitClass || 'Not stated'}</Field>
@@ -190,7 +240,7 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
           {/* Who is behind the permit, from the web (0126, Mike 10-8: "there is
               almost always something about that address"). The companies found
               are the chips below; this line is the page they came from. */}
-          {isPermit && onFindOwner && (
+          {isPermit && !isLand && onFindOwner && (
             <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs">
               {signal.ownerLookupAt && signal.ownerSourceUrl ? (
                 <>
@@ -341,7 +391,13 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
         </div>
 
         {/* Actions */}
-        {!isDismissed && signal.reviewStatus !== 'REVIEWED' && (
+        {!isDismissed && signal.reviewStatus !== 'REVIEWED' && picking && (
+          <NotRelevantPicker
+            onCancel={() => setPicking(false)}
+            onSave={async body => { await onNotRelevant(signal.id, body); setPicking(false); }}
+          />
+        )}
+        {!isDismissed && signal.reviewStatus !== 'REVIEWED' && !picking && (
           <div className="flex gap-1.5 shrink-0">
             {signal.projectRelated === false && (
               <button
@@ -368,10 +424,11 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
               Mark reviewed
             </button>
             <button
-              onClick={() => onUpdate(signal.id, { reviewStatus: 'DISMISSED' })}
-              className="text-xs px-2.5 py-1 rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-50"
+              onClick={() => onNotRelevant ? setPicking(true) : onUpdate(signal.id, { reviewStatus: 'DISMISSED' })}
+              title="Hide this one and tell the system why, so it learns"
+              className="text-xs px-2.5 py-1 rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-50 whitespace-nowrap"
             >
-              Dismiss
+              Not relevant
             </button>
           </div>
         )}

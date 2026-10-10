@@ -234,6 +234,10 @@ export const SOURCES = [
   { name: 'Jacksonville council rezonings', market: 'JACKSONVILLE', feedUrl: 'https://webapi.legistar.com/v1/jaxcityc/matters',           siteUrl: 'https://jaxcityc.legistar.com/Legislation.aspx',           projectTypes: ALL_TYPES, pollingFrequency: 'DAILY', sourceType: 'ARCGIS_PERMITS', notes: 'Jacksonville City Council rezoning and PUD ordinances that state 25 or more units or read as multifamily. Names the owner.' },
   { name: 'Hillsborough County rezonings',  market: 'TAMPA',        feedUrl: 'https://webapi.legistar.com/v1/hillsboroughcounty/matters', siteUrl: 'https://hillsboroughcounty.legistar.com/Legislation.aspx', projectTypes: ALL_TYPES, pollingFrequency: 'DAILY', sourceType: 'ARCGIS_PERMITS', notes: 'Hillsborough County land use hearings: planned development rezonings on multifamily and mixed use land. Names the applicant.' },
 
+  // Land sales (Mike 10-9, land offer plan): closed sales of buildable land to
+  // a company, from the assessor's parcel file. Earlier than any filing.
+  { name: 'Denver land sales',              market: 'DENVER',       feedUrl: 'https://services1.arcgis.com/zdB7qR0BtYrg0Xpl/arcgis/rest/services/ODC_PROP_PARCELS_A/FeatureServer/245/query', siteUrl: 'https://www.denvergov.org/opendata', projectTypes: ALL_TYPES, pollingFrequency: 'DAILY', sourceType: 'ARCGIS_PERMITS', notes: 'Closed land sales to companies on land zoned for multifamily, mixed use or commercial inside Denver city limits. The buyer is tagged likely land buyer.' },
+
   // ── Texas statewide ──────────────────────────────────────────────────────
   { name: 'Virtual Builders Exchange',  market: 'TEXAS',    feedUrl: 'https://virtualbx.com/feed/',                           siteUrl: 'https://virtualbx.com',                    projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY',  notes: 'Texas construction bid news. Reports groundbreakings and awards by project name and dollar value.' },
 ];

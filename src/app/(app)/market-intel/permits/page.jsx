@@ -16,14 +16,17 @@ const PERMIT_CLASSES = ['New Building', 'Addition', 'Phased Construction', 'Foun
 const CONCEPT_CLASSES = ['Site Plan Administrative', 'Site Plan Commission', 'Site Plan Small Project', 'Zoning/Rezoning', 'Planned Unit Development (PUD)', 'Concept Plan', 'Design Review', 'Planned Development', 'Conditional Use'];
 // Stage filter (Mike 10-9), earliest stage first. See stages.js.
 const STAGE_OPTIONS = [{ value: 'ALL', label: 'All stages' }, ...STAGES.map(s => ({ value: s.value, label: s.label }))];
+const STAGE_LABEL   = Object.fromEntries(STAGES.map(s => [s.value, s.chip]));
+const ROLE_LABELS   = { DEVELOPER: 'developer', OWNER: 'owner', INVESTOR: 'investor', BUYER: 'likely land buyer', GC: 'GC', ARCHITECT: 'architect', LENDER: 'lender', OTHER: 'filer' };
 function classesFor(stage) {
   if (stage === 'PERMIT')      return PERMIT_CLASSES;
   if (stage === 'CONCEPT')     return CONCEPT_CLASSES.filter(c => !isEntitlementClass(c));
   if (stage === 'ENTITLEMENT') return CONCEPT_CLASSES.filter(isEntitlementClass);
   if (stage === 'COUNCIL')     return [];
+  if (stage === 'LAND')        return [];
   return [...CONCEPT_CLASSES, ...PERMIT_CLASSES];
 }
-const STAGE_NOUN = { ALL: 'filing', PERMIT: 'permit', CONCEPT: 'concept submission', ENTITLEMENT: 'site entitlement', COUNCIL: 'council approval' };
+const STAGE_NOUN = { ALL: 'filing', PERMIT: 'permit', CONCEPT: 'concept submission', ENTITLEMENT: 'site entitlement', COUNCIL: 'council approval', LAND: 'land sale' };
 
 export default function PermitsPage() {
   return (
@@ -67,6 +70,9 @@ function PermitsInner() {
     return deepLinkId ? { ...base, reviewStatus: '', signalId: deepLinkId } : base;
   });
   const [sort,        setSort]        = useState('newest');
+  // By company (Mike 10-9): the same filters, grouped by the company behind them.
+  const [view,        setView]        = useState('filing');
+  const [companies,   setCompanies]   = useState([]);
   const searchDebounce = useRef(null);
 
   useEffect(() => {
@@ -84,14 +90,16 @@ function PermitsInner() {
       }
       if (search) params.set('search', search);
       if (sort !== 'newest') params.set('sort', sort);
+      if (view === 'company') params.set('view', 'company');
       const res  = await fetch(`/api/market-intel/signals?${params}`);
       const data = await res.json();
       setSignals(data.signals || []);
+      setCompanies(data.companies || []);
       setTotal(data.total || 0);
     } finally {
       setLoading(false);
     }
-  }, [filters, page, search, sort]);
+  }, [filters, page, search, sort, view]);
 
   useEffect(() => { fetchSignals(); }, [fetchSignals]);
 
@@ -109,6 +117,14 @@ function PermitsInner() {
 
   async function updateSignal(id, patch) {
     await fetch(`/api/market-intel/signals/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) });
+    fetchSignals();
+  }
+
+  // Not relevant with a reason (0130): the row is hidden and the system learns.
+  async function notRelevant(id, body) {
+    const res  = await fetch(`/api/market-intel/signals/${id}/feedback`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { alert(data.error || 'Could not save'); return; }
     fetchSignals();
   }
 
@@ -203,7 +219,7 @@ function PermitsInner() {
           <div>
             <h1 className="text-xl font-semibold text-slate-900">Municipal filings</h1>
             <p className="text-sm text-slate-500 mt-0.5">
-              {total.toLocaleString()} {STAGE_NOUN[filters.stage] || 'filing'}{total !== 1 ? 's' : ''} · concept submissions, site entitlements, council approvals and permits from city feeds, matched to clients
+              {total.toLocaleString()} {view === 'company' ? `compan${total === 1 ? 'y' : 'ies'}` : `${STAGE_NOUN[filters.stage] || 'filing'}${total !== 1 ? 's' : ''}`} · land sales, concept submissions, site entitlements, council approvals and permits from city feeds, matched to clients
             </p>
             {pollNote && <p className="text-xs text-slate-500 mt-1">{pollNote}</p>}
             {findNote && <p className="text-xs text-slate-500 mt-1">{findNote}</p>}
@@ -237,6 +253,10 @@ function PermitsInner() {
         </div>
 
         <div className="flex flex-wrap gap-2 mb-5">
+          <select value={view} onChange={e => { setView(e.target.value); setPage(1); }} className={SELECT_CLS} title="One row per filing, or one per company">
+            <option value="filing">By filing</option>
+            <option value="company">By company</option>
+          </select>
           <select value={filters.stage} onChange={e => { setFilter('stage', e.target.value); setFilter('permitClass', ''); }} className={SELECT_CLS} title="Project stage">
             {STAGE_OPTIONS.map(k => <option key={k.value} value={k.value}>{k.label}</option>)}
           </select>
@@ -311,13 +331,47 @@ function PermitsInner() {
             <p className="text-xs mt-1">
               {filters.stage === 'COUNCIL'
                 ? 'Council rezonings come from the agendas of Denver, Phoenix, Mesa, Dallas, Austin, Jacksonville and Hillsborough County. Press Pull city filings now.'
-                : 'Press Pull city filings now to read the city feeds. One pull reads permits and planning cases together.'}
+                : filters.stage === 'LAND'
+                ? 'Land sales come from the Denver assessor: closed sales to a company on land zoned for apartments, mixed use or commercial. Press Pull city filings now.'
+                : 'Press Pull city filings now to read the city feeds. One pull reads permits, planning cases and land sales together.'}
             </p>
+          </div>
+        ) : view === 'company' ? (
+          <div className="space-y-2">
+            {companies.map(c => (
+              <div key={c.tagId} className="bg-white border border-slate-200 rounded-xl px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <button onClick={() => { setView('filing'); filterByTag({ kind: 'COMPANY', name: c.name }); }} className="text-sm font-semibold text-slate-800 hover:text-orange-600 text-left" title="Show this company's filings">
+                      {c.name}
+                    </button>
+                    <div className="text-xs text-slate-500 mt-0.5">
+                      {c.roles.map(r => ROLE_LABELS[r] || r.toLowerCase()).join(', ')}
+                      {c.cities.length > 0 && <> · {c.cities.join(', ')}</>}
+                      {c.clientId && <span className="ml-2 text-green-700">In CRM</span>}
+                    </div>
+                  </div>
+                  <dl className="grid grid-cols-3 gap-x-4 text-xs text-right shrink-0">
+                    <div><dt className="text-slate-400">Filings</dt><dd className="font-medium text-slate-700">{c.filings}</dd></div>
+                    <div><dt className="text-slate-400">Units</dt><dd className="font-medium text-slate-700">{c.totalUnits ? c.totalUnits.toLocaleString() : 'None stated'}</dd></div>
+                    <div><dt className="text-slate-400">Latest</dt><dd className="font-medium text-slate-700">{c.latestAt ? new Date(c.latestAt).toLocaleDateString() : ''}</dd></div>
+                  </dl>
+                </div>
+                <ul className="mt-2 space-y-0.5">
+                  {c.signals.slice(0, 5).map(s => (
+                    <li key={s.id} className="text-xs text-slate-600 truncate">
+                      <span className="text-slate-400">{STAGE_LABEL[s.stage] || s.kind}</span> · {s.title}
+                    </li>
+                  ))}
+                  {c.signals.length > 5 && <li className="text-xs text-slate-400">and {c.signals.length - 5} more</li>}
+                </ul>
+              </div>
+            ))}
           </div>
         ) : (
           <div className="space-y-2">
             {signals.map(signal => (
-              <SignalCard key={signal.id} signal={signal} onUpdate={updateSignal} onTagClick={filterByTag} onAddToCrm={addToCrm} onFindOwner={findOwner} salesUsers={salesUsers} />
+              <SignalCard key={signal.id} signal={signal} onUpdate={updateSignal} onTagClick={filterByTag} onAddToCrm={addToCrm} onFindOwner={findOwner} onNotRelevant={notRelevant} salesUsers={salesUsers} />
             ))}
           </div>
         )}

@@ -53,6 +53,8 @@ function DepartmentPicker({ value, onChange }) {
 const ROLE_OPTIONS = [
   { value: 'SUPER_ADMIN',   label: 'Super Admin',   desc: 'Full access — ILC Studios team only'        },
   { value: 'COMPANY_ADMIN', label: 'Company Admin',  desc: 'Can manage users and see all projects'      },
+  { value: 'SALES_ADMIN',   label: 'Sales Admin',    desc: 'Runs the sales team: applies Market Intel rules, sales automation, everyone\'s My Desk' },
+  { value: 'SALES',         label: 'Sales',          desc: 'Salesperson: CRM, Market Intel, My Desk' },
   { value: 'USER',          label: 'User',           desc: 'Standard access — create and edit projects' },
   { value: 'CLIENT_VIEWER', label: 'Client Viewer',  desc: 'Outside contractor — sees only their own jobs, never buy price' },
 ];
@@ -62,6 +64,8 @@ const ROLE_BADGE = {
   ILC_ADMIN:     { label: 'Super Admin',   variant: 'ilc_admin' },
   COMPANY_ADMIN: { label: 'Company Admin', variant: 'admin'     },
   ADMIN:         { label: 'Company Admin', variant: 'admin'     },
+  SALES_ADMIN:   { label: 'Sales Admin',   variant: 'admin'     },
+  SALES:         { label: 'Sales',         variant: 'user'      },
   USER:          { label: 'User',          variant: 'user'      },
   CLIENT_VIEWER: { label: 'Client Viewer', variant: 'pending'   },
 };

@@ -13,9 +13,12 @@ export const STAGES = [
   { value: 'ENTITLEMENT', label: 'Site entitlements',      chip: 'Site entitlement',   color: 'bg-yellow-100 text-yellow-800' },
   { value: 'COUNCIL',     label: 'City council approvals', chip: 'Council approval',   color: 'bg-sky-100 text-sky-700' },
   { value: 'PERMIT',      label: 'Permit submissions',     chip: 'Permit',             color: 'bg-orange-100 text-orange-700' },
+  // Land sales (Mike 10-9, land offer plan): a closed sale of buildable land to
+  // a company. Earlier than any filing, so it is listed last as its own stage.
+  { value: 'LAND',        label: 'Land sales',             chip: 'Land sale',          color: 'bg-emerald-100 text-emerald-800' },
 ];
 export const STAGE_BY_VALUE = Object.fromEntries(STAGES.map(s => [s.value, s]));
-export const MUNICIPAL_KINDS = ['PERMIT', 'CONCEPT', 'COUNCIL'];
+export const MUNICIPAL_KINDS = ['PERMIT', 'CONCEPT', 'COUNCIL', 'LAND'];
 
 // Words in a case type that make it a land use approval.
 export const ENTITLEMENT_WORDS = ['zoning', 'rezon', 'planned unit', 'pud', 'planned development', 'conditional use', 'special use', 'annex', 'plat', 'subdivision', 'variance', 'entitle'];
@@ -29,6 +32,7 @@ export function isEntitlementClass(permitClass) {
 export function municipalStage(signal = {}) {
   if (signal.kind === 'PERMIT')  return 'PERMIT';
   if (signal.kind === 'COUNCIL') return 'COUNCIL';
+  if (signal.kind === 'LAND')    return 'LAND';
   if (signal.kind === 'CONCEPT') return isEntitlementClass(signal.permitClass) ? 'ENTITLEMENT' : 'CONCEPT';
   return null;
 }
@@ -42,6 +46,7 @@ export function stageWhere(stageParam) {
   const parts = [];
   if (stages.includes('PERMIT'))  parts.push({ kind: 'PERMIT' });
   if (stages.includes('COUNCIL')) parts.push({ kind: 'COUNCIL' });
+  if (stages.includes('LAND'))    parts.push({ kind: 'LAND' });
   const concept = stages.includes('CONCEPT'), ent = stages.includes('ENTITLEMENT');
   if (concept && ent) parts.push({ kind: 'CONCEPT' });
   // A blank case type is a concept submission; SQL NOT on a null would drop it.

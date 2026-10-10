@@ -17,6 +17,7 @@
  *   How old is it?                        -1 per week, capped at 26
  *   Has a permit replaced it?             superseded -2000 (one building, one count)
  *   Is it about a project at all?         no: -5000
+ *   Did somebody mark it not relevant?    -30 per press (0130)
  *
  * Everything below the two match tiers adds up to under 100 either way, and
  * the tiers sit at least 100 apart, so a fresh unmatched groundbreaking never
@@ -45,6 +46,7 @@ const TYPE_POINTS = {
 export const RELEVANCE_SELECT = {
   id: true, publishedAt: true, unitCount: true, signalType: true, projectRelated: true,
   matchStatus: true, projectMatchStatus: true, assignedToId: true, supersededById: true,
+  _count: { select: { feedback: true } },
 };
 
 // Prisma where-fragment that drops screened-out articles. Null (not screened
@@ -67,6 +69,10 @@ export function relevanceScore(s, now = Date.now()) {
   }
   if (s.supersededById)                         score -= 2000;
   if (s.projectRelated === false)               score -= 5000;
+  // Marked not relevant (0130): each press is -30, so one press drops it below
+  // every undismissed row of its tier and under a fresh unmatched story.
+  const presses = s._count?.feedback ?? s.feedbackCount ?? 0;
+  if (presses)                                  score -= 30 * presses;
   return score;
 }
 

@@ -24,6 +24,7 @@ export const ACCESS_KINDS = [
 const ROLE_LABEL = {
   SUPER_ADMIN: 'Super Admin', ILC_ADMIN: 'Super Admin',
   COMPANY_ADMIN: 'Company Admin', ADMIN: 'Company Admin',
+  SALES_ADMIN: 'Sales Admin', SALES: 'Sales',
   USER: 'User', CLIENT_VIEWER: 'Client Viewer',
 };
 

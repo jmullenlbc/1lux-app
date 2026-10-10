@@ -106,7 +106,9 @@ function buildDefaultPermissions(role) {
   if (role === 'SUPER_ADMIN' || role === 'COMPANY_ADMIN') {
     return { projects: 'edit', clients: 'edit', preCon: 'edit', manufacturers: 'edit', admin: 'edit' };
   }
-  if (role === 'USER') {
+  // A Sales Admin or Sales login (10-9) starts with a User's module access;
+  // what the role adds is decided in auth.js, not here.
+  if (role === 'USER' || role === 'SALES_ADMIN' || role === 'SALES') {
     return { projects: 'edit', clients: 'edit', preCon: 'edit', manufacturers: 'view', admin: 'none' };
   }
   // CLIENT_VIEWER

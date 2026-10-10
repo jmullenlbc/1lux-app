@@ -128,8 +128,8 @@ test('company page no longer reads permissions off the login pass', () => {
 
 // ── 6. One list of roles ─────────────────────────────────────────────────────
 
-test('only the four real role names can be saved', () => {
-  assert.deepEqual(ROLE_KEYS, ['SUPER_ADMIN', 'COMPANY_ADMIN', 'USER', 'CLIENT_VIEWER']);
+test('only the six real role names can be saved', () => {
+  assert.deepEqual(ROLE_KEYS, ['SUPER_ADMIN', 'COMPANY_ADMIN', 'SALES_ADMIN', 'SALES', 'USER', 'CLIENT_VIEWER']);
   for (const r of ROLE_KEYS) assert.ok(isValidRole(r));
   for (const r of ['ADMIN', 'ILC_ADMIN', 'super_admin', 'SUPERADMIN', '', null, undefined]) {
     assert.equal(isValidRole(r), false, String(r));
@@ -141,6 +141,8 @@ test('only the four real role names can be saved', () => {
 test('a Company Admin can make an admin, never a Super Admin', () => {
   for (const actor of ['COMPANY_ADMIN', 'ADMIN']) {
     assert.ok(canAssignRole(actor, 'COMPANY_ADMIN'));
+    assert.ok(canAssignRole(actor, 'SALES_ADMIN'));
+    assert.ok(canAssignRole(actor, 'SALES'));
     assert.ok(canAssignRole(actor, 'USER'));
     assert.ok(canAssignRole(actor, 'CLIENT_VIEWER'));
     assert.equal(canAssignRole(actor, 'SUPER_ADMIN'), false);

@@ -139,6 +139,14 @@ function MarketIntelInner() {
     fetchSignals();
   }
 
+  // Not relevant with a reason (0130): the row is hidden and the system learns.
+  async function notRelevant(id, body) {
+    const res  = await fetch(`/api/market-intel/signals/${id}/feedback`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { alert(data.error || 'Could not save'); return; }
+    fetchSignals();
+  }
+
   // Add to CRM (Mike 10-7): the named company becomes a client, the article links to it.
   async function addToCrm(id, tagId) {
     const res  = await fetch(`/api/market-intel/signals/${id}/add-to-crm`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tagId }) });
@@ -330,7 +338,7 @@ function MarketIntelInner() {
       ) : (
         <div className="space-y-2">
           {signals.map(signal => (
-            <SignalCard key={signal.id} signal={signal} onUpdate={updateSignal} onTagClick={filterByTag} onProjectTypeClick={t => setFilter('projectType', t)} onAddToCrm={addToCrm} salesUsers={salesUsers} />
+            <SignalCard key={signal.id} signal={signal} onUpdate={updateSignal} onTagClick={filterByTag} onProjectTypeClick={t => setFilter('projectType', t)} onAddToCrm={addToCrm} onNotRelevant={notRelevant} salesUsers={salesUsers} />
           ))}
         </div>
       )}

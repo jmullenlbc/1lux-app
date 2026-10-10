@@ -26,6 +26,29 @@ export default function MarketSourcesPage() {
   const [polling, setPolling] = useState(false);
   const [pollLog, setPollLog] = useState(null);
   const [retiring, setRetiring] = useState(false);
+  // Learned rules (0130, Mike 10-9): what "Not relevant" presses propose; a
+  // Sales Admin applies or ignores each one. Nothing applies on its own.
+  const [rules,    setRules]    = useState([]);
+  const [week,     setWeek]     = useState(null);
+  const [deciding, setDeciding] = useState('');
+
+  async function loadRules() {
+    const res = await fetch('/api/market-intel/rules');
+    if (!res.ok) return;
+    const d = await res.json();
+    setRules(d.rules || []);
+    setWeek(d.week || null);
+  }
+  async function decideRule(id, status) {
+    setDeciding(id);
+    try {
+      const res  = await fetch('/api/market-intel/rules', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, status }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { alert(data.error || 'Could not save'); return; }
+      await loadRules();
+    } finally { setDeciding(''); }
+  }
+  useEffect(() => { loadRules(); }, []);
 
   async function loadSources() {
     setLoading(true);
@@ -340,6 +363,48 @@ export default function MarketSourcesPage() {
             </span>
           )}
           <button onClick={() => setPollLog(null)} className="ml-auto text-green-600 hover:text-green-800">✕</button>
+        </div>
+      )}
+
+      {/* Learned rules (0130). Shown only once a press has taught something. */}
+      {(rules.length > 0 || (week && week.dismissed > 0)) && (
+        <div className="mb-6">
+          <div className="flex items-baseline gap-2 mb-2 px-1">
+            <h2 className="text-sm font-semibold text-slate-800">Learned rules</h2>
+            <span className="text-xs text-slate-400">
+              From the Not relevant button. A Sales Admin applies a rule; applied rules skip matching rows at pull time.
+              {week && week.rate != null && <> This week {Math.round(week.rate * 100)}% of the rows people touched were not relevant ({week.dismissed} of {week.dismissed + week.reviewed}).</>}
+            </span>
+          </div>
+          {rules.length === 0 ? (
+            <p className="text-xs text-slate-400 px-1">No rule proposed yet. One appears after the same source, case type, company or zone is marked not relevant three times.</p>
+          ) : (
+            <div className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100">
+              {rules.map(r => (
+                <div key={r.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                  <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${r.status === 'APPLIED' ? 'bg-green-100 text-green-700' : r.status === 'IGNORED' ? 'bg-slate-100 text-slate-500' : 'bg-amber-100 text-amber-800'}`}>
+                    {r.status === 'APPLIED' ? 'Applied' : r.status === 'IGNORED' ? 'Ignored' : 'Proposed'}
+                  </span>
+                  <span className="text-slate-700 min-w-0 flex-1">
+                    {r.description}
+                    {r.status === 'APPLIED' && r.hits > 0 && <span className="text-slate-400"> Skipped {r.hits} so far.</span>}
+                    {r.decidedBy && <span className="text-slate-400"> By {r.decidedBy.name}.</span>}
+                  </span>
+                  <div className="flex gap-1.5 shrink-0">
+                    {r.status !== 'APPLIED' && (
+                      <button onClick={() => decideRule(r.id, 'APPLIED')} disabled={deciding === r.id} className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50">Apply</button>
+                    )}
+                    {r.status === 'PROPOSED' && (
+                      <button onClick={() => decideRule(r.id, 'IGNORED')} disabled={deciding === r.id} className="px-4 py-2 text-sm font-semibold rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50">Ignore</button>
+                    )}
+                    {r.status !== 'PROPOSED' && (
+                      <button onClick={() => decideRule(r.id, 'PROPOSED')} disabled={deciding === r.id} className="px-4 py-2 text-sm font-semibold rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50">Undo</button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

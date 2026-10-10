@@ -19,14 +19,15 @@ test('a filing gets the right stage', () => {
   assert.equal(municipalStage({ kind: 'CONCEPT', permitClass: null }), 'CONCEPT');
   assert.equal(municipalStage({ kind: 'ARTICLE' }), null);
   assert.equal(isEntitlementClass(''), false);
-  assert.deepEqual(STAGES.map(s => s.value), ['CONCEPT', 'ENTITLEMENT', 'COUNCIL', 'PERMIT']);
+  assert.equal(municipalStage({ kind: 'LAND' }), 'LAND');
+  assert.deepEqual(STAGES.map(s => s.value), ['CONCEPT', 'ENTITLEMENT', 'COUNCIL', 'PERMIT', 'LAND']);
 });
 
 test('the stage filter builds the right query', () => {
   assert.deepEqual(stageWhere('PERMIT'), { kind: 'PERMIT' });
   assert.deepEqual(stageWhere('CONCEPT,ENTITLEMENT'), { kind: 'CONCEPT' });
   const all = stageWhere('ALL');
-  assert.equal(all.OR.length, 3);
+  assert.equal(all.OR.length, 4);
   // Concept alone keeps a blank case type and drops entitlement words.
   const c = stageWhere('CONCEPT');
   assert.equal(c.kind, 'CONCEPT');
@@ -36,7 +37,7 @@ test('the stage filter builds the right query', () => {
   assert.equal(e.kind, 'CONCEPT');
   assert.ok(e.OR.every(o => o.permitClass.mode === 'insensitive'));
   // Junk falls back to every municipal kind, never to articles.
-  assert.deepEqual(stageWhere('NONSENSE'), { kind: { in: ['PERMIT', 'CONCEPT', 'COUNCIL'] } });
+  assert.deepEqual(stageWhere('NONSENSE'), { kind: { in: ['PERMIT', 'CONCEPT', 'COUNCIL', 'LAND'] } });
 });
 
 test('the owner web lookup returns a unit count', () => {

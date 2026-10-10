@@ -4,6 +4,8 @@ import { saveSignalTags, attachSignalToClient } from './tags';
 import { PERMIT_SOURCE_TYPE, profileForSource, permitQueryUrl, permitRows, permitToSignal } from './permitRules';
 import { fetchHoustonRows } from './houstonFeed';
 import { walkAccela } from './accelaFeed';
+import { normalizeTagName } from './tagRules';
+import { featuresOf, suppressedBy } from './feedbackRules';
 
 /**
  * Pull one city's permit feed into MarketSignal rows (migration 0123).
@@ -97,6 +99,9 @@ async function saveSignals(source, signals, log, deadline = Infinity) {
     select: { id: true, permitNumber: true, unitCount: true, valuation: true, contractorName: true, neighborhood: true },
   });
   const byNumber = new Map(existing.map(e => [e.permitNumber, e]));
+  // Learned rules (0130): a rule an admin applied skips matching new rows.
+  const rules = await prisma.suppressionRule.findMany({ where: { status: 'APPLIED', archivedAt: null } }).catch(() => []);
+  log.suppressed = log.suppressed || 0;
 
   for (const s of signals) {
     // Amplify cuts any request at ~30 s with an empty 504. A first pull of a
@@ -118,6 +123,12 @@ async function saveSignals(source, signals, log, deadline = Infinity) {
           await prisma.marketSignal.update({ where: { id: prior.id }, data: { unitCount: data.unitCount, valuation: data.valuation, contractorName: data.contractorName, neighborhood: data.neighborhood, title: data.title, summary: data.summary } });
           log.updated += 1;
         }
+        continue;
+      }
+      const rule = rules.length ? suppressedBy(rules, featuresOf({ ...data, sourceId: source.id, city: data.city, tags: (extracted.companies || []).map(c => ({ role: c.role, tag: { kind: 'COMPANY', normalized: normalizeTagName(c.name, 'COMPANY') } })) })) : null;
+      if (rule) {
+        log.suppressed += 1;
+        await prisma.suppressionRule.update({ where: { id: rule.id }, data: { hits: { increment: 1 } } }).catch(() => {});
         continue;
       }
       const matches  = await matchCandidates(extracted.developerNames);

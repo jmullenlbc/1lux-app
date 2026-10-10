@@ -14,9 +14,11 @@
 
 // COUNCIL (agenda reader, 10-9) sits between a concept plan and a permit: a
 // rezoning on a council agenda is more certain than a concept plan.
-export const KIND_RANK = { ARTICLE: 1, CONCEPT: 2, COUNCIL: 3, PERMIT: 4 };
+// LAND (land sales, 10-9) is a sale, not a project filing: it ranks with an
+// article, so any later filing on the same lot supersedes it in the forecast.
+export const KIND_RANK = { ARTICLE: 1, LAND: 1, CONCEPT: 2, COUNCIL: 3, PERMIT: 4 };
 
-export const KIND_LABELS = { ARTICLE: 'article', CONCEPT: 'concept plan', COUNCIL: 'council item', PERMIT: 'permit' };
+export const KIND_LABELS = { ARTICLE: 'article', LAND: 'land sale', CONCEPT: 'concept plan', COUNCIL: 'council item', PERMIT: 'permit' };
 
 /** How far apart two signals about one building may be published. */
 export const SAME_BUILDING_MONTHS = 24;

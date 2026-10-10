@@ -7,6 +7,11 @@
 export const ROLES = [
   { key: 'SUPER_ADMIN',   label: 'Super Admin' },
   { key: 'COMPANY_ADMIN', label: 'Company Admin' },
+  // Mike 10-9: a Sales Admin runs the sales team (applies Market Intel rules,
+  // sales automation); a Sales login is a salesperson. Both count as the
+  // sales team without a department entry.
+  { key: 'SALES_ADMIN',   label: 'Sales Admin' },
+  { key: 'SALES',         label: 'Sales' },
   { key: 'USER',          label: 'User' },
   { key: 'CLIENT_VIEWER', label: 'Client Viewer' },
 ];
@@ -26,7 +31,7 @@ export function normalizeRole(role) {
   return LEGACY[role] || role;
 }
 
-// Only the four current names can be saved. The legacy names are read, never written.
+// Only the current names can be saved. The legacy names are read, never written.
 export function isValidRole(role) {
   return ROLE_KEYS.includes(role);
 }
