@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Pre-application meetings: Mesa + Orlando] - October 9, 2026 (DEPLOYED PENDING1) - no migration
+## [Pre-application meetings: Mesa + Orlando] - October 9, 2026 (DEPLOYED 349bcf0) - no migration
 
 - Land offer plan Phase 1. Two free public feeds, read by rules (no AI, no tokens), show up as concept plans on the Municipal tab:
   - Mesa pre-submittal meetings (`MESA_PRESUB`, Socrata pu4a-r93z). Only names that say apartments, condo, multifamily and similar are kept. Last year: 244 rows, 3 kept.
