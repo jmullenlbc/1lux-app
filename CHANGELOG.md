@@ -5,6 +5,14 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Council reader: only Mike's building types] - October 9, 2026 (DEPLOYED PENDING1) - no migration
+
+- Council rezonings are kept only for apartments / multifamily, condos, senior living, student housing and single family for rent / build to rent (`COUNCIL_TYPE_RE`), or a zone district that only allows those. Hotels, townhomes, for sale single family and mixed use with no stated type drop. A stated unit count no longer keeps an item by itself.
+- Items with no unit count are still kept when the type matches.
+- Phoenix no longer keeps "Residential" or Walkable Urban titles on their own.
+- Austin mixed use rezonings stay even with no stated type (Mike: usually apartments).
+- Live one year counts: Denver 22, Phoenix 0, Dallas 59, Austin 122, Mesa 13, Jacksonville 10, Hillsborough 19.
+
 ## [Municipal tab, council agenda reader, likely land buyer, article tags, permit card fields, live sidebar] - October 9, 2026 (DEPLOYED 001a413) - no migration
 
 Mike: "change the permit tab to be called something about municipal ... filterable by the stage", "I still do not see tags associated with articles", "permit cards ... show the company that filed for the permit and units as fields", and "the budget should show up even if not everything's filled in".

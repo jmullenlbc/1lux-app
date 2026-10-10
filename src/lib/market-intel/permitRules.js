@@ -66,6 +66,10 @@ export const CONCEPT_MIN_UNITS = 25;
 /** Words that say a planning case is housing we light, when the unit count is not stated. */
 export const MULTIFAMILY_RE = /multi.?family|multi.?unit|apartment|mixed.?use|condo|residential units|dwelling units|senior (living|housing)|student housing|hotel|townho/i;
 
+/** The building types Mike wants from council rezonings (10-9): apartments, condos,
+ *  senior living, student housing, single family for rent / build to rent. */
+export const COUNCIL_TYPE_RE = /multi.?family|multi.?unit|multiple residence|apartment|condo|senior (living|housing)|assisted living|independent living|memory care|active adult|age.?restricted|student housing|build.?to.?rent|\bBTR\b|for.?rent|rental (homes|community|housing)|single.?family rental/i;
+
 /** Planning statuses that mean the case is dead. */
 const DEAD_CASE_RE = /withdrawn|denied|void|cancel|expired|inactive|aborted|rejected/i;
 
@@ -532,9 +536,9 @@ export const PERMIT_PROFILES = {
   // (or names a multifamily zone district). Phoenix and Dallas have no permit
   // feed, so this is their first city source.
   DENVER_COUNCIL:       legistarProfile('DENVER_COUNCIL',       'denver',             'Denver, CO',        'CO', { typeRe: /^Bill$/,                       keepRe: /\bto\s+[A-Z]-(?:MX|MS|RX|RO|MU|RH)-\d/ }),
-  PHOENIX_COUNCIL:      legistarProfile('PHOENIX_COUNCIL',      'phoenix',            'Phoenix, AZ',       'AZ', { typeRe: /Zoning Ordinance/,             keepRe: /\bR-[345]A?\b|Walkable Urban|\bWU\b|Residen|Apartment|Multi-?family|\bLiving\b|\bLofts?\b|\bFlats\b/i }),
+  PHOENIX_COUNCIL:      legistarProfile('PHOENIX_COUNCIL',      'phoenix',            'Phoenix, AZ',       'AZ', { typeRe: /Zoning Ordinance/,             keepRe: /\bR-[345]A?\b|\bLiving\b|\bLofts?\b|\bFlats\b/i }),
   DALLAS_COUNCIL:       legistarProfile('DALLAS_COUNCIL',       'cityofdallas',       'Dallas, TX',        'TX', { typeRe: /^ZONING CASES/,                keepRe: /\bMF-\d/, typeClause: "substringof('ZONING CASES',MatterTypeName)" }),
-  AUSTIN_COUNCIL:       legistarProfile('AUSTIN_COUNCIL',       'austintexas',        'Austin, TX',        'TX', { typeRe: /Zoning and Neighborhood Plan/, keepRe: /\bMF-\d|\bVMU\d?\b/ }),
+  AUSTIN_COUNCIL:       legistarProfile('AUSTIN_COUNCIL',       'austintexas',        'Austin, TX',        'TX', { typeRe: /Zoning and Neighborhood Plan/, keepRe: /\bMF-\d|\bVMU\d?\b|-MU\b|-V\b|mixed.?use/i }), // Mike 10-9: Austin mixed use stays (usually apartments)
   MESA_COUNCIL:         legistarProfile('MESA_COUNCIL',         'mesa',               'Mesa, AZ',          'AZ', { typeRe: /^Ordinance$|^PZ Zoning/,       keepRe: /\bRM-\d/ }),
   JACKSONVILLE_COUNCIL: legistarProfile('JACKSONVILLE_COUNCIL', 'jaxcityc',           'Jacksonville, FL',  'FL', { typeRe: /^Ordinance$/,                  keepRe: null }),
   HILLSBOROUGH_COUNCIL: legistarProfile('HILLSBOROUGH_COUNCIL', 'hillsboroughcounty', 'Tampa, FL',         'FL', { typeRe: /^Rezoning|Public Hearing-Land Use/, keepRe: /\bRMC-\d|\bRM-\d|Comprehensive Plan:\s*(?:R-(?:9|12|16|20|35)|[CUSR]MU-\d+)/ }),
@@ -859,7 +863,7 @@ export function legistarMatter(client, m) {
     applicantName: parsed.applicantName,
     neighborhood:  [str(m.MatterBodyName), status].filter(Boolean).join(': '),
     unitCount:     unitsFromText(title),
-    multifamily:   MULTIFAMILY_RE.test(title),
+    multifamily:   COUNCIL_TYPE_RE.test(title),
     skip:          DEAD_CASE_RE.test(status) || /minutes|vacat|variance|replat|\bplat\b/i.test(`${str(m.MatterTypeName)} ${title.slice(0, 80)}`),
     issuedAt:      m.MatterPassedDate || m.MatterAgendaDate || m.MatterIntroDate ? new Date(m.MatterPassedDate || m.MatterAgendaDate || m.MatterIntroDate) : null,
     url:           m.MatterId ? `https://${client}.legistar.com/LegislationDetail.aspx?ID=${m.MatterId}${m.MatterGuid ? `&GUID=${m.MatterGuid}` : ''}` : null,
@@ -870,9 +874,10 @@ export function legistarMatter(client, m) {
 function councilToSignal(profile, p) {
   if (profile.typeRe && !profile.typeRe.test(p.permitClass)) return null;
   if (!/zon|PUD|Planned (?:Unit|Development|Area)/i.test(p.title)) return null;
+  // One of Mike's building types (or a zone district that only allows them), and 25+ units when a count is given.
+  if (!(p.multifamily || (profile.keepRe && profile.keepRe.test(p.title)))) return null;
   const min = profile.minUnits || CONCEPT_MIN_UNITS;
-  if (p.unitCount) { if (p.unitCount < min) return null; }
-  else if (!(p.multifamily || (profile.keepRe && profile.keepRe.test(p.title)))) return null;
+  if (p.unitCount && p.unitCount < min) return null;
 
   const units = p.unitCount ? `${p.unitCount.toLocaleString('en-US')} units` : 'units not stated';
   const title = `${p.passed ? 'Rezoning approved' : 'Rezoning on the agenda'}, ${units}: ${p.address || p.projectName || 'address not given'}`;

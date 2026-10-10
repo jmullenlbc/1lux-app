@@ -50,6 +50,18 @@ test('council matters become COUNCIL signals; small and non-zoning items drop', 
   assert.equal(permitToSignal(p, matter(MESA, { MatterTypeName: 'Resolution' })), null);
 });
 
+test('only Mike\'s building types: apartments, condos, senior, student, build to rent', () => {
+  const p = PERMIT_PROFILES.JACKSONVILLE_COUNCIL;
+  const t = (what) => permitToSignal(p, matter(`Ordinance Rezoning at 1 Main St, for ${what}, PUD`));
+  assert.ok(t('a 120-unit build-to-rent community'));
+  assert.ok(t('a senior living facility'));
+  assert.ok(t('student housing'));
+  assert.ok(t('a condominium tower'));
+  assert.equal(t('200 single-family lots'), null);
+  assert.equal(t('a 150-room hotel'), null);
+  assert.equal(t('a retail center'), null);
+});
+
 test('every council city is a source, the query is keyless, council ranks between concept and permit', () => {
   const councils = Object.entries(PERMIT_PROFILES).filter(([, p]) => p.kind === 'COUNCIL');
   assert.equal(councils.length, 7);
