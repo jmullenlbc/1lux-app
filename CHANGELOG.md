@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Council reader: only Mike's building types] - October 9, 2026 (DEPLOYED PENDING1) - no migration
+## [Council reader: only Mike's building types] - October 9, 2026 (DEPLOYED fc85842) - no migration
 
 - Council rezonings are kept only for apartments / multifamily, condos, senior living, student housing and single family for rent / build to rent (`COUNCIL_TYPE_RE`), or a zone district that only allows those. Hotels, townhomes, for sale single family and mixed use with no stated type drop. A stated unit count no longer keeps an item by itself.
 - Items with no unit count are still kept when the type matches.
