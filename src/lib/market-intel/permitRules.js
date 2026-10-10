@@ -68,7 +68,7 @@ export const MULTIFAMILY_RE = /multi.?family|multi.?unit|apartment|mixed.?use|co
 
 /** The building types Mike wants from council rezonings (10-9): apartments, condos,
  *  senior living, student housing, single family for rent / build to rent. */
-export const COUNCIL_TYPE_RE = /multi.?family|multi.?unit|multiple residence|apartment|condo|senior (living|housing)|assisted living|independent living|memory care|active adult|age.?restricted|student housing|build.?to.?rent|\bBTR\b|for.?rent|rental (homes|community|housing)|single.?family rental/i;
+export const COUNCIL_TYPE_RE = /multi.?family|multi.?unit|multiple residence|apartment|condo|senior (living|housing)|assisted living|independent living|memory care|active adult|age.?restricted|student housing|build.?to.?rent|\bBTR\b|for.?rent|rental (homes|community|housing)|single.?family rental|affordable housing|workforce housing|live local/i;
 
 /** Planning statuses that mean the case is dead. */
 const DEAD_CASE_RE = /withdrawn|denied|void|cancel|expired|inactive|aborted|rejected/i;
@@ -529,6 +529,81 @@ export const PERMIT_PROFILES = {
     }),
   },
 
+  // ── Pre-application meetings (Mike 10-9, land offer plan Phase 1) ──
+  // The first time a developer talks to the city, often while the land is
+  // still under contract. Rules only, no AI. Kept only for Mike's building
+  // types (typeRequired), 25+ units when a count is given.
+
+  // Mesa pre-submittals (Socrata pu4a-r93z, live): one short project name, no
+  // applicant and no units, so only names like "Helix Apartments" are kept.
+  MESA_PRESUB: {
+    key:       'MESA_PRESUB',
+    kind:      'CONCEPT',
+    api:       'socrata',
+    metro:     'Phoenix, AZ',
+    state:     'AZ',
+    layerUrl:  'https://data.mesaaz.gov/resource/pu4a-r93z.json',
+    siteUrl:   'https://data.mesaaz.gov/d/pu4a-r93z',
+    dateField: 'opened_date',
+    outFields: ['record_id', 'record_type', 'record_description', 'record_status', 'opened_date', 'street_address'],
+    minUnits: CONCEPT_MIN_UNITS,
+    keepUnstated: true,
+    typeRequired: true,
+    firstLookbackDays: 365,
+    map: (a) => ({
+      permitNumber: str(a.record_id),
+      permitClass:  'Pre-submittal meeting',
+      buildingKind: str(a.record_description),
+      address:      titleCaseAddress(str(a.street_address)),
+      neighborhood: '',
+      unitCount:    unitsFromText(a.record_description),
+      multifamily:  COUNCIL_TYPE_RE.test(str(a.record_description)),
+      skip:         DEAD_CASE_RE.test(str(a.record_status)),
+      issuedAt:     a.opened_date ? new Date(a.opened_date) : null,
+      url:          null,
+    }),
+  },
+  // Orlando planning applications (Socrata bhxy-4rji): pre-application
+  // meetings, master plans and rezonings. Staff notes give units ("314 du",
+  // "96 multifamily units") and the applicant.
+  ORLANDO_PLANNING: {
+    key:       'ORLANDO_PLANNING',
+    kind:      'CONCEPT',
+    api:       'socrata',
+    metro:     'Orlando, FL',
+    state:     'FL',
+    layerUrl:  'https://data.cityoforlando.net/resource/bhxy-4rji.json',
+    siteUrl:   'https://data.cityoforlando.net/d/bhxy-4rji',
+    dateField: 'application_date',
+    baseWhere: "application_description in ('Pre Application Meeting','Master Plan','Zoning','Growth Management Plan')",
+    outFields: ['application_number', 'application_name', 'application_description', 'application_comments', 'application_status', 'application_date', 'address', 'applicant', 'neighborhood'],
+    minUnits: CONCEPT_MIN_UNITS,
+    keepUnstated: true,
+    typeRequired: true,
+    firstLookbackDays: 365,
+    map: (a) => {
+      const name  = str(a.application_name);
+      const text  = `${name} ${str(a.application_comments)}`;
+      // "314 du", "600 multi family units", "96 Unit LL Multifamily"
+      const du    = text.match(/\b(\d{1,4})[\s-]*(?:(?:multi.?family|apartment|residential|dwelling|affordable|senior)\s+)?(?:units?|du|d\.u\.)\b/i);
+      const units = du && parseInt(du[1], 10) > 1 ? parseInt(du[1], 10) : null;
+      // Staff notes ramble, so the type must be in the name, or in the notes with a stated count.
+      return {
+        permitNumber:  str(a.application_number),
+        permitClass:   str(a.application_description),
+        buildingKind:  [str(a.application_name), shortText(a.application_comments, 140)].filter(Boolean).join(': '),
+        address:       /no address/i.test(str(a.address)) ? '' : titleCaseAddress(str(a.address).replace(/^Reference:\s*/i, '')),
+        neighborhood:  str(a.neighborhood),
+        applicantName: cleanCompany(a.applicant),
+        unitCount:     units,
+        multifamily:   COUNCIL_TYPE_RE.test(name) || /\bApts?\b/i.test(name) || (units >= CONCEPT_MIN_UNITS && COUNCIL_TYPE_RE.test(text)),
+        skip:          DEAD_CASE_RE.test(str(a.application_status)) || /replat|\bplat\b|variance|\bVAR\b|\bMOD\b|\bDET\b|\bsign\b|dumpster|storage|trailer|lot split/i.test(name),
+        issuedAt:      a.application_date ? new Date(a.application_date) : null,
+        url:           null,
+      };
+    },
+  },
+
   // ── Council agendas (Mike 10-9): rezoning and PUD votes from Legistar ──
   // Legistar's web API is free and keyless. Each item's title carries the
   // case number, address, zoning asked for and, in most cities, the
@@ -753,6 +828,7 @@ function filingCompanies(ownerName, applicantName) {
  * not the owner it is tagged BUYER (see likelyLandBuyer).
  */
 function conceptToSignal(profile, p) {
+  if (profile.typeRequired && !p.multifamily) return null;
   const min = profile.minUnits || CONCEPT_MIN_UNITS;
   if (p.unitCount) { if (p.unitCount < min) return null; }
   else if (!(profile.keepUnstated && p.multifamily)) return null;

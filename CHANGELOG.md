@@ -5,6 +5,16 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Pre-application meetings: Mesa + Orlando] - October 9, 2026 (DEPLOYED PENDING1) - no migration
+
+- Land offer plan Phase 1. Two free public feeds, read by rules (no AI, no tokens), show up as concept plans on the Municipal tab:
+  - Mesa pre-submittal meetings (`MESA_PRESUB`, Socrata pu4a-r93z). Only names that say apartments, condo, multifamily and similar are kept. Last year: 244 rows, 3 kept.
+  - Orlando planning applications (`ORLANDO_PLANNING`, Socrata bhxy-4rji): pre-application meetings, master plans, rezonings, growth plan changes. Units are read from staff notes ("314 du", "600 multi family units"). Last year: 807 rows, 31 kept (Mosby Lake 600, Sunbridge senior 800, Herndon 378, Kirkman Point 314).
+- New profile flag `typeRequired`: a concept item must be one of Mike's building types. Orlando drops signs, variances, plats, storage, dumpsters.
+- `COUNCIL_TYPE_RE` also matches affordable housing, workforce housing and Live Local.
+- Files: `src/lib/market-intel/permitRules.js`, `src/lib/market-intel/sourceCatalog.js`, `scripts/tests/preApplication.test.mjs` (new).
+- After deploy: press Refresh sources, then Pull permits now.
+
 ## [Council reader: only Mike's building types] - October 9, 2026 (DEPLOYED fc85842) - no migration
 
 - Council rezonings are kept only for apartments / multifamily, condos, senior living, student housing and single family for rent / build to rent (`COUNCIL_TYPE_RE`), or a zone district that only allows those. Hotels, townhomes, for sale single family and mixed use with no stated type drop. A stated unit count no longer keeps an item by itself.
