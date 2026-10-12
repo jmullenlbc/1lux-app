@@ -77,6 +77,8 @@ test('the button is Not relevant on every card; the Dismiss button is gone; the 
   }
   const rulesRoute = read('src/app/api/market-intel/rules/route.js');
   assert.match(rulesRoute, /isSalesAdmin\(user\)/);
+  assert.match(rulesRoute, /canDecide/);                 // Sales sees the list, only admins decide (Mike 10-9)
+  assert.match(read('src/app/(app)/market-intel/sources/page.jsx'), /canDecide && <div/);
   assert.match(read('src/lib/market-intel/permits.js'), /suppressedBy/);
   assert.match(read('src/app/(app)/market-intel/sources/page.jsx'), /Learned rules/);
   assert.ok(ROLE_KEYS.includes('SALES_ADMIN') && ROLE_KEYS.includes('SALES'));

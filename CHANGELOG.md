@@ -5,6 +5,11 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Learned rules view-only for Sales] - October 9, 2026 (DEPLOYED PENDING1) - no migration
+
+- Mike 10-9: "Yes view only not modify or archive." Sales users still see the Learned rules list and the weekly line on the Sources tab; the Apply / Ignore / Undo buttons show only for a Sales Admin or admin (`canDecide` from `GET /api/market-intel/rules`; the PATCH was already gated).
+- Files: `src/app/api/market-intel/rules/route.js`, `src/app/(app)/market-intel/sources/page.jsx`, `scripts/tests/signalFeedback.test.mjs`.
+
 ## [Land sales, Not relevant learning, By company view, Sales roles] - October 9, 2026 (DEPLOYED a2d9cdc) - migration 0130
 
 Mike 10-9: "We need a system that gets smarter", "3. Yes build and deploy".

@@ -11,8 +11,10 @@ import { describeRule, ruleMatches, featuresOf, notRelevantRate } from '@/lib/ma
 const RULE_INCLUDE = { decidedBy: { select: { id: true, name: true } } };
 
 export async function GET() {
-  const { error } = await requireAuth();
+  const { user, error } = await requireAuth();
   if (error) return error;
+  // Mike 10-9: Sales users see the list, only a Sales Admin or admin decides.
+  const canDecide = isSalesAdmin(user) || actsAsAdmin(user);
 
   const weekAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000);
   const [rules, sources, dismissed, reviewed] = await Promise.all([
@@ -28,7 +30,7 @@ export async function GET() {
     sourceName:  r.field === 'SOURCE' ? sourceName.get(r.value) || null : null,
     description: describeRule(r, { sourceName: sourceName.get(r.value) }),
   }));
-  return NextResponse.json({ rules: out, week: { dismissed, reviewed, rate: notRelevantRate({ dismissed, reviewed }) } });
+  return NextResponse.json({ rules: out, canDecide, week: { dismissed, reviewed, rate: notRelevantRate({ dismissed, reviewed }) } });
 }
 
 export async function PATCH(request) {

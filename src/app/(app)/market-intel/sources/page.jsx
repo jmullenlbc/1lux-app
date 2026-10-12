@@ -31,6 +31,7 @@ export default function MarketSourcesPage() {
   const [rules,    setRules]    = useState([]);
   const [week,     setWeek]     = useState(null);
   const [deciding, setDeciding] = useState('');
+  const [canDecide, setCanDecide] = useState(false);   // Sales sees the list; Sales Admin or admin decides
 
   async function loadRules() {
     const res = await fetch('/api/market-intel/rules');
@@ -38,6 +39,7 @@ export default function MarketSourcesPage() {
     const d = await res.json();
     setRules(d.rules || []);
     setWeek(d.week || null);
+    setCanDecide(!!d.canDecide);
   }
   async function decideRule(id, status) {
     setDeciding(id);
@@ -390,7 +392,7 @@ export default function MarketSourcesPage() {
                     {r.status === 'APPLIED' && r.hits > 0 && <span className="text-slate-400"> Skipped {r.hits} so far.</span>}
                     {r.decidedBy && <span className="text-slate-400"> By {r.decidedBy.name}.</span>}
                   </span>
-                  <div className="flex gap-1.5 shrink-0">
+                  {canDecide && <div className="flex gap-1.5 shrink-0">
                     {r.status !== 'APPLIED' && (
                       <button onClick={() => decideRule(r.id, 'APPLIED')} disabled={deciding === r.id} className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50">Apply</button>
                     )}
@@ -400,7 +402,7 @@ export default function MarketSourcesPage() {
                     {r.status !== 'PROPOSED' && (
                       <button onClick={() => decideRule(r.id, 'PROPOSED')} disabled={deciding === r.id} className="px-4 py-2 text-sm font-semibold rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50">Undo</button>
                     )}
-                  </div>
+                  </div>}
                 </div>
               ))}
             </div>
