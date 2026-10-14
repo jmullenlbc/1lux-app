@@ -1,6 +1,8 @@
 // City permit feeds (migration 0123, Mike 10-7). Pure, no DB, no fetch.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const read = p => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8');
 import { PERMIT_PROFILES, profileForSource, permitWhere, permitQueryUrl, permitRows, permitToSignal, unitsFrom, unitsFromText, whatFor, shortText, cleanCompany, titleCaseAddress, money, houstonWindows, houstonReportForm, houstonRows, csvCells } from '../../src/lib/market-intel/permitRules.js';
 
 const DENVER = PERMIT_PROFILES.DENVER;
@@ -204,9 +206,9 @@ const CROW = {
 
 test('City of Miami says what the building holds and casts its text cost', () => {
   const s = permitToSignal(MIAMI, CROW);
-  assert.equal(s.title, 'New building: 1445 N Miami Av, Miami');
+  assert.equal(s.title, 'New building, about 595 units (est.): 1445 N Miami Av, Miami');
   assert.match(s.summary, /^Commercial: Retail Of Goods, Multi-Family \(Rental\), Parking Garage-Multiple Floors, Contractor First Florida Constructors LLC, declared value \$104M/);
-  assert.equal(permitToSignal(MIAMI, { ...CROW, ScopeofWork: 'PHASED PERMIT' }).title, 'Phased construction: 1445 N Miami Av, Miami');
+  assert.equal(permitToSignal(MIAMI, { ...CROW, ScopeofWork: 'PHASED PERMIT' }).title, 'Phased construction, about 595 units (est.): 1445 N Miami Av, Miami');
   assert.equal(permitToSignal(MIAMI, { ...CROW, ScopeofWork: 'REMODELING/REPAIRS' }).title, 'Alteration: 1445 N Miami Av, Miami');
   assert.equal(permitToSignal(MIAMI, { ...CROW, ScopeofWork: 'DEMOLITION' }), null);
   assert.match(permitWhere(MIAMI, new Date(Date.UTC(2026, 0, 15))), /^IssuedDate >= DATE '2026-01-15' AND ScopeofWork IN \('NEW CONSTRUCTION'.* AND CAST\(TotalCost AS FLOAT\) >= 10000000$/);
@@ -313,6 +315,61 @@ test('Houston: the report form, 90-day windows and the CSV export rows', () => {
   assert.equal(kept[0].publishedAt.toISOString().slice(0, 10), '2026-03-31');
   assert.match(kept[0].summary, /Owner Jlb Center Street L\.P\./);
   assert.equal(profileForSource({ feedUrl: 'https://cohtora.houstontx.gov/ibi_apps/WFServlet', market: 'HOUSTON' }).key, 'HOUSTON');
+});
+
+test('Houston: the building permits of one project fold into one row before the $10M floor (Mike 10-12)', async () => {
+  const { houstonBaseAddress, houstonBuildingsOf, grossSfFromText, houstonProjects } = await import('../../src/lib/market-intel/permitRules.js');
+  const H = PERMIT_PROFILES.HOUSTON;
+  assert.equal(houstonBaseAddress('13704 PARK ROW DR BLD 3 77084'), '13704 PARK ROW DR');
+  assert.equal(houstonBaseAddress('13704 PARK ROW DR 1B 77084'), '13704 PARK ROW DR');
+  assert.equal(houstonBaseAddress('3028 CENTER ST BLD1B 77007'), '3028 CENTER ST');
+  assert.equal(houstonBaseAddress('3910 OLD SPANISH TRL BLD A 77021'), '3910 OLD SPANISH TRL');
+  assert.equal(houstonBaseAddress('2811 KIRBY DR 77098'), '2811 KIRBY DR');
+  assert.equal(houstonBuildingsOf('(5/15) 120,638 SF NEW APARTMENT'), 15);
+  assert.equal(houstonBuildingsOf('69,558SF NEW APT BLD(M/22)1-4-5-R2-A'), 22);
+  assert.equal(houstonBuildingsOf('NEW APARTMENT BUILDING (MASTER 1 OF 3)'), 3);
+  assert.equal(houstonBuildingsOf('NEW APT BLD'), null);
+  assert.equal(grossSfFromText('(5/15) 120,638 SF NEW APARTMENT'), 120638);
+  assert.equal(grossSfFromText('69,558SF NEW APT BLD'), 69558);
+  assert.equal(grossSfFromText('95,622 APT BLDG SHELL'), null);
+  const at = new Date(Date.UTC(2026, 8, 12));
+  const row = (no, addr, val, desc, owner = '*DAKOTA AT ENCLAVE', type = '13') => ({ PROJECT_NO: no, PERMIT_DESC: 'Building Pmt', OWNER_OCCUPANT: owner, Address: addr, PROJECT_DESC: desc, CURRENT_VALUATION: String(val), PERMIT_TYPE: type, issuedAt: at });
+  const rows = [
+    row('25089164', '1415 ENCLAVE PKY BLD 5 77077', 9000000,  '(3/15) 88,023 SF NEW APARTMENT 1-4-5-R2-A'),
+    row('25089162', '1415 ENCLAVE PKY BLD 3 77077', 10300000, '(M/15) 101,916 SF NEW APARTMENT 1-4-5-R2-A'),
+    row('25089163', '1415 ENCLAVE PKY BLD 4 77077', 6700000,  '(2/15) 65,630 SF NEW APARTMENT 1-4-5-R2-A'),
+    row('25098466', '13704 PARK ROW DR 1B 77084',  3772537,  '39,164SF NEW APT BLD(3/22)1-4-5-R2-A', '*DEFINE LIVING: PARKROW'),
+    row('25098467', '13704 PARK ROW DR BLD 2 77084', 5254812, '54,552SF NEW APT BLD(4/22)1-4-5-R2-A', '*DEFINE LIVING: PARKROW'),
+    row('24055972', '2811 KIRBY DR 77098', 13268095, '(M/46) NEW SHELL/CORE FOR APRTMNTS', '*2811 KIRBY'),
+    row('24055999', '2811 KIRBY DR 77098', 500, 'DEMO OLD SHED', '*2811 KIRBY'),
+    row('14051649', '10 N CRAWFORD ST 77002', 0, 'NEW APARTMENT BUILDING (MASTER 1 OF 3)', '*REGALIA', 'CT'),
+  ];
+  const folded = houstonProjects(rows);
+  assert.equal(folded.length, 5);                        // Enclave, Park Row, Kirby, the demo, the C/O
+  const enclave = folded.find(r => r.PROJECT_NO === '25089162');
+  assert.equal(enclave.permitCount, 3);
+  assert.equal(enclave.CURRENT_VALUATION, 26000000);
+  assert.equal(enclave.Address, '1415 ENCLAVE PKY 77077');
+  assert.equal(enclave.buildingsOf, 15);
+  assert.equal(enclave.grossSf, 255569);
+  assert.deepEqual(enclave.permitNumbers, ['25089162', '25089163', '25089164']);
+  const kept = folded.map(r => permitToSignal(H, r)).filter(Boolean);
+  assert.deepEqual(kept.map(s => s.permitNumber).sort(), ['24055972', '25089162']);   // Park Row's two are $9M together
+  const s = kept.find(k => k.permitNumber === '25089162');
+  assert.equal(s.title, '3 buildings of 15, about 256 units (est.): 1415 Enclave Pky');
+  assert.equal(s.unitCount, 256);
+  assert.equal(s.unitsEstimated, true);
+  assert.equal(s.grossSf, 255569);
+  assert.equal(s.valuation, 26000000);
+  assert.equal(s.accumulate, true);
+  assert.match(s.summary, /3 building permits of 15, 255,569 SF/);
+  assert.match(s.summary, /permits 25089162, 25089163, 25089164/);
+  assert.match(s.summary, /declared value \$26/);
+  // A lone permit is unchanged, and still accumulates (the next poll may bring its siblings).
+  const kirby = kept.find(k => k.permitNumber === '24055972');
+  assert.equal(kirby.title, 'New building: 2811 Kirby Dr');
+  assert.match(read('src/lib/market-intel/permits.js'), /houstonProjects\(await fetchHoustonRows/);
+  assert.match(read('src/lib/market-intel/permits.js'), /accumulate && \(data\.valuation \|\| 0\) < \(prior\.valuation \|\| 0\)/);
 });
 
 test('Salt Lake City: the Accela form, the result rows, the next page and the permit page', async () => {
@@ -500,7 +557,7 @@ test('Denver concept plans: the record page gives the units, use and floor area'
   assert.equal(permitToSignal(D, { ...rows[0], ...d, proposedUnits: 1 }), null);
   assert.equal(permitToSignal(D, { ...rows[0], ...d, proposedUnits: 24 }), null);
   assert.equal(permitToSignal(D, { ...rows[0], ...d, proposedUnits: null, proposedUse: 'Office' }), null);
-  assert.equal(permitToSignal(D, { ...rows[0], ...d, proposedUnits: null }).unitCount, null);
+  assert.equal(permitToSignal(D, { ...rows[0], ...d, proposedUnits: null }).unitsEstimated, true);
 });
 
 test('Salt Lake City planning cases: list-only rows with the Planning module labels', async () => {
@@ -534,4 +591,36 @@ test('Salt Lake City planning cases: list-only rows with the Planning module lab
   assert.equal(sigs[1], null);                  // not a planning type we keep
   assert.equal(sigs[2].unitCount, null);        // mixed-use with no count, kept
   assert.equal(sigs[3], null);                  // withdrawn
+});
+
+test('Units are estimated from gross SF for housing in every city (Mike 10-14, 0131)', async () => {
+  const { estimateUnits, unitsText, SF_PER_UNIT, grossSfFromText } = await import('../../src/lib/market-intel/permitRules.js');
+  assert.equal(SF_PER_UNIT, 1000);
+  // A stated count always wins and is not marked estimated.
+  assert.deepEqual([estimateUnits({ unitCount: 80, buildingKind: '120,000 SF NEW APARTMENT' })].map(p => [p.unitCount, p.unitsEstimated, p.grossSf]), [[80, false, 120000]]);
+  // Housing with SF and no count: about one unit per 1,000 SF.
+  const a = estimateUnits({ buildingKind: '69,558SF NEW APT BLD(4/22)1-4-5-R2-A' });
+  assert.equal(a.unitCount, 70); assert.equal(a.unitsEstimated, true);
+  assert.equal(unitsText(a), 'about 70 units (est.)');
+  assert.equal(unitsText({ unitCount: 70 }), '70 units');
+  assert.equal(unitsText({}, 'units not stated'), 'units not stated');
+  // A feed column beats the description; multifamily flag counts as housing.
+  assert.equal(estimateUnits({ grossSf: 250000, multifamily: true }).unitCount, 250);
+  // Not housing: no guess, but the SF is still kept.
+  const o = estimateUnits({ buildingKind: 'Commercial: 180,000 SF NEW OFFICE BUILDING' });
+  assert.equal(o.unitCount, undefined); assert.equal(o.unitsEstimated, false); assert.equal(o.grossSf, 180000);
+  // Articles say "square feet".
+  assert.equal(grossSfFromText('a 300,000-square-foot apartment tower'), 300000);
+  assert.equal(grossSfFromText('15,000 square feet of retail'), 15000);
+  // Every kind carries the two new fields through permitToSignal.
+  const ORL = PERMIT_PROFILES.ORLANDO;
+  const sig = permitToSignal(ORL, { permit_number: 'BLD2026-1', worktype: ORL.keepClasses[0], plan_review_type: 'Residential 3 or more', project_name: 'The Grove Apartments', permit_address: '100 MAIN ST', estimated_cost: '30000000', square_footage: '210000', issue_permit_date: '2026-09-01' });
+  assert.equal(sig.unitCount, 210); assert.equal(sig.unitsEstimated, true); assert.equal(sig.grossSf, 210000);
+  assert.match(sig.title, /about 210 units \(est\.\)/);
+  // Saved and compared by permits.js; shown as estimated on the card; not a supersede fingerprint.
+  assert.match(read('src/lib/market-intel/permits.js'), /unitsEstimated: !!data\.unitsEstimated, grossSf: data\.grossSf/);
+  assert.match(read('src/components/market-intel/SignalCard.jsx'), /\(est\.\)/);
+  assert.match(read('src/lib/market-intel/supersede.js'), /signal\.unitCount && !signal\.unitsEstimated/);
+  assert.match(read('src/lib/market-intel/poller.js'), /articleUnits\(extracted, item\.title, extracted\.summary\)/);
+  assert.match(read('prisma/migrations/0131_signal_units_estimated/migration.sql'), /ADD COLUMN "unitsEstimated" BOOLEAN NOT NULL DEFAULT false/);
 });

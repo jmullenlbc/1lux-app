@@ -147,21 +147,33 @@ export const PERMIT_PROFILES = {
     firstLookbackDays: 270,
     windowDays: 90,
     keepClasses: HOUSTON_KEEP_CLASSES,
-    map: (a) => ({
-      permitNumber:   str(a.PROJECT_NO),
-      permitClass:    str(a.PERMIT_DESC),
-      buildingKind:   shortText(a.PROJECT_DESC, 90),
-      // "3910 OLD SPANISH TRL BLD A 77021": the zip is the last word.
-      address:        titleCaseAddress(str(a.Address).replace(/\s+\d{5}$/, '')),
-      neighborhood:   /\d{5}$/.test(str(a.Address)) ? `ZIP ${str(a.Address).slice(-5)}` : '',
-      valuation:      num(a.CURRENT_VALUATION),
-      contractorName: '',
-      ownerName:      cleanCompany(str(a.OWNER_OCCUPANT).replace(/^\*+\s*/, '')),
-      unitCount:      unitsFromText(a.PROJECT_DESC),
-      skip:           str(a.PERMIT_TYPE) !== '13' || /\bDEMO/i.test(str(a.PROJECT_DESC)),
-      issuedAt:       a.issuedAt ? new Date(a.issuedAt) : null,
-      url:            null,
-    }),
+    map: (a) => {
+      // A project folded from several building permits (houstonProjects).
+      const n = a.permitCount > 1 ? a.permitCount : 0;
+      const of = n && a.buildingsOf ? ` of ${a.buildingsOf}` : '';
+      return {
+        permitNumber:   str(a.PROJECT_NO),
+        permitClass:    str(a.PERMIT_DESC),
+        buildingKind:   n
+          ? `${n} building permits${of}${a.grossSf ? `, ${a.grossSf.toLocaleString('en-US')} SF` : ''} (${shortText(a.PROJECT_DESC, 70)}), permits ${a.permitNumbers.join(', ')}`
+          : shortText(a.PROJECT_DESC, 90),
+        what:           n ? `${n} buildings${of}` : null,
+        // "3910 OLD SPANISH TRL BLD A 77021": the zip is the last word.
+        address:        titleCaseAddress(str(a.Address).replace(/\s+\d{5}$/, '')),
+        neighborhood:   /\d{5}$/.test(str(a.Address)) ? `ZIP ${str(a.Address).slice(-5)}` : '',
+        valuation:      num(a.CURRENT_VALUATION),
+        contractorName: '',
+        ownerName:      cleanCompany(str(a.OWNER_OCCUPANT).replace(/^\*+\s*/, '')),
+        unitCount:      n ? (a.unitCount || null) : unitsFromText(a.PROJECT_DESC),
+      grossSf:        a.grossSf || grossSfFromText(a.PROJECT_DESC),
+        skip:           str(a.PERMIT_TYPE) !== '13' || /\bDEMO/i.test(str(a.PROJECT_DESC)),
+        issuedAt:       a.issuedAt ? new Date(a.issuedAt) : null,
+        url:            null,
+        // A later poll sees only the buildings permitted since; that smaller
+        // fold must not shrink the saved project row (permits.js).
+        accumulate:     true,
+      };
+    },
   },
   // Salt Lake City has no open-data layer either (Utah's Socrata portal is
   // decommissioned; the county publishes nothing). The city's Accela portal
@@ -193,6 +205,7 @@ export const PERMIT_PROFILES = {
       valuation:      num(a.jobValue),
       contractorName: '',
       unitCount:      unitsFromText(a.description),
+      grossSf:        num(a.grossSf),
       skip:           /withdrawn|denied|void|cancel|expired/i.test(str(a.status)),
       issuedAt:       a.date ? new Date(a.date) : null,
       url:            a.url ? String(a.url) : null,
@@ -223,6 +236,7 @@ export const PERMIT_PROFILES = {
       valuation:      num(a.estimated_cost),
       contractorName: cleanCompany(str(a.contractor_name)),
       unitCount:      null,
+      grossSf:        num(a.square_footage),
       issuedAt:       a.issue_permit_date ? new Date(a.issue_permit_date) : null,
       url:            null,
     }),
@@ -336,6 +350,7 @@ export const PERMIT_PROFILES = {
       valuation:      num(a.TotalCost),
       contractorName: cleanCompany(str(a.CompanyName)),
       unitCount:      null,
+      grossSf:        num(a.TotalSQFT),
       issuedAt:       a.IssuedDate ? new Date(a.IssuedDate) : null,
       url:            null,
     }),
@@ -488,6 +503,7 @@ export const PERMIT_PROFILES = {
       contractorName: '',
       // A stated count, even 1, is a count: a one-unit page is a house and fails the floor.
       unitCount:      a.proposedUnits >= 1 ? a.proposedUnits : null,
+      grossSf:        num(a.grossSf),
       multifamily:    MULTIFAMILY_RE.test(`${str(a.proposedUse)} ${str(a.projectName)}`),
       skip:           DEAD_CASE_RE.test(str(a.status)),
       issuedAt:       a.date ? new Date(a.date) : null,
@@ -778,8 +794,44 @@ export function permitRows(profile, json) {
  * Returns null when the row is not worth keeping.
  */
 export function permitToSignal(profile, attributes) {
-  const p = profile.map(attributes || {});
+  const p = estimateUnits(profile.map(attributes || {}));
   if (!p.permitNumber || p.skip) return null;
+  const s = buildSignal(profile, p);
+  // Migration 0131: every kind carries the gross SF and whether the count is a guess.
+  if (s) { s.grossSf = p.grossSf || null; s.unitsEstimated = !!p.unitsEstimated; }
+  return s;
+}
+
+/** Gross SF per unit for an estimate (Mike 10-14, about 1 unit per 1,000 gross SF). */
+export const SF_PER_UNIT = 1000;
+const HOUSING_RE = /\bapts?\b|\baprtmnts?\b|\bR-?2\b|\bdwelling/i;
+
+/**
+ * Housing with a gross SF but no stated unit count gets about one unit per
+ * 1,000 gross SF, marked unitsEstimated (Mike 10-14, every city). The SF comes
+ * from the feed's own column when it has one, else from the description
+ * ("120,638 SF NEW APARTMENT"). A stated count always wins.
+ */
+export function estimateUnits(p) {
+  const sf = p.grossSf || grossSfFromText(`${p.buildingKind || ''} ${p.title || ''} ${p.projectName || ''}`);
+  const out = { ...p, grossSf: sf || null, unitsEstimated: false };
+  if (p.unitCount || !sf) return out;
+  // Work on an existing building: its SF is the work area, not new homes.
+  if (/alter|remodel|repair|renovat|tenant|interior|finish.?out|demo/i.test(`${p.what || ''} ${p.permitClass || ''}`)) return out;
+  const text = `${p.permitClass || ''} ${p.buildingKind || ''} ${p.what || ''} ${p.title || ''} ${p.projectName || ''}`;
+  if (!(p.multifamily || MULTIFAMILY_RE.test(text) || HOUSING_RE.test(text))) return out;
+  const n = Math.round(sf / SF_PER_UNIT);
+  return n >= 1 ? { ...out, unitCount: n, unitsEstimated: true } : out;
+}
+
+/** "120 units", "about 120 units (est.)", or the fallback. */
+export function unitsText(p, fallback = '') {
+  if (!p.unitCount) return fallback;
+  const n = p.unitCount.toLocaleString('en-US');
+  return p.unitsEstimated ? `about ${n} units (est.)` : `${n} units`;
+}
+
+function buildSignal(profile, p) {
   if (profile.keepClasses && !profile.keepClasses.includes(p.permitClass)) return null;
   if (profile.keepClassRe && !profile.keepClassRe.test(p.permitClass)) return null;
   if (profile.kind === 'CONCEPT') return conceptToSignal(profile, p);
@@ -787,8 +839,8 @@ export function permitToSignal(profile, attributes) {
   if (profile.kind === 'LAND')    return landToSignal(profile, p);
   if (!(p.valuation >= MIN_VALUATION)) return null;
 
-  const what  = whatFor(p.permitClass);
-  const units = p.unitCount ? `, ${p.unitCount.toLocaleString('en-US')} units` : '';
+  const what  = p.what || whatFor(p.permitClass);
+  const units = p.unitCount ? `, ${unitsText(p)}` : '';
   const title = `${what}${units}: ${p.address || 'address not given'}`;
   const parts = [
     p.buildingKind ? p.buildingKind : null,
@@ -814,6 +866,7 @@ export function permitToSignal(profile, attributes) {
     neighborhood:   p.neighborhood,
     valuation:      p.valuation,
     contractorName: p.contractorName,
+    ...(p.accumulate ? { accumulate: true } : {}),
     extracted: {
       companies: [
         ...(p.contractorName ? [{ name: p.contractorName, role: 'GC' }] : []),
@@ -944,7 +997,7 @@ function conceptToSignal(profile, p) {
   if (p.unitCount) { if (p.unitCount < min) return null; }
   else if (!(profile.keepUnstated && p.multifamily)) return null;
 
-  const units = p.unitCount ? `${p.unitCount.toLocaleString('en-US')} units` : 'units not stated';
+  const units = unitsText(p, 'units not stated');
   const title = `Concept plan, ${units}: ${p.address || 'address not given'}`;
   const parts = [
     p.buildingKind ? p.buildingKind : null,
@@ -1066,8 +1119,8 @@ function councilToSignal(profile, p) {
   const min = profile.minUnits || CONCEPT_MIN_UNITS;
   if (p.unitCount && p.unitCount < min) return null;
 
-  const units = p.unitCount ? `${p.unitCount.toLocaleString('en-US')} units` : 'units not stated';
-  const title = `${p.passed ? 'Rezoning approved' : 'Rezoning on the agenda'}, ${units}: ${p.address || p.projectName || 'address not given'}`;
+  const units = unitsText(p, 'units not stated');
+  const title = `${p.passed ?'Rezoning approved' : 'Rezoning on the agenda'}, ${units}: ${p.address || p.projectName || 'address not given'}`;
   const role  = applicantRole(p.ownerName, p.applicantName);
   const parts = [
     p.projectName || null,
@@ -1160,6 +1213,79 @@ export function houstonRows(csv, { issuedAt = null } = {}) {
     row.issuedAt = issuedAt;
     return row;
   }).filter(r => /^\d+$/.test(r.PROJECT_NO));
+}
+
+// ── Houston: one project, many building permits (Mike 10-12) ──
+// Houston permits each building on its own: "(5/15) 120,638 SF NEW APARTMENT"
+// is building 5 of 15, and only two of Dakota at Enclave's fifteen cleared
+// the $10M floor alone; none of Park Row's twenty-two did. Rows with the same
+// owner at the same street address (the "BLD 3" / "1B" suffix stripped) are
+// folded into one project row BEFORE the floor is applied: declared values
+// add up, the building count and gross SF are read off the descriptions.
+
+/** "13704 PARK ROW DR BLD 3 77084" -> "13704 PARK ROW DR" (zip and building suffix gone). */
+export function houstonBaseAddress(address) {
+  return String(address || '').toUpperCase().replace(/\s+/g, ' ').trim()
+    .replace(/\s+\d{5}$/, '')
+    .replace(/\s+(BLDG?\.?\s*[A-Z0-9-]+|\d{1,2}[A-Z]|[A-Z])$/, '')
+    .trim();
+}
+
+/** "(5/15)", "(M/22)", "(MASTER 1 OF 3)" -> how many buildings the project has. */
+export function houstonBuildingsOf(desc) {
+  const m = String(desc || '').match(/\(\s*(?:M|MASTER|\d{1,2})(?:\s+\d{1,2})?\s*(?:\/|OF)\s*(\d{1,3})\s*\)/i);
+  const n = m ? parseInt(m[1], 10) : NaN;
+  return Number.isFinite(n) && n > 1 ? n : null;
+}
+
+/** "120,638 SF NEW APARTMENT", "69,558SF NEW APT BLD" -> 120638. Null when not stated. */
+export function grossSfFromText(desc) {
+  const m = String(desc || '').match(/\b(\d{1,3}(?:,\d{3})+|\d{4,7})[\s-]*(?:SQ\.?\s*FT\.?|SF|SQUARE[\s-]*(?:FEET|FOOT|FT))\b/i);
+  const n = m ? parseInt(m[1].replace(/,/g, ''), 10) : NaN;
+  return Number.isFinite(n) && n >= 1000 ? n : null;
+}
+
+/**
+ * Fold the building permits of one project into one row. Rows that are not a
+ * building permit pass through untouched (the profile skips them). A merged
+ * row keeps the lowest permit number (the city numbers a project's buildings
+ * in a run, so later buildings never take it over), the base address with
+ * the zip, the summed value and the first description, plus the extras the
+ * profile turns into the title and summary.
+ */
+export function houstonProjects(rows) {
+  const out = [];
+  const groups = new Map();
+  for (const r of rows || []) {
+    if (str(r.PERMIT_TYPE) !== '13' || /\bDEMO/i.test(str(r.PROJECT_DESC))) { out.push(r); continue; }
+    const owner = cleanCompany(str(r.OWNER_OCCUPANT).replace(/^\*+\s*/, '')).toUpperCase();
+    const key = `${owner}|${houstonBaseAddress(r.Address)}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(r);
+  }
+  for (const permits of groups.values()) {
+    if (permits.length === 1) { out.push(permits[0]); continue; }
+    permits.sort((a, b) => Number(a.PROJECT_NO) - Number(b.PROJECT_NO));
+    const first = permits[0];
+    // The row wears the biggest building's description, not the clubhouse's.
+    const main  = permits.reduce((a, b) => (grossSfFromText(b.PROJECT_DESC) || 0) > (grossSfFromText(a.PROJECT_DESC) || 0) ? b : a, first);
+    const zip   = (str(first.Address).match(/\d{5}$/) || [''])[0];
+    const sum   = (f) => permits.reduce((t, p) => t + (f(p) || 0), 0) || null;
+    const latest = permits.map(p => p.issuedAt ? new Date(p.issuedAt).getTime() : 0).reduce((a, b) => Math.max(a, b), 0);
+    out.push({
+      ...first,
+      PROJECT_DESC:      main.PROJECT_DESC,
+      Address:           `${houstonBaseAddress(first.Address)}${zip ? ` ${zip}` : ''}`,
+      CURRENT_VALUATION: sum(p => num(p.CURRENT_VALUATION)),
+      issuedAt:          latest ? new Date(latest) : first.issuedAt,
+      permitCount:       permits.length,
+      permitNumbers:     permits.map(p => str(p.PROJECT_NO)),
+      buildingsOf:       permits.map(p => houstonBuildingsOf(p.PROJECT_DESC)).reduce((a, b) => Math.max(a || 0, b || 0), 0) || null,
+      grossSf:           sum(p => grossSfFromText(p.PROJECT_DESC)),
+      unitCount:         sum(p => unitsFromText(p.PROJECT_DESC)),
+    });
+  }
+  return out;
 }
 
 // ── Accela portal (pure: forms and HTML; the fetch lives in accelaFeed.js) ──

@@ -11,7 +11,7 @@ import { decideSupersedes, SAME_BUILDING_MONTHS } from './supersedeRules.js';
  * can run it again.
  */
 const PICK = {
-  id: true, kind: true, title: true, summary: true, address: true, unitCount: true, publishedAt: true,
+  id: true, kind: true, title: true, summary: true, address: true, unitCount: true, unitsEstimated: true, publishedAt: true,
   reviewStatus: true, supersededById: true, supersedeReviewed: true,
   tags: { select: { tag: { select: { kind: true, normalized: true } } } },
 };
@@ -32,7 +32,8 @@ export async function applySupersedes(signalId, { db } = {}) {
   // count or an address to check against the text (permits always have one).
   const sameBuildingHints = [{ address: { not: null } }];
   if (signal.address) sameBuildingHints.push({ kind: { notIn: ['PERMIT', 'CONCEPT'] } });
-  if (signal.unitCount) sameBuildingHints.push({ unitCount: signal.unitCount });
+  // An estimated count (0131) is a guess, not a fingerprint of the building.
+  if (signal.unitCount && !signal.unitsEstimated) sameBuildingHints.push({ unitCount: signal.unitCount, unitsEstimated: false });
 
   const candidates = await client.marketSignal.findMany({
     where: {

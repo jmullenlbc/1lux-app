@@ -2247,6 +2247,10 @@ model MarketSignal {
   // Migration 0122 (Mike 10-7): what the article says the building holds, so
   // units can be rolled up by company and by region. Null = not stated.
   unitCount          Int?
+  // Migration 0131 (Mike 10-14): housing with a gross SF but no stated count
+  // gets about one unit per 1,000 gross SF; unitsEstimated marks that guess.
+  grossSf            Int?
+  unitsEstimated     Boolean      @default(false)
   // When the article's tags were last read. Null = tagged by nobody yet; the
   // retag endpoint works through those.
   taggedAt           DateTime?

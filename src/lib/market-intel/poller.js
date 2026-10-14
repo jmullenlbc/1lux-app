@@ -5,6 +5,14 @@ import { matchCandidates } from './fuzzy-matcher.js';
 import { matchProject } from './project-matcher.js';
 import { saveSignalTags, attachSignalToClient } from './tags.js';
 import { pollAllPermits } from './permits.js';
+import { estimateUnits } from './permitRules.js';
+
+// Migration 0131 (Mike 10-14): an article about housing that gives a gross SF
+// but no unit count gets about one unit per 1,000 gross SF, marked estimated.
+// Only the headline and the reader's summary are read, never the whole page,
+// so a second project's figure is not picked up.
+const articleUnits = (extracted, title, summary) =>
+  estimateUnits({ unitCount: extracted.unitCount || null, buildingKind: [title, summary].filter(Boolean).join(' '), what: extracted.projectType || '' });
 import { createId } from '@paralleldrive/cuid2';
 
 // Process in batches to avoid Claude rate limits on the initial bulk run
@@ -77,6 +85,7 @@ async function processItem(item, projects = []) {
     { matchedClientId: autoLink ? autoLink.clientId : null },
   );
 
+  const est = articleUnits(extracted, item.title, extracted.summary);
   const signal = await prisma.marketSignal.create({
     data: {
       sourceId:       item.sourceId,
@@ -88,7 +97,9 @@ async function processItem(item, projects = []) {
       projectType:    extracted.projectType || null,
       // null = the reader did not answer; shown, and screened again later.
       projectRelated: extracted.projectRelated ?? null,
-      unitCount:      extracted.unitCount ?? null,
+      unitCount:      est.unitCount ?? null,
+      grossSf:        est.grossSf,
+      unitsEstimated: est.unitsEstimated,
       developerNames: JSON.stringify(extracted.developerNames || []),
       linkedClientId: autoLink ? autoLink.clientId : null,
       matchScore:     bestMatch ? bestMatch.score  : null,
@@ -137,7 +148,7 @@ export async function retagUntagged({ limit = 25, deadline = Date.now() + 22000,
     where:   UNSCREENED,
     orderBy: { publishedAt: 'desc' },
     take:    limit,
-    select:  { id: true, title: true, summary: true, url: true, linkedClientId: true, matchStatus: true, developerNames: true, taggedAt: true, projectRelated: true },
+    select:  { id: true, title: true, summary: true, url: true, linkedClientId: true, matchStatus: true, developerNames: true, taggedAt: true, projectRelated: true, unitCount: true, unitsEstimated: true },
   });
   const remaining = Math.max(0, (await prisma.marketSignal.count({ where: UNSCREENED })) - signals.length);
   let skipped = 0;
@@ -174,8 +185,9 @@ export async function retagUntagged({ limit = 25, deadline = Date.now() + 22000,
         ? (() => { try { return JSON.parse(s.developerNames || '[]').map(n => ({ candidateName: n, clientId: s.linkedClientId, status: 'AUTO_LINKED' })); } catch { return []; } })()
         : [];
       await saveSignalTags(s.id, extracted, { matches });
-      if (extracted.unitCount) {
-        await prisma.marketSignal.update({ where: { id: s.id }, data: { unitCount: extracted.unitCount } }).catch(() => {});
+      const est = articleUnits(extracted, s.title, extracted.summary || s.summary);
+      if (est.unitCount && (!est.unitsEstimated || !s.unitCount || s.unitsEstimated)) {
+        await prisma.marketSignal.update({ where: { id: s.id }, data: { unitCount: est.unitCount, unitsEstimated: est.unitsEstimated, grossSf: est.grossSf } }).catch(() => {});
       }
       if (matches.length) {
         await attachSignalToClient(s.id, s.linkedClientId, { companyNames: matches.map(m => m.candidateName) }).catch(() => {});

@@ -5,6 +5,18 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Houston projects + units estimated from gross SF] - October 14, 2026 (DEPLOYED PENDING1) - migration 0131
+
+- Mike 10-12: "Houston feed." Live check of the shipped feed (f3b9401) found the gap: Houston issues one building permit per building, so a 22-building garden apartment project (Park Row, 8 permits of $3.7M to $7.9M) never reached the $10M floor and Dakota at Enclave (15 buildings) showed 2 of 5 permits.
+- `houstonProjects()` in `permitRules.js` folds Building Pmt rows with the same owner and the same base address (building suffix and zip stripped) into one project row before the floor: valuation summed, latest window date, building count read from "(5/15)" or "(M/22)", gross SF summed from "120,638 SF", unit count summed when stated. The row wears the biggest building's description and lists every permit number in its summary; title reads "7 buildings of 22: 13704 Park Row Dr".
+- A folded row carries `accumulate`: a later poll sees only the buildings permitted since, so a smaller fold leaves the saved row alone; a bigger one (longer look-back) replaces it.
+- Live 120-day pull: 4,166 rows, 5 projects kept before, 6 after, with Park Row ($44M, 7 of 22), Dakota at Enclave ($43M, 6 of 15) and 14192 Park Row ($28M, 12 of 26) now surfacing.
+- Mike 10-14 confirmed the $10M floor applies per folded Houston project, not per building permit.
+- Mike 10-14: "estimated units we should always do based on gross SF with any location." `estimateUnits()` runs on every permit, concept plan, council item and article: when no unit count is stated but gross SF is (a field or "120,000 SF" in the text) and the row is housing, units = gross SF / 1,000, rounded. A stated count always wins. Alterations, remodels, tenant finish and demolition are skipped. Estimates count toward the 25-unit concept and council floors.
+- New columns (migration 0131): `MarketSignal.grossSf` and `unitsEstimated`. Titles say "about 256 units (est.)"; the card Units field shows "About N (est.)" with the SF it came from. Estimates are not used as a supersede fingerprint. Saved rows pick up estimates on the next pull or retag.
+- Gross SF now read from Houston, Orlando, Miami, Denver concept and Salt Lake City feeds; Houston "(MASTER 1 OF 3)" building counts now read.
+- Files: `prisma/migrations/0131_signal_units_estimated`, `prisma/schema.prisma`, `src/lib/market-intel/permitRules.js`, `permits.js`, `poller.js`, `supersede.js`, `src/components/market-intel/SignalCard.jsx`, `scripts/tests/permitRules.test.mjs`.
+
 ## [Learned rules view-only for Sales] - October 9, 2026 (DEPLOYED 8a25073) - no migration
 
 - Mike 10-9: "Yes view only not modify or archive." Sales users still see the Learned rules list and the weekly line on the Sources tab; the Apply / Ignore / Undo buttons show only for a Sales Admin or admin (`canDecide` from `GET /api/market-intel/rules`; the PATCH was already gated).

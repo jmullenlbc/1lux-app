@@ -208,7 +208,9 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
           {isPermit ? (
             <dl className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 mt-1.5 text-xs">
               <Field label="Location"><span className="font-medium">{city || signal.neighborhood || 'Unknown'}</span>{city && stateName && <span className="text-slate-500">, {stateName}</span>}</Field>
-              <Field label="Units"><span className="font-medium">{signal.unitCount ? signal.unitCount.toLocaleString() : 'Not stated'}</span></Field>
+              <Field label="Units">{signal.unitCount && signal.unitsEstimated ? (
+                <span className="font-medium" title={`Estimated at 1 unit per 1,000 gross SF${signal.grossSf ? ` from ${signal.grossSf.toLocaleString()} SF` : ''}`}>About {signal.unitCount.toLocaleString()} <span className="text-slate-500 font-normal">(est.)</span></span>
+              ) : <span className="font-medium">{signal.unitCount ? signal.unitCount.toLocaleString() : 'Not stated'}</span>}</Field>
               <Field label="Project">{projectTag?.tag.name || 'Not named'}</Field>
               <Field label="Owner / developer">{ownerName || 'Not found yet'}</Field>
               {isLand ? (
@@ -350,7 +352,7 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
               {/* Articles keep the units chip; a permit shows Units as a field above. */}
               {signal.unitCount && !isPermit ? (
                 <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">
-                  {signal.unitCount.toLocaleString()} units
+                  {signal.unitsEstimated ? 'About ' : ''}{signal.unitCount.toLocaleString()} units{signal.unitsEstimated ? ' (est.)' : ''}
                 </span>
               ) : null}
             </div>

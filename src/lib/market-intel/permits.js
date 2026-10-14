@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db';
 import { matchCandidates } from './fuzzy-matcher';
 import { saveSignalTags, attachSignalToClient } from './tags';
-import { PERMIT_SOURCE_TYPE, profileForSource, permitQueryUrl, permitRows, permitToSignal } from './permitRules';
+import { PERMIT_SOURCE_TYPE, profileForSource, permitQueryUrl, permitRows, permitToSignal, houstonProjects } from './permitRules';
 import { fetchHoustonRows } from './houstonFeed';
 import { walkAccela } from './accelaFeed';
 import { normalizeTagName } from './tagRules';
@@ -33,7 +33,8 @@ export async function pollPermitSource(source, { limit = 500, now = new Date(), 
   let rows = [];
   try {
     if (profile.api === 'houston') {
-      rows = await fetchHoustonRows(profile, since, now);
+      // One project, many building permits: fold them before the $10M floor.
+      rows = houstonProjects(await fetchHoustonRows(profile, since, now));
     } else {
       const res  = await fetch(permitQueryUrl(profile, since, { limit }), { headers: { 'User-Agent': 'ILC-Studios-MarketIntel/1.0', ...(profile.headers || {}) }, signal: AbortSignal.timeout(20000) });
       const json = await res.json();
@@ -96,7 +97,7 @@ async function pollAccelaSource(source, profile, since, { now, deadline, log }) 
 async function saveSignals(source, signals, log, deadline = Infinity) {
   const existing = await prisma.marketSignal.findMany({
     where:  { sourceId: source.id, permitNumber: { in: signals.map(s => s.permitNumber) } },
-    select: { id: true, permitNumber: true, unitCount: true, valuation: true, contractorName: true, neighborhood: true },
+    select: { id: true, permitNumber: true, unitCount: true, unitsEstimated: true, grossSf: true, valuation: true, contractorName: true, neighborhood: true },
   });
   const byNumber = new Map(existing.map(e => [e.permitNumber, e]));
   // Learned rules (0130): a rule an admin applied skips matching new rows.
@@ -111,16 +112,20 @@ async function saveSignals(source, signals, log, deadline = Infinity) {
     // the same 18 months; rows already saved are skipped by permit number.
     if (Date.now() > deadline) { log.partial = true; break; }
     try {
-      const { extracted, ...data } = s;
+      const { extracted, accumulate, ...data } = s;
       const prior = byNumber.get(s.permitNumber);
       if (prior) {
+        // A Houston project row is the sum of its building permits; a later
+        // poll sees only the newest buildings, so a smaller fold leaves the
+        // saved row alone (a bigger one, from a longer look-back, replaces it).
+        if (accumulate && (data.valuation || 0) < (prior.valuation || 0)) continue;
         // The city revises rows (a change of contractor, a corrected count).
         // A council case moves body to body ("Planning Commission: Approved"
         // then "City Council: Passed"), carried in neighborhood.
-        const changed = prior.unitCount !== data.unitCount || prior.valuation !== data.valuation || prior.contractorName !== data.contractorName
+        const changed = prior.unitCount !== data.unitCount || prior.unitsEstimated !== !!data.unitsEstimated || prior.grossSf !== (data.grossSf ?? null) || prior.valuation !== data.valuation || prior.contractorName !== data.contractorName
           || (data.neighborhood !== undefined && prior.neighborhood !== data.neighborhood);
         if (changed) {
-          await prisma.marketSignal.update({ where: { id: prior.id }, data: { unitCount: data.unitCount, valuation: data.valuation, contractorName: data.contractorName, neighborhood: data.neighborhood, title: data.title, summary: data.summary } });
+          await prisma.marketSignal.update({ where: { id: prior.id }, data: { unitCount: data.unitCount, unitsEstimated: !!data.unitsEstimated, grossSf: data.grossSf ?? null, valuation: data.valuation, contractorName: data.contractorName, neighborhood: data.neighborhood, title: data.title, summary: data.summary } });
           log.updated += 1;
         }
         continue;
