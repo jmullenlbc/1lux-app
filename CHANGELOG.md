@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Phoenix rezonings + Municipal tagging] - October 14, 2026 (DEPLOYED PENDING1) - no migration
+## [Phoenix rezonings + Municipal tagging] - October 14, 2026 (DEPLOYED add60db) - no migration
 
 - Mike 10-14: "Make sure everything in the municipal tab is getting thoroughly tagged with clients, type of notification, and similar project names to our projects." PUD with no density stays "units not stated"; a rezoning's count is "up to N units (zoning max)", no discount.
 - New feed `PHOENIX_REZONING` (city zoning map, Planning_Permit MapServer layer 2): rezoning cases filed this year and last, folded one row per case (pieces summed). Kept: multifamily zones (acres x du/ac = zoning max), PUD/PCD, Walkable Urban (not T3), C zones with an M-R or HRI overlay. Dropped: single family, commercial, industrial, parking. No address or owner in the feed; title reads "Rezoning filed, up to 228 units (zoning max): Z-39-26, South Mountain village". Live: 38 cases, 20 kept. Catalog row "Phoenix proposed rezonings".
