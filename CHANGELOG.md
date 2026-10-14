@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Houston projects + units estimated from gross SF] - October 14, 2026 (DEPLOYED PENDING1) - migration 0131
+## [Houston projects + units estimated from gross SF] - October 14, 2026 (DEPLOYED 2b89acb) - migration 0131
 
 - Mike 10-12: "Houston feed." Live check of the shipped feed (f3b9401) found the gap: Houston issues one building permit per building, so a 22-building garden apartment project (Park Row, 8 permits of $3.7M to $7.9M) never reached the $10M floor and Dakota at Enclave (15 buildings) showed 2 of 5 permits.
 - `houstonProjects()` in `permitRules.js` folds Building Pmt rows with the same owner and the same base address (building suffix and zip stripped) into one project row before the floor: valuation summed, latest window date, building count read from "(5/15)" or "(M/22)", gross SF summed from "120,638 SF", unit count summed when stated. The row wears the biggest building's description and lists every permit number in its summary; title reads "7 buildings of 22: 13704 Park Row Dr".
