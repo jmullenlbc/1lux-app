@@ -5,6 +5,14 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Unit estimate takes out garage and retail] - October 14, 2026 (DEPLOYED PENDING1) - no migration
+
+- Mike 10-14: "Subtract the approximate SF of the garage to guess the units or you will have way too much", plus retail, amenity, corridors, stairs and BOH (about 15%).
+- `estimateUnits()` now: retail SF comes off when stated, else 5% of the gross when retail is named; garage SF comes off when stated, else stated spaces x 350 SF, else each unit carries 1.25 spaces x 350 SF of garage when a garage is named; what is left / 1,000 SF (850 net SF per unit + 15% common area, so the common area is counted once). Townhome and house garages are left in.
+- Houston fold carries a garage-only building permit as `garageSf`, taken out before the estimate.
+- The row summary says what came off ("Units estimated from 594,815 gross SF less retail (5%) and garage (1.25 spaces per unit) ..."); card tooltip updated. The Miami 1445 N Miami Av job drops from about 595 to about 393 units.
+- Files: `src/lib/market-intel/permitRules.js`, `poller.js` (comment), `src/components/market-intel/SignalCard.jsx`, `scripts/tests/permitRules.test.mjs`.
+
 ## [Houston projects + units estimated from gross SF] - October 14, 2026 (DEPLOYED 2b89acb) - migration 0131
 
 - Mike 10-12: "Houston feed." Live check of the shipped feed (f3b9401) found the gap: Houston issues one building permit per building, so a 22-building garden apartment project (Park Row, 8 permits of $3.7M to $7.9M) never reached the $10M floor and Dakota at Enclave (15 buildings) showed 2 of 5 permits.

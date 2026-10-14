@@ -8,7 +8,8 @@ import { pollAllPermits } from './permits.js';
 import { estimateUnits } from './permitRules.js';
 
 // Migration 0131 (Mike 10-14): an article about housing that gives a gross SF
-// but no unit count gets about one unit per 1,000 gross SF, marked estimated.
+// but no unit count gets an estimate (garage and retail out first, then about
+// 1,000 SF per unit), marked estimated.
 // Only the headline and the reader's summary are read, never the whole page,
 // so a second project's figure is not picked up.
 const articleUnits = (extracted, title, summary) =>

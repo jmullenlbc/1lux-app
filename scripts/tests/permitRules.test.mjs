@@ -206,9 +206,9 @@ const CROW = {
 
 test('City of Miami says what the building holds and casts its text cost', () => {
   const s = permitToSignal(MIAMI, CROW);
-  assert.equal(s.title, 'New building, about 595 units (est.): 1445 N Miami Av, Miami');
+  assert.equal(s.title, 'New building, about 393 units (est.): 1445 N Miami Av, Miami');
   assert.match(s.summary, /^Commercial: Retail Of Goods, Multi-Family \(Rental\), Parking Garage-Multiple Floors, Contractor First Florida Constructors LLC, declared value \$104M/);
-  assert.equal(permitToSignal(MIAMI, { ...CROW, ScopeofWork: 'PHASED PERMIT' }).title, 'Phased construction, about 595 units (est.): 1445 N Miami Av, Miami');
+  assert.equal(permitToSignal(MIAMI, { ...CROW, ScopeofWork: 'PHASED PERMIT' }).title, 'Phased construction, about 393 units (est.): 1445 N Miami Av, Miami');
   assert.equal(permitToSignal(MIAMI, { ...CROW, ScopeofWork: 'REMODELING/REPAIRS' }).title, 'Alteration: 1445 N Miami Av, Miami');
   assert.equal(permitToSignal(MIAMI, { ...CROW, ScopeofWork: 'DEMOLITION' }), null);
   assert.match(permitWhere(MIAMI, new Date(Date.UTC(2026, 0, 15))), /^IssuedDate >= DATE '2026-01-15' AND ScopeofWork IN \('NEW CONSTRUCTION'.* AND CAST\(TotalCost AS FLOAT\) >= 10000000$/);
@@ -623,4 +623,27 @@ test('Units are estimated from gross SF for housing in every city (Mike 10-14, 0
   assert.match(read('src/lib/market-intel/supersede.js'), /signal\.unitCount && !signal\.unitsEstimated/);
   assert.match(read('src/lib/market-intel/poller.js'), /articleUnits\(extracted, item\.title, extracted\.summary\)/);
   assert.match(read('prisma/migrations/0131_signal_units_estimated/migration.sql'), /ADD COLUMN "unitsEstimated" BOOLEAN NOT NULL DEFAULT false/);
+});
+
+test('Unit estimate takes out garage and retail first (Mike 10-14)', async () => {
+  const { estimateUnits, houstonProjects, SF_PER_UNIT } = await import('../../src/lib/market-intel/permitRules.js');
+  assert.equal(SF_PER_UNIT, 1000); // 850 net SF + 15% common area
+  // Garage and retail named, not sized: 5% retail off, each unit carries 1.25 x 350 SF of garage.
+  const miami = estimateUnits({ grossSf: 594815, multifamily: true, buildingKind: 'Commercial: Retail of Goods, Multi-Family (Rental), Parking Garage-Multiple Floors' });
+  assert.equal(miami.unitCount, 393);
+  assert.match(miami.estimateNote, /less retail \(5%\) and garage \(1\.25 spaces per unit\)/);
+  // Sized garage, stated spaces, sized retail.
+  assert.equal(estimateUnits({ buildingKind: '300,000 SF NEW APARTMENTS WITH 180,000 SF PARKING GARAGE' }).unitCount, 120);
+  assert.equal(estimateUnits({ buildingKind: '300,000 SF NEW APARTMENTS, 400 PARKING SPACES IN GARAGE' }).unitCount, 160);
+  assert.equal(estimateUnits({ buildingKind: '200,000 SF APARTMENTS, 12,000 SF RETAIL' }).unitCount, 188);
+  // No garage or retail: the plain 1,000 SF ratio; a townhome garage is part of the home.
+  assert.equal(estimateUnits({ grossSf: 250000, multifamily: true }).unitCount, 250);
+  assert.equal(estimateUnits({ buildingKind: '40,000 SF TOWNHOMES ATTACHED GARAGE', multifamily: true }).unitCount, 40);
+  // Houston: a garage building's SF is carried as garage, not homes.
+  const [fold] = houstonProjects([
+    { PERMIT_TYPE: '13', PROJECT_NO: '1', OWNER_OCCUPANT: 'ACME LLC', Address: '100 MAIN ST BLDG 1 77002', PROJECT_DESC: '200,000 SF NEW APARTMENT (1/2)', CURRENT_VALUATION: '30000000' },
+    { PERMIT_TYPE: '13', PROJECT_NO: '2', OWNER_OCCUPANT: 'ACME LLC', Address: '100 MAIN ST BLDG 2 77002', PROJECT_DESC: '90,000 SF PARKING GARAGE (2/2)', CURRENT_VALUATION: '9000000' },
+  ]);
+  assert.equal(fold.grossSf, 290000); assert.equal(fold.garageSf, 90000);
+  assert.equal(estimateUnits({ grossSf: fold.grossSf, garageSf: fold.garageSf, multifamily: true }).unitCount, 200);
 });

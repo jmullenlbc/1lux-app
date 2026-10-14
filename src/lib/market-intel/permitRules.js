@@ -165,7 +165,8 @@ export const PERMIT_PROFILES = {
         contractorName: '',
         ownerName:      cleanCompany(str(a.OWNER_OCCUPANT).replace(/^\*+\s*/, '')),
         unitCount:      n ? (a.unitCount || null) : unitsFromText(a.PROJECT_DESC),
-      grossSf:        a.grossSf || grossSfFromText(a.PROJECT_DESC),
+        grossSf:        a.grossSf || grossSfFromText(a.PROJECT_DESC),
+        garageSf:       a.garageSf || null,
         skip:           str(a.PERMIT_TYPE) !== '13' || /\bDEMO/i.test(str(a.PROJECT_DESC)),
         issuedAt:       a.issuedAt ? new Date(a.issuedAt) : null,
         url:            null,
@@ -798,19 +799,49 @@ export function permitToSignal(profile, attributes) {
   if (!p.permitNumber || p.skip) return null;
   const s = buildSignal(profile, p);
   // Migration 0131: every kind carries the gross SF and whether the count is a guess.
-  if (s) { s.grossSf = p.grossSf || null; s.unitsEstimated = !!p.unitsEstimated; }
+  if (s) {
+    s.grossSf = p.grossSf || null; s.unitsEstimated = !!p.unitsEstimated;
+    if (p.estimateNote) s.summary = [s.summary, p.estimateNote].filter(Boolean).join(' ');
+  }
   return s;
 }
 
-/** Gross SF per unit for an estimate (Mike 10-14, about 1 unit per 1,000 gross SF). */
-export const SF_PER_UNIT = 1000;
+/**
+ * Unit estimate inputs (Mike 10-14). An average new apartment is about 850 net
+ * SF; corridors, stairs, amenity and BOH add about 15% of the housing gross, so
+ * one unit takes about 1,000 SF of housing gross. Garage and retail are taken
+ * out first or the count runs far too high.
+ */
+export const NET_SF_PER_UNIT = 850;
+export const COMMON_SHARE    = 0.15;
+export const SF_PER_UNIT     = Math.round(NET_SF_PER_UNIT / (1 - COMMON_SHARE));
+/** Structured parking: spaces per unit, and SF per space with aisles and ramps. */
+export const SPACES_PER_UNIT = 1.25;
+export const SF_PER_SPACE    = 350;
+/** Retail named but not sized: share of the gross. */
+export const RETAIL_SHARE    = 0.05;
 const HOUSING_RE = /\bapts?\b|\baprtmnts?\b|\bR-?2\b|\bdwelling/i;
+const GARAGE_RE  = /\bgarages?\b|\bparking[\s-]*(?:structure|deck|podium|levels?)\b|\b(?:structured|podium)[\s-]*parking\b/i;
+// A house or townhome garage sits inside the home, not under the apartments.
+const HOME_GARAGE_RE = /attached garage|town.?homes?|townhouses?|duplex|single.?family/i;
+const RETAIL_RE  = /\bretail|\brestaurants?\b|\bsupermarket|\bgrocery\b/i;
+const SF_NUM     = String.raw`(\d{1,3}(?:,\d{3})+|\d{4,7})[\s-]*(?:SQ\.?\s*FT\.?|SF|SQUARE[\s-]*(?:FEET|FOOT|FT))`;
+
+/** SF stated next to a word: "garage 180,000 SF", "180,000 SF parking garage". */
+function sfNear(text, word) {
+  const m = text.match(new RegExp(String.raw`\b${word}[^0-9|;]{0,25}${SF_NUM}|${SF_NUM}[^0-9|;]{0,15}${word}`, 'i'));
+  const n = m ? parseInt((m[1] || m[2]).replace(/,/g, ''), 10) : NaN;
+  return Number.isFinite(n) ? n : 0;
+}
 
 /**
- * Housing with a gross SF but no stated unit count gets about one unit per
- * 1,000 gross SF, marked unitsEstimated (Mike 10-14, every city). The SF comes
- * from the feed's own column when it has one, else from the description
- * ("120,638 SF NEW APARTMENT"). A stated count always wins.
+ * Housing with a gross SF but no stated unit count gets an estimate, marked
+ * unitsEstimated (Mike 10-14, every city). A stated count always wins.
+ *   1. Retail: its stated SF comes off; named but not sized, 5% of the gross.
+ *   2. Garage: its stated SF comes off, or stated spaces x 350 SF; named but
+ *      not sized, each unit carries 1.25 spaces x 350 SF of garage with it.
+ *   3. What is left / 1,000 (850 net SF + 15% common area).
+ * `estimateNote` says what came off, for the summary.
  */
 export function estimateUnits(p) {
   const sf = p.grossSf || grossSfFromText(`${p.buildingKind || ''} ${p.title || ''} ${p.projectName || ''}`);
@@ -818,10 +849,33 @@ export function estimateUnits(p) {
   if (p.unitCount || !sf) return out;
   // Work on an existing building: its SF is the work area, not new homes.
   if (/alter|remodel|repair|renovat|tenant|interior|finish.?out|demo/i.test(`${p.what || ''} ${p.permitClass || ''}`)) return out;
-  const text = `${p.permitClass || ''} ${p.buildingKind || ''} ${p.what || ''} ${p.title || ''} ${p.projectName || ''}`;
+  const text = `${p.permitClass || ''} ${p.buildingKind || ''} ${p.what || ''} ${p.title || ''} ${p.projectName || ''} ${p.summary || ''}`;
   if (!(p.multifamily || MULTIFAMILY_RE.test(text) || HOUSING_RE.test(text))) return out;
-  const n = Math.round(sf / SF_PER_UNIT);
-  return n >= 1 ? { ...out, unitCount: n, unitsEstimated: true } : out;
+
+  const took = [];
+  let housing = sf;
+  if (RETAIL_RE.test(text)) {
+    const r = sfNear(text, '(?:retail|restaurant|supermarket|grocery)');
+    housing -= r && r < sf ? r : Math.round(sf * RETAIL_SHARE);
+    took.push(r && r < sf ? `${r.toLocaleString('en-US')} SF retail` : 'retail (5%)');
+  }
+  let perUnit = SF_PER_UNIT;
+  const garageSf = p.garageSf || (GARAGE_RE.test(text) && !HOME_GARAGE_RE.test(text) ? sfNear(text, '(?:garage|parking)') : 0);
+  const spaces   = parseInt((text.match(/\b(\d{2,5})[\s-]*(?:parking[\s-]*)?(?:spaces|stalls)\b/i) || [])[1], 10);
+  if (garageSf && garageSf < sf) {
+    housing -= garageSf;
+    took.push(`${garageSf.toLocaleString('en-US')} SF garage`);
+  } else if (spaces > 0 && GARAGE_RE.test(text) && !HOME_GARAGE_RE.test(text)) {
+    housing -= spaces * SF_PER_SPACE;
+    took.push(`${spaces} spaces of garage`);
+  } else if (GARAGE_RE.test(text) && !HOME_GARAGE_RE.test(text)) {
+    perUnit += SPACES_PER_UNIT * SF_PER_SPACE;
+    took.push('garage (1.25 spaces per unit)');
+  }
+  const n = Math.round(housing / perUnit);
+  if (n < 1) return out;
+  const note = `Units estimated from ${sf.toLocaleString('en-US')} gross SF${took.length ? ` less ${took.join(' and ')}` : ''}, about ${NET_SF_PER_UNIT} net SF per unit plus 15% common area.`;
+  return { ...out, unitCount: n, unitsEstimated: true, estimateNote: note };
 }
 
 /** "120 units", "about 120 units (est.)", or the fallback. */
@@ -1253,6 +1307,11 @@ export function grossSfFromText(desc) {
  * the zip, the summed value and the first description, plus the extras the
  * profile turns into the title and summary.
  */
+/** A building permit for a parking garage alone (no homes in it). */
+export function houstonGarageOnly(desc) {
+  return GARAGE_RE.test(str(desc)) && !(MULTIFAMILY_RE.test(str(desc)) || HOUSING_RE.test(str(desc)));
+}
+
 export function houstonProjects(rows) {
   const out = [];
   const groups = new Map();
@@ -1282,6 +1341,7 @@ export function houstonProjects(rows) {
       permitNumbers:     permits.map(p => str(p.PROJECT_NO)),
       buildingsOf:       permits.map(p => houstonBuildingsOf(p.PROJECT_DESC)).reduce((a, b) => Math.max(a || 0, b || 0), 0) || null,
       grossSf:           sum(p => grossSfFromText(p.PROJECT_DESC)),
+      garageSf:          sum(p => houstonGarageOnly(p.PROJECT_DESC) ? grossSfFromText(p.PROJECT_DESC) : 0),
       unitCount:         sum(p => unitsFromText(p.PROJECT_DESC)),
     });
   }

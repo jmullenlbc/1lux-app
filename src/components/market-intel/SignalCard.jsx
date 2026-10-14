@@ -209,7 +209,7 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
             <dl className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 mt-1.5 text-xs">
               <Field label="Location"><span className="font-medium">{city || signal.neighborhood || 'Unknown'}</span>{city && stateName && <span className="text-slate-500">, {stateName}</span>}</Field>
               <Field label="Units">{signal.unitCount && signal.unitsEstimated ? (
-                <span className="font-medium" title={`Estimated at 1 unit per 1,000 gross SF${signal.grossSf ? ` from ${signal.grossSf.toLocaleString()} SF` : ''}`}>About {signal.unitCount.toLocaleString()} <span className="text-slate-500 font-normal">(est.)</span></span>
+                <span className="font-medium" title={`Estimated${signal.grossSf ? ` from ${signal.grossSf.toLocaleString()} gross SF` : ''}, less garage and retail when named, at about 850 net SF per unit plus 15% common area`}>About {signal.unitCount.toLocaleString()} <span className="text-slate-500 font-normal">(est.)</span></span>
               ) : <span className="font-medium">{signal.unitCount ? signal.unitCount.toLocaleString() : 'Not stated'}</span>}</Field>
               <Field label="Project">{projectTag?.tag.name || 'Not named'}</Field>
               <Field label="Owner / developer">{ownerName || 'Not found yet'}</Field>
