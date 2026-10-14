@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Unit estimate takes out garage and retail] - October 14, 2026 (DEPLOYED PENDING1) - no migration
+## [Unit estimate takes out garage and retail] - October 14, 2026 (DEPLOYED b1843df) - no migration
 
 - Mike 10-14: "Subtract the approximate SF of the garage to guess the units or you will have way too much", plus retail, amenity, corridors, stairs and BOH (about 15%).
 - `estimateUnits()` now: retail SF comes off when stated, else 5% of the gross when retail is named; garage SF comes off when stated, else stated spaces x 350 SF, else each unit carries 1.25 spaces x 350 SF of garage when a garage is named; what is left / 1,000 SF (850 net SF per unit + 15% common area, so the common area is counted once). Townhome and house garages are left in.
