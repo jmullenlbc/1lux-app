@@ -6,6 +6,8 @@ import { fetchHoustonRows } from './houstonFeed';
 import { walkAccela } from './accelaFeed';
 import { normalizeTagName } from './tagRules';
 import { featuresOf, suppressedBy } from './feedbackRules';
+import { matchProject } from './project-matcher';
+import { noticeTypes, MUNICIPAL_KINDS } from './stages';
 
 /**
  * Pull one city's permit feed into MarketSignal rows (migration 0123).
@@ -39,6 +41,8 @@ export async function pollPermitSource(source, { limit = 500, now = new Date(), 
       const res  = await fetch(permitQueryUrl(profile, since, { limit }), { headers: { 'User-Agent': 'ILC-Studios-MarketIntel/1.0', ...(profile.headers || {}) }, signal: AbortSignal.timeout(20000) });
       const json = await res.json();
       rows = permitRows(profile, json);
+      // A case filed as several rows (Phoenix rezonings) becomes one.
+      if (profile.fold) rows = profile.fold(rows);
     }
   } catch (err) {
     log.errors.push({ error: `fetch failed: ${err.message}` });
@@ -103,6 +107,8 @@ async function saveSignals(source, signals, log, deadline = Infinity) {
   // Learned rules (0130): a rule an admin applied skips matching new rows.
   const rules = await prisma.suppressionRule.findMany({ where: { status: 'APPLIED', archivedAt: null } }).catch(() => []);
   log.suppressed = log.suppressed || 0;
+  // Our jobs, for the project match (Mike 10-14: city filings match our project names too).
+  const projects = await loadProjects();
 
   for (const s of signals) {
     // Amplify cuts any request at ~30 s with an empty 504. A first pull of a
@@ -136,9 +142,13 @@ async function saveSignals(source, signals, log, deadline = Infinity) {
         await prisma.suppressionRule.update({ where: { id: rule.id }, data: { hits: { increment: 1 } } }).catch(() => {});
         continue;
       }
-      const matches  = await matchCandidates(extracted.developerNames);
+      // Every named company is checked against clients, not only the owner:
+      // an applicant, GC or architect on the filing can be ours too.
+      const matches  = await matchCandidates(companyNamesOf(extracted));
       const autoLink = matches.find(m => m.status === 'AUTO_LINKED');
       const best     = autoLink || matches.find(m => m.status === 'SUGGESTED');
+      const tagged   = { ...extracted, noticeTypes: noticeTypes(data) };
+      const projectHit = matchProject(matchText(data, extracted), projects, { matchedClientId: autoLink ? autoLink.clientId : null });
       const signal   = await prisma.marketSignal.create({
         data: {
           sourceId:       source.id,
@@ -148,10 +158,13 @@ async function saveSignals(source, signals, log, deadline = Infinity) {
           linkedClientId: autoLink ? autoLink.clientId : null,
           matchScore:     best ? best.score : null,
           matchStatus:    autoLink ? 'AUTO_LINKED' : best ? 'SUGGESTED' : 'UNREVIEWED',
+          linkedProjectId:    projectHit ? projectHit.projectId : null,
+          projectMatchStatus: projectHit ? projectHit.status : 'UNREVIEWED',
+          projectMatchScore:  projectHit ? projectHit.score : null,
           reviewStatus:   'UNREVIEWED',
         },
       });
-      await saveSignalTags(signal.id, extracted, { matches });
+      await saveSignalTags(signal.id, tagged, { matches });
       if (autoLink) await attachSignalToClient(signal.id, autoLink.clientId, { companyNames: [autoLink.candidateName] }).catch(() => {});
       log.inserted += 1;
     } catch (err) {
@@ -176,5 +189,75 @@ export async function pollAllPermits(opts = {}) {
     logs.push(log);
     if (log.partial) more = true;
   }
+  // Older city filings get notice tags and a fresh client/job match (10-14).
+  if (!more && Date.now() < deadline) {
+    const r = await retagMunicipal({ deadline }).catch(() => ({ done: 0, more: false }));
+    if (r.more) more = true;
+    if (r.done) logs.push({ source: 'Retag older city filings', fetched: r.done, kept: r.done, inserted: 0, updated: r.done, errors: [] });
+  }
   return { logs, more };
+}
+
+/** Every company a filing names (owner, applicant, contractor), deduped. */
+function companyNamesOf(extracted = {}) {
+  const names = [...(extracted.companies || []).map(c => (typeof c === 'string' ? c : c?.name)), ...(extracted.developerNames || [])];
+  const seen = new Set();
+  return names.filter(n => n && !seen.has(n.trim().toLowerCase()) && seen.add(n.trim().toLowerCase()));
+}
+
+/** The text a filing is matched against our project names with. */
+function matchText(data, extracted = {}) {
+  return [data.title, data.summary, ...(extracted.projectNames || [])].filter(Boolean).join(' ');
+}
+
+async function loadProjects() {
+  return prisma.project.findMany({ select: { id: true, name: true, clientId: true } }).catch(() => []);
+}
+
+/**
+ * Backfill (Mike 10-14) for city filings saved before notice tags, the
+ * all-company client match and the project match existed. A row with no
+ * NOTICE tag gets its notice tags; if nobody has ruled on its client or job
+ * yet, the matchers run again on its saved company tags and text. Runs in
+ * batches inside the Pull deadline; `more` is true while rows remain.
+ */
+export async function retagMunicipal({ deadline = Infinity, batch = 100 } = {}) {
+  const rows = await prisma.marketSignal.findMany({
+    where:  { kind: { in: MUNICIPAL_KINDS }, tags: { none: { tag: { kind: 'NOTICE' } } } },
+    select: {
+      id: true, kind: true, permitClass: true, title: true, summary: true,
+      linkedClientId: true, matchStatus: true, linkedProjectId: true, projectMatchStatus: true,
+      tags: { select: { tag: { select: { kind: true, name: true } } } },
+    },
+    take: batch,
+  });
+  if (!rows.length) return { done: 0, more: false };
+  const projects = await loadProjects();
+  let done = 0;
+  for (const r of rows) {
+    if (Date.now() > deadline) return { done, more: true };
+    const names    = r.tags.map(l => l.tag).filter(t => t.kind === 'COMPANY').map(t => t.name);
+    const projNames = r.tags.map(l => l.tag).filter(t => t.kind === 'PROJECT').map(t => t.name);
+    const data = {};
+    let autoLink = null;
+    if (!r.linkedClientId && r.matchStatus === 'UNREVIEWED' && names.length) {
+      const matches = await matchCandidates(names).catch(() => []);
+      autoLink = matches.find(m => m.status === 'AUTO_LINKED');
+      const best = autoLink || matches.find(m => m.status === 'SUGGESTED');
+      if (best) Object.assign(data, { linkedClientId: autoLink ? autoLink.clientId : null, matchScore: best.score, matchStatus: autoLink ? 'AUTO_LINKED' : 'SUGGESTED' });
+    }
+    if (!r.linkedProjectId && (!r.projectMatchStatus || r.projectMatchStatus === 'UNREVIEWED')) {
+      const hit = matchProject(matchText(r, { projectNames: projNames }), projects, { matchedClientId: autoLink ? autoLink.clientId : r.linkedClientId });
+      if (hit) Object.assign(data, { linkedProjectId: hit.projectId, projectMatchStatus: hit.status, projectMatchScore: hit.score });
+    }
+    try {
+      if (Object.keys(data).length) await prisma.marketSignal.update({ where: { id: r.id }, data });
+      // Notice tags only: the company tags are already on (with their roles),
+      // and attachSignalToClient below writes the client onto the matched one.
+      await saveSignalTags(r.id, { noticeTypes: noticeTypes(r) });
+      if (autoLink) await attachSignalToClient(r.id, autoLink.clientId, { companyNames: [autoLink.candidateName] }).catch(() => {});
+      done += 1;
+    } catch { /* one bad row does not stop the batch */ }
+  }
+  return { done, more: rows.length === batch };
 }

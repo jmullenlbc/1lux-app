@@ -63,15 +63,30 @@ function monthsApart(a, b) {
  * Are these two signals about one building? Order does not matter.
  * Both need tags[{tag:{kind,normalized}}]; address, unitCount, title, summary, publishedAt are read when present.
  */
+/**
+ * The city case number two filings share (Mike 10-14). Phoenix files a
+ * rezoning as "Z-39-26" and the council agenda adds the district, "Z-39-26-7".
+ * Too short or all digits is not a case number.
+ */
+export function caseKey(permitNumber) {
+  let k = String(permitNumber || '').trim().toUpperCase();
+  const phx = k.match(/^(Z-[A-Z0-9]+-\d{2})-\d+$/);
+  if (phx) k = phx[1];
+  return k.length >= 5 && /[A-Z]/.test(k) && /\d/.test(k) ? k : '';
+}
+
 export function sameBuilding(a, b) {
   if (!a || !b || a.id === b.id) return false;
   const ma = metrosOf(a), mb = metrosOf(b);
   if (![...ma].some(m => mb.has(m))) return false;
   if (monthsApart(a.publishedAt, b.publishedAt) > SAME_BUILDING_MONTHS) return false;
+  const ka = caseKey(a.permitNumber);
+  if (ka && ka === caseKey(b.permitNumber)) return true;
   if (a.address && textNamesAddress(textOf(b), a.address)) return true;
   if (b.address && textNamesAddress(textOf(a), b.address)) return true;
   const ua = Number(a.unitCount) || 0, ub = Number(b.unitCount) || 0;
-  return ua > 0 && ua === ub;
+  // An estimated or zoning-max count is a guess, not a fingerprint of the building.
+  return ua > 0 && ua === ub && !a.unitsEstimated && !b.unitsEstimated;
 }
 
 /**

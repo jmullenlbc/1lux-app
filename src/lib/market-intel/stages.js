@@ -54,3 +54,32 @@ export function stageWhere(stageParam) {
   else if (ent)       parts.push({ kind: 'CONCEPT', ...entitlement });
   return parts.length === 1 ? parts[0] : { OR: parts };
 }
+
+/**
+ * Notice type tags (Mike 10-14: every Municipal row tagged with the type of
+ * notification). The stage chip plus a finer sub-type read off the case
+ * type and title, so "Pre-application meeting" and "PUD" are filterable.
+ */
+const NOTICE_SUBTYPES = [
+  ['Pre-application meeting', /pre.?app|pre.?submittal|pre.?sub\b/i],
+  ['PUD',                     /\bPUD\b|planned unit|planned (?:community|development)/i],
+  ['Rezoning',                /rezon|zoning (?:map )?amend|zoning ordinance|zoning case|\bzone change/i],
+  ['Site plan',               /site (?:development )?plan/i],
+  ['Concept plan',            /concept/i],
+  ['Design review',           /design review/i],
+  ['Plat',                    /\bplat\b|subdivision/i],
+  ['Conditional use',         /conditional use|special (?:use|exception)/i],
+];
+
+export function noticeTypes(signal = {}) {
+  const stage = municipalStage(signal);
+  if (!stage) return [];
+  const out = [STAGE_BY_VALUE[stage].chip];
+  if (stage === 'PERMIT' || stage === 'LAND') return out;
+  const text = `${signal.permitClass || ''} ${signal.title || ''}`;
+  for (const [label, re] of NOTICE_SUBTYPES) if (re.test(text)) out.push(label);
+  return out;
+}
+
+/** Every notice type, for the Municipal tab filter. */
+export const NOTICE_TYPE_OPTIONS = [...STAGES.map(s => s.chip), ...NOTICE_SUBTYPES.map(([label]) => label)];

@@ -8,7 +8,8 @@
  * three ways is one metro.
  */
 
-export const TAG_KINDS = ['COMPANY', 'PROJECT', 'METRO', 'STATE'];
+// NOTICE (Mike 10-14): the type of city notification, from stages.noticeTypes.
+export const TAG_KINDS = ['COMPANY', 'PROJECT', 'METRO', 'STATE', 'NOTICE'];
 
 // BUYER (Mike 10-9): a company asking to rezone land it does not own yet,
 // so it likely has the land under contract. See likelyLandBuyer in permitRules.
@@ -109,6 +110,7 @@ export function tagsFromExtraction(extracted = {}) {
   // Older extractions carry only developerNames.
   for (const name of extracted.developerNames || []) push('COMPANY', name, 'DEVELOPER');
   for (const name of extracted.projectNames || []) push('PROJECT', name);
+  for (const name of extracted.noticeTypes || []) push('NOTICE', name);
 
   const state = stateCode(extracted.state);
   const metro = metroTag(extracted.metro, state);

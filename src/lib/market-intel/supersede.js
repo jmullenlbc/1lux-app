@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db';
-import { decideSupersedes, SAME_BUILDING_MONTHS } from './supersedeRules.js';
+import { decideSupersedes, caseKey, SAME_BUILDING_MONTHS } from './supersedeRules.js';
 
 /**
  * Database side of "one building, one count" (0124). Rules in supersedeRules.js.
@@ -11,7 +11,7 @@ import { decideSupersedes, SAME_BUILDING_MONTHS } from './supersedeRules.js';
  * can run it again.
  */
 const PICK = {
-  id: true, kind: true, title: true, summary: true, address: true, unitCount: true, unitsEstimated: true, publishedAt: true,
+  id: true, kind: true, permitNumber: true, title: true, summary: true, address: true, unitCount: true, unitsEstimated: true, publishedAt: true,
   reviewStatus: true, supersededById: true, supersedeReviewed: true,
   tags: { select: { tag: { select: { kind: true, normalized: true } } } },
 };
@@ -33,6 +33,9 @@ export async function applySupersedes(signalId, { db } = {}) {
   const sameBuildingHints = [{ address: { not: null } }];
   if (signal.address) sameBuildingHints.push({ kind: { notIn: ['PERMIT', 'CONCEPT'] } });
   // An estimated count (0131) is a guess, not a fingerprint of the building.
+  // A council item and the rezoning it votes on share a case number (Phoenix).
+  const key = caseKey(signal.permitNumber);
+  if (key) sameBuildingHints.push({ permitNumber: { startsWith: key } });
   if (signal.unitCount && !signal.unitsEstimated) sameBuildingHints.push({ unitCount: signal.unitCount, unitsEstimated: false });
 
   const candidates = await client.marketSignal.findMany({

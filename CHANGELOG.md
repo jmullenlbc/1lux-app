@@ -5,6 +5,18 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Phoenix rezonings + Municipal tagging] - October 14, 2026 (DEPLOYED PENDING1) - no migration
+
+- Mike 10-14: "Make sure everything in the municipal tab is getting thoroughly tagged with clients, type of notification, and similar project names to our projects." PUD with no density stays "units not stated"; a rezoning's count is "up to N units (zoning max)", no discount.
+- New feed `PHOENIX_REZONING` (city zoning map, Planning_Permit MapServer layer 2): rezoning cases filed this year and last, folded one row per case (pieces summed). Kept: multifamily zones (acres x du/ac = zoning max), PUD/PCD, Walkable Urban (not T3), C zones with an M-R or HRI overlay. Dropped: single family, commercial, industrial, parking. No address or owner in the feed; title reads "Rezoning filed, up to 228 units (zoning max): Z-39-26, South Mountain village". Live: 38 cases, 20 kept. Catalog row "Phoenix proposed rezonings".
+- Case-number link: a council item "Z-39-26-7" and the filing "Z-39-26" are the same case, so the council row (with owner, applicant, clients) supersedes the filing. Estimated or zoning-max counts no longer count as a same-building fingerprint.
+- Notice type tags (new tag kind NOTICE, no migration): every city row gets its stage (Permit, Concept submission, Site entitlement, Council approval, Land sale) plus sub-types read off the case type and title (Pre-application meeting, PUD, Rezoning, Site plan, Concept plan, Design review, Plat, Conditional use). Amber chips on the card, "All notice types" filter on the Municipal tab; project chips now filter too.
+- Client match on city rows now checks every named company (owner, applicant, contractor), not only the owner.
+- Project match: city rows now run the same "is this one of our jobs?" matcher the articles use (title, summary, project name), writing linkedProjectId / projectMatchStatus.
+- Project names: Austin, Denver concept, Salt Lake City, Orlando and council rows now save the city's project name as a PROJECT tag when it reads like a name (not an address, case number or "Site Plan").
+- Backfill: "Pull permits now" (and the daily poll) finishes by giving older city rows their notice tags and rerunning the client and job match where nobody has ruled yet, 100 rows a slice.
+- Files: `permitRules.js`, `permits.js`, `stages.js`, `tagRules.js`, `supersedeRules.js`, `supersede.js`, `sourceCatalog.js`, `SignalCard.jsx`, `market-intel/permits/page.jsx`, `api/market-intel/signals/route.js`, `scripts/tests/permitRules.test.mjs`.
+
 ## [Unit estimate takes out garage and retail] - October 14, 2026 (DEPLOYED b1843df) - no migration
 
 - Mike 10-14: "Subtract the approximate SF of the garage to guess the units or you will have way too much", plus retail, amenity, corridors, stairs and BOH (about 15%).

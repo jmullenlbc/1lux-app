@@ -90,6 +90,7 @@ const TAG_STYLES  = {
   PROJECT: 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100',
   METRO:   'bg-teal-50 text-teal-700 hover:bg-teal-100',
   STATE:   'bg-teal-50 text-teal-700 hover:bg-teal-100',
+  NOTICE:  'bg-amber-50 text-amber-800 hover:bg-amber-100',
 };
 
 function Field({ label, children }) {
@@ -124,7 +125,12 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
   const tagLinks     = signal.tags || [];
   // Hide the STATE chip when a METRO chip already names it ("Denver, CO").
   const metroStates  = new Set(tagLinks.filter(l => l.tag.kind === 'METRO').map(l => l.tag.name.split(',').pop()?.trim()));
-  const chips        = tagLinks.filter(l => !(l.tag.kind === 'STATE' && metroStates.has(l.tag.name)));
+  // Notice types first; the stage one is already the stage chip, so it is not repeated.
+  const stageChip    = stage ? STAGE_BY_VALUE[stage].chip : null;
+  const KIND_ORDER   = { NOTICE: 0, PROJECT: 1, COMPANY: 2, METRO: 3, STATE: 4 };
+  const chips        = tagLinks
+    .filter(l => !(l.tag.kind === 'STATE' && metroStates.has(l.tag.name)) && !(l.tag.kind === 'NOTICE' && l.tag.name === stageChip))
+    .sort((x, y) => (KIND_ORDER[x.tag.kind] ?? 9) - (KIND_ORDER[y.tag.kind] ?? 9));
   // The permit card's Location field (Mike 10-8): city and state are two tag
   // rows (METRO "Austin, TX" and STATE "TX"), shown together as one field.
   const metroName    = tagLinks.find(l => l.tag.kind === 'METRO')?.tag.name || '';

@@ -647,3 +647,70 @@ test('Unit estimate takes out garage and retail first (Mike 10-14)', async () =>
   assert.equal(fold.grossSf, 290000); assert.equal(fold.garageSf, 90000);
   assert.equal(estimateUnits({ grossSf: fold.grossSf, garageSf: fold.garageSf, multifamily: true }).unitCount, 200);
 });
+
+// ── 10-14: Phoenix proposed rezonings, notice tags, project names, case link ──
+import { phoenixRezonings, phoenixDate, projectNameOf, unitsText } from '../../src/lib/market-intel/permitRules.js';
+import { noticeTypes } from '../../src/lib/market-intel/stages.js';
+import { tagsFromExtraction } from '../../src/lib/market-intel/tagRules.js';
+import { caseKey, sameBuilding } from '../../src/lib/market-intel/supersedeRules.js';
+
+const PZ = 'GISADM.PROPOSED_ZONING.';
+const phxRow = (o) => ({ [`${PZ}REDEFINE1`]: o.c, [`${PZ}ACRES`]: o.ac, [`${PZ}LABEL1`]: o.label, [`${PZ}FROMZ`]: o.from || 'R1-6', [`${PZ}VILLAGE`]: 'SOUTH MOUNTAIN', [`${PZ}DATE_PROPOSED`]: o.date || null, 'GISADM.Z_DESIG_LUT.DEFIN': o.defin });
+
+test('Phoenix rezonings fold per case, show the zoning max and keep PUDs unstated', () => {
+  const p = PERMIT_PROFILES.PHOENIX_REZONING;
+  const rows = p.fold([
+    phxRow({ c: 'Z-39-26', ac: 5.26, label: 'R-4A *', defin: 'Multi-Family Res 43.50 Dwellings/Acre-Base D.', date: '2/23/2026' }),
+    phxRow({ c: 'Z-133-26', ac: 16.36, label: 'PUD', defin: 'Planned Unit Development  - Mixed Use ' }),
+    phxRow({ c: 'Z-85-26', ac: 0.46, label: 'C-1', defin: 'Neighborhood Commercial' }),
+    phxRow({ c: 'Z-170-25', ac: 0.19, label: 'WU Code T3:2 HP', defin: 'Walkable Urban Code - Transit Area Code' }),
+    phxRow({ c: 'Z-50-26', ac: 2, label: 'R-3', defin: 'Multi-Family Res 14.50 Dwellings/Acre-Base D.' }),
+    phxRow({ c: 'Z-50-26', ac: 1, label: 'R-3', defin: 'Multi-Family Res 14.50 Dwellings/Acre-Base D.' }),
+  ]);
+  const by = Object.fromEntries(rows.map(r => [r.caseNo, permitToSignal(p, r)]));
+  assert.equal(by['Z-39-26'].title, 'Rezoning filed, up to 228 units (zoning max): Z-39-26, South Mountain village');
+  assert.equal(by['Z-39-26'].unitsEstimated, true);
+  assert.equal(by['Z-39-26'].publishedAt.toISOString().slice(0, 10), '2026-02-23');
+  assert.match(by['Z-133-26'].title, /units not stated/);
+  assert.equal(by['Z-133-26'].permitClass, 'Rezoning (PUD)');
+  assert.equal(by['Z-85-26'], null);
+  assert.equal(by['Z-170-25'], null, 'house-scale Walkable Urban is dropped');
+  assert.equal(by['Z-50-26'].unitCount, 43, 'pieces of one case add up');
+  assert.match(permitWhere(p, new Date()), /ZYEAR IN \('\d\d','\d\d'\)/);
+  assert.equal(phoenixDate('5-11-2026').toISOString().slice(0, 10), '2026-05-11');
+  assert.equal(phoenixDate('2/25/26').toISOString().slice(0, 10), '2026-02-25');
+  assert.equal(phoenixDate(null), null);
+  assert.equal(unitsText({ unitCount: 1200, unitsMax: true }), 'up to 1,200 units (zoning max)');
+  assert.equal(profileForSource({ feedUrl: p.layerUrl, market: 'PHOENIX' }).key, 'PHOENIX_REZONING');
+});
+
+test('every city filing gets a notice type tag', () => {
+  assert.deepEqual(noticeTypes({ kind: 'PERMIT', permitClass: 'New' }), ['Permit']);
+  assert.deepEqual(noticeTypes({ kind: 'CONCEPT', permitClass: 'Rezoning (PUD)' }), ['Site entitlement', 'PUD', 'Rezoning']);
+  assert.deepEqual(noticeTypes({ kind: 'CONCEPT', permitClass: 'Pre-submittal meeting' }), ['Concept submission', 'Pre-application meeting']);
+  assert.deepEqual(noticeTypes({ kind: 'COUNCIL', title: 'Rezoning Application Z-39-26-7' }), ['Council approval', 'Rezoning']);
+  assert.deepEqual(noticeTypes({ kind: 'ARTICLE' }), []);
+  const tags = tagsFromExtraction({ noticeTypes: ['Site entitlement', 'PUD'] });
+  assert.deepEqual(tags.map(t => t.kind), ['NOTICE', 'NOTICE']);
+});
+
+test('a city project name is kept only when it reads like a name', () => {
+  assert.equal(projectNameOf('Westridge Mulroy Bldg'), 'Westridge Mulroy Bldg');
+  assert.equal(projectNameOf('3550 W 13th Ave'), '');
+  assert.equal(projectNameOf('Site Plan'), '');
+  assert.equal(projectNameOf('SP2026-0012'), '');
+  assert.equal(projectNameOf('Elm'), '');
+  assert.equal(projectNameOf('Main St Lofts', 'Main St Lofts'), '');
+});
+
+test('a council item and its rezoning share a case number', () => {
+  assert.equal(caseKey('Z-39-26-7'), 'Z-39-26');
+  assert.equal(caseKey('Z-39-26'), 'Z-39-26');
+  assert.equal(caseKey('1234'), '');
+  const metro = [{ tag: { kind: 'METRO', normalized: 'phoenix az' } }];
+  const council = { id: 'a', kind: 'COUNCIL', permitNumber: 'Z-39-26-7', tags: metro, publishedAt: new Date('2026-06-01') };
+  const filing  = { id: 'b', kind: 'CONCEPT', permitNumber: 'Z-39-26', tags: metro, publishedAt: new Date('2026-02-23') };
+  assert.equal(sameBuilding(council, filing), true);
+  assert.equal(sameBuilding(council, { ...filing, permitNumber: 'Z-40-26' }), false);
+  assert.equal(sameBuilding({ ...filing, id: 'c', permitNumber: 'X1', unitCount: 228, unitsEstimated: true }, { ...council, permitNumber: 'Y1', unitCount: 228 }), false, 'a zoning max is not a fingerprint');
+});

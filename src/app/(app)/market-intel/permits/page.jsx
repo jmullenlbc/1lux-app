@@ -4,7 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import SectionTabs, { MARKET_INTEL_TABS } from '@/components/ui/SectionTabs';
 import SignalCard from '@/components/market-intel/SignalCard';
 import { postParked } from '@/lib/parkedFetch';
-import { STAGES, isEntitlementClass } from '@/lib/market-intel/stages';
+import { STAGES, isEntitlementClass, NOTICE_TYPE_OPTIONS } from '@/lib/market-intel/stages';
 
 /**
  * Municipal tab (was Permits; renamed and staged Mike 10-9). Migration 0123, Mike 10-7. Building permits pulled from a
@@ -44,6 +44,8 @@ const EMPTY_FILTERS = {
   metro:        '',
   state:        '',
   company:      '',
+  project:      '',
+  notice:       '',
   assignedTo:   '',
   hasUnits:     '',
   buyer:        '',
@@ -85,7 +87,7 @@ function PermitsInner() {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(page), stage: filters.stage || 'ALL' });
-      for (const key of ['reviewStatus', 'permitClass', 'clientId', 'metro', 'state', 'company', 'assignedTo', 'hasUnits', 'buyer', 'signalId']) {
+      for (const key of ['reviewStatus', 'permitClass', 'clientId', 'metro', 'state', 'company', 'project', 'notice', 'assignedTo', 'hasUnits', 'buyer', 'signalId']) {
         if (filters[key]) params.set(key, filters[key]);
       }
       if (search) params.set('search', search);
@@ -109,7 +111,7 @@ function PermitsInner() {
   }
 
   function filterByTag(tag) {
-    const key = { COMPANY: 'company', METRO: 'metro', STATE: 'state' }[tag.kind];
+    const key = { COMPANY: 'company', PROJECT: 'project', NOTICE: 'notice', METRO: 'metro', STATE: 'state' }[tag.kind];
     if (!key) return;
     setFilters(f => ({ ...f, [key]: tag.name, reviewStatus: '', signalId: '' }));
     setPage(1);
@@ -270,6 +272,10 @@ function PermitsInner() {
             <option value="">All {filters.stage === 'PERMIT' ? 'permit' : 'case'} types</option>
             {classesFor(filters.stage).map(c => <option key={c} value={c}>{c}</option>)}
           </select>
+          <select value={filters.notice} onChange={e => setFilter('notice', e.target.value)} className={SELECT_CLS}>
+            <option value="">All notice types</option>
+            {NOTICE_TYPE_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
           <select value={filters.hasUnits} onChange={e => setFilter('hasUnits', e.target.value)} className={SELECT_CLS}>
             <option value="">With or without units</option>
             <option value="1">Has a unit count</option>
@@ -310,6 +316,12 @@ function PermitsInner() {
             <option value="contractor">Contractor A to Z</option>
             <option value="address">Address A to Z</option>
           </select>
+          {filters.project && (
+            <span className="text-sm bg-indigo-50 text-indigo-700 rounded-lg px-3 py-1.5 flex items-center gap-2">
+              {filters.project}
+              <button onClick={() => setFilter('project', '')} className="text-indigo-300 hover:text-indigo-600" title="Remove">✗</button>
+            </span>
+          )}
           {filters.company && (
             <span className="text-sm bg-slate-100 text-slate-700 rounded-lg px-3 py-1.5 flex items-center gap-2">
               {filters.company}

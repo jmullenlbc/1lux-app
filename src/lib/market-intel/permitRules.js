@@ -199,6 +199,7 @@ export const PERMIT_PROFILES = {
     map: (a) => ({
       permitNumber:   str(a.permitNumber),
       permitClass:    str(a.permitType),
+      projectName:    str(a.projectName),
       buildingKind:   [str(a.projectName), str(a.useType) ? `${str(a.useType)}` : '', shortText(a.description, 110)].filter(Boolean).join(': '),
       // "177 E 900 S, Ste 200, Salt Lake City UT 84111-4229"
       address:        titleCaseAddress(str(a.address).replace(/,\s*Salt Lake City\s+UT.*$/i, '')),
@@ -231,6 +232,7 @@ export const PERMIT_PROFILES = {
     map: (a) => ({
       permitNumber:   str(a.permit_number),
       permitClass:    str(a.worktype),
+      projectName:    str(a.project_name),
       buildingKind:   [str(a.plan_review_type), str(a.project_name)].filter(Boolean).join(': '),
       address:        titleCaseAddress(str(a.permit_address)),
       neighborhood:   str(a.neighborhood),
@@ -496,6 +498,7 @@ export const PERMIT_PROFILES = {
       permitNumber:   str(a.permitNumber),
       permitClass:    str(a.permitType) || 'Concept Plan',
       // "2026PM0000333 - 3550 W. 13th Ave - Westridge Mulroy Bldg" -> the project name after the master number and address.
+      projectName:    denverProjectName(a.projectName),
       buildingKind:   [denverProjectName(a.projectName), str(a.proposedUse), a.grossSf ? `${Number(a.grossSf).toLocaleString('en-US')} sq ft` : ''].filter(Boolean).join(': '),
       // "3550 W 13th AVE, Denver CO 80204-1500"
       address:        titleCaseAddress(str(a.address).replace(/,\s*Denver\s+CO.*$/i, '')),
@@ -533,6 +536,7 @@ export const PERMIT_PROFILES = {
     map: (a) => ({
       permitNumber:   str(a.permitNumber),
       permitClass:    str(a.permitType),
+      projectName:    str(a.projectName),
       buildingKind:   [str(a.projectName), shortText(a.description, 140)].filter(Boolean).join(': '),
       address:        titleCaseAddress(str(a.address).replace(/,\s*Salt Lake City\s+UT.*$/i, '')),
       neighborhood:   a.status ? `status ${str(a.status)}` : '',
@@ -608,6 +612,7 @@ export const PERMIT_PROFILES = {
       return {
         permitNumber:  str(a.application_number),
         permitClass:   str(a.application_description),
+        projectName:   name,
         buildingKind:  [str(a.application_name), shortText(a.application_comments, 140)].filter(Boolean).join(': '),
         address:       /no address/i.test(str(a.address)) ? '' : titleCaseAddress(str(a.address).replace(/^Reference:\s*/i, '')),
         neighborhood:  str(a.neighborhood),
@@ -629,6 +634,46 @@ export const PERMIT_PROFILES = {
   // and a quarter acre; RH zones a quarter acre. Condos, rowhouses and
   // existing apartment buildings are not land. No dollar floor: the floor
   // is $1,000 to skip the $0 transfers. City limits only (Mike 10-9).
+  // Phoenix proposed rezonings (Planning_Permit MapServer layer 2): every
+  // rezoning filed this year and last, one row per zone piece of a case, so
+  // the pieces are folded per case first. No address, owner or applicant;
+  // the council agenda item for the same case carries those (case-number
+  // link in supersedeRules). Units are the most the new zone allows (Mike
+  // 10-14: "up to N units (zoning max)", no discount); a PUD or Walkable
+  // Urban zone states no density, so it stays "units not stated".
+  PHOENIX_REZONING: {
+    key:        'PHOENIX_REZONING',
+    kind:       'CONCEPT',
+    api:        'arcgis',
+    metro:      'Phoenix, AZ',
+    state:      'AZ',
+    layerUrl:   'https://maps.phoenix.gov/pub/rest/services/Public/Planning_Permit/MapServer/2/query',
+    siteUrl:    'https://www.phoenix.gov/pdd/zoning',
+    dateField:  'GISADM.PROPOSED_ZONING.OBJECTID',
+    outFields:  ['*'],
+    titleLead:  'Rezoning filed',
+    minUnits:   CONCEPT_MIN_UNITS,
+    keepUnstated: true,
+    whereFor:   () => {
+      const y = new Date().getFullYear() % 100;
+      const yy = [y - 1, y].map(n => `'${String((n + 100) % 100).padStart(2, '0')}'`).join(',');
+      return `GISADM.PROPOSED_ZONING.ZYEAR IN (${yy})`;
+    },
+    fold: (rows) => phoenixRezonings(rows),
+    map: (g) => ({
+      permitNumber: g.caseNo,
+      permitClass:  g.unstated ? 'Rezoning (PUD)' : 'Rezoning',
+      buildingKind: g.kind,
+      address:      '',
+      placeText:    [g.caseNo, g.village ? `${g.village} village` : ''].filter(Boolean).join(', '),
+      neighborhood: g.village ? `${g.village} village` : '',
+      unitCount:    g.unstated ? null : g.units,
+      unitsMax:     !g.unstated && g.units > 0,
+      multifamily:  g.keep,
+      issuedAt:     g.date,
+      url:          null,
+    }),
+  },
   DENVER_LAND: {
     key:        'DENVER_LAND',
     kind:       'LAND',
@@ -698,6 +743,7 @@ function austinCase(a, own) {
   return {
     ...own,
     permitClass:    str(a.sub_type),
+    projectName:    str(a.case_name),
     buildingKind:   [str(a.case_name), shortText(a.description_of_work, 140)].filter(Boolean).join(': '),
     neighborhood:   a.council_district ? `Council District ${str(a.council_district)}` : '',
     valuation:      null,
@@ -730,6 +776,8 @@ export function profileFor(key) {
 
 /** The feed's where clause: recent, a kept class, and at least $10M declared. */
 export function permitWhere(profile, since) {
+  // A feed whose date is not a real date column (Phoenix rezonings) writes its own.
+  if (profile.whereFor) return profile.whereFor(since);
   const classes = (profile.keepClasses || []).map(c => `'${c.replace(/'/g, "''")}'`).join(',');
   const d       = since instanceof Date ? since : new Date(since);
   const iso     = d.toISOString().slice(0, 10);
@@ -845,7 +893,8 @@ function sfNear(text, word) {
  */
 export function estimateUnits(p) {
   const sf = p.grossSf || grossSfFromText(`${p.buildingKind || ''} ${p.title || ''} ${p.projectName || ''}`);
-  const out = { ...p, grossSf: sf || null, unitsEstimated: false };
+  // A zoning-max count (Phoenix rezonings) is a ceiling, flagged by the map.
+  const out = { ...p, grossSf: sf || null, unitsEstimated: !!p.unitsMax };
   if (p.unitCount || !sf) return out;
   // Work on an existing building: its SF is the work area, not new homes.
   if (/alter|remodel|repair|renovat|tenant|interior|finish.?out|demo/i.test(`${p.what || ''} ${p.permitClass || ''}`)) return out;
@@ -878,10 +927,26 @@ export function estimateUnits(p) {
   return { ...out, unitCount: n, unitsEstimated: true, estimateNote: note };
 }
 
+/**
+ * A city's project name, kept only when it reads like a name (Mike 10-14:
+ * match city filings to our jobs). An address, a case number or a bare word
+ * like "Site Plan" is not a name.
+ */
+const NOT_A_NAME_RE = /^(?:n\/?a|none|tbd|unknown|new (?:building|construction)|site plan|rezoning|zoning|pud|plat|concept plan|pre.?app\w*|pre.?submittal|design review|variance|annexation|amendment|multi.?family|apartments?|residential|commercial|mixed.?use)$/i;
+export function projectNameOf(name, address = '') {
+  const n = String(name || '').replace(/\s+/g, ' ').trim();
+  if (n.length < 4 || /^\d/.test(n) || NOT_A_NAME_RE.test(n)) return '';
+  if (address && n.toLowerCase() === String(address).toLowerCase()) return '';
+  if (/^[A-Z]{1,4}\d{2,}[-\d]*$/i.test(n)) return '';
+  return n.length > 90 ? '' : n;
+}
+
 /** "120 units", "about 120 units (est.)", or the fallback. */
 export function unitsText(p, fallback = '') {
   if (!p.unitCount) return fallback;
   const n = p.unitCount.toLocaleString('en-US');
+  // A rezoning's count is the most its new zone allows (Mike 10-14: no discount).
+  if (p.unitsMax) return `up to ${n} units (zoning max)`;
   return p.unitsEstimated ? `about ${n} units (est.)` : `${n} units`;
 }
 
@@ -927,7 +992,7 @@ function buildSignal(profile, p) {
         ...(p.ownerName      ? [{ name: p.ownerName,      role: 'OWNER' }] : []),
       ],
       developerNames: [p.ownerName, p.contractorName].filter(Boolean),
-      projectNames:   [],
+      projectNames:   projectNameOf(p.projectName, p.address) ? [projectNameOf(p.projectName, p.address)] : [],
       metro:          profile.metro,
       state:          profile.state,
       unitCount:      p.unitCount,
@@ -1052,7 +1117,7 @@ function conceptToSignal(profile, p) {
   else if (!(profile.keepUnstated && p.multifamily)) return null;
 
   const units = unitsText(p, 'units not stated');
-  const title = `Concept plan, ${units}: ${p.address || 'address not given'}`;
+  const title = `${profile.titleLead || 'Concept plan'}, ${units}: ${p.address || p.placeText || 'address not given'}`;
   const parts = [
     p.buildingKind ? p.buildingKind : null,
     p.ownerName ? `Owner ${p.ownerName}` : null,
@@ -1079,7 +1144,7 @@ function conceptToSignal(profile, p) {
     extracted: {
       companies: filingCompanies(p.ownerName, p.applicantName),
       developerNames: [p.ownerName, applicantRole(p.ownerName, p.applicantName) === 'BUYER' ? p.applicantName : null].filter(Boolean),
-      projectNames:   [],
+      projectNames:   projectNameOf(p.projectName, p.address) ? [projectNameOf(p.projectName, p.address)] : [],
       metro:          profile.metro,
       state:          profile.state,
       unitCount:      p.unitCount,
@@ -1202,7 +1267,7 @@ function councilToSignal(profile, p) {
     extracted: {
       companies:      filingCompanies(p.ownerName, p.applicantName),
       developerNames: [p.ownerName, role === 'BUYER' || role === 'DEVELOPER' ? p.applicantName : null].filter(Boolean),
-      projectNames:   p.projectName ? [p.projectName] : [],
+      projectNames:   projectNameOf(p.projectName, p.address) ? [projectNameOf(p.projectName, p.address)] : [],
       metro:          profile.metro,
       state:          profile.state,
       unitCount:      p.unitCount,
@@ -1470,6 +1535,59 @@ export function accelaDetail(html) {
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
+// ── Phoenix proposed rezonings ──
+
+/** "2/23/2026", "5-11-2026", "2/25/26" -> Date (null when blank or odd). */
+export function phoenixDate(v) {
+  const m = str(v).match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2}|\d{4})$/);
+  if (!m) return null;
+  const y = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
+  const d = new Date(Date.UTC(y, Number(m[1]) - 1, Number(m[2])));
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+const PHX_DENSITY_RE  = /(\d+(?:\.\d+)?)\s*Dwellings\s*\/\s*Acre/i;
+const PHX_UNSTATED_RE = /Planned Unit Development|Planned Community|Walkable Urban/i;
+const PHX_MIXED_RE    = /\bM-R\b|\bHRI\b/;
+
+/**
+ * One row per rezoning case. A case is filed as one row per zone piece
+ * (Z-92-26: 3.02 ac and 25.38 ac), so acres and the zoning-max units add up.
+ * Kept: multifamily density, PUD/PCD, Walkable Urban, or a commercial zone
+ * with a multifamily overlay (M-R, HRI). Field names arrive prefixed
+ * ("GISADM.PROPOSED_ZONING.ACRES"); the prefix is dropped.
+ */
+export function phoenixRezonings(rows) {
+  const byCase = new Map();
+  for (const raw of rows || []) {
+    const a = {};
+    for (const [k, v] of Object.entries(raw || {})) a[k.replace(/^GISADM\.[A-Z_]+\./, '')] = v;
+    const caseNo = str(a.REDEFINE1).toUpperCase();
+    if (!caseNo) continue;
+    const acres   = Number(a.ACRES) || 0;
+    const defin   = str(a.DEFIN).replace(/\s+/g, ' ');
+    const label   = str(a.LABEL1).replace(/\s*\*$/, '');
+    const density = /Multi-Family/i.test(defin) ? Number((defin.match(PHX_DENSITY_RE) || [])[1]) || 0 : 0;
+    // Walkable Urban T3 is the house-scale transect: not an apartment site.
+    const unstated = (PHX_UNSTATED_RE.test(defin) && !/\bT3:/.test(label)) || (/^C-/.test(label) && PHX_MIXED_RE.test(label));
+    const g = byCase.get(caseNo) || { caseNo, village: '', date: null, acres: 0, units: 0, unstated: false, keep: false, pieces: [] };
+    g.acres += acres;
+    g.units += acres * density;
+    g.unstated = g.unstated || unstated;
+    g.keep = g.keep || unstated || density > 0;
+    g.village = g.village || titleCaseAddress(str(a.VILLAGE));
+    g.date = g.date || phoenixDate(a.DATE_PROPOSED);
+    const what = density ? `${label} (multifamily ${density} du/ac)` : unstated ? `${label} (${/Walkable/i.test(defin) ? 'Walkable Urban' : /^C-/.test(label) ? 'commercial with multifamily' : 'PUD, density not stated'})` : label;
+    g.pieces.push(`${str(a.FROMZ) || 'existing'} to ${what}`);
+    byCase.set(caseNo, g);
+  }
+  return [...byCase.values()].map(g => ({
+    ...g,
+    units: Math.floor(g.units),
+    kind:  `${[...new Set(g.pieces)].join('; ')}, ${Math.round(g.acres * 100) / 100} ac`,
+  }));
+}
+
 function str(v) { return v == null ? '' : String(v).trim(); }
 function num(v) { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; }
 
