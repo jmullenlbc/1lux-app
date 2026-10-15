@@ -29,9 +29,11 @@ import ReadingWait, { READING_TIME_HINT } from '@/components/ReadingWait';
 import { BUILDING_TYPES, buildingTypeLabel } from '@/lib/utils';
 import { siteFeatureFindings, SITE_FEATURE_KINDS_SENTENCE } from '@/lib/siteFeatureWords';
 
+const STYLE_LABELS = { small: "Small breezeway", long: "Long breezeway" };
+
 function fmt(n) {
   if (n == null) return '—';
-  return Number.isFinite(Number(n)) ? Number(n).toLocaleString() : buildingTypeLabel(n);
+  return Number.isFinite(Number(n)) ? Number(n).toLocaleString() : (STYLE_LABELS[n] || buildingTypeLabel(n));
 }
 
 // ── automatic checks ─────────────────────────────────────────────────────────
@@ -119,7 +121,21 @@ function FieldRow({ row, checked, value, onToggle, onChange }) {
         )}
       </div>
       <div className="shrink-0 text-right">
-        {row.unit === 'type' ? (
+        {row.unit === 'style' ? (
+          // Small vs long breezeway, read off the drawings; it lands on the
+          // Corridors answer, not in Project Info (Mike 10-14 "Prefill").
+          <select
+            value={value ?? ''}
+            disabled={!checked}
+            onChange={e => onChange(e.target.value === '' ? null : e.target.value)}
+            className="w-56 bg-white border border-slate-300 rounded-lg px-2 py-1 text-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200 disabled:bg-slate-50 disabled:text-slate-400"
+            aria-label="Breezeway style"
+          >
+            <option value="">Not set</option>
+            <option value="small">Small breezeway</option>
+            <option value="long">Long breezeway</option>
+          </select>
+        ) : row.unit === 'type' ? (
           // The building type is a pick from the engine's list, not a number —
           // the reader's pick is pre-selected and the reviewer can change it.
           <select
@@ -142,7 +158,7 @@ function FieldRow({ row, checked, value, onToggle, onChange }) {
           />
         )}
         <div className="text-[10px] text-slate-400 mt-0.5 uppercase tracking-wide">
-          {row.unit === 'sf' ? 'sq ft' : row.unit === 'type' ? 'building type' : row.unit === 'ft' ? 'feet' : 'count'}
+          {row.unit === 'sf' ? 'sq ft' : row.unit === 'style' ? 'breezeway style' : row.unit === 'type' ? 'building type' : row.unit === 'ft' ? 'feet' : 'count'}
           {row.sheet ? ` · sheet ${row.sheet}` : ''}
         </div>
       </div>
@@ -310,7 +326,7 @@ export default function SiteDataUpload({ projectId, onCommitted }) {
       setParsed(null);
       setPicked({});
       setState('idle');
-      if (d.projectData) onCommitted?.(d.projectData);
+      if (d.projectData) onCommitted?.(d.projectData, d.answers || null);
     } catch (e) {
       setErrMsg(e.message || 'Could not save. Please try again.');
       setState('reviewing');

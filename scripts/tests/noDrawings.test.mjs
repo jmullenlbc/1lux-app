@@ -339,3 +339,13 @@ test('with drawings: the site read breezeway style (small or long) reaches the e
   const bad = computeIntakeEstimate({ answers: { projectType: GARDEN, hasPool: 'no' }, drawings: { ...drawings, siteData: { ...drawings.siteData, breezewayStyle: 'huge' } } });
   assert.equal(bad.sections.corridors?.breezewayStyle, undefined);
 });
+
+test('no drawings: a gurban keeps breezeway stairs at the average style whatever the story count (Mike 10-14: elevators AND breezeways)', () => {
+  const answers = {
+    noDrawings: 'yes', projectType: 'Gurban (4-5 Levels)', figureTotalUnits: '200', figureGrossSf: '250000',
+    figureStories: '5', figureSurfaceParking: '300', hasPool: 'no',
+  };
+  const est = computeIntakeEstimate({ answers });
+  assert.equal(est.sections.corridors?.stairType, undefined);
+  assert.equal(est.budget.sections.corridors.stairwells.breezeway?.style, 'average');
+});

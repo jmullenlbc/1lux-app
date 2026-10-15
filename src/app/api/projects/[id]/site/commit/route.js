@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { writableSiteKeys, projectLevelSiteKeys, BUILDING_TYPE_KEYS, siteFeatureTypeFromKey } from '@/lib/siteFields';
+import { writableSiteKeys, projectLevelSiteKeys, answerSiteKeys, BUILDING_TYPE_KEYS, siteFeatureTypeFromKey } from '@/lib/siteFields';
 import { LINEAR_SITE_FEATURES } from '@/lib/siteFeatures';
 import { writeSiteFeature, loadSiteFeatures, siteFeaturesForEngine } from '@/lib/siteFeatureRows';
 import { getRun, recordVerdict, VERDICT } from '@/lib/agent/reviewStore';
@@ -11,6 +11,7 @@ import { recordFigureSources } from '@/lib/figures/record';
 
 const WRITABLE      = new Set(writableSiteKeys());
 const PROJECT_LEVEL = new Set(projectLevelSiteKeys());
+const ANSWER_LEVEL  = new Set(answerSiteKeys());
 const TYPE_KEYS     = new Set(BUILDING_TYPE_KEYS);
 
 async function canAccess(projectId, user) {
@@ -35,6 +36,7 @@ export async function POST(request, { params }) {
   // which the unit matrix owns and a human has already signed off on.
   const write = {};          // ProjectData columns (numbers)
   const projectWrite = {};   // Project columns (today: buildingType)
+  const answerWrite  = {};   // QuestionnaireResponse rows (today: corridors.breezewayStyle)
   const featureWrite = {};   // SiteFeature rows (0089), keyed 'siteFeature.<type>'
   const rejected = [];
   for (const [key, value] of Object.entries(fields)) {
@@ -62,6 +64,12 @@ export async function POST(request, { params }) {
       if (key === 'buildingType' && TYPE_KEYS.has(value)) projectWrite.buildingType = value;
       continue;
     }
+    if (ANSWER_LEVEL.has(key)) {
+      // The breezeway style is a pick (small / long) that lives on the
+      // Corridors answer, not in Project Info (Mike 10-14: "Prefill").
+      if (key === 'breezewayStyle' && (value === 'small' || value === 'long')) answerWrite.breezewayStyle = value;
+      continue;
+    }
     const n = parseLooseNumber(value);
     // A field ticked on with no number is a mistake, not an instruction to
     // blank the project. Blanking is done in Project Info, deliberately.
@@ -71,7 +79,7 @@ export async function POST(request, { params }) {
   if (rejected.length) {
     console.warn(`[site/commit] ignored non-site field(s) in payload: ${rejected.join(', ')}`);
   }
-  const applied = { ...write, ...projectWrite };
+  const applied = { ...write, ...projectWrite, ...answerWrite };
   for (const [key, f] of Object.entries(featureWrite)) applied[key] = f.lengthFt ?? f.count;
   if (!Object.keys(applied).length) {
     return NextResponse.json({ error: 'nothing_to_apply', message: 'No site fields were selected.' }, { status: 400 });
@@ -88,6 +96,16 @@ export async function POST(request, { params }) {
 
     if (Object.keys(projectWrite).length) {
       await tx.project.update({ where: { id: params.id }, data: projectWrite });
+    }
+
+    // The Corridors screen reads its answers from QuestionnaireResponse rows,
+    // so the style the reviewer ticked is simply saved as that answer.
+    for (const [questionKey, answerValue] of Object.entries(answerWrite)) {
+      await tx.questionnaireResponse.upsert({
+        where:  { projectId_section_questionKey: { projectId: params.id, section: 'corridors', questionKey } },
+        update: { answerValue },
+        create: { projectId: params.id, section: 'corridors', questionKey, answerValue },
+      });
     }
 
     for (const f of Object.values(featureWrite)) {
@@ -159,5 +177,7 @@ export async function POST(request, { params }) {
       ? { ...projectData, buildingTypeKey: project?.buildingType ?? null, siteFeatures }
       : { buildingTypeKey: project?.buildingType ?? null, siteFeatures },
     verdict,
+    // Questionnaire answers the read filled in, for the wizard to merge in.
+    answers: Object.keys(answerWrite).length ? { corridors: answerWrite } : null,
   });
 }

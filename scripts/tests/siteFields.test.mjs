@@ -283,3 +283,16 @@ test('the building type steers the code-minimum stair estimate (breezeway packs 
   const town = byKey(proposeSiteFields({ ...base, buildingType: 'townHouses' })).numEgressStairwells.value;
   assert.equal(town, 0);
 });
+
+// Mike 10-14 "Prefill": the site read's breezeway style lands on the Corridors answer.
+import { answerSiteKeys } from '../../src/lib/siteFields.js';
+test('breezewayStyle: small or long is proposed as a style pick for the Corridors answer; anything else is not read', () => {
+  const rows = proposeSiteFields({ breezewayStyle: 'long' });
+  assert.deepEqual(rows.map(r => [r.key, r.unit, r.value]), [['breezewayStyle', 'style', 'long']]);
+  assert.ok(/Long breezeway/.test(rows[0].note));
+  assert.deepEqual(proposeSiteFields({ breezewayStyle: 'huge' }), []);
+  assert.deepEqual(proposeSiteFields({ breezewayStyle: null }), []);
+  assert.ok(writableSiteKeys().includes('breezewayStyle'), 'the commit route may apply it');
+  assert.deepEqual(projectLevelSiteKeys(), ['buildingType'], 'it is an answer, not a Project column');
+  assert.deepEqual(answerSiteKeys(), ['breezewayStyle']);
+});

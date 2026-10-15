@@ -36,7 +36,7 @@
  * @see src/lib/agent/autoChecks.js  — the arithmetic that grades it
  * @see scripts/tests/siteFields.test.mjs
  */
-import { estimateStairLandings } from './stairLandings.js';
+import { estimateStairLandings, BREEZEWAY_STYLES } from './stairLandings.js';
 import { SITE_FEATURE_TYPES, SITE_FEATURE_LABELS, LINEAR_SITE_FEATURES, normalizeSiteFeatures } from './siteFeatures.js';
 
 /**
@@ -183,6 +183,26 @@ export const SITE_FIELD_DEFS = [
         value: key,
         note: `Read as ${BUILDING_TYPE_LABELS[key]}${raw && raw !== key ? ` (the drawing said "${raw}")` : ''}. ` +
               'Drives the stair package (breezeway vs enclosed), building wall packs and the controls cap — confirm it.',
+      };
+    },
+  },
+  {
+    // The other non-numeric field (Mike 10-14, "Prefill"). Small vs long
+    // breezeway can only be told on the drawings, so when the site read says
+    // which, the commit route writes it to the Corridors answer
+    // (QuestionnaireResponse corridors.breezewayStyle) and the Corridors screen
+    // opens with it picked. Null when the building has no breezeway stair or
+    // the sheets do not show it.
+    key:   'breezewayStyle',
+    label: 'Breezeway Style',
+    unit:  'style',
+    read: (v) => {
+      const style = v?.breezewayStyle;
+      if (style !== 'small' && style !== 'long') return null;
+      const s = BREEZEWAY_STYLES[style];
+      return {
+        value: style,
+        note: 'Read as ' + s.label + ' (like ' + s.like + '): ' + s.fixtures + '. Lands on the Corridors screen as the breezeway style.',
       };
     },
   },
@@ -453,7 +473,7 @@ export function proposeSiteFields(vision, current = null) {
       // Replacing a number somebody already entered is a different decision from
       // filling a blank, so the panel needs to be able to say which it is.
       overwrites: currentValue != null && currentValue !== '' && (
-        def.unit === 'type'
+        def.unit === 'type' || def.unit === 'style'
           ? String(currentValue) !== String(read.value)
           : Number(currentValue) !== Number(read.value)
       ),
@@ -465,6 +485,11 @@ export function proposeSiteFields(vision, current = null) {
 /** The keys a commit is permitted to write. Anything else is dropped. */
 export function writableSiteKeys() {
   return SITE_FIELD_DEFS.map(d => d.key);
+}
+
+/** The keys that land on a questionnaire answer (the Corridors breezeway style), never on Project Info. */
+export function answerSiteKeys() {
+  return SITE_FIELD_DEFS.filter(d => d.unit === 'style').map(d => d.key);
 }
 
 /** The keys that belong on Project rather than ProjectData. */

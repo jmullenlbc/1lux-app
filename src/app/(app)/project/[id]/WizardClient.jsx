@@ -187,11 +187,20 @@ export default function WizardClient({ project, projectData, initialSections, in
   // A drawing upload committed to Project Info. The commit route returns the
   // fresh ProjectData row, so the form and the live budget pick it up here —
   // no reload, and no second fetch.
-  const handleDrawingCommit = useCallback((newPD) => {
+  // `answers` = questionnaire answers the site read filled in (today the
+  // Corridors breezeway style, Mike 10-14 "Prefill"), merged in here so the
+  // screen opens with them without a reload.
+  const handleDrawingCommit = useCallback((newPD, answers = null) => {
     if (!newPD) return;
     setHasDrawings(true);
     setLocalPD(newPD);
-    recalculate(newPD, sections);
+    let next = sections;
+    if (answers && typeof answers === 'object') {
+      next = { ...sections };
+      for (const [section, vals] of Object.entries(answers)) next[section] = { ...(sections[section] || {}), ...vals };
+      setSections(next);
+    }
+    recalculate(newPD, next);
   }, [recalculate, sections]);
 
   return (

@@ -29,6 +29,7 @@
  * @see scripts/tests/siteDiff.test.mjs
  */
 import { proposeSiteFields, SITE_FIELD_DEFS, buildingTypeKeyLabel } from '../siteFields.js';
+import { BREEZEWAY_STYLES } from '../stairLandings.js';
 
 const LABELS = Object.fromEntries(SITE_FIELD_DEFS.map(d => [d.key, d.label]));
 
@@ -46,7 +47,7 @@ function norm(v) {
 
 function fmt(v) {
   if (v == null) return '—';
-  return typeof v === 'number' ? v.toLocaleString() : buildingTypeKeyLabel(v);
+  return typeof v === 'number' ? v.toLocaleString() : (BREEZEWAY_STYLES[v]?.label || buildingTypeKeyLabel(v));
 }
 
 /**

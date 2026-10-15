@@ -87,11 +87,20 @@ export default function DesignWizardClient({ project, projectData, initialSectio
   // no reload, and no second fetch.
   // A drawing read just landed, so small vs long breezeway can now be asked.
   const [hasDrawings, setHasDrawings] = useState(initialHasDrawings);
-  const handleDrawingCommit = useCallback((newPD) => {
+  // `answers` = questionnaire answers the site read filled in (today the
+  // Corridors breezeway style, Mike 10-14 "Prefill"), merged in here so the
+  // screen opens with them without a reload.
+  const handleDrawingCommit = useCallback((newPD, answers = null) => {
     if (!newPD) return;
     setHasDrawings(true);
     setLocalPD(newPD);
-    recalculate(newPD, sections);
+    let next = sections;
+    if (answers && typeof answers === 'object') {
+      next = { ...sections };
+      for (const [section, vals] of Object.entries(answers)) next[section] = { ...(sections[section] || {}), ...vals };
+      setSections(next);
+    }
+    recalculate(newPD, next);
   }, [recalculate, sections]);
 
   async function saveResponses(section, responses) {

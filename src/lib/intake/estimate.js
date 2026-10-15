@@ -103,9 +103,11 @@ export function computeIntakeEstimate({ answers, drawings, pricing = null, adopt
   // more than 3 stories means an elevator building with normal egress
   // stairwells; a 3-story walk-up keeps the engine's breezeway default at the
   // average breezeway cost. With drawings, the site read says whether the
-  // breezeway stair is the small or the long kind.
+  // breezeway stair is the small or the long kind. A gurban (4-5 levels) has
+  // an elevator AND breezeways (Mike 10-14), so its stairs stay breezeway
+  // stairs whatever the story count.
   const storiesKnown = num(q.stories);
-  if (!gate.hasDrawings && storiesKnown != null && storiesKnown > 3) {
+  if (!gate.hasDrawings && buildingTypeKey !== 'gurban' && storiesKnown != null && storiesKnown > 3) {
     sections.corridors = { ...(sections.corridors || {}), stairType: 'interior' };
   }
   const readStyle = drawings?.siteData?.breezewayStyle;

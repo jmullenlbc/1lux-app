@@ -5,7 +5,17 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Public budget tool rules audit: nine fixes, no stair question, Building Figures step] - October 14, 2026 (DEPLOYED) - no migration
+## [Gurban keeps breezeway stairs; drawing read prefills the Corridors breezeway style] - October 14, 2026 (BUILT, NOT DEPLOYED) - no migration
+
+### Public budget tool, no drawings
+- A gurban (4-5 levels) has an elevator AND open breezeways (Mike 10-14), so without drawings its stairs stay breezeway stairs at the average style whatever the story count. Every other type over 3 stories still gets interior egress stairs. `src/lib/intake/estimate.js`; test in `scripts/tests/noDrawings.test.mjs`.
+
+### Internal projects, Corridors prefill (Mike 10-14: "Prefill")
+- The drawing read already tells small vs long breezeway (`siteData.breezewayStyle`). The site panel now proposes it as a "Breezeway Style" row (a small / long pick, ticked like any other field). Applying it writes the Corridors answer (`QuestionnaireResponse` corridors.breezewayStyle) instead of a Project Info column, so no migration. `src/lib/siteFields.js` (`answerSiteKeys()`, unit `style`), `src/app/api/projects/[id]/site/commit/route.js`, `src/components/site/SiteDataUpload.jsx`.
+- The commit route returns the answers it filled in and both wizards (Budget and Design) merge them into the open questionnaire, so the Corridors screen shows the style already picked, no reload. The Project Hub panel has no live hook; the next page load shows it there.
+- Verdict wording shows "Small breezeway" / "Long breezeway" instead of the raw key (`src/lib/agent/siteDiff.js`). Tests in `scripts/tests/siteFields.test.mjs`.
+
+## [Public budget tool rules audit: nine fixes, no stair question, Building Figures step] - October 14, 2026 (DEPLOYED 25492fe) - no migration
 
 - Mike 10-14, after the audit report ("Public Budget Tool Rules Audit - 2026-10-14"): "Yes fix all 9." Then three more: no stair question, a Building Figures step, no contingency wording. `node scripts/verify.mjs --full` passes (15 gates).
 - **No public stair question (Mike: "For no drawings this choice seems like too much").** The public estimate (`intake/estimate.js`) sets the stair type itself: without drawings, more than 3 stories means an elevator building with normal egress stairwells (`stairType: 'interior'`); a 3-story walk-up keeps the engine's breezeway default at the average breezeway cost. With drawings, the site read now reports `breezewayStyle` (small: a short open stair between two units per floor; long: an open-air walkway along the unit doors; null when not a breezeway building or unclear), passed to the engine as the breezeway style. `siteVision.js`: schema field, BREEZEWAY STYLE rules, `SITE_FIELDS`, validate (anything but small/long reads null), prompt version `siteVision-2026-10-14`. Three tests in `noDrawings.test.mjs`.
