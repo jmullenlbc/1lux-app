@@ -371,12 +371,12 @@ export const FIGURE_KEYS = [
   // Sporadic site features (Mike, 2026-09-16). Counts for the per-feature
   // kinds, feet (longest dimension) for courtyards and turf play areas. 0 is
   // a real answer — "there is no dog park" — and nothing is ever guessed.
-  { key: 'figureDogParks',           section: 'Project figures', question: '# Dog parks (entered by the submitter)' },
+  { key: 'figureDogParks',           section: 'Project figures', question: '# Dog parks (entered by the submitter; older drafts)' },
   { key: 'figureCourtyards',         section: 'Project figures', question: '# Courtyards (entered by the submitter)' },
   { key: 'figureCourtyardFt',        section: 'Project figures', question: 'Courtyard length, feet (entered by the submitter; older drafts)' },
-  { key: 'figurePlaygrounds',        section: 'Project figures', question: '# Playgrounds (entered by the submitter)' },
-  { key: 'figureTennisCourts',       section: 'Project figures', question: '# Tennis courts (entered by the submitter)' },
-  { key: 'figurePickleballCourts',   section: 'Project figures', question: '# Pickleball courts (entered by the submitter)' },
+  { key: 'figurePlaygrounds',        section: 'Project figures', question: '# Dog parks / playgrounds (entered by the submitter)' },
+  { key: 'figureTennisCourts',       section: 'Project figures', question: '# Tennis / pickleball courts (entered by the submitter)' },
+  { key: 'figurePickleballCourts',   section: 'Project figures', question: '# Pickleball courts (entered by the submitter; older drafts)' },
   { key: 'figureTurfPlayFt',         section: 'Project figures', question: 'Turf play area length, feet (entered by the submitter)' },
 ];
 
@@ -384,6 +384,8 @@ export const FIGURE_KEYS = [
 const ZERO_OK_FIGURES = new Set([
   'figureSurfaceParking', 'figureGarages', 'figureCarports',
   'figureDogParks', 'figureCourtyards', 'figureCourtyardFt', 'figurePlaygrounds', 'figureTennisCourts', 'figurePickleballCourts', 'figureTurfPlayFt',
+  // Mike 10-14: "a 0 is intentional, blank should be estimated."
+  'figureExteriorAmenitySf', 'figureGarageSf', 'figureInteriorAmenitySf', 'figureCorridorSf', 'figureBohSf', 'figureBalconies',
 ]);
 
 // Which building types get detached-garage and carport lights — one shared
@@ -406,6 +408,15 @@ export const NO_DRAWINGS_KEY = 'noDrawings';
  */
 export const CLUBHOUSE_KEY = 'hasClubhouse';
 export const CLUBHOUSE_ANSWERS = ['yes', 'no'];
+
+/**
+ * "Is there a pool?" on the no-drawings form (Mike 10-14: "put the field and
+ * we will work on the math behind it"). Stored as its own answer row; nothing
+ * prices off it yet. The clubhouse question is gone from the form (interior
+ * amenity SF answers it) but old drafts and submissions still read.
+ */
+export const POOL_KEY = 'hasPool';
+export const POOL_ANSWERS = ['yes', 'no'];
 
 // "250,000", "$300", "226,000 SF" all read as the figure they mean (Mike 9-18:
 // commas and dressing are fine in any number field); anything that is not a
@@ -482,6 +493,9 @@ export function validateAnswers(input) {
   }
   if (CLUBHOUSE_ANSWERS.includes(given[CLUBHOUSE_KEY])) {
     rows.push({ section: 'Project figures', questionKey: CLUBHOUSE_KEY, question: 'Is there a clubhouse?', answer: given[CLUBHOUSE_KEY] });
+  }
+  if (given[NO_DRAWINGS_KEY] === 'yes' && POOL_ANSWERS.includes(given[POOL_KEY])) {
+    rows.push({ section: 'Project figures', questionKey: POOL_KEY, question: 'Is there a pool?', answer: given[POOL_KEY] });
   }
   return rows;
 }

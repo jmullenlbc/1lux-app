@@ -5,6 +5,22 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [No drawings form cleanup] - October 14, 2026 (DEPLOYED) - no migration
+
+- Mike 10-14, after testing No drawings: a typed 0 means zero, a blank box is estimated; hide the fields that annoy people with no drawings; one courts field; drop the clubhouse question; add "Is there a pool?".
+- A typed 0 now sticks on exterior amenity, garage, interior amenity, corridors, BOH and balconies (`ZERO_OK_FIGURES`, `statedCount`). A typed or corrected 0 no longer raises the "cannot change the budget" flag.
+- No drawings form hides exit doors, buildings, corridors SF, BOH SF, private drive length and every site feature box (dog parks, courtyards, playgrounds, courts, turf). Corridors (12% for wrap) and BOH (type share, capped at 5%) are still estimated from gross SF; exit doors use the wallpack model and stairs the code estimate.
+- Tennis and pickleball are one field, "# Tennis / pickleball courts", with or without drawings. Pickleball read off a site plan, and old drafts' pickleball answers, fold into it. Dog parks and playgrounds are one field too, "# Dog parks / playgrounds", priced as one $3,000 package each (2 twelve foot pedestrian poles; "Dog Park / Playground: Package Price" in master pricing), with or without drawings (Mike 10-14).
+- One fold in `normalizeSiteFeatures` (`SITE_FEATURE_FOLD`: dogPark into playground, pickleballCourt into tennisCourt) keeps engine pricing, drawing reads, the internal grids and the public form in step. Old `dogPark` / `pickleballCourt` rows stay valid and fold on read. Existing jobs with a dog park row now price it at $3,000 instead of $1,400, and playgrounds drop from $4,000 to $3,000 (Mike OK'd).
+- Internal Project Data and the project dashboard show one "Dog Parks / Playgrounds" box and one "Tennis / Pickleball Courts" box. Saving either archives the old folded row so nothing counts twice. Master pricing drops the dog park and pickleball area light rows.
+- No drawings podium outdoor amenity guess 20 to 15 SF per unit (real median 14.7, Mike 10-14).
+- No drawings high-rise outdoor amenity guess 75 to 50 SF per unit (real middle 49.8, Mike 10-14).
+- Pool question now prices (Mike 10-14). Yes: apartments keep the usual guess but never under 6,000 SF; townhouses and single family get a flat 6,000 SF. No: garden, gurban and stacked flats outdoor amenity cut in half; other types unchanged. Blank: unchanged. A typed figure always wins. `poolDeckMinSf` and `noPoolExteriorShare` in `noDrawingGuesses.js`.
+- "Is there a clubhouse?" removed; interior amenity SF answers it ("Enter 0 if none."). Old drafts with the answer still price the same on the server.
+- No drawings only: "Is there a pool?" Yes/No, saved on the request (`hasPool`), no pricing yet.
+- Garage SF hint: "Enter 0 if there is no parking garage." Balconies always estimated when blank. Row wording on no-drawings budgets no longer mentions drawings, site plans or sheets. Sidebar says "a few numbers". Estimate hints under boxes no longer repeat "Our estimate" and "Type over it".
+- Files: `src/lib/intake/quantities.js`, `questionnaire.js`, `drafts.js`, `src/lib/siteFeatureWords.js`, `siteFeatures.js`, `src/app/conceptual_budget/IntakeClient.jsx`, `src/app/api/projects/[id]/data/route.js`, `ProjectDataSection.jsx`, `ProjectDashboard.jsx`, `ExteriorSection.jsx`, `PricingEditor.jsx`, tests `noDrawings`, `manualCorrections`, `intakeHandoff`, `siteFeatures`.
+
 ## [Phoenix rezonings + Municipal tagging] - October 14, 2026 (DEPLOYED add60db) - no migration
 
 - Mike 10-14: "Make sure everything in the municipal tab is getting thoroughly tagged with clients, type of notification, and similar project names to our projects." PUD with no density stays "units not stated"; a rezoning's count is "up to N units (zoning max)", no discount.

@@ -134,12 +134,11 @@ const PRICING_FIELDS = [
   // under Exterior & Site; never merged into the amenity SF or the parking
   // area lights. Nothing is guessed — a feature not on the drawings and not
   // typed in prices at $0.
-  { group: 'Site Features', key: 'exterior.siteFeatures.areaLight',                   label: 'Area Light — Each',              desc: 'Pole-mounted area light used at dog park entrances and on tennis / pickleball courts. Mike 2026-09-16: $1,400', unit: '$' },
-  { group: 'Site Features', key: 'exterior.siteFeatures.pedestrianPole',              label: '12 ft Pedestrian Pole — Each',   desc: 'Pedestrian pole used in courtyards, playgrounds and turf play areas. Mike 2026-09-16: $2,000', unit: '$' },
-  { group: 'Site Features', key: 'exterior.siteFeatures.dogPark.areaLights',          label: 'Dog Park — Area Lights Each',    desc: 'Area lights per dog park (one at the entrance)', unit: 'fixtures' },
-  { group: 'Site Features', key: 'exterior.siteFeatures.playground.pedestrianPoles',  label: 'Playground — Poles Each',        desc: '12 ft pedestrian poles per playground', unit: 'fixtures' },
-  { group: 'Site Features', key: 'exterior.siteFeatures.tennisCourt.areaLights',      label: 'Tennis Court — Area Lights Each', desc: 'Area lights per tennis court', unit: 'fixtures' },
-  { group: 'Site Features', key: 'exterior.siteFeatures.pickleballCourt.areaLights',  label: 'Pickleball Court — Area Lights Each', desc: 'Area lights per pickleball court', unit: 'fixtures' },
+  { group: 'Site Features', key: 'exterior.siteFeatures.areaLight',                   label: 'Area Light — Each',              desc: 'Pole-mounted area light used on tennis / pickleball courts. Mike 2026-09-16: $1,400', unit: '$' },
+  { group: 'Site Features', key: 'exterior.siteFeatures.pedestrianPole',              label: '12 ft Pedestrian Pole — Each',   desc: 'Pedestrian pole used in courtyards, dog parks / playgrounds and turf play areas. Mike 2026-09-16: $2,000', unit: '$' },
+  { group: 'Site Features', key: 'exterior.siteFeatures.playground.pedestrianPoles',  label: 'Dog Park / Playground — Poles Each', desc: '12 ft pedestrian poles per dog park or playground (Mike 10-14: dog parks use the playground package)', unit: 'fixtures' },
+  { group: 'Site Features', key: 'exterior.siteFeatures.playground.packageEach',      label: 'Dog Park / Playground: Package Price', desc: 'Price for each dog park or playground, poles included. Mike 2026-10-14: $3,000', unit: '$' },
+  { group: 'Site Features', key: 'exterior.siteFeatures.tennisCourt.areaLights',      label: 'Tennis / Pickleball Court — Area Lights Each', desc: 'Area lights per tennis or pickleball court', unit: 'fixtures' },
   { group: 'Site Features', key: 'exterior.siteFeatures.courtyard.ftPerPole',         label: 'Courtyard — Feet per Pole',      desc: 'One 12 ft pedestrian pole per this many feet of courtyard (longest dimension)', unit: 'ft' },
   { group: 'Site Features', key: 'exterior.siteFeatures.turfPlay.ftPerPole',          label: 'Turf Play — Feet per Pole',      desc: 'One 12 ft pedestrian pole per this many feet of turf play area (longest dimension)', unit: 'ft' },
 

@@ -12,6 +12,10 @@
  *   Playground        2 twelve-foot pedestrian poles          ($2,000 each)
  *   Tennis court      4 area lights per court                 ($1,400 each)
  *   Pickleball court  4 area lights per court                 ($1,400 each)
+ *
+ * Mike 10-14: a dog park now prices as a playground (one "dog park /
+ * playground" field) and a pickleball court as a tennis court;
+ * normalizeSiteFeatures() folds them before pricing.
  *   Turf play area    1 twelve-foot pedestrian pole per 50 ft ($2,000 each)
  *
  * The kinds, labels, row keys, list clean-up and plain-English descriptions
@@ -41,7 +45,7 @@ export const SITE_FEATURE_PRICING_DEFAULTS = {
   areaLight:      1400, // $ each — the same pole-mounted area light a parking lot uses
   pedestrianPole: 2000, // $ each — 12 ft pedestrian pole
   dogPark:         { areaLights: 1 },
-  playground:      { pedestrianPoles: 2 },
+  playground:      { pedestrianPoles: 2, packageEach: 3000 }, // Mike 10-14: $3,000 per dog park / playground
   tennisCourt:     { areaLights: 4 },
   pickleballCourt: { areaLights: 4 },
   courtyard:       { ftPerPole: 30 },
@@ -83,9 +87,12 @@ export function siteFeatureFixtures(feature, rates = null) {
     }
     case 'playground': {
       const per = pos(R.playground?.pedestrianPoles, D.playground.pedestrianPoles);
-      fixtures = count * per; fixtureKind = 'pedestrianPole'; each = poleEach;
-      how = `${count} playground${count === 1 ? '' : 's'} × ${per} 12 ft pedestrian pole${per === 1 ? '' : 's'}.`;
-      break;
+      // Priced as one package (Mike 10-14: $3,000, a better average than 2 poles
+      // at the pole price); the pole count stays for the fixture count.
+      const pkg = pos(R.playground?.packageEach, D.playground.packageEach);
+      fixtures = count * per; fixtureKind = 'pedestrianPole'; each = pkg / per;
+      how = `${count} dog park / playground${count === 1 ? '' : 's'} × ${usd(pkg)} package (${per} 12 ft pedestrian pole${per === 1 ? '' : 's'} each).`;
+      return { type, label, count, lengthFt, fixtures, fixtureKind, each, packageEach: pkg, product: count * pkg, how };
     }
     case 'tennisCourt':
     case 'pickleballCourt': {
@@ -146,6 +153,7 @@ const usd = n => '$' + Math.round(Number(n) || 0).toLocaleString('en-US');
 export function siteFeatureCostLine(item) {
   const fixtures = Math.max(0, Math.round(Number(item?.fixtures) || 0));
   if (!fixtures) return '$0 until a length is entered.';
+  if (item?.packageEach) return `${item.count} × ${usd(item.packageEach)} package (${fixtures} pedestrian pole${fixtures === 1 ? '' : 's'}) = ${usd(item.product)}`;
   const kind = item?.fixtureKind === 'areaLight'
     ? `area light${fixtures === 1 ? '' : 's'}`
     : `pedestrian pole${fixtures === 1 ? '' : 's'} (12 ft)`;

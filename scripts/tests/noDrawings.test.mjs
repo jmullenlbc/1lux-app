@@ -114,9 +114,45 @@ test('typed figures always beat the guesses', () => {
   }
 });
 
-test('no balconies guessed when the visitor picked no balcony lighting', () => {
+// The count is the building; the lighting answer only prices it (10-14).
+test('balconies are still estimated when the visitor picked no balcony lighting', () => {
   const q = rows({ projectType: GARDEN, figureTotalUnits: '200', figureGrossSf: '250000', balconyLighting: 'None' });
-  assert.notEqual(q.balconies.value, 200);
+  assert.equal(q.balconies.value, 200);
+});
+
+test('a typed 0 is a real answer: none, not estimated (Mike 10-14)', () => {
+  const zero = { figureExteriorAmenitySf: '0', figureGarageSf: '0', figureInteriorAmenitySf: '0', figureCorridorSf: '0', figureBohSf: '0', figureBalconies: '0' };
+  const q = rows({ projectType: PODIUM, figureTotalUnits: '200', figureGrossSf: '250000', ...zero });
+  for (const k of ['exteriorAmenitySf', 'garageSf', 'interiorAmenitySf', 'corridorSf', 'bohSf', 'balconies']) {
+    assert.equal(q[k].value, 0, k);
+    assert.equal(q[k].source, 'questionnaire', k);
+  }
+  assert.ok(!/cannot change the budget/.test(q.exteriorAmenitySf.flag || ''));
+  const kept = validateAnswers({ noDrawings: 'yes', ...zero }).map(r => r.questionKey);
+  for (const k of Object.keys(zero)) assert.ok(kept.includes(k), k);
+});
+
+test('the no-drawings form never talks about drawings', () => {
+  const q = rows({ projectType: PODIUM, figureTotalUnits: '200', figureGrossSf: '250000', figureStories: '5' });
+  for (const r of Object.values(q)) assert.ok(!/\b(drawings?|site plan|sheets?)\b/i.test(r.how || ''), `${r.key}: ${r.how}`);
+});
+
+test('pool answer is kept only on a no-drawings submission', () => {
+  const pool = rs => rs.find(r => r.questionKey === 'hasPool');
+  assert.equal(pool(validateAnswers({ noDrawings: 'yes', hasPool: 'yes' }))?.answer, 'yes');
+  assert.equal(pool(validateAnswers({ hasPool: 'yes' })), undefined);
+  assert.equal(pool(validateAnswers({ noDrawings: 'yes', hasPool: 'maybe' })), undefined);
+});
+
+test('tennis and pickleball courts are one row', () => {
+  const q = rows({ projectType: GARDEN, figureTotalUnits: '200', figureGrossSf: '250000', figureTennisCourts: '2', figurePickleballCourts: '3' });
+  assert.equal(q.tennisCourts.value, 5);
+  assert.equal(q.tennisCourts.label, '# Tennis / pickleball courts');
+  assert.equal(q.pickleballCourts, undefined);
+  const drawn = {};
+  for (const r of computeQuantities({ siteData: { siteFeatures: [{ type: 'tennisCourt', count: 1 }, { type: 'pickleballCourt', count: 4 }] } }, {})) drawn[r.key] = r;
+  assert.equal(drawn.tennisCourts?.value, 5);
+  assert.equal(drawn.pickleballCourts, undefined);
 });
 
 test('back of house is estimated as the type\'s typical share of the building, and flagged', () => {
@@ -160,10 +196,27 @@ test('vanities with no bath count: 1.4 per apartment, 2.5 per townhome', () => {
 test('garage and outdoor amenity SF are guessed per unit by building type', () => {
   const p = rows({ projectType: PODIUM, figureTotalUnits: '300', figureGrossSf: '400000' });
   assert.equal(p.garageSf.value, 171000, '300 × 570');
-  assert.equal(p.exteriorAmenitySf.value, 6000, '300 × 20');
+  assert.equal(p.exteriorAmenitySf.value, 4500, '300 × 15 (podium, Mike 10-14)');
   const g = rows({ projectType: GARDEN, figureTotalUnits: '200', figureGrossSf: '250000' });
   assert.equal(g.garageSf.value, 0, 'walk-ups have no parking structure');
   assert.equal(g.exteriorAmenitySf.value, 5000, '200 × 25');
+});
+
+test('the pool answer sets the outdoor amenity on a typed-in budget (Mike 10-14)', () => {
+  const ext = a => rows(a).exteriorAmenitySf.value;
+  const town = { projectType: TOWN, figureTotalUnits: '64', figureAvgUnitSf: '1800' };
+  assert.equal(ext(town), 0, 'blank: townhomes assume none');
+  assert.equal(ext({ ...town, hasPool: 'yes' }), 6000, 'pool: a flat 6,000 SF');
+  assert.equal(ext({ ...town, hasPool: 'no' }), 0);
+  const small = { projectType: PODIUM, figureTotalUnits: '149', figureGrossSf: '129000' };
+  assert.equal(ext(small), 2235, '149 × 15');
+  assert.equal(ext({ ...small, hasPool: 'yes' }), 6000, 'never under 6,000 with a pool');
+  assert.equal(ext({ ...small, hasPool: 'no' }), 2235, 'podium keeps its courtyards');
+  const garden = { projectType: GARDEN, figureTotalUnits: '300', figureGrossSf: '300000' };
+  assert.equal(ext({ ...garden, hasPool: 'yes' }), 7500, '300 × 25 is over the floor');
+  assert.equal(ext({ ...garden, hasPool: 'no' }), 3750, 'garden with no pool: half');
+  assert.equal(ext({ projectType: 'High Rise (12+ Levels)', figureTotalUnits: '300', figureGrossSf: '400000', figureStories: '20' }), 15000, '300 × 50');
+  assert.equal(ext({ ...garden, hasPool: 'yes', figureExteriorAmenitySf: '0' }), 0, 'a typed figure always wins');
 });
 
 test('the clubhouse answer decides the interior amenity on a typed-in budget', () => {

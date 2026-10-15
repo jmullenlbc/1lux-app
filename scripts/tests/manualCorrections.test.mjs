@@ -210,8 +210,8 @@ test('a corrected exterior amenity area clears the dead-control flag', () => {
   assert.ok(!dead.test(filled.exteriorAmenitySf.flag || ''),
     'the $/SF control works now, so the warning must go');
 
-  // But a deliberate zero is still a dead control, and must keep saying so.
-  assert.match(q({ correctExteriorAmenitySf: '0' }).exteriorAmenitySf.flag, dead);
+  // A deliberate zero means "there is none" (Mike 10-14), so no warning.
+  assert.ok(!dead.test(q({ correctExteriorAmenitySf: '0' }).exteriorAmenitySf.flag || ''));
 });
 
 test('add() hands back the settled figure so callers cannot use a stale local', () => {

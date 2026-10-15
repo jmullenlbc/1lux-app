@@ -66,8 +66,8 @@ test('site features become rows, marked typed or drawing', () => {
   const plan = planHandoff({ answers: ANSWERS, drawings: null });
   assert.deepEqual(plan.features.map(f => [f.type, f.count, f.lengthFt, f.source]).sort(), [
     ['courtyard', 1, 90, 'typed'],
-    ['dogPark', 1, null, 'typed'],
-    ['pickleballCourt', 2, null, 'typed'],
+    ['playground', 1, null, 'typed'], // dog park folds into playground (10-14)
+    ['tennisCourt', 2, null, 'typed'], // pickleball folds into tennis (10-14)
   ]);
 });
 

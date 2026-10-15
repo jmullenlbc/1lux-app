@@ -200,11 +200,11 @@ const fieldsFor = (list, projectType) => list.filter(f => !f.types || f.types.in
 // blank is priced as none. Shared by the drawings grid and the no-drawings
 // form; the server does the fixture math.
 const SITE_FEATURE_FIELDS = [
-  { key: 'figureDogParks',         qKey: 'dogParks',         label: '# Dog parks',          placeholder: 'e.g. 1', hint: 'Enter 0 if none.' },
   { key: 'figureCourtyards',                                label: '# Courtyards',         placeholder: 'e.g. 2', hint: 'Open courtyards with walkways or seating. 0 if none.' },
-  { key: 'figurePlaygrounds',      qKey: 'playgrounds',      label: '# Playgrounds',        placeholder: 'e.g. 1', hint: 'Tot lots and play areas. 0 if none.' },
-  { key: 'figureTennisCourts',     qKey: 'tennisCourts',     label: '# Tennis courts',      placeholder: 'e.g. 2', hint: 'Enter 0 if none.' },
-  { key: 'figurePickleballCourts', qKey: 'pickleballCourts', label: '# Pickleball courts',  placeholder: 'e.g. 2', hint: 'Sport / multi-use courts count here. 0 if none.' },
+  // Dog parks count here too (Mike 10-14): priced as the playground package.
+  { key: 'figurePlaygrounds',      qKey: 'playgrounds',      label: '# Dog parks / playgrounds', placeholder: 'e.g. 1', hint: 'Dog parks, tot lots and play areas. 0 if none.' },
+  // One box for both (Mike 10-14): same 4 area lights a court either way.
+  { key: 'figureTennisCourts',     qKey: 'tennisCourts',     label: '# Tennis / pickleball courts', placeholder: 'e.g. 2', hint: 'Sport / multi-use courts count here. 0 if none.' },
   { key: 'figureTurfPlayFt',       qKey: 'turfPlayFt',       label: 'Turf play area length (ft)', placeholder: 'e.g. 200', hint: 'Longest dimension of the turf / event lawn. 0 if none.' },
 ];
 
@@ -246,26 +246,23 @@ const MANUAL_FIELDS = [
   { key: 'figureTotalUnits',        qKey: 'totalUnits',        label: 'Total units',               placeholder: 'e.g. 234',     need: 'required' },
   { key: 'figureGrossSf',           qKey: 'grossSf',           label: 'Total building SF',         placeholder: 'e.g. 364,000', need: 'either' },
   { key: 'figureAvgUnitSf',         qKey: null,                label: 'Average unit size SF',      placeholder: 'e.g. 950',     need: 'either' },
-  { key: 'figureBuildings',         qKey: null,                label: '# Residential buildings',   placeholder: 'e.g. 6',       hint: 'Helps us estimate stairwells.' },
   // Stories and surface stalls required too (Mike, 2026-09-12: "surface parking
   // should be an easy number for them to figure out. Stories too.").
   { key: 'figureStories',           qKey: 'stories',           label: '# Stories',                 placeholder: 'e.g. 4',       need: 'required', hint: 'The tallest building.' },
   // `estNote` replaces the engine's long working-out under the estimate — the
   // landings one ran seven lines (Mike, 2026-09-12). Reviewers still see it all.
   { key: 'figureStairwells',        qKey: 'egressStairwells',  label: '# Egress stairwells',       placeholder: 'e.g. 6', hint: 'Every exit stair in every building. We work out the landings.', estNote: 'based on your building type, size and number of stories.' },
-  { key: 'figureExitDoors',         qKey: 'exitDoors',         label: '# Exit doors',              placeholder: 'e.g. 8' },
   { key: 'figureSurfaceParking',    qKey: 'surfaceParking',    label: '# Surface parking stalls',  placeholder: 'e.g. 120',     need: 'required', hint: 'Open-air stalls only. Enter 0 if all parking is in a garage.' },
   GARAGE_FIELD,
   CARPORT_FIELD,
   { key: 'figureBalconies',         qKey: 'balconies',         label: '# of Balconies',            placeholder: 'e.g. 150' },
-  { key: 'figureInteriorAmenitySf', qKey: 'interiorAmenitySf', label: 'Interior amenity SF',       placeholder: 'e.g. 5,000',   hint: 'Clubhouse, leasing, fitness.' },
-  { key: 'figureCorridorSf',        qKey: 'corridorSf',        label: 'Corridors & stairwells SF', placeholder: 'e.g. 30,000' },
-  { key: 'figureBohSf',             qKey: 'bohSf',             label: 'Back of house SF',          placeholder: 'e.g. 10,000',  hint: 'Mechanical, storage, trash, bike rooms.' },
-  { key: 'figureGarageSf',          qKey: 'garageSf',          label: 'Garage SF',                 placeholder: 'e.g. 80,000',  hint: 'Leave blank if there is no parking garage.' },
+  { key: 'figureInteriorAmenitySf', qKey: 'interiorAmenitySf', label: 'Interior amenity SF',       placeholder: 'e.g. 5,000',   hint: 'Clubhouse, leasing, fitness. Enter 0 if none.' },
+  { key: 'figureGarageSf',          qKey: 'garageSf',          label: 'Garage SF',                 placeholder: 'e.g. 80,000',  hint: 'Enter 0 if there is no parking garage.' },
   { key: 'figureExteriorAmenitySf', qKey: 'exteriorAmenitySf', label: 'Exterior amenity SF',       placeholder: 'e.g. 12,000',  need: 'required', hint: 'Pool deck, amenity deck, courtyards. Enter 0 if none.' },
-  // Townhomes / single-family only (`types`) — Mike 2026-09-13.
-  DRIVE_LENGTH_FIELD,
-  ...SITE_FEATURE_FIELDS,
+  // Mike 10-14: "If there are no drawings, all these fields will annoy
+  // people." Buildings, exit doors, corridors, back of house, private drive
+  // and the site features are not asked here; corridors and back of house
+  // are estimated from gross SF, the rest price as none or by the engine.
 ];
 
 /**
@@ -464,12 +461,13 @@ export default function IntakeClient() {
   const [answers, setAnswers] = useState(() => {
     const init = {};
     for (const q of INTAKE_QUESTIONS) init[q.key] = q.default ?? '';
+    init.hasPool = '';
     return init;
   });
   // "Is there a clubhouse?" on the no-drawings form (Mike, 2026-09-12: "Can we
   // somehow read if there is a clubhouse or not?"). '' = not sure → the
   // server's usual for the building type.
-  const [hasClubhouse, setHasClubhouse] = useState('');
+  // "Is there a pool?" lives in answers.hasPool (no-drawings only); it sets the outdoor amenity guess (Mike 10-14).
   const [estimate, setEstimate] = useState(null); // { budget, projectData, range } from the server
   // HTTP status of the last failed estimate call (429 rate limit, 401 password
   // gate), so the sidebar can say why the number did not come back.
@@ -600,18 +598,21 @@ export default function IntakeClient() {
   // below anything the drawings state, above anything derived.
   const mergedAnswers = useMemo(() => {
     const out = { ...answers };
+    // No drawings: only the boxes the form shows count, so a figure typed on
+    // the drawings grid (or under another project type) can't sneak in.
+    const shown = manual ? new Set(fieldsFor(MANUAL_FIELDS, answers.projectType).map(f => f.key)) : null;
     for (const [k, v] of Object.entries(figures)) {
       const s = String(v ?? '').trim();
-      if (s) out[k] = s;
+      if (s && (!shown || shown.has(k))) out[k] = s;
     }
     for (const [key, v] of Object.entries(corrections)) {
       const s = String(v ?? '').trim();
       if (s) out[`correct${key.charAt(0).toUpperCase()}${key.slice(1)}`] = s;
     }
     if (manual) out.noDrawings = 'yes';
-    if (manual && hasClubhouse) out.hasClubhouse = hasClubhouse;
+    if (!manual || !out.hasPool) delete out.hasPool;
     return out;
-  }, [answers, figures, corrections, manual, hasClubhouse]);
+  }, [answers, figures, corrections, manual]);
 
   // The no-drawings minimum (project type, units, and a size) — the same
   // check the estimate route enforces before it will price anything.
@@ -723,10 +724,14 @@ export default function IntakeClient() {
   const manualNote = f => {
     const est = manualEstimates[f.key];
     const showEst = !!est && !String(figures[f.key] ?? '').trim() && editingKey !== f.key;
-    const how = f.estNote || est?.how;
+    // The public "how" can already open with "Our estimate" and close with
+    // "Type over it…"; strip both so the line says each once.
+    const how = String(f.estNote || est?.how || '')
+      .replace(/\s*Type over it if you know the real number\.?/gi, '')
+      .replace(/^Our estimate[,.]?\s*/i, '').trim();
     return showEst ? (
       <p className="text-xs text-amber-600">
-        Our estimate{how ? ` — ${how}` : '.'} Type over it if you know the real number.
+        Our estimate{how ? `${/^[a-z]/.test(how) ? ', ' : '. '}${how}` : '.'} Type over it if you know the real number.
       </p>
     ) : null;
   };
@@ -798,7 +803,6 @@ export default function IntakeClient() {
     setCorrections(d.corrections && typeof d.corrections === 'object'
       ? Object.fromEntries(Object.entries(d.corrections).filter(([, v]) => typeof v === 'string'))
       : {});
-    setHasClubhouse(str(d.hasClubhouse));
     setCompletedSteps(Array.isArray(d.completedSteps)
       ? d.completedSteps.filter(id => STEPS.some(s => s.id === id))
       : []);
@@ -841,14 +845,14 @@ export default function IntakeClient() {
       const ok = writeDraft({
         v: 1, savedAt: when, stepId, completedSteps,
         firstName, lastName, email, company, project, projCity, projState, projZip,
-        haveDrawings, drawings, figures, corrections, answers, hasClubhouse,
+        haveDrawings, drawings, figures, corrections, answers,
         serverToken: draftTokenRef.current,
       });
       if (ok) setSavedAt(when);
     }, 500);
     return () => clearTimeout(t);
   }, [draftDecided, submitted, drawingsReading, stepId, completedSteps, firstName, lastName, email, company, project,
-      projCity, projState, projZip, haveDrawings, drawings, figures, corrections, answers, hasClubhouse,
+      projCity, projState, projZip, haveDrawings, drawings, figures, corrections, answers,
       draftToken]); // a freshly minted token must reach the browser copy too
 
   // ── Server copy ───────────────────────────────────────────────────────────
@@ -863,7 +867,7 @@ export default function IntakeClient() {
     const t = setTimeout(() => {
       const draft = {
         firstName, lastName, email, company, project, projCity, projState, projZip,
-        haveDrawings, stepId, completedSteps, hasClubhouse, figures, corrections, answers,
+        haveDrawings, stepId, completedSteps, figures, corrections, answers,
         drawings: manual ? null : drawings,
       };
       const run = async () => {
@@ -892,7 +896,7 @@ export default function IntakeClient() {
     }, SERVER_SAVE_DELAY_MS);
     return () => clearTimeout(t);
   }, [draftDecided, submitted, contactReady, drawingsReading, stepId, completedSteps, firstName, lastName, email, company, project,
-      projCity, projState, projZip, haveDrawings, manual, drawings, figures, corrections, answers, hasClubhouse]);
+      projCity, projState, projZip, haveDrawings, manual, drawings, figures, corrections, answers]);
 
   const resumeLink = draftToken && typeof window !== 'undefined'
     ? `${window.location.origin}/conceptual_budget?resume=${draftToken}`
@@ -1513,13 +1517,13 @@ export default function IntakeClient() {
                           <p className="text-xs text-slate-500 mt-0.5">Don&apos;t know one? Leave it and we&apos;ll estimate it.</p>
                           {/* No "Optional" tag on each box — the heading already says it. */}
                           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
-                            <FigureField label="Is there a clubhouse?" hint="A clubhouse, leasing office or fitness room.">
+                            <FigureField label="Is there a pool?">
                               <select
                                 className={inputCls}
-                                value={hasClubhouse}
-                                onChange={e => setHasClubhouse(e.target.value)}
+                                value={answers.hasPool || ''}
+                                onChange={e => setAnswers(a => ({ ...a, hasPool: e.target.value }))}
                               >
-                                <option value="">Not sure</option>
+                                <option value="">Select</option>
                                 <option value="yes">Yes</option>
                                 <option value="no">No</option>
                               </select>
@@ -1777,6 +1781,12 @@ export default function IntakeClient() {
                             <dd className="text-slate-700 font-medium text-right shrink-0">{figures[f.key]}</dd>
                           </div>
                         ))}
+                        {manual && answers.hasPool && (
+                          <div className="flex justify-between gap-3 py-1 border-b border-slate-50 min-w-0">
+                            <dt className="text-slate-400 truncate min-w-0">Is there a pool?</dt>
+                            <dd className="text-slate-700 font-medium text-right shrink-0">{answers.hasPool === 'yes' ? 'Yes' : 'No'}</dd>
+                          </div>
+                        )}
                       </dl>
                     </div>
                     )}
@@ -1842,7 +1852,7 @@ export default function IntakeClient() {
                   </p>
                 ) : haveDrawings === null ? (
                   <p className="text-xs text-slate-400 leading-relaxed">
-                    Tell us whether you have drawings on the Drawings page. With drawings we read the figures; without them you type five numbers and the budget prices live.
+                    Tell us whether you have drawings on the Drawings page. With drawings we read the figures; without them you type a few numbers and the budget prices live.
                   </p>
                 ) : (
                   <p className="text-xs text-slate-400 leading-relaxed">

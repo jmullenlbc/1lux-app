@@ -45,9 +45,9 @@ import { lotSquareFeet, ACRE_SF } from '../siteFields.js';
 import { parseLooseNumber } from '../numberInput.js';
 import { PRICING } from '../pricing.js';
 import { estimateStairLandings } from '../stairLandings.js';
-import { answersToEngine, NO_DRAWINGS_KEY, CLUBHOUSE_KEY, GARAGE_TYPE_KEYS, CARPORT_TYPE_KEYS } from './questionnaire.js';
+import { answersToEngine, NO_DRAWINGS_KEY, CLUBHOUSE_KEY, POOL_KEY, GARAGE_TYPE_KEYS, CARPORT_TYPE_KEYS } from './questionnaire.js';
 import { NO_DRAWING_GUESSES } from './noDrawingGuesses.js';
-import { SITE_FEATURE_TYPES, SITE_FEATURE_LABELS, SITE_FEATURE_ROW_KEYS, LINEAR_SITE_FEATURES, COURTYARD_FT_EACH, normalizeSiteFeatures } from '../siteFeatureWords.js';
+import { SITE_FEATURE_TYPES, SITE_FEATURE_LABELS, SITE_FEATURE_ROW_KEYS, SITE_FEATURE_FOLD, LINEAR_SITE_FEATURES, COURTYARD_FT_EACH, normalizeSiteFeatures } from '../siteFeatureWords.js';
 
 /** A stated, usable number — or null. Number(null) is 0, hence the dance. */
 function stated(v) {
@@ -269,7 +269,7 @@ export function computeQuantities(drawings, answers, pricing = null, adopted = n
   // A blank row on the no-drawings form should not talk about sheets that
   // were never uploaded (Mike 2026-09-16: blanks belong on the same grid,
   // highlighted, with the reason).
-  const NOT_STATED = manual ? 'Not entered — type it in.' : 'Not stated on any sheet that was read.';
+  const NOT_STATED = manual ? NOT_STATED_MANUAL : 'Not stated on any sheet that was read.';
   const out = [];
   // ── MANUAL CORRECTIONS ─────────────────────────────────────────────────────
   // Mike, 2026-09-15: "We need to be able to manually update any field about
@@ -412,7 +412,7 @@ export function computeQuantities(drawings, answers, pricing = null, adopted = n
       null);
   } else {
     add('bedrooms', '# Bedrooms', 'count', null, null,
-      manual ? 'Not entered — the bedroom mix sets the fan count.' : 'No bedroom counts found in any drawing.');
+      manual ? 'Not entered. The bedroom mix sets the fan count.' : 'No bedroom counts found in any drawing.');
   }
 
   const baths = scaledToUnits(sumPerUnit(rows, 'bathrooms'), unitCount);
@@ -452,7 +452,7 @@ export function computeQuantities(drawings, answers, pricing = null, adopted = n
           ? `Bathrooms per unit type × unit quantities from the unit matrix (${fmt(baths.sum)} across ${fmt(baths.matrixUnits)} units), scaled to all ${fmt(baths.unitCount)} units.`
           : 'Bathrooms per unit type × unit quantities, from the unit matrix.')
       : bathEst ? bathEst.how
-      : manual ? 'Not entered — sets the vanity count.' : 'No bathroom counts found — unit matrices often omit them.',
+      : manual ? 'Not entered. It sets the vanity count.' : 'No bathroom counts found — unit matrices often omit them.',
     baths ? columnFlag(baths, 'a bathroom count')
       : bathEst ? 'ESTIMATED — no bathroom count on the drawings. Enter the real count if you have it.' : null);
 
@@ -485,14 +485,14 @@ export function computeQuantities(drawings, answers, pricing = null, adopted = n
   } else if (balc) {
     add('balconies', '# of Balconies', 'count', balc.value, 'drawing', balcHow,
       capFlag(balc.read) || columnFlag(balc, 'a balcony count'));
-  } else if (statedAnswer(ans.figureBalconies) != null) {
+  } else if (statedCount(ans.figureBalconies) != null) {
     // Without a count, the balcony-lighting answer prices to $0 no matter what
     // the visitor picks (Mike, 2026-09-04: "Why does none ... not change the
     // budget?") — so the wizard now asks for the count when drawings lack it.
-    const typed = statedAnswer(ans.figureBalconies);
+    const typed = statedCount(ans.figureBalconies);
     add('balconies', '# of Balconies', 'count', capBalc(typed), 'questionnaire',
       'Entered on the questionnaire — no balcony counts were found on the drawings.', capFlag(typed));
-  } else if (guess('balconiesPerUnit') != null && unitCount > 0 && ans.balconyLighting !== 'None') {
+  } else if (guess('balconiesPerUnit') != null && unitCount > 0) {
     const est = capBalc(Math.round(unitCount * guess('balconiesPerUnit')));
     add('balconies', '# of Balconies', 'count', est, 'derived',
       `${fmt(unitCount)} units × ${guess('balconiesPerUnit')} balcony per unit — a typical figure for this building type.`, GUESS_FLAG);
@@ -623,7 +623,9 @@ export function computeQuantities(drawings, answers, pricing = null, adopted = n
   // Stated on the drawings wins; a figure typed on the questionnaire (the
   // no-drawings form) is next; otherwise not found.
   const areaRow = (key, label, statedVal, statedHow, figureKey) => {
-    const typed = statedVal == null ? statedAnswer(ans[figureKey]) : null;
+    // A typed 0 is a real answer, "there is none" (Mike 10-14); only a blank
+    // box is estimated.
+    const typed = statedVal == null ? statedCount(ans[figureKey]) : null;
     // add()'s return, not `statedVal ?? typed` — so a corrected area is the one
     // the remainder below is taken off, and so a corrected exterior amenity SF
     // clears the "this $/SF cannot move the budget" flag instead of keeping it.
@@ -648,7 +650,7 @@ export function computeQuantities(drawings, answers, pricing = null, adopted = n
     : (PRICING.corridors.maxPctOfGross ?? 0.15);
   const corridorPctLabel = `${Math.round(corridorMaxPct * 100)}%`;
   const corridorStated = stated(totals?.corridorSf);
-  const corridorTyped  = corridorStated == null ? statedAnswer(ans.figureCorridorSf) : null;
+  const corridorTyped  = corridorStated == null ? statedCount(ans.figureCorridorSf) : null;
   const corridorShare  = typeShare('corridorPctOfGross');
   const corridorCap    = grossSf != null ? Math.round(grossSf * corridorMaxPct) : null;
   let corridorSf;
@@ -721,7 +723,8 @@ export function computeQuantities(drawings, answers, pricing = null, adopted = n
       ? 'From the amenity-area figure on the site plan — usually the outdoor programme (pool deck, courtyards).'
       : 'Measured off the scaled site / landscape plan — the pool enclosure plus the hardscape touching the clubhouse.',
     'figureExteriorAmenitySf');
-  if (!(extAmenitySf > 0)) {
+  const extTypedZero = extAmenitySf === 0 && out[out.length - 1]?.source === 'questionnaire';
+  if (!(extAmenitySf > 0) && !extTypedZero) {
     const extRow = out[out.length - 1];
     extRow.flag = 'No exterior amenity area was found, so the exterior amenity $/SF you pick cannot change the budget — this line prices at $0 until a square footage is entered. Enter the outdoor amenity area (pool deck, courtyards, plazas) if the project has one.';
   } else if (printedExtSf == null && measuredExtSf > 0) {
@@ -752,7 +755,7 @@ export function computeQuantities(drawings, answers, pricing = null, adopted = n
   const unitsSfFinal = unitsSfRow?.value ?? null;
   const unitsSfWhole = unitsSfFinal != null
     && (unitsSfRow.corrected === true || (!!unitSf && !unitSf.partial));
-  const bohTyped  = statedAnswer(ans.figureBohSf);
+  const bohTyped  = statedCount(ans.figureBohSf);
   // Mike 2026-09-16: "Keep the 5% cap but the system should always take what
   // the drawings say, not add to it to hit the cap. It's only if the drawings
   // say something above the cap or there is no info at all." So a printed BOH
@@ -1178,13 +1181,34 @@ export function computeQuantities(drawings, answers, pricing = null, adopted = n
         `One ${fmt(NO_DRAWING_GUESSES.clubhouseSfWhenYes[typeKey])} SF clubhouse — the questionnaire says there is one but gave no size.`);
     } else {
       perUnitRow('interiorAmenitySf', 'interiorAmenitySfPerUnit', 'SF of clubhouse / leasing / fitness',
-        'No shared clubhouse is assumed for this building type — answer "Is there a clubhouse?" if there is one.');
+        'No shared clubhouse is assumed for this building type. Enter the interior amenity SF if there is one.');
     }
 
     perUnitRow('garageSf', 'garageSfPerUnit', 'SF of structured parking garage',
       'This building type parks on the surface or in private garages, so no parking structure is assumed.');
-    perUnitRow('exteriorAmenitySf', 'exteriorAmenitySfPerUnit', 'SF of pool deck / courtyards / outdoor amenity',
-      'No lit outdoor amenity area is assumed for this building type.');
+    // Pool answer (Mike 10-14): see poolDeckMinSf / noPoolExteriorShare.
+    const extRow = out.find(r => r.key === 'exteriorAmenitySf');
+    const pool = ans[POOL_KEY];
+    const extPer = guess('exteriorAmenitySfPerUnit');
+    if (extRow && extRow.value == null && extPer != null && unitCount > 0 && (pool === 'yes' || pool === 'no')) {
+      const usual = Math.round(unitCount * extPer);
+      if (pool === 'yes') {
+        const min = NO_DRAWING_GUESSES.poolDeckMinSf;
+        fill(extRow, Math.max(usual, min), usual >= min
+          ? `${fmt(unitCount)} units × ${extPer} SF of pool deck / courtyards / outdoor amenity per unit, typical for this building type with a pool.`
+          : `There is a pool: ${fmt(min)} SF of pool deck and outdoor amenity, the least we assume with a pool.`);
+      } else {
+        const share = NO_DRAWING_GUESSES.noPoolExteriorShare[typeKey] ?? 1;
+        fill(extRow, Math.round(usual * share), share < 1
+          ? `No pool: half the usual ${fmt(usual)} SF (${fmt(unitCount)} units × ${extPer} SF), since most outdoor space on this building type is pool deck.`
+          : usual > 0
+            ? `${fmt(unitCount)} units × ${extPer} SF of courtyards / outdoor amenity per unit, typical for this building type.`
+            : 'No pool and no lit outdoor amenity area is assumed for this building type.');
+      }
+    } else {
+      perUnitRow('exteriorAmenitySf', 'exteriorAmenitySfPerUnit', 'SF of pool deck / courtyards / outdoor amenity',
+        'No lit outdoor amenity area is assumed for this building type.');
+    }
     perUnitRow('vanities', 'vanitiesPerUnit', 'bathroom vanities', 'No vanities assumed.');
 
     // Drive-lane area lights moved below the no-drawings block (2026-09-13) —
@@ -1335,10 +1359,19 @@ export function computeQuantities(drawings, answers, pricing = null, adopted = n
   // kind: a count for the per-feature kinds, feet (longest dimension) for the
   // linear ones. Ladder: drawing → typed → absent. NOTHING is guessed; a kind
   // the drawings don't name and nobody typed is simply not on the job.
+  // Tennis + pickleball courts and dog parks + playgrounds are one question
+  // and one row each (Mike 10-14); normalizeSiteFeatures() folds what the
+  // drawings name, and an old draft's dog park or pickleball box adds in.
   const found = new Map(normalizeSiteFeatures(site?.siteFeatures).map(f => [f.type, f]));
+  const figureKeyOf = t => { const k = SITE_FEATURE_ROW_KEYS[t]; return `figure${k[0].toUpperCase()}${k.slice(1)}`; };
+  const typedFolded = type => {
+    const vals = [type, ...Object.keys(SITE_FEATURE_FOLD).filter(k => SITE_FEATURE_FOLD[k] === type)]
+      .map(t => statedCount(ans[figureKeyOf(t)])).filter(v => v != null);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) : null;
+  };
   for (const type of SITE_FEATURE_TYPES) {
+    if (SITE_FEATURE_FOLD[type]) continue;
     const rowKey = SITE_FEATURE_ROW_KEYS[type];
-    const figureKey = `figure${rowKey[0].toUpperCase()}${rowKey.slice(1)}`;
     const linear = LINEAR_SITE_FEATURES.has(type);
     const name = SITE_FEATURE_LABELS[type];
     const label = linear ? `${name} length` : `# ${name}s`;
@@ -1347,7 +1380,8 @@ export function computeQuantities(drawings, answers, pricing = null, adopted = n
     // Courtyards are asked as a COUNT (Mike 10-1: nobody knows the length);
     // each counts as COURTYARD_FT_EACH feet. The old feet answer still reads.
     const typedCourtyards = type === 'courtyard' ? statedCount(ans.figureCourtyards) : null;
-    const typed = typedCourtyards != null ? typedCourtyards * COURTYARD_FT_EACH : statedCount(ans[figureKey]);
+    const typed = typedCourtyards != null ? typedCourtyards * COURTYARD_FT_EACH
+      : typedFolded(type);
     const drawn = f ? (linear ? f.lengthFt : f.count) : null;
     const where = f?.sheet ? ` (sheet ${f.sheet})` : '';
     // Courtyard at the standard 60 ft each, not measured (0115): the row says
@@ -1380,7 +1414,27 @@ export function computeQuantities(drawings, answers, pricing = null, adopted = n
     // answer is "the project does not appear to have one".
   }
 
+  if (manual) for (const r of out) noDrawingsWording(r);
   return out;
+}
+
+// No drawings were uploaded, so "not found on the drawings" is noise (Mike
+// 10-14: the no-drawings form should not talk about drawings or site plans).
+const NOT_STATED_MANUAL = 'Not entered. Type it in.';
+const DRAWING_WORDS = /\b(drawings?|site plan|sheets?)\b/i;
+function noDrawingsWording(r) {
+  if (r.corrected || typeof r.how !== 'string' || !DRAWING_WORDS.test(r.how)) {
+    if (r.how === NOT_STATED_MANUAL) r.how = 'Not entered.';
+    return;
+  }
+  if (r.source === 'questionnaire') { r.how = 'Entered on the questionnaire.'; return; }
+  if (r.value == null) { r.how = 'Not entered.'; return; }
+  // Drop a clause (after ';' or a dash) or a whole sentence that names a drawing.
+  const how = r.how
+    .replace(/(;| \u2014)[^.;\u2014]*\b(drawings?|site plan|sheets?)\b[^.;\u2014]*/gi, '')
+    .replace(/(^|\.\s+)[^.]*\b(drawings?|site plan|sheets?)\b[^.]*\./gi, '$1')
+    .trim();
+  r.how = how || 'Estimated.';
 }
 
 /** Plain words for the scale a measured figure was taken with. */

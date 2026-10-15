@@ -339,7 +339,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
           <div>• Building wallpacks: per-building rate by building type × ${WPC.perFixture ?? 350} each — covers exterior doors too</div>
           <div>• Pathway lighting: {pathwayAsksBollards ? `bollards / pedestrian poles, 1 per ${pedFt} ft of walkway × $${pedEach.toLocaleString()} (${pedPerHome} per home with no walkway length)` : `$/unit by building type ($${pathwayRate || 0}/unit here), floored at $${pathwayFloor.toLocaleString()}`}; solar sites × {PW.solarMultiplier ?? 1.6}; a manual pathway entry replaces the model line</div>
           <div>• Landscape: ${landscapePct.toFixed(2)} per SF of the net lot (lot − building footprint), capped at ${landscapeCap.toLocaleString()}</div>
-          <div>• Site features: dog park 1 area light at the entrance; tennis / pickleball 4 area lights per court; playground 2 pedestrian poles; courtyard 1 pole per 30 ft; turf play 1 pole per 50 ft — counted off the site plan or typed in Project Data</div>
+          <div>• Site features: tennis / pickleball 4 area lights per court; dog park / playground $3,000 package (2 pedestrian poles); courtyard 1 pole per 30 ft; turf play 1 pole per 50 ft — counted off the site plan or typed in Project Data</div>
         </div>
       </div>
 

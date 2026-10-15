@@ -3,7 +3,7 @@ import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { logActivity } from '@/lib/activity';
 import { captureQuietly } from '@/lib/calibration/capture';
-import { SITE_FEATURE_ROW_LABELS, SITE_FEATURE_ROW_KEYS as SITE_FEATURE_ROW_KEYS_LOCAL } from '@/lib/siteFeatures';
+import { SITE_FEATURE_ROW_LABELS, SITE_FEATURE_ROW_KEYS as SITE_FEATURE_ROW_KEYS_LOCAL, SITE_FEATURE_FOLD } from '@/lib/siteFeatures';
 import {
   isSiteFeatureRowKey, siteFeatureFromFlat, writeSiteFeature,
   loadSiteFeatures, siteFeaturesForEngine, describeSiteFeatureChange,
@@ -157,8 +157,13 @@ export async function PUT(request, { params }) {
 
   const liveFeatures = featureWrites.length ? await loadSiteFeatures(prisma, params.id) : [];
   const featureChanges = [];
+  // Folded kinds (dog park into playground, pickleball into tennis, Mike 10-14):
+  // the grid shows the sum, so compare against the sum.
+  const foldedFrom = t => Object.keys(SITE_FEATURE_FOLD).filter(k => SITE_FEATURE_FOLD[k] === t);
   for (const f of featureWrites) {
-    const before = liveFeatures.find(r => r.type === f.type) || null;
+    const kinds = [f.type, ...foldedFrom(f.type)];
+    const rows = liveFeatures.filter(r => kinds.includes(r.type));
+    const before = rows.length ? { count: rows.reduce((a, r) => a + (r.count || 0), 0), lengthFt: rows[0].lengthFt } : null;
     const change = describeSiteFeatureChange(f.type, before, f);
     if (change.was !== change.now) featureChanges.push(change);
   }
@@ -213,6 +218,10 @@ export async function PUT(request, { params }) {
       for (const f of featureWrites) {
         if (!changedTypes.has(f.type)) continue;
         await writeSiteFeature(tx, params.id, { ...f, source: 'typed' });
+        // The typed figure now covers the folded kinds too: archive their old rows.
+        for (const t of foldedFrom(f.type)) {
+          if (liveFeatures.some(r => r.type === t)) await writeSiteFeature(tx, params.id, { type: t, count: 0, lengthFt: null, source: 'typed' });
+        }
       }
     });
   }

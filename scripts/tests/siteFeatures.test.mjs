@@ -52,11 +52,14 @@ test('dog park: 1 area light at the entrance, $1,400', () => {
   assert.equal(r.product, 1400);
 });
 
-test('playground: 2 pedestrian poles, $4,000 each playground', () => {
+test('dog park / playground: 2 pedestrian poles, $3,000 package each (Mike 10-14)', () => {
   const r = siteFeatureFixtures({ type: 'playground', count: 2 }, RATES);
   assert.equal(r.fixtures, 4);
   assert.equal(r.fixtureKind, 'pedestrianPole');
-  assert.equal(r.product, 8000);
+  assert.equal(r.product, 6000);
+  assert.equal(siteFeatureCostLine(r), '2 × $3,000 package (4 pedestrian poles) = $6,000');
+  // the package price is editable in master pricing
+  assert.equal(siteFeatureFixtures({ type: 'playground', count: 1 }, { ...RATES, playground: { pedestrianPoles: 2, packageEach: 3500 } }).product, 3500);
 });
 
 test('tennis and pickleball: 4 area lights per court', () => {
@@ -97,10 +100,11 @@ test('normalize: dedupes by type, drops junk, keeps display order', () => {
     { type: 'playground', count: 0 },
     { type: 'courtyard', count: 1, lengthFt: -5 },
   ], 7);
-  assert.deepEqual(list.map(f => f.type), ['dogPark', 'courtyard', 'tennisCourt']);
+  // Mike 10-14: a dog park folds into the playground package.
+  assert.deepEqual(list.map(f => f.type), ['courtyard', 'playground', 'tennisCourt']);
   assert.equal(list.find(f => f.type === 'tennisCourt').count, 2);
   assert.equal(list.find(f => f.type === 'tennisCourt').sheet, 3);
-  assert.equal(list.find(f => f.type === 'dogPark').sheet, 7);
+  assert.equal(list.find(f => f.type === 'playground').sheet, 7);
   // an unmeasured courtyard counts at the standard length (Mike 10-1: 2 poles each)
   assert.equal(list.find(f => f.type === 'courtyard').lengthFt, COURTYARD_FT_EACH);
 });
@@ -112,10 +116,11 @@ test('priceSiteFeatures totals fixtures by kind', () => {
     { type: 'playground', count: 1 },
     { type: 'turfPlay', count: 1, lengthFt: 100 },
   ], RATES);
-  assert.equal(r.areaLights, 5);
-  assert.equal(r.pedestrianPoles, 4);
-  assert.equal(r.product, 5 * 1400 + 4 * 2000);
-  assert.equal(r.items.length, 4);
+  // dog park + playground = 2 playground packages (4 poles)
+  assert.equal(r.areaLights, 4);
+  assert.equal(r.pedestrianPoles, 6);
+  assert.equal(r.product, 4 * 1400 + 2 * 3000 + 2 * 2000);
+  assert.equal(r.items.length, 3);
 });
 
 test('master-pricing overrides win over the defaults', () => {
@@ -129,7 +134,9 @@ test('flat rows ⇄ feature list round trip', () => {
   const list = siteFeaturesFromRows(rows);
   assert.deepEqual(list.map(f => f.type), ['dogPark', 'courtyard', 'tennisCourt']);
   assert.equal(list.find(f => f.type === 'courtyard').lengthFt, 90);
-  assert.deepEqual(siteFeaturesToRows(list), rows);
+  // the old dog park box comes back in the merged playground box
+  assert.deepEqual(siteFeaturesToRows(list), { ...rows, dogParks: 0, playgrounds: 1 });
+  assert.deepEqual(siteFeaturesToRows([{ type: 'pickleballCourt', count: 2 }, { type: 'tennisCourt', count: 1 }]).tennisCourts, 3);
   // Every key present even when the list is empty — 0 means "none".
   assert.deepEqual(Object.keys(siteFeaturesToRows([])).sort(), Object.values(SITE_FEATURE_ROW_KEYS).sort());
   assert.deepEqual(Object.keys(SITE_FEATURE_ROW_LABELS), Object.values(SITE_FEATURE_ROW_KEYS));
@@ -156,7 +163,7 @@ test('engineProjectData attaches live rows and skips archived ones', () => {
   });
   assert.equal(pd.numUnits, 10);
   assert.equal(pd.buildingTypeKey, 'garden');
-  assert.deepEqual(pd.siteFeatures.map(f => f.type), ['dogPark']);
+  assert.deepEqual(pd.siteFeatures.map(f => f.type), ['dogPark']); // folded at pricing
   assert.equal(pd.siteFeatures[0].sheet, 4);
   assert.deepEqual(engineProjectData({ projectData: null }).siteFeatures, []);
 });
@@ -175,9 +182,9 @@ test('the budget engine prices site features on their own exterior line', () => 
     { type: 'courtyard', count: 1, lengthFt: 60 },
   ] }, {});
   const line = withFeat.sections.exterior.siteFeatures;
-  assert.equal(line.product, 1400 + 2 * 4 * 1400 + 2 * 2000);
-  assert.equal(line.areaLights, 9);
-  assert.equal(line.pedestrianPoles, 2);
+  assert.equal(line.product, 3000 + 2 * 4 * 1400 + 2 * 2000);
+  assert.equal(line.areaLights, 8);
+  assert.equal(line.pedestrianPoles, 4);
   assert.equal(without.sections.exterior.siteFeatures.product, 0);
   // The line lands in the exterior section total, never inside area lighting.
   assert.equal(withFeat.sections.exterior.areaLighting?.product ?? withFeat.sections.exterior.parking?.product ?? 0,
@@ -205,7 +212,7 @@ test('siteFeatureFindings lists every found feature in display order and skips j
     { type: 'tennisCourt', count: 1, sheet: 3 },
     { type: 'dogPark', count: 1 },
     { type: 'nope', count: 3 },
-  ]), ['1 dog park', '1 tennis court (sheet 3)']);
+  ]), ['1 dog park / playground', '1 tennis / pickleball court (sheet 3)']);
   assert.deepEqual(siteFeatureFindings(undefined), []);
   assert.deepEqual(siteFeatureFindings([]), []);
 });
@@ -230,7 +237,7 @@ test('each priced feature gets its own breakdown label and its own cost line', (
   // The per-feature lines add up to the one line the engine reports.
   const priced = priceSiteFeatures([{ type: 'dogPark', count: 1 }, { type: 'pickleballCourt', count: 2 }, { type: 'courtyard', count: 1, lengthFt: 90 }], RATES);
   assert.equal(priced.items.reduce((s, i) => s + i.product, 0), priced.product);
-  assert.equal(priced.product, 1400 + 11200 + 6000);
+  assert.equal(priced.product, 3000 + 11200 + 6000);
 });
 
 test('the words file carries no prices and the public screens import only it', () => {

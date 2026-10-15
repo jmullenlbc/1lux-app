@@ -18,11 +18,21 @@ export const SITE_FEATURE_TYPES = ['dogPark', 'courtyard', 'playground', 'tennis
 export const SITE_FEATURE_LABELS = {
   dogPark:         'Dog park',
   courtyard:       'Courtyard',
-  playground:      'Playground',
-  tennisCourt:     'Tennis court',
+  playground:      'Dog park / playground',
+  tennisCourt:     'Tennis / pickleball court',
   pickleballCourt: 'Pickleball court',
   turfPlay:        'Turf play area',
 };
+
+/**
+ * Kinds that are asked and priced as another kind (Mike 10-14: "We have way
+ * too many fields"). A dog park is one "dog park / playground" area priced as
+ * the playground package (2 pedestrian poles); a pickleball court is a
+ * "tennis / pickleball court" (4 area lights, the same as before). The old
+ * kinds stay valid so old SiteFeature rows and drawing reads still load;
+ * normalizeSiteFeatures() folds them in.
+ */
+export const SITE_FEATURE_FOLD = { dogPark: 'playground', pickleballCourt: 'tennisCourt' };
 
 /** The linear features — priced per foot of their longest dimension. */
 export const LINEAR_SITE_FEATURES = new Set(['courtyard', 'turfPlay']);
@@ -46,8 +56,9 @@ export function normalizeSiteFeatures(list, page = null) {
   if (!Array.isArray(list)) return [];
   const byType = new Map();
   for (const raw of list) {
-    const type = String(raw?.type ?? '');
-    if (!SITE_FEATURE_TYPES.includes(type)) continue;
+    const rawType = String(raw?.type ?? '');
+    if (!SITE_FEATURE_TYPES.includes(rawType)) continue;
+    const type = SITE_FEATURE_FOLD[rawType] || rawType;
     const count = Math.round(Number(raw?.count));
     if (!Number.isFinite(count) || count <= 0) continue;
     const len = Number(raw?.lengthFt);
@@ -93,8 +104,8 @@ export const SITE_FEATURE_TYPE_BY_ROW_KEY = Object.fromEntries(
 export const SITE_FEATURE_ROW_LABELS = {
   dogParks:         '# Dog Parks',
   courtyardFt:      'Courtyard Length (ft)',
-  playgrounds:      '# Playgrounds',
-  tennisCourts:     '# Tennis Courts',
+  playgrounds:      '# Dog Parks / Playgrounds',
+  tennisCourts:     '# Tennis / Pickleball Courts',
   pickleballCourts: '# Pickleball Courts',
   turfPlayFt:       'Turf Play Length (ft)',
 };

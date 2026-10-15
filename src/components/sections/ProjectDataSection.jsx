@@ -51,11 +51,10 @@ const FIELDS = [
       // Sporadic site features (Mike 2026-09-16). Each is priced as its own
       // fixture package: area lights at the dog park entrance and around courts,
       // 12 ft pedestrian poles on playgrounds and along courtyards / turf play.
-      { key: 'dogParks',         label: '# of Dog Parks',            type: 'number', placeholder: '0', hint: '1 area light at the entrance of each dog park. 0 = none.' },
       { key: 'courtyardFt',      label: 'Courtyard Length (ft)',     type: 'number', placeholder: '0', hint: 'Longest dimension of the courtyard(s), in feet. 1 pedestrian pole per 30 ft. Length unknown? Use 60 ft per courtyard (2 poles). 0 = none.' },
-      { key: 'playgrounds',      label: '# of Playgrounds',          type: 'number', placeholder: '0', hint: '2 pedestrian poles per playground. 0 = none.' },
-      { key: 'tennisCourts',     label: '# of Tennis Courts',        type: 'number', placeholder: '0', hint: '4 area lights per court. 0 = none.' },
-      { key: 'pickleballCourts', label: '# of Pickleball Courts',    type: 'number', placeholder: '0', hint: '4 area lights per court. 0 = none.' },
+      // Dog parks and pickleball courts fold into these two (Mike 10-14).
+      { key: 'playgrounds',      label: '# of Dog Parks / Playgrounds', type: 'number', placeholder: '0', hint: '$3,000 package (2 pedestrian poles) per dog park or playground. 0 = none.' },
+      { key: 'tennisCourts',     label: '# of Tennis / Pickleball Courts', type: 'number', placeholder: '0', hint: '4 area lights per court. 0 = none.' },
       { key: 'turfPlayFt',       label: 'Turf Play Area Length (ft)', type: 'number', placeholder: '0', hint: 'Longest dimension of the turf play area(s), in feet. 1 pedestrian pole per 50 ft. 0 = none.' },
       { key: 'driveLengthFt',    label: 'Private Drive Length (ft)', type: 'number', placeholder: '', hint: 'Townhomes and single family. Usually read off the site plan. 1 pole light per 81 ft.' },
       { key: 'walkwayLengthFt',  label: 'Walkway Length (ft)',       type: 'number', placeholder: '', hint: 'Townhomes and single family. Usually read off the site plan. 1 bollard / pedestrian pole per 40 ft; blank = 1 per 8 homes.' },

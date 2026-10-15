@@ -91,8 +91,16 @@ export const NO_DRAWING_GUESSES = {
   // communities rarely light an outdoor amenity (Echo Trail: none).
   exteriorAmenitySfPerUnit: {
     singleFamily: 0, townHouses: 0, stackedFlats: 25, garden: 25, gurban: 25,
-    wrap: 65, podium: 20, midRise: 40, highRise: 75,
+    wrap: 65, podium: 15, midRise: 40, highRise: 50, // Mike 10-14: podium 20 to 15, high-rise 75 to 50 (real middles 14.7 and 49.8)
   },
+  // "Is there a pool?" on a typed-in budget (Mike 10-14, report "Exterior
+  // Amenity and Pool Analysis - 2026-10-14"). Yes: the type's usual, never
+  // under this many SF (real pool decks 3,000 to 25,000, most 9,000+);
+  // townhouses and single family (usual 0) get exactly this. No: garden
+  // walk-ups keep this share, since their outdoor space is mostly pool deck.
+  // Blank: the type's usual.
+  poolDeckMinSf: 6000,
+  noPoolExteriorShare: { garden: 0.5, gurban: 0.5, stackedFlats: 0.5 },
   // Area lights (pole + head) along the private drive, per unit, on a
   // community with no parking lot to carry them. Echo Trail (64 townhomes, one
   // drive with homes both sides): 33 area lights. Counted against the parking

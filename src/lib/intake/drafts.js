@@ -24,7 +24,7 @@
  * @see src/app/api/admin/intake/drafts/[id]/route.js — staff "Put away"
  * @see prisma/migrations/0087_conceptual_drafts   — the tables
  */
-import { INTAKE_QUESTIONS, FIGURE_KEYS, CLUBHOUSE_ANSWERS } from './questionnaire.js';
+import { INTAKE_QUESTIONS, FIGURE_KEYS, CLUBHOUSE_ANSWERS, POOL_KEY, POOL_ANSWERS } from './questionnaire.js';
 
 /** The wizard's step ids, in order (mirrors STEPS in IntakeClient.jsx). */
 export const STEP_IDS = ['about', 'drawings', 'units', 'corridors', 'amenities', 'exterior', 'emergency', 'controls', 'review'];
@@ -63,6 +63,7 @@ const FIGURE_KEY_SET = new Set(FIGURE_KEYS.map(f => f.key));
 
 /** An answer the questionnaire recognises for this key, or null. */
 function knownAnswer(key, raw) {
+  if (key === POOL_KEY) return POOL_ANSWERS.includes(raw) ? raw : null;
   const q = QUESTION_BY_KEY.get(key);
   if (!q || typeof raw !== 'string') return null;
   const v = raw.trim();

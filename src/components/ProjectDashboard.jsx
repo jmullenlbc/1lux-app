@@ -499,11 +499,9 @@ export default function ProjectDashboard({
           {/* Sporadic site features (Mike 2026-09-16) — one SiteFeature row per
               kind, read off the site plan or typed here. 0 = none. Each is
               priced as its own fixture package under Exterior & Site. */}
-          <EditableStat label="# Dog Parks"          displayValue={fmtNum(feat.dogParks)}          rawValue={feat.dogParks}          onSave={d('dogParks')} />
           <EditableStat label="Courtyard Length (ft)" displayValue={fmtNum(feat.courtyardFt)}      rawValue={feat.courtyardFt}       onSave={d('courtyardFt')} />
-          <EditableStat label="# Playgrounds"        displayValue={fmtNum(feat.playgrounds)}       rawValue={feat.playgrounds}       onSave={d('playgrounds')} />
-          <EditableStat label="# Tennis Courts"      displayValue={fmtNum(feat.tennisCourts)}      rawValue={feat.tennisCourts}      onSave={d('tennisCourts')} />
-          <EditableStat label="# Pickleball Courts"  displayValue={fmtNum(feat.pickleballCourts)}  rawValue={feat.pickleballCourts}  onSave={d('pickleballCourts')} />
+          <EditableStat label="# Dog Parks / Playgrounds" displayValue={fmtNum(feat.playgrounds)}       rawValue={feat.playgrounds}       onSave={d('playgrounds')} />
+          <EditableStat label="# Tennis / Pickleball Courts" displayValue={fmtNum(feat.tennisCourts)} rawValue={feat.tennisCourts} onSave={d('tennisCourts')} />
           <EditableStat label="Turf Play Length (ft)" displayValue={fmtNum(feat.turfPlayFt)}       rawValue={feat.turfPlayFt}        onSave={d('turfPlayFt')} />
           {/* Drawing-takeoff counts (Phase 1, 2026-08-12) — filled by the
               drawing parser later; editable here, deliberately not wizard

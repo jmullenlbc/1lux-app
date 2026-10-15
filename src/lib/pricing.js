@@ -396,7 +396,7 @@ export const PRICING = {
       areaLight:      1400, // $ each
       pedestrianPole: 2000, // $ each, 12 ft pole
       dogPark:         { areaLights: 1 },
-      playground:      { pedestrianPoles: 2 },
+      playground:      { pedestrianPoles: 2, packageEach: 3000 }, // $ per dog park / playground (Mike 10-14)
       tennisCourt:     { areaLights: 4 },
       pickleballCourt: { areaLights: 4 },
       courtyard:       { ftPerPole: 30 },
