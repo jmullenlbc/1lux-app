@@ -21,7 +21,8 @@
  * @see src/lib/pricing.js      — the option keys the maps must hit
  */
 import { INTERIOR_AMENITY_RATES } from '../interiorAmenityTiers.js';
-import { looseInteger } from '../numberInput.js';
+import { wholeFigure } from '../numberInput.js';
+import { SITE_FEATURE_ROW_KEYS, LEGACY_COURTYARD_FT_KEY } from '../siteFeatureWords.js';
 
 export const INTAKE_QUESTIONS = [
   // ── RESIDENTIAL UNITS ──────────────────────────────────────────────────────
@@ -421,14 +422,29 @@ export const POOL_ANSWERS = ['yes', 'no'];
 // "250,000", "$300", "226,000 SF" all read as the figure they mean (Mike 9-18:
 // commas and dressing are fine in any number field); anything that is not a
 // number at all reads as '' and fails the digit test below.
-const digitsOnly = v => {
-  if (typeof v !== 'string') return '';
-  const n = looseInteger(v);
-  return n != null && Number.isFinite(n) ? String(n) : '';
-};
-const typedFigure = v => (/^\d{1,9}$/.test(digitsOnly(v)) && Number(digitsOnly(v)) > 0 ? Number(digitsOnly(v)) : null);
+// One reading everywhere: wholeFigure() in numberInput.js is also what the
+// submit whitelist and the quantity ladders read a typed figure through.
+const typedFigure = v => { const n = wholeFigure(v); return n != null && n > 0 ? n : null; };
 // A count where 0 is a real answer (no surface lot at all).
-const typedCount = v => (/^\d{1,9}$/.test(digitsOnly(v)) ? Number(digitsOnly(v)) : null);
+const typedCount = v => wholeFigure(v);
+
+/**
+ * Row keys of the Project Data grid a visitor may type over (the amber and
+ * dashed boxes on the public form). A correction travels as correct<RowKey>
+ * (correctionKeyFor in quantities.js) and is kept by validateAnswers so the
+ * saved submission, the pre-con email and the hand-off price the same
+ * numbers the live sidebar did. quantities.js imports this file, so the list
+ * lives here; corrections.test.mjs pins it against every add() in quantities.
+ */
+export const CORRECTABLE_ROW_KEYS = Object.freeze([
+  'balconies', 'bathrooms', 'bedrooms', 'bohSf', 'buildingFootprintSf', 'buildings',
+  'carports', 'ceilingFans', 'corridorSf', 'driveLaneLights', 'driveLengthFt',
+  'egressStairwells', 'exitDoors', 'exteriorAmenitySf', 'garageSf', 'garages',
+  'grossSf', 'interiorAmenitySf', 'lotSf', 'stairLandings', 'stories',
+  'surfaceParking', 'totalUnits', 'unitsSf', 'vanities', 'walkwayLengthFt',
+  ...Object.values(SITE_FEATURE_ROW_KEYS), LEGACY_COURTYARD_FT_KEY,
+]);
+export const correctionKeyFor = key => `correct${key.charAt(0).toUpperCase()}${key.slice(1)}`;
 
 /**
  * The minimum a no-drawings budget needs before it can be priced: what kind
@@ -483,10 +499,20 @@ export function validateAnswers(input) {
   // commas and spaces tolerated, anything else dropped (public endpoint).
   // Surface stalls, garages and carports keep a 0 — "none" is a real answer.
   for (const f of FIGURE_KEYS) {
-    const raw = typeof given[f.key] === 'string' ? given[f.key].replace(/[,\s]/g, '') : '';
-    if (!/^\d{1,9}$/.test(raw)) continue;
-    if (Number(raw) <= 0 && !ZERO_OK_FIGURES.has(f.key)) continue;
-    rows.push({ section: f.section, questionKey: f.key, question: f.question, answer: raw });
+    const n = typeof given[f.key] === 'string' ? wholeFigure(given[f.key]) : null;
+    if (n == null) continue;
+    if (n <= 0 && !ZERO_OK_FIGURES.has(f.key)) continue;
+    rows.push({ section: f.section, questionKey: f.key, question: f.question, answer: String(n) });
+  }
+  // Corrections typed over the Project Data grid (correct<RowKey>). Big error
+  // test 10-14: these priced the live sidebar but were dropped here, so the
+  // saved submission, the pre-con email and the hand-off ran on the
+  // uncorrected read. 0 is a real correction ("there is no amenity area").
+  for (const key of CORRECTABLE_ROW_KEYS) {
+    const ck = correctionKeyFor(key);
+    const n = typeof given[ck] === 'string' ? wholeFigure(given[ck]) : null;
+    if (n == null) continue;
+    rows.push({ section: 'Corrections', questionKey: ck, question: `Corrected ${key}`, answer: String(n) });
   }
   if (given[NO_DRAWINGS_KEY] === 'yes') {
     rows.push({ section: 'Project figures', questionKey: NO_DRAWINGS_KEY, question: 'Submitted without drawings', answer: 'yes' });

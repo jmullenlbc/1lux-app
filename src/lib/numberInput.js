@@ -100,3 +100,21 @@ export function cleanNumberInput(raw) {
 }
 
 export const NUMBER_HELP = 'Please enter the amount as a number, like 1,200,000.';
+
+/**
+ * wholeFigure(v) — the ONE reading of a figure a visitor typed on the public
+ * budget form, shared by the readiness gate, the submit whitelist and the
+ * quantity ladders so a number prices the same live, on save and on hand-off
+ * (big error test 10-14: the three used to disagree on "$300", "0.5", "1e9").
+ * Dressing is fine (Mike 9-18): "$300", "226,000 SF", " 2,500 " read as the
+ * figure they mean; decimals round; anything unreadable, negative or over
+ * nine digits is null. 0 is returned as 0 — callers decide whether 0 counts.
+ */
+export const WHOLE_FIGURE_MAX = 999_999_999;
+export function wholeFigure(v) {
+  if (v == null || v === '') return null;
+  const n = looseInteger(typeof v === 'string' ? v : String(v));
+  if (n == null || !Number.isFinite(n)) return null;
+  if (n < 0 || n > WHOLE_FIGURE_MAX) return null;
+  return n;
+}

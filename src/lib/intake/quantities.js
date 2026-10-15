@@ -42,10 +42,11 @@
  */
 import { perUnitRule, bathsFromBedrooms } from '../unitRules.js';
 import { lotSquareFeet, ACRE_SF } from '../siteFields.js';
-import { parseLooseNumber } from '../numberInput.js';
+import { parseLooseNumber, wholeFigure } from '../numberInput.js';
 import { PRICING } from '../pricing.js';
 import { estimateStairLandings } from '../stairLandings.js';
-import { answersToEngine, NO_DRAWINGS_KEY, CLUBHOUSE_KEY, POOL_KEY, GARAGE_TYPE_KEYS, CARPORT_TYPE_KEYS } from './questionnaire.js';
+import { answersToEngine, NO_DRAWINGS_KEY, CLUBHOUSE_KEY, POOL_KEY, GARAGE_TYPE_KEYS, CARPORT_TYPE_KEYS, correctionKeyFor } from './questionnaire.js';
+export { correctionKeyFor };
 import { NO_DRAWING_GUESSES } from './noDrawingGuesses.js';
 import { SITE_FEATURE_TYPES, SITE_FEATURE_LABELS, SITE_FEATURE_ROW_KEYS, SITE_FEATURE_FOLD, LINEAR_SITE_FEATURES, courtyardsFromFt, normalizeSiteFeatures } from '../siteFeatureWords.js';
 
@@ -64,16 +65,18 @@ function fmt(n) { return Number(n).toLocaleString('en-US'); }
  * for them only when the drawings answered nothing, so a drawing-stated or
  * counted value always outranks them.
  */
+// Typed strings read through wholeFigure(), the same reading the readiness
+// gate and the submit whitelist use (big error test 10-14).
 function statedAnswer(v) {
   if (typeof v !== 'string') return stated(v);
-  const n = stated(v.replace(/[,\s]/g, ''));
+  const n = wholeFigure(v);
   return n != null && n > 0 ? n : null;
 }
 
 // Same, but 0 is a real answer — "no surface lot" (required on the
 // no-drawings form since 2026-09-12, so a typed 0 must not read as blank).
 function statedCount(v) {
-  return typeof v === 'string' ? stated(v.replace(/[,\s]/g, '')) : stated(v);
+  return typeof v === 'string' ? wholeFigure(v) : stated(v);
 }
 
 /**
@@ -91,9 +94,6 @@ function statedCount(v) {
  * 0 is a real correction ("there is no exterior amenity area"), so this reads
  * through statedCount; a negative figure is nonsense and is ignored.
  */
-export function correctionKeyFor(key) {
-  return `correct${key.charAt(0).toUpperCase()}${key.slice(1)}`;
-}
 function correctionFor(ans, key) {
   const n = statedCount(ans[correctionKeyFor(key)]);
   return n != null && n >= 0 ? n : null;

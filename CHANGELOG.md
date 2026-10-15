@@ -5,6 +5,14 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Big error test, both public paths: corrections lost at submit, three number readings] - October 14, 2026 (DEPLOYED) - no migration
+
+- Mike 10-14: "Once deployed do your big test you told me about for both paths of drawings and no drawings." A 2,265 case sweep (9 project types, pool yes/no, every option question, every optional figure typed blank / 0 / 1 / 7 / 12,000 / negative / letters / "1e9" / nine nines / " 2,500 " / "0.5", courtyard count vs the legacy feet answer, not-ready forms, stray drawings, 20 hostile or partial drawing shapes, typed figures over drawings) through the gate, the estimate, the public projection, the submit whitelist, the hand-off, the PDF and every review flag. No throws, no NaN, no negative or zero totals, no PDF leaks, no courtyard regressions. Two real bugs, fixed:
+- Drawings path: a correction typed over the Project Data grid (units, gross SF, stalls, any row) priced the live sidebar but was dropped at submit, so the saved request, the pre-con email, the review flags and the staff hand-off all ran on the uncorrected drawing read (test case: 120 units typed over a 200 unit read saved as 200 and $222,717 instead of $171,740). `validateAnswers` now keeps every `correct<RowKey>` answer for the grid's row keys (`CORRECTABLE_ROW_KEYS`, section "Corrections", 0 allowed, junk and unknown rows dropped). No migration: the answer rows already store any question key.
+- Both paths: three parsers read a typed figure three ways. "$300", "226,000 SF" and "300 units" priced live but were dropped at submit (Mike 9-18: commas and dressing are fine in any number field); "0.5" priced as 0.5 live but passed the gate as 1; ten digit numbers priced live but failed the gate. One reading now, `wholeFigure()` in `numberInput.js` (dressing fine, decimals round, negatives, letters and anything over 999,999,999 refused), used by the readiness gate, the submit whitelist and the quantity ladders.
+- Noted, not changed (Mike 10-14: "maybe the units are micro units"): with no drawings, a typed gross SF smaller than units x average unit SF prices as typed, no warning.
+- Files: `src/lib/numberInput.js`, `src/lib/intake/questionnaire.js`, `quantities.js`, `scripts/verify.mjs`; new test `intakeTypedParsing.test.mjs` (parsers agree, corrections survive submit and price the same, every row key quantities can emit is on the whitelist).
+
 ## [Public form: pool required, courtyards counted, sidebar needed list, grid borders] - October 14, 2026 (DEPLOYED) - no migration
 
 - No-drawings sidebar: the "still needed" list of required boxes vanished as soon as the first number came back (Mike 10-14). It now stays under the live total ("Still needed for your budget:") until every required box is filled (`BudgetSidebar` `needed` prop).
