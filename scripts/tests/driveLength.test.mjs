@@ -115,7 +115,7 @@ test('apartment types never get drive-lane lights, even with a length typed', ()
 test('the estimate hands the engine feet, so the budget carries the ÷ 81 lights', () => {
   const answers = {
     noDrawings: 'yes', projectType: TOWN, figureTotalUnits: '64', figureAvgUnitSf: '1800',
-    figureStories: '3', figureSurfaceParking: '90', figureDriveLengthFt: '2430', figureExteriorAmenitySf: '0',
+    figureStories: '3', figureSurfaceParking: '90', figureDriveLengthFt: '2430', figureExteriorAmenitySf: '0', hasPool: 'no',
   };
   const { budget } = computeIntakeEstimate({ answers });
   assert.equal(budget.sections.exterior.parking.driveLaneLights, 30);

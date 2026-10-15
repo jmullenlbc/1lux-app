@@ -5,7 +5,15 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [No drawings form cleanup] - October 14, 2026 (DEPLOYED) - no migration
+## [Public form: pool required, courtyards counted, sidebar needed list, grid borders] - October 14, 2026 (DEPLOYED) - no migration
+
+- No-drawings sidebar: the "still needed" list of required boxes vanished as soon as the first number came back (Mike 10-14). It now stays under the live total ("Still needed for your budget:") until every required box is filled (`BudgetSidebar` `needed` prop).
+- Drawings path figure grid: green border on every box that has an answer (read, estimated or typed), orange border on boxes still waiting on the visitor (Mike 10-14).
+- No drawings: the Exterior amenity SF box is gone ("No way they know that", Mike 10-14) and "Is there a pool?" is required. The pool answer drives the outdoor amenity math already built (`noDrawingsReady` asks for "Is there a pool? (yes or no)"). With drawings: no pool question, Exterior amenity SF stays required and includes the pool.
+- Courtyards are a count everywhere, 2 twelve foot pedestrian poles each, no length box ("Courtyard SF is absurd. We just need # of courtyards", Mike 10-14): public grid "# Courtyards" (with or without drawings), internal Project Data "# of Courtyards", dashboard "# Courtyards", master pricing "Courtyard: Pedestrian Poles Each" (`exterior.siteFeatures.courtyard.pedestrianPoles`, replaces feet per pole). Lengths the drawing reader measures are ignored. The 0115 "assumed length" tag and Confirm button are retired for courtyards; a row saved under the old 60 ft rule reads back as a count (`courtyardsFromFt`), and the old `courtyardFt` row key and `figureCourtyardFt` answer still read.
+- Files: `src/components/wizard/BudgetSidebar.jsx`, `src/app/conceptual_budget/IntakeClient.jsx`, `src/lib/intake/questionnaire.js`, `quantities.js`, `src/lib/siteFeatureWords.js`, `siteFeatures.js`, `siteFeatureRows.js`, `siteFields.js`, `pricing.js`, `PricingEditor.jsx`, `ProjectDataSection.jsx`, `ProjectDashboard.jsx`; tests `siteFeatures`, `siteFeatureAssumed`, `intakeHandoff`, `intakePublicMath`, `noDrawings`, `intakeNoDrawingsSidebar`, `driveLength`, `figureNorms`, `garagesCarports`, `intakePdf`.
+
+## [No drawings form cleanup] - October 14, 2026 (DEPLOYED 5d52176) - no migration
 
 - Mike 10-14, after testing No drawings: a typed 0 means zero, a blank box is estimated; hide the fields that annoy people with no drawings; one courts field; drop the clubhouse question; add "Is there a pool?".
 - A typed 0 now sticks on exterior amenity, garage, interior amenity, corridors, BOH and balconies (`ZERO_OK_FIGURES`, `statedCount`). A typed or corrected 0 no longer raises the "cannot change the budget" flag.

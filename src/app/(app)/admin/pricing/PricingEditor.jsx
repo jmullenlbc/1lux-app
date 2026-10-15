@@ -139,7 +139,7 @@ const PRICING_FIELDS = [
   { group: 'Site Features', key: 'exterior.siteFeatures.playground.pedestrianPoles',  label: 'Dog Park / Playground — Poles Each', desc: '12 ft pedestrian poles per dog park or playground (Mike 10-14: dog parks use the playground package)', unit: 'fixtures' },
   { group: 'Site Features', key: 'exterior.siteFeatures.playground.packageEach',      label: 'Dog Park / Playground: Package Price', desc: 'Price for each dog park or playground, poles included. Mike 2026-10-14: $3,000', unit: '$' },
   { group: 'Site Features', key: 'exterior.siteFeatures.tennisCourt.areaLights',      label: 'Tennis / Pickleball Court — Area Lights Each', desc: 'Area lights per tennis or pickleball court', unit: 'fixtures' },
-  { group: 'Site Features', key: 'exterior.siteFeatures.courtyard.ftPerPole',         label: 'Courtyard — Feet per Pole',      desc: 'One 12 ft pedestrian pole per this many feet of courtyard (longest dimension)', unit: 'ft' },
+  { group: 'Site Features', key: 'exterior.siteFeatures.courtyard.pedestrianPoles',   label: 'Courtyard: Pedestrian Poles Each', desc: '12 ft pedestrian poles per courtyard. Courtyards are counted, never measured (Mike 10-14).', unit: 'poles' },
   { group: 'Site Features', key: 'exterior.siteFeatures.turfPlay.ftPerPole',          label: 'Turf Play — Feet per Pole',      desc: 'One 12 ft pedestrian pole per this many feet of turf play area (longest dimension)', unit: 'ft' },
 
   // ── EMERGENCY ─────────────────────────────────────────────────────────

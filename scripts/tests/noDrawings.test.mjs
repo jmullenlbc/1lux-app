@@ -27,12 +27,12 @@ test('noDrawingsReady lists every missing required figure', () => {
   const r = noDrawingsReady({});
   assert.equal(r.ready, false);
   assert.deepEqual(r.missing, [
-    'Project type', 'Total units', 'Total building SF or average unit size', 'Stories', 'Surface parking stalls', 'Exterior amenity SF (0 if none)',
+    'Project type', 'Total units', 'Total building SF or average unit size', 'Stories', 'Surface parking stalls', 'Is there a pool? (yes or no)',
   ]);
 });
 
 // Stories and surface stalls are required too (Mike, 2026-09-12).
-const EASY = { figureStories: '3', figureSurfaceParking: '300', figureExteriorAmenitySf: '5000' };
+const EASY = { figureStories: '3', figureSurfaceParking: '300', hasPool: 'no' };
 
 test('noDrawingsReady rejects a project type that is not one of the options', () => {
   const r = noDrawingsReady({ projectType: 'Castle', figureTotalUnits: '200', figureGrossSf: '250000', ...EASY });
@@ -46,7 +46,7 @@ test('ready with total building SF, or with an average unit size instead', () =>
 });
 
 test('stories and surface stalls are required; 0 stalls is a real answer, 0 stories is not', () => {
-  const base = { projectType: PODIUM, figureTotalUnits: '300', figureGrossSf: '400000', figureExteriorAmenitySf: '0' };
+  const base = { projectType: PODIUM, figureTotalUnits: '300', figureGrossSf: '400000', hasPool: 'no' };
   assert.deepEqual(noDrawingsReady({ ...base, figureSurfaceParking: '20' }).missing, ['Stories']);
   assert.deepEqual(noDrawingsReady({ ...base, figureStories: '5' }).missing, ['Surface parking stalls']);
   assert.equal(noDrawingsReady({ ...base, figureStories: '5', figureSurfaceParking: '0' }).ready, true);
@@ -285,7 +285,7 @@ test('the engine adds drive-lane lights to the parking fixture count', () => {
 test('a typed-in estimate carries a ±10% "likely between" range; a drawing-read one does not', () => {
   const answers = {
     noDrawings: 'yes', projectType: GARDEN, figureTotalUnits: '200', figureGrossSf: '250000',
-    figureStories: '3', figureSurfaceParking: '300', figureExteriorAmenitySf: '5000',
+    figureStories: '3', figureSurfaceParking: '300', hasPool: 'no',
   };
   const { budget, range } = computeIntakeEstimate({ answers });
   const total = budget.totalWithControls;

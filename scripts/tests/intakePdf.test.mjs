@@ -23,7 +23,7 @@ import { formatCurrency } from '../../src/lib/format.js';
 const GARDEN = 'Garden (3 Levels)';
 const TYPED = {
   noDrawings: 'yes', projectType: GARDEN,
-  figureTotalUnits: '200', figureGrossSf: '250000', figureStories: '3', figureSurfaceParking: '300', figureExteriorAmenitySf: '5000',
+  figureTotalUnits: '200', figureGrossSf: '250000', figureStories: '3', figureSurfaceParking: '300', figureExteriorAmenitySf: '5000', hasPool: 'no',
 };
 
 const estimate = () => computeIntakeEstimate({ answers: { ...TYPED }, drawings: null });

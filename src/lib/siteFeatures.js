@@ -8,7 +8,7 @@
  * carports. What each one gets (gross / selling prices, no margin on top):
  *
  *   Dog park          1 area light at the entrance            ($1,400 each)
- *   Courtyard         1 twelve-foot pedestrian pole per 30 ft ($2,000 each)
+ *   Courtyard         2 twelve-foot pedestrian poles each (Mike 10-14, count only)
  *   Playground        2 twelve-foot pedestrian poles          ($2,000 each)
  *   Tennis court      4 area lights per court                 ($1,400 each)
  *   Pickleball court  4 area lights per court                 ($1,400 each)
@@ -48,7 +48,7 @@ export const SITE_FEATURE_PRICING_DEFAULTS = {
   playground:      { pedestrianPoles: 2, packageEach: 3000 }, // Mike 10-14: $3,000 per dog park / playground
   tennisCourt:     { areaLights: 4 },
   pickleballCourt: { areaLights: 4 },
-  courtyard:       { ftPerPole: 30 },
+  courtyard:       { pedestrianPoles: 2 }, // Mike 10-14: a count, 2 poles each, no length
   turfPlay:        { ftPerPole: 50 },
 };
 
@@ -101,7 +101,13 @@ export function siteFeatureFixtures(feature, rates = null) {
       how = `${count} ${label.toLowerCase()}${count === 1 ? '' : 's'} × ${per} area lights per court.`;
       break;
     }
-    case 'courtyard':
+    case 'courtyard': {
+      // Mike 10-14: nobody knows a courtyard's length; count them, 2 poles each.
+      const per = pos(R.courtyard?.pedestrianPoles, D.courtyard.pedestrianPoles);
+      fixtures = count * per; fixtureKind = 'pedestrianPole'; each = poleEach;
+      how = `${count} courtyard${count === 1 ? '' : 's'} × ${per} 12 ft pedestrian pole${per === 1 ? '' : 's'} each.`;
+      break;
+    }
     case 'turfPlay': {
       const ftPer = pos(R[type]?.ftPerPole, D[type].ftPerPole);
       fixtures = lengthFt > 0 ? Math.ceil(lengthFt / ftPer) : 0;

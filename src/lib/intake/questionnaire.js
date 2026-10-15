@@ -453,9 +453,9 @@ export function noDrawingsReady(answers) {
   }
   if (typedFigure(a.figureStories) == null) missing.push('Stories');
   if (typedCount(a.figureSurfaceParking) == null) missing.push('Surface parking stalls');
-  // Mike 2026-09-24: guessing it by building type ran 3× high on Modera Town
-  // Lake (28,575 guessed vs 8,806 real). 0 = none.
-  if (typedCount(a.figureExteriorAmenitySf) == null) missing.push('Exterior amenity SF (0 if none)');
+  // Mike 10-14: nobody without drawings knows the exterior amenity SF, but
+  // they do know whether there is a pool; the pool answer drives that guess.
+  if (!['yes', 'no'].includes(a[POOL_KEY])) missing.push('Is there a pool? (yes or no)');
   return { ready: missing.length === 0, missing };
 }
 

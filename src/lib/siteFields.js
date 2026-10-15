@@ -402,8 +402,7 @@ export function proposeSiteFeatures(vision, currentRows = null) {
       note:       [
         f.label ? `Labelled "${f.label}" on the drawing.` : 'Found by its printed label on the drawing.',
         linear && f.lengthFt == null ? 'No length could be measured. Enter the longest dimension in feet to price it.' : null,
-        linear && f.lengthAssumed ? `Not measured: ${f.count === 1 ? '60 ft' : `${f.count} courtyards at 60 ft each`} assumed (2 poles each). Measure or confirm.` : null,
-        linear && f.lengthFt != null && !f.lengthAssumed ? 'Length measured off the sheet. Confirm.' : null,
+        linear && f.lengthFt != null ? 'Length measured off the sheet. Confirm.' : null,
       ].filter(Boolean).join(' '),
       critical:   false,
       overwrites: currentValue != null && Number(currentValue) !== Number(value),

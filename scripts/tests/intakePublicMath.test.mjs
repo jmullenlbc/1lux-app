@@ -28,7 +28,7 @@ const ANSWERS = {
   figureGrossSf: '250000',
   figureStories: '3',
   figureSurfaceParking: '300',
-  figureExteriorAmenitySf: '5000',
+  figureExteriorAmenitySf: '5000', hasPool: 'no',
 };
 
 /** Keys that only ever carry working-out. None may appear anywhere public. */

@@ -51,7 +51,8 @@ const FIELDS = [
       // Sporadic site features (Mike 2026-09-16). Each is priced as its own
       // fixture package: area lights at the dog park entrance and around courts,
       // 12 ft pedestrian poles on playgrounds and along courtyards / turf play.
-      { key: 'courtyardFt',      label: 'Courtyard Length (ft)',     type: 'number', placeholder: '0', hint: 'Longest dimension of the courtyard(s), in feet. 1 pedestrian pole per 30 ft. Length unknown? Use 60 ft per courtyard (2 poles). 0 = none.' },
+      // Courtyards are a count, 2 pedestrian poles each (Mike 10-14: "Courtyard SF is absurd").
+      { key: 'courtyards',       label: '# of Courtyards',           type: 'number', placeholder: '0', hint: '2 pedestrian poles per courtyard. 0 = none.' },
       // Dog parks and pickleball courts fold into these two (Mike 10-14).
       { key: 'playgrounds',      label: '# of Dog Parks / Playgrounds', type: 'number', placeholder: '0', hint: '$3,000 package (2 pedestrian poles) per dog park or playground. 0 = none.' },
       { key: 'tennisCourts',     label: '# of Tennis / Pickleball Courts', type: 'number', placeholder: '0', hint: '4 area lights per court. 0 = none.' },
@@ -136,16 +137,6 @@ export default function ProjectDataSection({ projectId, projectData, responses =
 
   // Line-level alerts: a figure far off our real jobs of this building type.
   const figures = useFigureAlerts(projectId);
-  // A courtyard priced at the standard 60 ft each, not measured (0115).
-  const [courtyardConfirmed, setCourtyardConfirmed] = useState(false);
-  const courtyardAssumed = !courtyardConfirmed && (projectData?.siteFeatures || []).some(f => f?.type === 'courtyard' && f.lengthAssumed);
-  async function confirmCourtyard() {
-    const r = await fetch(`/api/projects/${projectId}/data`, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ confirmSiteFeatures: ['courtyard'] }),
-    }).catch(() => null);
-    if (r?.ok) setCourtyardConfirmed(true);
-  }
   const figureCtx = { buildingType: projectData?.buildingTypeKey, units: form.numUnits, grossSf: form.grossSf };
   const shownFields = FIELDS.flatMap(g => g.fields)
     .filter(field => !FIELD_ALLOWED[field.key] || FIELD_ALLOWED[field.key](projectData?.buildingTypeKey));
@@ -226,12 +217,6 @@ export default function ProjectDataSection({ projectId, projectData, responses =
                   min={0}
                 />
                 <FigureAlertNote alert={alerts[field.key]} saved={!dirty.has(field.key)} onRight={() => figures.markRight(field.key)} />
-                {field.key === 'courtyardFt' && courtyardAssumed && !dirty.has('courtyardFt') && (
-                  <div className="mt-1 flex items-center gap-2 text-xs text-amber-700">
-                    <span>Assumed, not measured: 60 ft per courtyard (2 poles each). Type the real length or confirm.</span>
-                    <button type="button" onClick={confirmCourtyard} className="px-2 py-0.5 rounded border border-amber-300 hover:bg-amber-50">Confirm</button>
-                  </div>
-                )}
                 </div>
               ))}
             </div>

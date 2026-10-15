@@ -35,16 +35,26 @@ export const SITE_FEATURE_LABELS = {
 export const SITE_FEATURE_FOLD = { dogPark: 'playground', pickleballCourt: 'tennisCourt' };
 
 /** The linear features — priced per foot of their longest dimension. */
-export const LINEAR_SITE_FEATURES = new Set(['courtyard', 'turfPlay']);
+export const LINEAR_SITE_FEATURES = new Set(['turfPlay']);
 
 /**
- * A courtyard no one measured counts as this many feet each: 2 pedestrian
- * poles at the default 1 pole per 30 ft (Mike 10-1: "2 poles per courtyard
- * until we learn more"). Drawings rarely dimension a courtyard, so a courtyard
- * seen on the landscape sheet with no length, or a count typed by a visitor,
- * becomes count x this many feet. A real measured length always wins.
+ * Courtyards are a COUNT, never a length (Mike 10-14: "Courtyard SF is
+ * absurd. We just need # of courtyards"): 2 pedestrian poles each. Before
+ * 10-14 a courtyard was priced per foot, 60 ft each when nobody measured it,
+ * so old rows and old drafts still carry feet. This constant only turns
+ * those feet back into a count.
  */
 export const COURTYARD_FT_EACH = 60;
+
+/** Legacy courtyard feet → a courtyard count (60 ft = 1; any length is at least 1). */
+export function courtyardsFromFt(ft) {
+  const n = Number(ft);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.max(1, Math.floor(n / COURTYARD_FT_EACH));
+}
+
+/** The pre-10-14 courtyard row key (feet); still accepted on the way in. */
+export const LEGACY_COURTYARD_FT_KEY = 'courtyardFt';
 
 /**
  * Clean one sheet's `siteFeatures` array: known types only, whole counts,
@@ -63,21 +73,19 @@ export function normalizeSiteFeatures(list, page = null) {
     if (!Number.isFinite(count) || count <= 0) continue;
     const len = Number(raw?.lengthFt);
     const lengthFt = LINEAR_SITE_FEATURES.has(type) && Number.isFinite(len) && len > 0 ? Math.round(len) : null;
-    const assumed = type === 'courtyard' && (lengthFt == null || raw?.lengthAssumed === true);
+    // A courtyard row written before 10-14 at the standard 60 ft each kept
+    // its count only in the feet (2 courtyards = 120 ft, count 1). Read it
+    // back as a count; a measured length is simply ignored now.
+    const legacyCount = type === 'courtyard' && raw?.lengthAssumed === true ? courtyardsFromFt(len) : 0;
     const label = String(raw?.label ?? '').trim().slice(0, 80) || null;
     const prev = byType.get(type);
     if (prev) {
-      prev.count += count;
+      prev.count += Math.max(count, legacyCount);
       if (lengthFt != null) prev.lengthFt = (prev.lengthFt ?? 0) + lengthFt;
-      if (!assumed) prev.lengthAssumed = false;
       if (!prev.label && label) prev.label = label;
     } else {
-      byType.set(type, { type, count, lengthFt, label, sheet: raw?.sheet ?? page ?? null, ...(assumed ? { lengthAssumed: true } : {}) });
+      byType.set(type, { type, count: Math.max(count, legacyCount), lengthFt, label, sheet: raw?.sheet ?? page ?? null });
     }
-  }
-  // A courtyard seen but not measured is priced at a standard length each.
-  for (const f of byType.values()) {
-    if (f.type === 'courtyard' && f.lengthFt == null) { f.lengthFt = f.count * COURTYARD_FT_EACH; f.lengthAssumed = true; }
   }
   return SITE_FEATURE_TYPES.filter(t => byType.has(t)).map(t => byType.get(t));
 }
@@ -88,7 +96,7 @@ export function normalizeSiteFeatures(list, page = null) {
  */
 export const SITE_FEATURE_ROW_KEYS = {
   dogPark:         'dogParks',
-  courtyard:       'courtyardFt',
+  courtyard:       'courtyards',
   playground:      'playgrounds',
   tennisCourt:     'tennisCourts',
   pickleballCourt: 'pickleballCourts',
@@ -96,14 +104,15 @@ export const SITE_FEATURE_ROW_KEYS = {
 };
 
 /** Row key → feature type (the reverse of SITE_FEATURE_ROW_KEYS). */
-export const SITE_FEATURE_TYPE_BY_ROW_KEY = Object.fromEntries(
-  Object.entries(SITE_FEATURE_ROW_KEYS).map(([type, key]) => [key, type])
-);
+export const SITE_FEATURE_TYPE_BY_ROW_KEY = {
+  ...Object.fromEntries(Object.entries(SITE_FEATURE_ROW_KEYS).map(([type, key]) => [key, type])),
+  [LEGACY_COURTYARD_FT_KEY]: 'courtyard', // old grids and drafts still send feet
+};
 
 /** Grid labels for the six flat row keys, in display order. */
 export const SITE_FEATURE_ROW_LABELS = {
   dogParks:         '# Dog Parks',
-  courtyardFt:      'Courtyard Length (ft)',
+  courtyards:       '# Courtyards',
   playgrounds:      '# Dog Parks / Playgrounds',
   tennisCourts:     '# Tennis / Pickleball Courts',
   pickleballCourts: '# Pickleball Courts',

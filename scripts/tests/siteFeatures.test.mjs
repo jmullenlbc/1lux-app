@@ -4,7 +4,7 @@
  *
  * Mike 2026-09-16, what each one gets:
  *   Dog park          1 area light at the entrance            ($1,400 each)
- *   Courtyard         1 twelve-foot pedestrian pole per 30 ft ($2,000 each)
+ *   Courtyard         2 twelve-foot pedestrian poles each (Mike 10-14, count only)
  *   Playground        2 twelve-foot pedestrian poles          ($2,000 each)
  *   Tennis court      4 area lights per court                 ($1,400 each)
  *   Pickleball court  4 area lights per court                 ($1,400 each)
@@ -24,7 +24,7 @@ import {
   siteFeaturesFromRows, siteFeaturesToRows, siteFeatureCostLine,
 } from '../../src/lib/siteFeatures.js';
 import {
-  describeSiteFeatureFinding, siteFeatureFindings, siteFeatureLineLabel, COURTYARD_FT_EACH,
+  describeSiteFeatureFinding, siteFeatureFindings, siteFeatureLineLabel, COURTYARD_FT_EACH, courtyardsFromFt,
 } from '../../src/lib/siteFeatureWords.js';
 import {
   siteFeatureFromFlat, isSiteFeatureRowKey, engineProjectData, describeSiteFeatureChange,
@@ -41,7 +41,7 @@ test('master sheet carries the six site feature rules at Mike\'s prices', () => 
   assert.equal(RATES.playground.pedestrianPoles, 2);
   assert.equal(RATES.tennisCourt.areaLights, 4);
   assert.equal(RATES.pickleballCourt.areaLights, 4);
-  assert.equal(RATES.courtyard.ftPerPole, 30);
+  assert.equal(RATES.courtyard.pedestrianPoles, 2);
   assert.equal(RATES.turfPlay.ftPerPole, 50);
 });
 
@@ -67,10 +67,11 @@ test('tennis and pickleball: 4 area lights per court', () => {
   assert.equal(siteFeatureFixtures({ type: 'pickleballCourt', count: 3 }, RATES).product, 3 * 4 * 1400);
 });
 
-test('courtyard: one pole per 30 ft, rounded up', () => {
-  assert.equal(siteFeatureFixtures({ type: 'courtyard', count: 1, lengthFt: 30 }, RATES).fixtures, 1);
-  assert.equal(siteFeatureFixtures({ type: 'courtyard', count: 1, lengthFt: 31 }, RATES).fixtures, 2);
-  assert.equal(siteFeatureFixtures({ type: 'courtyard', count: 1, lengthFt: 120 }, RATES).product, 4 * 2000);
+test('courtyard: two poles each, never measured (Mike 10-14)', () => {
+  assert.equal(siteFeatureFixtures({ type: 'courtyard', count: 1 }, RATES).fixtures, 2);
+  assert.equal(siteFeatureFixtures({ type: 'courtyard', count: 2 }, RATES).product, 4 * 2000);
+  // a stray length from an old row changes nothing
+  assert.equal(siteFeatureFixtures({ type: 'courtyard', count: 1, lengthFt: 900 }, RATES).fixtures, 2);
 });
 
 test('turf play: one pole per 50 ft, rounded up', () => {
@@ -80,7 +81,7 @@ test('turf play: one pole per 50 ft, rounded up', () => {
 });
 
 test('a linear feature with no length prices at $0 and says so', () => {
-  const r = siteFeatureFixtures({ type: 'courtyard', count: 1 }, RATES);
+  const r = siteFeatureFixtures({ type: 'turfPlay', count: 1 }, RATES);
   assert.equal(r.product, 0);
   assert.match(r.how, /no length known/);
 });
@@ -105,8 +106,9 @@ test('normalize: dedupes by type, drops junk, keeps display order', () => {
   assert.equal(list.find(f => f.type === 'tennisCourt').count, 2);
   assert.equal(list.find(f => f.type === 'tennisCourt').sheet, 3);
   assert.equal(list.find(f => f.type === 'playground').sheet, 7);
-  // an unmeasured courtyard counts at the standard length (Mike 10-1: 2 poles each)
-  assert.equal(list.find(f => f.type === 'courtyard').lengthFt, COURTYARD_FT_EACH);
+  // courtyards are a count, never a length (Mike 10-14)
+  assert.equal(list.find(f => f.type === 'courtyard').count, 1);
+  assert.equal(list.find(f => f.type === 'courtyard').lengthFt, null);
 });
 
 test('priceSiteFeatures totals fixtures by kind', () => {
@@ -130,10 +132,10 @@ test('master-pricing overrides win over the defaults', () => {
 });
 
 test('flat rows ⇄ feature list round trip', () => {
-  const rows = { dogParks: 1, courtyardFt: 90, playgrounds: 0, tennisCourts: 2, pickleballCourts: 0, turfPlayFt: 0 };
+  const rows = { dogParks: 1, courtyards: 2, playgrounds: 0, tennisCourts: 2, pickleballCourts: 0, turfPlayFt: 0 };
   const list = siteFeaturesFromRows(rows);
   assert.deepEqual(list.map(f => f.type), ['dogPark', 'courtyard', 'tennisCourt']);
-  assert.equal(list.find(f => f.type === 'courtyard').lengthFt, 90);
+  assert.equal(list.find(f => f.type === 'courtyard').count, 2);
   // the old dog park box comes back in the merged playground box
   assert.deepEqual(siteFeaturesToRows(list), { ...rows, dogParks: 0, playgrounds: 1 });
   assert.deepEqual(siteFeaturesToRows([{ type: 'pickleballCourt', count: 2 }, { type: 'tennisCourt', count: 1 }]).tennisCourts, 3);
@@ -144,8 +146,10 @@ test('flat rows ⇄ feature list round trip', () => {
 
 test('siteFeatureFromFlat: counts for count kinds, feet for linear kinds, 0 = none', () => {
   assert.deepEqual(siteFeatureFromFlat('dogParks', '2'), { type: 'dogPark', count: 2, lengthFt: null });
-  assert.deepEqual(siteFeatureFromFlat('courtyardFt', 75), { type: 'courtyard', count: 1, lengthFt: 75 });
-  assert.deepEqual(siteFeatureFromFlat('courtyardFt', 0), { type: 'courtyard', count: 0, lengthFt: 0 });
+  assert.deepEqual(siteFeatureFromFlat('courtyards', '2'), { type: 'courtyard', count: 2, lengthFt: null });
+  // the old feet box still reads: 60 ft = one courtyard (Mike 10-14)
+  assert.deepEqual(siteFeatureFromFlat('courtyardFt', 75), { type: 'courtyard', count: 1, lengthFt: null });
+  assert.deepEqual(siteFeatureFromFlat('courtyardFt', 0), { type: 'courtyard', count: 0, lengthFt: null });
   assert.equal(siteFeatureFromFlat('numUnits', 5), null);
   assert.equal(siteFeatureFromFlat('dogParks', -1), null);
   assert.equal(isSiteFeatureRowKey('turfPlayFt'), true);
@@ -170,7 +174,8 @@ test('engineProjectData attaches live rows and skips archived ones', () => {
 
 test('describeSiteFeatureChange reads like the activity log', () => {
   assert.equal(describeSiteFeatureChange('dogPark', null, { count: 1 }).text, 'Dog park: 0 → 1');
-  assert.equal(describeSiteFeatureChange('courtyard', { lengthFt: 60 }, { lengthFt: 90 }).text, 'Courtyard: 60 ft → 90 ft');
+  assert.equal(describeSiteFeatureChange('courtyard', { count: 1 }, { count: 2 }).text, 'Courtyard: 1 → 2');
+  assert.equal(describeSiteFeatureChange('turfPlay', { lengthFt: 60 }, { lengthFt: 90 }).text, 'Turf play area: 60 ft → 90 ft');
 });
 
 test('the budget engine prices site features on their own exterior line', () => {
@@ -179,7 +184,7 @@ test('the budget engine prices site features on their own exterior line', () => 
   const withFeat = calculateBudget({ ...base, siteFeatures: [
     { type: 'dogPark', count: 1 },
     { type: 'pickleballCourt', count: 2 },
-    { type: 'courtyard', count: 1, lengthFt: 60 },
+    { type: 'courtyard', count: 1 },
   ] }, {});
   const line = withFeat.sections.exterior.siteFeatures;
   assert.equal(line.product, 3000 + 2 * 4 * 1400 + 2 * 2000);
@@ -200,8 +205,9 @@ test('the budget engine prices site features on their own exterior line', () => 
 test('a found feature reads as plain words with its sheet', () => {
   assert.equal(describeSiteFeatureFinding({ type: 'dogPark', count: 1, sheet: 4 }), '1 dog park (sheet 4)');
   assert.equal(describeSiteFeatureFinding({ type: 'pickleballCourt', count: 2 }), '2 pickleball courts');
-  assert.equal(describeSiteFeatureFinding({ type: 'courtyard', count: 1, lengthFt: 90, sheet: 6 }), 'courtyard, 90 ft long (sheet 6)');
-  assert.equal(describeSiteFeatureFinding({ type: 'courtyard', count: 1 }), 'courtyard, length not measured');
+  assert.equal(describeSiteFeatureFinding({ type: 'courtyard', count: 1, sheet: 6 }), '1 courtyard (sheet 6)');
+  assert.equal(describeSiteFeatureFinding({ type: 'courtyard', count: 2 }), '2 courtyards');
+  assert.equal(describeSiteFeatureFinding({ type: 'turfPlay', count: 1 }), 'turf play area, length not measured');
   assert.equal(describeSiteFeatureFinding({ type: 'turfPlay', count: 2, lengthFt: 1200 }), '2 turf play areas, 1,200 ft long');
   assert.equal(describeSiteFeatureFinding({ type: 'pool', count: 1 }), null);
   assert.equal(describeSiteFeatureFinding({ type: 'dogPark', count: 0 }), null);
@@ -226,18 +232,18 @@ test('each priced feature gets its own breakdown label and its own cost line', (
   assert.equal(siteFeatureLineLabel(courts), 'Pickleball courts × 2 — 8 area lights');
   assert.equal(siteFeatureCostLine(courts), '8 area lights × $1,400 = $11,200');
 
-  const yard = siteFeatureFixtures({ type: 'courtyard', count: 1, lengthFt: 90 }, RATES);
-  assert.equal(siteFeatureLineLabel(yard), 'Courtyard, 90 ft — 3 pedestrian poles');
-  assert.equal(siteFeatureCostLine(yard), '3 pedestrian poles (12 ft) × $2,000 = $6,000');
+  const yard = siteFeatureFixtures({ type: 'courtyard', count: 1 }, RATES);
+  assert.equal(siteFeatureLineLabel(yard), 'Courtyard × 1 — 2 pedestrian poles');
+  assert.equal(siteFeatureCostLine(yard), '2 pedestrian poles (12 ft) × $2,000 = $4,000');
 
   const bare = siteFeatureFixtures({ type: 'turfPlay', count: 1 }, RATES);
   assert.equal(siteFeatureLineLabel(bare), 'Turf play area, no length yet');
   assert.equal(siteFeatureCostLine(bare), '$0 until a length is entered.');
 
   // The per-feature lines add up to the one line the engine reports.
-  const priced = priceSiteFeatures([{ type: 'dogPark', count: 1 }, { type: 'pickleballCourt', count: 2 }, { type: 'courtyard', count: 1, lengthFt: 90 }], RATES);
+  const priced = priceSiteFeatures([{ type: 'dogPark', count: 1 }, { type: 'pickleballCourt', count: 2 }, { type: 'courtyard', count: 1 }], RATES);
   assert.equal(priced.items.reduce((s, i) => s + i.product, 0), priced.product);
-  assert.equal(priced.product, 3000 + 11200 + 6000);
+  assert.equal(priced.product, 3000 + 11200 + 4000);
 });
 
 test('the words file carries no prices and the public screens import only it', () => {
@@ -270,12 +276,19 @@ test('all six kinds have a row key, a label and a rule', () => {
   }
 });
 
-test('courtyards with no printed length count 60 ft each; a measured length wins', () => {
+test('courtyards are a count; a measured length is ignored and old assumed feet convert (Mike 10-14)', () => {
   const [a] = normalizeSiteFeatures([{ type: 'courtyard', count: 3 }], 4);
-  assert.equal(a.lengthFt, 3 * COURTYARD_FT_EACH);
-  assert.equal(a.lengthAssumed, true);
+  assert.equal(a.count, 3);
+  assert.equal(a.lengthFt, null);
+  assert.ok(!('lengthAssumed' in a));
   const [b] = normalizeSiteFeatures([{ type: 'courtyard', count: 2, lengthFt: 90 }], 4);
-  assert.equal(b.lengthFt, 90);
-  assert.ok(!b.lengthAssumed);
+  assert.equal(b.count, 2);
+  assert.equal(b.lengthFt, null);
+  // a row saved before 10-14 at "60 ft each, assumed" reads back as its count
+  const [c] = normalizeSiteFeatures([{ type: 'courtyard', count: 1, lengthFt: 180, lengthAssumed: true }], 4);
+  assert.equal(c.count, 3);
+  assert.equal(courtyardsFromFt(0), 0);
+  assert.equal(courtyardsFromFt(45), 1);
+  assert.equal(courtyardsFromFt(120), 2);
   assert.equal(COURTYARD_FT_EACH, 60);
 });

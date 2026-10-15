@@ -17,7 +17,7 @@
  */
 import {
   SITE_FEATURE_TYPES, LINEAR_SITE_FEATURES, SITE_FEATURE_LABELS,
-  SITE_FEATURE_TYPE_BY_ROW_KEY, SITE_FEATURE_ROW_KEYS,
+  SITE_FEATURE_TYPE_BY_ROW_KEY, SITE_FEATURE_ROW_KEYS, LEGACY_COURTYARD_FT_KEY, courtyardsFromFt,
 } from './siteFeatures.js';
 import { parseLooseNumber } from './numberInput.js';
 
@@ -60,14 +60,16 @@ export async function loadSiteFeatures(client, projectId) {
 
 /**
  * Turn a flat grid/commit value into the row shape for its kind.
- * Linear kinds (courtyard, turf play) take feet; the rest take a count.
+ * The linear kind (turf play) takes feet; the rest, courtyards included, take a count.
  * @returns {{ type, count, lengthFt } | null} null when the key is not a site feature.
  */
 export function siteFeatureFromFlat(key, value) {
   const type = SITE_FEATURE_TYPE_BY_ROW_KEY[key];
   if (!type) return null;
-  const n = parseLooseNumber(value);          // "1,200" ft is fine
-  if (!Number.isFinite(n) || n < 0) return null;
+  const raw = parseLooseNumber(value);        // "1,200" ft is fine
+  if (!Number.isFinite(raw) || raw < 0) return null;
+  // The old courtyard box sent feet; courtyards are a count now (Mike 10-14).
+  const n = key === LEGACY_COURTYARD_FT_KEY ? courtyardsFromFt(raw) : raw;
   return LINEAR_SITE_FEATURES.has(type)
     ? { type, count: n > 0 ? 1 : 0, lengthFt: Math.round(n) }
     : { type, count: Math.round(n), lengthFt: null };

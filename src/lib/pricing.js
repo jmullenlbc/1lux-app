@@ -399,7 +399,7 @@ export const PRICING = {
       playground:      { pedestrianPoles: 2, packageEach: 3000 }, // $ per dog park / playground (Mike 10-14)
       tennisCourt:     { areaLights: 4 },
       pickleballCourt: { areaLights: 4 },
-      courtyard:       { ftPerPole: 30 },
+      courtyard:       { pedestrianPoles: 2 }, // per courtyard, count only (Mike 10-14)
       turfPlay:        { ftPerPole: 50 },
     },
     // ── SUPERSEDED, no longer wired ─────────────────────────────────────────

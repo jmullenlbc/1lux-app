@@ -99,7 +99,7 @@ test('adopted figures: newest live row wins, archived rows are ignored', () => {
 test('web-request hand-off tags typed figures as client and filled-in ones as guesses', () => {
   const plan = planHandoff({ answers: {
     noDrawings: 'yes', projectType: 'Garden (3 Levels)', figureTotalUnits: '200',
-    figureGrossSf: '250000', figureStories: '3', figureSurfaceParking: '300', figureExteriorAmenitySf: '5000',
+    figureGrossSf: '250000', figureStories: '3', figureSurfaceParking: '300', figureExteriorAmenitySf: '5000', hasPool: 'no',
   }, drawings: null });
   assert.equal(plan.sources.numSurfaceParking, 'client');
   assert.equal(plan.sources.numUnits, 'client');

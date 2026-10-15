@@ -258,7 +258,6 @@ const MANUAL_FIELDS = [
   { key: 'figureBalconies',         qKey: 'balconies',         label: '# of Balconies',            placeholder: 'e.g. 150' },
   { key: 'figureInteriorAmenitySf', qKey: 'interiorAmenitySf', label: 'Interior amenity SF',       placeholder: 'e.g. 5,000',   hint: 'Clubhouse, leasing, fitness. Enter 0 if none.' },
   { key: 'figureGarageSf',          qKey: 'garageSf',          label: 'Garage SF',                 placeholder: 'e.g. 80,000',  hint: 'Enter 0 if there is no parking garage.' },
-  { key: 'figureExteriorAmenitySf', qKey: 'exteriorAmenitySf', label: 'Exterior amenity SF',       placeholder: 'e.g. 12,000',  need: 'required', hint: 'Pool deck, amenity deck, courtyards. Enter 0 if none.' },
   // Mike 10-14: "If there are no drawings, all these fields will annoy
   // people." Buildings, exit doors, corridors, back of house, private drive
   // and the site features are not asked here; corridors and back of house
@@ -1085,7 +1084,9 @@ export default function IntakeClient() {
           const edited = typed.trim() !== '';
           const needed = !edited && row.display === '';
           return (
-            <div key={row.key} className={cn(needed && '-mx-2 rounded-lg bg-amber-50 px-2 py-1 ring-1 ring-amber-200')}>
+            // Mike 10-14: green border = answered (read, estimated or typed);
+            // orange border = still blank and waiting on the visitor.
+            <div key={row.key} className={cn('-mx-2 rounded-lg px-2 py-1 ring-1', needed ? 'bg-orange-50 ring-orange-400' : 'ring-emerald-300')}>
               <div className={cn('flex flex-wrap items-center gap-x-1.5 text-xs', needed ? 'text-amber-800' : 'text-slate-400')}>
                 <span>{row.label}</span>
                 {needed && (
@@ -1517,7 +1518,7 @@ export default function IntakeClient() {
                           <p className="text-xs text-slate-500 mt-0.5">Don&apos;t know one? Leave it and we&apos;ll estimate it.</p>
                           {/* No "Optional" tag on each box — the heading already says it. */}
                           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
-                            <FigureField label="Is there a pool?">
+                            <FigureField label="Is there a pool?" labelRight="Required">
                               <select
                                 className={inputCls}
                                 value={answers.hasPool || ''}
@@ -1819,7 +1820,8 @@ export default function IntakeClient() {
         {!submitted && (
           hasEstimate ? (
             <div className="hidden lg:flex shrink-0">
-              <BudgetSidebar budget={budget} projectData={estimatePd} currentStep={step.budgetStep || null} range={range} projectName={project} homeType={homeType} />
+              <BudgetSidebar budget={budget} projectData={estimatePd} currentStep={step.budgetStep || null} range={range} projectName={project} homeType={homeType}
+                needed={manual && !manualCheck.ready ? manualCheck.missing : null} />
             </div>
           ) : (
             <aside className="hidden lg:flex w-64 bg-white border-l border-slate-100 flex-col shrink-0">
@@ -1831,8 +1833,8 @@ export default function IntakeClient() {
               <div className="px-4 py-4">
                 {/* Say what is holding the number back. Mike 10-9: on the
                     no-drawings path the sidebar sat on "Upload your drawings"
-                    while one required box (surface stalls, exterior amenity
-                    SF) was still blank, so it looked broken. */}
+                    while one required box (surface stalls, pool yes/no)
+                    was still blank, so it looked broken. */}
                 {manual && !manualCheck.ready ? (
                   <>
                     <p className="text-xs text-slate-500 leading-relaxed">

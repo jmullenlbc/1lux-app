@@ -26,7 +26,7 @@ const ANSWERS = {
   figureGrossSf: '250000',
   figureStories: '3',
   figureSurfaceParking: '300',
-  figureExteriorAmenitySf: '5000',
+  figureExteriorAmenitySf: '5000', hasPool: 'no',
   figureDogParks: '1',
   figurePickleballCourts: '2',
   figureCourtyardFt: '90',
@@ -65,7 +65,7 @@ test('whole-number columns get whole numbers, and nothing blank is written', () 
 test('site features become rows, marked typed or drawing', () => {
   const plan = planHandoff({ answers: ANSWERS, drawings: null });
   assert.deepEqual(plan.features.map(f => [f.type, f.count, f.lengthFt, f.source]).sort(), [
-    ['courtyard', 1, 90, 'typed'],
+    ['courtyard', 1, null, 'typed'], // old feet answer: 90 ft = 1 courtyard (10-14)
     ['playground', 1, null, 'typed'], // dog park folds into playground (10-14)
     ['tennisCourt', 2, null, 'typed'], // pickleball folds into tennis (10-14)
   ]);

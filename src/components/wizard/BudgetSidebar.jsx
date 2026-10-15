@@ -37,7 +37,10 @@ function PlainRow({ label, value, indent, highlight, bold }) {
 // server estimate carries a ±10% band; the internal wizard never passes it.
 // `areaNotes` ({ [area]: node }) and `areaSummary` are the staff-only area
 // alerts, passed only by the internal wizards — never by the public form.
-export default function BudgetSidebar({ budget, projectData, currentStep, range = null, areaNotes = null, areaSummary = null, projectName = '', homeType = false }) {
+// `needed` (string[]) is the public no-drawings form's list of required boxes
+// still blank. Mike 10-14: the list vanished as soon as the first number came
+// back, so it now stays under the total until every required box is filled.
+export default function BudgetSidebar({ budget, projectData, currentStep, range = null, areaNotes = null, areaSummary = null, projectName = '', homeType = false, needed = null }) {
   if (!budget) return null;
 
   const { sections, freight, warehousing, freightRate, warehousingRate, lightingProductSubtotal, subtotalLightingOnly, controls, controlsFreight, controlsWarehousing, totalWithControls, perSf, perUnit, energyCreditPct, energyCreditLighting, energyCreditControls } = budget;
@@ -65,6 +68,16 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
         {hasData && range && (
           <div className="mt-2 text-xs text-navy-300 tabular-nums leading-snug">
             Likely between {formatCurrency(range.low)} and {formatCurrency(range.high)}
+          </div>
+        )}
+        {needed?.length > 0 && (
+          <div className="mt-3 border-t border-navy-800 pt-2">
+            <p className="text-xs text-navy-300 leading-relaxed">Still needed for your budget:</p>
+            <ul className="mt-1 space-y-0.5">
+              {needed.map(m => (
+                <li key={m} className="text-xs text-amber-300 font-medium leading-relaxed">• {m}</li>
+              ))}
+            </ul>
           </div>
         )}
       </div>
