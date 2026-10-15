@@ -1,18 +1,18 @@
 /**
- * The public conceptual estimate — answers (+ drawings) in, budget out.
+ * The public conceptual estimate, answers (+ drawings) in, budget out.
  *
  * SERVER-ONLY. Pulled out of /api/intake/estimate (2026-09-12) so the live
  * estimate and the downloadable PDF run the exact same math from the same
  * inputs: the PDF route recomputes from the visitor's answers rather than
  * trusting any number the browser sends. Never import this from a client
- * component — it reaches the pricing model through calculations.js and the
+ * component, it reaches the pricing model through calculations.js and the
  * no-drawings guesses through quantities.js.
  *
  * Pure: pricing is passed in (loadPricing() touches the database), so the
  * unit tests can run it with the engine's static default.
  *
- * @see src/app/api/intake/estimate/route.js — the live sidebar number
- * @see src/app/api/intake/pdf/route.js      — the PDF download
+ * @see src/app/api/intake/estimate/route.js, the live sidebar number
+ * @see src/app/api/intake/pdf/route.js    : the PDF download
  */
 import { answersToEngine, NO_DRAWINGS_KEY, noDrawingsReady, INTAKE_QUESTIONS } from './questionnaire.js';
 import { NO_DRAWING_GUESSES } from './noDrawingGuesses.js';
@@ -24,7 +24,7 @@ import { controlsMathOf } from './controlsWords.js';
 
 const INTAKE_TYPE_OPTIONS = INTAKE_QUESTIONS.find(q => q.key === 'projectType')?.options || [];
 
-/** A stated, usable number — or null (Number(null) is 0, hence the dance). */
+/** A stated, usable number, or null (Number(null) is 0, hence the dance). */
 function num(v) {
   const n = parseLooseNumber(v);            // "226,000" typed on the public page
   return Number.isFinite(n) && n >= 0 ? n : null;
@@ -39,7 +39,7 @@ function num(v) {
  * the bare endpoint can't be used as a free pricing calculator.
  *
  * The one other way in (Mike, 2026-09-11): the visitor answered "no
- * drawings" and typed the minimum no guess can replace — project type,
+ * drawings" and typed the minimum no guess can replace, project type,
  * total units, and total building SF or an average unit size. Any drawings
  * sent alongside a "no drawings" answer are ignored.
  *
@@ -79,7 +79,7 @@ function provisionalAnswers(answers) {
 /**
  * Price a public submission.
  *
- * @returns {{ budget, projectData, quantities }} — budget/projectData null
+ * @returns {{ budget, projectData, quantities }}, budget/projectData null
  *   (and quantities empty) when the gate above says no.
  */
 export function computeIntakeEstimate({ answers, drawings, pricing = null, adopted = null, provisional = false, _standIns = false }) {
@@ -91,7 +91,7 @@ export function computeIntakeEstimate({ answers, drawings, pricing = null, adopt
     return { ...full, range: null, provisional: true, missing: gate.missing };
   }
 
-  // Drawings → quantities (null stays null: "the drawing did not say"). A
+  // Drawings -> quantities (null stays null: "the drawing did not say"). A
   // typed-in budget passes no drawings; its blanks get the stand-in guesses.
   const rows = computeQuantities(gate.hasDrawings ? drawings : null, answers || null, pricing, adopted);
   const q = {};
@@ -99,8 +99,22 @@ export function computeIntakeEstimate({ answers, drawings, pricing = null, adopt
 
   const { sections, buildingTypeKey } = answersToEngine(answers);
 
+  // Stairs are never asked on the public tool (Mike 10-14). Without drawings,
+  // more than 3 stories means an elevator building with normal egress
+  // stairwells; a 3-story walk-up keeps the engine's breezeway default at the
+  // average breezeway cost. With drawings, the site read says whether the
+  // breezeway stair is the small or the long kind.
+  const storiesKnown = num(q.stories);
+  if (!gate.hasDrawings && storiesKnown != null && storiesKnown > 3) {
+    sections.corridors = { ...(sections.corridors || {}), stairType: 'interior' };
+  }
+  const readStyle = drawings?.siteData?.breezewayStyle;
+  if (gate.hasDrawings && (readStyle === 'small' || readStyle === 'long')) {
+    sections.corridors = { ...(sections.corridors || {}), breezewayStyle: readStyle };
+  }
+
   // A known exit-door count (drawing-stated, counted, or visitor-typed) is a
-  // better wallpack quantity than the engine's per-building fallback model —
+  // better wallpack quantity than the engine's per-building fallback model,
   // wallpacks are the one door fixture, one per egress door. Passed as the
   // engine's own quantity-override seam, so the reviewed budget behaves the
   // same way when it inherits these sections.
@@ -140,12 +154,12 @@ export function computeIntakeEstimate({ answers, drawings, pricing = null, adopt
     exteriorAmenitySf:   num(q.exteriorAmenitySf),
     garageSf:            num(q.garageSf),
     bohSf:               num(q.bohSf),
-    // The engine field is named numEgressStairwells but HOLDS LANDINGS — the
+    // The engine field is named numEgressStairwells but HOLDS LANDINGS, the
     // internal wizard labels it "Stairwell Landings" and prices $200 per
-    // landing. The takeoff's stairLandings row (stairs × (2×stories−1)) is
+    // landing. The takeoff's stairLandings row (stairs × (2×stories-1)) is
     // the matching figure; the raw shaft count would underprice 5-9×.
     numEgressStairwells: num(q.stairLandings),
-    // Residential building count (stated → counted off the site plan →
+    // Residential building count (stated -> counted off the site plan ->
     // typed). The engine's wallpack model scales on it; the takeoff already
     // multiplied the per-building stair count by it.
     numBuildings:        num(q.buildings),
@@ -155,7 +169,7 @@ export function computeIntakeEstimate({ answers, drawings, pricing = null, adopt
     lotSf:               num(q.lotSf),
     buildingFootprintSf: num(q.buildingFootprintSf),
     buildingTypeKey:     buildingTypeKey || undefined,
-    // Sporadic site features (Mike 2026-09-16) — the same seam the internal
+    // Sporadic site features (Mike 2026-09-16), the same seam the internal
     // wizard feeds from the project's SiteFeature rows. Built from the
     // takeoff rows (drawing-read or typed); empty when none were found.
     siteFeatures:        siteFeaturesFromRows(q),
@@ -166,12 +180,12 @@ export function computeIntakeEstimate({ answers, drawings, pricing = null, adopt
 
   // The wizard's "we couldn't find these" card keys off where each figure
   // came from: null = ask for it, 'derived' = show our estimate and offer an
-  // override, 'drawing'/'questionnaire' = settled. Values + provenance only —
+  // override, 'drawing'/'questionnaire' = settled. Values + provenance only,
   // no pricing.
   // `corrected`/`wasValue` ride along so the grid can show "you changed this,
   // we had read 200" next to the figure. They are display provenance, not
   // pricing: the money already moved, because `q` above is built from these
-  // same rows. Listed explicitly like every other field — this projection is
+  // same rows. Listed explicitly like every other field, this projection is
   // what keeps the pricing model from leaking into a public browser, so it
   // stays a named list rather than a spread.
   const quantities = rows.map(r => ({
@@ -181,18 +195,18 @@ export function computeIntakeEstimate({ answers, drawings, pricing = null, adopt
     assumed: r.assumed === true,
   }));
 
-  // `sections` is for the staff hand-off (src/lib/intake/handoff.js) only — the
+  // `sections` is for the staff hand-off (src/lib/intake/handoff.js) only, the
   // public projection below names its fields and never passes it on.
   return { budget, projectData, sections, quantities, range: typedInRange(budget, gate.hasDrawings) };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// The PUBLIC projection — dollars and the visitor's own quantities, no formulas
+// The PUBLIC projection, dollars and the visitor's own quantities, no formulas
 // ─────────────────────────────────────────────────────────────────────────────
 //
 // Mike, 2026-09-16: "We don't want to give away to the world all the math we
 // are doing… Someone could steal all the math." The engine's budget object is
-// generous on purpose — every line carries its count, its per-fixture price,
+// generous on purpose, every line carries its count, its per-fixture price,
 // its multiplier, and every site feature says "1 pole per 30 ft". That is what
 // the INTERNAL screens are for. The public page gets what a visitor needs to
 // read their own budget: a label, their own count or length, and the dollars.
@@ -204,7 +218,7 @@ export function computeIntakeEstimate({ answers, drawings, pricing = null, adopt
 
 /** Top-level budget figures the public sidebar, review step and PDF print. */
 const PUBLIC_BUDGET_KEYS = [
-  'freight', 'warehousing', // dollars only — the rates behind them stay internal (Mike 9-17)
+  'freight', 'warehousing', // dollars only, the rates behind them stay internal (Mike 9-17)
   'lightingProductSubtotal', 'subtotalLightingOnly',
   'controls', 'controlsFreight', 'controlsWarehousing', 'controlsTotal',
   'totalWithControls', 'perSf', 'perUnit',
@@ -235,7 +249,7 @@ function publicLines(node) {
         })),
       };
     } else if (k === 'parking' && v && typeof v === 'object') {
-      // The dollars plus "approx. 47 area lights" — not how the 47 was reached.
+      // The dollars plus "approx. 47 area lights", not how the 47 was reached.
       out.parking = { product: Number(v.product) || 0, approx: approxWords(v.fixtures, 'area lights') };
     } else if (k === 'wallpacks' && v && typeof v === 'object') {
       out.wallpacks = { product: Number(v.product) || 0, approx: approxWords(v.qty, 'wallpacks') };
@@ -251,7 +265,7 @@ function publicLines(node) {
 }
 
 /**
- * "Approx. 47 area lights" — a rounded count in plain words, never the price
+ * "Approx. 47 area lights", a rounded count in plain words, never the price
  * each and never the rule that produced it (Mike 2026-09-18: "Counts and
  * dollars makes it real and doesn't tell people our backend secret logic").
  * Anything under ten is printed as-is; larger counts round to the nearest 5.
@@ -263,7 +277,7 @@ export function approxWords(count, noun) {
   return `approx. ${rounded.toLocaleString()} ${noun}`;
 }
 
-/** "What this answer costs" — the dollars and a rounded count, never count × price-each. */
+/** "What this answer costs", the dollars and a rounded count, never count × price-each. */
 function publicQuestionCosts(costs) {
   const out = {};
   for (const [key, c] of Object.entries(costs || {})) {
@@ -296,7 +310,7 @@ export const MATH_RE = /[×÷=$]|\d\s*%|\bper\b|\bratio\b|\bfactor\b|\bmultipl|\
 
 const HOW_DERIVED  = 'Our estimate, worked out from the other figures on this project. Type over it if you know the real number.';
 const HOW_DRAWINGS = 'Worked out from figures printed on the drawings.';
-const FLAG_DERIVED = 'Please confirm this figure — it was estimated rather than read off a sheet.';
+const FLAG_DERIVED = 'Please confirm this figure, it was estimated rather than read off a sheet.';
 const FLAG_OTHER   = 'Please confirm this figure.';
 
 /** One takeoff row with the working-out taken off it. Value and source stay. */
@@ -304,7 +318,7 @@ export function publicQuantity(r) {
   let how = r.how ?? null;
   let flag = r.flag ?? null;
   if (r.corrected) {
-    // "Corrected by you to 210. We read 200 — 1.4 balconies per unit…": the
+    // "Corrected by you to 210. We read 200, 1.4 balconies per unit…": the
     // tail is the old working-out. `wasValue` already carries the 200.
     how = r.wasValue != null ? 'Corrected by you.' : 'Entered by you.';
   } else if (r.source === 'derived') {
@@ -323,8 +337,8 @@ export function publicQuantity(r) {
 
 /**
  * What /api/intake/estimate sends to a public browser. Same math, same totals
- * as computeIntakeEstimate — staff, the PDF and the hand-off keep using that
- * one — with the formulas taken out.
+ * as computeIntakeEstimate, staff, the PDF and the hand-off keep using that
+ * one, with the formulas taken out.
  */
 export function publicIntakeEstimate(args) {
   const full = computeIntakeEstimate(args);
@@ -341,7 +355,7 @@ export function publicIntakeEstimate(args) {
  * The "likely between" band on a typed-in budget (Mike, 2026-09-12: "we have
  * to get all these percentages within 10% in the conceptual budget"). Ten real
  * ILC budgets land within about ±10% of this estimate, so the band is ±10%,
- * rounded out to the nearest $1,000. Drawing-read budgets get no band — they
+ * rounded out to the nearest $1,000. Drawing-read budgets get no band, they
  * haven't been measured the same way.
  *
  * @returns {{ low: number, high: number, pct: number } | null}

@@ -1,10 +1,10 @@
 'use client';
 /**
- * "Upload your drawings" — the questionnaires' front door to the extractors.
+ * "Upload your drawings", the questionnaires' front door to the extractors.
  *
  * Before this existed, every drawing-reading pipeline lived on the Project
  * Hub's Takeoffs tab, and someone filling out a questionnaire was never told
- * uploading was possible — they typed numbers a drawing already stated. This
+ * uploading was possible, they typed numbers a drawing already stated. This
  * panel puts both extractors (unit matrix, site plan) at the Project Data step
  * of BOTH questionnaires, which share that step, so it is one mount point each.
  *
@@ -15,7 +15,7 @@
  * widget's `onCommitted` so the questionnaire form and live budget refresh the
  * moment an apply lands instead of after a page reload.
  *
- * Open by default only while the project has no unit count yet — that is the
+ * Open by default only while the project has no unit count yet, that is the
  * blank-questionnaire moment when uploading saves the most typing. Once
  * numbers exist it collapses to a single line so the form stays the focus.
  *
@@ -43,7 +43,7 @@ export default function QuestionnaireUploads({ projectId, projectData, onProject
           <div className="min-w-0">
             <div className="text-sm font-semibold text-slate-800">Have drawings? Upload them instead of typing</div>
             <div className="text-xs text-slate-500 truncate">
-              A unit mix table or site plan fills these fields for you — you review every number before it&apos;s saved.
+              A unit mix table or site plan fills these fields for you, you review every number before it&apos;s saved.
             </div>
           </div>
         </div>

@@ -303,3 +303,39 @@ test('without the no-drawings marker nothing is guessed', () => {
   assert.equal(out.interiorAmenitySf.value, null);
   assert.notEqual(out.surfaceParking.source, 'derived');
 });
+
+// Mike 10-14: no public stair question. Without drawings, more than 3 stories
+// means an elevator building with normal egress stairwells; a 3-story walk-up
+// keeps the breezeway at the average cost. With drawings, the site read says
+// small or long.
+test('no drawings: a garden walk-up prices breezeway stairs at the average style', () => {
+  const answers = {
+    noDrawings: 'yes', projectType: GARDEN, figureTotalUnits: '200', figureGrossSf: '250000',
+    figureStories: '3', figureSurfaceParking: '300', hasPool: 'no',
+  };
+  const est = computeIntakeEstimate({ answers });
+  assert.equal(est.sections.corridors?.stairType, undefined);
+  assert.equal(est.budget.sections.corridors.stairwells.breezeway?.style, "average");
+});
+
+test('no drawings: more than 3 stories means an elevator building with normal egress stairwells', () => {
+  const answers = {
+    noDrawings: 'yes', projectType: GARDEN, figureTotalUnits: '200', figureGrossSf: '250000',
+    figureStories: '4', figureSurfaceParking: '300', hasPool: 'no',
+  };
+  const est = computeIntakeEstimate({ answers });
+  assert.equal(est.sections.corridors.stairType, 'interior');
+  assert.equal(est.budget.sections.corridors.stairwells.breezeway ?? null, null);
+});
+
+test('with drawings: the site read breezeway style (small or long) reaches the engine', () => {
+  const drawings = {
+    sources: ['a.pdf'],
+    siteData: { totalUnits: 200, grossSf: 250000, stories: 3, surfaceParking: 300, buildingType: 'garden', breezewayStyle: 'long' },
+  };
+  const est = computeIntakeEstimate({ answers: { projectType: GARDEN, hasPool: 'no' }, drawings });
+  assert.equal(est.sections.corridors.breezewayStyle, 'long');
+  assert.equal(est.budget.sections.corridors.stairwells.breezeway?.style, "long");
+  const bad = computeIntakeEstimate({ answers: { projectType: GARDEN, hasPool: 'no' }, drawings: { ...drawings, siteData: { ...drawings.siteData, breezewayStyle: 'huge' } } });
+  assert.equal(bad.sections.corridors?.breezewayStyle, undefined);
+});

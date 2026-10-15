@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 import AlertMark from '@/components/ui/AlertMark';
 
 /**
- * Public conceptual-budget intake — the SAME experience as the internal
+ * Public conceptual-budget intake, the SAME experience as the internal
  * wizard, on Mike's rule (2026-09-01): "Make sure the UI/UX is identical to
  * the internal tool with different pages for different areas of the building
  * with the side bar on the left for those different areas and a live budget
@@ -30,25 +30,25 @@ import AlertMark from '@/components/ui/AlertMark';
  * prices client-side with the full PRICING model in the bundle, but that
  * model is ILC's cost book and must not ship to a public visitor's browser.
  * Answers are debounced up to /api/intake/estimate and only the computed
- * budget object comes back — which is why the public QuestionCards show
+ * budget object comes back, which is why the public QuestionCards show
  * descriptive subtext instead of per-option dollar adders.
  *
  * Duplicate project-name checking is intentionally NOT done live here. Doing
  * so against all projects from an unauthenticated page would let anyone
  * enumerate the client project list by guessing names. It belongs either in
  * the ILC review queue, or scoped to the submitter's own resolved client once
- * email→client mapping exists. See `findDuplicateProjects` in lib/intake.js.
+ * email->client mapping exists. See `findDuplicateProjects` in lib/intake.js.
  */
 
 const CONFIRM_NOTE = 'We will confirm all numbers are correct and send you a budget within 48hrs.';
 
-// ── Saved in this browser ────────────────────────────────────────────────────
+// === Saved in this browser ===
 // Mike, 2026-09-15: "People need to be able to fill out a budget and come back
 // to it somehow … Browser save now." There is no login on this page, so the
 // draft lives in the visitor's own browser (localStorage) and nowhere else:
 // close the tab, come back next week on the same device, pick up where you
-// left off. It is the visitor's INPUTS only — what they typed, what they
-// answered, what we read off their drawings — never the estimate and never a
+// left off. It is the visitor's INPUTS only, what they typed, what they
+// answered, what we read off their drawings, never the estimate and never a
 // price. Nothing here reaches a server, and nothing here expires.
 //
 // A resume LINK that works across devices needs a server-side copy and an
@@ -61,7 +61,7 @@ const CONFIRM_NOTE = 'We will confirm all numbers are correct and send you a bud
 // show until we hook up Microsoft email to it").
 const RESUME_LINK_ENABLED = false;
 // One look for every button in the summary page's top row.
-const topBtn = 'px-5 py-2.5 rounded-lg font-semibold text-sm border transition-colors';
+const topBtn = 'px-4 py-2 rounded-lg font-semibold text-sm border transition-colors';
 const DRAFT_KEY = 'ilc.conceptualBudget.draft.v1';
 // This tab's visit id for the staff visitors page. sessionStorage, so a new
 // tab or a later day is a new visit; it holds an id and nothing else.
@@ -121,17 +121,21 @@ function fmtSavedAt(iso) {
 
 /**
  * The step list, mirroring the internal wizard's area order
- * (units → corridors → amenities → exterior → emergency → controls).
+ * (units -> corridors -> amenities -> exterior -> emergency -> controls).
  * `sections` names the INTAKE_QUESTIONS groups shown on that page;
  * `budgetStep` is the internal step id BudgetSidebar highlights.
- * `hint` is the one line under the page heading — what to do there and why
+ * `hint` is the one line under the page heading, what to do there and why
  * (beta prep, 2026-09-12). Plain words; keep them true to what the page does.
  */
 const STEPS = [
   { id: 'about',     short: 'About You',     label: 'About You & Your Project',
     hint: 'Start with your details and where the project is, so we can put your budget together and get back to you.' },
   { id: 'drawings',  short: 'Drawings',      label: 'Upload Drawings',
-    hint: 'Upload your drawing set if you have one — we read unit counts and sizes from it. No drawings? Choose “No drawings yet” and type in a few numbers instead.' },
+    hint: 'Upload your drawing set if you have one, we read unit counts and sizes from it. No drawings? Choose “No drawings yet” and type in a few numbers on the next page instead.' },
+  // Mike 10-14: "If you pick no drawings, go to the next screen for all
+  // building data points. It's the next step." Only on the no-drawings path.
+  { id: 'figures',   short: 'Figures',       label: 'Building Figures',
+    hint: 'Type in what you know about the building. Real numbers beat our estimates; leave a box blank and we estimate it.' },
   { id: 'units',     short: 'Units',         label: 'Residential Units',      sections: ['Residential units'],        budgetStep: 'units',
     hint: 'Choose the lighting inside the apartments. Each choice updates your budget.' },
   { id: 'corridors', short: 'Corridors',     label: 'Corridors & Stairwells', sections: ['Corridors and stairwells'], budgetStep: 'corridors',
@@ -154,11 +158,14 @@ const STEPS = [
 // on Units. `extraKeys` adds questions to a page.
 const HOME_UNITS_STEP = { extraKeys: ['unitEntrySconce'],
   hint: 'Choose the lighting inside each home, by its front door and on its back balcony. Each choice updates your budget.' };
-const stepsFor = projectType => isHomeProjectType(projectType)
-  ? STEPS.filter(s => s.id !== 'corridors').map(s => (s.id === 'units' ? { ...s, ...HOME_UNITS_STEP } : s))
-  : STEPS;
+const stepsFor = (projectType, manual = false) => {
+  const base = manual ? STEPS : STEPS.filter(s => s.id !== 'figures');
+  return isHomeProjectType(projectType)
+    ? base.filter(s => s.id !== 'corridors').map(s => (s.id === 'units' ? { ...s, ...HOME_UNITS_STEP } : s))
+    : base;
+};
 
-/** "How this works" on the About step — four short steps, plain words. */
+/** "How this works" on the About step, four short steps, plain words. */
 const HOW_IT_WORKS = [
   { title: 'Tell us about your project', body: 'your name, work email, project name and location.' },
   { title: 'Add your drawings, or skip them', body: 'upload your drawing set if you have one. No drawings? Type in the building type, number of units and rough size.' },
@@ -170,7 +177,7 @@ const HOW_IT_WORKS = [
  * The figures the wizard asks the visitor to TYPE when the drawings didn't
  * answer them (Mike, 2026-09-04: "answer as many of these questions as
  * possible and then ask them for what we can't find"). `key` matches
- * FIGURE_KEYS in questionnaire.js — the server-side whitelist that lets these
+ * FIGURE_KEYS in questionnaire.js, the server-side whitelist that lets these
  * ride inside `answers`; `qKey` is the computeQuantities row each one settles.
  */
 // Some boxes only exist for some project types (`types`, matched against the
@@ -196,7 +203,7 @@ const fieldsFor = (list, projectType) => list.filter(f => !f.types || f.types.in
 
 // Sporadic site features (Mike, 2026-09-16): dog parks, courtyards,
 // playgrounds, courts, turf play areas. Read off the site / landscape plan
-// when they are labelled there; otherwise typed here. Never estimated — a
+// when they are labelled there; otherwise typed here. Never estimated, a
 // blank is priced as none. Shared by the drawings grid and the no-drawings
 // form; the server does the fixture math.
 const SITE_FEATURE_FIELDS = [
@@ -214,14 +221,14 @@ const FIGURE_FIELDS = [
   { key: 'figureStories',        qKey: 'stories',          label: '# Stories',                placeholder: 'e.g. 4' },
   DRIVE_LENGTH_FIELD,
   // Stairs are the one input (Mike 10-2: "It should be 1 or the other and the
-  // math comes from there"). The server works out landings: stairs × (2 × stories − 1).
+  // math comes from there"). The server works out landings: stairs × (2 × stories - 1).
   { key: 'figureStairwells',     qKey: 'egressStairwells', label: '# Egress stairwells', placeholder: 'e.g. 6', hint: 'Every exit stair in every building. We work out the landings.' },
   { key: 'figureExitDoors',      qKey: 'exitDoors',        label: '# Exit doors',             placeholder: 'e.g. 8' },
   { key: 'figureSurfaceParking', qKey: 'surfaceParking',   label: '# Surface parking stalls', placeholder: 'e.g. 120' },
   GARAGE_FIELD,
   CARPORT_FIELD,
   // Without a balcony count the balcony-lighting answer prices to $0 whatever
-  // the visitor picks — ask for it whenever the unit matrix didn't list one.
+  // the visitor picks, ask for it whenever the unit matrix didn't list one.
   { key: 'figureBalconies',      qKey: 'balconies',        label: '# of Balconies',           placeholder: 'e.g. 150' },
   // Same trap, same fix (Mike, 2026-09-15: "Exterior amenity math ... isn't
   // working. I click a different $/sf and nothing changes"). The exterior
@@ -229,14 +236,14 @@ const FIGURE_FIELDS = [
   // the whole line prices at $0 at every rate and the control looks broken.
   // Site plans very often don't state an amenity area, so ask for it.
   { key: 'figureExteriorAmenitySf', qKey: 'exteriorAmenitySf', label: 'Exterior amenity SF', placeholder: 'e.g. 12,000',
-    hint: 'Pool deck, courtyards, plazas — the outdoor areas that get lit. Enter 0 if none.' },
+    hint: 'Pool deck, courtyards, plazas, the outdoor areas that get lit. Enter 0 if none.' },
   ...SITE_FEATURE_FIELDS,
 ];
 
 /**
  * The no-drawings form on the Drawings step (Mike, 2026-09-11: "some other
  * way to say no and then all the square footage and count details that you
- * need to fill in"). `need` marks the minimum we ask for — the same rule
+ * need to fill in"). `need` marks the minimum we ask for, the same rule
  * noDrawingsReady enforces on the server; 'either' means one of the two size
  * figures will do. Stories and surface stalls joined the required list on
  * 2026-09-12 (0 stalls is allowed). Blank optional fields are estimated
@@ -249,7 +256,7 @@ const MANUAL_FIELDS = [
   // Stories and surface stalls required too (Mike, 2026-09-12: "surface parking
   // should be an easy number for them to figure out. Stories too.").
   { key: 'figureStories',           qKey: 'stories',           label: '# Stories',                 placeholder: 'e.g. 4',       need: 'required', hint: 'The tallest building.' },
-  // `estNote` replaces the engine's long working-out under the estimate — the
+  // `estNote` replaces the engine's long working-out under the estimate, the
   // landings one ran seven lines (Mike, 2026-09-12). Reviewers still see it all.
   { key: 'figureStairwells',        qKey: 'egressStairwells',  label: '# Egress stairwells',       placeholder: 'e.g. 6', hint: 'Every exit stair in every building. We work out the landings.', estNote: 'based on your building type, size and number of stories.' },
   { key: 'figureSurfaceParking',    qKey: 'surfaceParking',    label: '# Surface parking stalls',  placeholder: 'e.g. 120',     need: 'required', hint: 'Open-air stalls only. Enter 0 if all parking is in a garage.' },
@@ -265,8 +272,8 @@ const MANUAL_FIELDS = [
 ];
 
 /**
- * A figure box in a grid. CSS subgrid gives every cell the same three rows —
- * label/hint, box, estimate note — so the boxes across a row sit on one line
+ * A figure box in a grid. CSS subgrid gives every cell the same three rows , 
+ * label/hint, box, estimate note, so the boxes across a row sit on one line
  * even when a neighbour's tag or hint wraps. Where subgrid isn't supported it
  * falls back to a plain stacked field.
  */
@@ -310,7 +317,7 @@ const inputCls =
   'w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 ' +
   'placeholder:text-slate-300 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-100';
 
-// Figure boxes hold 8 characters at most ("1,250,000"-ish) — sized for that,
+// Figure boxes hold 8 characters at most ("1,250,000"-ish), sized for that,
 // plus room for the ESTIMATE pill, rather than stretching across the column.
 const figureBoxCls = 'max-w-[11rem]';
 
@@ -329,19 +336,19 @@ function guessProjectType(buildingType) {
   if (t.includes('podium')) return pick('Podium (3-8 Levels)');
   if (t.includes('wrap')) return pick('Wrap (3-5 Levels)');
   if (t.includes('gurban') || t.includes('urban garden')) return pick('Gurban (4-5 Levels)');
-  // A 4–5 story garden building IS a gurban — that's the distinction.
+  // A 4 to 5 story garden building IS a gurban, that's the distinction.
   if ((t.includes('garden') || t.includes('walk')) && /[45]/.test(t)) return pick('Gurban (4-5 Levels)');
   if (t.includes('garden') || t.includes('walk')) return pick('Garden (3 Levels)');
   return null;
 }
 
-/** Render an option for display — the $/SF questions store bare numbers. */
+/** Render an option for display, the $/SF questions store bare numbers. */
 function optionLabel(q, opt) {
   return optionLabelFor(q, opt);
 }
 
 /**
- * Left rail — the public twin of the internal wizard's SectionNav: same
+ * Left rail, the public twin of the internal wizard's SectionNav: same
  * width, same numbered circles, same active/completed treatment. The header
  * carries ILC branding (and the project name once entered) where the
  * internal one shows the editable project block.
@@ -429,16 +436,16 @@ export default function IntakeClient() {
   const [touchedEmail, setTouchedEmail] = useState(false);
   const [drawings, setDrawings] = useState(null);
   // How many dropped files are still being read. While it is above zero the
-  // dropzone hands us null for `drawings` — nothing is shown or priced until
+  // dropzone hands us null for `drawings`, nothing is shown or priced until
   // every file is in and one merge has decided what is real (Mike 2026-09-16)
-  // — and the two autosaves below stand still, so that mid-read null never
+  //, and the two autosaves below stand still, so that mid-read null never
   // overwrites a read that was saved earlier.
   const [drawingsReading, setDrawingsReading] = useState(0);
   const onDrawingsRead = useCallback((merged, status) => {
     setDrawings(merged);
     setDrawingsReading(status?.reading ?? 0);
   }, []);
-  // "Do you have drawings?" — null until answered, then 'yes' (the dropzone)
+  // "Do you have drawings?", null until answered, then 'yes' (the dropzone)
   // or 'no' (the typed-in figures form).
   const [haveDrawings, setHaveDrawings] = useState(null);
   const manual = haveDrawings === 'no';
@@ -455,7 +462,7 @@ export default function IntakeClient() {
   // field about the project we see off. None of that can be updated now.").
   // Kept apart from `figures`, which answer "the drawings didn't say" and stay
   // below a drawing; these say "the drawings were read wrong" and outrank one.
-  // Sent as correct<RowKey> — see correctionKeyFor() in quantities.js.
+  // Sent as correct<RowKey>, see correctionKeyFor() in quantities.js.
   const [corrections, setCorrections] = useState({});
   const [answers, setAnswers] = useState(() => {
     const init = {};
@@ -464,7 +471,7 @@ export default function IntakeClient() {
     return init;
   });
   // "Is there a clubhouse?" on the no-drawings form (Mike, 2026-09-12: "Can we
-  // somehow read if there is a clubhouse or not?"). '' = not sure → the
+  // somehow read if there is a clubhouse or not?"). '' = not sure -> the
   // server's usual for the building type.
   // "Is there a pool?" lives in answers.hasPool (no-drawings only); it sets the outdoor amenity guess (Mike 10-14).
   const [estimate, setEstimate] = useState(null); // { budget, projectData, range } from the server
@@ -478,7 +485,7 @@ export default function IntakeClient() {
   const [pdfError, setPdfError] = useState(null);
   const mainRef = useRef(null);
 
-  // ── Saved in this browser (see DRAFT_KEY) ─────────────────────────────────
+  // === Saved in this browser (see DRAFT_KEY) ===
   // `savedDraft` is the draft found on load, waiting for a Continue / Start
   // fresh decision. Autosave holds off until that decision (`draftDecided`),
   // or the first keystroke on a fresh form would overwrite the saved one
@@ -489,7 +496,7 @@ export default function IntakeClient() {
   // The drawings read that came back from the draft, handed to the dropzone
   // once so it can list the files and keep counting them if more are added.
   const [restoredDrawings, setRestoredDrawings] = useState(null);
-  // ── Saved on the server (see RESUME_LINK_ENABLED) ─────────────────────────
+  // === Saved on the server (see RESUME_LINK_ENABLED) ===
   // The resume token for this visitor's server-side copy, if one exists. Kept
   // in a ref as well so the save effect can read the latest value without
   // re-running every time it changes.
@@ -533,14 +540,14 @@ export default function IntakeClient() {
     return () => { cancelled = true; };
   }, []);
 
-  // ── Visit pings (staff "Budget page visitors" page) ───────────────────────
+  // === Visit pings (staff "Budget page visitors" page) ===
   // Fire-and-forget: how far this visit got, and the draft / request it turned
   // into. Nothing typed into the form is sent. The chain keeps pings in order
   // so the first one (which opens the visit) always lands before the rest, and
   // a failure here can never be seen or felt by the visitor.
   const visitChain = useRef(Promise.resolve(null));
   const pingVisit = useCallback((extra = {}) => {
-    const token = draftTokenRef.current; // read now — it is cleared right after a submit
+    const token = draftTokenRef.current; // read now, it is cleared right after a submit
     visitChain.current = visitChain.current.then(async (known) => {
       try {
         let visitId = known;
@@ -572,17 +579,20 @@ export default function IntakeClient() {
   // The moment a server draft exists, the visit has a name behind it.
   useEffect(() => { if (draftToken) pingVisit({ stepId }); }, [draftToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const steps     = stepsFor(answers.projectType);
-  // A home visitor whose draft sat on the skipped Corridors page sees the next page.
+  const steps     = stepsFor(answers.projectType, manual);
+  // A home visitor whose draft sat on the skipped Corridors page sees the next
+  // page; a visitor who switched back to "Yes" while on Building Figures sees
+  // the Drawings page.
   const stepIndex = Math.max(0, steps.findIndex(s => s.id === stepId) >= 0
-    ? steps.findIndex(s => s.id === stepId) : steps.findIndex(s => s.id === 'amenities'));
+    ? steps.findIndex(s => s.id === stepId)
+    : steps.findIndex(s => s.id === (stepId === 'figures' ? 'drawings' : 'amenities')));
   const step      = steps[stepIndex];
   const homeType  = isHomeProjectType(answers.projectType);
 
   const emailCheck = email ? classifyIntakeEmail(email) : null;
   const emailError = touchedEmail && emailCheck && !emailCheck.ok ? emailCheck.message : null;
 
-  // When a drawing read tells us the project type, pre-answer that question —
+  // When a drawing read tells us the project type, pre-answer that question , 
   // but never overwrite a choice the submitter already made themselves.
   const guessedType = useMemo(() => guessProjectType(drawings?.siteData?.buildingType), [drawings]);
   useEffect(() => {
@@ -593,7 +603,7 @@ export default function IntakeClient() {
 
   // The typed figures merged into the answers payload. The server's
   // validateAnswers keeps them (FIGURE_KEYS whitelist) and computeQuantities
-  // treats them as the 'questionnaire' rung of the gross-SF/units ladder —
+  // treats them as the 'questionnaire' rung of the gross-SF/units ladder , 
   // below anything the drawings state, above anything derived.
   const mergedAnswers = useMemo(() => {
     const out = { ...answers };
@@ -613,19 +623,19 @@ export default function IntakeClient() {
     return out;
   }, [answers, figures, corrections, manual]);
 
-  // The no-drawings minimum (project type, units, and a size) — the same
+  // The no-drawings minimum (project type, units, and a size), the same
   // check the estimate route enforces before it will price anything.
   const manualCheck = useMemo(() => noDrawingsReady(mergedAnswers), [mergedAnswers]);
   // The progress bar (Mike, 2026-09-12: "the more detailed data the more
-  // accurate the budget") — boxes the visitor typed, not our estimates.
+  // accurate the budget"), boxes the visitor typed, not our estimates.
   // The drive-length box only exists for townhome / single-family projects.
   const manualFields = fieldsFor(MANUAL_FIELDS, answers.projectType);
   const manualFilled = manualFields.filter(f => String(figures[f.key] ?? '').trim() !== '').length;
 
-  // ── Live server-side estimate ──────────────────────────────────────────────
+  // === Live server-side estimate ===
   // Debounced: every answer flip re-prices, but a burst of changes is one call.
   // Drawings are the ticket in (Mike, 2026-09-04): no live number without
-  // them. Typed figures only REFINE an estimate the drawings started — unless
+  // them. Typed figures only REFINE an estimate the drawings started, unless
   // the visitor said "no drawings" and filled in the minimum (Mike, 2026-09-11).
   const estimateSeq = useRef(0);
   // Mike 10-9: on the no-drawings path the number starts as soon as a unit
@@ -644,18 +654,18 @@ export default function IntakeClient() {
         if (!res.ok) { if (seq === estimateSeq.current) setEstimateStatus(res.status); return; } // keep the last good estimate
         const data = await res.json();
         if (seq === estimateSeq.current) { setEstimate(data); setEstimateStatus(null); }
-      } catch { /* transient network failure — keep the last good estimate */ }
+      } catch { /* transient network failure, keep the last good estimate */ }
     }, 500);
     return () => clearTimeout(t);
   }, [mergedAnswers, figures, drawings, manual, unitsTyped]);
 
   // The old "Figures we couldn't read from your drawings" card on the Units
   // page is gone (Mike, 2026-09-16: "unread figures belong on the drawings
-  // page combined with the read ones — highlight the blanks"). Every takeoff
+  // page combined with the read ones, highlight the blanks"). Every takeoff
   // row, read or blank, is now one grid on the Drawings page (projectDataGrid
   // below), and a blank is typed straight into its own row as a correction.
 
-  // Takeoff rows by key — the no-drawings form shows "we'll estimate N" under
+  // Takeoff rows by key, the no-drawings form shows "we'll estimate N" under
   // any optional field left blank.
   const estimateRows = useMemo(
     () => new Map((estimate?.quantities || []).map(r => [r.key, r])),
@@ -663,8 +673,8 @@ export default function IntakeClient() {
 
   // What the no-drawings form fills a blank box with (Mike, 2026-09-11: "can
   // we fill out the field but say it's an estimate somehow and they can
-  // overwrite if they want"). Only the server's own estimates — rows it
-  // derived — plus the average unit size, which is the estimated unit area
+  // overwrite if they want"). Only the server's own estimates, rows it
+  // derived, plus the average unit size, which is the estimated unit area
   // spread over the typed unit count. Nothing is shown until the required
   // figures are in, so a stale estimate never sits in a box.
   const manualEstimates = useMemo(() => {
@@ -718,7 +728,7 @@ export default function IntakeClient() {
       </>
     );
   };
-  // The "Our estimate — …" line under a figure box. Kept apart from the box
+  // The "Our estimate, …" line under a figure box. Kept apart from the box
   // so FigureField can hold every box in a row on the same line.
   const manualNote = f => {
     const est = manualEstimates[f.key];
@@ -748,8 +758,8 @@ export default function IntakeClient() {
   const contactReady =
     firstName.trim() && lastName.trim() && project.trim() && emailCheck?.ok && projLoc.ok;
 
-  // Any step is reachable once the contact details are in — the same freedom
-  // the internal sidebar gives — but nothing past About You before that.
+  // Any step is reachable once the contact details are in, the same freedom
+  // the internal sidebar gives, but nothing past About You before that.
   function canNavigate(id) {
     return id === 'about' || Boolean(contactReady);
   }
@@ -775,7 +785,7 @@ export default function IntakeClient() {
     if (prev) goTo(prev.id);
   }
 
-  // ── Continue / Start fresh ────────────────────────────────────────────────
+  // === Continue / Start over ===
   function restoreDraft() {
     const d = savedDraft;
     if (!d) return;
@@ -809,7 +819,7 @@ export default function IntakeClient() {
     setDraftToken(typeof d.serverToken === 'string' ? d.serverToken : null);
     setSavedDraft(null);
     setDraftDecided(true);
-    // Back to the page they were on — unless the contact details in the draft
+    // Back to the page they were on, unless the contact details in the draft
     // would not pass About You today, in which case that page comes first,
     // the same gate a fresh visitor meets.
     const ready = str(d.firstName).trim() && str(d.lastName).trim() && str(d.project).trim()
@@ -826,13 +836,13 @@ export default function IntakeClient() {
     setDraftDecided(true);
   }
 
-  // A draft opened from a resume link needs no Continue / Start fresh question —
+  // A draft opened from a resume link needs no Continue / Start over question , 
   // following the link was the answer.
   useEffect(() => {
     if (savedDraft?.fromLink) restoreDraft();
   }, [savedDraft]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Autosave ──────────────────────────────────────────────────────────────
+  // === Autosave ===
   // Half a second after the last change, once there is something to keep.
   // Inputs only: never the estimate, never a price, never after Send.
   useEffect(() => {
@@ -854,9 +864,9 @@ export default function IntakeClient() {
       projCity, projState, projZip, haveDrawings, drawings, figures, corrections, answers,
       draftToken]); // a freshly minted token must reach the browser copy too
 
-  // ── Server copy ───────────────────────────────────────────────────────────
+  // === Server copy ===
   // Three seconds after the last change, and only once the contact details
-  // pass About You (a name, a work email, a project, a location) — before that
+  // pass About You (a name, a work email, a project, a location), before that
   // there is nobody to tie the row to. Same inputs as the browser copy, never
   // a price. The first save mints the resume token; later saves update the
   // same row. Overlapping saves are serialised so a slow first save cannot
@@ -885,7 +895,7 @@ export default function IntakeClient() {
             const body = await res.json().catch(() => ({}));
             if (typeof body.token === 'string' && body.token !== draftTokenRef.current) setDraftToken(body.token);
           }
-        } catch { /* offline or blocked — the browser copy still has it */ }
+        } catch { /* offline or blocked, the browser copy still has it */ }
         finally {
           savingRef.current = false;
           if (dirtyRef.current) { dirtyRef.current = false; run(); }
@@ -966,8 +976,8 @@ export default function IntakeClient() {
     }
   }
 
-  // ── Download PDF ──────────────────────────────────────────────────────────
-  // Sends the same inputs as the live estimate — never a number. The server
+  // === Download PDF ===
+  // Sends the same inputs as the live estimate, never a number. The server
   // recomputes the budget and renders only what this summary already shows.
   async function handleDownloadPdf() {
     if (pdfBusy) return;
@@ -1016,7 +1026,7 @@ export default function IntakeClient() {
   // Typed-in budgets only: the ±10% band the server works out (estimate.js).
   const range = estimate?.range || null;
 
-  // ── Review page — the EXACT internal summary top (Mike, 2026-09-04: "The
+  // ── Review page, the EXACT internal summary top (Mike, 2026-09-04: "The
   // summary page should match the exact summary page we have internally. You
   // cut the top of that summary page off."): navy hero, Project Data grid,
   // full Budget Breakdown. Same rows and markup as
@@ -1026,8 +1036,8 @@ export default function IntakeClient() {
   // to manually update any field about the project we see off. None of that
   // can be updated now."). The rows come from estimate.quantities rather than
   // from projectData, because a quantity row carries the things a person needs
-  // in order to judge it — its key, what we read, where we read it and any
-  // flag — while projectData is only the bare numbers after the fact.
+  // in order to judge it, its key, what we read, where we read it and any
+  // flag, while projectData is only the bare numbers after the fact.
   //
   // A row we found NOTHING for is still listed, with an empty box. Those are
   // the ones most worth typing into, and the old grid hid every one of them.
@@ -1039,8 +1049,8 @@ export default function IntakeClient() {
         key: r.key,
         label: r.label,
         unit: r.unit,
-        how: r.flag ? `${r.how} — ${r.flag}` : r.how,
-        // Plain words for a blank row — why nothing was found, so the visitor
+        how: r.flag ? `${r.how}, ${r.flag}` : r.how,
+        // Plain words for a blank row, why nothing was found, so the visitor
         // knows what to type. The flag text is the same idea for a read row.
         why: r.how || '',
         flag: r.flag || '',
@@ -1052,28 +1062,28 @@ export default function IntakeClient() {
       }));
   }, [estimate]);
 
-  // Rows still blank after the read AND not yet typed — the amber boxes, and
+  // Rows still blank after the read AND not yet typed, the amber boxes, and
   // the "N figures still needed" note under the drawings.
   const neededRows = useMemo(
     () => correctableRows.filter(r => r.display === '' && String(corrections[r.key] ?? '').trim() === ''),
     [correctableRows, corrections]);
   // Exterior amenity SF is the one blank a drawing-read job may not skip (Mike
   // 2026-09-24: "when it's not listed we should require them to input
-  // Exterior SF"). 0 is a real answer — "there is none".
+  // Exterior SF"). 0 is a real answer, "there is none".
   const extAmenityNeeded = !manual && !!drawings && neededRows.some(r => r.key === 'exteriorAmenitySf');
 
-  // ── The one Project Data grid ─────────────────────────────────────────────
+  // === The one Project Data grid ===
   // Shown on the Drawings page (right under the upload) and again on the
   // Review page. Same rows, same boxes, same `corrections` state, so a number
   // typed on either page is the number the budget runs on. Rendered by a plain
   // function, not a component, so React never remounts the inputs mid-typing.
   //
   // Three looks per row:
-  //   read / estimated  — dashed underline, hover for where it came from,
+  //   read / estimated , dashed underline, hover for where it came from,
   //                       "(est.)" when it is our arithmetic, ⚠ when flagged;
-  //   blank             — amber box marked NEEDED with a one-line reason;
-  //   corrected         — amber text with "Corrected — was X · undo".
-  // Values + provenance only — nothing priced lives in a quantity row.
+  //   blank            , amber box marked NEEDED with a one-line reason;
+  //   corrected        , amber text with "Corrected, was X · undo".
+  // Values + provenance only, nothing priced lives in a quantity row.
   const projectDataGrid = ({ heading, intro }) => (
     <div className="bg-white rounded-xl border border-slate-200 p-5">
       <h3 className="font-bold text-slate-900 mb-1">{heading}</h3>
@@ -1091,7 +1101,7 @@ export default function IntakeClient() {
                 <span>{row.label}</span>
                 {needed && (
                   <span className="rounded bg-amber-200 px-1 py-px text-[10px] font-bold uppercase tracking-wide text-amber-900">
-                    {row.key === 'exteriorAmenitySf' ? 'Required — 0 if none' : 'Needed'}
+                    {row.key === 'exteriorAmenitySf' ? 'Required, 0 if none' : 'Needed'}
                   </span>
                 )}
                 {!needed && !edited && row.estimated && (
@@ -1113,7 +1123,7 @@ export default function IntakeClient() {
                     : 'text-slate-900 border-slate-200',
                 )}
                 inputMode="numeric"
-                aria-label={needed ? `${row.label} — not found on the drawings, please enter it` : `${row.label} — type over it to correct it`}
+                aria-label={needed ? `${row.label}, not found on the drawings, please enter it` : `${row.label}, type over it to correct it`}
                 value={edited ? typed : row.display}
                 onFocus={e => { const el = e.target; requestAnimationFrame(() => el.select()); }}
                 onChange={e => setCorrections(x => ({ ...x, [row.key]: e.target.value }))}
@@ -1126,7 +1136,7 @@ export default function IntakeClient() {
                   className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-600 hover:text-amber-700"
                   onClick={() => setCorrections(x => { const next = { ...x }; delete next[row.key]; return next; })}
                 >
-                  Corrected{row.was ? ` — was ${row.was}` : ''} · undo
+                  Corrected{row.was ? `, was ${row.was}` : ''} · undo
                 </button>
               )}
               {needed && row.why && (
@@ -1144,11 +1154,11 @@ export default function IntakeClient() {
     `px-4 py-2 rounded-lg font-semibold text-sm transition-colors ${
       enabled ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'
     }`;
-  const backBtn = 'px-4 py-2.5 rounded-lg font-semibold text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors';
+  const backBtn = 'px-4 py-2 rounded-lg font-semibold text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors';
 
   return (
     <div className="min-h-screen lg:h-screen bg-slate-50 flex flex-col">
-      {/* Mobile header — the desktop layout carries branding in the left rail */}
+      {/* Mobile header, the desktop layout carries branding in the left rail */}
       <header className="lg:hidden bg-white border-b border-slate-200">
         <div className="px-5 py-4 flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-slate-900 flex items-center justify-center shrink-0">
@@ -1166,7 +1176,7 @@ export default function IntakeClient() {
               <div className="text-base font-bold text-slate-900 tabular-nums">{formatCurrency(budget.totalWithControls)}</div>
               {range && (
                 <div className="text-[10px] text-slate-400 tabular-nums">
-                  likely {formatCurrency(range.low)}–{formatCurrency(range.high)}
+                  likely {formatCurrency(range.low)} to {formatCurrency(range.high)}
                 </div>
               )}
             </div>
@@ -1189,7 +1199,7 @@ export default function IntakeClient() {
         {/* Main content */}
         <div ref={mainRef} className="flex-1 min-w-0 lg:overflow-y-auto">
           <div className="max-w-3xl mx-auto px-5 sm:px-6 py-8">
-            {/* Mobile step chips — the left rail is desktop-only */}
+            {/* Mobile step chips, the left rail is desktop-only */}
             {!submitted && (
               <div className="lg:hidden flex items-center gap-1.5 flex-wrap mb-6">
                 {steps.map((s, i) => (
@@ -1214,7 +1224,7 @@ export default function IntakeClient() {
               </div>
             )}
 
-            {/* Step header — same treatment as the internal wizard */}
+            {/* Step header, same treatment as the internal wizard */}
             {!submitted && (
               <div className="mb-6">
                 <div className="flex items-center gap-2 text-xs text-slate-400 mb-2">
@@ -1222,7 +1232,7 @@ export default function IntakeClient() {
                   {/* So a visitor knows closing the tab is safe. Browser-only:
                       the words say so, or they'd expect it on their phone too. */}
                   {savedAt && (
-                    <span className="ml-auto text-[11px] text-slate-400" title="Saved in this browser only — come back on this device to continue.">
+                    <span className="ml-auto text-[11px] text-slate-400" title="Saved in this browser only, come back on this device to continue.">
                       Saved in this browser · {fmtSavedAt(savedAt)}
                     </span>
                   )}
@@ -1241,7 +1251,7 @@ export default function IntakeClient() {
             {submitted ? (
               <section className="bg-white rounded-2xl border border-slate-200 p-6">
                 <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-4">
-                  <p className="text-sm text-green-800 font-semibold">Request received — thanks!</p>
+                  <p className="text-sm text-green-800 font-semibold">Request received, thanks!</p>
                   <p className="text-xs text-green-700 mt-1">{CONFIRM_NOTE}</p>
                   <p className="text-xs text-green-700 mt-2">
                     An ILC Studios team member will review your submission. If your project is a fit,
@@ -1251,7 +1261,7 @@ export default function IntakeClient() {
               </section>
             ) : (
               <>
-                {/* ── About you ── */}
+                {/* === About you === */}
                 {stepId === 'about' && (
                   <section className="bg-white rounded-2xl border border-slate-200 p-6">
                     {/* A draft from last time, found in this browser. Offered
@@ -1265,7 +1275,7 @@ export default function IntakeClient() {
                             : 'your unfinished budget'}
                           {' '}in this browser
                           {typeof savedDraft.savedAt === 'string' && fmtSavedAt(savedDraft.savedAt)
-                            ? <> — last saved {fmtSavedAt(savedDraft.savedAt)}</>
+                            ? <>, last saved {fmtSavedAt(savedDraft.savedAt)}</>
                             : null}.
                           {savedDraft.drawings
                             ? ' Your drawings were already read, so you won’t need to upload them again.'
@@ -1278,15 +1288,15 @@ export default function IntakeClient() {
                           <button
                             type="button"
                             onClick={discardDraft}
-                            className="px-5 py-2.5 rounded-lg font-semibold text-sm border border-slate-300 text-slate-700 hover:bg-white transition-colors"
+                            className="px-4 py-2 rounded-lg font-semibold text-sm border border-slate-300 text-slate-700 hover:bg-white transition-colors"
                           >
-                            Start fresh
+                            Start over
                           </button>
                         </div>
                       </div>
                     )}
 
-                    {/* How this works — what the tool is, what you'll need,
+                    {/* How this works, what the tool is, what you'll need,
                         how long, and what happens after. Kept light. */}
                     <div className="mb-6 max-w-xl">
                       <p className="text-sm text-slate-600">
@@ -1299,7 +1309,7 @@ export default function IntakeClient() {
                             <span className="w-5 h-5 mt-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold flex items-center justify-center shrink-0">
                               {i + 1}
                             </span>
-                            <span><span className="font-semibold text-slate-800">{s.title}</span> — {s.body}</span>
+                            <span><span className="font-semibold text-slate-800">{s.title}</span>, {s.body}</span>
                           </li>
                         ))}
                       </ol>
@@ -1373,13 +1383,13 @@ export default function IntakeClient() {
                         {contactReady ? 'Your details look good' : 'All fields except Company are required'}
                       </span>
                       <button onClick={() => contactReady && markDoneAndGo('drawings')} disabled={!contactReady} className={navBtn(contactReady)}>
-                        Continue to drawings →
+                        Continue to drawings
                       </button>
                     </div>
                   </section>
                 )}
 
-                {/* ── Drawings ──
+                {/* === Drawings ===
                     Always MOUNTED, hidden with CSS when another step is active.
                     Unmounting DrawingDropzone loses its per-file UI state (the
                     `items` list lives inside the component), so clicking back
@@ -1395,8 +1405,8 @@ export default function IntakeClient() {
                     <h3 className="text-sm font-semibold text-slate-800 mb-3">Do you have drawings?</h3>
                     <div className="grid sm:grid-cols-2 gap-3 mb-6">
                       {[
-                        { v: 'yes', title: 'Yes — I have drawings', body: 'Drop them in and we read the square footage and counts for you.' },
-                        { v: 'no',  title: 'No drawings yet',       body: 'Type in what you know — we estimate the rest.' },
+                        { v: 'yes', title: 'Yes, I have drawings', body: 'Drop them in and we read the square footage and counts for you.' },
+                        { v: 'no',  title: 'No drawings yet',       body: 'Type in what you know, we estimate the rest.' },
                       ].map(o => (
                         <button
                           key={o.v}
@@ -1415,7 +1425,7 @@ export default function IntakeClient() {
                       ))}
                     </div>
 
-                    {/* Project type — asked here, up front, for both paths (Mike,
+                    {/* Project type, asked here, up front, for both paths (Mike,
                         2026-09-12: "ask what kind of building type this is on the
                         drawing screen … If we put it further at the front it can
                         conditionally change other questions"). Town Houses and Single
@@ -1434,7 +1444,7 @@ export default function IntakeClient() {
                           </select>
                         </Field>
                         {guessedType && answers.projectType === guessedType && (
-                          <p className="text-xs text-amber-600 mt-1.5">Pre-filled from your drawings — change it if we got it wrong.</p>
+                          <p className="text-xs text-amber-600 mt-1.5">Pre-filled from your drawings, change it if we got it wrong.</p>
                         )}
                       </div>
                     )}
@@ -1443,13 +1453,13 @@ export default function IntakeClient() {
                         CSS) so switching back keeps the uploaded files. */}
                     <div className={cn(haveDrawings !== 'yes' && 'hidden')}>
                     <p className="text-sm text-slate-500 mb-5">
-                      The most useful sheet is the one with the <strong>unit matrix</strong> — building square footage and
+                      The most useful sheet is the one with the <strong>unit matrix</strong>, building square footage and
                       unit counts. We read it automatically so you don&apos;t have to type it in.
                     </p>
 
                     <DrawingDropzone onResults={onDrawingsRead} restored={restoredDrawings} />
 
-                    {/* Project Data — every takeoff row, read or blank, right
+                    {/* Project Data, every takeoff row, read or blank, right
                         under the upload (Mike, 2026-09-16: "why can't I edit
                         numbers on the drawings page" / "unread figures belong
                         on the drawings page combined with the read ones,
@@ -1457,21 +1467,62 @@ export default function IntakeClient() {
                     {drawings && correctableRows.length > 0 && (
                       <div className="mt-6">
                         {projectDataGrid({
-                          heading: 'Project Data — what we read from your drawings, and what we still need',
+                          heading: 'Project Data, what we read from your drawings, and what we still need',
                           intro: neededRows.length > 0
-                            ? `Every figure here feeds your budget. The amber boxes are the ${neededRows.length} we could not find on any sheet — type them in if you know them, and type over any read figure that looks wrong. “(est.)” means our arithmetic, not a number off a sheet; hover any figure to see where it came from. A red ! means the figure looks unusual and is worth a second look; hover the ! to see why.`
-                            : 'Every figure here came off your drawings or our arithmetic and feeds your budget. Type over any that looks wrong — the budget updates straight away and we keep what we read on file. “(est.)” means our arithmetic; hover any figure to see where it came from. A red ! means the figure looks unusual and is worth a second look; hover the ! to see why.',
+                            ? `Every figure here feeds your budget. The amber boxes are the ${neededRows.length} we could not find on any sheet, type them in if you know them, and type over any read figure that looks wrong. “(est.)” means our arithmetic, not a number off a sheet; hover any figure to see where it came from. A red ! means the figure looks unusual and is worth a second look; hover the ! to see why.`
+                            : 'Every figure here came off your drawings or our arithmetic and feeds your budget. Type over any that looks wrong, the budget updates straight away and we keep what we read on file. “(est.)” means our arithmetic; hover any figure to see where it came from. A red ! means the figure looks unusual and is worth a second look; hover the ! to see why.',
                         })}
                       </div>
                     )}
                     </div>
 
-                    {/* ── No drawings: the typed-in figures form ── */}
                     {manual && (
+                      <p className="text-sm text-slate-600">
+                        No drawings is fine. On the next page you type in the building figures you know and we estimate the rest.
+                      </p>
+                    )}
+
+                    <div className="flex items-center justify-between mt-6">
+                      <button onClick={goPrev} className={backBtn}>← Back</button>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-slate-400">
+                          {haveDrawings === null
+                            ? 'Choose Yes or No above'
+                            : !answers.projectType
+                              ? 'Choose the project type above'
+                            : manual
+                              ? 'Next, the building figures'
+                              : drawingsReading > 0
+                                ? `Reading ${drawingsReading} drawing${drawingsReading !== 1 ? 's' : ''}, your figures appear once every file is read`
+                              : extAmenityNeeded
+                                ? 'Enter the exterior amenity SF above (pool deck, amenity deck, courtyards, 0 if none) to continue'
+                              : drawings
+                                ? `${drawings.sources.length} drawing${drawings.sources.length !== 1 ? 's' : ''} read${
+                                    neededRows.length > 0
+                                      ? `, ${neededRows.length} figure${neededRows.length !== 1 ? 's' : ''} still needed (amber boxes above; you can continue without them)`
+                                      : ''}`
+                                : 'Upload drawings to see live pricing, you can still submit without them'}
+                        </span>
+                        {(() => {
+                          const ok = !!answers.projectType && (manual || (haveDrawings === 'yes' && !extAmenityNeeded));
+                          return (
+                            <button onClick={() => ok && goNext()} disabled={!ok} className={navBtn(ok)}>
+                              {manual ? 'Continue to building figures' : drawings || haveDrawings === null ? 'Continue to units' : 'Skip, continue to units'}
+                            </button>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  </section>
+
+                {/* === Building Figures: the no-drawings typed-in form, its
+                    own step (Mike 10-14). Only in `steps` when manual. === */}
+                {stepId === 'figures' && manual && (
+                  <section className="bg-white rounded-2xl border border-slate-200 p-6">
                       <div className="space-y-6">
                         <p className="text-sm text-slate-600">
                           <strong>The more detail you give us, the more accurate your budget.</strong> Fill in everything
-                          you know — real numbers beat our estimates. If you don&apos;t know something, leave it and
+                          you know, real numbers beat our estimates. If you don&apos;t know something, leave it and
                           we&apos;ll estimate it from our past projects; you can type over any estimate. Our team checks
                           every estimate before a budget goes out.
                         </p>
@@ -1482,7 +1533,7 @@ export default function IntakeClient() {
                             </span>
                             <span className="text-slate-500">
                               {manualFilled === manualFields.length
-                                ? 'Every figure is yours — the most accurate budget we can give without drawings'
+                                ? 'Every figure is yours, the most accurate budget we can give without drawings'
                                 : 'We estimate the rest'}
                             </span>
                           </div>
@@ -1505,7 +1556,7 @@ export default function IntakeClient() {
                             <FigureField
                               key={f.key}
                               label={f.label}
-                              labelRight={f.need === 'required' ? 'Required' : f.key === 'figureGrossSf' ? 'Required — or unit size' : 'Or this'}
+                              labelRight={f.need === 'required' ? 'Required' : f.key === 'figureGrossSf' ? 'Required, or unit size' : 'Or this'}
                               hint={f.hint}
                               note={manualNote(f)}
                             >
@@ -1516,7 +1567,7 @@ export default function IntakeClient() {
                         <div>
                           <h3 className="text-sm font-semibold text-slate-800">The more of these you know, the more accurate your budget</h3>
                           <p className="text-xs text-slate-500 mt-0.5">Don&apos;t know one? Leave it and we&apos;ll estimate it.</p>
-                          {/* No "Optional" tag on each box — the heading already says it. */}
+                          {/* No "Optional" tag on each box, the heading already says it. */}
                           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
                             <FigureField label="Is there a pool?" labelRight="Required">
                               <select
@@ -1537,49 +1588,29 @@ export default function IntakeClient() {
                           </div>
                         </div>
                       </div>
-                    )}
 
                     <div className="flex items-center justify-between mt-6">
                       <button onClick={goPrev} className={backBtn}>← Back</button>
                       <div className="flex items-center gap-3">
                         <span className="text-xs text-slate-400">
-                          {haveDrawings === null
-                            ? 'Choose Yes or No above'
-                            : !answers.projectType
-                              ? 'Choose the project type above'
-                            : manual
-                              ? (manualCheck.ready
-                                  ? 'Your live budget is ready'
-                                  : `Still needed: ${manualCheck.missing.join(', ')}`)
-                              : drawingsReading > 0
-                                ? `Reading ${drawingsReading} drawing${drawingsReading !== 1 ? 's' : ''} — your figures appear once every file is read`
-                              : extAmenityNeeded
-                                ? 'Enter the exterior amenity SF above (pool deck, amenity deck, courtyards — 0 if none) to continue'
-                              : drawings
-                                ? `${drawings.sources.length} drawing${drawings.sources.length !== 1 ? 's' : ''} read${
-                                    neededRows.length > 0
-                                      ? ` — ${neededRows.length} figure${neededRows.length !== 1 ? 's' : ''} still needed (amber boxes above; you can continue without them)`
-                                      : ''}`
-                                : 'Upload drawings to see live pricing — you can still submit without them'}
+                          {manualCheck.ready
+                            ? 'Your live budget is ready'
+                            : `Still needed: ${manualCheck.missing.join(', ')}`}
                         </span>
-                        {(() => {
-                          const ok = !!answers.projectType && !extAmenityNeeded && (haveDrawings === 'yes' || (manual && manualCheck.ready));
-                          return (
-                            <button onClick={() => ok && goNext()} disabled={!ok} className={navBtn(ok)}>
-                              {manual || drawings || haveDrawings === null ? 'Continue to units →' : 'Skip — continue to units →'}
-                            </button>
-                          );
-                        })()}
+                        <button onClick={() => manualCheck.ready && goNext()} disabled={!manualCheck.ready} className={navBtn(manualCheck.ready)}>
+                          Continue to units
+                        </button>
                       </div>
                     </div>
                   </section>
+                )}
 
-                {/* ── Building-area pages ── */}
+                {/* === Building-area pages === */}
                 {step.sections && (
                   <>
                     {/* The blanks the drawings could not answer are asked on
-                        the Drawings page itself now — amber boxes in the one
-                        Project Data grid — not here. */}
+                        the Drawings page itself now, amber boxes in the one
+                        Project Data grid, not here. */}
                     <div className="space-y-4">
                       {[...step.sections.flatMap(name => questionsBySection.get(name) || []),
                         ...INTAKE_QUESTIONS.filter(q => step.extraKeys?.includes(q.key))]
@@ -1589,7 +1620,7 @@ export default function IntakeClient() {
                         .map(q => (
                         <div key={q.key}>
                           {q.key === 'interiorAmenityFinish' ? (
-                            // $4–$16 in three finish tiers — same picker as the internal wizard.
+                            // $4-$16 in three finish tiers, same picker as the internal wizard.
                             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
                               <div className="mb-4">
                                 <p className="font-semibold text-slate-900">{q.question}</p>
@@ -1607,7 +1638,7 @@ export default function IntakeClient() {
                             value={answers[q.key] ?? ''}
                             onChange={v => setAnswers(a => ({ ...a, [q.key]: v }))}
                             options={q.options.map(opt => ({ value: opt, label: optionLabel(q, opt) }))}
-                            // Per-answer cost comes from the server's estimate — never priced here.
+                            // Per-answer cost comes from the server's estimate, never priced here.
                             impact={q.engine ? estimate?.budget?.questionCosts?.[`${q.engine.section}.${q.engine.field}`] : undefined}
                           />
                           )}
@@ -1617,16 +1648,16 @@ export default function IntakeClient() {
                     <div className="flex items-center justify-between mt-6">
                       <button onClick={goPrev} className={backBtn}>← Back</button>
                       <button onClick={goNext} className={navBtn(true)}>
-                        {stepIndex === steps.length - 2 ? 'Review & send →' : 'Continue →'}
+                        {stepIndex === steps.length - 2 ? 'Review & send' : 'Continue'}
                       </button>
                     </div>
                   </>
                 )}
 
-                {/* ── Review & send — the internal summary page, then the send form ── */}
+                {/* === Review & send, the internal summary page, then the send form === */}
                 {stepId === 'review' && (
                   <div className="space-y-5">
-                    {/* Actions — at the top, one style for every button (Mike 2026-09-24) */}
+                    {/* Actions, at the top, one style for every button (Mike 2026-09-24) */}
                     {hasEstimate && (
                       <div>
                         <div className="flex flex-wrap items-center justify-end gap-3">
@@ -1641,7 +1672,7 @@ export default function IntakeClient() {
                             </>
                           )}
                           {!(RESUME_LINK_ENABLED && resumeLink) && (
-                            <button type="button" disabled aria-disabled="true" title="Coming soon — email isn't connected yet."
+                            <button type="button" disabled aria-disabled="true" title="Coming soon, email isn't connected yet."
                               className={cn(topBtn, 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed')}>
                               Email this budget
                             </button>
@@ -1653,14 +1684,14 @@ export default function IntakeClient() {
                         </div>
                         {RESUME_LINK_ENABLED && resumeLink && linkEmailed && (
                           <p className="text-xs text-slate-400 mt-2 text-right">
-                            {linkEmailed === 'sent' ? `Sent to ${email}.` : 'We could not send the email just now — copy the link instead.'}
+                            {linkEmailed === 'sent' ? `Sent to ${email}.` : 'We could not send the email just now, copy the link instead.'}
                           </p>
                         )}
                         {pdfError && <p className="text-xs text-red-600 mt-2 text-right" role="alert">{pdfError}</p>}
                       </div>
                     )}
 
-                    {/* Budget hero — dark navy, identical to the internal summary */}
+                    {/* Budget hero, dark navy, identical to the internal summary */}
                     {hasEstimate && (
                       <div
                         className="rounded-2xl p-6 text-white"
@@ -1669,14 +1700,14 @@ export default function IntakeClient() {
                         <div className="flex items-start justify-between gap-4">
                           <div>
                             <div className="text-xs font-medium mb-1" style={{ color: '#94a3b8' }}>
-                              ILC Studios — Conceptual Lighting &amp; Controls Budget
+                              ILC Studios, Conceptual Lighting &amp; Controls Budget
                             </div>
                             <div className="text-3xl font-bold tabular-nums mb-2">
                               {formatCurrency(budget.totalWithControls)}
                             </div>
                             {range && (
                               <div className="text-sm mb-2 tabular-nums" style={{ color: '#cbd5e1' }}>
-                                Likely between {formatCurrency(range.low)} and {formatCurrency(range.high)} — built from typed-in figures, without drawings.
+                                Likely between {formatCurrency(range.low)} and {formatCurrency(range.high)}, built from typed-in figures, without drawings.
                               </div>
                             )}
                             <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
@@ -1697,17 +1728,17 @@ export default function IntakeClient() {
                       </div>
                     )}
 
-                    {/* Project Data — the same grid as the Drawings page, same boxes, same corrections */}
+                    {/* Project Data, the same grid as the Drawings page, same boxes, same corrections */}
                     {hasEstimate && correctableRows.length > 0 && projectDataGrid({
                       heading: 'Project Data',
                       intro: manual
-                        ? 'The figures your budget runs on. Type over any that looks wrong — the budget updates straight away.'
+                        ? 'The figures your budget runs on. Type over any that looks wrong, the budget updates straight away.'
                         : neededRows.length > 0
-                          ? `The figures your budget runs on. The amber boxes are the ${neededRows.length} we could not find on your drawings — type them in if you know them. Type over any read figure that looks wrong; we keep what we read on file.`
-                          : 'These came off your drawings. If one looks wrong, type the right number over it — the budget updates straight away and we keep what we read on file.',
+                          ? `The figures your budget runs on. The amber boxes are the ${neededRows.length} we could not find on your drawings, type them in if you know them. Type over any read figure that looks wrong; we keep what we read on file.`
+                          : 'These came off your drawings. If one looks wrong, type the right number over it, the budget updates straight away and we keep what we read on file.',
                     })}
 
-                    {/* Budget Breakdown — the same component the internal summary renders */}
+                    {/* Budget Breakdown, the same component the internal summary renders */}
                     {hasEstimate && (
                       <div className="bg-white rounded-xl border border-slate-200 p-5">
                         <div className="flex items-center justify-between mb-3">
@@ -1720,7 +1751,7 @@ export default function IntakeClient() {
                             <span className="font-semibold text-slate-700">Controls: </span>{controlsMathWords(budget.controlsMath)}
                           </p>
                         )}
-                        {/* Your design choices — under the breakdown, like the internal summary */}
+                        {/* Your design choices, under the breakdown, like the internal summary */}
                         <h3 className="font-bold text-slate-900 mt-5 mb-3 pt-4 border-t border-slate-100">Your design choices</h3>
                         <table className="w-full text-xs">
                           <thead>
@@ -1756,7 +1787,7 @@ export default function IntakeClient() {
                       </div>
                       <div className="flex justify-between gap-3 border-b border-slate-100 py-1.5">
                         <dt className="text-slate-400">Company</dt>
-                        <dd className="text-slate-800 font-medium text-right">{company || '—'}</dd>
+                        <dd className="text-slate-800 font-medium text-right">{company || '-'}</dd>
                       </div>
                       <div className="flex justify-between gap-3 border-b border-slate-100 py-1.5">
                         <dt className="text-slate-400">Project</dt>
@@ -1766,7 +1797,7 @@ export default function IntakeClient() {
                         <dt className="text-slate-400">Drawings</dt>
                         <dd className="text-slate-800 font-medium text-right">
                           {manual
-                            ? 'None — figures typed in'
+                            ? 'None, figures typed in'
                             : drawings ? `${drawings.sources.length} file${drawings.sources.length !== 1 ? 's' : ''} read` : 'None uploaded'}
                         </dd>
                       </div>
@@ -1794,7 +1825,7 @@ export default function IntakeClient() {
 
                     {submitError && (
                       <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 mt-4">
-                        <p className="text-xs text-red-700">{submitError} — please try again or email us directly.</p>
+                        <p className="text-xs text-red-700">{submitError}, please try again or email us directly.</p>
                       </div>
                     )}
 
@@ -1816,7 +1847,7 @@ export default function IntakeClient() {
           </div>
         </div>
 
-        {/* ── Live budget — the SAME BudgetSidebar the internal wizard renders ── */}
+        {/* === Live budget, the SAME BudgetSidebar the internal wizard renders === */}
         {!submitted && (
           hasEstimate ? (
             <div className="hidden lg:flex shrink-0">
@@ -1828,7 +1859,7 @@ export default function IntakeClient() {
               <div className="px-4 py-4 bg-navy-950 border-b border-navy-800">
                 {project && <div className="text-sm font-semibold text-white truncate mb-2" title={project}>{project}</div>}
                 <div className="text-xs font-semibold text-navy-400 uppercase tracking-widest mb-1">Live Budget</div>
-                <div className="text-2xl font-bold text-white tabular-nums">—</div>
+                <div className="text-2xl font-bold text-white tabular-nums">-</div>
               </div>
               <div className="px-4 py-4">
                 {/* Say what is holding the number back. Mike 10-9: on the
@@ -1838,7 +1869,7 @@ export default function IntakeClient() {
                 {manual && !manualCheck.ready ? (
                   <>
                     <p className="text-xs text-slate-500 leading-relaxed">
-                      A rough number shows as soon as Total units is typed. These boxes on the Drawings page tighten it:
+                      A rough number shows as soon as Total units is typed. These boxes on the Building Figures page tighten it:
                     </p>
                     <ul className="mt-2 space-y-1">
                       {manualCheck.missing.map(m => (

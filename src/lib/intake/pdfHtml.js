@@ -1,10 +1,10 @@
 /**
  * The downloadable conceptual-budget PDF for the public /conceptual_budget
- * page — HTML only; /api/intake/pdf hands it to htmlToPdf().
+ * page, HTML only; /api/intake/pdf hands it to htmlToPdf().
  *
  * THE RULE: this page shows nothing the on-screen review summary doesn't
  * already show the visitor. Every number is read BY NAME from the budget
- * object — the same hero figures, Project Data rows and Budget Breakdown
+ * object, the same hero figures, Project Data rows and Budget Breakdown
  * lines as IntakeClient's review step and SummaryBudgetBreakdown (minus the
  * hover details). The budget is never walked or spread, so whatever else the
  * engine adds to it later (wallpack unit prices, pathway rates, caps) can
@@ -18,7 +18,7 @@ import { formatCurrency } from '../format.js';
 import { INTAKE_QUESTIONS, designChoices } from './questionnaire.js';
 import { controlsMathWords } from './controlsWords.js';
 
-export const INTAKE_PDF_DISCLAIMER = 'Conceptual estimate — for budgeting only, not a quote.';
+export const INTAKE_PDF_DISCLAIMER = 'Conceptual estimate, for budgeting only, not a quote.';
 // The same wording the public page's footer uses.
 const REVIEW_NOTE = 'An ILC Studios team member reviews every submission before a budget is issued.';
 // The one address every public screen gives out (Mike 2026-09-12: precon@, not budgets@).
@@ -48,9 +48,9 @@ export function intakePdfFilename(projectName) {
   return `ILC-Conceptual-Budget-${safe || 'Project'}.pdf`;
 }
 
-/** The review step's Project Data rows — same labels, same order, blanks dropped. */
+/** The review step's Project Data rows, same labels, same order, blanks dropped. */
 export function intakeProjectDataRows(pd = {}) {
-  // The screen prints most figures with commas and four counts without —
+  // The screen prints most figures with commas and four counts without: 
   // copied as-is so the two read identically.
   const n = v => (Number(v) > 0 ? Number(v).toLocaleString('en-US') : null);
   const c = v => (Number(v) > 0 ? String(Number(v)) : null);
@@ -76,13 +76,13 @@ export function intakeProjectDataRows(pd = {}) {
 
 /**
  * @param {object} p
- * @param {string} p.projectName  — the visitor's own project name
- * @param {string} p.location     — e.g. "Austin, TX 78701"
- * @param {string} [p.buildingType] — a projectType option label; anything else is dropped
- * @param {object} p.budget       — calculateBudget() output, recomputed on the server
- * @param {object} p.projectData  — the estimate's projectData
- * @param {string} p.dateLabel    — e.g. "September 12, 2026"
- * @param {object} [p.answers]   — the visitor's questionnaire answers (printed as "Your design choices")
+ * @param {string} p.projectName: the visitor's own project name
+ * @param {string} p.location   : e.g. "Austin, TX 78701"
+ * @param {string} [p.buildingType], a projectType option label; anything else is dropped
+ * @param {object} p.budget     : calculateBudget() output, recomputed on the server
+ * @param {object} p.projectData: the estimate's projectData
+ * @param {string} p.dateLabel  : e.g. "September 12, 2026"
+ * @param {object} [p.answers] : the visitor's questionnaire answers (printed as "Your design choices")
  */
 export function buildIntakePdfHtml({ projectName, location, buildingType, budget, projectData, dateLabel, answers }) {
   if (!budget) throw new Error('buildIntakePdfHtml: no budget');
@@ -120,7 +120,7 @@ export function buildIntakePdfHtml({ projectName, location, buildingType, budget
   const solar = s.exterior?.solar;
   const solarNote = solar
     ? `<div style="margin:6px 0 2px 0;padding:5px 8px;border:1px solid #fcd34d;border-radius:4px;font-size:7.5pt;color:#92400e">
-        <strong>Solar site lighting</strong> — area lighting priced at ${esc(solar.multiplier)}× conventional. ${esc(solar.note)}
+        <strong>Solar site lighting</strong>, area lighting priced at ${esc(solar.multiplier)}× conventional. ${esc(solar.note)}
       </div>`
     : '';
 
@@ -178,7 +178,7 @@ export function buildIntakePdfHtml({ projectName, location, buildingType, budget
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <title>${esc(`${name} — Conceptual Lighting Budget`)}</title>
+  <title>${esc(`${name}, Conceptual Lighting Budget`)}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, "Helvetica Neue", sans-serif; font-size: 9pt; color: #1e1e1e; background: white; }
@@ -190,15 +190,15 @@ export function buildIntakePdfHtml({ projectName, location, buildingType, budget
 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
   <img src="https://app.ilcstudios.com/ilc-studios-logo.jpg" alt="ILC Studios" style="height:36px"/>
   <div style="text-align:right;font-size:7.5pt;color:#64748b;line-height:1.6">
-    ILC Studios — Conceptual Lighting &amp; Controls Budget<br/>
+    ILC Studios, Conceptual Lighting &amp; Controls Budget<br/>
     ${esc(name)}${location ? ' · ' + esc(location) : ''}<br/>
     ${esc(dateLabel)}
   </div>
 </div>
 
-<!-- Hero — the review step's navy block -->
+<!-- Hero, the review step's navy block -->
 <div style="background:#0f172a;color:white;padding:18px 22px;border-radius:6px;margin-bottom:10px;-webkit-print-color-adjust:exact;print-color-adjust:exact">
-  <div style="font-size:7.5pt;color:#94a3b8;margin-bottom:4px">ILC Studios — Conceptual Lighting &amp; Controls Budget</div>
+  <div style="font-size:7.5pt;color:#94a3b8;margin-bottom:4px">ILC Studios, Conceptual Lighting &amp; Controls Budget</div>
   <div style="font-size:22pt;font-weight:700;font-family:monospace;margin-bottom:6px">${esc(fmt(b.totalWithControls))}</div>
   <div style="display:flex;flex-wrap:wrap;gap:16px;font-size:8pt">
     <div><span style="color:#94a3b8">Lighting Only: </span><span style="font-weight:600">${esc(fmt(b.subtotalLightingOnly))}</span></div>
@@ -231,7 +231,7 @@ ${pdGrid ? `<div style="margin:10px 0 8px 0">
 
 <hr style="border:none;border-top:1px solid #e2e8f0;margin:8px 0"/>
 
-<!-- Budget Breakdown — SummaryBudgetBreakdown's visible rows -->
+<!-- Budget Breakdown, SummaryBudgetBreakdown's visible rows -->
 <div style="margin-bottom:4px;font-weight:700;font-size:8.5pt;color:#0f172a">Budget Breakdown</div>
 ${breakdown}
 ${ctrlNote}

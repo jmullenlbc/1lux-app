@@ -21,6 +21,7 @@ import { logActivity } from '@/lib/activity';
 import { captureQuietly } from '@/lib/calibration/capture';
 import { takeAreaBaseline } from '@/lib/calibration/areaNormsLoad';
 import { writeSiteFeature } from '@/lib/siteFeatureRows';
+import { recordFigureSources } from '@/lib/figures/record';
 import { planHandoff, applyHandoff, drawingsFromSubmission } from '@/lib/intake/handoff';
 import { recordBudgetAmount } from '@/lib/budgetAmounts';
 import { notifyUsers } from '@/lib/alerts';
@@ -62,7 +63,7 @@ export async function carryWebFigures(db, project, plan, { actor, source, note, 
   let carried = plan ? null : false;
   try {
     if (plan?.ready) {
-      carried = await applyHandoff(db, project.id, plan, { writeSiteFeature });
+      carried = await applyHandoff(db, project.id, plan, { writeSiteFeature, recordFigureSources });
       await logActivity(project.id, actor, 'project_data',
         `${note}: ${carried.fields} building figures, ${carried.answers} questionnaire answers${carried.features ? `, ${carried.features} site features` : ''}`,
         { source: 'intake', submissionId, draftId });

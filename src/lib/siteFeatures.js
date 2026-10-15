@@ -1,9 +1,9 @@
 /**
- * Sporadic exterior site features — dog parks, courtyards, playgrounds,
+ * Sporadic exterior site features, dog parks, courtyards, playgrounds,
  * tennis and pickleball courts, turf play areas. THE PRICING HALF.
  *
  * Mike, 2026-09-16: these are found by their printed words on the site or
- * landscape plan and each is priced as its own small fixture package —
+ * landscape plan and each is priced as its own small fixture package,
  * never folded into the exterior amenity SF, the parking area lights or the
  * carports. What each one gets (gross / selling prices, no margin on top):
  *
@@ -21,10 +21,10 @@
  * The kinds, labels, row keys, list clean-up and plain-English descriptions
  * live in `siteFeatureWords.js` and are re-exported here, so every server-side
  * and internal-screen import keeps working. Anything a PUBLIC visitor's
- * browser loads must import `siteFeatureWords.js` directly — this file carries
+ * browser loads must import `siteFeatureWords.js` directly, this file carries
  * the dollar defaults and must not ship to the public page.
  *
- * PURE. No canvas, no Node, no React — this file is imported by the pricing
+ * PURE. No canvas, no Node, no React, this file is imported by the pricing
  * engine, the quantity takeoff, the site-field proposals, the unit tests and
  * the internal screens. `siteVision.js` (which loads @napi-rs/canvas)
  * re-exports from here rather than the other way round.
@@ -42,8 +42,8 @@ export * from './siteFeatureWords.js';
  * tests all agree on the key names.
  */
 export const SITE_FEATURE_PRICING_DEFAULTS = {
-  areaLight:      1400, // $ each — the same pole-mounted area light a parking lot uses
-  pedestrianPole: 2000, // $ each — 12 ft pedestrian pole
+  areaLight:      1400, // $ each, the same pole-mounted area light a parking lot uses
+  pedestrianPole: 2000, // $ each, 12 ft pedestrian pole
   dogPark:         { areaLights: 1 },
   playground:      { pedestrianPoles: 2, packageEach: 3000 }, // Mike 10-14: $3,000 per dog park / playground
   tennisCourt:     { areaLights: 4 },
@@ -114,7 +114,7 @@ export function siteFeatureFixtures(feature, rates = null) {
       fixtureKind = 'pedestrianPole'; each = poleEach;
       how = lengthFt > 0
         ? `${lengthFt.toLocaleString()} ft ÷ ${ftPer} ft per 12 ft pedestrian pole.`
-        : `${label} found but no length known — enter the length in feet to price it.`;
+        : `${label} found but no length known, enter the length in feet to price it.`;
       break;
     }
     default:
@@ -154,7 +154,7 @@ const usd = n => '$' + Math.round(Number(n) || 0).toLocaleString('en-US');
  *   "3 pedestrian poles (12 ft) × $2,000 = $6,000"
  *   "$0 until a length is entered."   (a linear feature with no length)
  *
- * Internal screens only — it names the price of one fixture.
+ * Internal screens only, it names the price of one fixture.
  */
 export function siteFeatureCostLine(item) {
   const fixtures = Math.max(0, Math.round(Number(item?.fixtures) || 0));

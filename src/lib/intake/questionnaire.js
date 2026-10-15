@@ -3,7 +3,7 @@
  *
  * QUESTIONS AND ANSWERS ARE VERBATIM from Mike's multifamily questionnaire
  * spreadsheet (the dropdown validations on the first tab). Do not shorten,
- * reword, or collapse options — the public page must read exactly like the
+ * reword, or collapse options, the public page must read exactly like the
  * questionnaire ILC hands out. (Rule set 2026-08-31 after the first pass
  * paraphrased them: "Match these answers.")
  *
@@ -14,18 +14,18 @@
  * estimate runs through the exact same math as an internal budget.
  *
  * Shared by the public page (renders it), the submit route (validates
- * against it), and the estimate route (maps it into the engine) — one
+ * against it), and the estimate route (maps it into the engine), one
  * definition, so the three can't drift.
  *
- * @see src/lib/calculations.js — the engine these map into
- * @see src/lib/pricing.js      — the option keys the maps must hit
+ * @see src/lib/calculations.js, the engine these map into
+ * @see src/lib/pricing.js    : the option keys the maps must hit
  */
 import { INTERIOR_AMENITY_RATES } from '../interiorAmenityTiers.js';
 import { wholeFigure } from '../numberInput.js';
 import { SITE_FEATURE_ROW_KEYS, LEGACY_COURTYARD_FT_KEY } from '../siteFeatureWords.js';
 
 export const INTAKE_QUESTIONS = [
-  // ── RESIDENTIAL UNITS ──────────────────────────────────────────────────────
+  // === RESIDENTIAL UNITS ===
   {
     key: 'undercabinet',
     section: 'Residential units',
@@ -58,7 +58,7 @@ export const INTAKE_QUESTIONS = [
         '3 small pendants (Medium finish)': 'threeSmallMedium',
         '2 medium pendants (Low finish)': 'twoMediumLow',
         '2 medium pendants (Medium finish)': 'twoMediumMedium',
-        // Aliases — pre-2026-09 submissions stored the bare finish word.
+        // Aliases, pre-2026-09 submissions stored the bare finish word.
         '3 small pendants (Low)': 'threeSmallLow',
         '3 small pendants (Medium)': 'threeSmallMedium',
         '2 medium pendants (Low)': 'twoMediumLow',
@@ -101,7 +101,7 @@ export const INTAKE_QUESTIONS = [
     question: 'How do you want to light unit bathroom vanities? ("Mirror and bath bar (Low finish)" is already included in the budget if chosen or left blank.)',
     hint: 'Illuminated mirrors often cost the same or less overall and need less coordination between trades.',
     // Low finish added 2026-09-13 (Mike: "Yes should match the design
-    // questionnaire") — the internal Units and Design screens always had it.
+    // questionnaire"), the internal Units and Design screens always had it.
     options: [
       'Illuminated mirror (Low finish)',
       'Illuminated mirror (Medium finish)',
@@ -119,7 +119,7 @@ export const INTAKE_QUESTIONS = [
         'Mirror and bath bar (Low finish)': 'bathBarLow',
         'Mirror and bath bar (Medium finish)': 'bathBarMedium',
         'Mirror and bath bar (High finish)': 'bathBarHigh',
-        // Aliases — pre-2026-09 submissions stored the bare finish word.
+        // Aliases, pre-2026-09 submissions stored the bare finish word.
         'Illuminated mirror (Medium)': 'illuminatedMirrorMedium',
         'Illuminated mirror (High)': 'illuminatedMirrorHigh',
         'Mirror and bath bar (Low)': 'bathBarLow',
@@ -147,14 +147,14 @@ export const INTAKE_QUESTIONS = [
         'Exterior balcony sconce (Low finish)': 'sconcelow',
         'Exterior balcony sconce (Medium finish)': 'sconceMedium',
         'Exterior balcony sconce (High finish)': 'sconceHigh',
-        // Aliases — pre-2026-09 submissions stored the bare finish word.
+        // Aliases, pre-2026-09 submissions stored the bare finish word.
         'Exterior balcony sconce (Low)': 'sconcelow',
         'Exterior balcony sconce (Medium)': 'sconceMedium',
         'Exterior balcony sconce (High)': 'sconceHigh',
       } },
   },
 
-  // ── EMERGENCY ──────────────────────────────────────────────────────────────
+  // === EMERGENCY ===
   {
     key: 'egressLighting',
     section: 'Emergency',
@@ -181,23 +181,23 @@ export const INTAKE_QUESTIONS = [
       } },
   },
 
-  // ── INTERIOR AMENITIES ─────────────────────────────────────────────────────
+  // === INTERIOR AMENITIES ===
   {
     key: 'interiorAmenityFinish',
     section: 'Interior amenities',
     question: 'Please choose what $/SF of interior amenity SF based on the level of finish of the project..',
-    hint: 'Lower finish $4–$8/SF (e.g. garden walk-up), medium finish $9–$12/SF, high finish $13–$16/SF (e.g. high-end mid-rise or high-rise).',
-    // $4–$16 in three finish tiers — the tier edges live in interiorAmenityTiers.js.
+    hint: 'Lower finish $4-$8/SF (e.g. garden walk-up), medium finish $9-$12/SF, high finish $13-$16/SF (e.g. high-end mid-rise or high-rise).',
+    // $4-$16 in three finish tiers, the tier edges live in interiorAmenityTiers.js.
     options: INTERIOR_AMENITY_RATES.map(String),
     // '3' was offered before 2026-09-11; a stored '3' still reads as $3, not the default.
     legacyOptions: ['3'],
     default: '10',
     format: 'perSf',
-    // Numeric answers pass straight through — the engine parseFloats them.
+    // Numeric answers pass straight through, the engine parseFloats them.
     engine: { section: 'amenities', field: 'interiorLevel', map: null },
   },
 
-  // ── CORRIDORS / STAIRWELLS ─────────────────────────────────────────────────
+  // === CORRIDORS / STAIRWELLS ===
   {
     key: 'unitEntrySconce',
     section: 'Corridors and stairwells',
@@ -218,14 +218,14 @@ export const INTAKE_QUESTIONS = [
         '1 sconce (Medium finish)': 'medium',
         '1 sconce (High finish)': 'high',
         '1 Integrated unit number/light': 'integrated',
-        // Aliases — pre-2026-09 submissions stored the bare finish word.
+        // Aliases, pre-2026-09 submissions stored the bare finish word.
         '1 sconce (Low)': 'low',
         '1 sconce (Medium)': 'medium',
         '1 sconce (High)': 'high',
       } },
   },
 
-  // ── EXTERIOR ───────────────────────────────────────────────────────────────
+  // === EXTERIOR ===
   {
     key: 'siteDesignLevel',
     section: 'Exterior',
@@ -283,10 +283,10 @@ export const INTAKE_QUESTIONS = [
     engine: { section: 'exterior', field: 'pathwayBollards', map: { 'No': 'no', 'Yes': 'yes' } },
   },
 
-  // ── PROJECT TYPE ───────────────────────────────────────────────────────────
+  // === PROJECT TYPE ===
   // Asked on the Drawings step (Mike 2026-09-12: "ask what kind of building type
   // this is on the drawing screen ... If we put it further at the front it can
-  // conditionally change other questions"). The section name only groups it —
+  // conditionally change other questions"). The section name only groups it: 
   // no section step renders 'Project type', the Drawings step does.
   {
     key: 'projectType',
@@ -319,7 +319,7 @@ export const INTAKE_QUESTIONS = [
       } },
   },
 
-  // ── ENERGY CODES ───────────────────────────────────────────────────────────
+  // === ENERGY CODES ===
   {
     key: 'energyCredit',
     section: 'Energy codes',
@@ -336,24 +336,24 @@ const byKey = new Map(INTAKE_QUESTIONS.map(q => [q.key, q]));
 
 /**
  * Free-number figures the wizard asks for ONLY when the drawings answered
- * nothing ("answer what we can, ask for the rest"). Not INTAKE_QUESTIONS —
+ * nothing ("answer what we can, ask for the rest"). Not INTAKE_QUESTIONS , 
  * those are fixed-option questions the wizard always renders; these are
  * number inputs that appear when the takeoff left the quantity blank, and
  * computeQuantities() reads them as the questionnaire-sourced fallback.
  * Values are clamped to plain digits because this is a public endpoint.
  */
 export const FIGURE_KEYS = [
-  { key: 'figureGrossSf',         section: 'Project figures', question: 'Total building gross SF (entered by the submitter — not found on the drawings)' },
-  { key: 'figureTotalUnits',      section: 'Project figures', question: 'Total units (entered by the submitter — not found on the drawings)' },
-  { key: 'figureStories',         section: 'Project figures', question: '# Stories (entered by the submitter — not found on the drawings)' },
-  // Legacy key — pre-2026-09-04 submissions typed the SHAFT count here and the
+  { key: 'figureGrossSf',         section: 'Project figures', question: 'Total building gross SF (entered by the submitter, not found on the drawings)' },
+  { key: 'figureTotalUnits',      section: 'Project figures', question: 'Total units (entered by the submitter, not found on the drawings)' },
+  { key: 'figureStories',         section: 'Project figures', question: '# Stories (entered by the submitter, not found on the drawings)' },
+  // Legacy key, pre-2026-09-04 submissions typed the SHAFT count here and the
   // takeoff derived landings from it. The wizard now asks for landings
   // directly (figureStairLandings); this stays so old submissions replay.
-  { key: 'figureStairwells',      section: 'Project figures', question: '# Egress stairwells (entered by the submitter — not found on the drawings)' },
-  { key: 'figureStairLandings',   section: 'Project figures', question: '# Egress stairwell landings (entered by the submitter — not found on the drawings)' },
-  { key: 'figureBalconies',       section: 'Project figures', question: '# of Balconies (entered by the submitter — not found on the drawings)' },
-  { key: 'figureExitDoors',       section: 'Project figures', question: '# Egress/exit doors (entered by the submitter — not found on the drawings)' },
-  { key: 'figureSurfaceParking',  section: 'Project figures', question: '# Surface parking stalls (entered by the submitter — not found on the drawings)' },
+  { key: 'figureStairwells',      section: 'Project figures', question: '# Egress stairwells (entered by the submitter, not found on the drawings)' },
+  { key: 'figureStairLandings',   section: 'Project figures', question: '# Egress stairwell landings (entered by the submitter, not found on the drawings)' },
+  { key: 'figureBalconies',       section: 'Project figures', question: '# of Balconies (entered by the submitter, not found on the drawings)' },
+  { key: 'figureExitDoors',       section: 'Project figures', question: '# Egress/exit doors (entered by the submitter, not found on the drawings)' },
+  { key: 'figureSurfaceParking',  section: 'Project figures', question: '# Surface parking stalls (entered by the submitter, not found on the drawings)' },
   // The no-drawings form (Mike, 2026-09-11: "someone without any drawings can
   // do a conceptual budget") asks for the areas a drawing would have given.
   { key: 'figureAvgUnitSf',          section: 'Project figures', question: 'Average unit size SF (entered by the submitter)' },
@@ -365,13 +365,13 @@ export const FIGURE_KEYS = [
   { key: 'figureBohSf',              section: 'Project figures', question: 'Back of house SF (entered by the submitter)' },
   // Townhouse / single-family private drive, end to end (Mike, 2026-09-13).
   { key: 'figureDriveLengthFt',      section: 'Project figures', question: 'Private drive length, feet (entered by the submitter)' },
-  // Garages and carports (Mike, 2026-09-13). 0 is a real answer for both — it
+  // Garages and carports (Mike, 2026-09-13). 0 is a real answer for both, it
   // overrides the townhome "1 garage per home" estimate.
   { key: 'figureGarages',            section: 'Project figures', question: '# Detached/Attached Garages (entered by the submitter)' },
   { key: 'figureCarports',           section: 'Project figures', question: '# Carport bays (entered by the submitter)' },
   // Sporadic site features (Mike, 2026-09-16). Counts for the per-feature
   // kinds, feet (longest dimension) for courtyards and turf play areas. 0 is
-  // a real answer — "there is no dog park" — and nothing is ever guessed.
+  // a real answer, "there is no dog park", and nothing is ever guessed.
   { key: 'figureDogParks',           section: 'Project figures', question: '# Dog parks (entered by the submitter; older drafts)' },
   { key: 'figureCourtyards',         section: 'Project figures', question: '# Courtyards (entered by the submitter)' },
   { key: 'figureCourtyardFt',        section: 'Project figures', question: 'Courtyard length, feet (entered by the submitter; older drafts)' },
@@ -389,12 +389,12 @@ const ZERO_OK_FIGURES = new Set([
   'figureExteriorAmenitySf', 'figureGarageSf', 'figureInteriorAmenitySf', 'figureCorridorSf', 'figureBohSf', 'figureBalconies',
 ]);
 
-// Which building types get detached-garage and carport lights — one shared
+// Which building types get detached-garage and carport lights, one shared
 // copy, also read by the internal Project Data screen and the budget engine.
 export { GARAGE_TYPE_KEYS, CARPORT_TYPE_KEYS } from '../coveredParkingTypes.js';
 
 /**
- * "No, I don't have drawings" — stored as its own answer row so a reviewer
+ * "No, I don't have drawings", stored as its own answer row so a reviewer
  * (and a query) can tell a typed-in budget from a drawing-read one. The only
  * accepted value is 'yes'.
  */
@@ -450,7 +450,7 @@ export const correctionKeyFor = key => `correct${key.charAt(0).toUpperCase()}${k
  * The minimum a no-drawings budget needs before it can be priced: what kind
  * of building, how many units, how big (total building SF, or an average unit
  * size to scale from), how many stories and how many surface stalls. Mike
- * added the last two on 2026-09-12 — easy numbers for an owner to know. 0
+ * added the last two on 2026-09-12, easy numbers for an owner to know. 0
  * surface stalls is a valid answer. Everything else on the form is estimated
  * when left blank. Shared by the wizard (to enable Continue) and the
  * estimate route (to enforce it).
@@ -477,7 +477,7 @@ export function noDrawingsReady(answers) {
 
 /**
  * Validate submitted answers against the questionnaire.
- * Returns rows ready for ConceptualSubmissionAnswer — unknown keys are
+ * Returns rows ready for ConceptualSubmissionAnswer, unknown keys are
  * dropped, answers are clamped to the question's options (free text is not
  * accepted on option questions: this is a public endpoint), and unanswered
  * questions fall back to their default so the reviewer always sees a full set.
@@ -487,7 +487,7 @@ export function validateAnswers(input) {
   const rows = [];
   for (const q of INTAKE_QUESTIONS) {
     const raw = typeof given[q.key] === 'string' ? given[q.key].trim() : '';
-    // Map keys count as valid too — they carry aliases for option strings a
+    // Map keys count as valid too, they carry aliases for option strings a
     // stored submission used before a wording change (still a fixed whitelist).
     const known = q.options.includes(raw) || !!q.legacyOptions?.includes(raw) ||
       (q.engine?.map != null && Object.prototype.hasOwnProperty.call(q.engine.map, raw));
@@ -495,9 +495,9 @@ export function validateAnswers(input) {
     if (!answer) continue; // no answer and no default (e.g. projectType left blank)
     rows.push({ section: q.section, questionKey: q.key, question: q.question, answer });
   }
-  // Visitor-typed figures ride along under their own whitelist — digits only,
+  // Visitor-typed figures ride along under their own whitelist, digits only,
   // commas and spaces tolerated, anything else dropped (public endpoint).
-  // Surface stalls, garages and carports keep a 0 — "none" is a real answer.
+  // Surface stalls, garages and carports keep a 0, "none" is a real answer.
   for (const f of FIGURE_KEYS) {
     const n = typeof given[f.key] === 'string' ? wholeFigure(given[f.key]) : null;
     if (n == null) continue;
@@ -527,8 +527,8 @@ export function validateAnswers(input) {
 }
 
 /**
- * Map a submission's answers into the engine's `sections` shape — the same
- * shape the internal wizard saves — plus the buildingTypeKey the controls
+ * Map a submission's answers into the engine's `sections` shape, the same
+ * shape the internal wizard saves, plus the buildingTypeKey the controls
  * math keys off. Answers are clamped to known options first (this feeds
  * calculateBudget on a public endpoint), and unanswered questions fall back
  * to their default, so the result always runs.
@@ -537,7 +537,7 @@ export function validateAnswers(input) {
  * @returns {{sections: object, buildingTypeKey: ?string}}
  */
 export function answersToEngine(answers) {
-  // Normalize rows → map (same tolerance as quantities.answersToMap, kept
+  // Normalize rows -> map (same tolerance as quantities.answersToMap, kept
   // local to avoid an import cycle).
   const given = {};
   if (Array.isArray(answers)) {
@@ -555,7 +555,7 @@ export function answersToEngine(answers) {
   for (const q of INTAKE_QUESTIONS) {
     if (!q.engine) continue;
     const raw = typeof given[q.key] === 'string' ? given[q.key].trim() : '';
-    // Map keys count as valid too — they carry aliases for option strings a
+    // Map keys count as valid too, they carry aliases for option strings a
     // stored submission used before a wording change (still a fixed whitelist).
     const known = q.options.includes(raw) || !!q.legacyOptions?.includes(raw) ||
       (q.engine?.map != null && Object.prototype.hasOwnProperty.call(q.engine.map, raw));
@@ -620,7 +620,7 @@ export function optionLabelFor(q, opt) {
 }
 
 /**
- * "Your design choices" — every design question the visitor was asked, with
+ * "Your design choices", every design question the visitor was asked, with
  * the answer they picked (or the default they left), in questionnaire order.
  * Printed at the bottom of the public result screen and PDF, like the
  * QUESTIONNAIRE RESPONSES block on the internal client-facing doc (Mike

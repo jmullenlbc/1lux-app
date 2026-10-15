@@ -1,5 +1,5 @@
 /**
- * Sporadic site features — dog parks, courtyards, playgrounds, tennis and
+ * Sporadic site features, dog parks, courtyards, playgrounds, tennis and
  * pickleball courts, turf play areas.
  *
  * Mike 2026-09-16, what each one gets:
@@ -86,7 +86,7 @@ test('a linear feature with no length prices at $0 and says so', () => {
   assert.match(r.how, /no length known/);
 });
 
-test('unknown types and empty lists are ignored — absent is $0', () => {
+test('unknown types and empty lists are ignored, absent is $0', () => {
   assert.equal(siteFeatureFixtures({ type: 'swimmingPool', count: 1 }, RATES), null);
   assert.deepEqual(priceSiteFeatures([], RATES), { product: 0, items: [], areaLights: 0, pedestrianPoles: 0 });
   assert.equal(priceSiteFeatures(undefined, RATES).product, 0);
@@ -139,7 +139,7 @@ test('flat rows ⇄ feature list round trip', () => {
   // the old dog park box comes back in the merged playground box
   assert.deepEqual(siteFeaturesToRows(list), { ...rows, dogParks: 0, playgrounds: 1 });
   assert.deepEqual(siteFeaturesToRows([{ type: 'pickleballCourt', count: 2 }, { type: 'tennisCourt', count: 1 }]).tennisCourts, 3);
-  // Every key present even when the list is empty — 0 means "none".
+  // Every key present even when the list is empty, 0 means "none".
   assert.deepEqual(Object.keys(siteFeaturesToRows([])).sort(), Object.values(SITE_FEATURE_ROW_KEYS).sort());
   assert.deepEqual(Object.keys(SITE_FEATURE_ROW_LABELS), Object.values(SITE_FEATURE_ROW_KEYS));
 });
@@ -225,15 +225,15 @@ test('siteFeatureFindings lists every found feature in display order and skips j
 
 test('each priced feature gets its own breakdown label and its own cost line', () => {
   const dog = siteFeatureFixtures({ type: 'dogPark', count: 1 }, RATES);
-  assert.equal(siteFeatureLineLabel(dog), 'Dog park × 1 — 1 area light');
+  assert.equal(siteFeatureLineLabel(dog), 'Dog park × 1, 1 area light');
   assert.equal(siteFeatureCostLine(dog), '1 area light × $1,400 = $1,400');
 
   const courts = siteFeatureFixtures({ type: 'pickleballCourt', count: 2 }, RATES);
-  assert.equal(siteFeatureLineLabel(courts), 'Pickleball courts × 2 — 8 area lights');
+  assert.equal(siteFeatureLineLabel(courts), 'Pickleball courts × 2, 8 area lights');
   assert.equal(siteFeatureCostLine(courts), '8 area lights × $1,400 = $11,200');
 
   const yard = siteFeatureFixtures({ type: 'courtyard', count: 1 }, RATES);
-  assert.equal(siteFeatureLineLabel(yard), 'Courtyard × 1 — 2 pedestrian poles');
+  assert.equal(siteFeatureLineLabel(yard), 'Courtyard × 1, 2 pedestrian poles');
   assert.equal(siteFeatureCostLine(yard), '2 pedestrian poles (12 ft) × $2,000 = $4,000');
 
   const bare = siteFeatureFixtures({ type: 'turfPlay', count: 1 }, RATES);
@@ -252,7 +252,7 @@ test('the words file carries no prices and the public screens import only it', (
   assert.ok(!/\b(1400|2000|areaLight:|pedestrianPole:|PRICING)\b/.test(words), 'siteFeatureWords.js carries a price');
   assert.ok(!/^import /m.test(words), 'siteFeatureWords.js imports something');
   // Everything a public visitor's browser loads must name features through
-  // the words file — never through siteFeatures.js, which holds the dollar
+  // the words file, never through siteFeatures.js, which holds the dollar
   // defaults (Mike 2026-09-15: the pricing model must not ship to a public
   // visitor's browser).
   for (const p of [

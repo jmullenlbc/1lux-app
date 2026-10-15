@@ -5,11 +5,11 @@ import { useEffect, useRef, useState } from 'react';
  * "Report a bug" for beta-test clients on the public /conceptual_budget pages.
  *
  * Public page, so: no session reads, no screenshot or console capture (that is
- * the staff QcCapture's job) — only what the visitor types, plus the page URL
+ * the staff QcCapture's job), only what the visitor types, plus the page URL
  * and browser so we can reproduce it. Messages are inline, not toasts: there is
  * no <Toaster /> on the public side.
  *
- * Sits bottom-right at z-40 — above the wizard, below any z-50 modal. The
+ * Sits bottom-right at z-40, above the wizard, below any z-50 modal. The
  * wizard's Back / Next row is in the normal page flow (not fixed) with the
  * footer note below it, so it scrolls clear of this button.
  */
@@ -123,7 +123,7 @@ export default function PublicBugButton() {
           {sent ? (
             <div>
               <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2.5" role="status">
-                Thanks — we got it. Our team will take a look.
+                Thanks, we got it. Our team will take a look.
               </p>
               <div className="flex justify-end mt-3">
                 <button
@@ -150,7 +150,7 @@ export default function PublicBugButton() {
                 />
               </label>
 
-              <p className="text-xs text-slate-500 mt-3">Your name and email, so we can follow up — optional</p>
+              <p className="text-xs text-slate-500 mt-3">Your name and email, so we can follow up, optional</p>
               <label className="block mt-1">
                 <span className="sr-only">Your name (optional)</span>
                 <input

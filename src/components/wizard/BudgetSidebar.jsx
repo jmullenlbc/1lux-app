@@ -36,7 +36,7 @@ function PlainRow({ label, value, indent, highlight, bold }) {
 // `range` ({ low, high }) is passed only by the public no-drawings form, whose
 // server estimate carries a ±10% band; the internal wizard never passes it.
 // `areaNotes` ({ [area]: node }) and `areaSummary` are the staff-only area
-// alerts, passed only by the internal wizards — never by the public form.
+// alerts, passed only by the internal wizards, never by the public form.
 // `needed` (string[]) is the public no-drawings form's list of required boxes
 // still blank. Mike 10-14: the list vanished as soon as the first number came
 // back, so it now stays under the total until every required box is filled.
@@ -57,7 +57,7 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
         {projectName && <div className="text-sm font-semibold text-white truncate mb-2" title={projectName}>{projectName}</div>}
         <div className="text-xs font-semibold text-navy-400 uppercase tracking-widest mb-1">Live Budget</div>
         <div className="text-2xl font-bold text-white tabular-nums">
-          {hasData ? formatCurrency(totalWithControls) : '—'}
+          {hasData ? formatCurrency(totalWithControls) : '-'}
         </div>
         {hasData && (
           <div className="flex gap-3 mt-1.5">
@@ -95,7 +95,7 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
             <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Breakdown</div>
             {areaSummary}
 
-            {/* Units — with full tooltip */}
+            {/* Units, with full tooltip */}
             <TooltipBudgetRow
               label="Residential Units"
               value={sections.units?.total?.product || 0}

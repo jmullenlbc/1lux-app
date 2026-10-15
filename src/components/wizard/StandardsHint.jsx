@@ -129,7 +129,7 @@ export default function StandardsHint({ category, className = '' }) {
               href={`/knowledge-base/${category.toLowerCase()}`}
               className="flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-800 font-medium pt-1"
             >
-              View all {catLabel} standards →
+              View all {catLabel} standards
             </Link>
           )}
         </div>

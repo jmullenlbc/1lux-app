@@ -8,7 +8,7 @@ import { sendEmail, escapeHtml } from '@/lib/notify';
 export const dynamic = 'force-dynamic';
 
 /**
- * "Email me the link" for an unfinished conceptual budget — the seam the
+ * "Email me the link" for an unfinished conceptual budget, the seam the
  * hidden resume-link button on the review page calls (RESUME_LINK_ENABLED in
  * IntakeClient.jsx). Built now so the wiring exists; it goes live when
  * Microsoft email is hooked up in src/lib/notify.js sendEmail(). Until then
@@ -54,7 +54,7 @@ export async function POST(req) {
     <p>Here is the link to pick up your lighting budget for <strong>${project}</strong> where you left off:</p>
     <p><a href="${link}">${link}</a></p>
     <p>Anyone with this link can open your budget, so keep it to yourself.</p>
-    <p>— ILC Studios</p>`;
+    <p>ILC Studios</p>`;
 
   try {
     await sendEmail({ to: row.email, subject: `Your ILC Studios budget for ${row.projectName}`, html });

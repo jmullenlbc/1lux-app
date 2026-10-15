@@ -69,7 +69,10 @@ export function cleanTag(v) {
 
 /** A wizard step we recognise → its position; anything else → -1. */
 export function stepIndexOf(stepId) {
-  return STEP_IDS.indexOf(String(stepId ?? ''));
+  // Building Figures (no-drawings path, 10-14) counts as the Drawings stage:
+  // stored indexes stay meaningful and the funnel keeps its nine rungs.
+  const id = String(stepId ?? '');
+  return STEP_IDS.indexOf(id === 'figures' ? 'drawings' : id);
 }
 
 /** The furthest step wins — going Back must not move a visitor backwards. */

@@ -6,7 +6,7 @@ import ReadingWait from '@/components/ReadingWait';
  * What the read looks like while it is happening.
  *
  * A drawing set takes about a minute to read. For that whole minute the old
- * version showed one word — "Reading…" — and nothing else moved, which on a
+ * version showed one word, "Reading…", and nothing else moved, which on a
  * phone on a job site is indistinguishable from a hung page. Mike, 2026-08-25,
  * on splitting the read into steps: "yes amazing idea with a cool sipping
  * animated thing".
@@ -15,7 +15,7 @@ import ReadingWait from '@/components/ReadingWait';
  * pretending to be progress. That matters: if the read stalls, this stalls too,
  * on the step that stalled, which is the honest thing to show.
  *
- * Steps that do not apply are marked "not needed" rather than removed — a step
+ * Steps that do not apply are marked "not needed" rather than removed, a step
  * disappearing mid-read reads as an error.
  */
 export default function ReadingSteps({ steps, startedAt }) {
@@ -85,12 +85,12 @@ function Mark({ state }) {
     );
   }
   if (state === 'skipped') {
-    return <span className="w-3 h-3 shrink-0 flex items-center justify-center text-slate-300">–</span>;
+    return <span className="w-3 h-3 shrink-0 flex items-center justify-center text-slate-300">-</span>;
   }
   return <span className="w-3 h-3 shrink-0 flex items-center justify-center"><span className="w-1.5 h-1.5 rounded-full bg-slate-200" /></span>;
 }
 
-/** Three dots that fill in turn — the smallest possible "still going". */
+/** Three dots that fill in turn, the smallest possible "still going". */
 function Dots() {
   return (
     <span className="inline-flex gap-0.5 ml-0.5" aria-hidden="true">

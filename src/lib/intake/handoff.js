@@ -1,5 +1,5 @@
 /**
- * Web budget request → project hand-off.
+ * Web budget request -> project hand-off.
  *
  * Mike, 2026-09-16: "Anything that comes through the conceptual budget should
  * input into the project. Shouldn't those fields really be the same really?"
@@ -7,7 +7,7 @@
  * They are the same. The public estimate already builds a `projectData` object
  * whose keys ARE the ProjectData columns, a `sections` object in the shape the
  * internal wizard saves, and site features in the shape of SiteFeature rows.
- * "This is a new job" simply never wrote them down — the new project opened
+ * "This is a new job" simply never wrote them down, the new project opened
  * blank and somebody retyped the request. This does the writing.
  *
  * planHandoff() is pure (no database) so the mapping is unit-tested;
@@ -35,7 +35,7 @@ const EXTRA_FLOAT_ROWS = { driveLengthFt: 'driveLengthFt', walkwayLengthFt: 'wal
 /** Columns the wizard's Project Data step mirrors as questionnaire rows. */
 const NOT_MIRRORED = new Set(['numFloors']);
 
-/** ProjectData column → the takeoff row it came from (estimate.js projectData). */
+/** ProjectData column -> the takeoff row it came from (estimate.js projectData). */
 const COLUMN_ROW = {
   grossSf: 'grossSf', unitsSf: 'unitsSf', numUnits: 'totalUnits', numBalconies: 'balconies',
   numVanities: 'vanities', numBathrooms: 'bathrooms', numFans: 'ceilingFans', corridorSf: 'corridorSf',
@@ -59,12 +59,12 @@ const finite = v => { const n = parseLooseNumber(v); return Number.isFinite(n) ?
 /**
  * What to write for one request.
  * @returns {{ready: boolean, data: object, sources: object, features: Array, responses: Array, total: ?number}}
- *   data      — ProjectData columns (only figures we actually have)
- *   sources   — { column: 'drawing' | 'client' | 'guess' } for each of data
- *   features  — [{type, count, lengthFt, source: 'drawing'|'typed'}]
- *   responses — [{section, questionKey, answerValue}] for QuestionnaireResponse
- *   buildingTypeKey — the project's own building-type key ('garden', 'podium', …)
- *   total     — the budget the visitor was shown, for the activity line
+ *   data    : ProjectData columns (only figures we actually have)
+ *   sources : { column: 'drawing' | 'client' | 'guess' } for each of data
+ *   features: [{type, count, lengthFt, source: 'drawing'|'typed'}]
+ *   responses, [{section, questionKey, answerValue}] for QuestionnaireResponse
+ *   buildingTypeKey, the project's own building-type key ('garden', 'podium', …)
+ *   total   : the budget the visitor was shown, for the activity line
  */
 export function planHandoff({ answers, drawings, pricing = null, adopted = null }) {
   const est = computeIntakeEstimate({ answers, drawings, pricing, adopted });
@@ -132,10 +132,13 @@ export function drawingsFromSubmission(submission) {
 }
 
 /**
- * Write a plan onto a (new) project. One transaction — all of it lands or none.
- * `writeSiteFeature` is passed in so this file stays importable by plain-node tests.
+ * Write a plan onto a (new) project. One transaction, all of it lands or none.
+ * `writeSiteFeature` and `recordFigureSources` are passed in so this file stays
+ * importable by plain-node tests. The figure-source tags go through the one
+ * writer (src/lib/figures/record.js: whitelist, never throws) AFTER the
+ * transaction, so a bad tag can never roll the hand-off back (10-14).
  */
-export async function applyHandoff(prisma, projectId, plan, { writeSiteFeature }) {
+export async function applyHandoff(prisma, projectId, plan, { writeSiteFeature, recordFigureSources = null }) {
   if (!plan?.ready) return { fields: 0, features: 0, answers: 0 };
   await prisma.$transaction(async (tx) => {
     await tx.projectData.upsert({
@@ -151,13 +154,11 @@ export async function applyHandoff(prisma, projectId, plan, { writeSiteFeature }
       });
     }
     for (const f of plan.features) await writeSiteFeature(tx, projectId, f);
-    for (const [field, source] of Object.entries(plan.sources || {})) {
-      await tx.projectFigureSource.upsert({
-        where: { projectId_field: { projectId, field } },
-        update: { source, setById: null, setAt: new Date(), confirmedAt: null, confirmedById: null },
-        create: { projectId, field, source },
-      });
-    }
   }, { timeout: 20_000 });
+  if (recordFigureSources) {
+    const bySource = {};
+    for (const [field, source] of Object.entries(plan.sources || {})) (bySource[source] ||= []).push(field);
+    for (const [source, fields] of Object.entries(bySource)) await recordFigureSources(prisma, projectId, fields, source);
+  }
   return { fields: Object.keys(plan.data).length, features: plan.features.length, answers: plan.responses.filter(r => r.section !== 'project-data').length };
 }

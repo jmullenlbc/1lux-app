@@ -14,6 +14,7 @@ import { inDepartment, SALES_MARKETING } from '@/lib/departments';
 import { hashToken } from '@/lib/intake/draftTokens';
 import { looseNumberOrNull } from '@/lib/numberInput';
 import { drawingsFromSubmission } from '@/lib/intake/handoff';
+import { intakeEstimateGate } from '@/lib/intake/estimate';
 import { automaticOwner, planFromWeb, makeConceptualProject, carryWebFigures, settleQuietly, linkPeopleQuietly } from '@/lib/intake/conceptualProjects';
 import { askOnce, tellSalesAboutReviews } from '@/lib/intake/webPeople';
 
@@ -23,17 +24,17 @@ export const dynamic = 'force-dynamic';
  * PUBLIC, UNAUTHENTICATED submission endpoint for /conceptual_budget.
  *
  * Hardening pass 2026-08-08 (review of the 08-04 deploy):
- *  1. Work-email gating was CLIENT-ONLY — a direct POST bypassed the free-mail
+ *  1. Work-email gating was CLIENT-ONLY, a direct POST bypassed the free-mail
  *     block entirely. `classifyIntakeEmail` is now enforced server-side; the
  *     browser check is just UX.
- *  2. No rate limit — anyone could script junk rows into the review queue.
+ *  2. No rate limit, anyone could script junk rows into the review queue.
  *     Same per-IP limiter as /api/intake/parse (which had one from day one).
- *  3. No size cap — `drawingsData` went into rawPayload unbounded; one hostile
+ *  3. No size cap, `drawingsData` went into rawPayload unbounded; one hostile
  *     POST could store megabytes per row.
  *  4. BUG: `proposedName: companyName || projectName` put the COMPANY name in
  *     the project-name field whenever a company was entered. proposedName is
  *     now always the project name; company rides in rawPayload.
- *  5. `Client.emailDomains` existed for exactly this moment but wasn't used —
+ *  5. `Client.emailDomains` existed for exactly this moment but wasn't used , 
  *     an explicit domain match now auto-links clientId (high-confidence
  *     matches only; the reviewer can always change it).
  */
@@ -65,14 +66,14 @@ export async function POST(req) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
-  // Server-side work-email enforcement — the client runs the same check for
+  // Server-side work-email enforcement, the client runs the same check for
   // instant feedback, but this is the boundary that counts.
   const emailCheck = classifyIntakeEmail(contactEmail);
   if (!emailCheck.ok) {
     return NextResponse.json({ error: emailCheck.message }, { status: 422 });
   }
 
-  // Project location is required (Mike, 2026-09-12) — the same check the form
+  // Project location is required (Mike, 2026-09-12), the same check the form
   // runs, enforced here because a direct POST skips the form.
   const loc = checkLocation({ city: body.city, state: body.state, zip: body.zip });
   if (!loc.ok) {
@@ -91,7 +92,7 @@ export async function POST(req) {
   }
 
   // Auto-link the client on an explicit emailDomains match only. Website-based
-  // matches stay a reviewer suggestion — never an automatic assignment.
+  // matches stay a reviewer suggestion, never an automatic assignment.
   let clientId = null;
   try {
     const clients = await prisma.client.findMany({ select: { id: true, name: true, emailDomains: true, website: true } });
@@ -104,9 +105,16 @@ export async function POST(req) {
     console.error('intake/submit client resolution failed (non-fatal):', e);
   }
 
-  // Questionnaire answers are clamped to the known question set — unknown keys
+  // Questionnaire answers are clamped to the known question set, unknown keys
   // and free text are dropped before anything touches the database.
   const answerRows = validateAnswers(answers);
+
+  // The same full gate as the PDF: drawings, or the no-drawings minimum set
+  // (type, units, gross or unit SF, stories, stalls, pool). The live sidebar
+  // may price early (provisional, Mike 10-9); a saved budget may not (10-14).
+  if (!intakeEstimateGate(answerRows, drawingsData || null).ready) {
+    return NextResponse.json({ error: 'Add your drawings or the building figures first, then submit again.' }, { status: 422 });
+  }
 
   const submission = await prisma.conceptualSubmission.create({
     data: {
@@ -126,7 +134,7 @@ export async function POST(req) {
 
   // The unfinished draft this grew out of (migration 0087) is now finished:
   // link it so it drops off the staff "unfinished budgets" list and the two
-  // rows stay tied together. Never fatal — the submission is already saved.
+  // rows stay tied together. Never fatal, the submission is already saved.
   let draftProjectId = null;
   let draftPeople = null;
   try {
@@ -154,7 +162,10 @@ export async function POST(req) {
       people.clientId = people.clientId || draftPeople.clientId;
       people.contactId = draftPeople.contactId;
       await prisma.duplicateReview.updateMany({ where: { draftId: draftPeople.id, submissionId: null }, data: { submissionId: submission.id } });
-    } else {
+    }
+    // A draft that never found its company or person (an older draft, or a
+    // settle that failed) is settled now, not left for the nightly sweep (10-14).
+    if (!draftPeople || (!draftPeople.clientId && !draftPeople.contactId)) {
       const words = String(contactName).trim().split(/\s+/);
       const owner = await automaticOwner(prisma);
       const found = await settleQuietly(prisma, {
@@ -173,7 +184,7 @@ export async function POST(req) {
     console.error('intake/submit people failed (non-fatal):', e);
   }
 
-  // Notify the precon inbox. A failed email must never fail the submission —
+  // Notify the precon inbox. A failed email must never fail the submission , 
   // the row is already saved and the review queue is the source of truth.
   const flags = computeReviewFlags(drawingsData || null);
   // Reviewer-only: figures far off what our real jobs of this type run.
@@ -188,7 +199,7 @@ export async function POST(req) {
     console.error('intake/submit notify failed (non-fatal):', e);
   }
 
-  // "Looks like [Project X]" — a guess for the reviewer, never shown to the
+  // "Looks like [Project X]", a guess for the reviewer, never shown to the
   // visitor and never acted on by itself. A failure here must not fail the
   // submission either.
   let looksLikeJob = false;

@@ -1,6 +1,6 @@
 /**
- * Stair landings — Mike's ladder (2026-09-05): drawings → building code →
- * a human. Pins the 2N−1 rule (the middle landing between floors), the +10%
+ * Stair landings, Mike's ladder (2026-09-05): drawings → building code →
+ * a human. Pins the 2N-1 rule (the middle landing between floors), the +10%
  * contingency on derived counts, and the code-minimum fallback (≥2 exit
  * stairs per building, one per ~15,000 SF of corridor floor plate or ~5,000
  * SF of breezeway walk-up plate; townhouse stairs are private → zero).
@@ -29,20 +29,20 @@ test('a live pricing sheet overrides the factors; a bad value falls back', () =>
   assert.equal(f.breezewayPlateSfPerStair, 5000);
 });
 
-test('2N−1: a stair serving 3 floors has 3 floor landings + 2 in between', () => {
+test('2N-1: a stair serving 3 floors has 3 floor landings + 2 in between', () => {
   assert.equal(landingsPerStair(3), 5);
   assert.equal(landingsPerStair(1), 1);
   assert.equal(landingsPerStair(0), 0);
   assert.equal(landingsPerStair(null), 0);
 });
 
-test('drawings say it: stairs × (2N−1) + 10%', () => {
+test('drawings say it: stairs × (2N-1) + 10%', () => {
   const e = estimateStairLandings({ stories: 4, stairs: 2 });
   assert.equal(e.base, 14);
   assert.equal(e.landings, 15);                              // 15.4 → 15
   assert.equal(e.estimated, false);
   assert.equal(e.flag, null);
-  assert.match(e.how, /2 stairs × \(2 × 4 stories − 1\) = 14 landings, \+ 10% = 15/);
+  assert.match(e.how, /2 stairs × \(2 × 4 stories - 1\) = 14 landings, \+ 10% = 15/);
   assert.match(e.how, /mid-level landing/);
 });
 
@@ -55,13 +55,13 @@ test('Town Lake shape: 2 stairs on a 20-story tower ≈ Mike\'s 80 landings', ()
 test('Lone Tree shape (Mike 2026-09-16): 3 stairs per building × 4 buildings, 7 stories', () => {
   const e = estimateStairLandings({ stories: 7, stairsPerBuilding: 3, buildings: 4 });
   assert.equal(e.stairs, 12);
-  assert.equal(e.base, 156);                                   // 12 × (2 × 7 − 1)
+  assert.equal(e.base, 156);                                   // 12 × (2 × 7 - 1)
   assert.equal(e.landings, 172);                               // 171.6 → 172
   assert.equal(e.perBuildingGiven, true);
   assert.equal(e.estimated, false);
   assert.equal(e.flag, null);
   assert.match(e.how, /4 buildings × 3 exit stairs each = 12 stairs/);
-  assert.match(e.how, /12 stairs × \(2 × 7 stories − 1\) = 156 landings, \+ 10% = 172/);
+  assert.match(e.how, /12 stairs × \(2 × 7 stories - 1\) = 156 landings, \+ 10% = 172/);
 });
 
 test('a project-total stair count is never multiplied by the building count', () => {
@@ -96,10 +96,10 @@ test('no stair count: a long floor plate gets more stairs (one per 15,000 SF, co
 
 test('garden walk-ups pack stairs much tighter: one breezeway stair per 5,000 SF', () => {
   // Fulshear-sized garden project: ~130,000 SF of plate → 26 breezeway
-  // stairs (its actual drawings imply ~25 — each stair serves ~5K SF).
+  // stairs (its actual drawings imply ~25, each stair serves ~5K SF).
   const e = estimateStairLandings({ stories: 3, stairs: null, buildings: 1, footprintSf: 130463, buildingTypeKey: 'garden' });
   assert.equal(e.stairs, 26);
-  assert.equal(e.base, 130);                                  // 26 × (2×3−1)
+  assert.equal(e.base, 130);                                  // 26 × (2×3-1)
   assert.equal(e.landings, 143);
   assert.match(e.how, /breezeway stair per 5,000 SF/);
   // Same shape read as a corridor building: 130,463 ÷ 15,000 → 9 stairs.
@@ -110,7 +110,7 @@ test('garden walk-ups pack stairs much tighter: one breezeway stair per 5,000 SF
   assert.equal(estimateStairLandings({ stories: 3, stairs: null, buildings: 1, footprintSf: 130463, buildingTypeKey: 'stackedFlats' }).stairs, 26);
 });
 
-test('townhouse stairs are private — zero shared landings, still an answer', () => {
+test('townhouse stairs are private, zero shared landings, still an answer', () => {
   const e = estimateStairLandings({ stories: 3, stairs: null, buildings: 8, footprintSf: 60000, buildingTypeKey: 'townHouses' });
   assert.equal(e.stairs, 0);
   assert.equal(e.landings, 0);
@@ -118,7 +118,7 @@ test('townhouse stairs are private — zero shared landings, still an answer', (
   assert.equal(estimateStairLandings({ stories: 2, stairs: null, buildingTypeKey: 'singleFamily' }).landings, 0);
 });
 
-test('the building type only matters when the stair count is estimated — a drawn count wins untouched', () => {
+test('the building type only matters when the stair count is estimated, a drawn count wins untouched', () => {
   const e = estimateStairLandings({ stories: 3, stairs: 4, buildingTypeKey: 'townHouses' });
   assert.equal(e.stairs, 4);
   assert.equal(e.landings, 22);                               // 4 × 5 = 20, +10%

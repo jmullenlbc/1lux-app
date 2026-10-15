@@ -28,11 +28,20 @@ import { INTAKE_QUESTIONS, FIGURE_KEYS, CLUBHOUSE_ANSWERS, POOL_KEY, POOL_ANSWER
 
 /** The wizard's step ids, in order (mirrors STEPS in IntakeClient.jsx). */
 export const STEP_IDS = ['about', 'drawings', 'units', 'corridors', 'amenities', 'exterior', 'emergency', 'controls', 'review'];
+/**
+ * The public wizard's own step list. "figures" (Building Figures, the typed
+ * figures page on the no-drawings path, Mike 10-14) is a draft step but NOT a
+ * visit step: ConceptualVisit stores stepIndex as an integer into STEP_IDS,
+ * so inserting it there would re-read every stored index. Visits count it as
+ * the Drawings stage (see visits.js stepIndexOf).
+ */
+export const DRAFT_STEP_IDS = [...STEP_IDS.slice(0, 2), 'figures', ...STEP_IDS.slice(2)];
 
 /** Plain-English step names for the staff list. */
 export const STEP_LABELS = {
   about: 'About you',
   drawings: 'Drawings',
+  figures: 'Building figures',
   units: 'Residential units',
   corridors: 'Corridors',
   amenities: 'Amenities',
@@ -100,9 +109,9 @@ export function packDraft(draft) {
   }
 
   const haveDrawings = d.haveDrawings === 'yes' || d.haveDrawings === 'no' ? d.haveDrawings : null;
-  const stepId = STEP_IDS.includes(d.stepId) ? d.stepId : null;
+  const stepId = DRAFT_STEP_IDS.includes(d.stepId) ? d.stepId : null;
   const completedSteps = Array.isArray(d.completedSteps)
-    ? STEP_IDS.filter(id => d.completedSteps.includes(id)).join(',')
+    ? DRAFT_STEP_IDS.filter(id => d.completedSteps.includes(id)).join(',')
     : '';
   const hasClubhouse = CLUBHOUSE_ANSWERS.includes(d.hasClubhouse) ? d.hasClubhouse : null;
 
@@ -193,9 +202,9 @@ export function unpackDraft(row, fields = []) {
   return {
     v: 1,
     savedAt,
-    stepId: STEP_IDS.includes(r.stepId) ? r.stepId : 'about',
+    stepId: DRAFT_STEP_IDS.includes(r.stepId) ? r.stepId : 'about',
     completedSteps: typeof r.completedSteps === 'string'
-      ? r.completedSteps.split(',').filter(id => STEP_IDS.includes(id))
+      ? r.completedSteps.split(',').filter(id => DRAFT_STEP_IDS.includes(id))
       : [],
     firstName: r.firstName ?? '',
     lastName: r.lastName ?? '',
@@ -244,7 +253,7 @@ export function draftStage(lastSavedAt, now = Date.now()) {
 export function reachedLabel(row) {
   const r = row && typeof row === 'object' ? row : {};
   const done = typeof r.completedSteps === 'string' ? r.completedSteps.split(',') : [];
-  let best = STEP_IDS.indexOf(STEP_IDS.includes(r.stepId) ? r.stepId : 'about');
-  for (const id of done) best = Math.max(best, STEP_IDS.indexOf(id));
-  return STEP_LABELS[STEP_IDS[Math.max(best, 0)]];
+  let best = DRAFT_STEP_IDS.indexOf(DRAFT_STEP_IDS.includes(r.stepId) ? r.stepId : 'about');
+  for (const id of done) best = Math.max(best, DRAFT_STEP_IDS.indexOf(id));
+  return STEP_LABELS[DRAFT_STEP_IDS[Math.max(best, 0)]];
 }

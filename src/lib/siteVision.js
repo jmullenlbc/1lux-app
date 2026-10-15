@@ -251,6 +251,7 @@ Return ONLY valid JSON — no markdown, no commentary:
   "buildingFootprintSfMeasured": number or null,
   "lotCoveragePct": number or null,
   "buildingType": one of "singleFamily" | "townHouses" | "stackedFlats" | "garden" | "gurban" | "wrap" | "podium" | "midRise" | "highRise", or null,
+  "breezewayStyle": one of "small" | "long", or null,
   "driveLengthFtMeasured": number or null,
   "walkwayLengthFtMeasured": number or null,
   "exteriorAmenitySfMeasured": number or null,
@@ -315,6 +316,11 @@ BUILDING TYPE — the one classification you may make, and only from evidence th
 - "highRise": 12 or more stories.
 - "singleFamily": detached single-family houses, 1–2 stories.
 - If the sheet gives no evidence for any of these — no words and no story count with a stair type — return null. Do not pick a type because it is common. Say in notes what the type was read from.
+
+BREEZEWAY STYLE — only for a "garden", "gurban" or "stackedFlats" building, and only from a floor plan, building plan or elevation that shows the open stair. Two kinds exist and they are lit differently:
+- "small": a short open stair between two units per floor, each stair serving only the units on either side of it (a landing with a unit door left and right, no walkway). The stair gets an exterior emergency fixture at ground, a wall pack per flight and a fixture pair at each landing.
+- "long": a long open stair that lands on an open-air corridor or walkway running along the unit doors above (a row of doors off one exterior walkway, often labelled BREEZEWAY, WALKWAY or EXTERIOR CORRIDOR). The walkway itself is lit along its length.
+- Any other building type, no stair shown, or you cannot tell → null. Never guess the style from the building type alone.
 - confidence: how legible and unambiguous the source text was. Hand-lettered but clear = 0.8. Blurry or inferred layout = 0.3.
 - foundSiteDataBlock: true only if you found an explicit data/summary block, as opposed to scattered callouts.
 - notes: two sentences at the outside. Name the block you read and flag anything you were unsure of. Do not restate the numbers you already reported, and do not walk through your arithmetic — a long note is time spent writing rather than reading, and this answer has thirty seconds to come back.`;
@@ -396,8 +402,13 @@ BUILDING TYPE — the one classification you may make, and only from evidence th
  * 2026-10-02c adds walkwayLengthFtMeasured (townhome / single-family only).
  * Mike: "It should read it or estimate but not ask." The takeoff records it
  * and the engine puts one bollard / pedestrian pole every 40 ft of walkway.
+ *
+ * 2026-10-14 adds breezewayStyle (small | long | null) for garden, gurban and
+ * stacked-flat buildings. Mike: no public stair question; "for drawings, can
+ * we figure that out in the drawing?" The public estimate passes it to the
+ * engine as the breezeway stair package style.
  */
-export const SITE_VISION_PROMPT_VERSION = `siteVision-2026-10-02c-${MAX_EDGE}px`;
+export const SITE_VISION_PROMPT_VERSION = `siteVision-2026-10-14-${MAX_EDGE}px`;
 
 // The site-feature vocabulary and cleaner live in the canvas-free
 // `siteFeatures.js` (the engine, takeoff and unit tests import them; this
@@ -523,7 +534,7 @@ const SITE_FIELDS = [
   'buildingCount', 'buildingsCounted', 'clubhouseSf',
   'amenitySf', 'grossSf', 'stories', 'storiesCounted', 'egressStairwells',
   'egressStairwellsCounted', 'exitDoors', 'exitDoorsCounted',
-  'buildingFootprintSf', 'buildingFootprintSfMeasured', 'lotCoveragePct', 'buildingType', 'driveLengthFtMeasured', 'walkwayLengthFtMeasured',
+  'buildingFootprintSf', 'buildingFootprintSfMeasured', 'lotCoveragePct', 'buildingType', 'breezewayStyle', 'driveLengthFtMeasured', 'walkwayLengthFtMeasured',
   'exteriorAmenitySfMeasured', 'scaleBasis',
 ];
 const BED_FIELDS = ['studio', 'oneBed', 'twoBed', 'threeBed'];
@@ -612,6 +623,8 @@ function labelNote(notes, page) {
  */
 export function validateSiteData(data) {
   const warnings = [];
+  // Breezeway style is a closed pair; anything else reads as "could not tell".
+  if (data.breezewayStyle !== 'small' && data.breezewayStyle !== 'long') data.breezewayStyle = null;
   const mix = data.bedMix || {};
   const parts = ['studio', 'oneBed', 'twoBed', 'threeBed']
     .map(k => mix[k])

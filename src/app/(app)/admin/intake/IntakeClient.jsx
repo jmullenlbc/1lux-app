@@ -28,7 +28,7 @@ function fmtDateTime(d) {
  * one is a lead: a name, a work email and a project, saved the moment the
  * About You page was passed. "Still working" for the first day, "Abandoned"
  * after that (Mike, 2026-09-15: "Yes we should see it abandoned"). Archive
- * archives the row — nothing is deleted.
+ * archives the row, nothing is deleted.
  */
 function UnfinishedBudgets({ drafts, onArchived }) {
   const [busyId, setBusyId] = useState(null);
@@ -100,7 +100,7 @@ function UnfinishedBudgets({ drafts, onArchived }) {
                     <td className="px-4 py-3">
                       <span className="text-slate-900">{d.projectName}</span>
                       <span className="block text-xs text-slate-500">
-                        {[where, d.buildingType].filter(Boolean).join(' · ') || '—'}
+                        {[where, d.buildingType].filter(Boolean).join(' · ') || '-'}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-slate-600">
@@ -112,7 +112,7 @@ function UnfinishedBudgets({ drafts, onArchived }) {
                       )}
                     </td>
                     <td className="px-4 py-3 text-right text-slate-600 whitespace-nowrap">
-                      {d.unitCount ? d.unitCount.toLocaleString() : '—'} / {d.grossSf ? d.grossSf.toLocaleString() : '—'}
+                      {d.unitCount ? d.unitCount.toLocaleString() : '-'} / {d.grossSf ? d.grossSf.toLocaleString() : '-'}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
@@ -159,7 +159,7 @@ function drawingsOf(submission) {
 }
 
 /**
- * "Verify before trusting" warnings — recomputed here from the stored drawing
+ * "Verify before trusting" warnings, recomputed here from the stored drawing
  * data rather than stored at submit time, so tightening a rule immediately
  * applies to old submissions too.
  */
@@ -186,15 +186,15 @@ function ReviewFlags({ submission, norms, adopted }) {
 }
 
 /**
- * The full quantity takeoff — every count and square footage the budget math
+ * The full quantity takeoff, every count and square footage the budget math
  * needs, each with where-it-came-from and a ⚠ when it should be verified.
  * Recomputed on view (same reasoning as ReviewFlags): a rule fix in
  * quantities.js immediately applies to every past submission.
  */
 function QuantityTakeoff({ submission, adopted }) {
   const drawings = drawingsOf(submission);
-  // A no-drawings submission still has a full takeoff — typed figures plus
-  // the stand-in guesses — so it gets the panel too.
+  // A no-drawings submission still has a full takeoff, typed figures plus
+  // the stand-in guesses, so it gets the panel too.
   const typedIn = (submission?.answers || []).some(a => a?.questionKey === 'noDrawings' && a?.answer === 'yes');
   if (!drawings && !typedIn) return null;
   let quantities;
@@ -233,7 +233,7 @@ function QuantityTakeoff({ submission, adopted }) {
 
 /**
  * Questionnaire answers, grouped by section in the questionnaire's own order.
- * Answers matching the question's default are dimmed — the interesting ones
+ * Answers matching the question's default are dimmed, the interesting ones
  * are the choices the submitter actively made.
  */
 function QuestionnaireAnswers({ submission }) {
@@ -292,8 +292,8 @@ function keptSheetsOf(submission) {
  * The sheets we actually read, kept so a reviewer can check the numbers against
  * the drawing instead of taking the parser's word for it.
  *
- * These are compressed images of a handful of pages — the site plan, the code
- * summary, the unit matrix — not the GC's original 400 MB set, which is deleted
+ * These are compressed images of a handful of pages, the site plan, the code
+ * summary, the unit matrix, not the GC's original 400 MB set, which is deleted
  * as soon as it has been read. Each thumbnail is fetched through a link that
  * expires in five minutes, so the links are requested when the submission is
  * opened rather than baked into the page.
@@ -325,7 +325,7 @@ function KeptSheets({ submission }) {
       setFailed(got.length === 0);
     })();
     return () => { live = false; };
-    // Keyed on the submission, not on `sheets` — a fresh array every render
+    // Keyed on the submission, not on `sheets`, a fresh array every render
     // would re-fetch every link forever.
   }, [submission.id]);                              // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -508,7 +508,7 @@ function JobLinkPanel({ submission, projects, onUpdated }) {
             </div>
           ))}
         </div>
-        {!anyChange && <p className="text-xs text-slate-500">Nothing on the job will change — this just connects the two.</p>}
+        {!anyChange && <p className="text-xs text-slate-500">Nothing on the job will change, this just connects the two.</p>}
         {err && <p className="text-xs text-red-600">{err}</p>}
         <div className="flex gap-2">
           <button onClick={link} disabled={busy}
@@ -541,7 +541,7 @@ function JobLinkPanel({ submission, projects, onUpdated }) {
           <div className="flex gap-2 mt-2">
             <button onClick={() => compare(suggestion.id)} disabled={busy}
               className="flex-1 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold py-1.5 rounded-lg disabled:opacity-50">
-              Same job — compare and link
+              Same job, compare and link
             </button>
             <button onClick={dismiss} disabled={busy}
               className="flex-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold py-1.5 rounded-lg disabled:opacity-50">
@@ -558,7 +558,7 @@ function JobLinkPanel({ submission, projects, onUpdated }) {
             className="flex-1 min-w-0 rounded-lg border border-slate-200 px-2 py-1.5 text-sm">
             <option value="">Pick a project…</option>
             {projects.map(p => (
-              <option key={p.id} value={p.id}>{p.name}{p.city ? ` — ${[p.city, p.state].filter(Boolean).join(', ')}` : ''}</option>
+              <option key={p.id} value={p.id}>{p.name}{p.city ? `, ${[p.city, p.state].filter(Boolean).join(', ')}` : ''}</option>
             ))}
           </select>
           <button onClick={() => compare(pickId)} disabled={!pickId || busy}
@@ -582,7 +582,7 @@ function JobLinkPanel({ submission, projects, onUpdated }) {
           ) : (
             <button onClick={() => setConfirmCreate(true)} disabled={busy}
               className="text-xs font-semibold text-orange-600 hover:text-orange-700">
-              No — it&apos;s a new job. Create a project from this request →
+              No, it&apos;s a new job. Create a project from this request
             </button>
           )}
         </div>
@@ -673,7 +673,7 @@ export default function IntakeClient({ submissions: initialSubmissions, drafts =
 
   // A link, a dismiss or a new project comes back as the updated request. Keep
   // the answers already loaded (the routes don't send them) and pick up a status
-  // change — creating a project approves the request.
+  // change, creating a project approves the request.
   function applyUpdate(u) {
     setSubmissions(subs => subs.map(s => s.id === u.id ? { ...s, ...u } : s));
     if (u.id === selectedId) {
@@ -776,8 +776,8 @@ export default function IntakeClient({ submissions: initialSubmissions, drafts =
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">{[s.city, s.state].filter(Boolean).join(', ') || '—'}</td>
-                      <td className="px-4 py-3 text-slate-600">{s.buildingType || '—'}</td>
+                      <td className="px-4 py-3 text-slate-600">{[s.city, s.state].filter(Boolean).join(', ') || '-'}</td>
+                      <td className="px-4 py-3 text-slate-600">{s.buildingType || '-'}</td>
                       <td className="px-4 py-3">
                         <span className={`text-xs font-semibold px-2 py-1 rounded-full ${STATUS_CONFIG[s.status].color}`}>
                           {STATUS_CONFIG[s.status].label}
@@ -828,14 +828,14 @@ export default function IntakeClient({ submissions: initialSubmissions, drafts =
                 <div>
                   <label className="block text-sm font-semibold text-slate-900 mb-1">Location</label>
                   <p className="text-slate-600">
-                    {[selected.city, selected.state].filter(Boolean).join(', ') || '—'}
+                    {[selected.city, selected.state].filter(Boolean).join(', ') || '-'}
                     {selected.zip ? ` ${selected.zip}` : ''}
                   </p>
                 </div>
 
                 <div>
                   <label className="block text-sm font-semibold text-slate-900 mb-1">Building Type</label>
-                  <p className="text-slate-600">{selected.buildingType || '—'}</p>
+                  <p className="text-slate-600">{selected.buildingType || '-'}</p>
                 </div>
 
                 <ReviewFlags submission={selected} norms={figureNorms} adopted={adoptedGuesses} />
@@ -933,7 +933,7 @@ export default function IntakeClient({ submissions: initialSubmissions, drafts =
                       ) : inviteResult?.inviteUrl ? (
                         <div>
                           <p className="text-xs text-slate-600 mb-1">
-                            Invite ready — copy this link and send it to {inviteResult.submitterEmail}:
+                            Invite ready, copy this link and send it to {inviteResult.submitterEmail}:
                           </p>
                           <div className="flex gap-2">
                             <input

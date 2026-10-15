@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 /**
  * How long a drawing read takes, said out loud.
  *
- * ── Why this exists ──
+ * === Why this exists ===
  * Mike, 2026-08-28: "we need a warning that a drawing could take a few minutes
  * to read anywhere where we are doing that right? don't you think so the user
  * understands the timing?"
@@ -12,7 +12,7 @@ import { useEffect, useState } from 'react';
  * He is right, and the reason is worth writing down. Reading a real set is not
  * a page load. The set is opened, its index is read off a picture, the sheets
  * worth opening are drawn and read, and every one of those is a separate trip
- * to a model — because Amplify's front door hangs up on any single request that
+ * to a model, because Amplify's front door hangs up on any single request that
  * runs past about thirty seconds. A 120-sheet set measures around two and a
  * half minutes end to end.
  *
@@ -20,20 +20,20 @@ import { useEffect, useState } from 'react';
  * broken page, and the person waiting is often a GC on a phone on a job site.
  * So the timing is said TWICE: once before the file is picked, so nobody is
  * surprised, and once while the read is running, with a number that visibly
- * counts up — a counter is what says "working", where a spinner only says
+ * counts up, a counter is what says "working", where a spinner only says
  * "something is spinning".
  *
- * ── Why the copy is here and not in each panel ──
+ * === Why the copy is here and not in each panel ===
  * A drawing is read in five different places in this app, and until now they
- * each guessed: "about a minute", "15–30 seconds", or nothing at all. The
- * 15–30 was the worst of them, because it is roughly the number the request
+ * each guessed: "about a minute", "15 to 30 seconds", or nothing at all. The
+ * 15 to 30 was the worst of them, because it is roughly the number the request
  * dies at. One file, one set of words, one place to correct them when the
  * timing changes.
  */
 
 /** The up-front warning. Said before a file is chosen, not after. */
 export const READING_TIME_HINT =
-  'Reading a full set takes a few minutes — leave this page open while it works.';
+  'Reading a full set takes a few minutes, leave this page open while it works.';
 
 /** The same thing in one short clause, for panels with no room for a sentence. */
 export const READING_TIME_SHORT = 'takes a few minutes';
@@ -57,13 +57,13 @@ export default function ReadingWait({ startedAt, quietFor = 6, className = '' })
   return (
     <p className={`text-[11px] text-slate-400 tabular-nums ${className}`}>
       {formatElapsed(elapsed)} · {elapsed >= 90
-        ? 'still reading — sets plotted as pictures take the longest'
+        ? 'still reading, sets plotted as pictures take the longest'
         : 'a full set takes a few minutes'}
     </p>
   );
 }
 
-/** Seconds up to a minute, then minutes and seconds — 143 means nothing at a glance. */
+/** Seconds up to a minute, then minutes and seconds, 143 means nothing at a glance. */
 export function formatElapsed(seconds) {
   if (seconds < 60) return `${seconds}s`;
   return `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, '0')}s`;

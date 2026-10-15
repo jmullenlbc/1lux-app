@@ -1,9 +1,9 @@
 /**
- * The quantity takeoff — every count and SF derived from drawings + answers.
+ * The quantity takeoff, every count and SF derived from drawings + answers.
  *
  * The input is rawPayload.drawings from an unauthenticated browser, so half
  * of these tests are about hostile shapes never throwing; the other half pin
- * the derivation rules (landings = stairs × (2N−1), fans by answer, BOH as
+ * the derivation rules (landings = stairs × (2N-1), fans by answer, BOH as
  * remainder) so a refactor can't silently bend the arithmetic.
  */
 import test from 'node:test';
@@ -14,7 +14,7 @@ import { mergeProposals } from '../../src/lib/mergeProposals.js';
 
 const byKey = (qs) => Object.fromEntries(qs.map(q => [q.key, q]));
 
-/** A clean, fully-populated read — the happy path everything else varies. */
+/** A clean, fully-populated read, the happy path everything else varies. */
 function cleanDrawings() {
   return {
     sources: ['a.pdf'],
@@ -55,7 +55,7 @@ test('ceiling fans follow the questionnaire answer', () => {
   const d = cleanDrawings();
   assert.equal(byKey(computeQuantities(d, { ceilingFans: 'None' })).ceilingFans.value, 0);
   assert.equal(byKey(computeQuantities(d, { ceilingFans: 'All bedrooms' })).ceilingFans.value, 260);
-  // Master bed only: one per unit with ≥1 bedroom — the 20 studios drop out.
+  // Master bed only: one per unit with ≥1 bedroom, the 20 studios drop out.
   assert.equal(byKey(computeQuantities(d, { ceilingFans: 'Master bed only' })).ceilingFans.value, 180);
   assert.equal(byKey(computeQuantities(d, { ceilingFans: 'Bedrooms and living room' })).ceilingFans.value, 260 + 200);
   assert.equal(byKey(computeQuantities(d, { ceilingFans: 'Living room only' })).ceilingFans.value, 200);
@@ -78,7 +78,7 @@ test('ceiling fans: the verbatim spreadsheet options count per bedroom tier', ()
   assert.match(fans('Master bed + Secondary bed').how, /secondary/i);
 });
 
-test('stair landings = stairs × (2 × stories − 1), plus the 10% contingency (Mike 2026-09-05)', () => {
+test('stair landings = stairs × (2 × stories - 1), plus the 10% contingency (Mike 2026-09-05)', () => {
   const q = byKey(computeQuantities(cleanDrawings(), {}));
   assert.equal(q.stairLandings.value, Math.round(2 * (2 * 4 - 1) * 1.1));   // 14 → 15
   assert.equal(q.stairLandings.source, 'derived');
@@ -87,7 +87,7 @@ test('stair landings = stairs × (2 × stories − 1), plus the 10% contingency 
   assert.match(q.stairLandings.how, /mid-level landing/, 'the middle landing between floors is called out');
 });
 
-test('stories unstated: estimated from gross ÷ footprint, and the landings follow — flagged ESTIMATED', () => {
+test('stories unstated: estimated from gross ÷ footprint, and the landings follow, flagged ESTIMATED', () => {
   const d = cleanDrawings();
   d.siteData.stories = null;                                  // 260,000 ÷ 60,000 ≈ 4
   const q = byKey(computeQuantities(d, {}));
@@ -127,7 +127,7 @@ test('the questionnaire building type steers the plate factor: garden walk-ups g
   const q = byKey(computeQuantities(d, { projectType: 'Garden (3 Levels)' }));
   assert.equal(q.egressStairwells.value, 12);                 // 60,000 ÷ 5,000
   assert.match(q.stairLandings.how, /breezeway/);
-  // Townhouses: private in-unit stairs — zero shared landings, not null.
+  // Townhouses: private in-unit stairs, zero shared landings, not null.
   const t = cleanDrawings();
   t.siteData.egressStairwells = null;
   const qt = byKey(computeQuantities(t, { projectType: 'Town Houses (2-3 Levels)' }));
@@ -142,13 +142,13 @@ test('landings stay null (never guessed from nothing) when neither stories nor g
   d.siteData.lotCoveragePct = null;
   const q = byKey(computeQuantities(d, {}));
   assert.equal(q.stairLandings.value, null);
-  assert.match(q.stairLandings.how, /stairs × \(2 × stories − 1\)/);
+  assert.match(q.stairLandings.how, /stairs × \(2 × stories - 1\)/);
 });
 
 test('BOH is the remainder of the stated gross, capped at 5% of gross (Mike 2026-09-04)', () => {
   const q = byKey(computeQuantities(cleanDrawings(), {}));
-  // Raw remainder: 260,000 − 174,000 units − 18,000 corridors − 5,000 interior
-  // amenity = 63,000 — but BOH is never more than 5% of gross: 13,000.
+  // Raw remainder: 260,000 - 174,000 units - 18,000 corridors - 5,000 interior
+  // amenity = 63,000, but BOH is never more than 5% of gross: 13,000.
   assert.equal(q.bohSf.value, 13000);
   assert.equal(q.bohSf.source, 'derived');
   assert.match(q.bohSf.how, /260,000/);
@@ -188,7 +188,7 @@ test('a printed BOH figure beats a typed one; a typed one beats the remainder', 
 
 test('a BOH remainder under the 5% cap passes through untouched', () => {
   const d = cleanDrawings();
-  d.projectTotals.grossInteriorSf = 205000; // remainder 205,000 − 197,000 = 8,000 < 10,250 cap
+  d.projectTotals.grossInteriorSf = 205000; // remainder 205,000 - 197,000 = 8,000 < 10,250 cap
   const q = byKey(computeQuantities(d, {}));
   assert.equal(q.bohSf.value, 8000);
   assert.equal(q.bohSf.source, 'derived');
@@ -227,7 +227,7 @@ test('"No balconies" with no matrix column settles balconies at zero', () => {
 });
 
 // A matrix can never legitimately cover FEWER units than the document says the
-// project has — rows were missed. Mike, 2026-09-15, on Lone Tree Ranch Test v1:
+// project has, rows were missed. Mike, 2026-09-15, on Lone Tree Ranch Test v1:
 // "It read units wrong ... It found 168 balconies but 108 units. Way off there
 // ... Bedrooms say 294, but we counted 472." Every per-unit column was short by
 // the same fraction as the unit count, so the printed total has to win AND the
@@ -253,7 +253,7 @@ test('a printed total ABOVE the matrix sum wins, and scales the per-unit columns
 });
 
 // The reverse is legitimate: on a multi-building set the printed total is often
-// one building's. The matrix keeps its win there — but still says so.
+// one building's. The matrix keeps its win there, but still says so.
 test('a printed total BELOW the matrix sum keeps the matrix, flagged', () => {
   const d = cleanDrawings();
   d.projectTotals.statedTotalUnits = 150;      // rows sum to 200
@@ -263,7 +263,7 @@ test('a printed total BELOW the matrix sum keeps the matrix, flagged', () => {
   assert.equal(q.bedrooms.value, 260);         // not scaled
 });
 
-// A row whose quantity did not come through is dropped from every total — that
+// A row whose quantity did not come through is dropped from every total, that
 // used to happen in total silence, which is how an undercount survives review.
 test('unit-type rows with no quantity are called out on the unit count', () => {
   const d = cleanDrawings();
@@ -326,7 +326,7 @@ test('reviewFlags counts matrix units off the qty column (regression: it summed 
     siteData: { totalUnits: 150, confidence: 0.9 },
     overallConfidence: 0.9,
   });
-  // 200 vs 150 is >10% apart — the flag only fires if qty was actually summed.
+  // 200 vs 150 is >10% apart, the flag only fires if qty was actually summed.
   assert.ok(flags.some(f => f.includes('200') && f.includes('150')));
 });
 
@@ -339,7 +339,7 @@ test('mergeProposals carries the new stated site fields and the bed mix through 
   assert.equal(merged.siteData.egressStairwells, 2);
   assert.equal(merged.siteData.exitDoors, 6);
   assert.equal(merged.siteData.buildingFootprintSf, 60000);
-  // First stated mix wins whole — never spliced across files.
+  // First stated mix wins whole, never spliced across files.
   assert.equal(merged.siteData.bedMix.oneBed, 90);
 });
 
@@ -358,7 +358,7 @@ test('counted figures fill in only when nothing is stated, and arrive flagged', 
   assert.match(q.egressStairwells.flag, /Counted off the floor plan/);
   assert.equal(q.exitDoors.value, 6);
   assert.match(q.exitDoors.flag, /Counted off the plan/);
-  // Landings still compute off the counted values — but flagged as built on a count.
+  // Landings still compute off the counted values, but flagged as built on a count.
   assert.equal(q.stairLandings.value, Math.round(2 * (2 * 4 - 1) * 1.1));
   assert.match(q.stairLandings.flag, /COUNTED/);
 });
@@ -397,7 +397,7 @@ test('footprint derivation accepts the fraction form (0.28) too', () => {
 
 test('a stated footprint always beats the coverage derivation', () => {
   const d = cleanDrawings();
-  d.siteData.lotCoveragePct = 28;        // would derive 112,000 — stated 60,000 wins
+  d.siteData.lotCoveragePct = 28;        // would derive 112,000, stated 60,000 wins
   const q = byKey(computeQuantities(d, {}));
   assert.equal(q.buildingFootprintSf.value, 60000);
   assert.equal(q.buildingFootprintSf.source, 'drawing');
@@ -406,7 +406,7 @@ test('a stated footprint always beats the coverage derivation', () => {
 test('an impossible coverage figure (>100%) is an alert, not a footprint', () => {
   const d = cleanDrawings();
   d.siteData.buildingFootprintSf = null;
-  d.siteData.lotCoveragePct = 280;       // misread — no lot is 280% covered
+  d.siteData.lotCoveragePct = 280;       // misread, no lot is 280% covered
   const q = byKey(computeQuantities(d, {}));
   assert.equal(q.buildingFootprintSf.value, 65000);   // gross ÷ stories instead (Mike 10-2), alert kept
   assert.match(q.buildingFootprintSf.flag, /over 100%/);
@@ -442,7 +442,7 @@ test('coverage without a lot size falls back to gross ÷ stories (Mike 10-2)', (
 
 // ─── THE GROSS-SF LADDER (typed figures + derived last resorts) ─────────────
 // Drawing-stated wins, then the visitor's typed figure, then footprint ×
-// stories (Mike's validated backup — 0.8% on Trailhead), then unit SF × the
+// stories (Mike's validated backup, 0.8% on Trailhead), then unit SF × the
 // master pricing sheet's units→gross factor (Mike set 1.25, 2026-09-04).
 
 function noGross() {
@@ -457,7 +457,7 @@ test('a typed gross-SF figure fills in when the drawings state nothing', () => {
   assert.equal(q.grossSf.value, 364029);
   assert.equal(q.grossSf.source, 'questionnaire');
   assert.match(q.grossSf.how, /Entered on the questionnaire/);
-  // A typed gross is a real figure — BOH computes off it like any other,
+  // A typed gross is a real figure, BOH computes off it like any other,
   // subject to the 5%-of-gross cap (raw remainder 167,029 ≫ 18,201 cap).
   assert.equal(q.bohSf.value, Math.round(364029 * 0.05));
 });
@@ -491,7 +491,7 @@ test('no stated gross and nothing typed → footprint × stories, labelled ESTIM
   assert.equal(q.grossSf.value, 60000 * 4);       // stated footprint × stated stories
   assert.equal(q.grossSf.source, 'derived');
   assert.match(q.grossSf.flag, /ESTIMATED from footprint × stories/);
-  // BOH stays uncomputed — a remainder off an estimated gross would be an
+  // BOH stays uncomputed, a remainder off an estimated gross would be an
   // estimate of an estimate.
   assert.equal(q.bohSf.value, null);
 });
@@ -524,8 +524,8 @@ test('a typed figure beats both derived estimates', () => {
 
 // ─── TYPED COUNT FIGURES (stories, stairs, exit doors, parking) ─────────────
 // Same ladder as gross SF: drawing-stated → counted-off-a-view → typed by the
-// visitor. A typed count is a real figure — landings derive off it, exit doors
-// become the wallpack quantity — but anything the drawings answered wins.
+// visitor. A typed count is a real figure, landings derive off it, exit doors
+// become the wallpack quantity, but anything the drawings answered wins.
 
 test('typed stories + stairwells fill in and drive the landings derivation', () => {
   const d = cleanDrawings();
@@ -536,7 +536,7 @@ test('typed stories + stairwells fill in and drive the landings derivation', () 
   assert.equal(q.stories.source, 'questionnaire');
   assert.equal(q.egressStairwells.value, 3);
   assert.equal(q.egressStairwells.source, 'questionnaire');
-  assert.equal(q.stairLandings.value, Math.round(3 * (2 * 5 - 1) * 1.1));   // 27 → 30
+  assert.equal(q.stairLandings.value, 3 * (2 * 5 - 1));   // 27, no contingency on a typed stair count (10-14)
   assert.equal(q.stairLandings.source, 'derived');
   assert.match(q.stairLandings.flag, /figure the visitor typed/);
 });
@@ -551,7 +551,7 @@ test('drawing-stated stories/stairs always beat typed figures', () => {
 
 test('stairwells OR landings, never both (Mike 10-2): a known stair count wins over typed landings', () => {
   const q = byKey(computeQuantities(cleanDrawings(), { figureStairLandings: '18' }));
-  assert.equal(q.stairLandings.value, 15);                   // 2 stairs × (2×4−1) = 14 + 10%; the typed 18 is ignored
+  assert.equal(q.stairLandings.value, 15);                   // 2 stairs × (2×4-1) = 14 + 10%; the typed 18 is ignored
 });
 
 test('an old typed landings count still prices when no stair count is known', () => {
@@ -567,11 +567,11 @@ test('the legacy figureStairwells key still replays: shafts typed, landings deri
   d.siteData.stories = null;
   d.siteData.egressStairwells = null;
   const q = byKey(computeQuantities(d, { figureStories: '5', figureStairwells: '3' }));
-  assert.equal(q.stairLandings.value, 30);                   // 27 + 10%
+  assert.equal(q.stairLandings.value, 27);                   // typed stairs, no 10% (10-14)
   assert.equal(q.stairLandings.source, 'derived');
 });
 
-test('a typed balcony count fills in when the unit matrix lists none — the balcony answer prices off it', () => {
+test('a typed balcony count fills in when the unit matrix lists none, the balcony answer prices off it', () => {
   const d = cleanDrawings();
   for (const u of d.unitTypes) delete u.balconies;
   assert.equal(byKey(computeQuantities(d, {})).balconies.value, null);
@@ -580,7 +580,7 @@ test('a typed balcony count fills in when the unit matrix lists none — the bal
   assert.equal(q.balconies.source, 'questionnaire');
 });
 
-test('a COUNTED figure beats a typed one — the drawings were at least looked at', () => {
+test('a COUNTED figure beats a typed one, the drawings were at least looked at', () => {
   const d = cleanDrawings();
   d.siteData.stories = null;
   d.siteData.storiesCounted = 3;
@@ -626,7 +626,7 @@ test('a summed per-building total shows its addends as the how-sentence', () => 
   const d = cleanDrawings();
   d.projectTotals.grossSfSummed = true;
   d.projectTotals.grossSfSummary =
-    'No whole-project total is printed — this is the sum of the stated per-building totals: Building A 87,781 + Building B 87,781 + Building C 96,746 + Building D 91,721 = 364,029 SF. Stated gross.';
+    'No whole-project total is printed, this is the sum of the stated per-building totals: Building A 87,781 + Building B 87,781 + Building C 96,746 + Building D 91,721 = 364,029 SF. Stated gross.';
   const q = byKey(computeQuantities(d, {}));
   assert.match(q.grossSf.how, /sum of the stated per-building totals/);
 });
@@ -658,7 +658,7 @@ test('stairs are per building: 3 per building × 4 buildings = 12, landings on a
   assert.equal(q.buildings.flag, null);
   assert.equal(q.egressStairwells.value, 12);
   assert.match(q.egressStairwells.how, /3 per building × 4 buildings = 12/);
-  // 12 stairs × (2 × 7 − 1) = 156 landings, + 10% = 172 (171.6 → 172)
+  // 12 stairs × (2 × 7 - 1) = 156 landings, + 10% = 172 (171.6 → 172)
   assert.equal(q.stairLandings.value, 172);
   assert.match(q.stairLandings.how, /4 buildings × 3 exit stairs each = 12 stairs/);
   assert.match(q.stairLandings.flag, /Assumes switchback/);
@@ -701,13 +701,15 @@ test('stairs known but no building count: assumes ONE building and says so', () 
   assert.match(q.egressStairwells.flag, /assumes ONE building/);
 });
 
-test('a hand-corrected stair total is taken as the total — not multiplied by the buildings again', () => {
+test('a hand-corrected stair total is taken as the total, not multiplied by the buildings again', () => {
   const d = cleanDrawings();
   d.siteData.buildingCount = 4;
   const q = byKey(computeQuantities(d, { correctEgressStairwells: '10' }));
   assert.equal(q.egressStairwells.value, 10);
   assert.equal(q.egressStairwells.corrected, true);
-  assert.equal(q.stairLandings.value, Math.round(10 * (2 * 4 - 1) * 1.1));   // 77
+  assert.equal(q.stairLandings.value, 10 * (2 * 4 - 1));   // 70, no 10% contingency on a count a person typed (10-14)
+  assert.ok(!/\+ 10%/.test(q.stairLandings.how), 'no contingency line, and no wording about it (Mike 10-14)');
+  assert.ok(!/no contingency/.test(q.stairLandings.how));
   assert.ok(!/buildings ×/.test(q.stairLandings.how), 'no per-building multiply in the story');
 });
 
@@ -747,7 +749,7 @@ test("nothing printed: corridors are ESTIMATED as the building type's typical sh
   assert.equal(q.corridorSf.source, 'derived');
   assert.match(q.corridorSf.how, /12% of the 260,000 SF building/);
   assert.match(q.corridorSf.flag, /ESTIMATED as a typical share of gross/);
-  // BOH never absorbs the corridors: 260,000 − 174,000 − 31,200 − 5,000 = 49,800 → capped 13,000
+  // BOH never absorbs the corridors: 260,000 - 174,000 - 31,200 - 5,000 = 49,800 → capped 13,000
   assert.match(q.bohSf.how, /corridors 31,200/);
   assert.equal(q.bohSf.value, 13000);
 });
@@ -771,7 +773,7 @@ test('a typed corridor SF fills the blank and unblocks the BOH remainder', () =>
   assert.match(q.bohSf.how, /corridors 20,000/);
 });
 
-test('breezeway types assume no interior corridors — zero, not a guess flag', () => {
+test('breezeway types assume no interior corridors, zero, not a guess flag', () => {
   const d = cleanDrawings();
   d.projectTotals.corridorSf = null;
   const q = byKey(computeQuantities(d, { projectType: 'Garden (3 Levels)' }));
@@ -818,7 +820,7 @@ test('mergeProposals carries the counted carports and buildings through a merge'
 
 // Mike, 2026-09-24, after Mill Creek's Modera Town Lake read 23,488 balconies
 // for 245 (balcony SF read as a count): balconies can never outnumber units.
-test('balconies are 0 or 1 per unit — a balcony SF column (62) counts as one', () => {
+test('balconies are 0 or 1 per unit, a balcony SF column (62) counts as one', () => {
   const d = cleanDrawings();
   d.unitTypes[1].balconies = 62;   // "Balcony SF" column read as the count
   const q = byKey(computeQuantities(d, {}));
@@ -840,4 +842,15 @@ test('half baths count as whole bathrooms, and vanities follow', () => {
   d.unitTypes[2].bathrooms = 1.5;  // B2 × 80 → 2 each
   const q = byKey(computeQuantities(d, {}));
   assert.equal(q.bathrooms.value, 20 + 100 + 160);
+});
+
+// 10-14 rules audit: the 10% landings contingency rides on a derived or
+// estimated stair count only, never on a count a person typed.
+test('a typed stairwell count gets no landings contingency; a drawing-stated one still does', () => {
+  const typed = byKey(computeQuantities(null, { noDrawings: 'yes', projectType: 'Garden (3 Levels)', figureTotalUnits: '100', figureGrossSf: '100000', figureStories: '3', figureSurfaceParking: '100', hasPool: 'no', figureStairwells: '4' }));
+  assert.equal(typed.egressStairwells.value, 4);
+  assert.equal(typed.stairLandings.value, 4 * (2 * 3 - 1));   // 20, not 22
+  const d = cleanDrawings();
+  const stated = byKey(computeQuantities(d, {}));
+  assert.match(stated.stairLandings.how, /\+ 10% =/);
 });

@@ -13,10 +13,10 @@ import { cn } from '@/lib/utils';
  *
  *   override = {
  *     value,          // current stored value ('' / 'auto' / a number as a string)
- *     onChange,       // (nextValue) => void — receives 'auto' when cleared
+ *     onChange,       // (nextValue) => void, receives 'auto' when cleared
  *     masterPrice,    // the master-pricing number this replaces, for the "was" text
  *     suffix,         // '/unit', '/vanity', '/fan', '/balcony'
- *     disabled,       // true when the answer is "None" — nothing to price
+ *     disabled,       // true when the answer is "None", nothing to price
  *   }
  *
  * The box writes 'auto' rather than '' when emptied. The responses store refuses
@@ -74,7 +74,7 @@ function OverrideBox({ value, onChange, masterPrice, suffix = '/unit', disabled 
       </div>
       {!active && (
         <p className="text-[11px] text-slate-400 mt-1.5">
-          Leave blank to use the master price sheet. A number here is used exactly as typed — no credits or adjustments are applied on top of it.
+          Leave blank to use the master price sheet. A number here is used exactly as typed, no credits or adjustments are applied on top of it.
         </p>
       )}
     </div>
@@ -134,7 +134,7 @@ export function CostImpact({ impact, delta = null }) {
       {impact.lines.map((l, i) => (
         <div key={i}>
           {/* The public page sends dollars plus a rounded count in words
-              ("approx. 47 area lights") — no price each and no rule (Mike
+              ("approx. 47 area lights"), no price each and no rule (Mike
               2026-09-16 / 09-18). Staff screens send the real count and price
               and get the full "200 × $175 =" working. */}
           {l.product === 0 && l.labor < 0 ? <span>{l.label}</span> : (l.count != null && l.each != null)
@@ -147,21 +147,24 @@ export function CostImpact({ impact, delta = null }) {
           )}
           {l.labor < 0 && (
             <div className="text-emerald-700">
-              Estimated labor saved: {l.count != null && l.laborEach != null && <>{Number(l.count).toLocaleString()} × {moneyEach(-l.laborEach)} = </>}<span className="font-mono">−{money(-l.labor)}</span>
+              Estimated labor saved: {l.count != null && l.laborEach != null && <>{Number(l.count).toLocaleString()} × {moneyEach(-l.laborEach)} = </>}<span className="font-mono">-{money(-l.labor)}</span>
             </div>
           )}
         </div>
       ))}
-      {impact.labor > 0 && (
+      {(impact.labor > 0 || (delta && (delta.labor || delta.total))) ? (
         <div className="pt-1 mt-1 border-t border-amber-100 font-medium text-slate-800">
-          Estimated labor + materials: <span className="font-mono">{money(impact.product + impact.labor)}</span>
+          {impact.labor > 0 && (
+            <>Estimated labor + materials: <span className="font-mono">{money(impact.product + impact.labor)}</span></>
+          )}
+          {/* The red or green change shows on every line, labor or not (10-14). */}
           {delta && (delta.labor || delta.total) ? (
             <div className="text-[11px] font-normal text-slate-500">
-              Change from last choice:<Delta v={delta.labor} what="labor" /><Delta v={delta.total} what="labor + materials" />
+              Change from last choice:{delta.labor ? <Delta v={delta.labor} what="labor" /> : null}<Delta v={delta.total} what={impact.labor > 0 ? 'labor + materials' : 'materials'} />
             </div>
           ) : null}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

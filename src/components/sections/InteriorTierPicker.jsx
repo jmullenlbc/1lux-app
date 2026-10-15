@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { INTERIOR_AMENITY_TIERS, ratesInTier } from '@/lib/interiorAmenityTiers';
 
 /**
- * The interior amenity $/SF picker: $4–$16, one button per dollar, grouped
+ * The interior amenity $/SF picker: $4-$16, one button per dollar, grouped
  * under the three finish tiers. Used by the internal wizard and the public
  * conceptual budget so the two never drift.
  *
@@ -26,7 +26,7 @@ export default function InteriorTierPicker({ value, onChange }) {
           >
             <div className="flex items-baseline justify-between gap-2 mb-2 flex-wrap">
               <div className={cn('text-sm font-semibold', tierPicked ? 'text-amber-700' : 'text-slate-700')}>
-                {tier.label} <span className="font-normal text-slate-400">· ${tier.min}–${tier.max}/SF</span>
+                {tier.label} <span className="font-normal text-slate-400">· ${tier.min}-${tier.max}/SF</span>
               </div>
               <div className="text-xs text-slate-400">{tier.note}</div>
             </div>

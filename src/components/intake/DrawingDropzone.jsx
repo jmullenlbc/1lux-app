@@ -5,7 +5,7 @@ import { uploadDirect, holdScreenAwake } from '@/lib/uploadClient';
 import { READING_TIME_HINT } from '@/components/ReadingWait';
 import { runStagedParse, STEP_WORDS } from '@/lib/intake/stagedParse';
 import ReadingSteps from './ReadingSteps';
-// Words only — never '@/lib/siteFeatures', which carries the price defaults.
+// Words only, never '@/lib/siteFeatures', which carries the price defaults.
 import { siteFeatureFindings, SITE_FEATURE_KINDS_SENTENCE } from '@/lib/siteFeatureWords';
 
 /**
@@ -14,19 +14,19 @@ import { siteFeatureFindings, SITE_FEATURE_KINDS_SENTENCE } from '@/lib/siteFeat
  * Differs from `unitMatrix/UnitMatrixUpload.jsx` in three ways that matter:
  *   1. Accepts MANY files, each parsed independently with its own status, so
  *      one bad sheet never blocks the rest of the set.
- *   2. Talks to the stateless public route — no project, nothing persisted.
+ *   2. Talks to the stateless public route, no project, nothing persisted.
  *   3. Merges results across files and surfaces disagreements rather than
  *      silently picking a winner.
  */
 
 // Files go straight to cloud storage via a presigned slip (see uploadClient.js),
-// which sidesteps Amplify's ~4.4 MB front-door cap entirely — the request that
+// which sidesteps Amplify's ~4.4 MB front-door cap entirely, the request that
 // does pass through our server carries only a short key.
 //
 // 400 MB is our own ceiling. Mike, 2026-08-21, after a GC's 246 MB set was
 // refused on the live site: "We have to make it so it never fails unless it is
-// absurdly big." A full DD/CD set is 200–350 MB and the server never holds one
-// — it reads the sheets it needs out of cloud storage a slice at a time. This
+// absurdly big." A full DD/CD set is 200 to 350 MB and the server never holds one
+//, it reads the sheets it needs out of cloud storage a slice at a time. This
 // check exists so an absurd file is refused before the phone spends an hour
 // uploading it, not because the parser couldn't cope.
 const MAX_UPLOAD_BYTES = 400 * 1024 * 1024;
@@ -53,10 +53,10 @@ function fmtBytes(n) {
 }
 
 // A disagreement's value can be a number OR words (a building type, the
-// "7 types / 168 units" summary) — pushing words through Number() printed
+// "7 types / 168 units" summary), pushing words through Number() printed
 // "NaN vs NaN" on Lone Tree v2.
 function fmt(n) {
-  if (n == null || n === '') return '—';
+  if (n == null || n === '') return '-';
   const v = typeof n === 'number' ? n : (typeof n === 'string' && n.trim() !== '' && Number.isFinite(Number(n)) ? Number(n) : null);
   return v == null ? String(n) : v.toLocaleString();
 }
@@ -104,7 +104,7 @@ async function parseInOneRequest(item, sent) {
  *                              2026-09-16). See src/lib/intake/combineReads.js.
  * @param {?Object}  restored   a merged proposal saved in the browser last
  *                              time (IntakeClient's draft). The files behind
- *                              it are gone — only their READ survived — so it
+ *                              it are gone, only their READ survived, so it
  *                              is shown as one "read earlier" entry and kept
  *                              in the count when more files are dropped.
  */
@@ -133,7 +133,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
   const [earlier, setEarlier] = useState(null);
   // Mirrored in a ref because parseOne is memoised on onResults alone and its
   // publish() would otherwise see the `earlier` of the render it was made in
-  // — null — and drop the kept read the moment a new file finished.
+  //, null, and drop the kept read the moment a new file finished.
   const earlierRef = useRef(null);
   useEffect(() => {
     if (restored && typeof restored === 'object' && !earlierRef.current) {
@@ -143,7 +143,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
   }, [restored]);
 
   // One combined proposal from the files read now plus the read kept from
-  // last time — or null while ANY file is still being read. The hold and the
+  // last time, or null while ANY file is still being read. The hold and the
   // merge live in src/lib/intake/combineReads.js so they can be tested
   // without a browser.
   const combined = combineReads(items, earlier);
@@ -176,7 +176,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
       return;
     }
 
-    // ── The screen stays awake for the WHOLE journey, not just the upload ──
+    // === The screen stays awake for the WHOLE journey, not just the upload ===
     // The wake lock inside uploadDirect is released the moment the upload
     // finishes -- and the read that follows is the LONG part. A phone dimming
     // its screen two minutes into "looking through the set" suspends the page
@@ -190,8 +190,8 @@ export default function DrawingDropzone({ onResults, restored = null }) {
     document.addEventListener('visibilitychange', sawHide);
     const settle = () => { document.removeEventListener('visibilitychange', sawHide); releaseWake(); };
 
-    // ── Step 1: get the file where the parser can reach it ──
-    // Preferred: straight to cloud storage via a presigned slip — no size cap
+    // === Step 1: get the file where the parser can reach it ===
+    // Preferred: straight to cloud storage via a presigned slip, no size cap
     // that matters, with a progress bar. Fallback: the classic multipart POST
     // (local dev, where presigning is off; or if the direct PUT fails and the
     // file is small enough to fit through the ~4.4 MB front door).
@@ -235,11 +235,11 @@ export default function DrawingDropzone({ onResults, restored = null }) {
           settle();
           return;
         }
-        sent = null; // small file — the multipart fallback below still works
+        sent = null; // small file, the multipart fallback below still works
       }
     }
 
-    // ── Step 2: read it ──
+    // === Step 2: read it ===
     // Four short requests rather than one long one. The one-request version
     // could not finish on the live site at all -- Amplify hangs up at ~30
     // seconds and a set takes about a minute -- and short requests are also
@@ -293,16 +293,16 @@ export default function DrawingDropzone({ onResults, restored = null }) {
       // phone cut the line, not the network, and "try again" alone would just
       // send him around the same loop.
       //
-      // Either way the uploaded file is still parked — the read's cleanup
+      // Either way the uploaded file is still parked, the read's cleanup
       // keeps it when the read failed (it did not, before 2026-09-16, which is
-      // why every Retry re-uploaded) — so keep its key on the item: Retry then
+      // why every Retry re-uploaded), so keep its key on the item: Retry then
       // re-asks the READ without re-sending a third of a gigabyte over a
       // job-site connection.
       patch = { status: 'error', s3Key: sent?.key ?? null, error: err?.shown
         ? err.message
         : slept
           ? `Your phone put this page to sleep while we were ${STEP_WORDS[atStep] ?? 'reading the file'}, and that cuts the line mid-read. Keep the screen on and this page in front until the read finishes, then try again. (R1/${atStep}/slept)`
-          : `We kept losing the connection while ${STEP_WORDS[atStep] ?? 'reading the file'}, even after retrying. Please try again — and if it happens twice, send the file to precon@ilcstudios.com. (R1/${atStep})` };
+          : `We kept losing the connection while ${STEP_WORDS[atStep] ?? 'reading the file'}, even after retrying. Please try again, and if it happens twice, send the file to precon@ilcstudios.com. (R1/${atStep})` };
     }
 
     settle();
@@ -317,7 +317,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
     const incoming = Array.from(fileList ?? []);
     if (!incoming.length) return;
 
-    // The cap is on the LIST, not on one drop — dropping three files twice is
+    // The cap is on the LIST, not on one drop, dropping three files twice is
     // the same as dropping six at once, and the second drop is where someone
     // would otherwise be surprised. Take what fits, say plainly what didn't.
     const room = Math.max(0, MAX_FILES - items.length);
@@ -377,7 +377,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
         <div className="text-center">
           <p className="text-sm font-semibold text-slate-700">Drop your drawings here</p>
           <p className="text-xs text-slate-500 mt-1 max-w-md">
-            Send the whole set if that's what you have — we'll find the sheets we need. Most useful are
+            Send the whole set if that's what you have, we'll find the sheets we need. Most useful are
             the <strong>unit matrix</strong> (unit counts and square footage) and the{' '}
             <strong>site plan</strong> (lot size, parking, buildings). Landscape or civil can be separate files.
           </p>
@@ -389,7 +389,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
               working page as a broken one and closes it. */}
           <p className="text-[11px] text-slate-500 mt-1">{READING_TIME_HINT}</p>
         </div>
-        <span className="text-xs font-semibold text-amber-600 border border-amber-200 rounded-lg px-3 py-1.5 hover:bg-amber-50">
+        <span className="text-sm font-semibold text-amber-600 border border-amber-200 rounded-lg px-4 py-2 hover:bg-amber-50">
           Browse files
         </span>
         <input
@@ -408,7 +408,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
         </p>
       )}
 
-      {/* The read kept from last time — the files themselves were never
+      {/* The read kept from last time, the files themselves were never
           stored, so there is nothing to re-open, only what we found. */}
       {earlier && (
         <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
@@ -428,7 +428,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
             </button>
           </div>
           <p className="text-xs text-slate-500 mt-1.5 pl-1">
-            Kept from your last visit — still counted below. Drop more files to add to it, or remove it to start the drawings over.
+            Kept from your last visit, still counted below. Drop more files to add to it, or remove it to start the drawings over.
           </p>
         </div>
       )}
@@ -516,7 +516,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
                     {/* The memory brake stopped the text read early: say so, or a
                         set read one page deep looks the same as one read in full. */}
                     {item.proposal.readBraked && (
-                      <span className="text-amber-600"> · too large to hold open in full — a smaller PDF of just the site plan, area summary and unit matrix sheets reads best</span>
+                      <span className="text-amber-600"> · too large to hold open in full, a smaller PDF of just the site plan, area summary and unit matrix sheets reads best</span>
                     )}
                   </p>
                 )}
@@ -535,15 +535,15 @@ export default function DrawingDropzone({ onResults, restored = null }) {
           <div className="text-[10px] font-bold text-amber-700 uppercase tracking-wider mb-2">
             Combined from {merged.sources.length} file{merged.sources.length !== 1 ? 's' : ''}
           </div>
-          {/* Which file the unit count came from, and why — the decision the
+          {/* Which file the unit count came from, and why, the decision the
               merge made once every file was in, said out loud. Only worth a
               line when there was a choice to make. */}
           {merged.unitSchedule && merged.sources.length > 1 && (
             <p className="mb-2 text-xs text-slate-600 leading-snug">
               Unit count taken from <span className="font-medium text-slate-800">{merged.unitSchedule.file}</span>
               {merged.unitSchedule.complete
-                ? ` — its rows add up to the ${fmt(merged.unitSchedule.stated)} units it prints.`
-                : ' — the most confident read.'}
+                ? `, its rows add up to the ${fmt(merged.unitSchedule.stated)} units it prints.`
+                : ', the most confident read.'}
               {merged.uncountedUnitTypes?.length > 0 && (
                 ` ${merged.uncountedUnitTypes.length} unit row${merged.uncountedUnitTypes.length !== 1 ? 's' : ''} from other files ${merged.uncountedUnitTypes.length !== 1 ? 'were' : 'was'} set aside, not added.`
               )}
@@ -607,7 +607,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
           {/* Site features, named one by one. Mike 2026-09-16: "If we find 1
               dog park it should say that." Each one is priced on its own line
               under Exterior & Site, so the visitor can see where it went. When
-              a site sheet was read and named none, say that too — silence
+              a site sheet was read and named none, say that too, silence
               reads as "it didn't look". */}
           {merged.siteData && (() => {
             const found = siteFeatureFindings(merged.siteData.siteFeatures);
@@ -617,18 +617,18 @@ export default function DrawingDropzone({ onResults, restored = null }) {
                 {found.map((words, i) => (
                   <span key={words}>{i > 0 && <span className="text-slate-300"> · </span>}{words}</span>
                 ))}
-                <span className="text-slate-500"> — each is priced on its own line under Exterior &amp; Site.</span>
+                <span className="text-slate-500">, each is priced on its own line under Exterior &amp; Site.</span>
               </p>
             ) : (
               <p className="mt-2 text-[11px] text-slate-500 leading-snug">
-                No {SITE_FEATURE_KINDS_SENTENCE} is named on the sheets read — none is priced. Type one in Project Data below if the site has one.
+                No {SITE_FEATURE_KINDS_SENTENCE} is named on the sheets read, none is priced. Type one in Project Data below if the site has one.
               </p>
             );
           })()}
 
           {/* Net-vs-gross is invisible to a visitor unless we say it out loud.
               The three totals an architect publishes for one building differ by
-              5–8%, and the wrong one produces a budget that looks completely
+              5 to 8%, and the wrong one produces a budget that looks completely
               normal. See src/lib/areaSheet.js. */}
           {merged.projectTotals.grossSfNeedsReview && (
             <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 leading-snug">
@@ -644,7 +644,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
           {(() => {
             // The document's own arithmetic check: the row quantities have to add
             // up to the total printed on the drawing. Same rule as the
-            // 'stated-total' check in src/lib/agent/autoChecks.js — mirrored here
+            // 'stated-total' check in src/lib/agent/autoChecks.js, mirrored here
             // because the public intake route is stateless and never runs the
             // agent pipeline, so without this line a shortfall (rows sum to 229,
             // cover sheet says 260) would reach the review queue looking plausible.
@@ -660,7 +660,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
                 </p>
                 <p className="text-[11px] text-slate-500 mt-0.5">
                   {fmt(diff)} unit{diff !== 1 ? 's are' : ' is'} {rowSum < stated ? 'missing from' : 'extra in'} the
-                  breakdown — a unit type may {rowSum < stated ? 'be missing' : 'be double-counted'}. Someone at ILC
+                  breakdown, a unit type may {rowSum < stated ? 'be missing' : 'be double-counted'}. Someone at ILC
                   will reconcile this before anything is priced.
                 </p>
               </div>
@@ -675,7 +675,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
               <ul className="mt-1 space-y-0.5">
                 {/* Each side names its file (Mike 2026-09-16: "just because
                     it read one first doesn't mean it should use that data")
-                    — a bare "168 vs 144" says nothing about which sheet to
+                   , a bare "168 vs 144" says nothing about which sheet to
                     trust. The first value is the one kept. */}
                 {merged.conflicts.slice(0, 4).map((c, i) => (
                   <li key={i} className="text-xs text-slate-600">
@@ -684,7 +684,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
                       <span key={j}>
                         {j > 0 && <span className="text-slate-400"> vs </span>}
                         {fmt(v.value)}
-                        {v.file && <span className="text-slate-400"> ({j === 0 ? 'kept — ' : ''}{v.file})</span>}
+                        {v.file && <span className="text-slate-400"> ({j === 0 ? 'kept, ' : ''}{v.file})</span>}
                       </span>
                     ))}
                   </li>

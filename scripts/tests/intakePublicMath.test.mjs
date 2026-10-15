@@ -152,11 +152,11 @@ test('no takeoff row explains how its number was worked out', () => {
 test('publicQuantity: the rules it rewrites and the ones it leaves alone', () => {
   const base = { key: 'k', label: 'L', unit: 'ea', value: 10, flag: null };
   assert.equal(publicQuantity({ ...base, source: 'drawing', how: 'Stated on the drawing.' }).how, 'Stated on the drawing.');
-  assert.match(publicQuantity({ ...base, source: 'derived', how: '200 units × 1.4 per unit — typical.' }).how, /^Our estimate/);
+  assert.match(publicQuantity({ ...base, source: 'derived', how: '200 units × 1.4 per unit, typical.' }).how, /^Our estimate/);
   assert.equal(publicQuantity({ ...base, source: 'drawing', how: 'Printed canopy areas ÷ 189 SF a stall.' }).how,
     'Worked out from figures printed on the drawings.');
   const fixed = publicQuantity({ ...base, source: 'questionnaire', corrected: true, wasValue: 8,
-    how: 'Corrected by you to 10. We read 8 — 5% of gross.' });
+    how: 'Corrected by you to 10. We read 8, 5% of gross.' });
   assert.equal(fixed.how, 'Corrected by you.');
   assert.equal(fixed.wasValue, 8);
   assert.equal(publicQuantity({ ...base, source: 'drawing', how: 'x', flag: 'Capped at 5% of gross.' }).flag,
