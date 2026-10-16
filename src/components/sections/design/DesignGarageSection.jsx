@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { useLiveAnswers } from '@/components/wizard/useLiveAnswers';
 import Button from '@/components/ui/Button';
 import QuestionCard from '@/components/sections/QuestionCard';
 import StandardsHint from '@/components/wizard/StandardsHint';
@@ -13,6 +14,7 @@ export default function DesignGarageSection({
   onSaveResponses,
   onNext,
   onPrev,
+  onLiveAnswers,
 }) {
   const P = pricing || PRICING;
   const existing = responses || {};
@@ -21,6 +23,7 @@ export default function DesignGarageSection({
     garageControls:    existing.garageControls    || 'none',
   });
   const [saving, setSaving] = useState(false);
+  useLiveAnswers(onLiveAnswers, 'corridors', ans); // Mike 10-15: sidebar moves before Next
 
   function set(k, v) { setAns(a => ({ ...a, [k]: v })); }
 
@@ -33,10 +36,10 @@ export default function DesignGarageSection({
   const baseRate = ans.garageDesignLevel === 'high' ? GARAGE_HIGH : GARAGE_MED;
   const OCC = DG.occSensorAdderPerSf ?? 0.02;
   // Garage batteries are priced on the Emergency step whenever the building has
-  // no generator (Mike 2026-09-12), so the battery choices here only add their
-  // battery cost when the chosen emergency strategy is 'generator'. Mirrors the
-  // double-charge guard in calculations.js.
-  const batteriesOnEmergency = (emergencyStrategy || 'frogeyes') !== 'generator' && garageSf > 0;
+  // no generator (Mike 2026-09-12). Only the integrated strategies buy garage
+  // batteries (emergencyCost.js), so the battery choices here only add their
+  // own battery cost when the emergency strategy is anything else.
+  const batteriesOnEmergency = String(emergencyStrategy || 'generator').startsWith('integrated_') && garageSf > 0;
   const BATT     = batteriesOnEmergency ? 0   : (DG.batteryAdderPerSf     ?? 0.05);
   const BATT_OCC = batteriesOnEmergency ? OCC : (DG.batteryAndSensorPerSf ?? 0.06);
   const ctrlAdder = { none: 0, occSensor: OCC, battery: BATT, batteryAndSensor: BATT_OCC }[ans.garageControls] ?? 0;

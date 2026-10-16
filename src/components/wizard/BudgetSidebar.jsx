@@ -5,7 +5,7 @@ import { TooltipBudgetRow } from '@/components/ui/Tooltip';
 import { siteFeatureLineLabel } from '@/lib/siteFeatureWords';
 
 function Divider() {
-  return <div className="border-t border-slate-100 my-2" />;
+  return <div className="border-t border-slate-100 my-1" />;
 }
 
 function PlainRow({ label, value, indent, highlight, bold }) {
@@ -40,17 +40,26 @@ function PlainRow({ label, value, indent, highlight, bold }) {
 // `needed` (string[]) is the public no-drawings form's list of required boxes
 // still blank. Mike 10-14: the list vanished as soon as the first number came
 // back, so it now stays under the total until every required box is filled.
-export default function BudgetSidebar({ budget, projectData, currentStep, range = null, areaNotes = null, areaSummary = null, projectName = '', homeType = false, needed = null }) {
+// `interiorRate` is the $/SF the visitor or staff picked for interior amenities,
+// shown in that row's rollover (Mike 10-15: "Interior Amenities = $10/SF").
+export default function BudgetSidebar({ budget, projectData, currentStep, range = null, areaNotes = null, areaSummary = null, projectName = '', homeType = false, needed = null, interiorRate = null }) {
   if (!budget) return null;
 
-  const { sections, freight, warehousing, freightRate, warehousingRate, lightingProductSubtotal, subtotalLightingOnly, controls, controlsFreight, controlsWarehousing, totalWithControls, perSf, perUnit, energyCreditPct, energyCreditLighting, energyCreditControls } = budget;
-  const ecPctLabel = Math.round((energyCreditPct || 0) * 100);
+  const { sections, freight, warehousing, freightRate, warehousingRate, lightingProductSubtotal, subtotalLightingOnly, lightingTaxAmount, controls, controlsGarage, controlsFreight, controlsWarehousing, controlsTaxAmount, controlsTotal, salesTaxPct, totalWithControls, perSf, perUnit, energyCreditPct, energyCreditLightingPct, energyCreditControlsPct, energyCreditLighting, energyCreditControls } = budget;
+  // Each side carries its own % (WELL = 10% lighting / 30% controls, 10-15).
+  const ecPctLabel  = Math.round((energyCreditLightingPct ?? energyCreditPct ?? 0) * 100);
+  const ecCtrlLabel = Math.round((energyCreditControlsPct ?? energyCreditPct ?? 0) * 100);
   const hasData = (projectData?.grossSf || 0) > 0;
   const fPct = Math.round((freightRate ?? 0.06) * 100);
   const wPct = Math.round((warehousingRate ?? 0.03) * 100);
+  // Mike 10-15: sales tax is its own line on each side, right above the total.
+  // It is the Project Info rate times the product subtotal (no freight, no warehousing).
+  const tPct = Math.round((salesTaxPct || 0) * 10000) / 100;
 
   return (
-    <aside className="w-64 bg-white border-l border-slate-100 flex flex-col shrink-0 overflow-y-auto">
+    // Mike 10-15: one scrollbar per screen. The aside fills the page height
+    // and its rows are tight enough to fit; it never scrolls on its own.
+    <aside className="w-64 bg-white border-l border-slate-100 flex flex-col shrink-0 min-h-0">
       {/* Header */}
       <div className="px-4 py-4 bg-navy-950 border-b border-navy-800">
         {/* Mike 10-2: the project's name sits above the total at all times once it is typed. */}
@@ -83,7 +92,7 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
       </div>
 
       {/* Breakdown */}
-      <div className="flex-1 px-4 py-3 overflow-y-auto">
+      <div className="flex-1 px-4 py-2 min-h-0 [&_.py-1]:py-0.5">
         {!hasData && (
           <p className="text-xs text-slate-400 text-center mt-4 leading-relaxed">
             Enter project data in Step 1 to see your live budget estimate.
@@ -135,7 +144,10 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
               label="Interior Amenities"
               value={sections.interior?.product || 0}
               highlight={currentStep === 'amenities'}
-              details={[{ label: 'Interior amenity SF', value: sections.interior?.product || 0 }]}
+              details={[{
+                label: Number(interiorRate) > 0 ? `Interior Amenities = $${Number(interiorRate)}/SF` : 'Interior amenity lighting',
+                value: sections.interior?.product || 0,
+              }]}
             />
             {areaNotes?.interior}
             <TooltipBudgetRow label="Garage"               value={sections.garage?.product          || 0} details={[]} />
@@ -186,7 +198,8 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
             )}
             <PlainRow label="Lighting Subtotal"   value={lightingProductSubtotal || 0} highlight />
             <PlainRow label={`Freight (${fPct}%)`}     value={freight     || 0} indent />
-            <PlainRow label={`Whsg. (${wPct}%)`}       value={warehousing || 0} indent />
+            <PlainRow label={`Warehousing (${wPct}%)`} value={warehousing || 0} indent />
+            {lightingTaxAmount > 0 && <PlainRow label={`Sales Tax (${tPct}%)`} value={lightingTaxAmount} indent />}
             <PlainRow label="Lighting Total"      value={subtotalLightingOnly    || 0} highlight />
 
             <Divider />
@@ -195,20 +208,24 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
               label="Controls (IECC)"
               value={controls || 0}
               highlight={currentStep === 'controls'}
-              details={[{ label: 'Controls product', value: controls || 0 }]}
+              details={controlsGarage > 0
+                ? [{ label: 'Building controls', value: (controls || 0) - controlsGarage }, { label: 'Garage controls', value: controlsGarage }]
+                : [{ label: 'Controls product', value: controls || 0 }]}
             />
             {areaNotes?.controls}
             {energyCreditControls > 0 && (
-              <PlainRow label={`Energy Credit (${ecPctLabel}%)`} value={energyCreditControls} indent />
+              <PlainRow label={`Energy Credit (${ecCtrlLabel}%)`} value={energyCreditControls} indent />
             )}
             <PlainRow label={`Freight (${fPct}%)`}     value={controlsFreight     || 0} indent />
-            <PlainRow label={`Whsg. (${wPct}%)`}       value={controlsWarehousing || 0} indent />
+            <PlainRow label={`Warehousing (${wPct}%)`} value={controlsWarehousing || 0} indent />
+            {controlsTaxAmount > 0 && <PlainRow label={`Sales Tax (${tPct}%)`} value={controlsTaxAmount} indent />}
+            <PlainRow label="Controls Total"      value={controlsTotal || 0} highlight />
 
             <Divider />
 
             <PlainRow label="TOTAL W/ CONTROLS" value={totalWithControls || 0} bold />
 
-            <p className="text-xs text-slate-300 mt-4 leading-relaxed">
+            <p className="text-xs text-slate-300 mt-2 leading-snug">
               Hover any line for breakdown. Conceptual estimate only.
             </p>
           </>

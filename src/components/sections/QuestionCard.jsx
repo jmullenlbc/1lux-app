@@ -129,40 +129,39 @@ export function useChoiceDelta(impact, choice) {
 
 export function CostImpact({ impact, delta = null }) {
   if (!impact || !impact.lines?.length || !(impact.product > 0 || impact.labor > 0)) return null;
+  // Mike 10-15: three plain lines, the same on every screen (public and
+  // design): what the lighting products cost, what the labor + install
+  // materials cost, and the two together. The per-line "200 × $175" working
+  // only shows when an answer has more than one product line, above the three.
+  const product = Math.round(Number(impact.product) || 0);
+  const labor   = Math.round(Number(impact.labor)   || 0);
+  const working = impact.lines.length > 1 ? impact.lines : [];
+  const Row = ({ label, value, strong }) => (
+    <div className={cn('flex items-baseline justify-between gap-3', strong ? 'font-semibold text-slate-900' : 'text-slate-600')}>
+      <span>{label} =</span>
+      <span className={cn('font-mono', value < 0 && 'text-emerald-700')}>{value < 0 ? '-' : ''}{money(Math.abs(value))}</span>
+    </div>
+  );
   return (
     <div className="mt-2 rounded-md bg-white/70 border border-amber-200 px-3 py-2 text-xs text-slate-600 space-y-0.5">
-      {impact.lines.map((l, i) => (
-        <div key={i}>
+      {working.map((l, i) => (
+        <div key={i} className="text-slate-500">
           {/* The public page sends dollars plus a rounded count in words
-              ("approx. 47 area lights"), no price each and no rule (Mike
-              2026-09-16 / 09-18). Staff screens send the real count and price
-              and get the full "200 × $175 =" working. */}
-          {l.product === 0 && l.labor < 0 ? <span>{l.label}</span> : (l.count != null && l.each != null)
-            ? <span>{l.label}: {Number(l.count).toLocaleString()} {l.countLabel} × {moneyEach(l.each)} = <span className="font-mono font-semibold text-slate-800">{money(l.product)}</span></span>
-            : <span>{l.label}{l.approx ? ` (${l.approx})` : ''}: <span className="font-mono font-semibold text-slate-800">{money(l.product)}</span></span>}
-          {l.labor > 0 && (
-            <div className="text-slate-500">
-              Estimated labor: {l.count != null && l.laborEach != null && <>{Number(l.count).toLocaleString()} × {moneyEach(l.laborEach)} = </>}<span className="font-mono">{money(l.labor)}</span>
-            </div>
-          )}
-          {l.labor < 0 && (
-            <div className="text-emerald-700">
-              Estimated labor saved: {l.count != null && l.laborEach != null && <>{Number(l.count).toLocaleString()} × {moneyEach(-l.laborEach)} = </>}<span className="font-mono">-{money(-l.labor)}</span>
-            </div>
-          )}
+              ("approx. 47 area lights"), no price each (Mike 09-16 / 09-18).
+              Staff screens send the real count and price. */}
+          {(l.count != null && l.each != null)
+            ? <span>{l.label}: {Number(l.count).toLocaleString()} {l.countLabel} × {moneyEach(l.each)} = <span className="font-mono">{money(l.product)}</span></span>
+            : <span>{l.label}{l.approx ? ` (${l.approx})` : ''}: <span className="font-mono">{money(l.product)}</span></span>}
         </div>
       ))}
-      {(impact.labor > 0 || (delta && (delta.labor || delta.total))) ? (
-        <div className="pt-1 mt-1 border-t border-amber-100 font-medium text-slate-800">
-          {impact.labor > 0 && (
-            <>Estimated labor + materials: <span className="font-mono">{money(impact.product + impact.labor)}</span></>
-          )}
-          {/* The red or green change shows on every line, labor or not (10-14). */}
-          {delta && (delta.labor || delta.total) ? (
-            <div className="text-[11px] font-normal text-slate-500">
-              Change from last choice:{delta.labor ? <Delta v={delta.labor} what="labor" /> : null}<Delta v={delta.total} what={impact.labor > 0 ? 'labor + materials' : 'materials'} />
-            </div>
-          ) : null}
+      {working.length > 0 && <div className="border-t border-amber-100 my-1" />}
+      <Row label="Lighting products" value={product} />
+      <Row label="Labor + materials" value={labor} />
+      <Row label="Lighting products, Labor + Materials" value={product + labor} strong />
+      {/* The red or green change shows on every line, labor or not (10-14). */}
+      {delta && (delta.labor || delta.total) ? (
+        <div className="pt-1 mt-1 border-t border-amber-100 text-[11px] text-slate-500">
+          Change from last choice:{delta.labor ? <Delta v={delta.labor} what="labor + materials" /> : null}<Delta v={delta.total} what="all in" />
         </div>
       ) : null}
     </div>

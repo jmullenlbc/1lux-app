@@ -24,7 +24,7 @@ import AlertMark from '@/components/ui/AlertMark';
  * the left, one page per building area in the middle (QuestionCard radio
  * groups, exactly like the internal sections), and the SAME BudgetSidebar
  * component on the right. Two public-only steps bracket the areas: About You
- * (contact details) and Drawings up front, Review & Send at the end.
+ * (contact details) and Drawings up front, Summary (id 'review') at the end.
  *
  * The one deliberate difference is WHERE the math runs: the internal wizard
  * prices client-side with the full PRICING model in the bundle, but that
@@ -137,9 +137,9 @@ const STEPS = [
   { id: 'figures',   short: 'Figures',       label: 'Building Figures',
     hint: 'Type in what you know about the building. Real numbers beat our estimates; leave a box blank and we estimate it.' },
   { id: 'units',     short: 'Units',         label: 'Residential Units',      sections: ['Residential units'],        budgetStep: 'units',
-    hint: 'Choose the lighting inside the apartments. Each choice updates your budget.' },
+    hint: 'Unit pricing already includes the average amount of 7" and 12" disks in a typical unit. Choose the lighting inside the apartments. Each choice updates your budget.' },
   { id: 'corridors', short: 'Corridors',     label: 'Corridors & Stairwells', sections: ['Corridors and stairwells'], budgetStep: 'corridors',
-    hint: 'Choose the light at each apartment door. Hallway and stair lighting is priced from your building figures.' },
+    hint: 'Corridor and stairwells are included in the price already. Corridors include 7" disks spaced at approximately 10ft. on center and stairwells include a 4ft. LED strip with integrated occ sensor and battery located at each landing.' },
   { id: 'amenities', short: 'Amenities',     label: 'Interior Amenities',     sections: ['Interior amenities'],       budgetStep: 'amenities',
     hint: 'Pick the finish level for shared indoor spaces like the clubhouse, leasing office and gym.' },
   { id: 'exterior',  short: 'Exterior',      label: 'Exterior & Site',        sections: ['Exterior'],                 budgetStep: 'exterior',
@@ -148,7 +148,8 @@ const STEPS = [
     hint: 'Code requires backup lighting on every exit path. Choose how you want it powered.' },
   { id: 'controls',  short: 'Controls',      label: 'Controls & Energy',      sections: ['Energy codes'], budgetStep: 'controls',
     hint: 'Tell us about any energy program. Together with your project type, it sets the lighting controls the code requires.' },
-  { id: 'review',    short: 'Review & Send', label: 'Review & Send',
+  // Mike 10-15: called Summary, the id stays 'review' (drafts store it).
+  { id: 'review',    short: 'Summary',       label: 'Summary',
     hint: 'Check your budget and download a PDF copy. When you’re ready, send it to our team to review.' },
 ];
 
@@ -1073,9 +1074,9 @@ export default function IntakeClient() {
   const extAmenityNeeded = !manual && !!drawings && neededRows.some(r => r.key === 'exteriorAmenitySf');
 
   // === The one Project Data grid ===
-  // Shown on the Drawings page (right under the upload) and again on the
-  // Review page. Same rows, same boxes, same `corrections` state, so a number
-  // typed on either page is the number the budget runs on. Rendered by a plain
+  // Shown on the Drawings page (right under the upload). It was repeated on
+  // the Summary page until Mike dropped that 10-15. Same `corrections` state
+  // feeds the budget, so a number typed here is the number it runs on. Rendered by a plain
   // function, not a component, so React never remounts the inputs mid-typing.
   //
   // Three looks per row:
@@ -1637,7 +1638,7 @@ export default function IntakeClient() {
                             note={q.hint}
                             value={answers[q.key] ?? ''}
                             onChange={v => setAnswers(a => ({ ...a, [q.key]: v }))}
-                            options={q.options.map(opt => ({ value: opt, label: optionLabel(q, opt) }))}
+                            options={q.options.map(opt => ({ value: opt, label: optionLabel(q, opt), sub: q.optionSubs?.[opt] }))}
                             // Per-answer cost comes from the server's estimate, never priced here.
                             impact={q.engine ? estimate?.budget?.questionCosts?.[`${q.engine.section}.${q.engine.field}`] : undefined}
                           />
@@ -1648,13 +1649,13 @@ export default function IntakeClient() {
                     <div className="flex items-center justify-between mt-6">
                       <button onClick={goPrev} className={backBtn}>← Back</button>
                       <button onClick={goNext} className={navBtn(true)}>
-                        {stepIndex === steps.length - 2 ? 'Review & send' : 'Continue'}
+                        {stepIndex === steps.length - 2 ? 'Summary' : 'Continue'}
                       </button>
                     </div>
                   </>
                 )}
 
-                {/* === Review & send, the internal summary page, then the send form === */}
+                {/* === Summary, the internal summary page, then the send form === */}
                 {stepId === 'review' && (
                   <div className="space-y-5">
                     {/* Actions, at the top, one style for every button (Mike 2026-09-24) */}
@@ -1728,15 +1729,8 @@ export default function IntakeClient() {
                       </div>
                     )}
 
-                    {/* Project Data, the same grid as the Drawings page, same boxes, same corrections */}
-                    {hasEstimate && correctableRows.length > 0 && projectDataGrid({
-                      heading: 'Project Data',
-                      intro: manual
-                        ? 'The figures your budget runs on. Type over any that looks wrong, the budget updates straight away.'
-                        : neededRows.length > 0
-                          ? `The figures your budget runs on. The amber boxes are the ${neededRows.length} we could not find on your drawings, type them in if you know them. Type over any read figure that looks wrong; we keep what we read on file.`
-                          : 'These came off your drawings. If one looks wrong, type the right number over it, the budget updates straight away and we keep what we read on file.',
-                    })}
+                    {/* Mike 10-15: the Project Data grid is NOT repeated here ("drop for
+                        now"); it lives on the Drawings page only. */}
 
                     {/* Budget Breakdown, the same component the internal summary renders */}
                     {hasEstimate && (
@@ -1755,18 +1749,20 @@ export default function IntakeClient() {
                         <h3 className="font-bold text-slate-900 mt-5 mb-3 pt-4 border-t border-slate-100">Your design choices</h3>
                         <table className="w-full text-xs">
                           <thead>
+                            {/* Mike 10-15: Question first, a skinny Location
+                                column, and the answer never past two lines. */}
                             <tr className="text-left text-slate-400 uppercase tracking-wider">
-                              <th className="py-1 pr-3 font-semibold">Location</th>
                               <th className="py-1 pr-3 font-semibold">Question</th>
-                              <th className="py-1 font-semibold">Answer</th>
+                              <th className="py-1 pr-3 font-semibold w-24">Location</th>
+                              <th className="py-1 font-semibold w-40">Answer</th>
                             </tr>
                           </thead>
                           <tbody>
                             {designChoices(answers).map(c => (
                               <tr key={c.question} className="border-t border-slate-100 align-top">
-                                <td className="py-1.5 pr-3 text-slate-500 whitespace-nowrap">{c.section}</td>
                                 <td className="py-1.5 pr-3 text-slate-700">{c.question}</td>
-                                <td className="py-1.5 font-semibold text-slate-900">{c.answer}</td>
+                                <td className="py-1.5 pr-3 text-slate-500 w-24 leading-tight">{c.section === 'Corridors and stairwells' ? 'Corridors/stairwells' : c.section}</td>
+                                <td className="py-1.5 font-semibold text-slate-900 w-40"><div className="line-clamp-2" title={c.answer}>{c.answer}</div></td>
                               </tr>
                             ))}
                           </tbody>
@@ -1852,7 +1848,8 @@ export default function IntakeClient() {
           hasEstimate ? (
             <div className="hidden lg:flex shrink-0">
               <BudgetSidebar budget={budget} projectData={estimatePd} currentStep={step.budgetStep || null} range={range} projectName={project} homeType={homeType}
-                needed={manual && !manualCheck.ready ? manualCheck.missing : null} />
+                needed={manual && !manualCheck.ready ? manualCheck.missing : null}
+                interiorRate={answers.interiorAmenityFinish || null} />
             </div>
           ) : (
             <aside className="hidden lg:flex w-64 bg-white border-l border-slate-100 flex-col shrink-0">

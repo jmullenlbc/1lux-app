@@ -10,7 +10,10 @@ export function controlsMathOf(b) {
   if (!b || b.controlsOverridden) return null;
   const perSf = Number(b.controlsRateUsed) || 0, sf = Number(b.controlsBasisSf) || 0;
   if (!(perSf > 0 && sf > 0)) return null;
-  return { perSf, sf, cap: Number(b.controlsCap) || null, capped: !!b.controlsCapped };
+  const out = { perSf, sf, cap: Number(b.controlsCap) || null, capped: !!b.controlsCapped };
+  // Garage controls (10-15): its own dollars inside the one controls number.
+  if (Number(b.controlsGarage) > 0) out.garage = Number(b.controlsGarage);
+  return out;
 }
 
 const money = v => '$' + Math.round(v).toLocaleString('en-US');
@@ -20,8 +23,11 @@ export function controlsMathWords(cm) {
   if (!cm || !(cm.perSf > 0) || !(cm.sf > 0)) return null;
   const rate = '$' + Number(cm.perSf).toFixed(2) + '/SF';
   const sf = Math.round(cm.sf).toLocaleString('en-US') + ' SF';
-  const full = cm.perSf * cm.sf;
-  const base = `${rate} × ${sf} = ${money(full)}`;
+  const garage = Number(cm.garage) || 0;
+  const full = cm.perSf * cm.sf + garage;
+  const base = garage > 0
+    ? `${rate} × ${sf} (building without the garage) + ${money(garage)} for the garage = ${money(full)}`
+    : `${rate} × ${sf} = ${money(full)}`;
   if (cm.capped && cm.cap > 0) {
     return `${base}, capped at ${money(cm.cap)}. Controls are capped because we have not seen even large multifamily projects go over that.`;
   }

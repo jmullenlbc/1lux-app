@@ -137,12 +137,14 @@ console.log(`  small project (299,999 SF) exit signs: ${$(small.sections.exitSig
 console.log(`  large project (300,001 SF) exit signs: ${$(large.sections.exitSigns.product)}`);
 console.log(`  ratio large/small:                     ${(large.sections.exitSigns.product / small.sections.exitSigns.product).toFixed(4)}`);
 console.log('');
-console.log('  Per pricing.js: large should be ~50% of small per-SF basis');
-console.log('  So large/small ratio for total $ should be ~0.5 × (300001/299999) ≈ 0.500');
-console.log('  If ratio is ~1.0, the threshold rule is not applied (bug).');
+console.log('  Flat rate: both should equal gross SF × 0.025, ratio ≈ 1.000');
 assert(
-  large.sections.exitSigns.product < small.sections.exitSigns.product,
-  'Exit signs cost SHOULD drop above 300K SF threshold (per pricing.js comment)'
+  Math.abs(small.sections.exitSigns.product - 299999 * 0.025) < 0.01,
+  'Exit signs small project = 299,999 × $0.025 (flat rate)'
+);
+assert(
+  Math.abs(large.sections.exitSigns.product - 300001 * 0.025) < 0.01,
+  'Exit signs large project = 300,001 × $0.025 (no halving over 300K SF)'
 );
 
 // ───────────────────────────────────────────────────────────────────────────

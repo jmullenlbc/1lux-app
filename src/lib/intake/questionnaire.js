@@ -71,7 +71,7 @@ export const INTAKE_QUESTIONS = [
     key: 'ceilingFans',
     section: 'Residential units',
     question: 'Are ceiling fans desired and in what locations in the units?',
-    hint: 'A typical fan adds meaningful product and installation cost per unit, so location matters.',
+    hint: 'A typical fan adds meaningful product and installation cost per unit, so location matters. Each fan is priced net of the $35 12" disk it replaces, so that credit is already taken out of the adder.',
     options: [
       'None',
       'Master bed only',
@@ -99,7 +99,7 @@ export const INTAKE_QUESTIONS = [
     key: 'vanityLighting',
     section: 'Residential units',
     question: 'How do you want to light unit bathroom vanities? ("Mirror and bath bar (Low finish)" is already included in the budget if chosen or left blank.)',
-    hint: 'Illuminated mirrors often cost the same or less overall and need less coordination between trades.',
+    hint: 'Every other option is priced net of the $45 bath bar already in the base budget, so the adder shown is the difference. Illuminated mirrors often cost the same or less overall and need less coordination between trades.',
     // Low finish added 2026-09-13 (Mike: "Yes should match the design
     // questionnaire"), the internal Units and Design screens always had it.
     options: [
@@ -169,7 +169,7 @@ export const INTAKE_QUESTIONS = [
       'Integrated batteries in garage / frogeyes in corridors / inverters in amenity spaces',
       'Integrated batteries in garage / inverters in corridors + amenity spaces',
     ],
-    default: 'Frogeyes everywhere',
+    default: 'Building generator',
     engine: { section: 'emergency', field: 'strategy',
       map: {
         'Building generator': 'generator',
@@ -247,8 +247,16 @@ export const INTAKE_QUESTIONS = [
     key: 'exteriorAmenityFinish',
     section: 'Exterior',
     question: 'Please choose what $/SF of exterior amenity SF based on the level of finish of the project..',
-    hint: '$1/SF is the low end; $5/SF is the high end and may include facade lighting.',
+    hint: 'Pick the level that matches the outdoor program. The rate runs on the exterior amenity SF (pool deck, courtyards, plazas).',
     options: ['1', '2', '3', '5'],
+    // Mike 10-15: what each level buys, shown under the option on both the
+    // public page and the internal wizard (ExteriorSection.jsx says the same).
+    optionSubs: {
+      '1': 'No pool',
+      '2': 'Basic pool lighting and basic pole mounted area lights',
+      '3': 'Elevated pool area and possible other amenity spaces, like courtyards and gathering areas',
+      '5': 'Everything in the $3/SF level plus multiple exterior amenity areas, including decks, large hang out areas and more',
+    },
     default: '1',
     format: 'perSf',
     engine: { section: 'exterior', field: 'amenityLevel', map: null },
@@ -324,7 +332,7 @@ export const INTAKE_QUESTIONS = [
     key: 'energyCredit',
     section: 'Energy codes',
     question: 'Are you trying to achieve better than code allowed LPDs for a lighting energy credit?',
-    hint: 'If so, more of the budget goes toward controls and more efficient fixtures. Any program adds a 3% energy credit to the lighting and controls budgets automatically.',
+    hint: 'If so, more of the budget goes toward controls and more efficient fixtures. LEED and NGBS add 3% to lighting and 3% to controls; WELL adds 10% to lighting and 30% to controls.',
     options: ['None', 'LEED', 'NGBS', 'WELL', 'Other'],
     default: 'None',
     engine: { section: 'controls', field: 'energyCreditProgram',

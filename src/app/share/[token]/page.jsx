@@ -64,7 +64,7 @@ export default async function SharePage({ params }) {
       { q: 'Amenity Hours',     a: getLabel('amenityHours',      sections.exterior?.amenityHours   || 'beforeDusk') },
     ]},
     { section: 'Emergency & Controls', rows: [
-      { q: 'Emergency Strategy', a: getLabel('emergency',    sections.emergency?.strategy       || 'frogeyes') },
+      { q: 'Emergency Strategy', a: getLabel('emergency',    sections.emergency?.strategy       || 'generator') },
       { q: 'Building Type',      a: getLabel('buildingType', pd.buildingTypeKey                 || 'midRise') },
       { q: 'Energy Credit',      a: getLabel('energyCredit', sections.controls?.energyCredit    || 'no') },
     ]},

@@ -1,5 +1,6 @@
 'use client';
 import { useState, useMemo } from 'react';
+import { useLiveAnswers } from "@/components/wizard/useLiveAnswers";
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import QuestionCard from './QuestionCard';
@@ -13,7 +14,7 @@ import StairTypeQuestions from './StairTypeQuestions';
 const DISK_RATES     = { 6: 0.40, 7: 0.35, 8: 0.30, 9: 0.28, 10: 0.25, 11: 0.23, 12: 0.23 };
 const RECESSED_RATES = { 6: 3.00, 7: 2.625, 8: 2.25, 9: 2.10, 10: 1.875, 11: 1.725, 12: 1.725 };
 
-export default function CorridorsSection({ responses, projectData, allSections, pricing, onSaveResponses, onNext, onPrev, hasDrawings = false, isDesign = false }) {
+export default function CorridorsSection({ responses, projectData, allSections, pricing, onSaveResponses, onNext, onPrev, onLiveAnswers, hasDrawings = false, isDesign = false }) {
   // Single source of truth: read rates/costs from the live master pricing.
   const P = pricing || PRICING;
   const DISK_RATE_TABLE     = P.designCorridors?.diskSpacingRates     || DISK_RATES;
@@ -39,6 +40,7 @@ export default function CorridorsSection({ responses, projectData, allSections, 
   });
   const [dirty, setDirty] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
+  useLiveAnswers(onLiveAnswers, "corridors", ans); // Mike 10-15: sidebar moves before Next
   // What each answer costs (+ estimated labor), recomputed live as answers
   // change — local answers only save on Next (Mike 2026-09-13).
   const qc = useMemo(

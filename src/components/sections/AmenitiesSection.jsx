@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { useLiveAnswers } from "@/components/wizard/useLiveAnswers";
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import InteriorTierPicker from '@/components/sections/InteriorTierPicker';
@@ -7,7 +8,7 @@ import { formatCurrency } from '@/lib/calculations';
 import { PRICING } from '@/lib/pricing';
 import { INTERIOR_AMENITY_RATES } from '@/lib/interiorAmenityTiers';
 
-export default function AmenitiesSection({ responses, projectData, pricing, onSaveResponses, onNext, onPrev }) {
+export default function AmenitiesSection({ responses, projectData, pricing, onSaveResponses, onNext, onPrev, onLiveAnswers }) {
   const P = pricing || PRICING;
   const [answers, setAnswers] = useState({
     interiorLevel: responses.interiorLevel || '10',
@@ -15,6 +16,7 @@ export default function AmenitiesSection({ responses, projectData, pricing, onSa
   });
   const [dirty, setDirty] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
+  useLiveAnswers(onLiveAnswers, "amenities", answers); // Mike 10-15: sidebar moves before Next
 
   const intSf    = Number(projectData?.interiorAmenitySf) || 0;
   const selected = answers.interiorLevel;

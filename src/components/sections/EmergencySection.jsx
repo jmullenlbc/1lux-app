@@ -1,5 +1,6 @@
 'use client';
 import { useState, useMemo } from 'react';
+import { useLiveAnswers } from '@/components/wizard/useLiveAnswers';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { PRICING } from '@/lib/pricing';
@@ -54,14 +55,15 @@ function strategyOptions(P) {
   ];
 }
 
-export default function EmergencySection({ responses, projectData, allSections, pricing, onSaveResponses, onNext, onPrev }) {
+export default function EmergencySection({ responses, projectData, allSections, pricing, onSaveResponses, onNext, onPrev, onLiveAnswers }) {
   const P = pricing || PRICING;
   const [answers, setAnswers] = useState({
-    strategy:   responses.strategy   || 'frogeyes',
+    strategy:   responses.strategy   || 'generator',
     manualAdder: responses.manualAdder ?? '',
   });
   const [dirty, setDirty] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
+  useLiveAnswers(onLiveAnswers, 'emergency', answers); // Mike 10-15: sidebar moves before Next
   // What each answer costs (+ estimated labor), recomputed live as answers
   // change — local answers only save on Next (Mike 2026-09-13).
   const qc = useMemo(
@@ -74,6 +76,7 @@ export default function EmergencySection({ responses, projectData, allSections, 
   const intSf      = Number(projectData?.interiorAmenitySf) || 0;
   const garageSf   = Number(projectData?.garageSf)          || 0;
   const totalEmSf  = corridorSf + intSf + garageSf;
+  const selectedEst = calcEmergency(P, answers.strategy, corridorSf, intSf, garageSf);
 
   // Frogeye count: 1 per 25 linear ft, assuming 6ft avg corridor width = 1 per 150 SF
   const FROGEYE_SF_SPACING = 150;
@@ -166,11 +169,17 @@ export default function EmergencySection({ responses, projectData, allSections, 
                   {isSelected && <CostImpact impact={qc['emergency.strategy']} delta={strategyDelta} />}
                 </div>
                 {totalEmSf > 0 && (
-                  <div className={cn(
-                    'text-xs font-mono font-semibold shrink-0 mt-0.5',
-                    est === 0 ? 'text-slate-300' : 'text-amber-600',
-                  )}>
-                    {est === 0 ? '$0' : formatCurrency(est)}
+                  <div className="text-xs font-mono font-semibold shrink-0 mt-0.5 text-right">
+                    {/* Mike 10-15: every option shows its own line AND the move
+                        from the chosen one, so the choices never look alike. */}
+                    <div className={est === 0 ? 'text-slate-400' : 'text-amber-600'}>
+                      {est === 0 ? '$0 adder' : formatCurrency(est)}
+                    </div>
+                    {!isSelected && (
+                      <div className={cn('font-normal', est - selectedEst > 0 ? 'text-red-600' : est - selectedEst < 0 ? 'text-green-700' : 'text-slate-400')}>
+                        {est === selectedEst ? 'same as current' : `${est > selectedEst ? '+' : '-'}${formatCurrency(Math.abs(est - selectedEst))} vs current`}
+                      </div>
+                    )}
                   </div>
                 )}
               </label>

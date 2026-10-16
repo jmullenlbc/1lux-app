@@ -1,5 +1,6 @@
 'use client';
 import { useState, useMemo } from 'react';
+import { useLiveAnswers } from "@/components/wizard/useLiveAnswers";
 import Button from '@/components/ui/Button';
 import QuestionCard from '@/components/sections/QuestionCard';
 import StandardsHint from '@/components/wizard/StandardsHint';
@@ -20,6 +21,7 @@ export default function DesignCorridorsSection({
   onSaveResponses,
   onNext,
   onPrev,
+  onLiveAnswers,
   hasDrawings = false,
 }) {
   const P = pricing || PRICING;
@@ -43,6 +45,7 @@ export default function DesignCorridorsSection({
     garageControls:    existing.garageControls     || undefined,
   });
   const [saving, setSaving] = useState(false);
+  useLiveAnswers(onLiveAnswers, "corridors", ans); // Mike 10-15: sidebar moves before Next
   // What each answer costs (+ estimated labor), recomputed live as answers
   // change — local answers only save on Next (Mike 2026-09-13).
   const qc = useMemo(

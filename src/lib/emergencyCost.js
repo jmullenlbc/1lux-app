@@ -10,6 +10,7 @@
 // device (frogeyes or inverters) at the corridor $/SF, unless the strategy
 // carries its own garage $/SF. Keyed off the strategy NAME, NOT the
 // batteryGarage flag, because projects keep frozen pricing snapshots.
+// HELD 10-16: the "garage $0 on non-integrated choices" rule waits on Mike.
 
 const num = (v, d = 0) => {
   const x = parseFloat(v);

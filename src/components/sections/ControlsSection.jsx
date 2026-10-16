@@ -1,14 +1,16 @@
 'use client';
 import { useState } from 'react';
+import { useLiveAnswers } from '@/components/wizard/useLiveAnswers';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import QuestionCard from './QuestionCard';
 import { formatCurrency } from '@/lib/calculations';
 import { PRICING } from '@/lib/pricing';
+import { controlsGaragePiece, programPcts } from '@/lib/controlsMath';
 import { buildingTypeLabel } from '@/lib/utils';
 import StandardsHint from '@/components/wizard/StandardsHint';
 
-export default function ControlsSection({ responses, projectData, budget, pricing, onSaveResponses, onNext, onPrev, isLast, isDesign = false }) {
+export default function ControlsSection({ responses, projectData, budget, pricing, onSaveResponses, onNext, onPrev, onLiveAnswers, isLast, isDesign = false }) {
   const P = pricing || PRICING;
   const [answers, setAnswers] = useState({
     energyCredit:       responses.energyCredit       || 'no',
@@ -24,6 +26,7 @@ export default function ControlsSection({ responses, projectData, budget, pricin
   });
   const [dirty, setDirty] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
+  useLiveAnswers(onLiveAnswers, 'controls', answers); // Mike 10-15: sidebar moves before Next
 
   const grossSf      = projectData?.grossSf || 0;
   const buildingType = projectData?.buildingTypeKey || 'midRise';
@@ -41,19 +44,30 @@ export default function ControlsSection({ responses, projectData, budget, pricin
   const clubhouseSf     = projectData?.interiorAmenitySf || 0;
   const clubhousePerSf  = P.controls?.clubhousePerSf ?? 0;
   const clubhouseBasis  = (selectedRate.perSf ?? 0) === 0 && clubhouseSf > 0 && clubhousePerSf > 0;
-  const basisSf         = clubhouseBasis ? clubhouseSf : grossSf;
+  // Garage controls (Mike 10-15): the type $/SF prices the building without
+  // its garage; the garage adds its own $2K to $10K. Same helper as the engine.
+  const garagePiece     = controlsGaragePiece(P, {
+    grossSf, garageSf: projectData?.garageSf || 0, unitsSf: projectData?.unitsSf || 0,
+    corridorSf: projectData?.corridorSf || 0, intAmenitySf: clubhouseSf,
+  });
+  const basisSf         = clubhouseBasis ? clubhouseSf : garagePiece.buildingSf;
   const rateUsed        = clubhouseBasis ? clubhousePerSf : (selectedRate.perSf ?? 0);
+  const garageDollars   = clubhouseBasis ? 0 : garagePiece.dollars;
 
-  const baseEst           = Math.min(basisSf * rateUsed, selectedRate.cap ?? 175000);
+  const formulaEst        = basisSf * rateUsed + garageDollars;
+  const baseEst           = Math.min(formulaEst, selectedRate.cap ?? 175000);
   // Preview the two energy-credit adder line items. The live budget's lighting
   // subtotal already contains the lighting-side adder when the credit is on —
   // back it out so the preview doesn't compound.
-  const ecPct             = P.controls?.energyCreditAdderPct ?? 0.03;
+  // Mike 10-15: each program carries its own % PER SIDE (WELL = 10% lighting /
+  // 30% controls). Same helper as the engine.
+  const programPct        = key => programPcts(P, key);
   const lightingSubtotal  = (budget?.lightingProductSubtotal ?? 0) - (budget?.energyCreditLighting ?? 0);
-  const lightingAdder     = lightingSubtotal * ecPct;
-  const controlsAdder     = baseEst * ecPct;
-  const creditEst         = baseEst + controlsAdder;
-  const isCapped          = basisSf * rateUsed >= selectedRate.cap;
+  // What a program ADDS over None: its lighting % on the lighting subtotal plus its controls % on controls.
+  const programAdder      = key => lightingSubtotal * programPct(key).lighting + baseEst * programPct(key).controls;
+  const pct               = v => `${Math.round(v * 1000) / 10}%`;
+  const pctLabel          = key => `${pct(programPct(key).lighting)} lighting / ${pct(programPct(key).controls)} controls`;
+  const isCapped          = formulaEst >= selectedRate.cap;
 
   const overrideVal = parseFloat(answers.controlsOverride);
   const hasOverride = overrideVal > 0;
@@ -102,7 +116,8 @@ export default function ControlsSection({ responses, projectData, budget, pricin
                                               : (selectedRate?.perSf ?? 0) > 0 ? `$${selectedRate.perSf.toFixed(2)}/Gross Bldg SF`
                                               : clubhouseSf > 0 ? 'N/A' : 'N/A (no clubhouse)' },
             { label: 'Cap',            value: selectedRate.cap > 0 ? formatCurrency(selectedRate.cap) : 'None' },
-            { label: clubhouseBasis ? 'Clubhouse SF' : 'Gross Bldg SF',  value: basisSf ? basisSf.toLocaleString() : '—' },
+            { label: clubhouseBasis ? 'Clubhouse SF' : garageDollars > 0 ? 'Bldg SF (no garage)' : 'Gross Bldg SF',  value: basisSf ? basisSf.toLocaleString() : '—' },
+            ...(garageDollars > 0 ? [{ label: `Garage (${garagePiece.garageSf.toLocaleString()} SF)`, value: formatCurrency(garageDollars) }] : []),
           ].map(item => (
             <div key={item.label} className="bg-white rounded-lg border border-slate-100 p-3">
               <div className="text-sm font-bold text-slate-900 leading-snug">{item.value}</div>
@@ -126,39 +141,21 @@ export default function ControlsSection({ responses, projectData, budget, pricin
       {/* Energy credit */}
       <QuestionCard
         question="Are you trying to achieve better than code allowed LPDs for a lighting energy credit?"
-        note={`Targeting better-than-code Lighting Power Densities requires more sophisticated controls and more efficient fixtures. Any program adds ${Math.round(ecPct * 100)}% to the lighting and controls subtotals, shown as its own line item on the budget.`}
-        costSuffix=" total"
+        note="Targeting better-than-code Lighting Power Densities requires more sophisticated controls and more efficient fixtures. Each program adds its own percentage to the lighting subtotal and its own percentage to the controls subtotal, shown as its own line item on each side. The cost beside each program is what it ADDS over None."
+        costSuffix=" added"
         options={[
           {
             value: 'none',
             label: 'None',
             sub:   'Standard code-compliant LPDs (IECC minimum)',
-            cost:  grossSf > 0 ? baseEst : undefined,
+            cost:  grossSf > 0 ? 0 : undefined,
           },
-          {
-            value: 'leed',
-            label: 'LEED',
-            sub:   `+${Math.round(ecPct * 100)}% on lighting + controls subtotals (${lightingSubtotal > 0 ? formatCurrency(lightingAdder + controlsAdder) : 'enter project data first'})`,
-            cost:  grossSf > 0 ? creditEst : undefined,
-          },
-          {
-            value: 'ngbs',
-            label: 'NGBS',
-            sub:   `+${Math.round(ecPct * 100)}% on lighting + controls subtotals (${lightingSubtotal > 0 ? formatCurrency(lightingAdder + controlsAdder) : 'enter project data first'})`,
-            cost:  grossSf > 0 ? creditEst : undefined,
-          },
-          {
-            value: 'well',
-            label: 'WELL',
-            sub:   `+${Math.round(ecPct * 100)}% on lighting + controls subtotals (${lightingSubtotal > 0 ? formatCurrency(lightingAdder + controlsAdder) : 'enter project data first'})`,
-            cost:  grossSf > 0 ? creditEst : undefined,
-          },
-          {
-            value: 'other',
-            label: 'Other',
-            sub:   `+${Math.round(ecPct * 100)}% on lighting + controls subtotals (${lightingSubtotal > 0 ? formatCurrency(lightingAdder + controlsAdder) : 'enter project data first'})`,
-            cost:  grossSf > 0 ? creditEst : undefined,
-          },
+          ...['leed', 'ngbs', 'well', 'other'].map(key => ({
+            value: key,
+            label: key === 'leed' ? 'LEED' : key === 'ngbs' ? 'NGBS' : key === 'well' ? 'WELL' : 'Other',
+            sub:   `+${pctLabel(key)}${lightingSubtotal > 0 ? '' : ' (enter project data first)'}`,
+            cost:  grossSf > 0 ? Math.round(programAdder(key)) : undefined,
+          })),
         ]}
         value={answers.energyCreditProgram}
         onChange={val => {

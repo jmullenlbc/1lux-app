@@ -50,13 +50,14 @@ test('with a garage, all six emergency choices price differently (Mike 10-2)', (
   assert.equal(new Set(totals).size, totals.length, totals.join(', '));
 });
 
-test('an unanswered emergency question prices as Frogeyes (Mike 2026-09-12)', () => {
+test('an unanswered emergency question prices as Building generator at $0 (Mike 2026-10-15)', () => {
+  assert.equal(budget({}).sections.emergency.product, 0);
   assert.equal(
     budget({}).sections.emergency.product,
-    budget({ emergency: { strategy: 'frogeyes' } }).sections.emergency.product,
+    budget({ emergency: { strategy: 'generator' } }).sections.emergency.product,
   );
   const intake = INTAKE_QUESTIONS.find(x => x.engine?.section === 'emergency' && x.engine?.field === 'strategy');
-  assert.equal(intake.engine.map[intake.default], 'frogeyes', 'the public form starts on Frogeyes too');
+  assert.equal(intake.engine.map[intake.default], 'generator', 'the public form starts on Building generator too');
 });
 
 test('no garage, no batteries', () => {

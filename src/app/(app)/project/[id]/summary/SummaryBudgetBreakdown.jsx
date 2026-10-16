@@ -29,8 +29,10 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
   // and warehousing dollars, never the rate behind them (Mike, 2026-09-17).
   const freightLabel     = freightPct     == null ? 'Freight'     : `Freight (${freightPct}%)`;
   const warehousingLabel = warehousingPct == null ? 'Warehousing' : `Warehousing (${warehousingPct}%)`;
-  const { sections, freight, warehousing, lightingProductSubtotal, subtotalLightingOnly, controls, controlsFreight, controlsWarehousing, totalWithControls, contingencyRate, contingencyAmount, totalWithContingency, energyCreditPct, energyCreditLighting, energyCreditControls, salesTaxPct, lightingTaxAmount, controlsTaxAmount } = budget;
-  const ecPctLabel = Math.round((energyCreditPct || 0) * 100);
+  const { sections, freight, warehousing, lightingProductSubtotal, subtotalLightingOnly, controls, controlsGarage, controlsFreight, controlsWarehousing, controlsTotal, totalWithControls, contingencyRate, contingencyAmount, totalWithContingency, energyCreditPct, energyCreditLightingPct, energyCreditControlsPct, energyCreditLighting, energyCreditControls, salesTaxPct, lightingTaxAmount, controlsTaxAmount } = budget;
+  // Each side carries its own % (WELL = 10% lighting / 30% controls, 10-15).
+  const ecPctLabel  = Math.round((energyCreditLightingPct ?? energyCreditPct ?? 0) * 100);
+  const ecCtrlLabel = Math.round((energyCreditControlsPct ?? energyCreditPct ?? 0) * 100);
   const contingencyPct = contingencyRate ? Math.round(contingencyRate * 100) : 0;
   const taxLabel = `Sales Tax (${Math.round((salesTaxPct || 0) * 10000) / 100}%)`;
 
@@ -219,7 +221,9 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
 
       {/* Controls */}
       <div className="print:hidden">
-        <TooltipBudgetRow label="Controls (IECC)" value={controls || 0} details={[{ label: 'Controls product', value: controls || 0 }]} />
+        <TooltipBudgetRow label="Controls (IECC)" value={controls || 0} details={controlsGarage > 0
+          ? [{ label: 'Building controls', value: (controls || 0) - controlsGarage }, { label: 'Garage controls', value: controlsGarage }]
+          : [{ label: 'Controls product', value: controls || 0 }]} />
       </div>
       <div className="hidden print:block">
         <Row label="Controls (IECC)" value={controls || 0} />
@@ -229,10 +233,10 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
       {energyCreditControls > 0 && (
         <>
           <div className="print:hidden">
-            <TooltipBudgetRow label={`Energy Credit (${ecPctLabel}%)`} value={energyCreditControls} details={[]} />
+            <TooltipBudgetRow label={`Energy Credit (${ecCtrlLabel}%)`} value={energyCreditControls} details={[]} />
           </div>
           <div className="hidden print:block">
-            <Row label={`Energy Credit (${ecPctLabel}%)`} value={energyCreditControls} />
+            <Row label={`Energy Credit (${ecCtrlLabel}%)`} value={energyCreditControls} />
           </div>
         </>
       )}
@@ -256,6 +260,14 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
           </div>
         </>
       )}
+
+      {/* Controls total: product + energy credit + freight + warehousing + tax */}
+      <div className="border-t-2 border-slate-900 pt-2 mt-1 mb-3">
+        <div className="flex justify-between font-bold text-base print:text-sm py-1">
+          <span>Controls Total</span>
+          <span className="font-mono">{formatCurrency(controlsTotal || 0)}</span>
+        </div>
+      </div>
 
       {/* Grand total */}
       <div className="border-t-2 border-slate-900 pt-3 mt-2">

@@ -1,5 +1,6 @@
 'use client';
 import { useState, useMemo } from 'react';
+import { useLiveAnswers } from '@/components/wizard/useLiveAnswers';
 import Button from '@/components/ui/Button';
 import QuestionCard, { CostImpact, useChoiceDelta } from '@/components/sections/QuestionCard';
 import { calculateBudget } from '@/lib/calculations';
@@ -14,13 +15,15 @@ export default function DesignEmergencySection({
   onSaveResponses,
   onNext,
   onPrev,
+  onLiveAnswers,
 }) {
   const P = pricing || PRICING;
   const existing = responses || {};
   const [ans, setAns] = useState({
-    strategy: existing.strategy || 'frogeyes',
+    strategy: existing.strategy || 'generator',
   });
   const [saving, setSaving] = useState(false);
+  useLiveAnswers(onLiveAnswers, 'emergency', ans); // Mike 10-15: sidebar moves before Next
   // What each answer costs (+ estimated labor), recomputed live as answers
   // change — local answers only save on Next (Mike 2026-09-13).
   const qc = useMemo(
@@ -52,6 +55,7 @@ export default function DesignEmergencySection({
   }
 
   const hasSf = corridorSf > 0 || intAmenitySf > 0 || garageSf > 0;
+  const selectedEst = calcCost(ans.strategy);
 
   return (
     <div className="space-y-8">
@@ -160,6 +164,22 @@ export default function DesignEmergencySection({
                 )}
                 {ans.strategy === opt.key && <CostImpact impact={qc['emergency.strategy']} delta={strategyDelta} />}
               </div>
+              {hasSf && (() => {
+                // Mike 10-15: each option shows its own line AND the move from
+                // the chosen one, so the choices never look alike.
+                const est = calcCost(opt.key);
+                const diff = est - selectedEst;
+                return (
+                  <div className="text-xs font-mono font-semibold shrink-0 mt-0.5 text-right">
+                    <div className={est === 0 ? 'text-slate-400' : 'text-amber-600'}>{est === 0 ? '$0 adder' : `$${est.toLocaleString()}`}</div>
+                    {ans.strategy !== opt.key && (
+                      <div className={`font-normal ${diff > 0 ? 'text-red-600' : diff < 0 ? 'text-green-700' : 'text-slate-400'}`}>
+                        {diff === 0 ? 'same as current' : `${diff > 0 ? '+' : '-'}$${Math.abs(diff).toLocaleString()} vs current`}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </label>
           ))}
         </div>

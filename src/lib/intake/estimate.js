@@ -224,7 +224,8 @@ const PUBLIC_BUDGET_KEYS = [
   'lightingProductSubtotal', 'subtotalLightingOnly',
   'controls', 'controlsFreight', 'controlsWarehousing', 'controlsTotal',
   'totalWithControls', 'perSf', 'perUnit',
-  'energyCreditPct', 'energyCreditLighting', 'energyCreditControls',
+  'energyCreditPct', 'energyCreditLightingPct', 'energyCreditControlsPct', 'energyCreditLighting', 'energyCreditControls',
+  'controlsGarage', // dollars inside the one controls number
   'contingencyRate', 'contingencyAmount', 'totalWithContingency',
   'salesTaxPct', 'lightingTaxAmount', 'controlsTaxAmount',
 ];

@@ -3,8 +3,12 @@ import { prisma } from '@/lib/db';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
 import { notifyUsers } from '@/lib/alerts';
 import { cleanPublicBugReport } from '@/lib/publicBugReport';
+import { putQcObject } from '@/lib/qcStorage';
 
 export const dynamic = 'force-dynamic';
+
+// Over this the screenshot is ignored (Amplify 413s near 4.4 MB anyway).
+const MAX_SHOT_BYTES = 4_000_000;
 
 /**
  * PUBLIC, UNAUTHENTICATED bug report from the "Report a bug" button on
@@ -34,9 +38,21 @@ export async function POST(req) {
     );
   }
 
+  // Mike 10-15: the button now sends multipart (a `meta` JSON part plus an
+  // optional screenshot), the same shape as the staff QC report. Plain JSON
+  // still works for anything older.
   let body;
+  let screenshot = null;
   try {
-    body = await req.json();
+    const ctype = req.headers.get('content-type') || '';
+    if (ctype.includes('multipart/form-data')) {
+      const fd = await req.formData();
+      body = JSON.parse(fd.get('meta') || '{}');
+      const s = fd.get('screenshot');
+      if (s && typeof s === 'object' && s.size > 0 && s.size <= MAX_SHOT_BYTES) screenshot = s;
+    } else {
+      body = await req.json();
+    }
   } catch {
     return NextResponse.json({ error: 'Something went wrong sending that. Please try again.' }, { status: 400 });
   }
@@ -44,6 +60,18 @@ export async function POST(req) {
   const clean = cleanPublicBugReport(body);
   if (!clean.ok) return NextResponse.json({ error: clean.error }, { status: 422 });
   const d = clean.data;
+
+  // A screenshot that will not store never fails the report: the words are
+  // what matter and the row is the source of truth.
+  let screenshotKey = null;
+  if (screenshot) {
+    try {
+      const isJpeg = (screenshot.type || '').includes('jpeg');
+      screenshotKey = await putQcObject(Buffer.from(await screenshot.arrayBuffer()), isJpeg ? { ext: 'jpg', contentType: 'image/jpeg' } : { ext: 'png' });
+    } catch (e) {
+      console.error('[api/intake/bug-report] screenshot store failed (non-fatal):', e?.name, e?.message);
+    }
+  }
 
   let report;
   try {
@@ -57,6 +85,7 @@ export async function POST(req) {
         pageUrl:       d.pageUrl,
         browserInfo:   d.browserInfo,
         viewport:      d.viewport,
+        screenshotKey,
         reporterId:    null,
         reporterName:  d.reporterName,
         reporterEmail: d.reporterEmail,

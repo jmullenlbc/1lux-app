@@ -1,5 +1,6 @@
 'use client';
 import { useState, useMemo } from 'react';
+import { useLiveAnswers } from "@/components/wizard/useLiveAnswers";
 import Button from '@/components/ui/Button';
 import QuestionCard from '@/components/sections/QuestionCard';
 import { PRICING } from '@/lib/pricing';
@@ -13,6 +14,7 @@ export default function DesignInteriorAmenitiesSection({
   onSaveResponses,
   onNext,
   onPrev,
+  onLiveAnswers,
 }) {
   const P = pricing || PRICING;
   const existing = responses || {};
@@ -20,6 +22,7 @@ export default function DesignInteriorAmenitiesSection({
     interiorLevel: existing.interiorLevel || 'medium',
   });
   const [saving, setSaving] = useState(false);
+  useLiveAnswers(onLiveAnswers, "amenities", ans); // Mike 10-15: sidebar moves before Next
   // What the chosen answer costs, recomputed live (Mike 2026-09-13).
   const qc = useMemo(
     () => calculateBudget(projectData, { ...(allSections || {}), amenities: { ...(allSections?.amenities || {}), ...ans } }, pricing || null).questionCosts || {},

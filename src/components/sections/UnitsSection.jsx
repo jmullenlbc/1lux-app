@@ -1,5 +1,6 @@
 'use client';
 import { useState, useMemo } from 'react';
+import { useLiveAnswers } from '@/components/wizard/useLiveAnswers';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import QuestionCard from './QuestionCard';
@@ -14,13 +15,15 @@ const FAN_ROOMS = {
   masterSecondaryTertiary: 2.5, masterSecondaryTertiaryLiving: 2.75,
 };
 
-export default function UnitsSection({ responses, projectData, allSections, pricing, onSaveResponses, onNext, onPrev, isDesign = false, homeType = false, onSaveCorridors }) {
+export default function UnitsSection({ responses, projectData, allSections, pricing, onSaveResponses, onNext, onPrev, onLiveAnswers, isDesign = false, homeType = false, onSaveCorridors }) {
   // Single source of truth: read costs from the live master pricing (same object
   // the engine uses), falling back to static defaults. Prevents UI/engine drift.
   const P = pricing || PRICING;
   // Vanity: master holds GROSS; net adder = gross − bath-bar credit (base includes a bath bar).
   const vanCredit = P.vanityBathBarCredit ?? 45;
   const vanNet = k => { const g = P.vanity?.[k]?.product || 0; return g > 0 ? Math.max(0, g - vanCredit) : 0; };
+  // Mike 10-15: say the deduction on every option ("$80 less the $45 bath bar").
+  const vanSub = k => { const g = P.vanity?.[k]?.product || 0; return g > 0 ? `$${g} less the $${vanCredit} bath bar credit` : ''; };
   const [ans, setAns] = useState(() => ({
     // ── Conceptual questions (always shown) ──────────────────────────────
     undercabinet:       responses.undercabinet       || 'none',
@@ -52,6 +55,7 @@ export default function UnitsSection({ responses, projectData, allSections, pric
   }));
   const [dirty, setDirty] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
+  useLiveAnswers(onLiveAnswers, 'units', ans); // Mike 10-15: sidebar moves before Next
   // What each answer costs (+ estimated labor), recomputed live as answers
   // change — local answers only save on Next (Mike 2026-09-13).
   const qc = useMemo(
@@ -309,7 +313,7 @@ export default function UnitsSection({ responses, projectData, allSections, pric
 
           <QuestionCard
             question="Are ceiling fans desired and in what locations?"
-            note={`A typical 48" fan installed runs $350 total (product + labor). Net adder depends on level selected${isDesign ? ' below' : ''}.`}
+            note={`A typical 48" fan installed runs $350 total (product + labor). Each fan is priced net of the $${fanDiskCredit} 12" disk it replaces, so that credit is already taken out of the adder. Net adder depends on level selected${isDesign ? ' below' : ''}.`}
             options={[
               { value: 'none',                         label: 'None',                                                    sub: '—',                   cost: isDesign ? undefined : 0 },
               { value: 'masterOnly',                   label: 'Master bed only',                                        sub: '1 fan/unit',           cost: isDesign ? undefined : fanOptionCost(1) },
@@ -421,15 +425,15 @@ export default function UnitsSection({ responses, projectData, allSections, pric
         <div className="space-y-4">
           <QuestionCard
             question="How do you want to light bathroom vanities?"
-            note='"Mirror and bath bar (Low finish)" is included in the base $0.38/SF. Illuminated mirrors eliminate the need for a separate mirror allowance and are often cost-neutral.'
+            note={`"Mirror and bath bar (Low finish)" is included in the base $0.38/SF. Every other option is priced net of that $${vanCredit} bath bar, so the adder shown is the difference. Illuminated mirrors eliminate the need for a separate mirror allowance and are often cost-neutral.`}
             costSuffix="/vanity"
             options={[
               { value: 'bathBarLow',              label: 'Mirror and bath bar (Low finish)',        sub: 'Included in base budget',            cost: vanNet('bathBarLow')   },
-              { value: 'illuminatedMirrorLow',    label: 'Illuminated mirror (Low finish)',    sub: 'Net of bath-bar base credit',        cost: vanNet('illuminatedMirrorLow') },
-              { value: 'illuminatedMirrorMedium', label: 'Illuminated mirror (Medium finish)', cost: vanNet('illuminatedMirrorMedium') },
-              { value: 'illuminatedMirrorHigh',   label: 'Illuminated mirror (High finish)',   cost: vanNet('illuminatedMirrorHigh') },
-              { value: 'bathBarMedium',           label: 'Mirror and bath bar (Medium finish)',     cost: vanNet('bathBarMedium') },
-              { value: 'bathBarHigh',             label: 'Mirror and bath bar (High finish)',       cost: vanNet('bathBarHigh') },
+              { value: 'illuminatedMirrorLow',    label: 'Illuminated mirror (Low finish)',    sub: vanSub('illuminatedMirrorLow'),    cost: vanNet('illuminatedMirrorLow') },
+              { value: 'illuminatedMirrorMedium', label: 'Illuminated mirror (Medium finish)', sub: vanSub('illuminatedMirrorMedium'), cost: vanNet('illuminatedMirrorMedium') },
+              { value: 'illuminatedMirrorHigh',   label: 'Illuminated mirror (High finish)',   sub: vanSub('illuminatedMirrorHigh'),   cost: vanNet('illuminatedMirrorHigh') },
+              { value: 'bathBarMedium',           label: 'Mirror and bath bar (Medium finish)',     sub: vanSub('bathBarMedium'),           cost: vanNet('bathBarMedium') },
+              { value: 'bathBarHigh',             label: 'Mirror and bath bar (High finish)',       sub: vanSub('bathBarHigh'),             cost: vanNet('bathBarHigh') },
             ]}
             value={ans.vanity}
             onChange={v => set('vanity', v)} impact={qc['units.vanity']}
@@ -492,7 +496,7 @@ export default function UnitsSection({ responses, projectData, allSections, pric
               costSuffix="/balcony"
               options={[
                 { value: 'none',         label: 'None',  cost: P.balcony.none.product },
-                { value: 'disk5inch',    label: '5" surface mount disk', sub: 'Included in base', cost: P.balcony.disk5inch.product },
+                { value: 'disk5inch',    label: '5" surface mount disk', sub: '$14 per balcony', cost: P.balcony.disk5inch.product },
                 { value: 'sconcelow',    label: 'Exterior balcony sconce (Low finish)',    sub: 'budget priority',  cost: P.balcony.sconcelow.product },
                 { value: 'sconceMedium', label: 'Exterior balcony sconce (Medium finish)', sub: 'standard priority', cost: P.balcony.sconceMedium.product },
                 { value: 'sconceHigh',   label: 'Exterior balcony sconce (High finish)',   sub: 'premium priority', cost: P.balcony.sconceHigh.product },

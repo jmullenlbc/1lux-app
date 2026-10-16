@@ -196,7 +196,7 @@ test('the public page takes three drawing files at most, and says so', () => {
 test('controls is the one line that shows its $/SF math, on purpose (Mike 2026-09-24)', () => {
   const full = computeIntakeEstimate({ answers: ANSWERS, drawings: null });
   const pub  = publicIntakeEstimate({ answers: ANSWERS, drawings: null });
-  assert.deepEqual(Object.keys(pub.budget.controlsMath).sort(), ['cap', 'capped', 'perSf', 'sf']);
+  assert.deepEqual(Object.keys(pub.budget.controlsMath).filter(k => k !== 'garage').sort(), ['cap', 'capped', 'perSf', 'sf']);
   assert.equal(pub.budget.controlsMath.sf, full.budget.controlsBasisSf);
   assert.equal(pub.budget.controlsMath.perSf, full.budget.controlsRateUsed);
 });

@@ -1,5 +1,6 @@
 'use client';
 import { useState, useMemo } from 'react';
+import { useLiveAnswers } from "@/components/wizard/useLiveAnswers";
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import QuestionCard, { CostImpact } from './QuestionCard';
@@ -8,6 +9,7 @@ import { PRICING } from '@/lib/pricing';
 import StandardsHint from '@/components/wizard/StandardsHint';
 import { amenityRate } from '@/lib/amenityLevel';
 import { priceSiteFeatures, siteFeatureCostLine, siteFeatureLineLabel } from '@/lib/siteFeatures';
+import { surfaceStalls } from '@/lib/surfaceParkingDefault';
 
 // Manual adder line items — the things the formula does NOT compute. These ADD
 // on top of the frozen formula breakdown.
@@ -17,7 +19,7 @@ const EXT_MANUAL_ITEMS = [
   ['manualExteriorAdder', 'Manual exterior adder'],
 ];
 
-export default function ExteriorSection({ responses, projectData, allSections, pricing, onSaveResponses, onSaveData, onNext, onPrev, isDesign = false }) {
+export default function ExteriorSection({ responses, projectData, allSections, pricing, onSaveResponses, onSaveData, onNext, onPrev, onLiveAnswers, isDesign = false }) {
   // Single source of truth: read rates/costs from the live master pricing. (Landscape
   // 2% and door averaging are hardcoded in the engine, so kept hardcoded here to match.)
   const P = pricing || PRICING;
@@ -68,6 +70,9 @@ export default function ExteriorSection({ responses, projectData, allSections, p
   const manualTotal = EXT_MANUAL_ITEMS.reduce((s, [key]) => s + (parseFloat(manualItems[key]) || 0), 0);
 
   const [saving, setSaving] = useState(false);
+  // Mike 10-15: sidebar moves before Next (manual items ride along as the saved JSON string)
+  const liveExterior = useMemo(() => ({ ...answers, exteriorManualItems: JSON.stringify(manualItems) }), [answers, manualItems]);
+  useLiveAnswers(onLiveAnswers, "exterior", liveExterior);
   // What each answer costs (+ estimated labor), recomputed live as answers
   // change — local answers only save on Next (Mike 2026-09-13).
   const qc = useMemo(
@@ -76,7 +81,10 @@ export default function ExteriorSection({ responses, projectData, allSections, p
   );
 
   const extSf       = Number(projectData?.exteriorAmenitySf)    || 0;
-  const parking     = Number(projectData?.numSurfaceParking)     || 0;
+  // Blank stall count on a surface-parked type = units × ratio (10-15).
+  const stallEst    = surfaceStalls(projectData, P);
+  const parking     = stallEst.stalls;
+  const stallsNote  = stallEst.estimated ? ` (estimated: ${stallEst.units} units × ${stallEst.perUnit})` : '';
   const carports    = Number(projectData?.numCarports)           || 0;
   const numGarages  = Number(projectData?.numGarages)            || 0;
   const extDoors    = Number(projectData?.numExteriorDoors)      || 0;
@@ -242,7 +250,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
         ? `${parkingFixtures} area light${parkingFixtures === 1 ? '' : 's'} (manual)`
         : driveFt > 0
           ? `${driveFt.toLocaleString()} ft of drive ÷ ${driveFtPer} = ${driveLane}${stallFixtures > driveLane ? `, raised to ${stallFixtures} by the ${parking} stalls` : ''} = ${parkingFixtures} fixture${parkingFixtures === 1 ? '' : 's'}`
-          : `${parking} stalls ÷ ${sp.stallsPerFixture ?? 9} = ${stallFixtures}${driveLane ? ` + ${driveLane} drive-lane = ${parkingFixtures}` : ''} fixture${parkingFixtures === 1 ? '' : 's'}`} × $${(sp.perFixture ?? 1325).toLocaleString()}${solarSite ? ` × ${solarMult} solar` : ''}`, value: parkingProduct },
+          : `${parking} stalls${stallsNote} ÷ ${sp.stallsPerFixture ?? 9} = ${stallFixtures}${driveLane ? ` + ${driveLane} drive-lane = ${parkingFixtures}` : ''} fixture${parkingFixtures === 1 ? '' : 's'}`} × $${(sp.perFixture ?? 1325).toLocaleString()}${solarSite ? ` × ${solarMult} solar` : ''}`, value: parkingProduct },
     { label: 'Carports',              math: `${carports} ÷ 2 = ${Math.floor(carports / 2)} disk${Math.floor(carports / 2) === 1 ? '' : 's'} × $${P.exterior?.carport?.diskEveryOther ?? 30}`, value: carportProduct },
     { label: 'Detached/attached garages', math: `${numGarages} × 1 strip × $${P.exterior?.detachedGarage?.stripPerGarage ?? 65}`, value: garageProduct },
     { label: 'Building wallpacks',    math: wpMath, value: wallpackProduct },
@@ -322,7 +330,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">
           {[
             { label: 'Exterior Amenity SF',    value: extSf > 0 ? extSf.toLocaleString() : '—' },
-            { label: 'Surface Parking Stalls', value: parking  || '—' },
+            { label: 'Surface Parking Stalls', value: parking ? `${parking}${stallEst.estimated ? ' (estimated)' : ''}` : '—' },
             { label: 'Carports',               value: carports || '—' },
             { label: 'Exterior Doors',         value: extDoors || '—' },
             { label: 'Buildings',              value: numBuildingsPD || '—' },
@@ -387,13 +395,13 @@ export default function ExteriorSection({ responses, projectData, allSections, p
       {/* Exterior amenity level */}
       <QuestionCard
         question="What level of design would you like for exterior amenities?"
-        note="Exterior amenities include pool deck, courtyards, and outdoor gathering areas. Range: $1/SF (minimal) to $5/SF (high-end, may include façade lighting)."
+        note="Exterior amenities include pool deck, courtyards, and outdoor gathering areas. Pick the level that matches the outdoor program; the rate runs on the exterior amenity SF."
         costSuffix=" total"
         options={[
-          { value: 'low',       label: `$${rateMap.low}/SF — Low finish`,             sub: 'Garden walk-up; minimal exterior amenity lighting',                cost: extSf * rateMap.low },
-          { value: 'lowMedium', label: `$${rateMap.lowMedium}/SF — Low-Medium finish`, sub: 'Simple mid-market exterior amenity package',                       cost: extSf * rateMap.lowMedium },
-          { value: 'medium',    label: `$${rateMap.medium}/SF — Medium finish`,        sub: 'Standard mid-market exterior amenity package',                     cost: extSf * rateMap.medium },
-          { value: 'high',      label: `$${rateMap.high}/SF — High finish`,            sub: 'High-end mid-rise / high-rise; may include façade accent lighting', cost: extSf * rateMap.high },
+          { value: 'low',       label: `$${rateMap.low}/SF — Low finish`,             sub: 'No pool',                cost: extSf * rateMap.low },
+          { value: 'lowMedium', label: `$${rateMap.lowMedium}/SF — Low-Medium finish`, sub: 'Basic pool lighting and basic pole mounted area lights',                       cost: extSf * rateMap.lowMedium },
+          { value: 'medium',    label: `$${rateMap.medium}/SF — Medium finish`,        sub: 'Elevated pool area and possible other amenity spaces, like courtyards and gathering areas',                     cost: extSf * rateMap.medium },
+          { value: 'high',      label: `$${rateMap.high}/SF — High finish`,            sub: 'Everything in the 3 per SF level plus multiple exterior amenity areas, including decks, large hang out areas and more', cost: extSf * rateMap.high },
         ]}
         value={answers.amenityLevel} impact={qc['exterior.amenityLevel']}
         onChange={val => {
@@ -482,7 +490,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
             <p className="text-[11px] text-slate-400">
               {driveFt > 0
                 ? `Auto-counted: ${driveFt.toLocaleString()} ft of drive ÷ ${driveFtPer} = ${driveLane}${stallFixtures > driveLane ? `, raised to ${stallFixtures} by the ${parking} stalls` : ''}. Override below if the site says otherwise.`
-                : `Auto-counted: ${parking} stalls ÷ ${sp.stallsPerFixture ?? 9} = ${stallFixtures}${driveLane ? ` + ${driveLane} along the drives` : ''} = ${areaAutoQty}. Override below if the site says otherwise.`}
+                : `Auto-counted: ${parking} stalls${stallsNote} ÷ ${sp.stallsPerFixture ?? 9} = ${stallFixtures}${driveLane ? ` + ${driveLane} along the drives` : ''} = ${areaAutoQty}. Override below if the site says otherwise.`}
             </p>
           </div>
           <div className="text-right shrink-0">

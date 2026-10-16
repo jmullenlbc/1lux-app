@@ -78,7 +78,26 @@ test('the manual override still replaces the clubhouse formula', () => {
 test('the energy-credit adder rides on top of the clubhouse controls', () => {
   const b = calculateBudget(pd('townHouses', { interiorAmenitySf: 4000 }), { ...SECTIONS, controls: { energyCredit: 'yes', energyCreditProgram: 'leed' } });
   assert.equal(b.controls, 20_000);
-  assert.equal(Math.round(b.energyCreditControls), Math.round(20_000 * PRICING.controls.energyCreditAdderPct));
+  assert.equal(Math.round(b.energyCreditControls), Math.round(20_000 * PRICING.controls.energyCreditPrograms.leed.controls));
+});
+
+// Mike 10-15: LEED and NGBS add 3% to lighting and 3% to controls; WELL adds
+// 10% to lighting and 30% to controls; None removes the credit entirely, even
+// when a stale energyCredit 'yes' is still stored from an earlier pick.
+test('energy credit per program: LEED/NGBS 3/3, WELL 10/30, None 0/0', () => {
+  const run = program => calculateBudget(pd('townHouses', { interiorAmenitySf: 4000 }), { ...SECTIONS, controls: { energyCredit: 'yes', energyCreditProgram: program } });
+  const leed = run('leed'), ngbs = run('ngbs'), well = run('well'), none = run('none');
+  assert.equal(leed.energyCreditLightingPct, 0.03);
+  assert.equal(leed.energyCreditControlsPct, 0.03);
+  assert.equal(ngbs.energyCreditLightingPct, 0.03);
+  assert.equal(ngbs.energyCreditControlsPct, 0.03);
+  assert.equal(well.energyCreditLightingPct, 0.10);
+  assert.equal(well.energyCreditControlsPct, 0.30);
+  assert.equal(Math.round(well.energyCreditControls), Math.round(well.controls * 0.30));
+  assert.equal(none.energyCreditLightingPct, 0);
+  assert.equal(none.energyCreditControls, 0);
+  assert.equal(none.energyCreditLighting, 0);
+  assert.ok(well.controlsTotal > leed.controlsTotal && leed.controlsTotal > none.controlsTotal);
 });
 
 // Mike, 2026-09-24: balconies can never outnumber units, whatever was typed.

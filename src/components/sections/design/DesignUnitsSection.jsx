@@ -1,5 +1,6 @@
 'use client';
 import { useState, useMemo } from 'react';
+import { useLiveAnswers } from "@/components/wizard/useLiveAnswers";
 import Button from '@/components/ui/Button';
 import QuestionCard from '@/components/sections/QuestionCard';
 import { formatCurrency, calculateBudget } from '@/lib/calculations';
@@ -12,7 +13,7 @@ const FAN_ROOMS = {
   masterSecondaryTertiary: 2.5, masterSecondaryTertiaryLiving: 2.75,
 };
 
-export default function DesignUnitsSection({ responses, projectData, allSections, pricing, onSaveResponses, onNext, onPrev, homeType = false, onSaveCorridors }) {
+export default function DesignUnitsSection({ responses, projectData, allSections, pricing, onSaveResponses, onNext, onPrev, onLiveAnswers, homeType = false, onSaveCorridors }) {
   const P = pricing || PRICING;
   // Vanity: master holds GROSS; net adder = gross − bath-bar credit (base includes a bath bar).
   const vanCredit = P.vanityBathBarCredit ?? 45;
@@ -47,6 +48,7 @@ export default function DesignUnitsSection({ responses, projectData, allSections
     balconyPrice:         responses.balconyPrice         ?? '',
   }));
   const [saving, setSaving] = useState(false);
+  useLiveAnswers(onLiveAnswers, "units", ans); // Mike 10-15: sidebar moves before Next
   // What each answer costs (+ estimated labor), recomputed live as answers
   // change — local answers only save on Next (Mike 2026-09-13).
   const qc = useMemo(

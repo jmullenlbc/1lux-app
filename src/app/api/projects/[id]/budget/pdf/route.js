@@ -176,7 +176,7 @@ export async function GET(request, { params }) {
     ].filter(row => row.a && row.a !== '—') },
 
     { section: 'Emergency Lighting', rows: [
-      { q: 'Strategy', a: gl('emergency', r.emergency?.strategy || 'frogeyes') },
+      { q: 'Strategy', a: gl('emergency', r.emergency?.strategy || 'generator') },
     ] },
 
     { section: 'Controls & Energy', rows: [
@@ -324,17 +324,18 @@ ${designDisclaimer}
 <!-- Budget Breakdown -->
 <div style="margin-bottom:4px;font-weight:700;font-size:8.5pt;color:#0f172a">Budget Breakdown</div>
 ${breakdownRows}
-${budget.energyCreditLighting > 0 ? row(`Energy Credit (${Math.round((budget.energyCreditPct || 0) * 100)}%)`, budget.energyCreditLighting) : ''}
+${budget.energyCreditLighting > 0 ? row(`Energy Credit (${Math.round((budget.energyCreditLightingPct ?? budget.energyCreditPct ?? 0) * 100)}%)`, budget.energyCreditLighting) : ''}
 ${row('Lighting Subtotal', budget.lightingProductSubtotal, true)}
 ${row(`Freight (${freightPct}%)`, budget.freight || 0)}
 ${row(`Warehousing (${warehousingPct}%)`, budget.warehousing || 0)}
 ${budget.lightingTaxAmount > 0 ? row(taxLabel, budget.lightingTaxAmount) : ''}
 ${row('Lighting Total', budget.subtotalLightingOnly, true)}
 ${row('Controls (IECC)', budget.controls || 0)}
-${budget.energyCreditControls > 0 ? row(`Energy Credit (${Math.round((budget.energyCreditPct || 0) * 100)}%)`, budget.energyCreditControls) : ''}
+${budget.energyCreditControls > 0 ? row(`Energy Credit (${Math.round((budget.energyCreditControlsPct ?? budget.energyCreditPct ?? 0) * 100)}%)`, budget.energyCreditControls) : ''}
 ${row(`Freight (${freightPct}%)`, budget.controlsFreight || 0)}
 ${row(`Warehousing (${warehousingPct}%)`, budget.controlsWarehousing || 0)}
 ${budget.controlsTaxAmount > 0 ? row(taxLabel, budget.controlsTaxAmount) : ''}
+${row('Controls Total', budget.controlsTotal || 0, true)}
 ${row('Total w/ Controls', budget.totalWithControls, true)}
 ${contingencyRows}
 

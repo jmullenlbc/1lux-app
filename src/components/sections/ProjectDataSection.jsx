@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
+import { useLiveAnswers, liveProjectData } from "@/components/wizard/useLiveAnswers";
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Card, { CardHeader, CardBody } from '@/components/ui/Card';
@@ -89,7 +90,7 @@ const FIELDS = [
 
 const PCT_FIELDS = new Set(['freightPct', 'warehousingPct', 'salesTaxPct']);
 
-export default function ProjectDataSection({ projectId, projectData, responses = {}, onSaveData, onSaveResponses, onNext, isDesign = false }) {
+export default function ProjectDataSection({ projectId, projectData, responses = {}, onSaveData, onSaveResponses, onNext, onLiveAnswers, onLiveData, isDesign = false }) {
   const [form, setForm] = useState(() => {
     const f = {};
     FIELDS.forEach(g => g.fields.forEach(field => {
@@ -133,6 +134,15 @@ export default function ProjectDataSection({ projectId, projectData, responses =
   });
   const [qDirty, setQDirty] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
+  // Mike 10-15: sidebar moves as figures are typed, before Save. Site feature rows stay out (they save as rows).
+  useLiveAnswers(onLiveAnswers, "project-data", qAnswers);
+  useEffect(() => {
+    if (!onLiveData) return;
+    const plain = {};
+    for (const [k, v] of Object.entries(form || {})) if (!SITE_FEATURE_FORM_KEYS.has(k)) plain[k] = v;
+    onLiveData(liveProjectData(plain, PCT_FIELDS));
+  }, [form, onLiveData]);
+  useEffect(() => () => onLiveData?.(null), [onLiveData]);
   const [saved,  setSaved]  = useState(false);
 
   // Line-level alerts: a figure far off our real jobs of this building type.

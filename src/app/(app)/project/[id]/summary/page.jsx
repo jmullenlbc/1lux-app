@@ -171,7 +171,7 @@ export default async function SummaryPage({ params }) {
     ].filter(row => row.a && row.a !== '—')},
 
     { section: 'Emergency Lighting', rows: [
-      { q: 'Strategy', a: getLabel('emergency', r.emergency?.strategy || 'frogeyes') },
+      { q: 'Strategy', a: getLabel('emergency', r.emergency?.strategy || 'generator') },
     ]},
 
     { section: 'Controls & Energy', rows: [

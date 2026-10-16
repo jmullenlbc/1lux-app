@@ -15,6 +15,7 @@
  */
 
 import { normalizeAmenityLevel } from '../amenityLevel.js';
+import { surfaceStalls } from '../surfaceParkingDefault.js';
 
 const n = (v, d = 0) => { const x = Number(v); return Number.isFinite(x) ? x : d; };
 
@@ -78,7 +79,8 @@ export function buildSamples({ projectData = {}, sections = {}, budget, pricing 
   const extSf        = n(pd.exteriorAmenitySf);
   const garageSf     = n(pd.garageSf);
   const landings     = n(pd.numEgressStairwells);
-  const stalls       = n(pd.numSurfaceParking);
+  const stallEst     = surfaceStalls(pd, pricing);   // blank count = units × ratio (10-15)
+  const stalls       = stallEst.stalls;
   const bohSf        = s.boh?.capped ? n(s.boh.capped.capSf) : n(pd.bohSf);
   const buildingType = pd.buildingTypeKey || sections.controls?.buildingType || null;
   const solar        = ext.siteDesignLevel === 'solar';
@@ -157,7 +159,9 @@ export function buildSamples({ projectData = {}, sections = {}, budget, pricing 
     modelAmount: s.exterior?.parking?.product,
     rateUsed: n(pricing.exterior?.surfaceParking?.perFixture, 1325) * solarMult,
     pricingKey: 'exterior.surfaceParking.perFixture',
-    note: solar ? `solar ×${solarMult} applied` : null });
+    note: [solar ? `solar ×${solarMult} applied` : null,
+           stallEst.estimated ? `${stalls} stalls estimated from ${stallEst.units} units × ${stallEst.perUnit}` : null]
+      .filter(Boolean).join('; ') || null });
 
   const wp = s.exterior?.wallpacks || {};
   push({ lineKey: 'exterior.wallpacks', quantity: n(wp.qty), quantityUnit: 'fixtures', modelAmount: wp.product,
@@ -206,12 +210,11 @@ export function buildSamples({ projectData = {}, sections = {}, budget, pricing 
   const emSf = corridorSf + intSf + garageSf;
   push({ lineKey: 'emergency', quantity: emSf, quantityUnit: 'sf', modelAmount: s.emergency?.product,
     rateUsed: emSf > 0 ? n(s.emergency?.product) / emSf : null, pricingKey: null,
-    note: `strategy: ${em.strategy || 'frogeyes'}` });
+    note: `strategy: ${em.strategy || 'generator'}` });
 
-  const exitCutoff = n(pricing.exitSigns?.largeProjectThreshold, 300000);
-  const exitRate   = n(pricing.exitSigns?.perSf) * (grossSf > exitCutoff ? 0.5 : 1);
+  const exitRate   = n(pricing.exitSigns?.perSf);
   push({ lineKey: 'exitSigns', quantity: grossSf, quantityUnit: 'sf', modelAmount: s.exitSigns?.product,
-    rateUsed: exitRate, pricingKey: 'exitSigns.perSf', note: grossSf > exitCutoff ? 'large-project half rate' : null });
+    rateUsed: exitRate, pricingKey: 'exitSigns.perSf', note: null });
 
   push({ lineKey: 'controls', quantity: grossSf, quantityUnit: 'sf', modelAmount: budget.controls,
     rateUsed: grossSf > 0 ? n(budget.controls) / grossSf : null, pricingKey: null });

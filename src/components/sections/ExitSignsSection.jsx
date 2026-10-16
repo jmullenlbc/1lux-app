@@ -1,11 +1,12 @@
 'use client';
 import { useState, useMemo } from 'react';
+import { useLiveAnswers } from '@/components/wizard/useLiveAnswers';
 import Button from '@/components/ui/Button';
 import QuestionCard from './QuestionCard';
 import { formatCurrency, calculateBudget } from '@/lib/calculations';
 import { PRICING } from '@/lib/pricing';
 
-export default function ExitSignsSection({ responses, projectData, allSections, pricing, onSaveResponses, onNext, onPrev }) {
+export default function ExitSignsSection({ responses, projectData, allSections, pricing, onSaveResponses, onNext, onPrev, onLiveAnswers }) {
   // Rates and the SF-per-sign come from the master price sheet — the same
   // numbers the engine charges (calculations.js, designExitSigns).
   const DX = (pricing || PRICING).designExitSigns || {};
@@ -20,6 +21,7 @@ export default function ExitSignsSection({ responses, projectData, allSections, 
     exitSignType: responses.exitSignType || 'thermoplastic',
   });
   const [saving, setSaving] = useState(false);
+  useLiveAnswers(onLiveAnswers, 'corridors', ans); // Mike 10-15: sidebar moves before Next
   // What each answer costs (+ estimated labor), recomputed live as answers
   // change — local answers only save on Next (Mike 2026-09-13).
   const qc = useMemo(

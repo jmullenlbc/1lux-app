@@ -48,7 +48,7 @@ export const STEP_LABELS = {
   exterior: 'Exterior',
   emergency: 'Emergency',
   controls: 'Controls',
-  review: 'Review & send',
+  review: 'Summary',
 };
 
 /** A draft that has not been touched for this long reads as abandoned. */

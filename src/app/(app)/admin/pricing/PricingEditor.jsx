@@ -36,6 +36,7 @@ const PRICING_FIELDS = [
   { group: 'Vanity Lighting (gross — credit applied by tool)', key: 'vanityBathBarCredit',                    label: 'Bath-Bar Credit (subtracted)', desc: 'Base $0.38/SF includes a bath bar — subtracted from every vanity upgrade', unit: '$/vanity' },
 
   // ── BALCONY ───────────────────────────────────────────────────────────
+  { group: 'Balcony Fixtures (net adders)', key: 'balcony.disk5inch.product',   label: '5" surface mount disk', desc: 'Per balcony when the disk is chosen (Mike 10-15: $14). Labor = other disks', unit: '$/balcony' },
   { group: 'Balcony Fixtures (net adders)', key: 'balcony.sconcelow.product',    label: 'Sconce — Low',    desc: 'Upgrade adder over base disk', unit: '$/balcony' },
   { group: 'Balcony Fixtures (net adders)', key: 'balcony.sconceMedium.product', label: 'Sconce — Medium', desc: 'Upgrade adder over base disk', unit: '$/balcony' },
   { group: 'Balcony Fixtures (net adders)', key: 'balcony.sconceHigh.product',   label: 'Sconce — High',   desc: 'Upgrade adder over base disk', unit: '$/balcony' },
@@ -78,6 +79,10 @@ const PRICING_FIELDS = [
   { group: 'Exterior Site', key: 'exterior.surfaceParking.perFixture',   label: 'Surface Parking — Per Fixture', desc: 'Area light + 30ft pole (covers ~9 stalls)', unit: '$/fixture' },
   { group: 'Exterior Site', key: 'exterior.surfaceParking.stallsPerFixture', label: 'Stalls Per Fixture',    desc: 'How many stalls one area light covers', unit: 'stalls' },
   { group: 'Exterior Site', key: 'exterior.surfaceParking.driveLaneFtPerLight', label: 'Drive Lane Ft Per Light', desc: 'One area light per this many feet of private drive (townhouse / single-family). 81 = the width of 9 stalls — Mike 2026-09-13', unit: 'ft' },
+  { group: 'Exterior Site', key: 'exterior.surfaceParking.defaultStallsPerUnit.garden',       label: 'Default Stalls Per Unit: Garden',        desc: 'Used only when the stall count is blank (typed 0 stays 0). Mike 2026-10-15', unit: 'stalls/unit' },
+  { group: 'Exterior Site', key: 'exterior.surfaceParking.defaultStallsPerUnit.wrap',         label: 'Default Stalls Per Unit: Wrap',          desc: 'Blank stall count only', unit: 'stalls/unit' },
+  { group: 'Exterior Site', key: 'exterior.surfaceParking.defaultStallsPerUnit.townHouses',   label: 'Default Stalls Per Unit: Townhomes',     desc: 'Blank stall count only (guest stalls; driveways are not counted)', unit: 'stalls/unit' },
+  { group: 'Exterior Site', key: 'exterior.surfaceParking.defaultStallsPerUnit.singleFamily', label: 'Default Stalls Per Unit: Single Family', desc: 'Blank stall count only', unit: 'stalls/unit' },
   { group: 'Exterior Site', key: 'exterior.upgradedMultiplier',          label: 'Upgraded Site Multiplier',  desc: 'Multiplies the landscape and path lighting lines when the site design is Upgraded landscape and/or path lighting (Mike 10-2)', unit: '×' },
   { group: 'Exterior Site', key: 'exterior.solarMultiplier',             label: 'Solar Multiplier',          desc: 'Multiplies the surface-parking (area lighting) line when the site design is Solar. From Avilla actuals — area lights run 2.4–2.5x, bollards 1.53x. Replaces the old flat $3,000 solar adder. Confirmed 2.3 by Mike 2026-09-04', unit: '×' },
   { group: 'Exterior Site', key: 'exterior.carport.diskEveryOther',      label: 'Carport Disk (every other)', desc: '7" disk per every other bay', unit: '$/disk' },
@@ -164,7 +169,6 @@ const PRICING_FIELDS = [
 
   // ── EXIT SIGNS ────────────────────────────────────────────────────────
   { group: 'Exit Signs', key: 'exitSigns.perSf', label: 'Rate', desc: '% of total gross SF (0.025 = 2.5%)', unit: 'decimal' },
-  { group: 'Exit Signs', key: 'exitSigns.largeProjectThreshold', label: 'Large-Project Threshold', desc: 'Above this SF, halve the exit-sign cost', unit: 'SF' },
 
   { group: 'Exit Signs — Design Levels', key: 'designExitSigns.thermoplasticPerSign', label: 'Thermoplastic', desc: 'Code baseline sign', unit: '$/sign' },
   { group: 'Exit Signs — Design Levels', key: 'designExitSigns.mixedPerSign',         label: 'Mixed (edge-lit front, thermo back)', desc: 'Blended average across the building', unit: '$/sign' },
@@ -186,7 +190,15 @@ const PRICING_FIELDS = [
   { group: 'Controls — Building Type Rates', key: 'controls.rates.highRise.perSf',     label: 'High Rise (12+ Lvl)',     unit: '$/SF' },
   { group: 'Controls — Building Type Rates', key: 'controls.clubhousePerSf',           label: 'Clubhouse Only (Town Houses / Single Family)', desc: 'When the building type\'s rate above is $0, controls are priced on the clubhouse / interior amenity SF alone at this rate. No clubhouse = $0 controls.', unit: '$/SF' },
   { group: 'Controls — Building Type Rates', key: 'controls.cap',                      label: 'Controls Cap (max $)',    desc: 'Controls never exceed this, regardless of SF', unit: '$' },
-  { group: 'Controls — Building Type Rates', key: 'controls.energyCreditAdderPct',     label: 'Energy Credit Adder',     desc: '% added to lighting + controls subtotals (0.03 = 3%)', unit: 'decimal' },
+  { group: 'Controls — Building Type Rates', key: 'controls.energyCreditAdderPct',     label: 'Energy Credit Adder (fallback)', desc: 'Used when a program below has no rate of its own (0.03 = 3%)', unit: 'decimal' },
+  { group: 'Controls — Energy Credit Programs', key: 'controls.energyCreditPrograms.leed.lighting',  label: 'LEED lighting',  desc: '% added to the lighting subtotal (0.03 = 3%)', unit: 'decimal' },
+  { group: 'Controls — Energy Credit Programs', key: 'controls.energyCreditPrograms.leed.controls',  label: 'LEED controls',  desc: '% added to the controls subtotal (0.03 = 3%)', unit: 'decimal' },
+  { group: 'Controls — Energy Credit Programs', key: 'controls.energyCreditPrograms.ngbs.lighting',  label: 'NGBS lighting',  desc: '% added to the lighting subtotal (0.03 = 3%)', unit: 'decimal' },
+  { group: 'Controls — Energy Credit Programs', key: 'controls.energyCreditPrograms.ngbs.controls',  label: 'NGBS controls',  desc: '% added to the controls subtotal (0.03 = 3%)', unit: 'decimal' },
+  { group: 'Controls — Energy Credit Programs', key: 'controls.energyCreditPrograms.well.lighting',  label: 'WELL lighting',  desc: '% added to the lighting subtotal (0.10 = 10%)', unit: 'decimal' },
+  { group: 'Controls — Energy Credit Programs', key: 'controls.energyCreditPrograms.well.controls',  label: 'WELL controls',  desc: '% added to the controls subtotal (0.30 = 30%)', unit: 'decimal' },
+  { group: 'Controls — Energy Credit Programs', key: 'controls.energyCreditPrograms.other.lighting', label: 'Other lighting', desc: '% added to the lighting subtotal (0.03 = 3%)', unit: 'decimal' },
+  { group: 'Controls — Energy Credit Programs', key: 'controls.energyCreditPrograms.other.controls', label: 'Other controls', desc: '% added to the controls subtotal (0.03 = 3%)', unit: 'decimal' },
 
   // ── DESIGN-LEVEL PRICING ──────────────────────────────────────────────
   { group: 'Ceiling Fans — Design Levels (gross)', key: 'designFanLevels.low',    label: 'Fan (Low)',    desc: 'Gross, before disk credit', unit: '$/fan' },

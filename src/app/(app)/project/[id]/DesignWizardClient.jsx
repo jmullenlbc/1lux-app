@@ -1,5 +1,6 @@
 'use client';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { mergeLiveSections } from '@/components/wizard/useLiveAnswers';
 import { useRouter } from 'next/navigation';
 import { DESIGN_WIZARD_STEPS, getDesignNextStep, isHomeBuildingKey, stepsForHome, stepBeside, HOME_SKIPPED_STEPS } from '@/lib/utils';
 import { calculateBudget, formatCurrency } from '@/lib/calculations';
@@ -32,7 +33,9 @@ export default function DesignWizardClient({ project, projectData, initialSectio
   const [completedSteps, setCompletedSteps] = useState(project.completedSteps || []);
   const [sections,       setSections]       = useState(initialSections || {});
   const [localPD,        setLocalPD]        = useState(projectData || {});
-  const [budget,         setBudget]         = useState(initialBudget);
+  // Mike 10-15: unsaved answers from the open screen, laid over the saved ones
+  // for the live budget only (`__pd` = Project Info numbers being typed).
+  const [live,           setLive]           = useState({});
   const [saving,         setSaving]         = useState(false);
   const [projectMeta,    setProjectMeta]    = useState({
     name:         project.name         || '',
@@ -52,10 +55,20 @@ export default function DesignWizardClient({ project, projectData, initialSectio
   // Staff-only per-area alerts (our past jobs + the original questionnaire).
   const areas = useAreaAlerts(project.id, budget, { buildingType: project.buildingType, units: localPD?.numUnits });
 
-  const recalculate = useCallback((newPD, newSections) => {
-    const b = calculateBudget(newPD, newSections, pricing || null);
-    setBudget(b);
-  }, [pricing]);
+  // The live budget: saved answers + whatever the open screen has changed but
+  // not yet saved (Mike 10-15: "the price on the right updates as soon as you
+  // change a choice"). Nothing is written until Next.
+  const budget = useMemo(() => {
+    const pd = live.__pd ? { ...localPD, ...live.__pd } : localPD;
+    return calculateBudget(pd, mergeLiveSections(sections, live), pricing || null);
+  }, [localPD, sections, live, pricing]);
+  const onLiveAnswers = useCallback((sec, a) => setLive(l => {
+    if (l[sec] === a) return l;
+    const next = { ...l };
+    if (a == null) delete next[sec]; else next[sec] = a;
+    return next;
+  }), []);
+  const onLiveData = useCallback(pd => onLiveAnswers("__pd", pd), [onLiveAnswers]);
 
   async function saveProjectData(data) {
     setSaving(true);
@@ -76,7 +89,6 @@ export default function DesignWizardClient({ project, projectData, initialSectio
         parsed[k] = (!isNaN(num) && isFinite(num)) ? num : 0;
       }
       setLocalPD(parsed);
-      recalculate(parsed, sections);
     } finally {
       setSaving(false);
     }
@@ -100,8 +112,7 @@ export default function DesignWizardClient({ project, projectData, initialSectio
       for (const [section, vals] of Object.entries(answers)) next[section] = { ...(sections[section] || {}), ...vals };
       setSections(next);
     }
-    recalculate(newPD, next);
-  }, [recalculate, sections]);
+  }, [sections]);
 
   async function saveResponses(section, responses) {
     setSaving(true);
@@ -111,9 +122,10 @@ export default function DesignWizardClient({ project, projectData, initialSectio
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ section, responses }),
       });
-      const newSections = { ...sections, [section]: responses };
+      // Merge: sections send only the keys they touched, and a dropped key
+      // would fall back to its default on the live budget until a reload.
+      const newSections = { ...sections, [section]: { ...(sections[section] || {}), ...responses } };
       setSections(newSections);
-      recalculate(localPD, newSections);
     } finally {
       setSaving(false);
     }
@@ -175,6 +187,8 @@ export default function DesignWizardClient({ project, projectData, initialSectio
     budget,
     pricing,
     hasDrawings,
+    onLiveAnswers,
+    onLiveData,
     isDesign: true,
     homeType,
     onNext: goToNext,
@@ -320,6 +334,7 @@ export default function DesignWizardClient({ project, projectData, initialSectio
       {/* Right: Live budget sidebar */}
       <BudgetSidebar
         budget={budget}
+        interiorRate={(live.amenities?.interiorLevel ?? sections.amenities?.interiorLevel) || null}
         projectName={projectMeta?.name || project.name || ''}
         projectData={localPD}
         currentStep={currentStep}

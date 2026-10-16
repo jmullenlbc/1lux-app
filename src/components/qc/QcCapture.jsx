@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { initQcRecorder } from './qcRecorder';
+import { parseBrowserInfo } from '@/lib/browserInfo';
 
 const MODULES = [
   'Admin / Users', 'Budget / Wizard', 'Change Orders', 'Client Portal',
@@ -10,19 +11,7 @@ const MODULES = [
   'RFIs', 'Ship Schedule', 'Submittal Tracker', 'Other',
 ];
 
-function parseBrowserInfo() {
-  const ua = navigator.userAgent;
-  let browser = 'Unknown';
-  if (ua.includes('Edg/'))          browser = `Edge ${(ua.match(/Edg\/([\d]+)/) || [])[1] || ''}`;
-  else if (ua.includes('Chrome/'))  browser = `Chrome ${(ua.match(/Chrome\/([\d]+)/) || [])[1] || ''}`;
-  else if (ua.includes('Firefox/')) browser = `Firefox ${(ua.match(/Firefox\/([\d]+)/) || [])[1] || ''}`;
-  else if (ua.includes('Safari/'))  browser = `Safari ${(ua.match(/Version\/([\d]+)/) || [])[1] || ''}`;
-  let os = '';
-  if (ua.includes('Windows')) os = 'Windows';
-  else if (ua.includes('Mac'))  os = 'macOS';
-  else if (ua.includes('Linux')) os = 'Linux';
-  return [browser, os].filter(Boolean).join(' · ');
-}
+// parseBrowserInfo lives in src/lib/browserInfo.js (shared with the public bug button, 10-15).
 
 function parseProjectId(url) {
   const m = String(url).match(/\/project\/([^/?#]+)/);

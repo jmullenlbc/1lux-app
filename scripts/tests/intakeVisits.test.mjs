@@ -69,7 +69,7 @@ test('going Back never moves a visit backwards; unknown steps are ignored', () =
   assert.deepEqual(furthestStep('units', 'about'), { stepReached: 'units', stepIndex: 2 });
   assert.deepEqual(furthestStep('units', 'made-up'), { stepReached: 'units', stepIndex: 2 });
   assert.deepEqual(furthestStep(null, 'made-up'), { stepReached: 'about', stepIndex: 0 });
-  assert.equal(stepLabel('review'), 'Review & send');
+  assert.equal(stepLabel('review'), 'Summary');
 });
 
 test('outcome ladder: sent beats details beats browsing', () => {

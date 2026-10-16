@@ -65,7 +65,7 @@ export const PRICING = {
   // ─── BALCONY / EXTERIOR UNIT FIXTURES ────────────────────────────────────
   balcony: {
     none:         { product: 0,   labor: 0 }, // no balcony fixture
-    disk5inch:    { product: 15,  labor: 0 }, // 5" disk — $15/unit adder
+    disk5inch:    { product: 14,  labor: 0 }, // 5" disk, $14 per balcony when chosen (Mike 10-15); labor = other disks
     sconcelow:    { product: 55,  labor: 0 }, // upgrade from base disk → sconce low
     sconceMedium: { product: 135, labor: 0 }, // upgrade from base disk → sconce medium
     sconceHigh:   { product: 240, labor: 0 }, // upgrade from base disk → sconce high
@@ -145,6 +145,11 @@ export const PRICING = {
       // width of 9 stalls, 9 × 9 ft (Mike 2026-09-13: "correlate it to the
       // width of 9 spaces ... and measure the drive").
       driveLaneFtPerLight: 81,
+      // No stall count typed (blank, not 0) on a type that parks outside:
+      // stalls = units × this ratio (Mike 2026-10-15, Eastchase landed at
+      // 85 poles / 765 stalls for 324 garden units, about 2.4 per unit).
+      // Typed 0 still means zero. Other types stay 0 when blank.
+      defaultStallsPerUnit: { singleFamily: 0.5, townHouses: 0.5, garden: 2, wrap: 0.5 },
     },
 
     // Solar site lighting costs more than conventional because the fixture
@@ -456,6 +461,7 @@ export const PRICING = {
     // below; the others light the garage with their own corridor device at the
     // corridor $/SF. The math lives in src/lib/emergencyCost.js and keys off
     // the strategy NAME (frozen project snapshots still carry the old flags).
+    // HELD 10-16: "garage $0 on the non-integrated choices" waits on Mike.
     strategies: {
       generator: {
         corridorPerSf: 0,    amenityPerSf: 0,    garagePerSf: 0,    batteryGarage: false,
@@ -466,19 +472,19 @@ export const PRICING = {
       },
       frogeyes_inv: {
         // Frogeyes in corridors + inverters in amenities
-        corridorPerSf: 0.15, amenityPerSf: 1.25, garagePerSf: 0,    batteryGarage: true,
+        corridorPerSf: 0.15, amenityPerSf: 1.50, garagePerSf: 0,    batteryGarage: true,
       },
       integrated_frogeyes: {
         // Integrated batteries in garage + frogeyes corridors + inverters amenity
-        corridorPerSf: 0.15, amenityPerSf: 1.25, garagePerSf: 0,    batteryGarage: true,
+        corridorPerSf: 0.15, amenityPerSf: 1.50, garagePerSf: 0,    batteryGarage: true,
       },
       integrated_inverters: {
         // Integrated batteries in garage + inverters corridors + amenity spaces
-        corridorPerSf: 0.50, amenityPerSf: 1.25, garagePerSf: 0,    batteryGarage: true,
+        corridorPerSf: 0.50, amenityPerSf: 1.50, garagePerSf: 0,    batteryGarage: true,
       },
       inverters: {
         // Inverters in corridors + amenity; the garage gets integrated batteries
-        corridorPerSf: 0.50, amenityPerSf: 1.25, garagePerSf: 0,    batteryGarage: true,
+        corridorPerSf: 0.50, amenityPerSf: 1.50, garagePerSf: 0,    batteryGarage: true,
       },
     },
     // Flat $/SF for the "frogeyes everywhere" strategy — editable in master pricing
@@ -493,8 +499,7 @@ export const PRICING = {
 
   // ─── EXIT SIGNS ──────────────────────────────────────────────────────────
   exitSigns: {
-    perSf:                  0.025,   // 2.5% of total gross SF
-    largeProjectThreshold: 300000,   // above this, divide result by 2
+    perSf: 0.025,   // flat $0.025 per gross SF, no large-project halving (10-15)
   },
 
   // ─── BOH / GARAGE ─────────────────────────────────────────────────────────
@@ -524,7 +529,19 @@ export const PRICING = {
       midRise:      { perSf: 0.45, cap: 175000 },
       highRise:     { perSf: 0.50, cap: 190000 },
     },
-    energyCreditAdderPct: 0.03, // 3% added to BOTH the lighting and controls subtotals when pursuing an energy credit (own line item)
+    energyCreditAdderPct: 0.03, // fallback: 3% added to BOTH sides for an old yes-only answer or a program missing below
+    // Mike 10-15: each program carries its own adder PER SIDE. LEED and NGBS
+    // add 3% to lighting and 3% to controls; WELL adds 10% to lighting and 30%
+    // to controls. A plain number here still works (same % on both sides).
+    energyCreditPrograms: {
+      leed:  { lighting: 0.03, controls: 0.03 },
+      ngbs:  { lighting: 0.03, controls: 0.03 },
+      well:  { lighting: 0.10, controls: 0.30 },
+      other: { lighting: 0.03, controls: 0.03 },
+    },
+    // Garage controls piece ($0.035/SF, $2K to $10K, src/lib/controlsMath.js)
+    // is HELD: no `garage` block here until Mike settles whether the building
+    // rate runs on gross minus garage or on the full gross (open 10-16).
     cap: 190000, // controls never exceed $190K regardless of SF (Mike 2026-09-24; was $180K)
     // Clubhouse-only controls for the types whose $/SF rate above is $0
     // (town houses, single family). Mike 2026-09-15: "Charge $5/SF and make
@@ -692,7 +709,7 @@ export const OPTION_LABELS = {
   },
   balcony: {
     none:         'None',
-    disk5inch:    '5" surface mount disk ($15)',
+    disk5inch:    '5" surface mount disk ($14)',
     sconcelow:    'Exterior balcony sconce (Low finish) ($55)',
     sconceMedium: 'Exterior balcony sconce (Medium finish) ($135)',
     sconceHigh:   'Exterior balcony sconce (High finish) ($240)',

@@ -7,6 +7,8 @@ import { emergencyStrategyCost } from './emergencyCost.js';
 import { allowsGarages, allowsCarports } from './coveredParkingTypes.js';
 import { amenityRate } from './amenityLevel.js';
 import { priceSiteFeatures } from './siteFeatures.js';
+import { surfaceStalls } from './surfaceParkingDefault.js';
+import { energyCreditPcts, controlsGaragePiece } from './controlsMath.js';
 
 // Safely convert any value to a finite number
 function n(val, fallback = 0) {
@@ -121,7 +123,9 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const bohCapSf       = grossSf > 0 ? Math.round(grossSf * n(PRICING.boh.maxPctOfGross, 0.05)) : null;
   const bohSf          = bohCapSf != null ? Math.min(bohSfEntered, bohCapSf) : bohSfEntered;
   const stairwells     = n(pd.numEgressStairwells);
-  const surfaceParking = n(pd.numSurfaceParking);
+  // Blank stall count on a surface-parked type = units × ratio (10-15); typed 0 = 0.
+  const stallEstimate  = surfaceStalls(pd, PRICING);
+  const surfaceParking = stallEstimate.stalls;
   // Garages and carports only count on the building types that have them
   // (Mike 2026-09-13). Judged on the type actually chosen — not the mid-rise
   // fallback — so a project with no type yet keeps whatever was typed.
@@ -483,20 +487,17 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // One shared helper (src/lib/emergencyCost.js) so both Emergency screens show
   // exactly this number. Every strategy but 'generator' puts a battery in every
   // other garage fixture when there is a garage (Mike, 2026-09-12).
-  // Unanswered = Frogeyes, the lowest-cost fixture strategy — the same starting
-  // answer as the public form (Mike, 2026-09-12: "should start in frogeyes").
-  const strategyKey = emergency.strategy || 'frogeyes';
+  // Unanswered = Building generator at a $0 adder, the same starting
+  // answer as the public form (Mike 2026-10-15; was Frogeyes from 2026-09-12).
+  const strategyKey = emergency.strategy || 'generator';
   const emergencyCost = emergencyStrategyCost(PRICING, strategyKey, { corridorSf, intAmenitySf, garageSf });
   const emergencyManualAdder = n(emergency.manualAdder);
   const emergencyProduct = emergencyCost.total + emergencyManualAdder;
 
   // ─── EXIT SIGNS ───────────────────────────────────────────────────────────
-  // Large-project threshold: per pricing.js, exit signs cost is halved when
-  // the project exceeds the large-project threshold (default 300,000 SF).
-  // Before this rule was applied, large projects were over-billed at full rate.
-  const exitSignsRaw     = grossSf * PRICING.exitSigns.perSf;
-  const exitSignsCutoff  = n(PRICING.exitSigns.largeProjectThreshold, 300000);
-  const exitSignsBaseProduct = grossSf > exitSignsCutoff ? exitSignsRaw / 2 : exitSignsRaw;
+  // Flat $/SF on gross SF (Mike 10-15). The old rule halved the figure over
+  // 300,000 SF and landed at a third of the Excel budgets on large jobs.
+  const exitSignsBaseProduct = grossSf * PRICING.exitSigns.perSf;
   const exitSignsManualAdder = n(projectData.exitSignsManualAdder);
   const exitSignsProduct = exitSignsBaseProduct + exitSignsManualAdder;
 
@@ -599,10 +600,15 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // BOTH the lighting and controls subtotals, each shown as its own line item
   // (better-than-code LPDs need more efficient fixtures and more sophisticated
   // controls). Applied before freight/warehousing/tax on each side.
-  const energyCreditPct = controls.energyCredit === 'yes'
-    ? n(PRICING.controls.energyCreditAdderPct, 0.03)
-    : 0;
-  const energyCreditLighting = lightingProductSubtotal * energyCreditPct;
+  // Mike 10-15: the program (LEED / NGBS / WELL / Other) picks its own adder
+  // from controls.energyCreditPrograms; a program without one, or an old
+  // yes-only answer, uses the flat energyCreditAdderPct.
+  // Each program carries its own % PER SIDE (WELL = 10% lighting / 30% controls).
+  const ec = energyCreditPcts(PRICING, controls);
+  const energyCreditLightingPct = ec.lighting;
+  const energyCreditControlsPct = ec.controls;
+  const energyCreditPct = energyCreditLightingPct; // legacy name = the lighting side
+  const energyCreditLighting = lightingProductSubtotal * energyCreditLightingPct;
   lightingProductSubtotal += energyCreditLighting;
 
   // ─── CONTROLS ─────────────────────────────────────────────────────────────
@@ -621,9 +627,16 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // Same caps, same override, same energy-credit adder as every other type.
   const clubhousePerSf   = n(PRICING.controls.clubhousePerSf);
   const controlsBasis    = (n(ctrlRate.perSf) === 0 && intAmenitySf > 0 && clubhousePerSf > 0) ? 'clubhouse' : 'gross';
-  const controlsBasisSf  = controlsBasis === 'clubhouse' ? intAmenitySf : grossSf;
+  // Mike 10-15: the type $/SF prices the building WITHOUT its garage. The
+  // garage is priced on its own SF (controls.garage, $2K to $10K), added in,
+  // and the sum still sits under the type cap. One controls number is shown.
+  const garagePiece      = controlsGaragePiece(PRICING, { grossSf, garageSf, unitsSf: n(pd.unitsSf), corridorSf, intAmenitySf });
+  const controlsBasisSf  = controlsBasis === 'clubhouse' ? intAmenitySf : garagePiece.buildingSf;
   const controlsRateUsed = controlsBasis === 'clubhouse' ? clubhousePerSf : n(ctrlRate.perSf);
-  const controlsFormula = controlsBasisSf * controlsRateUsed;
+  // Homes types ($0/SF: town houses, single family) carry no common-area
+  // controls, so they get no garage piece either; only the clubhouse is priced.
+  const controlsGarage   = (controlsBasis === 'clubhouse' || n(ctrlRate.perSf) === 0) ? 0 : garagePiece.dollars;
+  const controlsFormula = controlsBasisSf * controlsRateUsed + controlsGarage;
   let controlsProduct = Math.min(controlsFormula, controlsCap);
   const controlsCapped = controlsFormula > controlsCap;
 
@@ -633,7 +646,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
 
   // Energy credit adds the same % to the controls side as its own line item.
   // It sits on top of an override the way freight and tax do.
-  const energyCreditControls = controlsProduct * energyCreditPct;
+  const energyCreditControls = controlsProduct * energyCreditControlsPct;
 
   // Freight & warehousing rates
   const freightRate     = (pd.freightPct     != null && isFinite(pd.freightPct))     ? pd.freightPct     : PRICING.freight;
@@ -838,7 +851,10 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
       garage:   { product: garageProduct     },
       exterior: {
         amenities: { product: extAmenityProduct    },
-        parking:   { product: parkingProduct, fixtures: parkingFixtures, driveLaneLights, qtyOverridden: areaLightsOverride != null },
+        parking:   {
+          product: parkingProduct, fixtures: parkingFixtures, driveLaneLights, qtyOverridden: areaLightsOverride != null,
+          stalls: surfaceParking, stallsEstimated: stallEstimate.estimated, stallsPerUnit: stallEstimate.perUnit,
+        },
         carports:  { product: carportProduct       },
         garages:   { product: garageExtProduct     },
         // `doors` (sconce line) removed 2026-08-12 — same fixture as wallpacks.
@@ -924,10 +940,16 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     warehousingRate,
     lightingProductSubtotal,
     energyCreditPct,
+    energyCreditLightingPct,
+    energyCreditControlsPct,
     energyCreditLighting,
     energyCreditControls,
     subtotalLightingOnly,
     controls:               controlsProduct,
+    // Garage piece inside the one controls number (10-15): garage SF at its
+    // own $/SF, $2K to $10K. controlsBasisSf is the building WITHOUT the garage.
+    controlsGarage,
+    controlsGarageSf:       controlsBasis === 'clubhouse' ? 0 : garagePiece.garageSf,
     // What the controls line was priced on: 'gross' (building type $/SF ×
     // gross SF) or 'clubhouse' (clubhouse $/SF × interior amenity SF, the
     // town-house / single-family rule). The screens read these instead of
