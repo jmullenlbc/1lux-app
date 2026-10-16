@@ -54,10 +54,8 @@ export function controlsGaragePiece(P, { grossSf = 0, garageSf = 0, unitsSf = 0,
   const minD = num(G?.minDollars, 2000);
   const maxD = num(G?.maxDollars, 10000);
 
-  // HELD (10-16): the garage piece only runs once the master sheet carries
-  // controls.garage. Until Mike settles whether the building rate runs on
-  // gross minus garage or on the full gross, the sheet has no such block and
-  // controls price exactly as before (type $/SF on the full gross, no garage add).
+  // A frozen pricing snapshot from before 10-16 has no controls.garage block:
+  // those projects keep pricing the way they did (full gross, no garage add).
   if (!G || !(garage > 0)) return { buildingSf: gross, garageSf: 0, dollars: 0, grossIncludedGarage: false, perSf, minDollars: minD, maxDollars: maxD };
 
   const units = Math.max(0, num(unitsSf));

@@ -427,6 +427,23 @@ export const CLUBHOUSE_ANSWERS = ['yes', 'no'];
 export const POOL_KEY = 'hasPool';
 export const POOL_ANSWERS = ['yes', 'no'];
 
+// Mike 10-16: the pool answer trims the exterior amenity $/SF ladder. With a
+// pool the $1 ("No pool") level is gone; with no pool the $5 level (multiple
+// amenity areas) is gone. No pool answer (drawings path) shows every level.
+export const EXTERIOR_AMENITY_KEY = 'exteriorAmenityFinish';
+export function exteriorAmenityOptions(options, pool) {
+  if (pool === 'yes') return options.filter(o => String(o) !== '1');
+  if (pool === 'no') return options.filter(o => String(o) !== '5');
+  return options;
+}
+// The level a stored pick falls back to once the pool answer hides it.
+export function exteriorAmenityFallback(pool, current) {
+  const q = INTAKE_QUESTIONS.find(x => x.key === EXTERIOR_AMENITY_KEY);
+  const allowed = exteriorAmenityOptions(q?.options || [], pool).map(String);
+  if (current != null && current !== '' && allowed.includes(String(current))) return String(current);
+  return pool === 'yes' ? '2' : '1';
+}
+
 // "250,000", "$300", "226,000 SF" all read as the figure they mean (Mike 9-18:
 // commas and dressing are fine in any number field); anything that is not a
 // number at all reads as '' and fails the digit test below.

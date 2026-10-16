@@ -7,7 +7,7 @@ import SummaryBudgetBreakdown from '@/app/(app)/project/[id]/summary/SummaryBudg
 import QuestionCard from '@/components/sections/QuestionCard';
 import InteriorTierPicker from '@/components/sections/InteriorTierPicker';
 import { classifyIntakeEmail } from '@/lib/intake';
-import { INTAKE_QUESTIONS, noDrawingsReady, BOLLARD_PROJECT_TYPES, designChoices, isHomeProjectType, questionFor, optionLabelFor } from '@/lib/intake/questionnaire';
+import { INTAKE_QUESTIONS, noDrawingsReady, BOLLARD_PROJECT_TYPES, designChoices, isHomeProjectType, questionFor, optionLabelFor, EXTERIOR_AMENITY_KEY, exteriorAmenityOptions, exteriorAmenityFallback } from '@/lib/intake/questionnaire';
 import { controlsMathWords } from '@/lib/intake/controlsWords';
 import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -621,6 +621,9 @@ export default function IntakeClient() {
     }
     if (manual) out.noDrawings = 'yes';
     if (!manual || !out.hasPool) delete out.hasPool;
+    // Pool yes hides the $1 level, pool no hides the $5 level (Mike 10-16); a
+    // hidden pick never reaches the server.
+    if (out.hasPool) out[EXTERIOR_AMENITY_KEY] = exteriorAmenityFallback(out.hasPool, out[EXTERIOR_AMENITY_KEY]);
     return out;
   }, [answers, figures, corrections, manual]);
 
@@ -1574,7 +1577,8 @@ export default function IntakeClient() {
                               <select
                                 className={inputCls}
                                 value={answers.hasPool || ''}
-                                onChange={e => setAnswers(a => ({ ...a, hasPool: e.target.value }))}
+                                // Mike 10-16: the pool answer trims the exterior amenity ladder, so a pick it hides moves to the nearest level.
+                                onChange={e => setAnswers(a => ({ ...a, hasPool: e.target.value, [EXTERIOR_AMENITY_KEY]: exteriorAmenityFallback(e.target.value, a[EXTERIOR_AMENITY_KEY]) }))}
                               >
                                 <option value="">Select</option>
                                 <option value="yes">Yes</option>
@@ -1638,7 +1642,7 @@ export default function IntakeClient() {
                             note={q.hint}
                             value={answers[q.key] ?? ''}
                             onChange={v => setAnswers(a => ({ ...a, [q.key]: v }))}
-                            options={q.options.map(opt => ({ value: opt, label: optionLabel(q, opt), sub: q.optionSubs?.[opt] }))}
+                            options={(q.key === EXTERIOR_AMENITY_KEY && manual ? exteriorAmenityOptions(q.options, answers.hasPool) : q.options).map(opt => ({ value: opt, label: optionLabel(q, opt), sub: q.optionSubs?.[opt] }))}
                             // Per-answer cost comes from the server's estimate, never priced here.
                             impact={q.engine ? estimate?.budget?.questionCosts?.[`${q.engine.section}.${q.engine.field}`] : undefined}
                           />

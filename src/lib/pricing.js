@@ -539,9 +539,12 @@ export const PRICING = {
       well:  { lighting: 0.10, controls: 0.30 },
       other: { lighting: 0.03, controls: 0.03 },
     },
-    // Garage controls piece ($0.035/SF, $2K to $10K, src/lib/controlsMath.js)
-    // is HELD: no `garage` block here until Mike settles whether the building
-    // rate runs on gross minus garage or on the full gross (open 10-16).
+    // Garage controls (Mike 10-15, confirmed 10-16 "Option A"): the type $/SF
+    // prices the building WITHOUT its garage; the garage is priced on its own
+    // SF at this rate, never under minDollars or over maxDollars, and the sum
+    // still sits under the type cap. Shown as ONE controls number;
+    // controlsGarage is exported for the words. Math: src/lib/controlsMath.js.
+    garage: { perSf: 0.035, minDollars: 2000, maxDollars: 10000 },
     cap: 190000, // controls never exceed $190K regardless of SF (Mike 2026-09-24; was $180K)
     // Clubhouse-only controls for the types whose $/SF rate above is $0
     // (town houses, single family). Mike 2026-09-15: "Charge $5/SF and make
