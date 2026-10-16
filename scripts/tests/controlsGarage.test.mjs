@@ -36,10 +36,24 @@ test('gross that includes the garage loses it from the building piece; gross tha
   const inside = controlsGaragePiece(PRICING, { grossSf: 500_000, garageSf: 156_000, unitsSf: 280_000, corridorSf: 40_500, intAmenitySf: 6_600 });
   assert.equal(inside.grossIncludedGarage, true);
   assert.equal(inside.buildingSf, 344_000);
-  // 330K gross is already just the units + corridors + amenity: the garage was NOT inside the gross.
-  const outside = controlsGaragePiece(PRICING, { grossSf: 330_000, garageSf: 156_000, unitsSf: 280_000, corridorSf: 40_500, intAmenitySf: 6_600 });
+  // 327,100 gross is exactly the units + corridors + amenity: the garage was NOT inside the gross.
+  const outside = controlsGaragePiece(PRICING, { grossSf: 327_100, garageSf: 156_000, unitsSf: 280_000, corridorSf: 40_500, intAmenitySf: 6_600 });
   assert.equal(outside.grossIncludedGarage, false);
-  assert.equal(outside.buildingSf, 330_000);
+  assert.equal(outside.buildingSf, 327_100);
+  // In between, only the SF above the floor counts as garage, so the building piece never jumps by a whole garage.
+  const between = controlsGaragePiece(PRICING, { grossSf: 400_000, garageSf: 156_000, unitsSf: 280_000, corridorSf: 40_500, intAmenitySf: 6_600 });
+  assert.equal(between.grossIncludedGarage, false);
+  assert.equal(between.garageRemovedSf, 72_900);
+  assert.equal(between.buildingSf, 327_100);
+});
+
+test('controls never fall as gross rises past the garage (fuzz INV7)', () => {
+  let prev = -1;
+  for (let sf = 50_000; sf <= 290_000; sf += 10_000) {
+    const p = controlsGaragePiece(PRICING, { grossSf: sf, garageSf: 50_000, unitsSf: 100_000, corridorSf: 10_000, intAmenitySf: 5_000 });
+    assert.ok(p.buildingSf >= prev, `building SF fell at gross ${sf}`);
+    prev = p.buildingSf;
+  }
 });
 
 test('the engine folds the garage piece into the one controls number', () => {

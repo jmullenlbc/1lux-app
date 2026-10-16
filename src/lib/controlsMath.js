@@ -42,9 +42,10 @@ export function programPcts(P, program) {
  * add up to ONE controls number, still under the type cap.
  *
  * Gross SF on a drawing read usually includes the garage; the no-drawings
- * ladder (units x avg SF x 1.25) never does. The garage is taken out of gross
- * only when what is left still holds the units, corridors and amenity; if it
- * would not, gross already excludes the garage and is used whole.
+ * ladder (units x avg SF x 1.25) never does. Only the SF above the units,
+ * corridors and amenity can be garage: that much (up to the garage size) is
+ * taken out of gross for the building piece. A gross that is just the units,
+ * corridors and amenity already excludes the garage and is used whole.
  */
 export function controlsGaragePiece(P, { grossSf = 0, garageSf = 0, unitsSf = 0, corridorSf = 0, intAmenitySf = 0 } = {}) {
   const G = P?.controls?.garage;
@@ -60,9 +61,12 @@ export function controlsGaragePiece(P, { grossSf = 0, garageSf = 0, unitsSf = 0,
 
   const units = Math.max(0, num(unitsSf));
   const floor = (units > 0 && units < gross ? units : 0) + Math.max(0, num(corridorSf)) + Math.max(0, num(intAmenitySf));
-  const rest = gross - garage;
-  const grossIncludedGarage = rest > 0 && rest >= floor;
-  const buildingSf = grossIncludedGarage ? rest : gross;
+  // Only the SF above that floor can be garage, up to the garage size, so the
+  // building piece never jumps by a whole garage when the gross is nudged
+  // across the line (fuzz INV7: the total must not fall as gross rises).
+  const removed = Math.min(garage, Math.max(0, gross - floor));
+  const grossIncludedGarage = removed >= garage;
+  const buildingSf = gross - removed;
   const dollars = Math.round(Math.min(maxD, Math.max(minD, garage * perSf)) * 100) / 100;
-  return { buildingSf, garageSf: garage, dollars, grossIncludedGarage, perSf, minDollars: minD, maxDollars: maxD };
+  return { buildingSf, garageSf: garage, garageRemovedSf: removed, dollars, grossIncludedGarage, perSf, minDollars: minD, maxDollars: maxD };
 }
