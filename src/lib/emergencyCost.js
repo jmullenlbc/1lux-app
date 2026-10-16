@@ -7,9 +7,9 @@
 // "Integrated batteries in garage" strategies put a battery in every other
 // garage fixture: 1 fixture per 625 SF, half of them get a $120 battery.
 // Mike 10-16 (Option 2): every other strategy except 'generator' lights the
-// garage with frogeyes along the DRIVE AISLES: garage SF / aisle width (6 ft,
+// garage with frogeyes along the DRIVE AISLES: garage SF / aisle width (60 ft,
 // Mike 10-16) = feet of aisle, one frogeye every 25 ft, $25 each
-// (emergency.garageAisle). A 156,000 SF garage = 26,000 ft = 1,040 = $26,000. Keyed off the
+// (emergency.garageAisle). A 156,000 SF garage = 2,600 ft = 104 = $2,600. Keyed off the
 // strategy NAME, NOT the batteryGarage flag, because projects keep frozen
 // pricing snapshots. A snapshot with no garageAisle block keeps the old rule
 // (garage at the corridor $/SF) so old budgets do not move.
@@ -42,7 +42,7 @@ export function emergencyStrategyCost(P, strategyKey, { corridorSf = 0, intAmeni
   // Garage frogeyes by drive-aisle length (Option 2). Only when the price
   // sheet carries the garageAisle block; older snapshots fall back below.
   const A = E.garageAisle;
-  const aisleWidthFt = num(A?.aisleWidthFt, 6) || 6;
+  const aisleWidthFt = num(A?.aisleWidthFt, 60) || 60;
   const spacingFt    = num(A?.spacingFt, 25) || 25;
   const costEach     = num(A?.costEach, 25);
   const garageAisle  = !!A && !garageBattery && strategyKey !== 'generator' && gSf > 0;

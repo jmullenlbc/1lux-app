@@ -169,7 +169,7 @@ const PRICING_FIELDS = [
 
   { group: 'Emergency — Garage Frogeyes (Drive Aisles)', key: 'emergency.garageAisle.aisleWidthFt', label: 'Aisle Width',       desc: 'Garage SF divided by this = feet of drive aisle (Mike 10-16). Frogeyes, frogeyes + inverters and inverters strategies; generator is $0', unit: 'ft' },
   { group: 'Emergency — Garage Frogeyes (Drive Aisles)', key: 'emergency.garageAisle.spacingFt',    label: 'Frogeye Spacing',   desc: 'One frogeye every N ft of aisle', unit: 'ft' },
-  { group: 'Emergency — Garage Frogeyes (Drive Aisles)', key: 'emergency.garageAisle.costEach',     label: 'Cost Per Frogeye',  desc: '156,000 SF garage at 6 ft = 26,000 ft = 1,040 frogeyes = $26,000', unit: '$/frogeye' },
+  { group: 'Emergency — Garage Frogeyes (Drive Aisles)', key: 'emergency.garageAisle.costEach',     label: 'Cost Per Frogeye',  desc: '156,000 SF garage at 60 ft = 2,600 ft = 104 frogeyes = $2,600', unit: '$/frogeye' },
 
   // ── EXIT SIGNS ────────────────────────────────────────────────────────
   { group: 'Exit Signs', key: 'exitSigns.perSf', label: 'Rate', desc: '% of total gross SF (0.025 = 2.5%)', unit: 'decimal' },

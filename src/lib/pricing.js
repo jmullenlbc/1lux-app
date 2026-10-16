@@ -462,9 +462,9 @@ export const PRICING = {
     // corridor $/SF. The math lives in src/lib/emergencyCost.js and keys off
     // the strategy NAME (frozen project snapshots still carry the old flags).
     // Mike 10-16 (Option 2): the non-integrated choices price the garage by
-    // drive-aisle LENGTH: garage SF / aisle width (6 ft, Mike 10-16) = feet of
+    // drive-aisle LENGTH: garage SF / aisle width (60 ft, Mike 10-16) = feet of
     // aisle, one frogeye every 25 ft at $25 each (garageAisle below). A
-    // 156,000 SF garage = 26,000 ft = 1,040 frogeyes = $26,000.
+    // 156,000 SF garage = 2,600 ft = 104 frogeyes = $2,600, not $26,520.
     strategies: {
       generator: {
         corridorPerSf: 0,    amenityPerSf: 0,    garagePerSf: 0,    batteryGarage: false,
@@ -496,7 +496,7 @@ export const PRICING = {
     // along the drive aisles. Garage SF / aisleWidthFt = feet of aisle,
     // one frogeye every spacingFt, costEach per frogeye. Generator stays $0.
     garageAisle: {
-      aisleWidthFt: 6,    // garage SF / 6 = running feet of drive aisle (Mike 10-16: "use 6ft")
+      aisleWidthFt: 60,   // garage SF / 60 = running feet of drive aisle (Mike 10-16: 60 ft)
       spacingFt:    25,   // one frogeye every 25 ft of aisle
       costEach:     25,   // $25 per frogeye
     },

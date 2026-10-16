@@ -39,26 +39,26 @@ test('only the integrated strategies buy garage batteries: 50,000 SF → 40 × $
     }
   }
   assert.equal(emergencyStrategyCost(PRICING, 'generator', { garageSf: 50000 }).garage, 0);
-  // Mike 10-16 (Option 2, "use 6ft"): 50,000 SF / 6 ft = 8,333 ft of aisle, / 25 ft = 334 frogeyes x $25 = $8,350.
+  // Mike 10-16 (Option 2, 60 ft): 50,000 SF / 60 ft = 833 ft of aisle, / 25 ft = 34 frogeyes x $25 = $850.
   for (const k of ['frogeyes', 'frogeyes_inv', 'inverters']) {
     const c = emergencyStrategyCost(PRICING, k, { garageSf: 50000 });
     assert.equal(c.garageAisle, true, k);
-    assert.equal(c.garageFrogeyeCount, 334, k);
-    assert.equal(c.garage, 8350, k);
+    assert.equal(c.garageFrogeyeCount, 34, k);
+    assert.equal(c.garage, 850, k);
   }
 });
 
-test('garage frogeyes by drive-aisle length: 156,000 SF = 26,000 ft = 1,040 frogeyes = $26,000 (Mike 10-16, 6 ft)', () => {
+test('garage frogeyes by drive-aisle length: 156,000 SF = 2,600 ft = 104 frogeyes = $2,600 (Mike 10-16, 60 ft)', () => {
   const c = emergencyStrategyCost(PRICING, 'frogeyes', { garageSf: 156000 });
-  assert.equal(c.garageFt, 26000);
-  assert.equal(c.garageFrogeyeCount, 1040);
-  assert.equal(c.garage, 26000);
+  assert.equal(c.garageFt, 2600);
+  assert.equal(c.garageFrogeyeCount, 104);
+  assert.equal(c.garage, 2600);
   // Frozen snapshot without the garageAisle block keeps the old corridor-rate rule.
   const old = { ...PRICING, emergency: { ...PRICING.emergency, garageAisle: undefined } };
   assert.equal(emergencyStrategyCost(old, 'frogeyes', { garageSf: 156000 }).garage, 156000 * 0.17);
   // The engine exposes the count on the emergency line.
   const e = budget({ emergency: { strategy: 'frogeyes' } }, { ...PD, garageSf: 156000 }).sections.emergency;
-  assert.deepEqual(e.garageFrogeyes, { count: 1040, aisleFt: 26000, each: 25, cost: 26000 });
+  assert.deepEqual(e.garageFrogeyes, { count: 104, aisleFt: 2600, each: 25, cost: 2600 });
   assert.equal(budget({ emergency: { strategy: 'generator' } }).sections.emergency.garageFrogeyes, null);
 });
 
