@@ -5,6 +5,14 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Emergency garage priced by drive-aisle length (Option 2)] - October 16, 2026 (DEPLOYED) - no migration
+
+Mike 10-16: "Option 2". The three non-integrated emergency choices (Frogeyes everywhere, Frogeyes + inverters, Inverters everywhere) no longer charge the garage at the corridor $/SF. The garage SF is divided by a 6 ft aisle width (Mike 10-16: "use 6ft") to get feet of aisle, one $25 frogeye every 25 ft. A 156,000 SF garage = 26,000 ft = 1,040 frogeyes = $26,000 (the old $0.17/SF rule gave $26,520). The width is editable on Admin > Pricing. Generator stays $0; the two Integrated choices keep the $120 battery-in-every-other-fixture rule. Amenity rates ($0.17 frogeyes, $1.50 inverters) and the $0.50/SF inverter corridor rate confirmed unchanged.
+
+- Master sheet: `emergency.garageAisle { aisleWidthFt 6, spacingFt 25, costEach 25 }` (`src/lib/pricing.js`), three `Emergency — Garage Frogeyes (Drive Aisles)` rows on Admin > Pricing. A project frozen before today with no `garageAisle` on its snapshot keeps the old corridor-rate garage so old budgets do not move.
+- Math in `src/lib/emergencyCost.js` returns `garageAisle`, `garageFt`, `garageFrogeyeCount`, `garageFrogeyeEach`. The engine (`src/lib/calculations.js`) adds a "Garage frogeyes (drive aisles)" fixture line with its count and reports `sections.emergency.garageFrogeyes { count, aisleFt, each, cost }`.
+- Both Emergency screens reword the garage note under each option; the Conceptual screen shows an "Est. Garage Frogeyes" tile; the public intake hint updated. `scripts/tests/designMatch.test.mjs` asserts the 50,000 SF (334 frogeyes, $8,350) and 156,000 SF cases plus the frozen-snapshot fallback.
+
 ## [Controls garage piece live (Option A); pool trims the exterior amenity ladder] - October 16, 2026 (DEPLOYED) - no migration
 
 Mike's answers to the 10-16 questions. Emergency garage pricing is NOT changed here: Mike wants to talk through frogeyes first (the per-SF garage charge reads far too high against $25 frogeyes every 25 ft), so prod keeps the 10-2 corridor-rate rule.

@@ -20,6 +20,9 @@ function strategyOptions(P) {
   const fe = P.emergency?.frogeyesPerSf ?? 0.17;
   const b  = P.emergency?.batteryGarage || {};
   const batt = `Garage: battery in every other fixture ($${b.costPerFixture ?? 120} ea)`;
+  const A  = P.emergency?.garageAisle;
+  // Mike 10-16 (Option 2): the non-integrated choices price the garage by drive-aisle length.
+  const aisle = A ? `Garage: one $${A.costEach ?? 25} frogeye every ${A.spacingFt ?? 25} ft of drive aisle` : 'Garage at the corridor rate';
   const r = (k, f) => `$${(S[k]?.[f] ?? 0).toFixed(2)}/SF`;
   return [
     {
@@ -30,12 +33,12 @@ function strategyOptions(P) {
     {
       value: 'frogeyes',
       label: 'Frogeyes everywhere (corridors, amenity and garage)',
-      sub:   `Emergency combo units in corridors, amenity spaces and the garage at a flat $${Number(fe).toFixed(2)}/SF.`,
+      sub:   `Emergency combo units in corridors and amenity spaces at a flat $${Number(fe).toFixed(2)}/SF. ${aisle}.`,
     },
     {
       value: 'frogeyes_inv',
       label: 'Frogeyes in corridors + garage, inverters in amenities',
-      sub:   `Frogeyes ${r('frogeyes_inv', 'corridorPerSf')} in corridors and the garage. Central inverter ${r('frogeyes_inv', 'amenityPerSf')} in interior amenity spaces.`,
+      sub:   `Frogeyes ${r('frogeyes_inv', 'corridorPerSf')} in corridors. Central inverter ${r('frogeyes_inv', 'amenityPerSf')} in interior amenity spaces. ${aisle}.`,
     },
     {
       value: 'integrated_frogeyes',
@@ -50,7 +53,7 @@ function strategyOptions(P) {
     {
       value: 'inverters',
       label: 'Inverters everywhere (corridors, amenity and garage)',
-      sub:   `Inverter units power existing fixtures. Corridors and garage ${r('inverters', 'corridorPerSf')} · Amenity ${r('inverters', 'amenityPerSf')}.`,
+      sub:   `Inverter units power existing fixtures. Corridors ${r('inverters', 'corridorPerSf')} · Amenity ${r('inverters', 'amenityPerSf')}. ${aisle}.`,
     },
   ];
 }
@@ -85,6 +88,8 @@ export default function EmergencySection({ responses, projectData, allSections, 
   const frogeyes = selectedHasFrogeyes && corridorSf > 0
     ? Math.ceil(corridorSf / FROGEYE_SF_SPACING)
     : 0;
+  // Garage frogeyes along the drive aisles (non-integrated choices, Mike 10-16).
+  const garageFrogeyes = emergencyStrategyCost(P, answers.strategy, { corridorSf, intAmenitySf: intSf, garageSf }).garageFrogeyeCount || 0;
 
   async function handleNext() {
     setSaving(true);
@@ -113,7 +118,7 @@ export default function EmergencySection({ responses, projectData, allSections, 
       {/* Scope summary */}
       <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
         <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Areas Requiring Emergency Lighting</div>
-        <div className={`grid gap-3 text-center ${frogeyes > 0 ? 'grid-cols-4' : 'grid-cols-3'}`}>
+        <div className={`grid gap-3 text-center ${frogeyes > 0 && garageFrogeyes > 0 ? 'grid-cols-5' : frogeyes > 0 || garageFrogeyes > 0 ? 'grid-cols-4' : 'grid-cols-3'}`}>
           {[
             { label: 'Corridor SF',         value: corridorSf.toLocaleString() },
             { label: 'Interior Amenity SF', value: intSf.toLocaleString()      },
@@ -122,6 +127,12 @@ export default function EmergencySection({ responses, projectData, allSections, 
               label: 'Est. Frogeye Fixtures',
               value: `~${frogeyes}`,
               sub:   '@ 25 ft spacing',
+              amber: true,
+            }] : []),
+            ...(garageFrogeyes > 0 ? [{
+              label: 'Est. Garage Frogeyes',
+              value: `~${garageFrogeyes}`,
+              sub:   'along the drive aisles',
               amber: true,
             }] : []),
           ].map(item => (
@@ -191,7 +202,7 @@ export default function EmergencySection({ responses, projectData, allSections, 
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
         <strong>Note:</strong> Stairwell integrated battery backup is required by code regardless of strategy selected. This cost is included in the Corridors & Stairwells line item.
         {garageSf > 0 && (
-          <> Garage: the two Integrated batteries choices put a battery in every other garage fixture; the other choices cover the garage with frogeyes or inverters at the corridor rate. That cost is in the prices above.</>
+          <> Garage: the two Integrated batteries choices put a battery in every other garage fixture; the other choices cover the garage with frogeyes along the drive aisles (garage SF divided by the aisle width, one every 25 ft). That cost is in the prices above.</>
         )}
       </div>
 

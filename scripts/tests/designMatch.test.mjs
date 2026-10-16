@@ -39,9 +39,27 @@ test('only the integrated strategies buy garage batteries: 50,000 SF → 40 × $
     }
   }
   assert.equal(emergencyStrategyCost(PRICING, 'generator', { garageSf: 50000 }).garage, 0);
-  assert.equal(emergencyStrategyCost(PRICING, 'frogeyes', { garageSf: 50000 }).garage, 50000 * 0.17);
-  assert.equal(emergencyStrategyCost(PRICING, 'frogeyes_inv', { garageSf: 50000 }).garage, 50000 * 0.15);
-  assert.equal(emergencyStrategyCost(PRICING, 'inverters', { garageSf: 50000 }).garage, 50000 * 0.50);
+  // Mike 10-16 (Option 2, "use 6ft"): 50,000 SF / 6 ft = 8,333 ft of aisle, / 25 ft = 334 frogeyes x $25 = $8,350.
+  for (const k of ['frogeyes', 'frogeyes_inv', 'inverters']) {
+    const c = emergencyStrategyCost(PRICING, k, { garageSf: 50000 });
+    assert.equal(c.garageAisle, true, k);
+    assert.equal(c.garageFrogeyeCount, 334, k);
+    assert.equal(c.garage, 8350, k);
+  }
+});
+
+test('garage frogeyes by drive-aisle length: 156,000 SF = 26,000 ft = 1,040 frogeyes = $26,000 (Mike 10-16, 6 ft)', () => {
+  const c = emergencyStrategyCost(PRICING, 'frogeyes', { garageSf: 156000 });
+  assert.equal(c.garageFt, 26000);
+  assert.equal(c.garageFrogeyeCount, 1040);
+  assert.equal(c.garage, 26000);
+  // Frozen snapshot without the garageAisle block keeps the old corridor-rate rule.
+  const old = { ...PRICING, emergency: { ...PRICING.emergency, garageAisle: undefined } };
+  assert.equal(emergencyStrategyCost(old, 'frogeyes', { garageSf: 156000 }).garage, 156000 * 0.17);
+  // The engine exposes the count on the emergency line.
+  const e = budget({ emergency: { strategy: 'frogeyes' } }, { ...PD, garageSf: 156000 }).sections.emergency;
+  assert.deepEqual(e.garageFrogeyes, { count: 1040, aisleFt: 26000, each: 25, cost: 26000 });
+  assert.equal(budget({ emergency: { strategy: 'generator' } }).sections.emergency.garageFrogeyes, null);
 });
 
 test('with a garage, all six emergency choices price differently (Mike 10-2)', () => {

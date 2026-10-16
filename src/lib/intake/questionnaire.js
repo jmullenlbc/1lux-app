@@ -159,7 +159,7 @@ export const INTAKE_QUESTIONS = [
     key: 'egressLighting',
     section: 'Emergency',
     question: 'How do you want to approach emergency egress lighting? (i.e. If you have a building generator that can be used for lighting then you do not need any other emergency lighting.)',
-    hint: 'Code still requires backup lighting on every egress path; the strategy decides where the backup power lives. Only the "Integrated batteries in garage" choices put batteries in the garage fixtures; the others cover the garage with frogeyes or inverters.',
+    hint: 'Code still requires backup lighting on every egress path; the strategy decides where the backup power lives. Only the "Integrated batteries in garage" choices put batteries in the garage fixtures; the others cover the garage with frogeyes along the drive aisles.',
     // Mike 10-2: keep all six choices, each with its own cost (emergencyCost.js).
     options: [
       'Building generator',

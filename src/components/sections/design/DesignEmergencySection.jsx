@@ -45,7 +45,9 @@ export default function DesignEmergencySection({
   const rate = (k, f) => `$${(S[k]?.[f] ?? 0).toFixed(2)}/SF`;
   const fe   = `$${Number(P.emergency?.frogeyesPerSf ?? 0.17).toFixed(2)}/SF`;
   const batt = garageSf > 0 ? ' + garage battery in every other fixture' : '';
-  const gar  = garageSf > 0 ? ' (garage at the corridor rate)' : '';
+  const A    = P.emergency?.garageAisle;
+  // Mike 10-16 (Option 2): non-integrated choices price the garage by drive-aisle length.
+  const gar  = garageSf > 0 ? (A ? ` + garage frogeyes every ${A.spacingFt ?? 25} ft of drive aisle ($${A.costEach ?? 25} ea)` : ' (garage at the corridor rate)') : '';
 
   async function handleNext() {
     setSaving(true);
@@ -105,7 +107,7 @@ export default function DesignEmergencySection({
             {
               key:   'frogeyes',
               label: 'Frogeyes everywhere (corridors, amenity and garage)',
-              sub:   `Corridors + amenity + garage ${fe}${hasSf ? ` — est. $${calcCost('frogeyes').toLocaleString()}` : ''}`,
+              sub:   `Corridors + amenity ${fe}${gar}${hasSf ? ` — est. $${calcCost('frogeyes').toLocaleString()}` : ''}`,
               tag:   null,
             },
             {

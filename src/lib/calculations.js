@@ -485,8 +485,9 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
 
   // ─── EMERGENCY LIGHTING ───────────────────────────────────────────────────
   // One shared helper (src/lib/emergencyCost.js) so both Emergency screens show
-  // exactly this number. Every strategy but 'generator' puts a battery in every
-  // other garage fixture when there is a garage (Mike, 2026-09-12).
+  // exactly this number. Only the integrated choices put a battery in every
+  // other garage fixture (Mike 10-2); the other choices light the garage with
+  // frogeyes along the drive aisles (Mike 10-16, Option 2).
   // Unanswered = Building generator at a $0 adder, the same starting
   // answer as the public form (Mike 2026-10-15; was Frogeyes from 2026-09-12).
   const strategyKey = emergency.strategy || 'generator';
@@ -805,11 +806,18 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const frogeyeCount = !usesFrogeyes ? 0
     : (corridorSf > 0 ? Math.ceil(corridorFt / (n(L.frogeyeFtEach, 25) || 25)) : 0)
     + (strategyKey === 'frogeyes' && intAmenitySf > 0 ? Math.ceil(intAmenitySf / (n(L.frogeyeSfEach, 300) || 300)) : 0);
-  const emergencyFixtureProduct = emergencyCost.total - n(emergencyCost.batteryCost);
+  // Garage frogeyes along the drive aisles (Mike 10-16, Option 2) get their
+  // own line with their own count; the corridor/amenity dollars stay above.
+  const garageFrogeyes = n(emergencyCost.garageFrogeyeCount);
+  const garageFrogeyeProduct = garageFrogeyes > 0 ? n(emergencyCost.garage) : 0;
+  const emergencyFixtureProduct = emergencyCost.total - n(emergencyCost.batteryCost) - garageFrogeyeProduct;
   addQ('emergency.strategy', [
     frogeyeCount > 0
       ? { label: 'Frogeyes', count: frogeyeCount, countLabel: 'frogeyes', each: emergencyFixtureProduct / frogeyeCount, product: emergencyFixtureProduct, laborEach: lab('sconce'), labor: frogeyeCount * lab('sconce') }
       : sfLine('Emergency lighting', emergencyFixtureProduct),
+    garageFrogeyes > 0
+      ? { label: 'Garage frogeyes (drive aisles)', count: garageFrogeyes, countLabel: 'frogeyes', each: n(emergencyCost.garageFrogeyeEach), product: garageFrogeyeProduct, laborEach: lab('sconce'), labor: garageFrogeyes * lab('sconce') }
+      : null,
     emergencyCost.garageBattery && n(emergencyCost.batteryCount) > 0
       ? line('Garage fixture batteries', n(emergencyCost.batteryCount), 'batteries', n(emergencyCost.batteryCost) / n(emergencyCost.batteryCount), 0)
       : null,
@@ -926,6 +934,11 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
         // generator, when there is a garage) — the count behind the dollars.
         garageBatteries: emergencyCost.garageBattery
           ? { count: emergencyCost.batteryCount, cost: emergencyCost.batteryCost }
+          : null,
+        // Frogeyes along the garage drive aisles (non-integrated choices,
+        // Mike 10-16 Option 2): the count behind the garage dollars.
+        garageFrogeyes: emergencyCost.garageAisle && emergencyCost.garageFrogeyeCount > 0
+          ? { count: emergencyCost.garageFrogeyeCount, aisleFt: Math.round(emergencyCost.garageFt), each: emergencyCost.garageFrogeyeEach, cost: emergencyCost.garage }
           : null,
       },
       exitSigns:   { product: exitSignsProduct  },
