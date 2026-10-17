@@ -172,26 +172,19 @@ export default function MyBudgetsClient() {
                 <ul className="space-y-3">
                   {g.budgets.map(b => (
                     <li key={b.id} className="bg-white rounded-2xl border border-slate-200 p-4">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-900">{b.budgetName || 'Budget'}<span className="font-normal text-slate-500"> for {b.projectName}</span></p>
-                          <p className="text-xs text-slate-500">
-                            {[[b.city, b.state].filter(Boolean).join(', '), b.buildingTypeLabel, b.unitCount ? `${b.unitCount} units` : null, b.grossSf ? `${Number(b.grossSf).toLocaleString()} SF` : null].filter(Boolean).join(' · ')}
-                          </p>
-                          {b.copiedFrom && (
-                            <p className="text-xs text-slate-500 mt-1">Copy of <span className="font-semibold">{b.copiedFrom.projectName}</span> (made by {b.copiedFrom.email})</p>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-semibold text-slate-900">{b.estimate ? formatCurrency(b.estimate) : 'No estimate yet'}</p>
-                          <p className="text-xs text-slate-500">{b.stage?.label || ""}</p>
-                        </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3 text-sm">
+                        <Field label="Description" value={b.budgetName || 'Budget'} strong />
+                        <Field label="Location" value={[b.city, b.state].filter(Boolean).join(', ')} />
+                        <Field label="Building type" value={b.buildingTypeLabel} />
+                        <Field label="Units" value={b.unitCount ? Number(b.unitCount).toLocaleString() : ''} />
+                        <Field label="Gross SF" value={b.grossSf ? Number(b.grossSf).toLocaleString() : ''} />
+                        <Field label="Estimate" value={b.estimate ? formatCurrency(b.estimate) : ''} strong />
+                        <Field label="Status" value={b.stage?.label} />
+                        <Field label="Copied from" value={b.copiedFrom?.projectName} sub={b.copiedFrom?.email} />
+                        <Field label="Started" value={when(b.createdAt)} sub={b.createdBy} />
+                        <Field label="Last changed" value={b.changedAt && b.changedAt !== b.createdAt ? when(b.changedAt) : ''} sub={b.changedAt && b.changedAt !== b.createdAt ? b.changedBy : ''} />
+                        <Field label="Sent to ILC" value={b.sentAt ? when(b.sentAt) : ''} />
                       </div>
-                      <p className="mt-2 text-xs text-slate-500">
-                        Started by {b.createdBy} on {when(b.createdAt)}.
-                        {b.changedAt && b.changedAt !== b.createdAt ? ` Last changed by ${b.changedBy} on ${when(b.changedAt)}.` : ''}
-                        {b.sentAt ? ` Sent to ILC on ${when(b.sentAt)}.` : ''}
-                      </p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {b.canOpen && (
                           <a href={openHref(b.id, email)} className={ORANGE}>Open and continue</a>
@@ -204,7 +197,7 @@ export default function MyBudgetsClient() {
                         </button>
                       </div>
                       {history?.draftId === b.id && (
-                        <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <div className="mt-3 pt-3 border-t border-slate-100 overflow-x-auto">
                           {history.loading && <p className="text-xs text-slate-500">Loading...</p>}
                           {history.body && <HistoryList body={history.body} />}
                         </div>
@@ -221,27 +214,50 @@ export default function MyBudgetsClient() {
   );
 }
 
+// One labeled field: the label above the value, a dash when there is nothing to show.
+function Field({ label, value, sub, strong }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[11px] uppercase tracking-wide text-slate-500">{label}</div>
+      <div className={strong ? 'font-semibold text-slate-900' : 'text-slate-800'}>{value || '-'}</div>
+      {sub ? <div className="text-xs text-slate-500 truncate">{sub}</div> : null}
+    </div>
+  );
+}
+
 function HistoryList({ body }) {
   const saves = (body.saves || []).filter(s => s.changes.length || s.kind !== 'save');
   if (!saves.length) return <p className="text-xs text-slate-500">No changes recorded yet.</p>;
   return (
-    <ol className="space-y-3">
-      {saves.map(s => (
-        <li key={s.id} className="text-xs text-slate-700">
-          <p className="font-semibold text-slate-800">
-            {s.kind === 'created' ? 'Started' : s.kind === 'copied' ? 'Copied' : 'Saved'} by {s.email} on {whenAt(s.savedAt)}{s.step ? ` (${s.step})` : ''}
-          </p>
-          {s.changes.length > 0 && (
-            <ul className="mt-1 space-y-0.5 pl-3">
-              {s.changes.map((c, i) => (
-                <li key={i}>
-                  <span className="font-medium">{c.label}</span>: {c.before ? <><span className="line-through text-slate-400">{c.before}</span> to </> : ''}<span>{c.after || 'blank'}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </li>
-      ))}
-    </ol>
+    <table className="min-w-full text-xs">
+      <thead>
+        <tr className="text-left uppercase tracking-wide text-slate-500 border-b border-slate-200">
+          <th className="px-2 py-1 font-semibold">When</th>
+          <th className="px-2 py-1 font-semibold">Who</th>
+          <th className="px-2 py-1 font-semibold">Action</th>
+          <th className="px-2 py-1 font-semibold">Step</th>
+          <th className="px-2 py-1 font-semibold">Field</th>
+          <th className="px-2 py-1 font-semibold">Before</th>
+          <th className="px-2 py-1 font-semibold">After</th>
+        </tr>
+      </thead>
+      <tbody>
+        {saves.map(s => {
+          const action = s.kind === 'created' ? 'Started' : s.kind === 'copied' ? 'Copied' : 'Saved';
+          const rows = s.changes.length ? s.changes : [null];
+          return rows.map((c, i) => (
+            <tr key={s.id + ':' + i} className="border-b border-slate-100 align-top text-slate-700">
+              <td className="px-2 py-1 whitespace-nowrap">{i === 0 ? whenAt(s.savedAt) : ''}</td>
+              <td className="px-2 py-1">{i === 0 ? s.email : ''}</td>
+              <td className="px-2 py-1">{i === 0 ? action : ''}</td>
+              <td className="px-2 py-1">{i === 0 ? (s.step || '') : ''}</td>
+              <td className="px-2 py-1 font-medium">{c ? c.label : ''}</td>
+              <td className="px-2 py-1 text-slate-400">{c ? (c.before || '') : ''}</td>
+              <td className="px-2 py-1">{c ? (c.after || 'blank') : ''}</td>
+            </tr>
+          ));
+        })}
+      </tbody>
+    </table>
   );
 }
