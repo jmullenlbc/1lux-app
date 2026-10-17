@@ -714,7 +714,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                   <span>›</span>
                 </>
               )}
-              <span className="text-slate-600 font-medium">{project.name}</span>
+              <span className="text-slate-600 font-medium">{project.name}{project.conceptualDraft?.budgetName ? <span className="font-normal text-slate-500">, {project.conceptualDraft.budgetName}</span> : null}</span>
             </div>
             {isSuper && (
               <div className="flex items-center gap-2">

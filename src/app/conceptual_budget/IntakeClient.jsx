@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { US_STATES, checkLocation } from '@/lib/usStates';
 import DrawingDropzone from '@/components/intake/DrawingDropzone';
 import BudgetSidebar from '@/components/wizard/BudgetSidebar';
@@ -74,10 +75,15 @@ function takeResumeToken() {
   try {
     const url = new URL(window.location.href);
     const token = url.searchParams.get('resume');
-    if (!token) return null;
-    url.searchParams.delete('resume');
+    // A budget opened from the company portal (0132): its id and the opener's
+    // work email. No secret in either, the server checks the email's domain.
+    const open = url.searchParams.get('open');
+    const as = url.searchParams.get('as');
+    if (!token && !open) return null;
+    for (const k of ['resume', 'open', 'as']) url.searchParams.delete(k);
     window.history.replaceState(null, '', url.pathname + (url.search || '') + url.hash);
-    return /^[A-Za-z0-9_-]{20,64}$/.test(token) ? token : null;
+    if (token) return /^[A-Za-z0-9_-]{20,64}$/.test(token) ? { token } : null;
+    return /^[a-z0-9]{10,40}$/i.test(open) && as ? { draftId: open, as: String(as).trim().toLowerCase() } : null;
   } catch { return null; }
 }
 
@@ -134,7 +140,7 @@ const STEPS = [
     hint: 'Upload your drawing set if you have one, we read unit counts and sizes from it. No drawings? Choose “No drawings yet” and type in a few numbers on the next page instead.' },
   // Mike 10-14: "If you pick no drawings, go to the next screen for all
   // building data points. It's the next step." Only on the no-drawings path.
-  { id: 'figures',   short: 'Figures',       label: 'Building Figures',
+  { id: 'figures',   short: 'Bldg Data',     label: 'Building Data',
     hint: 'Type in what you know about the building. Real numbers beat our estimates; leave a box blank and we estimate it.' },
   { id: 'units',     short: 'Units',         label: 'Residential Units',      sections: ['Residential units'],        budgetStep: 'units',
     hint: 'Unit pricing already includes the average amount of 7" and 12" disks in a typical unit. Choose the lighting inside the apartments. Each choice updates your budget.' },
@@ -429,6 +435,11 @@ export default function IntakeClient() {
   const [email,     setEmail]     = useState('');
   const [company,   setCompany]   = useState('');
   const [project,   setProject]   = useState('');
+  // The budget's own description, "100% DD" (Mike 10-16: a project name AND a
+  // budget name). Optional; the portal groups by project and lists these.
+  const [budgetName, setBudgetName] = useState('');
+  // Project names the company already used, for the autofill under Project name.
+  const [companyProjects, setCompanyProjects] = useState([]);
   // Project location, required (Mike, 2026-09-12: "We need location for data tracking").
   const [projCity,  setProjCity]  = useState('');
   const [projState, setProjState] = useState('');
@@ -442,9 +453,18 @@ export default function IntakeClient() {
   //, and the two autosaves below stand still, so that mid-read null never
   // overwrites a read that was saved earlier.
   const [drawingsReading, setDrawingsReading] = useState(0);
+  // Typed corrections set aside because new drawings arrived (Mike 10-16:
+  // "Use new drawings when reupload happens"). Each one is offered back as
+  // "Keep X" on the Drawings page; one the new read agrees with just goes.
+  const [parkedCorrections, setParkedCorrections] = useState({});
+  const correctionsRef = useRef({});
   const onDrawingsRead = useCallback((merged, status) => {
     setDrawings(merged);
     setDrawingsReading(status?.reading ?? 0);
+    if (merged && Object.keys(correctionsRef.current).length) {
+      setParkedCorrections(p => ({ ...p, ...correctionsRef.current }));
+      setCorrections({});
+    }
   }, []);
   // "Do you have drawings?", null until answered, then 'yes' (the dropzone)
   // or 'no' (the typed-in figures form).
@@ -465,6 +485,7 @@ export default function IntakeClient() {
   // below a drawing; these say "the drawings were read wrong" and outrank one.
   // Sent as correct<RowKey>, see correctionKeyFor() in quantities.js.
   const [corrections, setCorrections] = useState({});
+  correctionsRef.current = corrections;
   const [answers, setAnswers] = useState(() => {
     const init = {};
     for (const q of INTAKE_QUESTIONS) init[q.key] = q.default ?? '';
@@ -504,6 +525,15 @@ export default function IntakeClient() {
   const [draftToken, setDraftToken] = useState(null);
   const draftTokenRef = useRef(null);
   draftTokenRef.current = draftToken;
+  // The server row's id, and the work email editing it, for a budget opened
+  // from the company portal (0132). No token in that case: the id plus a work
+  // email on the budget's domain is what the server accepts.
+  const [draftId, setDraftId] = useState(null);
+  const draftIdRef = useRef(null);
+  draftIdRef.current = draftId;
+  const [editorEmail, setEditorEmail] = useState(null);
+  const editorEmailRef = useRef(null);
+  editorEmailRef.current = editorEmail;
   const savingRef = useRef(false); // a save is in flight
   const dirtyRef  = useRef(false); // something changed while it was
   const [linkCopied,  setLinkCopied]  = useState(false);
@@ -523,16 +553,24 @@ export default function IntakeClient() {
     };
     // A ?resume= link beats the browser copy: it was asked for on purpose.
     if (resumeTokenRef.current === undefined) resumeTokenRef.current = takeResumeToken();
-    const token = resumeTokenRef.current;
-    if (!token) { fromLocal(); return; }
+    const open = resumeTokenRef.current;
+    if (!open) { fromLocal(); return; }
     (async () => {
       try {
-        const res = await fetch(`/api/intake/draft?token=${encodeURIComponent(token)}`);
+        const q = open.token
+          ? `token=${encodeURIComponent(open.token)}`
+          : `id=${encodeURIComponent(open.draftId)}&as=${encodeURIComponent(open.as)}`;
+        const res = await fetch(`/api/intake/draft?${q}`);
         if (!res.ok) throw new Error('gone');
         const body = await res.json();
         if (cancelled) return;
         if (draftHasWork(body?.draft)) {
-          setSavedDraft({ ...body.draft, serverToken: token, fromLink: true });
+          setSavedDraft({
+            ...body.draft, fromLink: true,
+            serverToken: open.token || null,
+            serverDraftId: open.token ? null : (body.draftId || open.draftId),
+            editorEmail: open.token ? null : (body.editorEmail || open.as),
+          });
           return;
         }
       } catch { /* fall through to the browser copy */ }
@@ -591,6 +629,24 @@ export default function IntakeClient() {
   const homeType  = isHomeProjectType(answers.projectType);
 
   const emailCheck = email ? classifyIntakeEmail(email) : null;
+  // Once the work email is good, fetch the company's project names for the
+  // autofill. One fetch per domain; a personal email gets nothing.
+  const companyDomain = emailCheck?.ok ? (emailCheck.domain || email.split('@').pop() || '').toLowerCase() : '';
+  useEffect(() => {
+    if (!companyDomain) { setCompanyProjects([]); return; }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/intake/portal/names', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }),
+        });
+        const body = res.ok ? await res.json() : null;
+        if (!cancelled) setCompanyProjects(Array.isArray(body?.names) ? body.names : []);
+      } catch { if (!cancelled) setCompanyProjects([]); }
+    }, 400);
+    return () => { cancelled = true; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyDomain]);
   const emailError = touchedEmail && emailCheck && !emailCheck.ok ? emailCheck.message : null;
 
   // When a drawing read tells us the project type, pre-answer that question , 
@@ -799,6 +855,7 @@ export default function IntakeClient() {
     setEmail(str(d.email));
     setCompany(str(d.company));
     setProject(str(d.project));
+    setBudgetName(str(d.budgetName));
     setProjCity(str(d.projCity));
     setProjState(str(d.projState));
     setProjZip(str(d.projZip));
@@ -821,6 +878,8 @@ export default function IntakeClient() {
       : []);
     setSavedAt(typeof d.savedAt === 'string' ? d.savedAt : null);
     setDraftToken(typeof d.serverToken === 'string' ? d.serverToken : null);
+    setDraftId(typeof d.serverDraftId === 'string' ? d.serverDraftId : null);
+    setEditorEmail(typeof d.editorEmail === 'string' ? d.editorEmail : null);
     setSavedDraft(null);
     setDraftDecided(true);
     // Back to the page they were on, unless the contact details in the draft
@@ -836,6 +895,8 @@ export default function IntakeClient() {
   function discardDraft() {
     clearDraft();
     setDraftToken(null);
+    setDraftId(null);
+    setEditorEmail(null);
     setSavedDraft(null);
     setDraftDecided(true);
   }
@@ -857,16 +918,18 @@ export default function IntakeClient() {
       const when = new Date().toISOString();
       const ok = writeDraft({
         v: 1, savedAt: when, stepId, completedSteps,
-        firstName, lastName, email, company, project, projCity, projState, projZip,
+        firstName, lastName, email, company, project, budgetName, projCity, projState, projZip,
         haveDrawings, drawings, figures, corrections, answers,
         serverToken: draftTokenRef.current,
+        serverDraftId: draftIdRef.current,
+        editorEmail: editorEmailRef.current,
       });
       if (ok) setSavedAt(when);
     }, 500);
     return () => clearTimeout(t);
-  }, [draftDecided, submitted, drawingsReading, stepId, completedSteps, firstName, lastName, email, company, project,
+  }, [draftDecided, submitted, drawingsReading, stepId, completedSteps, firstName, lastName, email, company, project, budgetName,
       projCity, projState, projZip, haveDrawings, drawings, figures, corrections, answers,
-      draftToken]); // a freshly minted token must reach the browser copy too
+      draftToken, draftId, editorEmail]); // a freshly minted token must reach the browser copy too
 
   // === Server copy ===
   // Three seconds after the last change, and only once the contact details
@@ -879,7 +942,7 @@ export default function IntakeClient() {
     if (!draftDecided || submitted || !contactReady || drawingsReading > 0) return;
     const t = setTimeout(() => {
       const draft = {
-        firstName, lastName, email, company, project, projCity, projState, projZip,
+        firstName, lastName, email, company, project, budgetName, projCity, projState, projZip,
         haveDrawings, stepId, completedSteps, figures, corrections, answers,
         drawings: manual ? null : drawings,
       };
@@ -890,14 +953,23 @@ export default function IntakeClient() {
           const res = await fetch('/api/intake/draft', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: draftTokenRef.current, draft }),
+            body: JSON.stringify({
+              token: draftTokenRef.current,
+              // A budget opened from the portal (0132): no token, the id and
+              // the editor's work email instead.
+              draftId: draftTokenRef.current ? undefined : (draftIdRef.current || undefined),
+              editorEmail: draftTokenRef.current ? undefined : (editorEmailRef.current || email),
+              draft,
+            }),
           });
           if (res.status === 404 || res.status === 410) {
             // Submitted, put away, or unknown: forget it and start a new row next time.
             setDraftToken(null);
+            setDraftId(null);
           } else if (res.ok) {
             const body = await res.json().catch(() => ({}));
             if (typeof body.token === 'string' && body.token !== draftTokenRef.current) setDraftToken(body.token);
+            if (typeof body.draftId === 'string' && body.draftId !== draftIdRef.current) setDraftId(body.draftId);
           }
         } catch { /* offline or blocked, the browser copy still has it */ }
         finally {
@@ -908,7 +980,7 @@ export default function IntakeClient() {
       run();
     }, SERVER_SAVE_DELAY_MS);
     return () => clearTimeout(t);
-  }, [draftDecided, submitted, contactReady, drawingsReading, stepId, completedSteps, firstName, lastName, email, company, project,
+  }, [draftDecided, submitted, contactReady, drawingsReading, stepId, completedSteps, firstName, lastName, email, company, project, budgetName,
       projCity, projState, projZip, haveDrawings, manual, drawings, figures, corrections, answers]);
 
   const resumeLink = draftToken && typeof window !== 'undefined'
@@ -950,6 +1022,7 @@ export default function IntakeClient() {
           contactEmail: email,
           companyName:  company || null,
           projectName:  project,
+          budgetName:   budgetName.trim() || null,
           city:         projCity,
           state:        projState,
           zip:          projZip,
@@ -958,6 +1031,7 @@ export default function IntakeClient() {
           // Ties the server-side draft to this submission so it leaves the
           // staff "unfinished budgets" list.
           draftToken: draftTokenRef.current,
+          draftId: draftTokenRef.current ? undefined : (draftIdRef.current || undefined),
         }),
       });
       if (!res.ok) {
@@ -973,6 +1047,7 @@ export default function IntakeClient() {
       clearDraft();
       setSavedAt(null);
       setDraftToken(null);
+      setDraftId(null);
     } catch (err) {
       setSubmitError(err.message);
     } finally {
@@ -1065,6 +1140,24 @@ export default function IntakeClient() {
         was: r.wasValue == null ? '' : Number(r.wasValue).toLocaleString('en-US'),
       }));
   }, [estimate]);
+
+  // A parked correction the new drawings agree with is not a question.
+  useEffect(() => {
+    const keys = Object.keys(parkedCorrections);
+    if (!keys.length || !correctableRows.length) return;
+    const drop = keys.filter(k => {
+      const row = correctableRows.find(r => r.key === k);
+      if (!row) return false;
+      const typed = Number(String(parkedCorrections[k]).replace(/[^0-9.-]/g, ''));
+      const read = Number(String(row.display ?? '').replace(/[^0-9.-]/g, ''));
+      return Number.isFinite(typed) && Number.isFinite(read) && Math.round(typed) === Math.round(read);
+    });
+    if (drop.length) setParkedCorrections(p => { const next = { ...p }; for (const k of drop) delete next[k]; return next; });
+  }, [correctableRows, parkedCorrections]);
+  const parkedRows = useMemo(() => Object.entries(parkedCorrections).map(([key, typed]) => {
+    const row = correctableRows.find(r => r.key === key);
+    return { key, typed, label: row?.label || key, now: row?.display || 'nothing' };
+  }), [parkedCorrections, correctableRows]);
 
   // Rows still blank after the read AND not yet typed, the amber boxes, and
   // the "N figures still needed" note under the drawings.
@@ -1268,6 +1361,11 @@ export default function IntakeClient() {
                 {/* === About you === */}
                 {stepId === 'about' && (
                   <section className="bg-white rounded-2xl border border-slate-200 p-6">
+                    {/* The company portal (0132): every budget from this
+                        company, to open, copy or look back on. */}
+                    <p className="mb-4 text-xs text-slate-500">
+                      Already started one? <Link href="/conceptual_budget/my-budgets" className="font-semibold text-orange-600 hover:text-orange-700">See my company&apos;s budgets</Link>
+                    </p>
                     {/* A draft from last time, found in this browser. Offered
                         once, up front; nothing is saved until they choose. */}
                     {savedDraft && (
@@ -1350,8 +1448,16 @@ export default function IntakeClient() {
                       <Field label="Company" labelRight="Optional">
                         <input className={inputCls} value={company} onChange={e => setCompany(e.target.value)} placeholder="Your company" />
                       </Field>
-                      <Field label="Project name">
-                        <input className={inputCls} value={project} onChange={e => setProject(e.target.value)} placeholder="Lincoln Avenue Phase 2" />
+                      <Field label="Project name" hint={companyProjects.length ? 'Pick one your company already used, or type a new one.' : undefined}>
+                        <input className={inputCls} value={project} onChange={e => setProject(e.target.value)} placeholder="Lincoln Avenue Phase 2" list="company-project-names" autoComplete="off" />
+                        {companyProjects.length > 0 && (
+                          <datalist id="company-project-names">
+                            {companyProjects.map(p => <option key={p.name} value={p.name}>{[p.city, p.state].filter(Boolean).join(', ')}</option>)}
+                          </datalist>
+                        )}
+                      </Field>
+                      <Field label="Budget description" labelRight="Optional" hint="Which budget this is for the project, for example 100% DD or Alt 2 with pool.">
+                        <input className={inputCls} value={budgetName} onChange={e => setBudgetName(e.target.value)} placeholder="100% DD" />
                       </Field>
 
                       {/* Where the project is. City takes the room; State fits
@@ -1468,6 +1574,30 @@ export default function IntakeClient() {
                         numbers on the drawings page" / "unread figures belong
                         on the drawings page combined with the read ones,
                         highlight blanks"). Same grid as the Review page. */}
+                    {drawings && parkedRows.length > 0 && (
+                      <div className="mt-6 rounded-xl border border-amber-300 bg-amber-50 p-4" role="region" aria-label="Numbers you typed before the new drawings">
+                        <p className="text-sm font-semibold text-slate-900">New drawings are in. We are using what they say.</p>
+                        <p className="text-xs text-slate-600 mt-1">You had typed these before. Keep any you still want; the rest follow the new drawings.</p>
+                        <ul className="mt-2 space-y-1">
+                          {parkedRows.map(r => (
+                            <li key={r.key} className="flex flex-wrap items-center gap-2 text-sm text-slate-800">
+                              <span><span className="font-semibold">{r.label}</span>: you typed {r.typed}, the new drawings say {r.now}.</span>
+                              <button type="button"
+                                className="px-3 py-1 rounded-lg text-xs font-semibold border border-amber-400 bg-white text-amber-800 hover:bg-amber-100"
+                                onClick={() => {
+                                  setCorrections(x => ({ ...x, [r.key]: r.typed }));
+                                  setParkedCorrections(p => { const next = { ...p }; delete next[r.key]; return next; });
+                                }}>
+                                Keep {r.typed}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                        <button type="button" className="mt-3 text-xs font-semibold text-slate-500 hover:text-slate-700" onClick={() => setParkedCorrections({})}>
+                          Use the new drawings for all of these
+                        </button>
+                      </div>
+                    )}
                     {drawings && correctableRows.length > 0 && (
                       <div className="mt-6">
                         {projectDataGrid({
@@ -1482,7 +1612,7 @@ export default function IntakeClient() {
 
                     {manual && (
                       <p className="text-sm text-slate-600">
-                        No drawings is fine. On the next page you type in the building figures you know and we estimate the rest.
+                        No drawings is fine. On the next page you type in the building data you know and we estimate the rest.
                       </p>
                     )}
 
@@ -1495,7 +1625,7 @@ export default function IntakeClient() {
                             : !answers.projectType
                               ? 'Choose the project type above'
                             : manual
-                              ? 'Next, the building figures'
+                              ? 'Next, the building data'
                               : drawingsReading > 0
                                 ? `Reading ${drawingsReading} drawing${drawingsReading !== 1 ? 's' : ''}, your figures appear once every file is read`
                               : extAmenityNeeded
@@ -1511,7 +1641,7 @@ export default function IntakeClient() {
                           const ok = !!answers.projectType && (manual || (haveDrawings === 'yes' && !extAmenityNeeded));
                           return (
                             <button onClick={() => ok && goNext()} disabled={!ok} className={navBtn(ok)}>
-                              {manual ? 'Continue to building figures' : drawings || haveDrawings === null ? 'Continue to units' : 'Skip, continue to units'}
+                              {manual ? 'Continue to building data' : drawings || haveDrawings === null ? 'Continue to units' : 'Skip, continue to units'}
                             </button>
                           );
                         })()}
@@ -1870,7 +2000,7 @@ export default function IntakeClient() {
                 {manual && !manualCheck.ready ? (
                   <>
                     <p className="text-xs text-slate-500 leading-relaxed">
-                      A rough number shows as soon as Total units is typed. These boxes on the Building Figures page tighten it:
+                      A rough number shows as soon as Total units is typed. These boxes on the Building Data page tighten it:
                     </p>
                     <ul className="mt-2 space-y-1">
                       {manualCheck.missing.map(m => (

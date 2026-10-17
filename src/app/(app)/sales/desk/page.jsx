@@ -259,7 +259,12 @@ function PoolRow({ p, salesPeople, myId, onDone }) {
   return (
     <li className="rounded-xl border border-slate-200 bg-white p-3 flex flex-wrap items-center gap-2">
       <div className="min-w-0 flex-1">
-        <Link href={`/project/${p.id}`} className="text-sm font-medium text-slate-800 hover:underline">{p.name}</Link>
+        <Link href={`/project/${p.id}`} className="text-sm font-medium text-slate-800 hover:underline">
+          {p.name}{p.conceptualDraft?.budgetName ? <span className="font-normal text-slate-500">, {p.conceptualDraft.budgetName}</span> : null}
+        </Link>
+        {p.conceptualDraft?.copiedFromId && (
+          <span className="ml-2 inline-block rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600" title="Made in the company portal as a copy of an earlier budget">copy of an earlier budget</span>
+        )}
         <div className="text-xs text-slate-400">
           {[p.budgetNumber, [p.city, p.state].filter(Boolean).join(', '), p.client?.name, p.contactName, `made ${new Date(p.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`].filter(Boolean).join(' · ')}
         </div>
@@ -445,7 +450,9 @@ function MyDeskPage() {
               <li key={p.id} className="rounded-xl border border-slate-200 bg-white p-3 flex items-center gap-2">
                 <AlertMark label="Budget made, not sent" />
                 <div className="min-w-0 flex-1">
-                  <Link href={`/project/${p.id}`} className="text-sm font-medium text-slate-800 hover:underline">{p.name}</Link>
+                  <Link href={`/project/${p.id}`} className="text-sm font-medium text-slate-800 hover:underline">
+          {p.name}{p.conceptualDraft?.budgetName ? <span className="font-normal text-slate-500">, {p.conceptualDraft.budgetName}</span> : null}
+        </Link>
                   <div className="text-xs text-slate-400">{[p.budgetNumber, p.client?.name].filter(Boolean).join(' · ')}</div>
                 </div>
               </li>

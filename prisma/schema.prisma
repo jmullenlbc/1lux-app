@@ -3420,6 +3420,7 @@ model ConceptualSubmission {
   submitterEmail   String
   submitterDomain  String // extracted from email; used to resolve clientId
   proposedName     String
+  budgetName       String?   // the budget's own description, e.g. "100% DD" (0132)
   buildingType     String?
   // Where the job is (Mike, 2026-09-12: "We need location for data tracking").
   // Required on new requests; blank on anything older. Migration 0077.
@@ -3501,6 +3502,7 @@ model ConceptualDraft {
   emailDomain    String?
   company        String?
   projectName    String
+  budgetName     String?   // "100% DD", "Alt 2 with pool" (0132, Mike 10-16)
   city           String?
   state          String?
   zip            String?
@@ -3525,9 +3527,17 @@ model ConceptualDraft {
   // 0117: the company and person this budget was tied to on its first save.
   clientId           String?
   contactId          String?
+  // 0132: the GC portal (Mike 10-16). A budget made with the portal's Copy
+  // button points at the one it came from, so its history can show what moved.
+  copiedFromId       String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
+  copiedFrom ConceptualDraft?      @relation("DraftCopy", fields: [copiedFromId], references: [id], onDelete: SetNull)
+  copies     ConceptualDraft[]     @relation("DraftCopy")
+  saves      ConceptualDraftSave[]
+  matchesAsNewer ConceptualDraftMatch[] @relation("MatchNewer")
+  matchesAsOlder ConceptualDraftMatch[] @relation("MatchOlder")
   submission ConceptualSubmission?  @relation(fields: [submissionId], references: [id], onDelete: SetNull)
   project    Project?               @relation("DraftProject", fields: [projectId], references: [id], onDelete: SetNull)
   client     Client?                @relation("DraftClient", fields: [clientId], references: [id], onDelete: SetNull)
@@ -3541,6 +3551,66 @@ model ConceptualDraft {
   @@index([email])
   @@index([clientId])
   @@index([contactId])
+  @@index([emailDomain])
+  @@index([copiedFromId])
+}
+
+// 0132: one row per save that changed something on a web budget: who (the
+// work email that was editing), when, and which step they were on. "Last
+// changed by" on the GC portal is the newest row; the change rows under it
+// are the history (Mike 10-16: "some kind of history for duplicated budgets
+// so they can see what has changed"). The first save and a Copy get a row
+// too, so a budget always has at least one.
+model ConceptualDraftSave {
+  id      String   @id @default(cuid())
+  draftId String
+  email   String
+  stepId  String?
+  kind    String   @default("save") // created | save | copied
+  savedAt DateTime @default(now())
+
+  draft   ConceptualDraft         @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  changes ConceptualDraftChange[]
+
+  @@index([draftId, savedAt])
+}
+
+// One row per value that moved in a save: the field (an answer, a typed
+// figure, a correction, a column on the budget itself, or the drawings), what
+// it was and what it became. Rows, not a blob, so "every budget where the unit
+// count was changed by hand" is one query.
+model ConceptualDraftChange {
+  id     String @id @default(cuid())
+  saveId String
+  kind   String // row | answer | figure | correction | drawings
+  key    String
+  before String
+  after  String
+
+  save ConceptualDraftSave @relation(fields: [saveId], references: [id], onDelete: Cascade)
+
+  @@index([saveId])
+  @@index([kind, key])
+}
+
+// "Is 'Lone Ranch' the same project as 'Lone Tree Ranch'?" answered on the GC
+// portal by the person who made the newer budget (Mike 10-16: "only the
+// person that just created the new budget with a similar name"). One row per
+// pair, so nobody is asked twice; same = true puts the two under one project
+// heading, same = false keeps them apart for good.
+model ConceptualDraftMatch {
+  id             String   @id @default(cuid())
+  draftId        String // the newer budget, whose maker answered
+  otherDraftId   String
+  same           Boolean
+  decidedByEmail String
+  decidedAt      DateTime @default(now())
+
+  draft ConceptualDraft @relation("MatchNewer", fields: [draftId], references: [id], onDelete: Cascade)
+  other ConceptualDraft @relation("MatchOlder", fields: [otherDraftId], references: [id], onDelete: Cascade)
+
+  @@unique([draftId, otherDraftId])
+  @@index([otherDraftId])
 }
 
 /// "Same person? Same company? Same job?" (Mike, 2026-10-04: "Joe Smith just

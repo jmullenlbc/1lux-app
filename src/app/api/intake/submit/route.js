@@ -60,7 +60,7 @@ export async function POST(req) {
   } catch {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
-  const { contactName, contactEmail, companyName, projectName, buildingType, grossSf, drawingsData, answers } = body;
+  const { contactName, contactEmail, companyName, projectName, budgetName, buildingType, grossSf, drawingsData, answers } = body;
 
   if (!contactName || !contactEmail || !projectName) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -113,7 +113,7 @@ export async function POST(req) {
   // (type, units, gross or unit SF, stories, stalls, pool). The live sidebar
   // may price early (provisional, Mike 10-9); a saved budget may not (10-14).
   if (!intakeEstimateGate(answerRows, drawingsData || null).ready) {
-    return NextResponse.json({ error: 'Add your drawings or the building figures first, then submit again.' }, { status: 422 });
+    return NextResponse.json({ error: 'Add your drawings or the building data first, then submit again.' }, { status: 422 });
   }
 
   const submission = await prisma.conceptualSubmission.create({
@@ -122,6 +122,7 @@ export async function POST(req) {
       submitterEmail:  emailCheck.domain ? contactEmail.toLowerCase().trim() : contactEmail,
       submitterDomain: emailCheck.domain,
       proposedName:    String(projectName).slice(0, 300),
+      budgetName:      budgetName ? String(budgetName).slice(0, 200) : null,
       buildingType:    buildingType || null,
       city:            loc.city,
       state:           loc.state,
@@ -139,14 +140,24 @@ export async function POST(req) {
   let draftPeople = null;
   try {
     const tokenHash = hashToken(body.draftToken);
+    const sel = { id: true, projectId: true, clientId: true, contactId: true, emailDomain: true };
+    let draft = null;
     if (tokenHash) {
+      draft = await prisma.conceptualDraft.findUnique({ where: { tokenHash }, select: sel });
+    } else if (typeof body.draftId === 'string' && /^[a-z0-9]{10,40}$/i.test(body.draftId)) {
+      // A budget opened from the company portal (0132): no token, the row's id
+      // instead. It counts only when the sender's email is on the same company.
+      const row = await prisma.conceptualDraft.findUnique({ where: { id: body.draftId }, select: sel });
+      const domain = String(emailCheck.domain || String(contactEmail).split('@').pop() || '').toLowerCase();
+      if (row && row.emailDomain && row.emailDomain.toLowerCase() === domain) draft = row;
+    }
+    if (draft) {
       // An unfinished budget that was already turned into a project (0116):
       // the finished one lands on that same project, not a second one.
-      const draft = await prisma.conceptualDraft.findUnique({ where: { tokenHash }, select: { id: true, projectId: true, clientId: true, contactId: true } });
-      draftProjectId = draft?.projectId || null;
+      draftProjectId = draft.projectId || null;
       draftPeople = draft;
       await prisma.conceptualDraft.updateMany({
-        where: { tokenHash, submissionId: null },
+        where: { id: draft.id, submissionId: null },
         data: { submissionId: submission.id },
       });
     }
@@ -260,7 +271,7 @@ export async function POST(req) {
         const line = existing
           ? `Sent after it was first saved as unfinished; landed on ${project.name} (${project.budgetNumber}).`
           : `Project ${project.name} (${project.budgetNumber}) made automatically.`
-            + (carried === false ? ' The building figures did not carry over; please enter them on the project.' : '');
+            + (carried === false ? ' The building data did not carry over; please enter them on the project.' : '');
         await prisma.conceptualSubmission.update({
           where: { id: submission.id },
           data: { duplicateMatchId: project.id, reviewNote: line },

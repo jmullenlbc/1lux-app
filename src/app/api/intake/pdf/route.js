@@ -71,7 +71,7 @@ export async function POST(req) {
     return NextResponse.json({ error: `Please check the project location: ${loc.missing.join(', ')}.` }, { status: 422 });
   }
   if (!intakeEstimateGate(answers, drawings).ready) {
-    return NextResponse.json({ error: 'Add your drawings or building figures first, then try again.' }, { status: 422 });
+    return NextResponse.json({ error: 'Add your drawings or building data first, then try again.' }, { status: 422 });
   }
 
   try {

@@ -34,6 +34,8 @@ export default async function ProjectHubPage({ params }) {
       ...SITE_FEATURE_INCLUDE,
       client: true,
       archivedBy: { select: { name: true, email: true } },
+      // Web budgets carry their own description ("100% DD"), shown after the name (0132).
+      conceptualDraft: { select: { budgetName: true, copiedFromId: true } },
       peerReviewItems: { orderBy: [{ section: 'asc' }, { sortOrder: 'asc' }] },
       assignees: { include: { user: { select: { id: true, name: true, email: true } } } },
       ...TEAM_INCLUDE,
