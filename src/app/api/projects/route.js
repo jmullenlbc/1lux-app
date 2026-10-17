@@ -18,6 +18,7 @@ export async function GET() {
       projectData: true,
       createdBy: { select: { id: true, name: true, email: true } },
       _count: { select: { responses: true } },
+      conceptualDraft: { select: { budgetName: true } },
     },
     orderBy: { updatedAt: 'desc' },
   });

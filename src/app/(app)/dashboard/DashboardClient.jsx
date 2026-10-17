@@ -295,7 +295,7 @@ export default function DashboardClient({ projects = [], user }) {
                     <td className="px-3 py-2.5">
                       <Link href={`/project/${project.id}`}
                         className="font-medium text-slate-800 hover:text-amber-600 transition-colors line-clamp-1">
-                        {project.name}
+                        {project.name}{project.conceptualDraft?.budgetName ? <span className="font-normal text-slate-500">, {project.conceptualDraft.budgetName}</span> : null}
                       </Link>
                       {project.assignees?.length > 0 && (
                         <div className="flex -space-x-1 mt-1">

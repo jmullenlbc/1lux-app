@@ -26,6 +26,8 @@ export default async function DashboardPage() {
       client:      { select: { id: true, name: true, type: true } },
       assignees:   { include: { user: { select: { id: true, name: true, email: true } } } },
       createdBy:   { select: { id: true, name: true, email: true } },
+      // Web budgets carry a description ("100% DD"), shown after the name (0132).
+      conceptualDraft: { select: { budgetName: true } },
     },
     orderBy: { updatedAt: 'desc' },
   });
