@@ -8,6 +8,7 @@ import QuestionCard from './QuestionCard';
 import { allowsGarages, allowsCarports } from '@/lib/coveredParkingTypes';
 import { siteFeaturesToRows, SITE_FEATURE_ROW_KEYS } from '@/lib/siteFeatures';
 import { useFigureAlerts, FigureAlertNote, FigureAlertSummary } from '@/components/figures/FigureAlerts';
+import { landingsPerStair } from '@/lib/stairLandings';
 
 const SITE_FEATURE_FORM_KEYS = new Set(Object.values(SITE_FEATURE_ROW_KEYS));
 
@@ -38,7 +39,12 @@ const FIELDS = [
       { key: 'numBalconies',         label: '# of Balconies',                  type: 'number', placeholder: '100',      hint: 'Total balcony count' },
       { key: 'numBathrooms',         label: '# of Bathrooms',                  type: 'number', placeholder: '200',      hint: 'Total bathroom count across all units' },
       { key: 'numVanities',          label: '# of Vanities',                   type: 'number', placeholder: '200',      hint: 'Usually equal to # of bathrooms' },
-      { key: 'numEgressStairwells',  label: '# of Egress Stairwell Landings',  type: 'number', placeholder: '30',       hint: 'Count every landing, including the half-landing between floors: a stair serving 3 floors has 3 floor landings + 2 in-between = 5. Every landing gets a light. The drawing takeoff fills this in with 10% already added; if you type it yourself, add 10% on top.' },
+      // Stairs the public tool's way (Mike 10-17): stories + exit stairs in,
+      // landings worked out (stairs x (2 x stories - 1)). The landings box is
+      // only typed when there is no stair count (an old drawing read).
+      { key: 'numFloors',            label: '# of Stories',                    type: 'number', placeholder: '4',        hint: 'Floors in the tallest residential building.' },
+      { key: 'numStairwells',        label: '# of Egress Stairwells',          type: 'number', placeholder: '6',        hint: 'Every exit stair in every building. We work out the landings.' },
+      { key: 'numEgressStairwells',  label: '# of Stair Landings',             type: 'number', placeholder: '30',       hint: 'Worked out from stairwells and stories: a stair serving 3 floors has 3 floor landings + 2 in between = 5.' },
       { key: 'numFans',              label: '# of Ceiling Fans',               type: 'number', placeholder: '14',       hint: 'Total fan count, overrides unit-mix calculation. Leave blank to auto-calculate.' },
       { key: 'numAccentDownlights',  label: '# of Recessed Downlight Accents', type: 'number', placeholder: '40',       hint: 'Adjustable recessed accents in corridors. $160 ea (1-hr fire rated).' },
     ],
@@ -76,7 +82,7 @@ const FIELDS = [
     fields: [
       { key: 'freightPct',     label: 'Freight %',     type: 'number', placeholder: '6',    hint: 'Default 6% of lighting product subtotal. Enter as a percentage (e.g. 6 for 6%)', suffix: '%' },
       { key: 'warehousingPct', label: 'Warehousing %', type: 'number', placeholder: '3',    hint: 'Default 3% of lighting product subtotal. Enter as a percentage (e.g. 3 for 3%)', suffix: '%' },
-      { key: 'salesTaxPct',    label: 'Sales Tax %',   type: 'number', placeholder: '9.15', hint: 'Jurisdiction sales tax rate on materials. Leave blank for tax-exempt projects. Applied to product subtotals only.', suffix: '%' },
+      { key: 'salesTaxPct',    label: 'Estimated Sales Tax %', type: 'number', placeholder: '9.15', hint: 'Filled in from the state when the project was made; type the real rate for the address. Blank or 0 for tax-exempt projects. Applied to product subtotals only.', suffix: '%' },
     ],
   },
   { group: 'Section Adders',
@@ -89,6 +95,21 @@ const FIELDS = [
 ];
 
 const PCT_FIELDS = new Set(['freightPct', 'warehousingPct', 'salesTaxPct']);
+
+// Landings from typed stairs and stories, the same math the server saves.
+function landingsFrom(stairs, stories) {
+  const st = String(stairs ?? '').trim() === '' ? NaN : Number(String(stairs).replace(/,/g, ''));
+  const fl = Number(String(stories ?? '').replace(/,/g, ''));
+  return Number.isFinite(st) && st >= 0 && fl > 0 ? Math.round(st) * landingsPerStair(fl) : null;
+}
+
+// Wizard contingency choices as the stored percent, and back.
+const CONTINGENCY_PCT = { none: 0, '5pct': 5, '10pct': 10 };
+function contingencyChoice(pct) {
+  if (pct == null || pct === '') return '';
+  const n = Number(pct);
+  return Object.keys(CONTINGENCY_PCT).find(k => CONTINGENCY_PCT[k] === n) || '';
+}
 
 export default function ProjectDataSection({ projectId, projectData, responses = {}, onSaveData, onSaveResponses, onNext, onLiveAnswers, onLiveData, isDesign = false }) {
   const [form, setForm] = useState(() => {
@@ -129,7 +150,8 @@ export default function ProjectDataSection({ projectId, projectData, responses =
   const [qAnswers, setQAnswers] = useState({
     buyHold:          responses.buyHold          || '',
     switchesDimmers:  responses.switchesDimmers  || '',
-    contingency:      responses.contingency      || '',
+    // A stored % wins; an odd one typed on the Summary (7.5) shows no pick.
+    contingency:      projectData?.contingencyPct != null ? contingencyChoice(projectData.contingencyPct) : (responses.contingency || ''),
     salesTax:         responses.salesTax         || '',
   });
   const [qDirty, setQDirty] = useState(() => new Set());
@@ -154,6 +176,12 @@ export default function ProjectDataSection({ projectId, projectData, responses =
     .map(field => [field.key, figures.alertFor(field.key, form[field.key], figureCtx)])
     .filter(([, a]) => a));
 
+  const workedLandings = landingsFrom(form.numStairwells, form.numFloors);
+  useEffect(() => {
+    if (workedLandings == null) return;
+    setForm(f => (String(f.numEgressStairwells) === String(workedLandings) ? f : { ...f, numEgressStairwells: String(workedLandings) }));
+  }, [workedLandings]);
+
   function update(key) {
     return e => {
       figures.forget(key);
@@ -177,6 +205,11 @@ export default function ProjectDataSection({ projectId, projectData, responses =
         payload[key] = isNaN(pct) ? '' : (pct / 100).toString();
       }
     }
+    // The picker also writes the one stored contingency % the engine and the
+    // Summary widget read (ProjectData.contingencyPct).
+    // Only when the pick differs from what is stored, so an odd % set on the
+    // Summary is never overwritten by a save that did not touch it.
+    if (qAnswers.contingency in CONTINGENCY_PCT && CONTINGENCY_PCT[qAnswers.contingency] !== (projectData?.contingencyPct == null ? null : Number(projectData.contingencyPct))) payload.contingencyPct = CONTINGENCY_PCT[qAnswers.contingency];
     if (Object.keys(payload).length > 0) {
       await onSaveData(payload);
     }
@@ -224,6 +257,7 @@ export default function ProjectDataSection({ projectId, projectData, responses =
                   suffix={field.suffix}
                   value={form[field.key]}
                   onChange={update(field.key)}
+                  disabled={field.key === 'numEgressStairwells' && workedLandings != null}
                   min={0}
                 />
                 <FigureAlertNote alert={alerts[field.key]} saved={!dirty.has(field.key)} onRight={() => figures.markRight(field.key)} />

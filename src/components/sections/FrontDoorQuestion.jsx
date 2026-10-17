@@ -13,7 +13,7 @@ import { PRICING } from '@/lib/pricing';
 export default function FrontDoorQuestion({ projectData, allSections, pricing, onSaveCorridors }) {
   const P = pricing || PRICING;
   const corridors = allSections?.corridors || {};
-  const [sconce, setSconce] = useState(corridors.unitSconce || 'none');
+  const [sconce, setSconce] = useState(corridors.unitSconce || 'low') // public tool default (Mike 10-17);
   const [price, setPrice] = useState(corridors.unitSconcePrice ?? '');
   const timer = useRef(null);
   const numUnits = Number(projectData?.numUnits) || 0;

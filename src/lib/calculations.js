@@ -673,8 +673,14 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // Selection values: 'none' / undefined → 0, '5pct' → 0.05, '10pct' → 0.10.
   // Applied to lightingProductSubtotal per the UI note "5 to 10% of lighting
   // subtotal." Does NOT trigger additional freight/warehousing.
-  const contingencyRate =
-        projectDataR.contingency === '5pct'  ? 0.05
+  // ONE setting (Mike 10-17, the Summary widget used to save a % the engine
+  // never read): ProjectData.contingencyPct, a percent (5 = 5%), written by
+  // both the wizard picker and the Summary widget. Older projects that only
+  // have the wizard's '5pct' / '10pct' answer still read through.
+  const storedContingency = pd.contingencyPct == null || pd.contingencyPct === '' ? NaN : Number(pd.contingencyPct);
+  const contingencyRate = Number.isFinite(storedContingency) && storedContingency >= 0
+      ? storedContingency / 100
+      : projectDataR.contingency === '5pct'  ? 0.05
       : projectDataR.contingency === '10pct' ? 0.10
       : 0;
   const contingencyAmount    = lightingProductSubtotal * contingencyRate;

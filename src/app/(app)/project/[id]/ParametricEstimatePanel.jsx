@@ -269,7 +269,7 @@ export default function ParametricEstimatePanel({ projectId }) {
             <SummaryRow label={`Freight (${Math.round((freightRate || 0) * 100)}%)`} value={freight} />
             <SummaryRow label={`Warehousing (${Math.round((warehousingRate || 0) * 100)}%)`} value={warehousing} />
             {salesTaxPct > 0 && (
-              <SummaryRow label={`Sales tax (${(salesTaxPct * 100).toFixed(2)}%)`} value={tax} />
+              <SummaryRow label={`Estimated sales tax (${(salesTaxPct * 100).toFixed(2)}%)`} value={tax} />
             )}
             <div className="pt-2">
               <SummaryRow label="Budget total" value={grandTotal} bold />

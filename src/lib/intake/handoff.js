@@ -28,12 +28,12 @@ const INT_COLUMNS = [
   'numEgressStairwells', 'numSurfaceParking', 'numCarports', 'numGarages',
 ];
 /** Takeoff rows that have a ProjectData column but are not engine inputs. */
-const EXTRA_INT_ROWS = { bedrooms: 'numBedrooms', stories: 'numFloors', exitDoors: 'numExteriorDoors' };
+const EXTRA_INT_ROWS = { bedrooms: 'numBedrooms', stories: 'numFloors', exitDoors: 'numExteriorDoors', egressStairwells: 'numStairwells' };
 /** Homes site lengths (0114): read or typed only, never a guess. */
 const EXTRA_FLOAT_ROWS = { driveLengthFt: 'driveLengthFt', walkwayLengthFt: 'walkwayLengthFt' };
 
 /** Columns the wizard's Project Data step mirrors as questionnaire rows. */
-const NOT_MIRRORED = new Set(['numFloors']);
+const NOT_MIRRORED = new Set(['numFloors', 'numStairwells', 'salesTaxPct']);
 
 /** ProjectData column -> the takeoff row it came from (estimate.js projectData). */
 const COLUMN_ROW = {
@@ -43,7 +43,7 @@ const COLUMN_ROW = {
   bohSf: 'bohSf', numEgressStairwells: 'stairLandings', numBuildings: 'buildings',
   numSurfaceParking: 'surfaceParking', numCarports: 'carports', numGarages: 'garages',
   lotSf: 'lotSf', buildingFootprintSf: 'buildingFootprintSf',
-  numBedrooms: 'bedrooms', numFloors: 'stories', numExteriorDoors: 'exitDoors',
+  numBedrooms: 'bedrooms', numFloors: 'stories', numExteriorDoors: 'exitDoors', numStairwells: 'egressStairwells',
   driveLengthFt: 'driveLengthFt', walkwayLengthFt: 'walkwayLengthFt',
 };
 /**
@@ -103,6 +103,9 @@ export function planHandoff({ answers, drawings, pricing = null, adopted = null 
     source: bySource[SITE_FEATURE_ROW_KEYS[f.type]] === 'drawing' ? 'drawing' : 'typed',
     ...(byAssumed[SITE_FEATURE_ROW_KEYS[f.type]] ? { lengthAssumed: true } : {}),
   }));
+
+  // Typed sales tax (Mike 10-17) carries to the project as the engine's fraction.
+  if (finite(est.projectData.salesTaxPct) > 0) data.salesTaxPct = est.projectData.salesTaxPct;
 
   // The questionnaire answers, in the wizard's own (section, key, value) rows,
   // plus the Project Data figures the wizard mirrors under 'project-data'.

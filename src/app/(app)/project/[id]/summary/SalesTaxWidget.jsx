@@ -75,7 +75,7 @@ export default function SalesTaxWidget({ projectId, initialPct, taxAmount }) {
         </button>
       ) : !editing ? (
         <div className="text-sm text-slate-600">
-          Sales tax ({pctLabel(pct)}) +${Number(taxAmount || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+          Estimated sales tax ({pctLabel(pct)}) +${Number(taxAmount || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}
           <span className="text-xs text-slate-400">, included in the totals above</span>
           <button
             onClick={() => { setEditing(true); setDraft(String(Math.round(pct * 10000) / 100)); }}

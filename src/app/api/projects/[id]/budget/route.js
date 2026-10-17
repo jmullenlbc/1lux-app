@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { calculateBudget } from '@/lib/calculations';
+import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
 import { responsesToSections } from '@/lib/utils';
 import { captureQuietly } from '@/lib/calibration/capture';
 import { SITE_FEATURE_INCLUDE, engineProjectData } from '@/lib/siteFeatureRows';
@@ -23,7 +24,8 @@ export async function GET(request, { params }) {
   const sections = responsesToSections(project.responses);
   // Same engine inputs as the project pages: building type key + live site
   // feature rows. This route used to pass the bare ProjectData row.
-  const budget   = calculateBudget(engineProjectData(project), sections);
+  // On the project's frozen price sheet, like every other budget screen.
+  const budget   = calculateBudget(engineProjectData(project), sections, pricingForProject(project.pricingSnapshot, await loadPricing()));
   captureQuietly(project.id);
 
   return NextResponse.json({ budget });

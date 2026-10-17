@@ -21,7 +21,8 @@ export default function CorridorsSection({ responses, projectData, allSections, 
   const RECESSED_RATE_TABLE = P.designCorridors?.recessedSpacingRates || RECESSED_RATES;
   const existing = responses || {};
   const [ans, setAns] = useState({
-    unitSconce:        existing.unitSconce        || 'none',
+    // Same default as the public tool (Mike 10-17: "Public tool"): 1 sconce, Low finish.
+    unitSconce:        existing.unitSconce        || 'low',
     unitSconcePrice:   existing.unitSconcePrice   ?? '', // blank = use the master price sheet
     stairType:         existing.stairType         || '',  // blank = follow the building type, both modes
     breezewayStyle:    existing.breezewayStyle    || '',  // small / long off the drawings; blank = average
@@ -38,7 +39,9 @@ export default function CorridorsSection({ responses, projectData, allSections, 
     garageControls:    existing.garageControls     || undefined,
     manualAdder:       existing.manualAdder        ?? '',
   });
-  const [dirty, setDirty] = useState(() => new Set());
+  // An unanswered default only counts once saved, so the shown default is
+  // marked to save on Next; old answers are left as they were.
+  const [dirty, setDirty] = useState(() => new Set(existing.unitSconce ? [] : ['unitSconce']));
   const [saving, setSaving] = useState(false);
   useLiveAnswers(onLiveAnswers, "corridors", ans); // Mike 10-15: sidebar moves before Next
   // What each answer costs (+ estimated labor), recomputed live as answers

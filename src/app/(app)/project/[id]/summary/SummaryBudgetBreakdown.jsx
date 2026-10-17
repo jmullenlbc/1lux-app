@@ -34,7 +34,7 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
   const ecPctLabel  = Math.round((energyCreditLightingPct ?? energyCreditPct ?? 0) * 100);
   const ecCtrlLabel = Math.round((energyCreditControlsPct ?? energyCreditPct ?? 0) * 100);
   const contingencyPct = contingencyRate ? Math.round(contingencyRate * 100) : 0;
-  const taxLabel = `Sales Tax (${Math.round((salesTaxPct || 0) * 10000) / 100}%)`;
+  const taxLabel = `Estimated Sales Tax (${Math.round((salesTaxPct || 0) * 10000) / 100}%)`;
 
   const lineItems = [
     {

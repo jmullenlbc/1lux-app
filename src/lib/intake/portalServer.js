@@ -18,7 +18,7 @@ import { classifyIntakeEmail } from '@/lib/intake';
 import { unpackDraft, DRAFT_STEP_IDS } from '@/lib/intake/drafts';
 import { draftAnswers } from '@/lib/intake/unfinishedDrafts';
 import { publicIntakeEstimate, intakeEstimateGate } from '@/lib/intake/estimate';
-import { loadPricing } from '@/lib/pricingLoader';
+import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
 import { loadAdoptedGuesses } from '@/lib/calibration/figureNormsLoad';
 import { groupBudgets, portalStage } from '@/lib/intake/portalGroups';
 import { buildingTypeLabel } from '@/lib/utils';
@@ -123,6 +123,7 @@ export async function companyBudgets(viewerEmail) {
       copiedFrom: { select: { id: true, projectName: true, email: true } },
       saves: { orderBy: { savedAt: 'desc' }, take: 1, select: { email: true, savedAt: true, kind: true } },
       _count: { select: { saves: true, copies: true } },
+      submission: { select: { pricingSnapshot: true } },
     },
     orderBy: { createdAt: 'desc' },
   });
@@ -154,7 +155,8 @@ export async function companyBudgets(viewerEmail) {
       haveDrawings: r.haveDrawings,
       stage: portalStage(r, stepIndexOf),
       sentAt: r.submissionId ? when(r.updatedAt) : null,
-      estimate: estimateFor(r, pricing, adopted),
+      // A sent budget stays on the sheet it was sent with (Mike 10-17).
+      estimate: estimateFor(r, pricingForProject(r.submission?.pricingSnapshot, pricing), adopted),
       copiedFrom: r.copiedFrom ? { id: r.copiedFrom.id, projectName: r.copiedFrom.projectName, email: r.copiedFrom.email } : null,
       copies: r._count.copies,
       canOpen: !r.submissionId && !r.projectId,

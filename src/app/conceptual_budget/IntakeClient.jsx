@@ -12,6 +12,7 @@ import { readRememberedEmail, rememberEmail } from '@/lib/publicVisitor';
 import { INTAKE_QUESTIONS, noDrawingsReady, BOLLARD_PROJECT_TYPES, designChoices, isHomeProjectType, questionFor, optionLabelFor, EXTERIOR_AMENITY_KEY, exteriorAmenityOptions, exteriorAmenityFallback } from '@/lib/intake/questionnaire';
 import { controlsMathWords } from '@/lib/intake/controlsWords';
 import { formatCurrency } from '@/lib/format';
+import { nextTaxBox } from '@/lib/salesTaxEstimate';
 import { cn } from '@/lib/utils';
 import AlertMark from '@/components/ui/AlertMark';
 import { PublicBugLink } from '@/components/public/PublicBugButton';
@@ -503,6 +504,7 @@ export default function IntakeClient() {
     const init = {};
     for (const q of INTAKE_QUESTIONS) init[q.key] = q.default ?? '';
     init.hasPool = '';
+    init.salesTaxPct = ''; // percent typed beside the project type (Mike 10-17)
     return init;
   });
   // "Is there a clubhouse?" on the no-drawings form (Mike, 2026-09-12: "Can we
@@ -730,6 +732,14 @@ export default function IntakeClient() {
   // Drawings are the ticket in (Mike, 2026-09-04): no live number without
   // them. Typed figures only REFINE an estimate the drawings started, unless
   // the visitor said "no drawings" and filled in the minimum (Mike, 2026-09-11).
+  // Estimated sales tax follows the project state until the visitor types a
+  // rate (Mike 10-17), same as the New Project form inside the app.
+  const taxEstimateRef = useRef('');
+  useEffect(() => {
+    const next = nextTaxBox(answers.salesTaxPct, taxEstimateRef.current, projState);
+    if (next !== (answers.salesTaxPct ?? '')) { taxEstimateRef.current = next; setAnswers(a => ({ ...a, salesTaxPct: next })); }
+  }, [projState]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const estimateSeq = useRef(0);
   // Mike 10-9: on the no-drawings path the number starts as soon as a unit
   // count is in (the server fills the other blanks and marks it rough).
@@ -1593,7 +1603,8 @@ export default function IntakeClient() {
                         conditionally change other questions"). Town Houses and Single
                         Family turn on the walking-path bollard question on the Exterior page. */}
                     {haveDrawings !== null && (
-                      <div className="mb-6">
+                      <div className="mb-6 flex flex-col sm:flex-row sm:items-start gap-4">
+                      <div className="min-w-0 sm:flex-1 sm:max-w-xs">
                         <Field label="What type of project is this?" labelRight="Required"
                           hint="Sets stairs, wall packs, pathway lighting and the controls the code requires.">
                           <select
@@ -1608,6 +1619,21 @@ export default function IntakeClient() {
                         {guessedType && answers.projectType === guessedType && (
                           <p className="text-xs text-amber-600 mt-1.5">Pre-filled from your drawings, change it if we got it wrong.</p>
                         )}
+                      </div>
+                      {/* Estimated sales tax sits beside the project type (Mike 10-17),
+                          filled in from the project state; the visitor can change it. */}
+                      <div className="w-44 shrink-0">
+                        <Field label="Estimated sales tax"
+                          hint="From your project state. Type your rate, or 0 for none.">
+                          <div className="relative">
+                            <input type="text" inputMode="decimal" className={cn(inputCls, 'pr-7')} placeholder="8.25"
+                              aria-label="Estimated sales tax, percent"
+                              value={answers.salesTaxPct ?? ''}
+                              onChange={e => setAnswers(a => ({ ...a, salesTaxPct: e.target.value.replace(/[^\d.]/g, '').slice(0, 6) }))} />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 pointer-events-none">%</span>
+                          </div>
+                        </Field>
+                      </div>
                       </div>
                     )}
 
@@ -1899,6 +1925,7 @@ export default function IntakeClient() {
                             <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
                               <div><span className="text-slate-400">Lighting Only: </span><span className="font-semibold">{formatCurrency(budget.subtotalLightingOnly)}</span></div>
                               <div><span className="text-slate-400">Controls (w/ F&amp;W): </span><span className="font-semibold">{formatCurrency(budget.controlsTotal)}</span></div>
+                              {budget.salesTaxPct > 0 && <div><span className="text-slate-400">Estimated sales tax ({Math.round(budget.salesTaxPct * 10000) / 100}%): </span><span className="font-semibold">{formatCurrency((budget.lightingTaxAmount || 0) + (budget.controlsTaxAmount || 0))}</span></div>}
                               {budget.perSf  > 0 && <div><span className="text-slate-400">$/SF: </span><span className="font-semibold">${budget.perSf.toFixed(2)}</span></div>}
                               {budget.perUnit > 0 && <div><span className="text-slate-400">$/Unit: </span><span className="font-semibold">{formatCurrency(budget.perUnit)}</span></div>}
                             </div>
@@ -1909,7 +1936,7 @@ export default function IntakeClient() {
                           </div>
                         </div>
                         <p className="text-xs mt-2 text-slate-400">
-                          Conceptual budget. Does not include sales tax. {CONFIRM_NOTE}
+                          Conceptual budget. {budget.salesTaxPct > 0 ? 'Includes sales tax.' : 'Does not include sales tax.'} {CONFIRM_NOTE}
                         </p>
                       </div>
                     )}

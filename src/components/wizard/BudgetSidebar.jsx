@@ -199,7 +199,7 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
             <PlainRow label="Lighting Subtotal"   value={lightingProductSubtotal || 0} highlight />
             <PlainRow label={`Freight (${fPct}%)`}     value={freight     || 0} indent />
             <PlainRow label={`Warehousing (${wPct}%)`} value={warehousing || 0} indent />
-            {lightingTaxAmount > 0 && <PlainRow label={`Sales Tax (${tPct}%)`} value={lightingTaxAmount} indent />}
+            {lightingTaxAmount > 0 && <PlainRow label={`Estimated Sales Tax (${tPct}%)`} value={lightingTaxAmount} indent />}
             <PlainRow label="Lighting Total"      value={subtotalLightingOnly    || 0} highlight />
 
             <Divider />
@@ -218,7 +218,7 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
             )}
             <PlainRow label={`Freight (${fPct}%)`}     value={controlsFreight     || 0} indent />
             <PlainRow label={`Warehousing (${wPct}%)`} value={controlsWarehousing || 0} indent />
-            {controlsTaxAmount > 0 && <PlainRow label={`Sales Tax (${tPct}%)`} value={controlsTaxAmount} indent />}
+            {controlsTaxAmount > 0 && <PlainRow label={`Estimated Sales Tax (${tPct}%)`} value={controlsTaxAmount} indent />}
             <PlainRow label="Controls Total"      value={controlsTotal || 0} highlight />
 
             <Divider />

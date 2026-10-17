@@ -18,9 +18,16 @@ const VALID_PHASES        = ['sd', 'dd', 'cd', 'ifc', 'construction', 'closeout'
 const VALID_SERVICE_TYPES = SETTABLE_SERVICE_TYPE_KEYS;
 
 export async function createProject(db, userId, fields) {
-  const { name, buildingType, location, contactEmail, contactName, budgetType, clientId, city, state, zip, phase, serviceType, projectType } = fields;
+  const { name, buildingType, location, contactEmail, contactName, budgetType, clientId, city, state, zip, phase, serviceType, projectType, salesTaxPct } = fields;
+  // Sales tax arrives as a typed percent ("8.25") from the New Project form;
+  // stored as a fraction like everywhere else. Out of range or junk = unset.
+  const taxPct = Number(String(salesTaxPct ?? '').replace(/[%\s]/g, ''));
+  const salesTax = salesTaxPct != null && salesTaxPct !== '' && Number.isFinite(taxPct) && taxPct > 0 && taxPct <= 25
+    ? Math.round(taxPct * 1000) / 100000 : null;
 
-  const activePricing = await loadPricing();
+  // A sent web budget hands in the sheet it was priced on (0134); everything
+  // else freezes today's sheet.
+  const pricingSnapshot = fields.pricingSnapshot || JSON.stringify(await loadPricing());
 
   // Derive location string from city/state if provided
   const locationStr = city && state
@@ -65,10 +72,10 @@ export async function createProject(db, userId, fields) {
       currentStep:     'project-data',
       createdById:     userId,
       clientId:        clientId     || null,
-      pricingSnapshot: JSON.stringify(activePricing),
+      pricingSnapshot,
       // Every project starts at ILC's standard margin (Mike 2026-09-05:
       // "Margin should default at 23%"); editable per project on the dashboard.
-      projectData: { create: { marginPct: 0.23 } },
+      projectData: { create: { marginPct: 0.23, ...(salesTax != null && { salesTaxPct: salesTax }) } },
     },
     include: { projectData: true },
   });

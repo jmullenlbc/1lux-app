@@ -94,7 +94,7 @@ export function buildIntakePdfHtml({ projectName, location, buildingType, budget
   const contingencyPct = b.contingencyRate ? Math.round(b.contingencyRate * 100) : 0;
   const ecPctLabel     = Math.round((b.energyCreditLightingPct ?? b.energyCreditPct ?? 0) * 100);
   const ecCtrlLabel    = Math.round((b.energyCreditControlsPct ?? b.energyCreditPct ?? 0) * 100);
-  const taxLabel       = `Sales Tax (${Math.round((b.salesTaxPct || 0) * 10000) / 100}%)`;
+  const taxLabel       = `Estimated Sales Tax (${Math.round((b.salesTaxPct || 0) * 10000) / 100}%)`;
   const hasTax         = b.lightingTaxAmount > 0 || b.controlsTaxAmount > 0;
 
   // SummaryBudgetBreakdown's eight visible lines, in its order.

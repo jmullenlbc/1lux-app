@@ -319,8 +319,9 @@ export default async function SummaryPage({ params }) {
         />
         <ContingencyWidget
           projectId={project.id}
-          baseBudget={budget.totalWithControls}
-          initialPct={pd.contingencyPct ?? 0}
+          initialPct={Math.round((budget.contingencyRate || 0) * 10000) / 100}
+          amount={budget.contingencyAmount || 0}
+          total={budget.totalWithContingency || 0}
         />
       </div>
 

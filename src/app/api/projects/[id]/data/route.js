@@ -10,6 +10,7 @@ import {
 } from '@/lib/siteFeatureRows';
 import { parseLooseNumber, isUnreadableNumber, NUMBER_HELP } from '@/lib/numberInput';
 import { recordFigureSources } from '@/lib/figures/record';
+import { landingsPerStair } from '@/lib/stairLandings';
 
 
 // Map projectData fields → questionnaire (section, questionKey) for bidirectional sync
@@ -53,7 +54,7 @@ const QUESTIONNAIRE_SYNC = {
 // Counts panel and (later) the drawing parser, but deliberately NOT wizard
 // questions, so they are not in QUESTIONNAIRE_SYNC and never sync to the
 // questionnaire. Mike: these get "filled out in an automated way".
-const NON_QUESTIONNAIRE_FIELDS = ['numElevatorShafts', 'numFloors'];
+const NON_QUESTIONNAIRE_FIELDS = ['numElevatorShafts', 'numFloors', 'numStairwells'];
 
 const FIELD_LABELS = {
   grossSf: 'Total Gross SF', unitsSf: 'Units SF', numUnits: '# Units',
@@ -63,13 +64,13 @@ const FIELD_LABELS = {
   numFans: '# of Fans', numAccentDownlights: '# Accent Downlights',
   numSurfaceParking: '# Surface Parking',
   numCarports: '# Carports', numGarages: '# Detached/Attached Garages', numExteriorDoors: '# Exterior Doors',
-  numElevatorShafts: '# Elevator Shafts', numFloors: '# Floors',
+  numElevatorShafts: '# Elevator Shafts', numFloors: '# Floors', numStairwells: '# Egress Stairwells',
   corridorSf: 'Corridor SF', garageSf: 'Garage SF', interiorAmenitySf: 'Interior Amenity SF',
   exteriorAmenitySf: 'Exterior Amenity SF', bohSf: 'BOH SF', lotSf: 'Lot SF',
   buildingFootprintSf: 'Building Footprint SF',
   driveLengthFt: 'Private Drive Length (ft)', walkwayLengthFt: 'Walkway Length (ft)',
   clientInitialBudget: 'Initial Budget',
-  freightPct: 'Freight %', warehousingPct: 'Warehousing %', salesTaxPct: 'Sales Tax %',
+  freightPct: 'Freight %', warehousingPct: 'Warehousing %', salesTaxPct: 'Estimated Sales Tax %',
   marginPct: 'Margin %',
   bohManualAdder: 'BOH manual adder', garageManualAdder: 'Garage manual adder',
   exitSignsManualAdder: 'Exit Signs manual adder',
@@ -149,6 +150,16 @@ export async function PUT(request, { params }) {
 
   // Compute which fields actually changed for a useful description
   const existing = await prisma.projectData.findUnique({ where: { projectId: params.id } });
+
+  // Stairs, the public tool's way (Mike 10-17: "Do what the public tool does
+  // internally. It does the math."). The stair count is the one input; once
+  // it and the floor count are known, landings follow: stairs x (2 x floors
+  // - 1). Typed figures, so no 10% on top (Mike 10-2).
+  if ('numStairwells' in data || 'numFloors' in data) {
+    const stairs = data.numStairwells ?? existing?.numStairwells;
+    const floors = data.numFloors ?? existing?.numFloors;
+    if (stairs != null && floors > 0) data.numEgressStairwells = Math.round(stairs) * landingsPerStair(floors);
+  }
   const changedFields = Object.keys(data).filter(k => {
     const oldVal = existing?.[k] ?? null;
     const newVal = data[k] ?? null;

@@ -1,8 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
-export default function ContingencyWidget({ projectId, baseBudget, initialPct }) {
+// The amount and total come from the engine (5% of the lighting product
+// subtotal, same as the breakdown and the PDF); saving refreshes the page so
+// every number moves together (Mike 10-17: this used to change nothing).
+export default function ContingencyWidget({ projectId, initialPct, amount = 0, total = 0 }) {
+  const router = useRouter();
   const [pct, setPct] = useState(initialPct ?? 0);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(String(pct));
@@ -28,6 +33,7 @@ export default function ContingencyWidget({ projectId, baseBudget, initialPct })
       setPct(val);
       setDraft(String(val));
       setEditing(false);
+      router.refresh();
     } catch (e) {
       setError(e.message);
     } finally {
@@ -41,8 +47,8 @@ export default function ContingencyWidget({ projectId, baseBudget, initialPct })
     setError(null);
   }
 
-  const contingencyAmount = baseBudget * (pct / 100);
-  const totalWithContingency = baseBudget + contingencyAmount;
+  const contingencyAmount = amount;
+  const totalWithContingency = total;
 
   return (
     <div className="print:hidden">

@@ -457,6 +457,8 @@ export default function ProjectDashboard({
             select
             options={BUILDING_TYPES}
           />
+          {/* Sales tax sits beside Building Type (Mike 10-17). */}
+          <EditableStat label="Estimated Sales Tax %"  displayValue={fmtPct(pd.salesTaxPct)}    rawValue={pd.salesTaxPct != null ? (pd.salesTaxPct * 100).toFixed(2) : ''} onSave={val => d('salesTaxPct')(val != null && val !== '' ? parseFloat(val) / 100 : null)} />
           <EditableStat
             label="Address"
             displayValue={project.address}
@@ -491,7 +493,9 @@ export default function ProjectDashboard({
           <EditableStat label="# Bathrooms"         displayValue={fmtNum(pd.numBathrooms)}        rawValue={pd.numBathrooms}        onSave={d('numBathrooms')}  note={fig('numBathrooms')} />
           <EditableStat label="# Vanities"          displayValue={fmtNum(pd.numVanities)}         rawValue={pd.numVanities}         onSave={d('numVanities')}  note={fig('numVanities')} />
           <EditableStat label="# of Balconies"         displayValue={fmtNum(pd.numBalconies)}        rawValue={pd.numBalconies}        onSave={d('numBalconies')}  note={fig('numBalconies')} />
-          <EditableStat label="# Egress Stairwell Landings" displayValue={fmtNum(pd.numEgressStairwells)} rawValue={pd.numEgressStairwells} onSave={d('numEgressStairwells')}  note={fig('numEgressStairwells')} />
+          {/* Stairs in, landings worked out (Mike 10-17), same as the public tool. */}
+          <EditableStat label="# Egress Stairwells" displayValue={fmtNum(pd.numStairwells)} rawValue={pd.numStairwells} onSave={d('numStairwells')} />
+          <EditableStat label="# Stair Landings" displayValue={fmtNum(pd.numEgressStairwells)} rawValue={pd.numEgressStairwells} onSave={d('numEgressStairwells')}  note={fig('numEgressStairwells')} />
           <EditableStat label="# Ceiling Fans"      displayValue={fmtNum(pd.numFans)}             rawValue={pd.numFans}             onSave={d('numFans')}  note={fig('numFans')} />
           <EditableStat label="# Surface Parking"   displayValue={fmtNum(pd.numSurfaceParking)}   rawValue={pd.numSurfaceParking}   onSave={d('numSurfaceParking')}  note={fig('numSurfaceParking')} />
           <EditableStat label="# Carports"          displayValue={fmtNum(pd.numCarports)}         rawValue={pd.numCarports}         onSave={d('numCarports')}  note={fig('numCarports')} />
@@ -517,7 +521,6 @@ export default function ProjectDashboard({
           <EditableStat label="Initial Client Budget" displayValue={fmt(pd.clientInitialBudget)} rawValue={pd.clientInitialBudget} onSave={d('clientInitialBudget')} />
           <EditableStat label="Freight %"    displayValue={fmtPct(pd.freightPct)}     rawValue={pd.freightPct != null ? (pd.freightPct * 100).toFixed(2) : ''} onSave={val => d('freightPct')(val != null && val !== '' ? parseFloat(val) / 100 : null)} />
           <EditableStat label="Warehousing %" displayValue={fmtPct(pd.warehousingPct)} rawValue={pd.warehousingPct != null ? (pd.warehousingPct * 100).toFixed(2) : ''} onSave={val => d('warehousingPct')(val != null && val !== '' ? parseFloat(val) / 100 : null)} />
-          <EditableStat label="Sales Tax %"  displayValue={fmtPct(pd.salesTaxPct)}    rawValue={pd.salesTaxPct != null ? (pd.salesTaxPct * 100).toFixed(2) : ''} onSave={val => d('salesTaxPct')(val != null && val !== '' ? parseFloat(val) / 100 : null)} />
 
         </div>
       </div>

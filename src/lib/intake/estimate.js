@@ -14,7 +14,7 @@
  * @see src/app/api/intake/estimate/route.js, the live sidebar number
  * @see src/app/api/intake/pdf/route.js    : the PDF download
  */
-import { answersToEngine, NO_DRAWINGS_KEY, noDrawingsReady, INTAKE_QUESTIONS } from './questionnaire.js';
+import { answersToEngine, NO_DRAWINGS_KEY, noDrawingsReady, INTAKE_QUESTIONS, SALES_TAX_KEY, cleanSalesTaxPct } from './questionnaire.js';
 import { NO_DRAWING_GUESSES } from './noDrawingGuesses.js';
 import { computeQuantities, answersToMap } from './quantities.js';
 import { calculateBudget } from '../calculations.js';
@@ -175,7 +175,9 @@ export function computeIntakeEstimate({ answers, drawings, pricing = null, adopt
     // wizard feeds from the project's SiteFeature rows. Built from the
     // takeoff rows (drawing-read or typed); empty when none were found.
     siteFeatures:        siteFeaturesFromRows(q),
-    // Sales tax is unknown at intake; the reviewed budget adds it later.
+    // Sales tax typed beside the project type (Mike 10-17), percent -> the
+    // engine's fraction. Blank = no tax line.
+    salesTaxPct:         Number(cleanSalesTaxPct(answersToMap(answers)[SALES_TAX_KEY]) ?? 0) / 100,
   };
 
   const budget = calculateBudget(projectData, sections, pricing);

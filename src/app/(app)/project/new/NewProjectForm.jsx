@@ -7,6 +7,7 @@ import { Select } from '@/components/ui/Input';
 import Card, { CardHeader, CardBody } from '@/components/ui/Card';
 import { BUILDING_TYPES, PROJECT_PHASES, SERVICE_TYPES, LOCATION_TYPES, ORG_TYPE_OPTIONS, PROJECT_TYPES, clientTypeLabel, locationTypeLabel } from '@/lib/utils';
 import MultiSelect from '@/components/ui/MultiSelect';
+import { nextTaxBox } from '@/lib/salesTaxEstimate';
 
 const BUDGET_TYPES = [
   { value: 'conceptual',  label: 'Conceptual Budget' },
@@ -98,6 +99,7 @@ export default function NewProjectForm({ existingProjects = [], clients: initial
     clientId:     '',
     projectType:  '',
     buildingType: '',
+    salesTaxPct:  '',
     city:         '',
     state:        '',
     zip:          '',
@@ -116,6 +118,13 @@ export default function NewProjectForm({ existingProjects = [], clients: initial
   const [activeSuggest,  setActiveSuggest]  = useState(-1);
   const [sourceProject,  setSourceProject]  = useState(null);
   const nameRef    = useRef(null);
+  // Estimated sales tax follows the state until someone types a rate (Mike
+  // 10-17: the real rate is address level, so we estimate and they overwrite).
+  const taxEstimateRef = useRef('');
+  useEffect(() => {
+    const next = nextTaxBox(form.salesTaxPct, taxEstimateRef.current, form.state);
+    if (next !== form.salesTaxPct) { taxEstimateRef.current = next; setForm(f => ({ ...f, salesTaxPct: next })); }
+  }, [form.state]); // eslint-disable-line react-hooks/exhaustive-deps
   const suggestRef = useRef(null);
 
   function handleNameChange(e) {
@@ -185,6 +194,7 @@ export default function NewProjectForm({ existingProjects = [], clients: initial
           clientId:     form.clientId     || null,
           projectType:  form.projectType  || null,
           buildingType: form.buildingType || null,
+          salesTaxPct:  form.salesTaxPct    || null,
           city:         form.city.trim()  || null,
           state:        form.state.trim() || null,
           zip:          form.zip.trim()   || null,
@@ -329,11 +339,28 @@ export default function NewProjectForm({ existingProjects = [], clients: initial
               {PROJECT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </Select>
 
-            {/* Building Type */}
-            <Select label="Building Type" value={form.buildingType} onChange={set('buildingType')}>
-              <option value="">Select building type...</option>
-              {BUILDING_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </Select>
+            {/* Building Type, with the sales tax rate right beside it (Mike
+                10-17, same place as the public tool). Typed as a percent;
+                blank = before tax. */}
+            <div className="flex items-start gap-4">
+              <div className="flex-1 min-w-0">
+                <Select label="Building Type" value={form.buildingType} onChange={set('buildingType')}>
+                  <option value="">Select building type...</option>
+                  {BUILDING_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </Select>
+              </div>
+              <div className="w-36 shrink-0">
+                <Input
+                  label="Estimated Sales Tax"
+                  inputMode="decimal"
+                  placeholder="8.25"
+                  suffix="%"
+                  hint="Filled in from the state. Type the real rate, or 0 for none."
+                  value={form.salesTaxPct}
+                  onChange={e => setForm(f => ({ ...f, salesTaxPct: e.target.value.replace(/[^\d.]/g, '').slice(0, 6) }))}
+                />
+              </div>
+            </div>
 
             {/* Phase */}
             <Select label="Current Phase" value={form.phase} onChange={set('phase')}>

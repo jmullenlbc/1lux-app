@@ -5,6 +5,34 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Internal and public conceptual tools work the same, estimated sales tax, frozen web prices, wizard crash] - October 17, 2026 (DEPLOYED) - migration 0134
+
+Mike 10-17: "The internal and external conceptual budgeting tool should be the same." Then: tax "is literally at an address level", so estimate it and let them overwrite it.
+
+- **Wizard crash fixed.** Both internal wizards (conceptual and design) read the budget before it existed and crashed on open; live since f5bc924 (10-16). Files: `src/app/(app)/project/[id]/WizardClient.jsx`, `DesignWizardClient.jsx`.
+- **Estimated sales tax.** Both tools fill the tax box from the project state (state rate plus the state's average local rate, Tax Foundation's free table as of July 1, 2026) until someone types a rate; 0 means no tax. Every conceptual budget screen and PDF says "Estimated Sales Tax". Change orders and peer reviews keep "Sales Tax". New file `src/lib/salesTaxEstimate.js`; old projects keep the tax they had. Example: a Texas job fills 8.2; type 8.25 and it stays 8.25 even if the state changes.
+- **Stairs asked like the public tool (0134).** Project data asks # of stories and # of egress stairwells; landings are worked out as stairs x (2 x stories - 1) and the landings box locks. New column `ProjectData.numStairwells`. Files: `src/components/sections/ProjectDataSection.jsx`, `src/app/api/projects/[id]/data/route.js`, `src/components/ProjectDashboard.jsx`, `src/lib/intake/handoff.js`.
+- **Same defaults as the public tool.** Unit entry sconce defaults to 1 sconce, Low finish; exterior amenity defaults to $1/SF. The shown default now saves on Next. Old projects are unchanged. Files: `CorridorsSection.jsx`, `design/DesignCorridorsSection.jsx`, `FrontDoorQuestion.jsx`, `ExteriorSection.jsx`.
+- **A sent web budget keeps its prices (0134).** The price sheet is frozen on the request when the visitor presses send (`ConceptualSubmission.pricingSnapshot`); the project made from it, the company portal and "This is a new job" all use that sheet. Files: `src/app/api/intake/submit/route.js`, `src/lib/intake/conceptualProjects.js`, `src/lib/intake/portalServer.js`, `src/lib/projects/createProject.js`.
+- **Budget route uses the project's frozen prices.** `src/app/api/projects/[id]/budget/route.js` priced on the built-in sheet; it now uses `pricingForProject` like every other budget screen.
+- **Contingency, one setting.** The Summary page contingency box and the engine read the same stored percent; the box refreshes the totals after a save. Files: `src/lib/calculations.js`, `summary/page.jsx`, `ContingencyWidget.jsx`.
+- Migration `0134_stairwells_frozen_web_pricing` is additive (two nullable columns).
+- Checks: budget math 62 of 62; node tests 2,246 of 2,250 (the 4 misses are drawing reads refused for a low Anthropic credit balance).
+
+---
+
+## [Sales tax box beside the project type on the public tool] - October 17, 2026 (DEPLOYED)
+
+Mike 10-17: "I didn't see the sales tax anywhere. That needs to be right next to where you pick the building type."
+
+- **Sales tax rate box** sits right beside the project type picker on the public wizard's Drawings step. Optional, typed as a percent (8.25), blank means before tax, capped at 15%. File: `src/app/conceptual_budget/IntakeClient.jsx`.
+- **Tax reaches the number.** `src/lib/intake/estimate.js` passes it to the engine as a fraction; tax applies to lighting product and controls, not freight (same as the internal tool). The live sidebar, the Summary ("Sales Tax (8.25%)", "Includes sales tax.") and the PDF show it.
+- **Stored and carried.** Saved on drafts and submissions as an answer row (section "Project type"), cleaned by `cleanSalesTaxPct` in `src/lib/intake/questionnaire.js` and `drafts.js`; the hand-off copies it to the project's sales tax (`src/lib/intake/handoff.js`). No migration.
+- **Internal tool too (Mike: "Yes I did").** New Project form has a Sales Tax box beside Building Type, saved to the project as a fraction (`src/lib/projects/createProject.js`, 0 to 25%). The project dashboard's Sales Tax % moved from Budget & Rates to right after Building Type (`src/components/ProjectDashboard.jsx`).
+- Checks: budget math 62 of 62; node tests 2,246 of 2,250 (the 4 misses are drawing reads refused for a low Anthropic credit balance). Example: high rise, 200 units, 250,000 SF, 14 stories goes from $421,329 to $453,218 at 8.25%.
+
+---
+
 ## [Browser remembers the work email and the sign in, sign ins recorded] - October 17, 2026 (DEPLOYED 5776f24) - migration 0133
 
 Mike 10-17: "We need the browser to remember your email and that you signed in with it." Then: one year is right, and "we should record it for data."

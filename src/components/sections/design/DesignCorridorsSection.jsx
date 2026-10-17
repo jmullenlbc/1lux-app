@@ -35,7 +35,8 @@ export default function DesignCorridorsSection({
     stairwellDesign:   existing.stairwellDesign    || 'code',
     stairType:         existing.stairType          || undefined, // unset = follow the building type
     breezewayStyle:    existing.breezewayStyle     || undefined, // small / long off the drawings; unset = average
-    unitSconce:       existing.unitSconce         || 'none',
+    // Same default as the public tool (Mike 10-17: "Public tool"): 1 sconce, Low finish.
+    unitSconce:       existing.unitSconce         || 'low',
     unitSconcePrice:   existing.unitSconcePrice    ?? '', // blank = use the master price sheet
     // Manual accent qty entered right here; falls back to Project Data
     accentQty:         existing.accentQty ?? (projectData?.numAccentDownlights ?? ''),

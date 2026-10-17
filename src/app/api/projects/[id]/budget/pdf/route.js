@@ -42,7 +42,7 @@ export async function GET(request, { params }) {
   const warehousingPct = Math.round((budget.warehousingRate ?? 0.03) * 100);
   const contingencyPct = budget.contingencyRate ? Math.round(budget.contingencyRate * 100) : 0;
   const salesTaxPctLabel = Math.round((budget.salesTaxPct || 0) * 10000) / 100;
-  const taxLabel     = `Sales Tax (${salesTaxPctLabel}%)`;
+  const taxLabel     = `Estimated Sales Tax (${salesTaxPctLabel}%)`;
   const salesTaxNote = budget.salesTaxPct > 0
     ? `Includes ${salesTaxPctLabel}% sales tax on product.`
     : 'Does not include sales tax.';

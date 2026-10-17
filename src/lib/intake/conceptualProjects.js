@@ -15,7 +15,7 @@
  */
 import { createProject } from '@/lib/projects/createProject';
 import { BUILDING_TYPES } from '@/lib/utils';
-import { loadPricing } from '@/lib/pricingLoader';
+import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
 import { loadAdoptedGuesses } from '@/lib/calibration/figureNormsLoad';
 import { logActivity } from '@/lib/activity';
 import { captureQuietly } from '@/lib/calibration/capture';
@@ -45,10 +45,18 @@ export async function automaticOwner(db) {
   return owner ? { id: owner.id, name: 'Automatic (web budget)', email: null } : null;
 }
 
+/**
+ * The price sheet a sent web budget was priced on (frozen at submit, Mike
+ * 10-17), or today's sheet for one sent before 0134 or never sent.
+ */
+export async function webPricing(submission) {
+  return pricingForProject(submission?.pricingSnapshot, await loadPricing());
+}
+
 /** Works out the figures before the project exists. Never throws. */
-export async function planFromWeb({ answers, drawings }) {
+export async function planFromWeb({ answers, drawings, pricing = null }) {
   try {
-    return planHandoff({ answers, drawings, pricing: await loadPricing(), adopted: await loadAdoptedGuesses() });
+    return planHandoff({ answers, drawings, pricing: pricing || await loadPricing(), adopted: await loadAdoptedGuesses() });
   } catch (e) {
     console.error('[conceptualProjects] could not read the figures (non-fatal):', e?.message || e);
     return null;
@@ -120,10 +128,12 @@ export async function projectFromSubmission(db, submissionId, user) {
 
   // Everything the request already told us, worked out BEFORE the project
   // exists, so the project is created with the right building type.
-  const plan = await planFromWeb({ answers: submission.answers, drawings: drawingsFromSubmission(submission) });
+  const pricing = await webPricing(submission);
+  const plan = await planFromWeb({ answers: submission.answers, drawings: drawingsFromSubmission(submission), pricing });
   const project = await makeConceptualProject(db, {
     ownerId: user.id, plan,
     fields: {
+      pricingSnapshot: JSON.stringify(pricing),
       name:         submission.proposedName,
       buildingType: submission.buildingType,
       city:         submission.city,

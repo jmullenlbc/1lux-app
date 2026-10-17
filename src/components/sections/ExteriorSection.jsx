@@ -24,7 +24,8 @@ export default function ExteriorSection({ responses, projectData, allSections, p
   // 2% and door averaging are hardcoded in the engine, so kept hardcoded here to match.)
   const P = pricing || PRICING;
   const [answers, setAnswers] = useState({
-    amenityLevel:      responses.amenityLevel      || 'medium',
+    // Same default as the public tool ($1/SF, Mike 10-17: "Public tool").
+    amenityLevel:      responses.amenityLevel      || 'low',
     // 'beforeDusk' was the old "Other" answer (removed 2026-09-11); it priced the same
     // as Dusk to Dawn, so it shows as that.
     amenityHours:      !responses.amenityHours || responses.amenityHours === 'beforeDusk' ? 'duskToDawn' : responses.amenityHours,
@@ -54,7 +55,8 @@ export default function ExteriorSection({ responses, projectData, allSections, p
   // `landscapeBudget` was a manual override field removed from the UI
   // mid-2026; engine reference also removed. Manual landscape additions
   // now route through exteriorManualItems.manualExteriorAdder.
-  const [dirtyAnswers, setDirtyAnswers] = useState(() => new Set());
+  // The shown default saves on Next when there is no answer yet.
+  const [dirtyAnswers, setDirtyAnswers] = useState(() => new Set(responses.amenityLevel ? [] : ['amenityLevel']));
 
   // Manual adder items (pathway, parking entrances, catch-all). These ADD on top
   // of the frozen formula breakdown.

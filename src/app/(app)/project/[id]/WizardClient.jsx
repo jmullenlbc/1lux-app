@@ -55,8 +55,6 @@ export default function WizardClient({ project, projectData, initialSections, in
     if (res.ok) setProjectMeta(m => ({ ...m, ...fields }));
   }
 
-  // Staff-only per-area alerts (our past jobs + the original questionnaire).
-  const areas = useAreaAlerts(project.id, budget, { buildingType: project.buildingType, units: localPD?.numUnits });
 
   const homeType = isHomeBuildingKey(localPD?.buildingTypeKey || project.buildingType);
   const navSteps = stepsForHome(activeSteps, homeType);
@@ -68,6 +66,9 @@ export default function WizardClient({ project, projectData, initialSections, in
     const pd = live.__pd ? { ...localPD, ...live.__pd } : localPD;
     return calculateBudget(pd, mergeLiveSections(sections, live), pricing || null);
   }, [localPD, sections, live, pricing]);
+  // Staff-only per-area alerts (our past jobs + the original questionnaire).
+  // Must sit BELOW the budget: reading it earlier throws on open.
+  const areas = useAreaAlerts(project.id, budget, { buildingType: project.buildingType, units: localPD?.numUnits });
   const onLiveAnswers = useCallback((sec, a) => setLive(l => {
     if (l[sec] === a) return l;
     const next = { ...l };

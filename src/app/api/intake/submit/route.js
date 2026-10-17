@@ -15,6 +15,7 @@ import { hashToken } from '@/lib/intake/draftTokens';
 import { looseNumberOrNull } from '@/lib/numberInput';
 import { drawingsFromSubmission } from '@/lib/intake/handoff';
 import { intakeEstimateGate } from '@/lib/intake/estimate';
+import { loadPricing } from '@/lib/pricingLoader';
 import { automaticOwner, planFromWeb, makeConceptualProject, carryWebFigures, settleQuietly, linkPeopleQuietly } from '@/lib/intake/conceptualProjects';
 import { askOnce, tellSalesAboutReviews } from '@/lib/intake/webPeople';
 
@@ -116,8 +117,12 @@ export async function POST(req) {
     return NextResponse.json({ error: 'Add your drawings or the building data first, then submit again.' }, { status: 422 });
   }
 
+  // The sheet this budget is priced on, frozen the moment it is sent (Mike
+  // 10-17): later price changes never move a sent budget.
+  const pricing = await loadPricing();
   const submission = await prisma.conceptualSubmission.create({
     data: {
+      pricingSnapshot: JSON.stringify(pricing),
       submitterName:   String(contactName).slice(0, 200),
       submitterEmail:  emailCheck.domain ? contactEmail.toLowerCase().trim() : contactEmail,
       submitterDomain: emailCheck.domain,
@@ -253,10 +258,14 @@ export async function POST(req) {
         ? await prisma.project.findUnique({ where: { id: draftProjectId }, select: { id: true, name: true, budgetNumber: true } })
         : null;
       if (owner || existing) {
-        const plan = await planFromWeb({ answers: answerRows, drawings: drawingsFromSubmission(submission) });
+        const plan = await planFromWeb({ answers: answerRows, drawings: drawingsFromSubmission(submission), pricing });
+        // A project made from the unfinished budget took that day's sheet;
+        // sending it moves it onto the sheet frozen just now.
+        if (existing) await prisma.project.update({ where: { id: existing.id }, data: { pricingSnapshot: submission.pricingSnapshot } });
         const project = existing || await makeConceptualProject(prisma, {
           ownerId: owner.id, plan,
           fields: {
+            pricingSnapshot: submission.pricingSnapshot,
             name: submission.proposedName, buildingType: submission.buildingType,
             city: submission.city, state: submission.state, zip: submission.zip,
             contactName: submission.submitterName, contactEmail: submission.submitterEmail,

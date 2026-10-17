@@ -921,6 +921,10 @@ model ProjectData {
   numBathrooms        Int?
   numVanities         Int?
   numEgressStairwells Int?
+  // Exit stairs typed on the internal tool (0134, Mike 10-17: "Do what the
+  // public tool does internally. It does the math."). With numFloors set,
+  // numEgressStairwells (which HOLDS LANDINGS) = stairs x (2 x floors - 1).
+  numStairwells       Int?
   numFans             Int?
   numAccentDownlights Int?
 
@@ -3428,6 +3432,10 @@ model ConceptualSubmission {
   state            String? // two-letter code, e.g. TX
   zip              String? // 5 digits, or ZIP+4 stored as 12345-6789
   rawPayload       String? // JSON: full wizard answers from /start
+  // The master price sheet as it stood when the visitor pressed submit (0134,
+  // Mike 10-17: "frozen moment in time ... once submitted"). Same shape as
+  // Project.pricingSnapshot; read through pricingForProject().
+  pricingSnapshot  String?
   fileRefs         String   @default("[]") // JSON: uploaded drawing keys/refs
   duplicateMatchId String? // Project id if a likely duplicate was detected
   status           String   @default("PENDING") // PENDING | APPROVED | REJECTED

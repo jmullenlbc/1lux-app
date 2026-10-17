@@ -409,6 +409,21 @@ export { GARAGE_TYPE_KEYS, CARPORT_TYPE_KEYS } from '../coveredParkingTypes.js';
 export const NO_DRAWINGS_KEY = 'noDrawings';
 
 /**
+ * Sales tax rate, typed as a percent (8.25 means 8.25%) beside the project
+ * type (Mike 10-17: "right next to where you pick the building type").
+ * Optional: blank leaves tax off the number. Stored as its own answer row.
+ */
+export const SALES_TAX_KEY = 'salesTaxPct';
+export const SALES_TAX_MAX_PCT = 15;
+export function cleanSalesTaxPct(raw) {
+  if (typeof raw !== 'string' && typeof raw !== 'number') return null;
+  const s = String(raw).replace(/[%\s]/g, '');
+  if (!/^\d{1,2}(\.\d{1,3})?$|^\.\d{1,3}$/.test(s)) return null;
+  const n = Number(s);
+  return Number.isFinite(n) && n >= 0 && n <= SALES_TAX_MAX_PCT ? String(n) : null;
+}
+
+/**
  * "Is there a clubhouse?" on the no-drawings form (Mike, 2026-09-12: "Can we
  * somehow read if there is a clubhouse or not?"). A drawing read finds it on
  * the site plan; a typed-in budget asks. 'no' prices the interior amenity at
@@ -538,6 +553,10 @@ export function validateAnswers(input) {
     const n = typeof given[ck] === 'string' ? wholeFigure(given[ck]) : null;
     if (n == null) continue;
     rows.push({ section: 'Corrections', questionKey: ck, question: `Corrected ${key}`, answer: String(n) });
+  }
+  const tax = cleanSalesTaxPct(given[SALES_TAX_KEY]);
+  if (tax != null) {
+    rows.push({ section: 'Project type', questionKey: SALES_TAX_KEY, question: 'Estimated sales tax (%)', answer: tax });
   }
   if (given[NO_DRAWINGS_KEY] === 'yes') {
     rows.push({ section: 'Project figures', questionKey: NO_DRAWINGS_KEY, question: 'Submitted without drawings', answer: 'yes' });
